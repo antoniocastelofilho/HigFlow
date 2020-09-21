@@ -1,0 +1,1044 @@
+% !TEX root = documentacao.tex
+
+\chapter{Documentação científica}
+
+Este capítulo descreve os métodos utilizados para resolução numérica de
+equações diferenciais parciais (em especial as equações de Navier-Stokes) em
+uma malha hierárquica do tipo ``HiG-tree''. São descritos detalhes sobre este
+tipo de malha, bem como os métodos utilizados para discretização por diferenças
+finitas generalizadas e interpolações necessárias entre os diferentes níveis de
+refinamento. Finalmente são apresentados os mecanismos necessários para a
+resolução de uma equação de Poisson em um domínio genérico.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Malhas hierárquicas}
+
+O desenvolvimento dos métodos apresentados neste documento é baseado em uma
+malha cartesiana do tipo  hierárquica, contendo elementos de tamanhos
+diferentes. De agora em diante, tais malhas serão denotadas como \texttt{HiG}
+(do inglês, \textit{``Hierarchical Grid''}) e a estrutura de dados utilizada
+para representá-la será denominada \texttt{HiG-Tree}. Tal estrutura é baseada
+em subdivisões espaciais recursivas arbitrárias, e pode ser representada por um
+árvore $m-$tree. Um exemplo clássico deste tipo de malha são quadtree em 2D e
+octree em 3D.
+
+A malha \texttt{HiG} é baseada em uma matriz regular de elementos de mesmo
+tamanho, e, a partir destes, subdivisões arbitrárias podem ser definidas de
+forma recursiva, obtendo-se uma malha irregular (não-estruturada). Um exemplo
+desta malha e sua respectiva estrutura de árvore podem ser vistos na figura
+\ref{fig:exemplo_malha_1}. Apesar de o exemplo da figura
+\ref{fig:exemplo_malha_1} ser ilustrado em duas dimensões, esta representação é
+genérica o suficiente para ser utilizada em qualquer número de dimensões.
+
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.55]{figuras/exemplo_malha_1.pdf} \\
+	\vspace*{1cm}
+	\includegraphics[scale=0.55]{figuras/exemplo_arvore_1.pdf}
+	\caption{Exemplo de uma malha tipo HiG e sua representação na forma de árvore (HiG-Tree).}
+	\label{fig:exemplo_malha_1}
+\end{figure}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Diferenças finitas generalizadas}
+
+O método adotado para discretização de equações diferenciais é o método de
+dife\-ren\-ças finitas. Tal método é baseado na expansão em série de Taylor da
+função a ser aproximada e de suas derivadas, cuja omissão de termos de alta
+ordem desta série resulta em fórmulas adequadas para as aproximações.
+
+Um exemplo clássico é a discretização de uma equação de Poisson do tipo
+
+\[
+\nabla^2 u = f,
+\]
+
+com condições de contorno adequadas. Simplificando o domínio por um retângulo
+em um espaço de dimensão dois $\Omega=[a,b]\times [c,d]$, e utilizando uma
+malha cartesiana regular (do tipo grid) com espaçamentos $\delta x$ e $\delta y
+$, obtém-se a clássica fórmula do laplaciano de 5 pontos, dada por
+
+\[
+\frac{u_{i+1,j} - 2 u_{i,j} + u_{i-1,j}}{\delta x^2} + \frac{u_{i,j+1} - 2 u_{i,j} + u_{i,j-1}}{\delta y^2} + \mathcal{O}(\delta x^2 + \delta y^2)= f_{i,j},
+\]
+
+\noindent ou ainda, desprezando-se os termos de ordem 2,
+
+\[
+\frac{U_{i+1,j} - 2 U_{i,j} + U_{i-1,j}}{\delta x^2} + \frac{U_{i,j+1} - 2 U_{i,j} + U_{i,j-1}}{\delta y^2} = f_{i,j},
+\]
+
+\noindent onde $U_{i,j}$ representa uma aproximação para a função $u_{i,j}$, avaliada em
+$(x_i,y_j) = (a+i\delta x, b + j\delta y)$, e $f_{i,j} = f(x_i,y_j)$. Com esta
+fórmula, mais as condições de contorno, é possível montar um sistema da forma
+
+\[
+L\mathbf{u} = \mathbf{f},
+\]
+
+\noindent cuja a solução é o vetor de aproximações $\mathbf{u} = (U_{1,1},
+U_{1,2}, \dots)$ para a função $u$ original, avaliada nos vértices da malha
+cartesiana.
+
+Como visto na seção anterior, o objetivo é utilizar diferenças finitas em uma
+malha cartesiana irregular, então tal aproximação deve ser modificada, pois uma
+discretização por um laplaciano de 5 pontos resultaria o envolvimento de
+valores não conhecidos no interior da malha. Desta forma é preciso realizar um
+procedimento de interpolação que seja genérico o suficiente para englobar
+qualquer configuração de células (como no exemplo da figura
+\ref{fig:exemplo_malha_1}), e que seja preciso o suficiente para não deteriorar
+a ordem de convergência do método numérico.
+
+Uma clara desvantagem da utilização de malhas irregulares como as
+exemplificadas anteriormente é que uma numeração do tipo matricial $(i,j)$ não
+é mais possível, sendo necessária a definição de uma enumeração dos nós válidos
+da malha. Tal enumeração é fornecida pela estrutura \texttt{HiG-Tree}, contudo,
+diferentes formas de enumeração podem ser implementadas, com impacto direto na
+estrutura da matriz do sistema resultante, e consequentemente no desempenho dos
+métodos numéricos utilizados para resolvê-lo.
+
+\begin{figure}
+	\centering
+	\def\svgscale{0.55}
+	\import{figuras/}{exemplo_interp_1.pdf_tex}
+	\caption{Exemplo de um estêncil resultando em pontos a serem interpolados ($x_L$ e $x_B$).}
+	\label{fig:exemplo_interp_1}
+\end{figure}
+
+Considere o caso ilustrado na figura \ref{fig:exemplo_interp_1}, onde um
+estêncil de cinco pontos é utilizado para discretizar as derivadas no ponto
+$x_C$. É fácil notar que, devido a configuração irregular da malha, não existe
+nó da malha que armazene um valor de $u$ para os pontos $x_L$ e $x_B$, ou seja,
+não existem incógnitas $U_L$ e $U_B$ para o sistema linear. Neste exemplo, é
+necessário obter então uma interpolação dos nós vizinhos, pertencentes à malha,
+mais próximos às incógnitas não existentes. Digamos que uma interpolação
+adequada resulte na seguinte expressão para $U_L$
+
+\[
+U_L \approx w_1 U_{j_1} + w_2 U_{j_2} + \dots + w_n U_{j_n},
+\]
+
+sendo $U_{j_1}, U_{j_2}, \dots , U_{j_n}$ valores conhecidos na malha.
+Escrevendo a fórmula usual do laplaciano de 5 pontos para o ponto $x_C$,
+obtém-se uma equação para $U_C$, a saber,
+
+\[
+\frac{U_{L} - 2 U_{C} + U_{R}}{\delta x^2} + \frac{U_{T} - 2 U_{C} + U_{B}}{\delta y^2} = f_{C},
+\]
+
+\noindent que pode ainda ser reescrita como
+
+\[
+a_L U_{L} + a_R U_{R} + a_T U_{T} + a_B U_{B} + a_C U_{C}  = f_{C},
+\]
+
+\noindent onde
+
+\[
+a_L = \frac{1}{\delta x^2}, \quad a_R = \frac{1}{\delta x^2}, \quad a_T = \frac{1}{\delta y^2}, \quad a_B = \frac{1}{\delta y^2}, \quad a_C = -\frac{2}{\delta x^2} - \frac{2}{\delta y^2}.
+\]
+
+Substituindo o valor interpolado de $U_L$ na equação, obtém-se
+
+\[
+a_L \left( w_1 U_{j_1} + w_2 U_{j_2} + \dots + w_n U_{j_n} \right) + a_R U_{R} + a_T U_{T} + a_B U_{B} + a_C U_{C}  = f_{C},
+\]
+
+\noindent gerando-se novos coeficientes e uma equação. Note que o mesmo deve
+ser feito para $U_B$, para que a equação envolva finalmente somente valores
+conhecidos da malha. Note que este processo pode ser repetido arbitrariamente
+para qualquer valor que ainda não esteja definido na malha, e que incógnitas
+repetidas podem ser agrupadas em um único coeficiente multiplicativo. Desta
+forma, obtém-se uma expressão que é uma combinação linear formada somente por
+incógnitas verdadeiras, para valores definidos na malha, que define a equação
+para a incógnita $U_C$ no sistema linear.
+
+A próxima seção explica como obter uma interpolação que seja suficientemente
+genérica e precisa, e como obter os pesos $w_{j_1}, w_{j_2}, \dots , w_{j_n}$
+necessários.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Interpolações}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Aproximação polinomial}
+
+Um dos objetivo do método descrito aqui é obter uma aproximação para o valor de
+uma propriedade em um dado ponto $(x, y, z)$ em função dos valores da
+propriedade em $m$ outros pontos $(x_1, y_1, z_1),..., (x_{m}, y_{m}, z_{m})$.
+Os valores nos $m$ pontos não são conhecidos a priori.  Denotamos o valor em um
+ponto $(x, y, z)$ por $P(x, y, z)$ um polinômio de grau no máximo $r$,
+
+$$
+P(x,y,z) = \alpha_{i_1,j_1,k_1}  x^{i_1} y^{j_1} z^{k_1} + \cdots +  \alpha_{i_n,j_n,k_n}  x^{i_n} y^{j_n} z^{k_n}=  c^t \alpha,
+$$
+
+\noindent onde $0 \leq i_s + j_s + k_s \leq r$, para $s = 1,\ldots,n$. Observe
+que poderia ser uma combinação de funções não polinomiais.
+
+Assim, o método deve obter os coeficientes $w_i$, para $1 \le i \le m$, de
+forma que
+
+$$
+ P(x, y, z) = \sum_{i=1}^m w_i \; P(x_i, y_i, z_i) = w^t b.
+$$
+
+\noindent Assim,
+
+$$
+b = \left(
+\begin{array}{c}
+P(x_1,y_1,z_1) \\
+\vdots \\
+P(x_m,y_m,z_m) \\
+\end{array}
+\right) =
+\left(
+\begin{array}{ccc}
+x_{1}^{i_1} y_{1}^{j_1} z_{1}^{k_1} & \cdots & x_{1}^{i_n} y_{1}^{j_n} z_{1}^{k_n} \\
+\vdots &     & \vdots \\
+x_{m}^{i_1} y_{m}^{j_1} z_{m}^{k_1} & \cdots & x_{m}^{i_n} y_{m}^{j_n} z_{m}^{k_n} \\
+\end{array}
+\right) \left(
+\begin{array}{c}
+\alpha_1 \\
+\vdots \\
+\alpha_n \\
+\end{array}
+\right) =
+$$
+$$
+= \left(
+\begin{array}{c}
+a_1^t \\
+\vdots \\
+a_m^t \\
+\end{array}
+\right) \left(
+\begin{array}{c}
+\alpha_1 \\
+\vdots \\
+\alpha_n \\
+\end{array}
+\right) =
+A \; \alpha
+$$
+
+\noindent Logo,
+
+$$
+w^t \; b = w^t \; A \; \alpha = c^t \; \alpha \;
+$$
+
+\noindent e uma solução é dada por $w^t \; A = c^t$, ou
+
+$$
+A^t \; w = c.
+$$
+
+\noindent Se $m \geq n$ e $A$ tem posto máximo $n$, $w$ pode ser obtido pelo
+método dos mínimos quadrados.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Aproximação pelo Método dos Mínimos Quadrados}
+
+Fazendo a decomposição QR de $A$, temos:
+
+\begin{eqnarray*}
+A_{m \times n} &=& \left(
+\begin{array}{l}
+{A_1}_{n \times n} \\
+{A_2}_{m-n \times n} \\
+\end{array} \right) =
+Q_{m \times m} R^{*}_{m \times n} \\
+&=&
+Q_{m \times m} \left(
+\begin{array}{l}
+R_{n \times n}\\
+0_{m-n \times n} \\
+\end{array}
+\right)
+= \left(
+\begin{array}{ll}
+Q_{11} & Q_{12} \\
+Q_{21} & Q_{22} \\
+\end{array}
+\right)
+\left(
+\begin{array}{c}
+R\\
+0 \\
+\end{array}
+\right)
+\end{eqnarray*}
+
+Assim,
+
+$$
+w = A^{+} c^t = A \left( A^t A \right)^{-1} c^t = Q R^{*} \left( {R^{*}}^t Q^t Q R^{*} \right)^{-1} c^t = Q R^{*} \left( R^t R \right)^{-1} c^t =
+$$
+$$
+= Q R^{*} R^{-1} {(R^t)}^{-1} c^t = Q \left(
+\begin{array}{l}
+R \\
+0 \\
+\end{array}
+\right)
+ R^{-1} {(R^t)}^{-1} c^t =
+ Q \left(
+\begin{array}{l}
+ {(R^t)}^{-1}  \\
+0 \\
+\end{array}
+\right) c^t
+$$
+
+\noindent Fazendo $u = Q^t \; w$ e $u = \left( \begin{array}{c} u_1 \\ u_2 \\
+\end{array} \right)$, temos:
+
+$$
+u = Q^t w =
+\left(
+\begin{array}{l}
+ {(R^t)}^{-1}  \\
+0 \\
+\end{array}
+\right) c^t
+$$
+$$
+u = \left( \begin{array}{c} u_1 \\ u_2 \\ \end{array} \right) = \left(
+\begin{array}{l}
+ {(R^t)}^{-1}  \\
+0 \\
+\end{array}
+\right)
+c^t
+$$
+$$
+\left\{ \begin{array}{lll}
+u_1 & = & (R^t)^{-1} c^t \\
+u_2 & = & 0 \\
+\end{array}
+\right.
+$$
+
+\noindent Daí, resolvendo o sistema triangular inferior $R^t u_1 = c^t$, temos
+$w = Q u$, com $u_2 = 0$.
+
+Resumindo, são dados $A$ e $c^t$ e queremos $w$, então são feitos
+três passos:
+
+\begin{enumerate}
+\item Fazer a decomposição QR de $A$, isto é, $A = Q \; R^*$;
+\item Resolver o sistema triangular inferior $R^t u_1 = c^t$;
+\item Fazer $w = Q u$ com $u_2 = 0$.
+\end{enumerate}
+
+Observe que para o caso de $m=n$, a aproximação polinomial $P$ será o polinômio
+interpolador.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Cálculo dos coeficientes}
+
+Seja
+
+$$
+C = \left(
+\begin{array}{ll}
+A_1 & B_1\\
+A_2 & B_2 \\
+\end{array} \right) =
+\left(
+\begin{array}{ll}
+Q_{11} & Q_{12} \\
+Q_{21} & Q_{22} \\
+\end{array}
+\right)
+\left(
+\begin{array}{cc}
+R & 0 \\
+0 & I \\
+\end{array}
+\right) =
+\left(
+\begin{array}{ll}
+Q_{11}  R & Q_{12} \\
+Q_{21} R & Q_{22} \\
+\end{array}
+\right).
+$$
+
+\noindent Desde que,
+
+$$
+I_m = Q^t Q = \left(
+\begin{array}{ll}
+Q^t_{11} & Q^t_{21} \\
+Q^t_{12} & Q^t_{22} \\
+\end{array}
+\right)
+ \left(
+\begin{array}{ll}
+Q_{11} & Q_{12} \\
+Q_{21} & Q_{22} \\
+\end{array}
+\right) =
+$$
+$$
+ = \left(
+\begin{array}{ll}
+Q^t_{11} Q_{11} + Q^t_{21} Q_{21} & Q^t_{11} Q_{12} + Q^t_{21} Q_{22} \\
+Q^t_{12} Q_{11} + Q^t_{12} Q_{22} & Q^t_{12} Q_{12} + Q^t_{22} Q_{22} \\
+\end{array}
+\right) = \left(
+\begin{array}{ll}
+I_n & 0 \\
+0 & I_{m-n} \\
+\end{array}
+\right),
+$$
+
+\noindent Temos que,
+
+$$
+A^t B = \left(
+\begin{array}{ll}
+A^t_1 & A^t_2 \\
+\end{array} \right)
+\left(
+\begin{array}{l}
+ B_1\\
+ B_2 \\
+\end{array} \right) =
+A^t_1 B_1 + A^t_2 B_2 = R \left( Q^t_{11} Q_{12} + Q^t_{21} Q_{22} \right) = 0,
+$$
+$$
+B^t B = \left(
+\begin{array}{ll}
+B^t_1 & B^t_2 \\
+\end{array} \right)
+\left(
+\begin{array}{l}
+ B_1\\
+ B_2 \\
+\end{array} \right) =
+B^t_1 B_1 + B^t_2 B_2 = Q^t_{12} Q_{12} + Q^t_{22} Q_{22}  = I_{m-n},
+$$
+
+\noindent e
+
+$$
+C^t C = \left(
+\begin{array}{ll}
+A^t_1 & A^t_2 \\
+B^t_1 & B^t_2 \\
+\end{array} \right)
+\left(
+\begin{array}{ll}
+ A_1 & B_1\\
+ A_2 & B_2 \\
+\end{array} \right) =
+\left(
+\begin{array}{cc}
+ R^t R & 0\\
+ 0 & I \\
+\end{array} \right).
+$$
+
+\noindent Logo $Det(C) = \pm Det(R) = R_{1,1} \cdots R_{n,n}$, e se $A$ tem
+posto máximo $R_{i,i} \neq 0$ e
+
+$$
+C^t \; w = \left(
+\begin{array}{ll}
+A^t_1 & A^t_2 \\
+B^t_1 & B^t_2 \\
+\end{array} \right)
+w =
+\left(
+\begin{array}{l}
+c \\
+0 \\
+\end{array} \right),
+$$
+
+\noindent tem solução única.
+
+Se $m = n$, $C^t = A^t_1 = \left( a_1 \cdots a_n \right)$. Logo se $x = x_i (i
+= 1,\ldots,n)$ tem-se $c = a_i$ e $C^t  w = d$, segue que $A_1 w = c$ que
+implica que
+
+$$
+\left( a_1 \cdots a_i \cdots a_n \right) w = a_i,
+$$
+
+\noindent tem solução $w_k = 1$ se $i = k$ e $w_k = 0$ se $i \neq k$.
+
+Se $m > n$ e $x = x_i (i = 1,\ldots,n)$,
+
+$$
+C^t \; w = \left(
+\begin{array}{ll}
+A^t_1 & A^t_2 \\
+B^t_1 & B^t_2 \\
+\end{array} \right)
+w =
+\left(
+\begin{array}{ccccc}
+a_1 & \cdots & a_i & \cdots & a_m \\
+b_1 & \cdots & b_i & \cdots & b_m \\
+\end{array} \right)
+w =
+\left(
+\begin{array}{l}
+c \\
+0 \\
+\end{array} \right)
+=
+\left(
+\begin{array}{l}
+a_i \\
+0 \\
+\end{array} \right).
+$$
+
+\noindent Como
+
+$$
+C^t = \left(
+\begin{array}{ll}
+A^t_1 & A^t_2\\
+B^t_1 & B^t_2 \\
+\end{array} \right) =
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & I \\
+\end{array}
+\right)
+\left(
+\begin{array}{ll}
+Q^t_{11} & Q^t_{21} \\
+Q^t_{12} & Q^t_{22} \\
+\end{array}
+\right) =
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & I \\
+\end{array}
+\right)
+Q^t,
+$$
+$$
+\left(
+\begin{array}{cc}
+A^t_1 & A^t_2\\
+0 & 0 \\
+\end{array} \right) =
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & 0\\
+\end{array}
+\right)
+\left(
+\begin{array}{ll}
+Q^t_{11} & Q^t_{21} \\
+Q^t_{12} & Q^t_{22} \\
+\end{array}
+\right) =
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & 0\\
+\end{array}
+\right)
+Q^t,
+$$
+
+\noindent que implica que
+
+$$
+\left(
+\begin{array}{c}
+a_i\\
+0 \\
+\end{array} \right) =
+\left(
+\begin{array}{cc}
+A^t_1 & A^t_2\\
+0 & 0 \\
+\end{array} \right)  e_i =
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & 0\\
+\end{array}
+\right)
+Q^t \; e_i.
+$$
+
+\noindent Logo,
+
+$$
+C^t w = d
+$$
+$$
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & I \\
+\end{array}
+\right)
+Q^t \; w =
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & 0\\
+\end{array}
+\right)
+Q^t \; e_i.
+$$
+$$
+w = Q \; \left(
+\begin{array}{cc}
+R^{-t} & 0 \\
+0 & I \\
+\end{array}
+\right)
+\left(
+\begin{array}{cc}
+R^t & 0 \\
+0 & 0\\
+\end{array}
+\right)
+Q^t \; e_i.
+$$
+$$
+w = Q \; \left(
+\begin{array}{cc}
+I & 0 \\
+0 & 0 \\
+\end{array}
+\right)
+Q^t \; e_i.
+$$
+
+%%\subsection{Diferenças Finitas Generalizadas}
+%%
+%%Considere a equação
+%%$$
+%%f^{\prime \prime} (x) = g(x)
+%%$$
+%%em um intervalo $[a,b]$ com $f(a) = \alpha$ e $f(b) = \beta$.
+%%
+%%Se subdividirmos o intervalo $[a,b]$ em intervalos igualmente espaçados $x_i = x_0 + i h$, $x_0 = a$ e $x_n = b$, uma discretização
+%%para a equação acima utilizando diferenças finitas é dada por:
+%%$$
+%%\frac{f_{i-1} - 2 f_i + f_{i+1}}{h^2} = g_i
+%%$$
+%%este método é um método com erro local de truncamento da ordem de $h^2$, isto é,
+%%$$
+%%\frac{f_{i-1} - 2 f_i + f_{i+1}}{h^2} - g_i  = f^{\prime \prime}(x_i) - g(x_i) + O(h^2)
+%%$$
+%%
+%%Caso o espaçamento dos pontos não seja uniforme, podemos o método dos mínimos quadrados para aproximar $f^*_{i-1} \sim f(x_i-h)$ e
+%%$f^*_{i+1} \sim f(x_i+h)$, isto é,
+%%$$
+%%f^*_{i-1} = \sum_{x_j \in V(x_{i}-h)} w_j f_j
+%%$$
+%%$$
+%%f^*_{i+1} = \sum_{x_k \in V(x_{i}+h)} w_k f_k
+%%$$
+%%
+%%Se tomarmos os pontos na vizinhança em número suficiente, temos que $f^*_{i-1} = f(x_i-h) + O(h^4)$ e $f^*_{i+1} = f(x_i+h) + O(h^4)$.
+%%
+%%Assim temos que:
+%%$$
+%%\frac{f^*_{i-1} - 2 f_i + f^*_{i+1}}{h^2} - g_i  = \frac{f(x_i-h) + O(h^4) - 2 f(x_i) + f(x_i+h) + O(h^4)}{h^2} - g_i =
+%%$$
+%%$$
+%%= \frac{f(x_i-h) - 2 f(x_i) + f(x_i+h)}{h^2} - g(x_i) + O(h^2) = f^{\prime \prime}(x_i) - g(x_i) + O(h^2)
+%%$$
+%%
+%%Desta forma o método fica:
+%%$$
+%%f^*_{i-1} - 2 f_i + f^*_{i+1} = h^2 g_i
+%%$$
+%%$$
+%%\left( \sum_{x_j \in V(x_{i}-h)} w_j f_j \right) - 2 f_i + \left( \sum_{x_k \in V(x_{i}+h)} w_k f_k \right) = h^2 g_i
+%%$$
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Interpolações por MMQ com peso}
+
+Complementar com MMQ com peso.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Propriedades variáveis}
+
+O que muda para $\rho$ variável.
+
+%%%%%%%%%%%%%%% LEANDRO  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Distribuição de variáveis}
+
+Com o objetivo de evitar o aparecimento de oscilações não físicas nas
+simulações numéricas, foram desenvolvidas técnicas de distribuição de variáveis
+de forma deslocada, ou seja, pode-se atribuir variáveis no centro da célula, ou
+nas facetas da mesma. O esquema mais adotado pelos pesquisadores da área de
+simulação de escoamento de fluidos, quando se adota formulação com variáveis
+primitivas, em escoamentos incompressíveis, é a distribuição da pressão nos
+centros das células, e das velocidades nas facetas da mesma, conforme pode ser
+visto na figura \ref{malha_deslocada}.
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/malha_deslocada.pdf}
+	\caption{Malha deslocada.}
+	\label{malha_deslocada}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Variáveis no centro da célula}
+
+A pressão, densidade, entalpia total, etc, são normalmente distribuídas nos
+centros das células. A figura \ref{pressao_centro} ilustra a distribuição da
+pressão em uma malha com 3 níveis de refinamento.
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/pressao_centro.pdf}
+	\caption{Distribuição da Pressão no centro das células.}
+	\label{pressao_centro}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Variáveis nas facetas da célula}
+
+As variáveis provenientes da decomposição da velocidade em vetores ($u_i$) são
+distribuídas nas facetas das células. A distribuição da componente da
+velocidade $u_1$ em uma malha com 3 níveis de refinamento é apresentada na
+figura \ref{vel_u1} e a componente da velocidade $u_2$ nesta mesma malha é
+apresentada na figura \ref{vel_u2}.
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/vel_u1_faceta.pdf}
+	\caption{Componente da velocidade $u_1$ nas facetas da células.}
+	\label{vel_u1}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/vel_u2_faceta.pdf}
+	\caption{Componente da velocidade $u_2$ nas facetas da células.}
+	\label{vel_u2}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Cálculo de derivadas espaciais}
+
+Com a utilização da malha deslocada, temos que o cálculo das derivadas
+espaciais de cada variável distribuída em uma localização diferente tem uma
+forma diferente de cálculo. Abaixo são apresentadas as variações possíveis
+numa simulação de escoamento.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Derivada primeira de $p$ na direção $x_i$} % dpdx ou dpdy
+
+Neste caso a variável é definida no centro da célula e pretende-se calcular a
+derivada espacial na direção $x_i$, na faceta da célula. A figura \ref{dpdx1}
+ilustra as possibilidades de cálculo da derivada na posição marcada com um $x$
+de uma variável distribuída no centro da célula na direção $x_1$. A forma
+equivalente para o cálculo da derivada na direção $x_2$, é apresentada na
+figura \ref{dpdx2}.
+
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/dpdx1.pdf}
+	\caption{Derivada de $p$ na direção $x_1$.}
+	\label{dpdx1}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/dpdx2.pdf}
+	\caption{Derivada de $p$ na direção $x_2$.}
+	\label{dpdx2}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Derivada primeira de $u_i$ na direção $x_i$} % dudx ou dvdy
+
+Nas equações de Navier-Stokes faz-se necessário o cálculo das primeiras
+derivadas de variáveis distribuídas nas facetas das células. A figura
+\ref{du1dx1} ilustra o cálculo da derivada na posição marcada com um $x$ da
+componente $u_1$ na direção $x_1$. A malha adotada tem 3 níveis de refinamento
+para ilustrar as diversas possibilidades neste cálculo.  O cálculo da
+componente $u_2$ na direção $x_2$ e apresentado na figura \ref{du2dx2}.
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/du1dx1.pdf}
+	\caption{Derivada de $u_1$ na direção $x_1$.}
+	\label{du1dx1}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/du2dx2.pdf}
+	\caption{Derivada de $u_2$ na direção $x_2$.}
+	\label{du2dx2}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Derivada primeira de $u_i$ na direção $x_j$} % dudy ou dvdx
+
+A figura \ref{du1dx2} ilustra o cálculo da derivada na posição marcada com um
+$x$ da componente $u_1$ na direção $x_2$. O cálculo da componente $u_2$ na
+direção $x_1$ e apresentado na figura \ref{du2dx2}.
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/du1dx2.pdf}
+	\caption{Derivada de $u_1$ na direção $x_2$.}
+	\label{du1dx2}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/du2dx1.pdf}
+	\caption{Derivada de $u_2$ na direção $x_1$.}
+	\label{du2dx1}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Derivada segunda de $u_i$ na direção $x_i$} % d2udx2 ou d2vdy2
+
+O cálculo da segunda derivada de variáveis definidas nas facetas das células
+são apresentadas nas figuras \ref{d2u1dx12} a \ref{d2u2dx12}. A posição onde a
+derivada é calculada é marcada com um $x$. As diversas configurações dentro da
+malha com 3 níveis de refinamento são ilustradas.
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/d2u1dx12.pdf}
+	\caption{Derivada segunda de $u_1$ na direção $x_1$.}
+	\label{d2u1dx12}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/d2u2dx22.pdf}
+	\caption{Derivada segunda de $u_2$ na direção $x_2$.}
+	\label{d2u2dx22}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/d2u1dx22.pdf}
+	\caption{Derivada segunda de $u_1$ na direção $x_2$.}
+	\label{d2u1dx22}
+\end{figure}
+
+\begin{figure}
+	\includegraphics[scale=1.0]{figuras/d2u2dx12.pdf}
+	\caption{Derivada segunda de $u_2$ na direção $x_1$.}
+	\label{d2u2dx12}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\section{Resolução da equação de Poisson - parte 1}
+%
+%Dada uma variável $p(x,y)$ e um termo fonte $f(x,y)$ distribuídos no centro
+%das células, pretende-se resolver a equação de Poisson abaixo:
+%
+%\[
+%\nabla^2 p = \frac{\partial^2 p}{\partial x^2}+\frac{\partial^2 p}{\partial y^2} = f(x,y)
+%\]
+%
+%Esta equação pode ser resolvida em um domínio com condições de contorno do tipo
+%Dirichlet e Neumann, que podem ser definidos separadamente
+%em cada contorno.
+%
+%\begin{figure}
+%	\includegraphics[scale=1.0]{figuras/cond_contorno.pdf}
+%	\caption{Condição de contorno.}
+%	\label{cond_cont}
+%\end{figure}
+%
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\subsection{Condição de contorno do tipo Dirichlet}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\subsection{Condição de contorno do tipo Neumann}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\subsection{Condição de contorno do tipo Robin}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\subsection{Coeficientes da Matriz}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Resolução da equação de Poisson}
+
+Dada uma variável $p(x,y)$ distribuída no centro das células e um campo de
+velocidade dado por $u^*(x,y)$, distribuído nas facetas das células,
+pretende-se resolver a equação de Poisson abaixo:
+
+\[
+\nabla^2 p = \nabla \cdot u^*
+\]
+
+Para analisar a convergência do método propõe-se um Método de Solução
+Manufaturada (MMS - do inglês {\it Method of Manufactured Solution}) onde as
+componentes da velocidade são dadas por:
+
+\[
+u_1(x,y) = - sen(x) cos(y)
+\]
+
+\noindent e
+
+\[
+u_2(x,y) = - cos(x) sen(y)
+\]
+
+\noindent utilizando as componentes de velocidade acima descritas, em um
+domínio $0 \le x,y \le \pi$ teremos que a solução desta equação para a pressão
+$p$ é dada por:
+
+\[
+p(x,y) = cos(x) cos(y)
+\]
+
+\noindent a adoção desta solução garante que a condição de contorno do tipo
+Neumann é aplicada em todos os contornos do domínio. Para se obter uma solução
+única, é fixado o valor da pressão em um ponto do contorno. Desta forma a
+solução desta equação é bem próxima ao que desejamos para aplicação em
+Navier-Stokes.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Simulação de escoamento incompressível 2D}
+
+A dinâmica de um escoamento bidimensional incompressível de um único fluido sem
+transferência de calor, pode ser modelado pelas equações de Navier-Stokes e da
+continuidade dados abaixo:
+
+\begin{eqnarray}
+\frac{\partial u_i}{\partial t} + u_j \frac{\partial u_i}{\partial x_j} &=&
+-\frac{1}{\rho}\frac{\partial p}{\partial x_i} + \nu \frac{\partial^2 u_i}{\partial x_j^2}+s_i,\label{momento}\\
+\frac{\partial u_i}{\partial x_i} &=& 0\label{massa},
+\end{eqnarray}
+
+\noindent onde $\nu$ é viscosidade cinemática, $\rho$ é a densidade, $u_i$ o
+componente da velocidade, $p$ é pressão, $t$ é o tempo, $x_i$ as coordenadas
+espaciais e $s_i$ o termo fonte (gravidade, coriollis, etc.).
+
+Por razões didáticas, propõe-se inicialmente a utilização do método de Euler
+explícito para avançar a Eq. (\ref{momento}) no tempo. O sistema de EDPs Eqs.
+(\ref{momento}) e (\ref{massa}) é resolvido utilizando o método da projeção de
+Chorin \cite{chorin1968} descrita abaixo.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Método da projeção de Chorin}
+
+Com o objetivo de se obter um campo de velocidade que respeite a continuidade,
+e como não há uma equação para a pressão $p$, as equações de Navier-Stokes (Eq.
+(\ref{momento})) podem ser discretizada da seguinte forma \cite{chorin1968}:
+
+\[
+\frac{u_i^* - u_i^n}{\Delta t} = - u_j^n \frac{\partial u_i^n}{\partial x_j} + \nu \frac{\partial^2 u_i^n}{\partial x_j^2} + s_i,
+\]
+
+\noindent onde o valor de $u_i^*$ é um valor intermediário que deverá ser
+corrigido através da equação:
+
+\[
+\frac{u_i^{n+1} - u_i^*}{\Delta t} = - \frac{1}{\rho} \frac{\partial p^{n+1}}{\partial x_i},
+\]
+
+\noindent ou seja,
+
+\[
+u_i^{n+1} = u_i^* - \Delta t \frac{1}{\rho} \frac{\partial p^{n+1}}{\partial x_i}.
+\]
+
+\noindent Para que isto funcione, pode-se obter a equação de Poisson abaixo, que deverá ser
+resolvida para podermos avançar com a discretização temporal:
+
+\[
+\frac{\partial^2 p^{n+1}}{\partial x_i^2} = \frac{\rho}{\Delta t} \frac{\partial u_i^*}{\partial x_i}
+\]
+
+Utilizando-se este método obtém-se uma distribuição de velocidade e pressão que
+respeitam a condição de incompressibilidade. Desta forma pode-se realizar uma
+simulação até atingir-se o estado estacionário (quando as propriedades não
+variam mais com o tempo), ou até que se atinja um determinado tempo ou mesmo um
+estado periódico no tempo.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Método da solução manufaturada}
+
+Para verificação do método numérico que simula o escoamento bidimensional
+incompressível propõe-se resolver o problema clássico de fluxo laminar dentro
+de uma cavidade quadrada de dimensões $0< x_1, x_2 < 1$, na qual a tampa se
+move. Para este caso, existe uma solução analítica dada por
+\cite{shihetal1989}. As condições de contorno para as componentes de
+velocidades $u_i$ são do tipo Dirichlet, sendo nula em todos os pontos, exceto
+em $x_2=1$, onde temos:
+
+\[
+ u_1(x_1,1)=16(x_1^4-2x_1^3+x_1^2).
+\]
+
+Um termo fonte $s_i$ está presente somente na equação da quantidade de movimento
+na direção $x_2$ e é dado como:
+
+\begin{eqnarray}
+s_1 &=& 0 \nonumber \\
+s_2 &=& -8\nu[24F(x_1)+2f^{(1)}(x_1)g^{(2)}(x_2)+f^{(3)}(x_1)g(x_2)] \nonumber \\
+ && -64[F_2(x_1)G_1(x_2)-g(x_2)g^{(1)}(x_2)F_1(x_1)]\nonumber ,
+\end{eqnarray}
+
+\noindent onde
+
+\begin{eqnarray}
+  f(x_1)&=&x_1^4-2x_1^3+x_1^2,\nonumber \\
+  g(x_2)&=&x_2^4-x_2^2,\nonumber \\
+  F(x_1)&=&\int f(x_1)dx_1=0.2x_1^5-0.5x_1^4+x_1^3/3,\nonumber \\
+  F_1(x_1)&=&f(x_1)f^{(2)}(x_1)-[f^{(1)}(x_1)]^2=-4x_1^6+12x_1^5-14x_1^4+8x_1^3-2x_1^2,\nonumber \\
+  F_2(x_1)&=&\int f(x_1)f^{(1)}(x_1)dx_1=0.5[f(x_1)]^2,\nonumber \\
+  G_1(x_2)&=&g(x_2)g^{(3)}(x_2)-g^{(1)}(x_2)g^{(2)}(x_2)=-24x_2^5+8x_2^3-4x_2\nonumber .
+\end{eqnarray}
+
+A solução analítica é dada por
+
+\begin{eqnarray}
+   u(x_1, x_2) &=& 8f(x_1)g^{(1)}(x_2)=8(x_1^4 - 2x_1^3 + x_1^2)(4x_2^3 - 2x_2),\nonumber \\
+   v(x_1, x_2) &=& -8f^{(1)}(x_1)g(x_2)=-8(4x_1^3 - 6x_1^2 + 2x_1)(x_2^4 - x_2^2),\nonumber \\
+   p(x_1, x_2) &=& 8\nu[F(x_1)g^{(3)}(x_2)+f^{(1)}(x_1)g^{(1)}(x_2)]+ \nonumber \\
+               && 64F_2(x_1)\{g(x_2)g^{(2)}(x_2)-[g^{(1)}(x_2)]^2\}\nonumber .
+\end{eqnarray}
+
+Sabendo-se a solução analítica do escoamento pode-se então verificar o correto
+funcionamento do mesmo. Além disto, caso sejam realizadas simulações com malhas
+com diferentes números de pontos, pode-se verificar a ordem de precisão do
+código como um todo.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\section{Comentários finais}

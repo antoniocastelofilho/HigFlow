@@ -1,0 +1,9 @@
+HIGPATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+INSPATH = $(HIGPATH)
+OBJPATH = $(HIGPATH)/src
+SRCPATH = $(HIGPATH)/src
+EXMPATH = $(HIGPATH)/examples
+ATFPATH = $(HIGPATH)/atf-tests
+INCPATH = $(INSPATH)/include
+LIBPATH = $(INSPATH)/lib
+DOXPATH = $(INSPATH)/doc/doxygen

@@ -1,0 +1,1 @@
+gcc -fprofile-arcs -I../../ ../../mtree.o ../../mtree-iterator.o ../../mtree-io.o ../../coord.o ../../uniqueid.o tutorial01.c -o prg -lm

@@ -1,0 +1,584 @@
+% !TEX root = documentacao.tex
+\chapter{Documentação do usuário}
+
+Esta parte da documentação é destinada a usuários do código e foi subdividida
+em tutoriais. Estes tutoriais tem como objetivo familiarizar o usuário
+com os comandos utilizados no código, começando por exemplos bem simples até os
+casos mais complexos. Cada tutorial é acompanhado de um código executável.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Tutorial 1 -- Gerando uma malha 2D}
+
+Nesta seção iremos gerar uma malha bidimensional, em um domínio retangular,
+o qual damos o nome de {\it root}, e subdividi-lo em células. Esta
+será a malha raiz e à partir dela poder-se-á
+refiná-la nas regiões aonde o usuário achar conveniente.  Iniciamos com uma
+malha bidimensional, portanto onde referencia-se a variavel {\it DIM}, ela terá valor 2.
+O código completo se encontra no
+diretório {\it tutoriais}, com o nome de {\it tutorial01.c}. A seguir será descrito o
+que é realizado em cada comando do código.
+
+Primeiramente é necessário incluir as definições minimamente necessárias para a execução do código, as bibliotecas padrão do sistema e da HiG-Tree:
+\begin{verbatim}
+#include<stdio.h>
+#include<stdlib.h>
+#include "mtree.h"
+#include "mtree-io.h"
+\end{verbatim}
+A seguir, inicializa-se o bloco principal
+\begin{verbatim}
+int main(int argc, char *argv[])
+\end{verbatim}
+A malha será gerada em um retângulo, desta forma é necessário declarar então os pontos inferior esquerdo {\it lp} e superior direito {\it hp}, além de atribuí-los um valor
+\begin{verbatim}
+Point lp, hp;
+POINT_ASSIGN_SCALAR(lp, -1.0);
+POINT_ASSIGN_SCALAR(hp,  1.0);
+\end{verbatim}
+Veja que neste caso atribuimos $ lp=(-1,-1)$ e $ hp=(1,1)$ através da macro {\verb POINT_ASSIGN_SCALAR}, que substitui o código
+\begin{verbatim}
+lp[0] = -1.0;
+lp[1] = -1.0;
+hp[0] =  1.0;
+hp[1] =  1.0;
+\end{verbatim}
+Com os pontos $lp$ e $hp$ declarados, basta criar a malha com o comando
+\begin{verbatim}
+mt_cell *root = mt_create_root(lp, hp);
+\end{verbatim}
+
+Com este comando, a célula endereçada pela variável {\it root} foi criada. Agora é necessário subdividi-la em uma malha regular. Para este exemplo, vamos gerar uma malha de $2\times 2$ elementos. Primeiro, declara-se o número de células desejadas em cada direção (lembrando que {\it DIM=2})
+\begin{verbatim}
+	int num_cell[DIM];
+	POINT_ASSIGN_SCALAR(num_cell, 2);
+\end{verbatim}
+e invocar o comando
+\begin{verbatim}
+	mt_refine_uniform(root, num_cell);
+\end{verbatim}
+para criar a malha desejada.
+
+Para visualizar a malha, basta criar um arquivo {\it vtk} e imprimir a malha  no arquivo. Isto pode ser realizado da seguinte forma:
+\begin{verbatim}
+	FILE *fd = fopen("tut01.vtk", "w");
+	mtio_print_in_vtk2d(fd, root);
+	fclose(fd);
+\end{verbatim}
+Uma imagem da malha gerada pode ser vista na figura \ref{fig:tutorial_malha_1}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\linewidth]{figuras/tutorial_malha_1.png}
+	\caption{Malha gerada pelo tutorial 1.}
+	\label{fig:tutorial_malha_1}
+\end{figure}
+
+Após realizados todos os cálculos a raiz tem que ser destruir para não ficar ocupando
+espaço em memória, o que é feito através do comando:
+\begin{verbatim}
+	mt_destroy(root);
+\end{verbatim}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Tutorial 2 -- Refinamento de células}
+
+Nesta seção iremos tomar uma malha bidimensional gerada como no exemplo
+anterior, mas com 4 células na direção $x$ e 5 na direção $y$, e realizar o
+procedimento de refinamento, ou seja, tomar uma ou mais células da malha e
+dividi-la em partes menores. O código a ser adotado se encontra no diretório
+{\it tutoriais}, com o nome de {\it tutorial02.c}. A seguir será descrito o que é
+realizado em cada comando do código.
+
+Após inicializada a nova malha, subdivide-se o domínio da forma descrita acima
+\begin{verbatim}
+	int num_cell[DIM];
+	num_cell[0] = 4;
+	num_cell[1] = 5;
+	mt_refine_uniform(root, num_cell);
+\end{verbatim}
+Digamos que seja necessário o refinamento de células próximo ao ponto $(0.5,0.5)$. Definamos o ponto $p$
+\begin{verbatim}
+	Point p;
+	p[0] = 0.5;
+	p[1] = 0.5;
+\end{verbatim}
+Em seguida, selecionamos a célula a ser refinada através do comando
+\begin{verbatim}
+	mt_cell *c = mt_get_cell_with_point(root,p);
+\end{verbatim}
+Para realizar o refinamento da célula que contém o ponto {\it p},
+define-se o número de células que será utilizado para este refinamento nas duas
+direções e em seguida é dado o comando de refinamento uniforme na célula {\it
+c}.
+\begin{verbatim}
+	num_cells[0] = 2;
+	num_cells[1] = 2;
+	mt_refine_uniform(c,num_cells);
+\end{verbatim}
+
+Como feito anteriormente, a malha pode ser impressa em arquivo {\it vtk} da seguinte forma
+\begin{verbatim}
+	FILE *fd = fopen("tut02.vtk", "w");
+	mtio_print_in_vtk2d(fd, root);
+	fclose(fd);
+\end{verbatim}
+A malha resultante pode ser vista na figura \ref{fig:tutorial_malha_2}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.6\linewidth]{figuras/tutorial_malha_2.png}
+	\caption{Malha gerada pelo tutorial 2.}
+	\label{fig:tutorial_malha_2}
+\end{figure}
+
+
+
+%\subsection{Selecionando células através de janelas -- 2D}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Tutorial 3 - DIM = 3}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Tutorial 4 - Usando iteradores}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Tutorial 5 - Equação de Poisson -- 2D}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Tutorial 6 - Condições de contorno -- Poisson 2D}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Tutorial 7 - Equação de Poisson -- 3D}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Tutorial 8 - Condições de contorno -- Poisson 3D}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%\section{Parte I}
+%%%
+%%%{Introdução}
+%%%
+%%%Problemas que necessitam de malhas com boa resolução para capturar fenômenos físicos.
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2in]{figuras/wccmjet.png}
+%%%\end{figure}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2in]{figuras/wccmjetz.png}
+%%%\end{figure}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Definição:}
+%%%
+%%%$G_{l,m}$: $m$-ésimo bloco de um nível de refinamento $l$ ({\it patch}).
+%%%
+%%%\vspace{1pc}
+%%%{Para cada dois blocos $G_{l, i}$ e $G_{l, j}$, tem-se que $G_{l,i} \cap G_{l,j} = \emptyset$. Assim, a malha do nível $l$ por $\displaystyle{G_l = \bigcup_{k=1}^{n_l}G_{l,k}}$ e a malha bloco-estruturada é dada por $\displaystyle{G = \bigcup_{l} G_l}$.}
+%%%
+%%%\vspace{1pc}
+%%%{Propriedade:}
+%%%Blocos em níveis diferentes consecutivos precisam estar propriamente ani\-nhados, ou seja,
+%%%\begin{enumerate}
+%%%\item um bloco no nível fino deve começar e terminar no canto de uma célula do próximo nível mais grosso; e
+%%%\item para cada canto de um bloco do nível fino, existe pelo menos uma célula do próximo nível mais grosso em todas as direções que separa este bloco fino de uma célula do segundo próximo nível mais grosso (a menos se ele toca a fronteira do domínio físico).
+%%%\end{enumerate}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Refinamento adaptativo de malhas (AMR)}
+%%%
+%%%Berger e Colella (1989), Berger e Oliger (1984) e Berger e Rigoutsos (1991).
+%%%
+%%%\vspace{0.5pc}
+%%%
+%%%\begin{itemize}
+%%%
+%%%\item Refinamento adaptativo em regiões de interesse.
+%%%\vspace{1pc}
+%%%
+%%%\item Tempo computacional.
+%%%\vspace{1pc}
+%%%
+%%%\item Malhas bloco-estruturadas (Diferenças finitas).
+%%%\vspace{1pc}
+%%%
+%%%\end{itemize}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Blocos não propriamente aninhados:}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=1.8in]{figuras/alvaro_malha1.png}
+%%%\put(-105,120){{\tiny $G_{1,1}$}}
+%%%\put(-82,102){{\tiny $G_{2,1}$}}
+%%%\caption{Viola primeira propriedade.}
+%%%\end{figure}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=1.8in]{figuras/alvaro_malha2.png}
+%%%\put(-105,120){{\tiny $G_{1,1}$}}
+%%%\put(-82,95){{\tiny $G_{2,1}$}}
+%%%\put(-105,55){{\tiny $G_{3,1}$}}
+%%%\caption{Viola segunda propriedade.}
+%%%\end{figure}
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Discretização espacial}
+%%%
+%%%Malha deslocada, diferenças finitas e células fantasmas.
+%%%\begin{figure}
+%%%\includegraphics[width=0.7in]{figuras/all_mesh.png}
+%%%\caption{Malha bloco-estruturada.}
+%%%\end{figure}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=1.6in]{figuras/ghosts.png}
+%%%\caption{Malha 2D com células fantasmas.}
+%%%\end{figure}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%
+%%%{\footnotesize Componente da velocidade na direção do escoamento em um plano de corte central.}
+%%%
+%%%%-------------------------------------------------------------------------------
+%%%
+%%%%slide19
+%%%
+%%%\bf{Escoamento turbulento}
+%%%
+%%%
+%%%{\footnotesize Corte transversal.}
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% M-tree
+%%%
+%%%\bf{Exemplos de malhas com a estrutura m-tree}
+%%%\begin{figure}
+%%%\includegraphics[width=2.5in]{figuras/fig1.png}
+%%%\caption{Malha com estrutura m-tree.}
+%%%\end{figure}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2.1in]{figuras/mesh1zoom.png}
+%%%%\vspace{1pc}
+%%%\caption{Zoom da malha m-tree.}
+%%%\end{figure}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Exemplos de malhas com a estrutura m-tree}
+%%%\begin{figure}
+%%%\includegraphics[width=2.5in]{figuras/fig2.png}
+%%%\caption{Malha com estrutura m-tree.}
+%%%\end{figure}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2.1in]{figuras/mesh2zoom.png}
+%%%\caption{Zoom da malha m-tree.}
+%%%\end{figure}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Exemplos de malhas com a estrutura m-tree}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2.8in]{figuras/level-0.png}
+%%%%\caption{Malha 2D com células fantasmas.}
+%%%\end{figure}
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Exemplos de malhas com a estrutura m-tree}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2.8in]{figuras/level-1.png}
+%%%\end{figure}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Exemplos de malhas com a estrutura m-tree}
+%%%
+%%%\begin{figure}
+%%%\includegraphics[width=2.8in]{figuras/level-2.png}
+%%%\end{figure}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Código m-tree 1.1}
+%%%
+%%%Nessa versão, foram incluídas as seguintes funcionalidades:
+%%%\begin{enumerate}
+%%%\item Criação de malha com refinamento uniforme (cada célula pode ser
+%%%dividida em sub-células igualmente espaçadas, uma célula é independente das
+%%%demais).
+%%%\item Leitura de malha no formato AMR2D.
+%%%\item Escrita de malha no formato VTK2D.
+%%%\item Iteradores para:
+%%%\begin{enumerate}
+%%%\item percorrer todas as células da malha;
+%%%\item percorrer todas as células que intersectam um {\it bounding box};
+%%%\item percorrer todas as células vizinhas de uma célula;
+%%%\end{enumerate}
+%%%\item Operações para encontrar a célula que contém uma determinada
+%%%coordenada (ponto).
+%%%\end{enumerate}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%\bf{Código m-tree 1.1}
+%%%
+%%%Todos essas funcionalidades foram testadas. Os testes estão incluídos
+%%%no diretório atf-tests.
+%%%
+%%%Deve-se instalar o ATF,
+%%%http://kyua.googlecode.com/files/atf-0.15.tar.gz .
+%%%
+%%%Para instalar faça: ./configure; make; sudo make install.
+%%%
+%%%Para rodar os 33 casos de teste criados, execute 'make test'.
+%%%
+%%%Para avaliar a cobertura do código, execute 'make gcov'
+%%%(o resultado deve indicar $100\%$ de código
+%%%coberto).
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Malhas com estrutura m-tree: atividade da semana I}
+%%%
+%%%{\bf Exercício:}
+%%%
+%%%\begin{enumerate}
+%%%\item ``Varrer as folhas" (que são as células visíveis) de uma malha típica AMR *carregada para dentro do código da malha m-tree*.
+%%%
+%%%\item Calcular uma função no centro de cada célula computacional e visualizar o gráfico em 2D.
+%%%
+%%%\end{enumerate}
+%%%
+%%%%-----------------------------------------------------------------------------
+%%%
+%%%\bf{Formato do arquivo AMR para ser lido no m-tree }
+%%%
+%%%\begin{enumerate}
+%%%  \item Domínio A1 B1 A2 B2 A3 B3
+%%%  \item Número de níveis
+%%%  \item Informação do nível: Espaçamento dx, dy e dz; quantidade de patches
+%%%  \item Informação do patch:
+%%%    \begin{itemize}
+%%%     \item Índices na correspondente malha uniforme, da primeira célula do patch (inferior esquerda): i, j e k
+%%%     \item Número de células em cada direção: nx, ny e nz
+%%%    \end{itemize}
+%%%
+%%%
+%%% \end{enumerate}
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\bf{Formato do arquivo AMR para ser lido no m-tree }
+%%%
+%%%\includegraphics[height=5cm,width=5cm]{figuras/basicAMRmesh.pdf}
+%%%\textit{mesh1.amr}\\
+%%%0 0.9 0 0.8\\
+%%%3\\
+%%%0.1 0.1 1\\
+%%%1 1 9 8\\
+%%%0.05 0.05 2\\
+%%%5 3 4 10\\
+%%%9 5 2 6\\
+%%%0.025 0.025 1\\
+%%%13 13 6 4\\
+%%%
+%%%No diretório exemplos encontram-se as funções utilizadas na atividade I.
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%\section{Parte II}
+%%%
+%%%\bf{Malhas com estrutura m-tree: atividade da semana II}
+%%%
+%%%Vamos definir um vetor bidimensional para armazenar uma curva parametrizada (x(s),y(s)) - uma fronteira imersa. Vamos fazer um programa com um laço em s e, para cada ponto da curva, vamos localizar a folha em que ele se encontra e marcar uma vizinhança de ordem p. Vamos visualizar o resultado.
+%%%
+%%%%%Aqui Atividades da segunda semana
+%%%
+%%%
+%%%\bf{Exemplo 1}
+%%%\textbf{Makefile}
+%%%\begin{verbatim}
+%%% initial : initial.c
+%%%	$(CC) $(OBJS) $(OPTS) -o initial initial.c $(LIBS)
+%%%\end{verbatim}
+%%%\textbf{Arquivo \textit{initial.c}}
+%%%\begin{verbatim}
+%%%#include<stdio.h>
+%%%#include<stdlib.h>
+%%%#include "mtree.h"
+%%%#include "mtree-io.h"
+%%%
+%%%#if DIM ==2  // só compila para DIM=2
+%%%int main(int argc, char *argv[]) {
+%%%...
+%%%}
+%%%#endif
+%%%\end{verbatim}
+%%%
+%%%\begin{verbatim}
+%%%Point l, h;  //point low and point high
+%%%\end{verbatim}
+%%%Três formas diferentes para assinar os valores dos pontos,\\
+%%%por exemplo $l(-1,-1)$ e $h(1,2)$.
+%%%\begin{itemize}
+%%% \item
+%%%\begin{verbatim}
+%%%for(int i = 0; i < DIM; i++){
+%%%   l[i] = -1
+%%%}
+%%%\end{verbatim}
+%%%\item
+%%%\begin{verbatim}
+%%%POINT_ASSIGN_SCALAR(l,-1.0)
+%%%\end{verbatim}
+%%%\item
+%%%\begin{verbatim}
+%%%h[0] = 1.0;
+%%%h[1] = 2.0;
+%%%\end{verbatim}
+%%%\end{itemize}
+%%%\includegraphics[height=3cm,width=3cm]{figuras/initial0000.png}
+%%%\vspace{0.4cm}
+%%%\textbf{Criar a Raiz}
+%%%\vspace{-0.3cm}
+%%%\begin{verbatim}
+%%%mt_cell *root = mt_create_root(l,h);
+%%%...
+%%%mt_destroy(root);
+%%%\end{verbatim}
+%%%
+%%%\vspace{0.3cm}
+%%%\textbf{Visualizar a malha em arquivo VTK}
+%%%\begin{verbatim}
+%%%  FILE * fdout = fopen("initial.vtk", "w");
+%%%  if(fdout == NULL){
+%%%     // Mensagem de erro
+%%%     exit(1);
+%%%  }
+%%%  mtio_print_in_vtk2d(fdout, root);
+%%%  fclose(fdout);
+%%%\end{verbatim}
+%%%\textbf{Subdividir o dominio principal}\\
+%%%Dividir em 4 na dir X e em 3 na dir Y.
+%%%\begin{verbatim}
+%%%  int num_cells[DIM];
+%%%  num_cells[0] = 4;
+%%%  num_cells[1] = 3;
+%%%  mt_refine_uniform(root,num_cells);
+%%%\end{verbatim}
+%%%\includegraphics[height=4.5cm,width=4.5cm]{figuras/initial0001.png}
+%%%
+%%%
+%%%
+%%%\vspace{0.3cm}
+%%%\textbf{Fazer refinamentos e níveis}
+%%%\begin{itemize}
+%%% \item Dividir em 2 dir X e dir Y da célula que contem o ponto $P(0,0)$
+%%%\begin{verbatim}
+%%%Point p;
+%%%p[0] = 0.0;
+%%%p[1] = 0.0;
+%%%mt_cell *c =
+%%%    mt_get_cell_with_point(root,p);
+%%%num_cells[0] = 2;
+%%%num_cells[1] = 2;
+%%%mt_refine_uniform(c,num_cells);
+%%%\end{verbatim}
+%%%\end{itemize}
+%%%\includegraphics[height=4cm,width=4cm]{figuras/initial0002.png}
+%%%
+%%%
+%%%\begin{itemize}
+%%% \item Refinar consecutivamente ao redor de um ponto
+%%%\begin{verbatim}
+%%%for (int i = 0; i < 5; i++){
+%%%   c = mt_get_cell_with_point(root,p);
+%%%   mt_refine_uniform(c,num_cells);
+%%%}
+%%%\end{verbatim}
+%%%\end{itemize}
+%%%\includegraphics[height=4cm,width=4cm]{figuras/initial0004.png}
+%%%\vspace{0.2cm}
+%%%\textbf{Refinamento em pontos aleatórios}
+%%%\vspace{-0.2cm}
+%%%\begin{verbatim}
+%%%    for(int j = 0; j < 10; j++){
+%%%      p[0] = 2.0*((double)rand()/(double)RAND_MAX)-1.0;
+%%%      p[1] = 2.0*((double)rand()/(double)RAND_MAX)-1.0;
+%%%      for (int i = 0; i < 5; i++){
+%%%         c = mt_get_cell_with_point(root,p);
+%%%         mt_refine_uniform(c,num_cells);
+%%%      }
+%%%    }
+%%%\end{verbatim}
+%%%
+%%%
+%%%
+%%%\begin{itemize}
+%%% \item Refinamento escolhendo na mão a célula para refinar
+%%%\begin{verbatim}
+%%%mt_cell *c = mt_get_child(root,4);
+%%%num_cells[0] = 5;
+%%%num_cells[1] = 5;
+%%%mt_refine_uniform(c,num_cells);
+%%%\end{verbatim}
+%%%\end{itemize}
+%%%\includegraphics[height=4cm,width=4cm]{figuras/initial0005.png}
+%%%
+%%%\bf{Exercício}
+%%%\begin{figure}[htbp]
+%%%\centering
+%%%\includegraphics[height=6cm,width=6cm]{figuras/initial0006.png}
+%%%\end{figure}
+%%%
+%%%
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%\section{Parte III}
+%%%
+%%%\bf{Malhas com estrutura m-tree: atividade da semana III}
+%%%
+%%%Vamos *gerar* na mão uma m-tree e repetir o exercício da curva da semana anterior.
+%%%
