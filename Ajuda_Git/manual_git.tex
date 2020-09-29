@@ -1,0 +1,88 @@
+\documentclass[12pt]{article}
+\usepackage[brazil]{babel} % para relatórios em português
+\usepackage[utf8]{inputenc} % para acentuação direta
+\usepackage{amsmath,amsfonts,amssymb}  % improve math presentation
+\usepackage{tabularx} % extra features for tabular environment
+\usepackage{graphicx} % takes care of graphic including machinery
+\usepackage[margin=0.8in,letterpaper]{geometry} % decreases margins
+\usepackage[final]{hyperref} % adds hyper links inside the generated pdf file
+\usepackage{xcolor}
+%\usepackage[pdftex]{hyperref}
+
+\hypersetup{
+	colorlinks=true,       % false: boxed links; true: colored links
+	linkcolor=blue,        % color of internal links
+	citecolor=blue,        % color of links to bibliography
+	filecolor=magenta,     % color of file links
+	urlcolor=blue         
+}
+
+\begin{document}
+
+\title{Manual Git/GitHub HigFlow}
+\author{HigFlow e HigTree}
+\date{\today}
+\maketitle
+
+\section{Comandos básicos do Git}\label{sec:comandos_pc}
+
+\begin{itemize}
+	\item \textbf{git init} $:=$ Cria o controle de versões git na pasta.
+	
+	\item \textbf{git status} $:=$ Exibe o status dos arquivos controlados e não controlados.
+	
+	\item \textbf{git add -A} $:=$ Adiciona todos os arquivos da pasta para controle.
+	
+	\item \textbf{git add poisson.m} $:=$ Adiciona o arquivo 'poisson.m' pasta para controlar.
+	
+	\item \textbf{git add -u} $:=$ Adiciona somente os arquivos já adicionados e que foram modificados.
+	
+	\item \textbf{git commit -m ``Comentario da versao"} $:=$ Faz os arquivos adicionados serem controlados pelo git e adiciona o comentário 'Comentario da versao'.
+	
+	\item \textbf{git checkout -b add-var-in-main} $:=$ Cria um Branch (=ramo) com o nome 'add-var-in-main', que na pratica pode ser usado para voltar um determinado arquivo antes de algumas alterações. 
+	
+	\item \textbf{git checkout master} $:=$ Muda para o Branch denominado 'master'.
+	
+	\item \textbf{git merge teste\_merge -m ``teste de domingo"} $:=$ Quando no Branch 'master' este comando unifica a versão contida no branch 'teste\_merge' ao 'master' com o comentário `teste de domingo'.
+	
+	\item \textbf{git log --oneline --decorate --all --graph} $:=$ Mostra um diagrama do estado de controle dos arquivos.
+	
+	\item \textbf{git config --global alias.tree "log --oneline --decorate --all --graph"} $:=$ Cria o comando 'tree' que executa o comando 'log --oneline --decorate --all --graph'.
+	
+	\item \textbf{git tree} $:=$ Executa o comando 'tree' criado.
+	
+	\item \textbf{sudo apt install gitk} $:=$ Instala um visualizador gráfico.
+	
+	\item \textbf{gitk} $:=$ Executa o visualizador gráfico.
+	
+	\item \textbf{git remote add origin https://github.com/juniormarorganista/Teste\_Segunda.git} $:=$ Usado para adicionar um 'origin' para o repositório se não existe nenhum.
+	
+	\item \textbf{git pull origin master} $:=$ Caso o 'origin' já esteja adicionado na pasta, este comando é usado para buscar e baixar conteúdo de repositórios remotos e fazer a atualização imediata ao repositório local.
+	
+	\item \textbf{git push -u origin master} $:=$ É usado para enviar conteúdo do repositório local para um repositório remoto.
+	
+	\item \textbf{git clone https://github.com/juniormarorganista/Teste\_Segunda.git} $:=$ É utilizado para selecionar um repositório existente e criar um clone ou cópia do repositório alvo (no caso GitHub).
+	
+\end{itemize}
+
+\section{GitHub HigFlow - Primeiro passos}\label{sec:github_higflow}
+
+O primeiro passo para se ter acesso ao projeto HigFlow no GitHub é solicitar a permissão ao administrador do projeto, Prof. Dr. Antonio Castelo Filho. Após receber o convite e aceita-lo, siga os passos abaixo pra ter uma versão em sua maquina local:
+
+\begin{itemize}
+	\item Crie um diretório onde receberá os arquivos. Neste diretório, em um terminal, digite os comandos abaixo:
+	
+	\item \textbf{git clone https://github.com/antoniocastelofilho/HigFlow.git}
+	
+	\item \textbf{git pull origin master}
+	
+	\item Quando possuir uma versão amplamente testada e estável pode-se fazer 
+	
+	\item \textbf{git push -u origin master}
+	
+\end{itemize}
+
+%\bibliographystyle{plain}
+%\bibliography{cluster_euler}
+
+\end{document}
