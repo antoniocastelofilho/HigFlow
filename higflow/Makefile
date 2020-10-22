@@ -25,11 +25,12 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -ltrilinos_zoltan -lHYPRE_krylov
+LIBS+= -lm -ltrinilos_zoltan -lHYPRE_krylov
+#LIBS+= -lm -lzoltan -lHYPRE
 
 CC = mpicc
 AR = gcc-ar
-RANLIB = gcc-ranlib
+ANLIB = gcc-ranlib
 
 CXXSTANDARD = -std=gnu++11
 CSTANDARD = -std=gnu99

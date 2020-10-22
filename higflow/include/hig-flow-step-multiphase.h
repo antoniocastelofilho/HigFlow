@@ -26,7 +26,10 @@ void higflow_compute_curvature_multiphase_3D(higflow_solver *ns);
 void higflow_compute_viscosity_multiphase(higflow_solver *ns); 
 
 // Calculate the density
-void higflow_compute_density_multiphase(higflow_solver *ns); 
+void higflow_compute_density_multiphase(higflow_solver *ns);
+
+// Computing beta viscoelastic
+void higflow_compute_beta_visc_multiphase(higflow_solver *ns);
 
 // ******************************************************************
 // PLIC ADVECTION

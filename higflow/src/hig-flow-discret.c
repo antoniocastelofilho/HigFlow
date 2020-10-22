@@ -962,14 +962,8 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 				real v3_=compute_value_at_point(ns->ed.sdED,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
 				real v4_=compute_value_at_point(ns->ed.sdED,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
 				
-				ns->cc.viscl=4/( (1/v1) + (1/v2) + (1/v3_) + (1/v4_) );
-				//ns->cc.viscl=4*v1*v2*v3_*v4_/(v1+v2+v3_+v4_);
-				ns->cc.viscr=4/( (1/v1) + (1/v2) + (1/v3) + (1/v4) );
-				//ns->cc.viscr=4*v1*v2*v3*v4/(v1+v2+v3+v4);
-				
-				//ns->cc.viscl=(v1+v2+v3_+v4_)/4;
-				//ns->cc.viscr=(v1+v2+v3+v4)/4;
-				
+				ns->cc.viscl=4*v1*v2*v3_*v4_/(v1+v2+v3_+v4_);
+				ns->cc.viscr=4*v1*v2*v3*v4/(v1+v2+v3+v4);
 				
 				
 				// Get the cell viscosity in the left cell
@@ -1007,6 +1001,28 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 
 			ns->cc.du2dx2[dim2] += (ns->cc.viscr*duidxjr - ns->cc.viscl*duidxjl)/fdelta[dim2];
 			ns->cc.du2dx2[dim2] += (ns->cc.viscr*dujdxir - ns->cc.viscl*dujdxil)/fdelta[dim2];
+			
+			
+			
+			// Compute the viscoelastic contribution
+			if (dim2 == dim) {
+				// Get the tensor in the left cell
+				Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Get the tensor in the right cell
+				Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Compute the tensor derivative
+				ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 0.5, Sl[dim2], Sr[dim2]);
+			} else {
+				// Get the tensor in the left cell
+				Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Get the tensor in the right cell
+				Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Compute the tensor derivative
+				ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
+			}
+			
+			
+			
 		}
 		//break;
 	}
@@ -1260,6 +1276,25 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
 
 			//ns->cc.du2dx2[dim2] += (ns->cc.viscr*duidxjr - ns->cc.viscl*duidxjl)/fdelta[dim];
 			ns->cc.du2dx2[dim2] += (ns->cc.viscr*dujdxir - ns->cc.viscl*dujdxil)/fdelta[dim];
+			
+			
+			// Compute the viscoelastic contribution
+			if (dim2 == dim) {
+				// Get the tensor in the left cell
+				Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Get the tensor in the right cell
+				Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Compute the tensor derivative
+				ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 0.5, Sl[dim2], Sr[dim2]);
+			} else {
+				// Get the tensor in the left cell
+				Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Get the tensor in the right cell
+				Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.mult.dpS[dim][dim2], ns->ed.stn);
+				// Compute the tensor derivative
+				ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
+			}
+			
 		}
 		break;
 	}

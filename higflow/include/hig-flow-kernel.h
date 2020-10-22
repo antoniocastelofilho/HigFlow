@@ -185,6 +185,10 @@ typedef struct higflow_multiphase{
     distributed_property *dpdistance;
     // Distributed property for interfacial force
     distributed_property *dpIF[DIM];
+    // Distributed property for beta viscoelastic
+    distributed_property *dpbeta;
+    // Distributed property for S viscoelastic
+    distributed_property *dpS[DIM][DIM];
     // Function to get the viscosity for phase 0
     real (*get_viscosity0)(Point center, real t);
     // Function to get the viscosity for phase 1

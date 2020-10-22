@@ -60,6 +60,14 @@ void higflow_destroy (higflow_solver *ns) {
                dp_destroy(ns->ed.mult.dpIF[i]);
                dp_destroy(ns->ed.mult.dpnormal[i]);
             }
+            // Destroy the beta viscoelastic
+            dp_destroy(ns->ed.mult.dpbeta);
+            for (int i = 0; i < DIM; i++)
+                for (int j = 0; j < DIM; j++) {
+                    // Tensor terms destroy
+                    dp_destroy(ns->ed.mult.dpS[i][j]);
+                }
+            
             // Destroy the stencil for extra domains
             stn_destroy(ns->ed.stn);
             break;
@@ -310,7 +318,7 @@ real (*get_tensor)(Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
-    if (ns->contr.flowtype == 3) {
+    if ((ns->contr.flowtype == 3) || (ns->contr.flowtype == 2)) {
        // simulation domain (SD) extra domain
        ns->ed.sdED = sd_create(NULL);
        //reuse interpolation, 0 on, 1 off
@@ -589,13 +597,22 @@ void higflow_create_ditributed_properties_multiphase(higflow_solver *ns) {
 			ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
 			ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
 		}
+		// Distributed property for beta
+		ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
+		
+		for (int i = 0; i < DIM; i++) {
+			for (int j = 0; j < DIM; j++) {
+				ns->ed.mult.dpS[i][j]      = psd_create_property(ns->ed.psdED);
+			}
+		}
+		
 	}
 }
 
 // Create the distributed properties for viscoelastic simulation
 void higflow_create_ditributed_properties_viscoelastic(higflow_solver *ns) {
     // Non Newtonian tensor
-    if (ns->contr.flowtype == 3) {
+    if ((ns->contr.flowtype == 3) || (ns->contr.flowtype == 2)) {
          // Distributed property for viscoelastic tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {

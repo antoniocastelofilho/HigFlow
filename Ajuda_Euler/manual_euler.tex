@@ -1,0 +1,53 @@
+\documentclass[12pt]{article}
+\usepackage[brazil]{babel} % para relatórios em português
+\usepackage[utf8]{inputenc} % para acentuação direta
+\usepackage{amsmath,amsfonts,amssymb}  % improve math presentation
+\usepackage{tabularx} % extra features for tabular environment
+\usepackage{graphicx} % takes care of graphic including machinery
+\usepackage[margin=0.8in,letterpaper]{geometry} % decreases margins
+\usepackage[final]{hyperref} % adds hyper links inside the generated pdf file
+\usepackage{xcolor}
+%\usepackage[pdftex]{hyperref}
+
+\hypersetup{
+	colorlinks=true,       % false: boxed links; true: colored links
+	linkcolor=blue,        % color of internal links
+	citecolor=blue,        % color of links to bibliography
+	filecolor=magenta,     % color of file links
+	urlcolor=blue         
+}
+
+\begin{document}
+
+\title{Manual para usar o HigFlow no cluster Euler}
+\author{HigFlow e HigTree}
+\date{\today}
+\maketitle
+
+\section{Cluster - Passos iniciais}\label{sec:clu_pas_ini}
+Considerando que se tenha uma conta no cluster, os passos iniciais são:
+\begin{itemize}
+	\item \textbf{} $:=$ 	
+\end{itemize}
+
+\section{Job e outras funcionalidades}\label{sec:job_fun}
+
+O primeiro passo para se ter acesso ao projeto HigFlow no GitHub é solicitar a permissão ao administrador do projeto, Prof. Dr. Antonio Castelo Filho. Após receber o convite e aceita-lo, siga os passos abaixo pra ter uma versão em sua maquina local:
+
+\begin{itemize}
+	\item Crie um diretório onde receberá os arquivos. Neste diretório, em um terminal, digite os comandos abaixo:
+	
+	\item \textbf{git clone https://github.com/antoniocastelofilho/HigFlow.git}
+	
+	\item \textbf{git pull origin master}
+	
+	\item Quando possuir uma versão amplamente testada e estável pode-se fazer 
+	
+	\item \textbf{git push -u origin master}
+	
+\end{itemize}
+
+%\bibliographystyle{plain}
+%\bibliography{cluster_euler}
+
+\end{document}

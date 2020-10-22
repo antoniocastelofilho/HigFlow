@@ -54,13 +54,13 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                     }
                     dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
                     if (ns->contr.flowtype == 1) {
-		        dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
+						dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == 2) {
-		        dp_set_value(ns->ed.mult.dpD[dim][dim2], clid, dudx);
-                    } else if (ns->contr.flowtype == 3) {
-		        dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
+						dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
+					} else if (ns->contr.flowtype == 3) {
+						dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == 4){
-		        dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
+						dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
                     }
                 }
             }
@@ -73,7 +73,7 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                 if (ns->contr.flowtype == 1) {
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == 2){
-                    dp_sync(ns->ed.mult.dpD[dim][dim2]);
+                    dp_sync(ns->ed.ve.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == 3){
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == 4){

@@ -82,4 +82,16 @@ void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DI
 //Calculate convective tensor term CUBISTA
 real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdp, sim_stencil *stn, real K[DIM][DIM], Point ccenter, Point cdelta, int dim, int i, int j);
 
+// Computing the Kernel Tensor
+void higflow_compute_kernel_tensor(higflow_solver *ns);
+
+// Constitutive Equation Step for the Explicit Euler Method
+void higflow_explicit_euler_constitutive_equation(higflow_solver *ns);
+
+// Constitutive Equation Step for the Implicit Euler Method
+void higflow_implicit_euler_constitutive_equation(higflow_solver *ns);
+
+// Computing the Polymeric Tensor
+void higflow_compute_polymeric_tensor(higflow_solver *ns);
+
 #endif

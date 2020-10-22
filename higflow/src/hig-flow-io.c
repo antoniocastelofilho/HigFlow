@@ -332,6 +332,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         fprintf(f, "%e\n", value);
     }
     higcit_destroy(it);
+    
     fclose(f);
     
 }
