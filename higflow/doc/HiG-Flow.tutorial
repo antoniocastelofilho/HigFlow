@@ -1,0 +1,91 @@
+Tutotial HiG-Flow
+
+O HiG-Flow foi desenvolvido para simular escoamentos incompressiveis utilizando a biblioteca higtree. Na versao atual o HiG-Flow nao eh uma biblioteca, mas sera em breve.
+
+Os modulos do HiG-Flow sao:
+1) HiG-Flow-kernel, contendo os tipos e rotinas basicas de criacao do solver Navier-Stokes, do dominio e particoes, dos solvers para solucao de sistemas lineares;
+2) hig-flow-bc, contendo definicoes das condicoes de contorno;
+3) hig-flow-ic, contendo definicoes dos dominios e condicoes iniciais;
+4) hig-flow-io, contendo rotinas de entrada e saidas de dados e visualizacao;
+5) hig-flow-eval, contendo a avaliacao de propriedades distribuidas utilizando a higtree;
+6) hig-flow-discret, contendo as discretizacoes necessarias para a simulacao;
+7) hig-flow-terms, contendo os termos da equacao de Navier-Stokes;
+8) hig-flow-step, contendo um passo no tempo da aproximacao das equacoes de Navier-Stokes, utilizando o metodo da projecao para desacoplamento da velocidade e pressao para o caso newtoniano monofasico;
+9) hig-flow-step-generalized-newtonian, contendo um passo no tempo da aproximacao das equacoes de Navier-Stokes, utilizando o metodo da projecao para desacoplamento da velocidade e pressao para o caso newtoniano generalizado monofasico (ja implementado mas faltando ainda testes);
+10) hig-flow-step-multifase, contendo um passo no tempo da aproximacao das equacoes de Navier-Stokes, utilizando o metodo da projecao para desacoplamento da velocidade e pressao para o caso newtoniano multifasico (ainda em implementacao);
+11) hig-flow-step-viscoelastic, contendo um passo no tempo da aproximacao das equacoes de Navier-Stokes, utilizando o metodo da projecao para desacoplamento da velocidade e pressao para o caso viscoelastico (ainda em implementacao).
+
+Os metodos implementados atualmente sao:
+1) Discretizacao temporal:
+1a) Metodo de Euler explicito;
+1b) Metodo de Runge-Kutta explicito de ordem 2;
+1c) Metodo de Runge-Kutta explicito de ordem 3;
+1d) Metodo de Euler semi-implicito;
+1e) Metodo de Crank-Nikolson semi-implicito;
+1f) Metodo BDF2 semi-implicito.
+2) Discretizacao do termo convectivo:
+2a) Central;
+2b) Upwind de 1a. ordem;
+2c) Upwind de 2a. ordem;
+3) Discretizacao do termo convectivo de segunda ordem
+3a) Modified Coefficient Method (nao esta funcionando bem);
+3b) Cubista (em fase de implementacao);
+3c) Quik.
+4) Discretizacao espacial:
+4a) Segunda ordem;
+4b) Quarta ordem (ainda nao implementado).
+5) Termo viscoso:
+5a) Newtoniano com viscosidade constante;
+5b) Newtoniano com viscosidade variavel.
+5c) Newtoniano com viscosidade e densidade variavel.
+5d) Viscoelastivo 
+
+Os arquivos de entrada de dados e saida de dados sao informados na linha de comando de execucao do programa que utiliza o HiG-Flow coma abaixo:
+	mpirun -n 2 ./ns-example-3d \
+		example-3d.load \
+		example-3d.save \
+		example-3d.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+Onde example-3d.load e o nome base dos arquivos de entrada, example-3d.save o nome base dos arquivos de saida e example-3d.print o nome base dos arquivos para visualizacao.
+
+Tanto os arquivos de entrada como de saida tem as seguintes extensoes:
+1) example-3d.load.domain contendo as higtrees no formato amr;
+
+2) example-3d.load.bc contendo as higtrees no formato amr dos contornos e seus tipos de condicao de contorno;
+
+3) example-3d.load.contr com as informacoes de controle dos metodos que sao atualmente:
+3a) 0 para metodo da projecao nao-incremental e 1 para metodos da projecao incremental;
+3b) 0 para escoamento newtoniano, 1 para escoamento newtoniano generalizado, 2 para escoamento multifasico e 3 para escoamento viscoelastico (ainda nao implementado);
+3c) Modedo do escoamento no caso de viscoelastico (ainda nao implementado);
+3d) Discretizacao temporal: 0 - Euler explicito, 1 - RK2 explicito; 2 - RK3 explicito; 3 - Euler semi-implicito; 4 - Crank-Nicolson semi-implicito; 5 - BDF2 semi-implicito.
+3e) Discretizacao espacial: 0 segunga ordem, 1 quarta ordem (nao implementado);
+3f) Discretizacao do termo convectivo: 0 - Central; 1 - Upwind de 1a. ordem; 2 - Upwind de 2a. ordem; 
+3g) Discretizacao do termo convectivo de segunda ordem: 0 - Modified Coeficient Upwind; 1 - Cubista; 2 - Quik; 
+
+4) example-3d.load.par com os parametros para simulacao que atualmente sao:
+4a) step - inicial da simulacao se diferente de 0 sera considerado uma continuacao da simulacao e serao lidos as propriedades velocidade e pressao para iniciar a simulacao;
+4b) numsteps - numero de passos da simulacao;
+4c) t - tempo da simulacao;
+4d) dt - espacamento de tempo inicial;
+4e) Re - Reynolds;
+4f) dts - espacamento de tempo para salvar os dados;
+4g) dtp - espacamento de tempo para escrever os arquivos de visualizacao;
+4h) frame - numero de frames para visualizacao;
+4i) ts - ultimo tempo que a simulacao foi salva;
+4j) tp - ultimo tempo que foi escrito arquivo de visualizacao.
+
+5) example-3d.load.vel - nome do arquivo com a velocidade inicial no caso de restart;
+
+6) example-3d.load.pres - nome do arquivo com a pressao inicial no caso de restart;
+
+Os arquivos de saida sao:
+1) example-3d.save.contr - com os mesmos parametros do .load;
+2) example-3d.save.par - com os mesmos parametros do .load;
+3) example-3d.save.vel - arquivo com a velocidade para o restart;
+4) example-3d.save.pres - arquivo com a pressao para o restart;
+5) example-3d.print.*.vtk - arquivos no formato vtk para visualizacao dos resultados;
+
+Como exemplo de um programa que utiliza o HiG-Flow para simular escoamento de fluido temos: ns-example-3d.c
+Neste programa temos o programa principal que cria o o solver Navier-Stokes e define o domínio e os solvers de sistemas lineares, le os dados de entrada do dominio, condicoes de contorno, parametros, controladores de codigos, propriedades e o looping principal de passo no tempo para a simulacao e por fim salva os dados e destroi os objetos criados.
+Outras funcoes necessarias sao para as condicoes de contorno e dominio para inicializacao e no caso de ter tempo-dependente. Também sao necessarios funcoes dos termos fonte caso necessario.
+
