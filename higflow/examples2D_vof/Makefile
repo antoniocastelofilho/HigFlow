@@ -56,6 +56,6 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f *.o VTKS/* octave/data/*
+		$(RM) -f *.o VTKS/* octave/data/* ns-example
 
 .PHONY: run clean compilerflags
