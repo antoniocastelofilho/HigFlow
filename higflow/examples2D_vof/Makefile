@@ -43,6 +43,9 @@ ns-example: $(OBJ1)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run:
+	mkdir VTKS || true
+	mkdir octave || true
+	mkdir octave/data || true
 	mpirun -n 1 ./ns-example \
 		input/example-3d.load \
 		output/example-3d.save \
