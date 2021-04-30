@@ -1,0 +1,1 @@
+(cd higflow/examples2D_vof/ ; make clean ; make ; make run)
