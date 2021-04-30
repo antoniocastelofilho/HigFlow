@@ -1,0 +1,2 @@
+source varsrc ; \
+(cd higflow/ ; make clean ; make DIM=2)
