@@ -1322,3 +1322,183 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 		free(send_reqs[i]);
 	}
 }
+
+// Restart simulation ---> 20_01_26
+void loadOneU(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higfit_facetiterator *fit;
+    sim_facet_domain *sfdu = psfd_get_local_domain(psfdu);
+    mp_mapper *mu = sfd_get_domain_mapper(sfdu);
+
+    for(fit = sfd_get_domain_facetiterator(sfdu); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        hig_facet *f = higfit_getfacet(fit);
+        int fgid = mp_lookup(mu, hig_get_fid(f));
+        Point fcenter;
+        hig_get_facet_center(f, fcenter);
+        real val;
+        fread(&val, 1, sizeof(real), fd);
+        dp_set_value(dpu, fgid, val);
+	 }
+	 higfit_destroy(fit);
+}
+
+void loadOneP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higcit_celliterator *cit;
+    sim_domain *sdu = psd_get_local_domain(psdu);
+    mp_mapper *mu = sd_get_domain_mapper(sdu);
+
+    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
+        hig_cell *c = higcit_getcell(cit);
+        int cgid = mp_lookup(mu, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val;
+        fread(&val, 1, sizeof(real), fd);
+        dp_set_value(dpu, cgid, val);
+	 }
+	 higcit_destroy(cit);
+}
+
+void loadOneVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higcit_celliterator *cit;
+    sim_domain *sdu = psd_get_local_domain(psdu);
+    mp_mapper *mu = sd_get_domain_mapper(sdu);
+
+    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
+        hig_cell *c = higcit_getcell(cit);
+        int cgid = mp_lookup(mu, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val;
+        fread(&val, 1, sizeof(real), fd);
+        dp_set_value(dpu, cgid, val);
+    }
+    higcit_destroy(cit);
+}
+
+void loadOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higcit_celliterator *cit;
+    sim_domain *sdu = psd_get_local_domain(psdu);
+    mp_mapper *mu = sd_get_domain_mapper(sdu);
+
+    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
+        hig_cell *c = higcit_getcell(cit);
+        int cgid = mp_lookup(mu, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val;
+        fread(&val, 1, sizeof(real), fd);
+        dp_set_value(dpu, cgid, val);
+    }
+    higcit_destroy(cit);
+}
+
+// Save Properties
+void saveOneU(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higfit_facetiterator *fit;
+    sim_facet_domain *sfdu = psfd_get_local_domain(psfdu);
+    mp_mapper *mu = sfd_get_domain_mapper(sfdu);
+
+    for(fit = sfd_get_domain_facetiterator(sfdu); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        hig_facet *f = higfit_getfacet(fit);
+        int fgid = mp_lookup(mu, hig_get_fid(f));
+        Point fcenter;
+        hig_get_facet_center(f, fcenter);
+        real val = dp_get_value(dpu, fgid);
+        fwrite(&val, 1, sizeof(real), fd);
+    }
+    higfit_destroy(fit);
+}
+
+void saveOneP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higcit_celliterator *cit;
+    sim_domain *sdu = psd_get_local_domain(psdu);
+    mp_mapper *mu = sd_get_domain_mapper(sdu);
+
+    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
+        hig_cell *c = higcit_getcell(cit);
+        int cgid = mp_lookup(mu, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val = dp_get_value(dpu, cgid);
+        fwrite(&val, 1, sizeof(real), fd);
+    }
+    higcit_destroy(cit);
+}
+
+void saveOneVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higcit_celliterator *cit;
+    sim_domain *sdu = psd_get_local_domain(psdu);
+    mp_mapper *mu = sd_get_domain_mapper(sdu);
+
+    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
+        hig_cell *c = higcit_getcell(cit);
+        int cgid = mp_lookup(mu, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val = dp_get_value(dpu, cgid);
+        fwrite(&val, 1, sizeof(real), fd);
+    }
+    higcit_destroy(cit);
+}
+
+void saveOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    higcit_celliterator *cit;
+    sim_domain *sdu = psd_get_local_domain(psdu);
+    mp_mapper *mu = sd_get_domain_mapper(sdu);
+
+    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
+        hig_cell *c = higcit_getcell(cit);
+        int cgid = mp_lookup(mu, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val = dp_get_value(dpu, cgid);
+        fwrite(&val, 1, sizeof(real), fd);
+    }
+    higcit_destroy(cit);
+}
+
+void saveUV(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], FILE *fd, int myrank, int ntasks) {
+    for(int dim = 0; dim < DIM; dim++) {
+        saveOneU(psfdu[dim], dpu[dim], fd, myrank, ntasks);
+    }
+}
+
+void saveP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+     saveOneP(psdu, dpu, fd, myrank, ntasks);
+}
+
+void saveVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    saveOneVF(psdu, dpu, fd, myrank, ntasks);
+}
+
+void saveS(psim_domain *psdu, distributed_property *dpu[DIM][DIM], FILE *fd, int myrank, int ntasks) {
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            saveOneS(psdu, dpu[i][j], fd, myrank, ntasks);
+        }
+    }
+}
+
+// Load Properties
+void loadUV(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], FILE *fd, int myrank, int ntasks) {
+    for(int dim = 0; dim < DIM; dim++) {
+        loadOneU(psfdu[dim], dpu[dim], fd, myrank, ntasks);
+    }
+}
+
+void loadP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+     loadOneP(psdu, dpu, fd, myrank, ntasks);
+}
+
+void loadVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+    loadOneVF(psdu, dpu, fd, myrank, ntasks);
+}
+
+void loadS(psim_domain *psdu, distributed_property *dpu[DIM][DIM], FILE *fd, int myrank, int ntasks) {
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            loadOneS(psdu, dpu[i][j], fd, myrank, ntasks);
+            //dp_sync(ns->ed.mult.dpS[i][j]);
+        }
+    }
+}

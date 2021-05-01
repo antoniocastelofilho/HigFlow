@@ -52,7 +52,7 @@ void higflow_load_parameters(higflow_solver *ns, int myrank);
 void higflow_save_parameters(higflow_solver *ns, int myrank); 
 
 // Loading the properties
-void higflow_load_properties(higflow_solver *ns); 
+void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks);
 
 // Saving the properties
 void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks); 

@@ -1,3 +1,4 @@
-(cd higtree/ ; make clean) ; \ 
-(cd higflow/ ; make clean) ; \
+(cd higtree/ ; make clean)  ; \ 
+(cd higflow/ ; make clean)  ; \
 (cd higflow/examples2D_vof/ ; make clean) ; \
+(cd higflow/examples2D_n/   ; make clean)
