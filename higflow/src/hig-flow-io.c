@@ -1033,7 +1033,7 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
     FILE *fd = fopen(namefile, "r");
     if (fd != NULL) {
         // Loading the velocity
-        //loadUV(ns->psfdu, ns->dpu, fd, myrank, ntasks);
+        loadUV(ns->psfdu, ns->dpu, fd, myrank, ntasks);
         fclose(fd);
     } else {
         // Error in open the file
@@ -1045,7 +1045,7 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
     fd = fopen(namefile, "r");
     if (fd != NULL) {
         // Loading the pressure
-        //loadP(ns->psdp, ns->dpp, fd, myrank, ntasks);
+        loadP(ns->psdp, ns->dpp, fd, myrank, ntasks);
         fclose(fd);
     } else {
         // Error in open the file
@@ -1058,7 +1058,7 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
         fd = fopen(namefile, "r");
         if (fd != NULL) {
             // Loading the pressure
-            //loadVF(ns->psdp, ns->ed.mult.dpfracvol, fd, myrank, ntasks);
+            loadVF(ns->psdp, ns->ed.mult.dpfracvol, fd, myrank, ntasks);
             fclose(fd);
         } else {
             // Error in open the file
@@ -1076,7 +1076,7 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
     FILE *fd = fopen(namefile, "w");
     if (fd != NULL) {
         // Saving the velocity
-        //saveUV(ns->psfdu, ns->dpu, fd, myrank, ntasks);
+        saveUV(ns->psfdu, ns->dpu, fd, myrank, ntasks);
         fclose(fd);
     } else {
         // Error in open the file
@@ -1088,7 +1088,7 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
     fd = fopen(namefile, "w");
     if (fd != NULL) {
         // Saving the pressure
-        //saveP(ns->psdp, ns->dpp, fd, myrank, ntasks);
+        saveP(ns->psdp, ns->dpp, fd, myrank, ntasks);
         fclose(fd);
     } else {
         // Error in open the file
@@ -1101,7 +1101,7 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
         fd = fopen(namefile, "w");
         if (fd != NULL) {
             // Saving the Volume Fraction
-            //saveVF(ns->psdp, ns->ed.mult.dpfracvol, fd, myrank, ntasks);
+            saveVF(ns->psdp, ns->ed.mult.dpfracvol, fd, myrank, ntasks);
             fclose(fd);
         } else {
             // Error in open the file
@@ -1113,7 +1113,7 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
         fd = fopen(namefile, "w");
         if (fd != NULL) {
             // Saving the Volume Fraction
-            //saveS(ns->psdp, ns->ed.mult.dpS, fd, myrank, ntasks);
+            saveS(ns->psdp, ns->ed.mult.dpS, fd, myrank, ntasks);
             fclose(fd);
         } else {
             // Error in open the file

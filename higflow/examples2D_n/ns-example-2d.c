@@ -258,7 +258,7 @@ int main (int argc, char *argv[]) {
     if (ns->par.step > 0) {
         // Loading the velocities 
         printf("===> Loading t = %f <===\n",ns->par.t);
-        //higflow_load_properties(ns);
+        higflow_load_properties(ns, myrank, ntasks);
     }
     // Printing the properties to visualize: first step
     //higflow_load_properties(ns, myrank, ntasks);
@@ -310,13 +310,15 @@ int main (int argc, char *argv[]) {
             if (myrank == 0) 
                 printf("===> Saving         <====> ts = %15.10lf <===\n",ns->par.ts);
             // Saving the properties
-            //higflow_save_properties(ns, myrank, ntasks);
+            higflow_save_properties(ns, myrank, ntasks);
             // Saving the parameters
             //higflow_save_parameters(ns, myrank);
             // Saving the controllers
             //higflow_save_controllers(ns, myrank);
+            if (myrank == 0) 
+             printf("===> Test Loading         <====> ts = %15.10lf <===\n",ns->par.ts);
             // Load the properties
-            //higflow_load_properties(ns, myrank, ntasks);
+            higflow_load_properties(ns, myrank, ntasks);
         }
         // Step update
         ns->par.step = step;
@@ -330,7 +332,7 @@ int main (int argc, char *argv[]) {
     if (myrank == 0) 
         printf("===> Saving               <====> t  = %15.10lf <===\n",ns->par.t);
     // Saving the properties
-    //higflow_save_properties(ns, myrank, ntasks);
+    higflow_save_properties(ns, myrank, ntasks);
     // Saving the parameters
     //higflow_save_parameters(ns, myrank);
     // Saving the controllers

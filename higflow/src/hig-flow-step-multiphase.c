@@ -26,21 +26,21 @@ char nome_beta[100];
 int count;
 void arquivoTempo(int step)
 {
-	//sprintf(nome_curv,"octave/data/%f_curv.txt", t);
-	//sprintf(nome_norm,"octave/data/%f_norm.txt", t);
-	sprintf(nome_frac,"octave/data/%d_frac.txt", step);
-	sprintf(nome_fracaux,"octave/data/%d_fracaux.txt", step);
-	sprintf(nome_vx,"octave/data/%d_vx.txt", step);
-	sprintf(nome_vy,"octave/data/%d_vy.txt", step);
-	sprintf(nome_d,"octave/data/%d_d.txt", step);
-	sprintf(nome_N,"octave/data/%d_norm.txt", step);
-	sprintf(nome_Kappa,"octave/data/%d_curv.txt", step);
-	sprintf(nome_press,"octave/data/%d_press.txt", step);
-	sprintf(nome_IF,"octave/data/%d_if.txt", step);
-	sprintf(nome_visc,"octave/data/%d_visc.txt", step);
-	sprintf(nome_beta,"octave/data/%d_beta.txt", step);
+	//sprintf(nome_curv,"DATA/%f_curv.txt", t);
+	//sprintf(nome_norm,"DATA/%f_norm.txt", t);
+	sprintf(nome_frac,"DATA/%d_frac.txt", step);
+	sprintf(nome_fracaux,"DATA/%d_fracaux.txt", step);
+	sprintf(nome_vx,"DATA/%d_vx.txt", step);
+	sprintf(nome_vy,"DATA/%d_vy.txt", step);
+	sprintf(nome_d,"DATA/%d_d.txt", step);
+	sprintf(nome_N,"DATA/%d_norm.txt", step);
+	sprintf(nome_Kappa,"DATA/%d_curv.txt", step);
+	sprintf(nome_press,"DATA/%d_press.txt", step);
+	sprintf(nome_IF,"DATA/%d_if.txt", step);
+	sprintf(nome_visc,"DATA/%d_visc.txt", step);
+	sprintf(nome_beta,"DATA/%d_beta.txt", step);
 	
-	//FILE*fp=fopen("octave/data/time.txt","a");
+	//FILE*fp=fopen("DATA/time.txt","a");
 	//fprintf(fp,"%lf\n",t);
 	//fclose(fp);
 	
@@ -2556,7 +2556,7 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    if (ns->par.stepaux%200==0)
+    if (ns->par.stepaux%10==0)
     {
     	printf("creating archives at step: %d\n",ns->par.stepaux);
     	arquivoTempo(ns->par.stepaux);

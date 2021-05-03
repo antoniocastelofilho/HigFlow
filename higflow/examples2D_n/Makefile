@@ -46,9 +46,9 @@ ns-ve: $(OBJ2)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run:
-	mkdir VTKS || true
-	mkdir octave || true
-	mkdir octave/data || true
+	mkdir -p VTKS || true
+	mkdir -p DATA || true
+	mkdir -p output || true
 	mpirun -n 1 ./ns-example \
 		input/example-3d.load \
 		output/example-3d.save \
@@ -56,6 +56,8 @@ run:
 		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
 
 run-ve:
+	mkdir -p VTKS128 || true
+	mkdir -p DATA128 || true
 	mpirun -n 1 ./ns-ve \
 		input128/example-3d.load \
 		output128/example-3d.save \
@@ -66,6 +68,6 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f *.o VTKS/* 
+		$(RM) -f *.o VTKS/* DATA/* output/* ns-example
 
 .PHONY: run clean compilerflags

@@ -11,7 +11,3 @@ sudo apt-get -y install libpetsc3.7.7-dev ;
 sudo apt-get -y install openmpi-bin ;
 sudo apt-get -y install libopenmpi-dev ;
 sudo apt-get -y install libtrilinos-zoltan-dev
-
-
-
-
