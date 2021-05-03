@@ -604,21 +604,22 @@ int main (int argc, char *argv[]) {
 	higflow_initialize_distributed_properties(ns);
 	// Create the linear system solvers
 	higflow_create_solver(ns);
+
 	// Load the properties form
 	if (ns->par.step > 0) {
 		// Loading the velocities
-		printf("===> Loading t = %f <===\n",ns->par.t);
+		printf("===> Loading t = %f <=== \n",ns->par.t);
       higflow_load_properties(ns, myrank, ntasks);
 	}
-
 	// Printing the properties to visualize: first step
 	if (ns->par.step == 0) {
 		if (myrank == 0)
-			printf("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+			printf("===> Printing frame: %4d <====> tp = %15.10lf <=== \n",ns->par.frame, ns->par.tp);
 		higflow_print_vtk(ns, myrank);
 		// frame update
 		ns->par.frame++;
 	}
+
 	// ********************************************************
 	// Begin Loop for the Navier-Stokes equations integration
 	// ********************************************************
@@ -627,13 +628,13 @@ int main (int argc, char *argv[]) {
 		//for (int step = ns->par.step; step < 1; step++) {
 		// Print the step
 		if (myrank == 0)
-			printf("===> Step:        %7d <====> t  = %15.10lf <===\n", step, ns->par.t);
+			printf("===> Step:        %7d <====> t  = %15.10lf <=== \n", step, ns->par.t);
 		// Start the first step time
 		if (step == step0)  START_CLOCK(firstiter);
 		// Update velocities and pressure using the projection method
 		// higflow_solver_step(ns);
 		// higflow_solver_step_gen_newt(ns);
-		printf("calling step multiphase at step:%d\n",ns->par.stepaux);
+		printf("===> calling step multiphase at step: %d <=== \n",ns->par.stepaux);
 		higflow_solver_step_multiphase(ns);
 		ns->par.stepaux=ns->par.stepaux+1;
 		// higflow_solver_step_viscoelastic(ns);
@@ -669,10 +670,6 @@ int main (int argc, char *argv[]) {
 			//higflow_save_parameters(ns, myrank);
 			// Saving the controllers
 			//higflow_save_controllers(ns, myrank);
-			if (myrank == 0)
-			printf("===> Test Loading               <====> ts = %15.10lf <===\n",ns->par.ts);
-			// Load the properties
-			higflow_load_properties(ns, myrank, ntasks);
 		}
 		// Step update
 		ns->par.step = step;

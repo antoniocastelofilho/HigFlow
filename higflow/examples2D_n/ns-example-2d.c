@@ -315,10 +315,6 @@ int main (int argc, char *argv[]) {
             //higflow_save_parameters(ns, myrank);
             // Saving the controllers
             //higflow_save_controllers(ns, myrank);
-            if (myrank == 0) 
-             printf("===> Test Loading         <====> ts = %15.10lf <===\n",ns->par.ts);
-            // Load the properties
-            higflow_load_properties(ns, myrank, ntasks);
         }
         // Step update
         ns->par.step = step;
