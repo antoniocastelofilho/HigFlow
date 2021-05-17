@@ -14,8 +14,8 @@ simulation_contr:                     #***   ***
    convecdiscrtype: central           # central, upwind_first_order or upwind_second_order
    secondconvecdiscrtype: cubist      # modified_coefficient_upwind, cubist or quick
    modelflowtype: not_used            # non_newtonian or not_used
-   flowtype: singlephase              # singlephase or twophase
-   flowtype_0: newtonian              # newtonian, generalized_newtonian or viscoelastic
+   flowtype: twophase                 # singlephase or twophase
+   flowtype_0: viscoelastic           # newtonian, generalized_newtonian or viscoelastic
    par_phase0:                        #***   ***
       visc: 1.0                       #*** The Viscosity of Phase 0 ***
       dens: 1.0                       #*** The Density of Phase 0 ***

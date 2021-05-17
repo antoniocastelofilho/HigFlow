@@ -542,11 +542,9 @@ void set_generalized_newtonian(higflow_solver *ns,int cache,int order_center,
 
 }
 
-
 // *******************************************************************
 // Navier-Stokes main program
 // *******************************************************************
-
 // Main program for the Navier-Stokes simulation 
 int main (int argc, char *argv[]) {
 	// Initialize the total time counting
@@ -561,11 +559,9 @@ int main (int argc, char *argv[]) {
 	higflow_solver *ns = higflow_create();
 	// Load the data files
 	higflow_load_data_files(argc, argv, ns);
-	// Load the parameters data for Navier-Stokes simulation
-	higflow_load_parameters(ns, myrank);
-	// Load the controllers data for Navier-Stokes simulation
-	higflow_load_controllers(ns, myrank);
-	// set the external functions
+	printf("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+	higflow_load_controllers_and_parameters(ns, myrank);
+	printf("=+=+=+= The End Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
 	higflow_set_external_functions(ns, get_pressure, get_velocity,
 			get_source_term, get_facet_source_term,
 			get_boundary_pressure,  get_boundary_velocity,
@@ -586,10 +582,6 @@ int main (int argc, char *argv[]) {
 			get_tensor, get_kernel, get_kernel_inverse, get_kernel_jacobian);
 	// Initialize the domain
 	higflow_initialize_domain(ns, ntasks, myrank, order_facet);
-	// Load the controllers data for viscoelastic simulation
-	higflow_load_viscoelastic_controllers(ns, myrank);
-	// Load the parameters data for viscoelastic simulation
-	higflow_load_viscoelastic_parameters(ns, myrank);
 	// Set the user model
 	// higflow_define_user_function_viscoelastic(ns, calculate_m_user);
 	// Initialize the boundaries
@@ -609,8 +601,9 @@ int main (int argc, char *argv[]) {
 	if (ns->par.step > 0) {
 		// Loading the velocities
 		printf("===> Loading t = %f <=== \n",ns->par.t);
-      higflow_load_properties(ns, myrank, ntasks);
+		higflow_load_properties(ns, myrank, ntasks);
 	}
+
 	// Printing the properties to visualize: first step
 	if (ns->par.step == 0) {
 		if (myrank == 0)

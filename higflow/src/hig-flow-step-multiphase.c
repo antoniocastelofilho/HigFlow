@@ -2146,12 +2146,11 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             // Calculate the point and weight of the stencil
             real alpha = 0.0, wr = 0.0, wl = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
-            	// Get the cell viscosity in the left cell
-            	ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
-            	// Get the cell viscosity in the right cell
-            	ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
-
-            	// Stencil weight update
+                // Get the cell viscosity in the left cell
+                ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
+                // Get the cell viscosity in the right cell
+                ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
+                // Stencil weight update
                 real w = ns->par.dt*(ns->cc.viscr + ns->cc.viscl)/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha += w ;
                 Point p;
@@ -2569,9 +2568,9 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     // Constitutive Equation Step for the Explicit Euler Method
     switch (ns->ed.ve.contr.discrtype) {
         case 0:
-        // Explicit method
-			higflow_explicit_euler_constitutive_equation(ns);
-			break;
+           // Explicit method
+           higflow_explicit_euler_constitutive_equation(ns);
+           break;
         case 1: 
            // Implicit method
            higflow_implicit_euler_constitutive_equation(ns);

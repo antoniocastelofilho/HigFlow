@@ -1,10 +1,10 @@
 // *******************************************************************
-// *******************************************************************
-//  HiG-Flow Solver IO - version 10/11/2016
-// *******************************************************************
+//  HiG-Flow Solver IO - version 04/05/2021
 // *******************************************************************
 
 #include "hig-flow-io.h"
+#include <string.h>
+#include <libfyaml.h>
 
 // *******************************************************************
 // Navier-Stokes Print for Visualize
@@ -833,6 +833,385 @@ void higflow_load_data_files(int argc, char *argv[], higflow_solver *ns) {
     ns->par.nameprint = argv[1];
     argv++;
 }
+
+// Loading the controllers and parameters
+void higflow_load_controllers_and_parameters(higflow_solver *ns, int myrank) {
+    // Parameters file name
+    char ParContr[1024], InitRestart[1024];
+    
+    snprintf(InitRestart, sizeof InitRestart, "%s.init.restart.yaml",ns->par.nameload);
+    struct fy_document *fydini = NULL;
+    
+    snprintf(ParContr, sizeof ParContr, "%s.par.contr.yaml",ns->par.nameload);
+    struct fy_document *fyd = NULL;
+    
+    fyd     = fy_document_build_from_file(NULL,ParContr);
+    fydini  = fy_document_build_from_file(NULL,InitRestart);
+    
+   if (fyd != NULL && fydini != NULL) {
+        // Loading the controllers
+        int ifd = 0;
+        // Load Step, Initial Frame, Initial Time of the Simulation
+        ifd += fy_document_scanf(fydini, "/init_par/step %d", &(ns->par.step));
+        ifd += fy_document_scanf(fydini, "/init_par/t %lf", &(ns->par.t));
+        ifd += fy_document_scanf(fydini, "/init_par/frame %d", &(ns->par.frame));
+        ifd += fy_document_scanf(fydini, "/init_par/ts %lf", &(ns->par.ts));
+        ifd += fy_document_scanf(fydini, "/init_par/tp %lf", &(ns->par.tp));
+        if (ifd != 5) {
+           if (myrank == 0) printf("=+=+=+= Initial Parameters are Missing!!! =+=+=+=\n");
+           exit(1);
+        }
+        char auxchar[1024];
+        // Projtype
+         ifd += fy_document_scanf(fyd, "/simulation_contr/projtype %s", auxchar);
+         if (strcmp(auxchar,"non_incremental") == 0) {
+           ns->contr.projtype = 0;
+           if (myrank == 0) printf("=+=+=+= Projection Method: Non Incremental =+=+=+=\n");
+        } else if (strcmp(auxchar,"incremental") == 0){
+           ns->contr.projtype = 1;
+           if (myrank == 0) printf("=+=+=+= Projection Method: Incremental =+=+=+=\n");
+        } else {
+           if (myrank == 0) printf("=+=+=+= Projection Method: Invalid =+=+=+=\n");
+           exit(1);
+        }
+        // Flowtype
+        ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype %s", auxchar);
+        if (strcmp(auxchar,"singlephase") == 0) {
+           // Flowtype for Phase 0 (Case singlephase)
+           ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype_0 %s", auxchar);
+           if (strcmp(auxchar,"newtonian") == 0) {
+               ns->contr.flowtype = 0;
+               if (myrank == 0) printf("=+=+=+= Flow Model: Newtonian =+=+=+=\n");
+           } else if (strcmp(auxchar,"generalized_newtonian") == 0) {
+              ns->contr.flowtype = 1;
+              if (myrank == 0) printf("=+=+=+= Flow Model: Generalized Newtonian =+=+=+=\n");
+           } else if (strcmp(auxchar,"viscoelastic") == 0) {
+              ns->contr.flowtype = 3;
+              if (myrank == 0) printf("=+=+=+= Flow Model: Viscoelastic =+=+=+=\n");
+              // Model Flow Type Viscoelastic
+              ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/visc_contr/model %s", auxchar);
+              if (strcmp(auxchar,"oldroyd_b") == 0) {
+                  ns->ed.ve.contr.model = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model: Oldroyd =+=+=+=\n");
+               } else if (strcmp(auxchar,"giesekus") == 0) {
+                  ns->ed.ve.contr.model = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
+                  if (myrank == 0) printf("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.ve.par.alpha);
+               } else if (strcmp(auxchar,"lptt") == 0) {
+                  ns->ed.ve.contr.model = 2;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/model_lptt/psi %lf", &(ns->ed.ve.par.psi));
+                  if (myrank == 0) printf("=+=+=+= Epsilon: %f =+=+=+=\n", ns->ed.ve.par.epsilon);
+                  if (myrank == 0) printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.ve.par.psi);
+               } else if (strcmp(auxchar,"gptt") == 0) {
+                  ns->ed.ve.contr.model = 3;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+               } else if (strcmp(auxchar,"integral") == 0) {
+                  ns->ed.ve.contr.model = 4;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model: Integral =+=+=+=\n");
+               } else if (strcmp(auxchar,"use_set") == 0) {
+                  ns->ed.ve.contr.model = -1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model: User Set Model =+=+=+=\n");
+               } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model Invalid =+=+=+=\n");
+                  exit(1);
+               }
+               
+               // Discret Model Flow Type Viscoelastic
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/visc_contr/discrtype %s", auxchar);
+               if (strcmp(auxchar,"explicit") == 0) {
+                  ns->ed.ve.contr.discrtype = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
+               } else if (strcmp(auxchar,"giesekus") == 0) {
+                  ns->ed.ve.contr.discrtype = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
+               } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization Invalid =+=+=+=\n");
+                  exit(1);
+               }
+               
+               // Convective Discret Model Flow Type Viscoelastic
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/visc_contr/convecdiscrtype %s", auxchar);
+               if (strcmp(auxchar,"upwind") == 0) {
+                  ns->ed.ve.contr.convecdiscrtype = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+               } else if (strcmp(auxchar,"cubist") == 0) {
+                  ns->ed.ve.contr.convecdiscrtype = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+               } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term Invalid =+=+=+=\n");
+                  exit(1);
+               }
+               
+               // Common Viscoelastic Parameters
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/nondimensional/De %lf", &(ns->ed.ve.par.De));
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/nondimensional/beta %lf", &(ns->ed.ve.par.beta));
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/nondimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
+               
+               if (myrank == 0) printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.ve.par.De);
+               if (myrank == 0) printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.ve.par.beta);
+           } else {
+               if (myrank == 0) printf("=+=+=+= Flow Model Invalid =+=+=+=\n");
+               exit(1);
+           }
+        } else if (strcmp(auxchar,"twophase") == 0) {
+           // Flowtype for Phase 0
+           ns->contr.flowtype = 2;
+           ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype_0 %s", auxchar);
+           printf("------------------------------------------------------ \n");
+           printf("=*+=*+=*+=*+=*+=*+=*+= Phase 0 =*+=*+=*+=*+=*+=*+=*+= \n");
+           printf("------------------------------------------------------ \n");
+           if (strcmp(auxchar,"newtonian") == 0) {
+               //ns->contr.flowtype = 0;
+               if (myrank == 0) printf("=+=+=+= Flow Model in the Phase 0: Newtonian =+=+=+=\n");
+            } else if (strcmp(auxchar,"generalized_newtonian") == 0) {
+              //ns->contr.flowtype = 1;
+              if (myrank == 0) printf("=+=+=+= Flow Model in the Phase 0: Generalized Newtonian =+=+=+=\n");
+            } else if (strcmp(auxchar,"viscoelastic") == 0) {
+              //ns->contr.flowtype = 3;
+              if (myrank == 0) printf("=+=+=+= Flow Model in the Phase 0: Viscoelastic =+=+=+=\n");
+              // Model Flow Type Viscoelastic
+              ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/visc_contr/model %s", auxchar);
+              if (strcmp(auxchar,"oldroyd_b") == 0) {
+                  ns->ed.ve.contr.model = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 0: Oldroyd =+=+=+=\n");
+                } else if (strcmp(auxchar,"giesekus") == 0) {
+                  ns->ed.ve.contr.model = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 0: Giesekus =+=+=+=\n");
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
+                  if (myrank == 0) printf("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.ve.par.alpha);
+                } else if (strcmp(auxchar,"lptt") == 0) {
+                  ns->ed.ve.contr.model = 2;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 0: LPTT =+=+=+=\n");
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/model_lptt/psi %lf", &(ns->ed.ve.par.psi));
+                  if (myrank == 0) printf("=+=+=+= Epsilon in the Phase 0: %f =+=+=+=\n", ns->ed.ve.par.epsilon);
+                  if (myrank == 0) printf("=+=+=+= Psi in the Phase 0: %f =+=+=+=\n", ns->ed.ve.par.psi);
+                } else if (strcmp(auxchar,"gptt") == 0) {
+                  ns->ed.ve.contr.model = 3;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 0: GPTT =+=+=+=\n");
+                } else if (strcmp(auxchar,"integral") == 0) {
+                  ns->ed.ve.contr.model = 4;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 0: Integral =+=+=+=\n");
+                } else if (strcmp(auxchar,"use_set") == 0) {
+                  ns->ed.ve.contr.model = -1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 0: User Set Model =+=+=+=\n");
+                } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model Invalid in the Phase 0 =+=+=+=\n");
+                  exit(1);
+                }
+               
+               // Discret Model Flow Type Viscoelastic
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/visc_contr/discrtype %s", auxchar);
+               if (strcmp(auxchar,"explicit") == 0) {
+                  ns->ed.ve.contr.discrtype = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization in the Phase 0: Explicit =+=+=+=\n");
+                } else if (strcmp(auxchar,"giesekus") == 0) {
+                  ns->ed.ve.contr.discrtype = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization in the Phase 0: Implicit =+=+=+=\n");
+                } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization Invalid in the Phase 0 =+=+=+=\n");
+                  exit(1);
+                }
+               
+               // Convective Discret Model Flow Type Viscoelastic
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/visc_contr/convecdiscrtype %s", auxchar);
+               if (strcmp(auxchar,"upwind") == 0) {
+                  ns->ed.ve.contr.convecdiscrtype = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term in the Phase 0: Upwind  =+=+=+=\n");
+                } else if (strcmp(auxchar,"cubist") == 0) {
+                  ns->ed.ve.contr.convecdiscrtype = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term in the Phase 0: CUBISTA =+=+=+=\n");
+                } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term Invalid in the Phase 0 =+=+=+=\n");
+                  exit(1);
+                }
+               
+                // Common Viscoelastic Parameters
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/nondimensional/De %lf", &(ns->ed.ve.par.De));
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/nondimensional/beta %lf", &(ns->ed.ve.par.beta));
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase0/nondimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
+               
+               if (myrank == 0) printf("=+=+=+= Deborah Number in the Phase 0: %f =+=+=+=\n", ns->ed.ve.par.De);
+               if (myrank == 0) printf("=+=+=+= Beta in the Phase 0: %f =+=+=+=\n", ns->ed.ve.par.beta);
+               if (myrank == 0) printf("=+=+=+= Kernel_tol in the Phase 0: %f =+=+=+=\n", ns->ed.ve.par.kernel_tol);
+               
+               } else {
+               if (myrank == 0) printf("=+=+=+= Flow Model Invalid in the Phase 0 =+=+=+=\n");
+               exit(1);
+            }
+           
+            // Flowtype for Phase 1
+           printf("------------------------------------------------------ \n");
+           printf("=*+=*+=*+=*+=*+=*+=*+= Phase 1 =*+=*+=*+=*+=*+=*+=*+= \n");
+           printf("------------------------------------------------------ \n");
+           ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype_1 %s", auxchar);
+           if (strcmp(auxchar,"newtonian") == 0) {
+              //ns->contr.flowtype = 0;
+               if (myrank == 0) printf("=+=+=+= Flow Model in the Phase 1: Newtonian =+=+=+=\n");
+           } else if (strcmp(auxchar,"generalized_newtonian") == 0) {
+              //ns->contr.flowtype = 1;
+              if (myrank == 0) printf("=+=+=+= Flow Model in the Phase 1: Generalized Newtonian =+=+=+=\n");
+           } else if (strcmp(auxchar,"viscoelastic") == 0) {
+              //ns->contr.flowtype = 3;
+              if (myrank == 0) printf("=+=+=+= Flow Model in the Phase 1: Viscoelastic =+=+=+=\n");
+              // Model Flow Type Viscoelastic
+              ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/visc_contr/model %s", auxchar);
+              if (strcmp(auxchar,"oldroyd_b") == 0) {
+                  ns->ed.ve.contr.model = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 1: Oldroyd =+=+=+=\n");
+               } else if (strcmp(auxchar,"giesekus") == 0) {
+                  ns->ed.ve.contr.model = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 1: Giesekus =+=+=+=\n");
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
+                  if (myrank == 0) printf("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.ve.par.alpha);
+               } else if (strcmp(auxchar,"lptt") == 0) {
+                  ns->ed.ve.contr.model = 2;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 1: LPTT =+=+=+=\n");
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                  ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/model_lptt/psi %lf", &(ns->ed.ve.par.psi));
+                  if (myrank == 0) printf("=+=+=+= Epsilon in the Phase 1: %f =+=+=+=\n", ns->ed.ve.par.epsilon);
+                  if (myrank == 0) printf("=+=+=+= Psi in the Phase 1: %f =+=+=+=\n", ns->ed.ve.par.psi);
+               } else if (strcmp(auxchar,"gptt") == 0) {
+                  ns->ed.ve.contr.model = 3;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 1: GPTT =+=+=+=\n");
+               } else if (strcmp(auxchar,"integral") == 0) {
+                  ns->ed.ve.contr.model = 4;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 1: Integral =+=+=+=\n");
+               } else if (strcmp(auxchar,"use_set") == 0) {
+                  ns->ed.ve.contr.model = -1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model in the Phase 1: User Set Model =+=+=+=\n");
+               } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Model Invalid in the Phase 1 =+=+=+=\n");
+                  exit(1);
+               }
+               
+               // Discret Model Flow Type Viscoelastic
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/visc_contr/discrtype %s", auxchar);
+               if (strcmp(auxchar,"explicit") == 0) {
+                  ns->ed.ve.contr.discrtype = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization in the Phase 1: Explicit =+=+=+=\n");
+               } else if (strcmp(auxchar,"giesekus") == 0) {
+                  ns->ed.ve.contr.discrtype = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization in the Phase 1: Implicit =+=+=+=\n");
+               } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Discretization Invalid in the Phase 1 =+=+=+=\n");
+                  exit(1);
+               }
+               
+               // Convective Discret Model Flow Type Viscoelastic
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/visc_contr/convecdiscrtype %s", auxchar);
+               if (strcmp(auxchar,"upwind") == 0) {
+                  ns->ed.ve.contr.convecdiscrtype = 0;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term in the Phase 1: Upwind  =+=+=+=\n");
+               } else if (strcmp(auxchar,"cubist") == 0) {
+                  ns->ed.ve.contr.convecdiscrtype = 1;
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term in the Phase 1: CUBISTA =+=+=+=\n");
+               } else {
+                  if (myrank == 0) printf("=+=+=+= Constitutive Equation Convective Term Invalid in the Phase 1 =+=+=+=\n");
+                  exit(1);
+               }
+               
+               // Common Viscoelastic Parameters
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/nondimensional/De %lf", &(ns->ed.ve.par.De));
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/nondimensional/beta %lf", &(ns->ed.ve.par.beta));
+               ifd += fy_document_scanf(fyd, "/simulation_contr/par_phase1/nondimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
+
+               if (myrank == 0) printf("=+=+=+= Deborah Number in the Phase 1: %f =+=+=+=\n", ns->ed.ve.par.De);
+               if (myrank == 0) printf("=+=+=+= Beta in the Phase 1: %f =+=+=+=\n", ns->ed.ve.par.beta);
+               if (myrank == 0) printf("=+=+=+= Kernel_tol in the Phase 1: %f =+=+=+=\n", ns->ed.ve.par.kernel_tol);
+               printf("------------------------------------------------------ \n");
+           } else {
+               if (myrank == 0) printf("=+=+=+= Flow Model Invalid in the Phase 1 =+=+=+=\n");
+               exit(1);
+           }
+        }  else {
+           if (myrank == 0) printf("=+=+=+= Flow Type Invalid =+=+=+=\n");
+           exit(1);
+        }
+         
+        // Model Flow Type
+        ifd += fy_document_scanf(fyd, "/simulation_contr/modelflowtype %s", auxchar);
+        if (strcmp(auxchar,"not_used") == 0) {
+           ns->contr.modelflowtype = 0;
+           if (myrank == 0) printf("    =+= Flow Model Type: ---------------- =+=\n");
+        } else if (strcmp(auxchar,"non_newtonian") == 0){
+           ns->contr.modelflowtype = 1;
+           if (myrank == 0) printf("=+= Flow Model Type: Eletroosmotic =+=\n");
+        }
+         // Time Discret Type
+         ifd += fy_document_scanf(fyd, "/simulation_contr/tempdiscrtype %s", auxchar);
+         
+        if (strcmp(auxchar,"explicit_euler") == 0) {
+           ns->contr.tempdiscrtype = 0;
+           if (myrank == 0) printf("=+=+=+= Temporal Discretization: Explicit Euler =+=+=+=\n");
+        } else if (strcmp(auxchar,"explicit_rk2") == 0){
+           ns->contr.tempdiscrtype = 1;
+           if (myrank == 0) printf("=+=+=+= Temporal Discretization: Runge-Kutta 2 =+=+=+=\n");
+        } else if (strcmp(auxchar,"explicit_rk3") == 0){
+           ns->contr.tempdiscrtype = 2;
+           if (myrank == 0) printf("=+=+=+= Temporal Discretization: Runge-Kutta 3 =+=+=+=\n");
+        } else if (strcmp(auxchar,"semi_implicit_euler") == 0){
+           ns->contr.tempdiscrtype = 3;
+           if (myrank == 0) printf("=+=+=+= Temporal Discretization: Semi-Implicit Euler =+=+=+=\n");
+        } else if (strcmp(auxchar,"semi_implicit_crank_nicolson") == 0){
+           ns->contr.tempdiscrtype = 4;
+           if (myrank == 0) printf("=+=+=+= Temporal Discretization: Semi-Implicit Crank-Nicolson =+=+=+=\n");
+        } else if (strcmp(auxchar,"semi_implicit_bdf2") == 0){
+           ns->contr.tempdiscrtype = 5;
+           if (myrank == 0) printf("=+=+=+= Temporal Discretization: Semi-Implicit BDF2 =+=+=+=\n");
+        }
+         // Spatial Discret Type
+         ifd += fy_document_scanf(fyd, "/simulation_contr/spatialdiscrtype %s", auxchar);
+        if (strcmp(auxchar,"second_order") == 0) {
+           ns->contr.spatialdiscrtype = 0;
+           if (myrank == 0) printf("=+=+=+= Spatial Discretization: Second Order =+=+=+=\n");
+        } else if (strcmp(auxchar,"fourth_order") == 0){
+           ns->contr.spatialdiscrtype = 1;
+           if (myrank == 0) printf("=+=+=+= Spatial Discretization: Forth Order =+=+=+=\n");
+        }
+        // Convective Discret Type
+        ifd += fy_document_scanf(fyd, "/simulation_contr/convecdiscrtype %s", auxchar);
+        if (strcmp(auxchar,"central") == 0) {
+           ns->contr.convecdiscrtype = 0;
+           if (myrank == 0) printf("=+=+=+= Convective Scheme: Central =+=+=+=\n");
+        } else if (strcmp(auxchar,"upwind_first_order") == 0){
+           ns->contr.convecdiscrtype = 1;
+           if (myrank == 0) printf("=+=+=+= Convective Scheme: First Order Upwind =+=+=+=\n");
+        } else if (strcmp(auxchar,"upwind_second_order") == 0){
+            ns->contr.convecdiscrtype = 2;
+            if (myrank == 0) printf("=+=+=+= Convective Scheme: Second Order Upwind =+=+=+=\n");
+            ifd += fy_document_scanf(fyd, "/simulation_contr/secondconvecdiscrtype %s", auxchar);
+            if (strcmp(auxchar,"modified_coefficient_upwind") == 0) {
+                ns->contr.secondconvecdiscrtype = 0;
+                printf("    =+= Convective Scheme Type : Modified Coefficient Upwind =+=\n");
+            } else if (strcmp(auxchar,"cubist") == 0) {
+                ns->contr.secondconvecdiscrtype = 1;
+                printf("    =+= Convective Scheme Type : Cubista =+=\n");
+            } else if (strcmp(auxchar,"quick") == 0) {
+                ns->contr.secondconvecdiscrtype = 2;
+                printf("    =+= Convective Scheme Type : Quick =+=\n");
+            }
+        }
+        // Reynold's Number
+        ifd += fy_document_scanf(fyd, "/nondimensional_par/Re %lf", &(ns->par.Re));
+        if (myrank == 0) printf("=+=+=+= Reynolds Number: %f =+=+=+=\n", ns->par.Re);
+        // The Parameters of the Simulation
+        ifd += fy_document_scanf(fyd, "/simulation_par/numsteps %d", &(ns->par.finalstep));
+        ifd += fy_document_scanf(fyd, "/simulation_par/dt %lf", &(ns->par.dt));
+        ifd += fy_document_scanf(fyd, "/simulation_par/dts %lf", &(ns->par.dts));
+        ifd += fy_document_scanf(fyd, "/simulation_par/dtp %lf", &(ns->par.dtp));
+    } else {
+      // Error in open the file
+      if (myrank == 0) printf("=+=+=+= Error loading file %s or %s =+=+=+=\n",ParContr,InitRestart);
+      exit(1);
+    }
+    fy_document_destroy(fyd);
+    fy_document_destroy(fydini);
+}
+
 
 // Loading the controllers
 void higflow_load_controllers(higflow_solver *ns, int myrank) {

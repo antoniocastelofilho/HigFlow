@@ -18,11 +18,11 @@ CFLAGS+= $(shell pkg-config --cflags glib-2.0) -Werror
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
 
-LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5)
+LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
 LDFLAGS+= -L$(LIBPATH) $(OPTSOPT)
 
 LIBS+= -lhig$(DIM)d
-LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5)
+LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
 LIBS+= -lm -ltrilinos_zoltan -lHYPRE_krylov

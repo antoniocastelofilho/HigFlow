@@ -1,1 +1,4 @@
-(cd higflow/examples2D_n/ ; make clean ; make ; make run)
+echo " Newtonian test" ;
+echo "====================================================================================" ;
+sleep 2 ;
+(cd higflow/; make clean; make DIM=2 ; cd examples2D_n/ ; make clean ; make ; make run)

@@ -31,11 +31,11 @@ CFLAGS+=-I/usr/include/trilinos
 CFLAGS+=-I/usr/include/hypre
 CFLAGS+=-I/usr/include/petsc
 
-LDFLAGS =$(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5)
+LDFLAGS =$(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
 
 LIBS+=$(PETSC_LIB)
 LIBS+=$(PETSC_EXTRA_LIB)
-LIBS+=$(shell pkg-config --libs-only-l glib-2.0 hdf5)
+LIBS+=$(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+=-lm
 LIBS+=-lhdf5
 

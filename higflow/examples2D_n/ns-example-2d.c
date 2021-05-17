@@ -1,11 +1,8 @@
 // *******************************************************************
-// *******************************************************************
 //  Example for HiG-Flow Solver - version 10/11/2016
-// *******************************************************************
 // *******************************************************************
 
 #include "ns-example-2d.h"
-
 
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
@@ -215,9 +212,12 @@ int main (int argc, char *argv[]) {
     // Load the data files
     higflow_load_data_files(argc, argv, ns); 
     // Load the parameters data for Navier-Stokes simulation
-    higflow_load_parameters(ns, myrank);
+    //higflow_load_parameters(ns, myrank);
     // Load the controllers data for Navier-Stokes simulation
-    higflow_load_controllers(ns, myrank);
+    //higflow_load_controllers(ns, myrank);
+    // Load the controllers and parameters data for Navier-Stokes simulation
+    printf("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
+    higflow_load_controllers_and_parameters(ns, myrank);
     // set the external functions
     higflow_set_external_functions(ns, get_pressure, get_velocity, 
         get_source_term, get_facet_source_term,
