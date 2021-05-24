@@ -2555,7 +2555,7 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    if (ns->par.stepaux%10==0)
+    if (ns->par.stepaux%50==0)
     {
     	printf("creating archives at step: %d\n",ns->par.stepaux);
     	arquivoTempo(ns->par.stepaux);

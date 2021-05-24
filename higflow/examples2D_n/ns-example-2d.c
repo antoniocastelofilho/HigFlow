@@ -243,8 +243,11 @@ int main (int argc, char *argv[]) {
     // higflow_load_viscoelastic_parameters(ns, myrank);
     // Set the user model
     // higflow_define_user_function_viscoelastic(ns, calculate_m_user);
+    
     // Initialize the boundaries
-    higflow_initialize_boundaries(ns); 
+    //higflow_initialize_boundaries(ns);
+    printf("=+=+=+= Load Domain and Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=\n");
+    higflow_initialize_boundaries_and_domain(ns);
     // Creating distributed property  
     higflow_create_ditributed_properties(ns);
     // Creating distributed property for generalized newtonian simulation

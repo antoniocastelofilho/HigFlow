@@ -5,7 +5,8 @@
 // *******************************************************************
 
 #include "hig-flow-bc.h"
-
+#include <string.h>
+#include <libfyaml.h>
 
 // Make the boundary condition
 sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype valuetype) {
@@ -583,6 +584,300 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
     higflow_set_boundary_condition_for_velocities(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
     // Setting the boundary conditions for the electro-osmotic model
     if (ns->contr.modelflowtype == 1) {
+        sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
+        printf("nome: %s", namefile);
+        FILE *fbc = fopen(namefile, "r");
+        if (fbc == NULL) {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
+            exit(1);
+        }
+        // Number of boundaries
+        int numbcs; 
+        int ifd = fscanf(fbc,"%d\n",&numbcs);
+        // Boudary condition data
+        int           id[numbcs];
+        char          amrBCfilename[numbcs][1024]; 
+        bc_type       phibctypes[numbcs]; 
+        bc_valuetype  phibcvaluetype[numbcs];
+        bc_type       psibctypes[numbcs]; 
+        bc_valuetype  psibcvaluetype[numbcs];
+        bc_type       nplusbctypes[numbcs]; 
+        bc_valuetype  nplusbcvaluetype[numbcs];
+        bc_type       nminusbctypes[numbcs]; 
+        bc_valuetype  nminusbcvaluetype[numbcs];
+        for(int h = 0; h < numbcs; h++) {
+            ifd = fscanf(fbc,"%d\n",&(id[h]));
+            // HigTree Boundary condition file name
+            __higflow_readstring(amrBCfilename[h],1024,fbc);
+            // Pressure boundary condition type
+            int aux;
+            ifd = fscanf(fbc,"%d",&aux);
+            // Electro-osmotic potential boundary condition type
+            switch (aux) {
+                case 0:
+                    phibctypes[h] = DIRICHLET;
+                    break;
+                case 1:
+                    phibctypes[h] = NEUMANN;
+                    break;
+            }
+            // Electro-osmotic potential boundary condition value
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    phibcvaluetype[h] = fixedValue;
+                    break;
+                case 1:
+                    phibcvaluetype[h] = zeroGradient;
+                    break;
+                case 2:
+                    phibcvaluetype[h] = freestream;
+                    break;
+                case 3:
+                    phibcvaluetype[h] = empty;
+                    break;
+                case 4:
+                    phibcvaluetype[h] = timedependent;
+                    break;
+                case 5:
+                    phibcvaluetype[h] = outflow;
+                    break;
+            }
+            // Electro-osmotic potential boundary condition type
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    psibctypes[h] = DIRICHLET;
+                    break;
+                case 1:
+                    psibctypes[h] = NEUMANN;
+                    break;
+            }
+            // Electro-osmotic potential boundary condition value
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    psibcvaluetype[h] = fixedValue;
+                    break;
+                case 1:
+                    psibcvaluetype[h] = zeroGradient;
+                    break;
+                case 2:
+                    psibcvaluetype[h] = freestream;
+                    break;
+                case 3:
+                    psibcvaluetype[h] = empty;
+                    break;
+                case 4:
+                    psibcvaluetype[h] = timedependent;
+                    break;
+                case 5:
+                    psibcvaluetype[h] = outflow;
+                    break;
+            }
+            // Electro-osmotic concentration n+ boundary condition type
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    nplusbctypes[h] = DIRICHLET;
+                    break;
+                case 1:
+                    nplusbctypes[h] = NEUMANN;
+                    break;
+            }
+            // Electro-osmotic concentration n+ boundary condition value
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    nplusbcvaluetype[h] = fixedValue;
+                    break;
+                case 1:
+                    nplusbcvaluetype[h] = zeroGradient;
+                    break;
+                case 2:
+                    nplusbcvaluetype[h] = freestream;
+                    break;
+                case 3:
+                    nplusbcvaluetype[h] = empty;
+                    break;
+                case 4:
+                    nplusbcvaluetype[h] = timedependent;
+                    break;
+                case 5:
+                    nplusbcvaluetype[h] = outflow;
+                    break;
+            }
+            // Electro-osmotic concentration n- boundary condition type
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    nminusbctypes[h] = DIRICHLET;
+                    break;
+                case 1:
+                    nminusbctypes[h] = NEUMANN;
+                    break;
+            }
+            // Electro-osmotic concentration n- boundary condition value
+            ifd = fscanf(fbc,"%d",&aux);
+            switch (aux) {
+                case 0:
+                    nminusbcvaluetype[h] = fixedValue;
+                    break;
+                case 1:
+                    nminusbcvaluetype[h] = zeroGradient;
+                    break;
+                case 2:
+                    nminusbcvaluetype[h] = freestream;
+                    break;
+                case 3:
+                    nminusbcvaluetype[h] = empty;
+                    break;
+                case 4:
+                    nminusbcvaluetype[h] = timedependent;
+                    break;
+                case 5:
+                    nminusbcvaluetype[h] = outflow;
+                    break;
+            }
+        }
+        fclose(fbc);
+        // Setting the boundary conditions for the electro-osmotic source term
+        higflow_set_boundary_condition_for_electroosmotic_source_term(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
+        // Setting the boundary conditions for the electro-osmotic phi
+        higflow_set_boundary_condition_for_electroosmotic_phi(ns, numbcs, id, amrBCfilename, phibctypes, phibcvaluetype);
+        // Setting the boundary conditions for the electro-osmotic psi
+        higflow_set_boundary_condition_for_electroosmotic_psi(ns, numbcs, id, amrBCfilename, psibctypes, psibcvaluetype);
+        // Setting the boundary conditions for the electro-osmotic nplus
+        higflow_set_boundary_condition_for_electroosmotic_nplus(ns, numbcs, id, amrBCfilename, nplusbctypes, nplusbcvaluetype);
+        // Setting the boundary conditions for the electro-osmotic nminus
+        higflow_set_boundary_condition_for_electroosmotic_nminus(ns, numbcs, id, amrBCfilename, nminusbctypes, nminusbcvaluetype);
+        // Setting the boundary conditions for the cell source term 
+        higflow_set_boundary_condition_for_cell_source_term(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
+        higflow_set_boundary_condition_for_facet_source_term(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
+    }
+}
+
+// Navier-Stokes initialize the domain and boudaries
+void higflow_initialize_boundaries_and_domain(higflow_solver *ns) {
+    
+    // Loading the boundary condition data
+    char namefile[1024];
+    sprintf(namefile,"%s.bc.domain.yaml",ns->par.nameload);
+    
+    FILE *fbc = fopen(namefile, "r");
+    struct fy_document *fyd = NULL;
+    fyd = fy_document_build_from_file(NULL, namefile);
+     
+    if (fyd == NULL) {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
+        exit(1);
+    }
+    
+    // Number of boundaries
+    int numbcs; 
+    int ifd = fy_document_scanf(fyd,"/boundary_condition/number_bc %d",&numbcs);
+    
+    // Boudary condition data
+    int           id[numbcs];
+    char          amrBCfilename[numbcs][1024]; 
+    bc_type       pbctypes[numbcs]; 
+    bc_type       ubctypes[DIM][numbcs]; 
+    bc_valuetype  pbcvaluetype[numbcs];
+    bc_valuetype  ubcvaluetype[DIM][numbcs]; 
+    // Setting the pressure desingularizadtion control
+    ns->contr.desingpressure = 1;
+    
+    for(int h = 0; h < numbcs; h++) {
+        char atrib[1024];
+        sprintf(atrib,"/boundary_condition/bc%d/id %%d",h);
+        ifd = fy_document_scanf(fyd,atrib,&(id[h]));
+        // HigTree Boundary condition file name
+        sprintf(atrib,"/boundary_condition/bc%d/path %%s",h);
+        ifd = fy_document_scanf(fyd,atrib,amrBCfilename[h]);
+        //__higflow_readstring(amrBCfilename[h],1024,fbc);
+        // Pressure boundary condition type
+        char aux[1024];
+        sprintf(atrib,"/boundary_condition/bc%d/pressure/type %%s",h);
+        ifd = fy_document_scanf(fyd,atrib,aux);
+        if (strcmp(aux,"dirichelet") == 0) {
+           pbctypes[h] = DIRICHLET;
+        } else if (strcmp(aux,"neumann") == 0) {
+                pbctypes[h] = NEUMANN;
+        } else {
+            printf("=+=+=+= Error loading boundary condition type for the pressure in the boundary %d =+=+=+= \n",h);
+            exit(1);
+        }
+        // Pressure boundary condition value
+        sprintf(atrib,"/boundary_condition/bc%d/pressure/sub_type %%s",h);
+        ifd = fy_document_scanf(fyd,atrib,aux);
+        if (strcmp(aux,"fixed_value") == 0) {
+            pbcvaluetype[h] = fixedValue;
+         } else if(strcmp(aux,"zero_gradient") == 0) {
+            pbcvaluetype[h] = zeroGradient;
+         } else if(strcmp(aux,"freestream") == 0) {
+            pbcvaluetype[h] = freestream;
+         } else if(strcmp(aux,"empty") == 0) {
+            pbcvaluetype[h] = empty;
+         } else if(strcmp(aux,"time_independent") == 0) {
+            pbcvaluetype[h] = timedependent;
+         } else if(strcmp(aux,"outflow") == 0) {
+             pbcvaluetype[h] = outflow;
+         } else {
+            printf("=+=+=+= Error loading boundary condition valuetype for the pressure in the boundary %d =+=+=+= \n",h);
+            exit(1);
+        }
+        // Setting the pressure desingularizadtion control
+        if (pbctypes[h] == DIRICHLET) {
+            // Outflow
+            //sprintf(atrib,"/boundary_condition/bc%d/pressure/sub_type/value %%lf",h);
+            //ifd = fy_document_scanf(fyd,atrib,&(ns->contr.desingpressure));
+            ns->contr.desingpressure = 0;
+        }
+        // Velocity boundary condition value
+        for (int dim = 0; dim < DIM; dim++) {
+            sprintf(atrib,"/boundary_condition/bc%d/velocity_%d/type %%s",h,dim);
+            ifd = fy_document_scanf(fyd,atrib,aux);
+            if (strcmp(aux,"dirichelet") == 0) {
+               ubctypes[dim][h] = DIRICHLET;
+            } else if(strcmp(aux,"neumann") == 0) {
+               ubctypes[dim][h] = NEUMANN;
+            } else {
+               printf("=+=+=+= Error loading boundary condition type for the velocity in the boundary %d =+=+=+= \n",h);
+               exit(1);
+            }
+            sprintf(atrib,"/boundary_condition/bc%d/velocity_%d/sub_type %%s",h,dim);
+            ifd = fy_document_scanf(fyd,atrib,aux);
+            // Velocity boundary condition valuetype
+            if (strcmp(aux,"fixed_value") == 0) {
+               ubcvaluetype[dim][h] = fixedValue;
+            } else if(strcmp(aux,"zero_gradient") == 0) {
+               ubcvaluetype[dim][h] = zeroGradient;
+            } else if(strcmp(aux,"freestream") == 0) {
+               ubcvaluetype[dim][h] = freestream;
+            } else if(strcmp(aux,"empty") == 0) {
+               ubcvaluetype[dim][h] = empty;
+            } else if(strcmp(aux,"time_independent") == 0) {
+               ubcvaluetype[dim][h] = timedependent;
+            } else if(strcmp(aux,"outflow") == 0) {
+               ubcvaluetype[dim][h] = outflow;
+            } else {
+               printf("=+=+=+= Error loading boundary condition valuetype for the velocity in the boundary %d =+=+=+= \n",h);
+               exit(1);
+            }
+        }
+    }
+    
+    fy_document_destroy(fyd);
+    // Setting the boundary conditions for the pressure
+    higflow_set_boundary_condition_for_pressure(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
+    // Setting the boundary conditions for the velocities
+    higflow_set_boundary_condition_for_velocities(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
+    // Setting the boundary conditions for the electro-osmotic model
+    
+    if (ns->contr.modelflowtype == 1) {
+         printf("=+=+=+= electroosmotic - NOT IMPLEMENTED READ YAML =+=+=+= \n");
         sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
         printf("nome: %s", namefile);
         FILE *fbc = fopen(namefile, "r");

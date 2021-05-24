@@ -559,9 +559,13 @@ int main (int argc, char *argv[]) {
 	higflow_solver *ns = higflow_create();
 	// Load the data files
 	higflow_load_data_files(argc, argv, ns);
+	 // Load the parameters data for Navier-Stokes simulation
+    //higflow_load_parameters(ns, myrank);
+    // Load the controllers data for Navier-Stokes simulation
+    //higflow_load_controllers(ns, myrank);
+    // Load the controllers and parameters data for Navier-Stokes simulation
 	printf("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
 	higflow_load_controllers_and_parameters(ns, myrank);
-	printf("=+=+=+= The End Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
 	higflow_set_external_functions(ns, get_pressure, get_velocity,
 			get_source_term, get_facet_source_term,
 			get_boundary_pressure,  get_boundary_velocity,
@@ -585,7 +589,9 @@ int main (int argc, char *argv[]) {
 	// Set the user model
 	// higflow_define_user_function_viscoelastic(ns, calculate_m_user);
 	// Initialize the boundaries
-	higflow_initialize_boundaries(ns);
+	//higflow_initialize_boundaries(ns);
+	printf("=+=+=+= Load Domain and Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=\n");
+	higflow_initialize_boundaries_and_domain(ns);
 	// Creating distributed property
 	higflow_create_ditributed_properties(ns);
 	// Creating distributed property for generalized newtonian simulation
