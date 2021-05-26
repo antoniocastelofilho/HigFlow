@@ -759,8 +759,8 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
 }
 
 // Navier-Stokes initialize the domain and boudaries
-void higflow_initialize_boundaries_and_domain(higflow_solver *ns) {
-    
+void higflow_initialize_boundaries_conditions(higflow_solver *ns) {
+
     // Loading the boundary condition data
     char namefile[1024];
     sprintf(namefile,"%s.bc.domain.yaml",ns->par.nameload);
@@ -774,11 +774,11 @@ void higflow_initialize_boundaries_and_domain(higflow_solver *ns) {
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
         exit(1);
     }
-    
+	  
     // Number of boundaries
     int numbcs; 
     int ifd = fy_document_scanf(fyd,"/boundary_condition/number_bc %d",&numbcs);
-    
+ 
     // Boudary condition data
     int           id[numbcs];
     char          amrBCfilename[numbcs][1024]; 
@@ -804,7 +804,7 @@ void higflow_initialize_boundaries_and_domain(higflow_solver *ns) {
         if (strcmp(aux,"dirichelet") == 0) {
            pbctypes[h] = DIRICHLET;
         } else if (strcmp(aux,"neumann") == 0) {
-                pbctypes[h] = NEUMANN;
+            pbctypes[h] = NEUMANN;
         } else {
             printf("=+=+=+= Error loading boundary condition type for the pressure in the boundary %d =+=+=+= \n",h);
             exit(1);
@@ -875,10 +875,28 @@ void higflow_initialize_boundaries_and_domain(higflow_solver *ns) {
     // Setting the boundary conditions for the velocities
     higflow_set_boundary_condition_for_velocities(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
     // Setting the boundary conditions for the electro-osmotic model
-    
     if (ns->contr.modelflowtype == 1) {
-         printf("=+=+=+= electroosmotic - NOT IMPLEMENTED READ YAML =+=+=+= \n");
-        sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
+        printf("=+=+=+= electroosmotic - NOT IMPLEMENTED READ YAML =+=+=+= \n");
+
+        // Loading the boundary condition data
+        char namefile_eletro[1024];
+        sprintf(namefile_eletro,"%s.bc.domain.eletro.osmotic.yaml",ns->par.nameload);
+        
+        FILE *fbc_eletro = fopen(namefile_eletro, "r");
+        struct fy_document *fyd_eletro = NULL;
+        fyd_eletro = fy_document_build_from_file(NULL, namefile_eletro);
+         
+        if (fyd_eletro == NULL) {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile_eletro);
+            exit(1);
+        }
+	      
+        // Number of boundaries
+        int numbcs; 
+        int ifd_eletro = fy_document_scanf(fyd_eletro,"/y_condition/number_bc %d",&numbcs);
+ 
+		  sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
         printf("nome: %s", namefile);
         FILE *fbc = fopen(namefile, "r");
         if (fbc == NULL) {
@@ -887,8 +905,8 @@ void higflow_initialize_boundaries_and_domain(higflow_solver *ns) {
             exit(1);
         }
         // Number of boundaries
-        int numbcs; 
-        int ifd = fscanf(fbc,"%d\n",&numbcs);
+        //int numbcs; 
+        //int ifd = fscanf(fbc,"%d\n",&numbcs);
         // Boudary condition data
         int           id[numbcs];
         char          amrBCfilename[numbcs][1024]; 
