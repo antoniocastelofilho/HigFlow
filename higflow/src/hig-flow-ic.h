@@ -17,6 +17,9 @@
 // Navier-Stokes initialize the domain
 void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int order); 
 
+// Navier-Stokes initialize the domain with yaml
+void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, int order);
+
 // *******************************************************************
 // Navier-Stokes Initialize Properties
 // *******************************************************************

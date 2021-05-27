@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-ic.h"
+#include <libfyaml.h>
 
 // *******************************************************************
 // Navier-Stokes Initialize Properties
@@ -34,7 +35,7 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         FILE *fd = fopen(amrfilename, "r");
         // Reading the higtree information from the file 
         mi[h] = higio_read_amr_info(fd);
-        // Close the AMR format file
+		  // Close the AMR format file
         fclose(fd);
     }
     fclose(fdomain);
@@ -77,6 +78,82 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
     }
 }
 
+// Navier-Stokes initialize the domain yaml
+void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, int order) {
+    
+	 // Loading the boundary condition data
+    char namefile[1024];
+    sprintf(namefile,"%s.domain.yaml",ns->par.nameload);
+    
+    FILE *fdomain = fopen(namefile, "r");
+    struct fy_document *fyd = NULL;
+    fyd = fy_document_build_from_file(NULL, namefile);
+     
+    if (fyd == NULL) {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
+        exit(1);
+    }
+	  
+    // Number of HigTrees
+    int numhigs;
+    int ifd = fy_document_scanf(fyd,"/domain/number_domain %d",&numhigs);
+    higio_amr_info *mi[numhigs];
+    for(int h = 0; h < numhigs; h++) {
+        char atrib[1024], amrfilename[1024];
+		  sprintf(atrib,"/domain/domain%d/id %%d",h);
+        //ifd = fy_document_scanf(fyd,atrib,&(id[h]));
+		  
+		  // Name of the HigTree file
+        //char *amrfilename = argv[1]; argv++;
+        
+        sprintf(atrib,"/domain/domain%d/path %%s",h);
+        ifd = fy_document_scanf(fyd,atrib,amrfilename);
+
+        FILE *fd = fopen(amrfilename, "r");
+        mi[h] = higio_read_amr_info(fd);
+        fclose(fd);
+    }
+    fy_document_destroy(fyd);
+	 fclose(fdomain);
+    // Taking the sub-domain of the myrank process
+    // Creates a partition table.
+    partition_graph *pg = pg_create(MPI_COMM_WORLD);
+    // Initializing partition table
+    higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
+    // Creating the partitioned sub-domain to simulation
+    higflow_create_partitioned_domain(ns, pg, order);
+    // Creating the stencil for properties interpolation
+    higflow_create_stencil(ns);
+    // the partitioned sub-domain for extra properties
+    if (ns->contr.flowtype == 1) {
+        // Initialize generalized newtonian domain
+        higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_for_extra_domain(ns);
+    } else if (ns->contr.flowtype == 2) {
+        // Initialize multiphase domain
+        higflow_create_partitioned_domain_multiphase(ns, pg, order);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_for_extra_domain(ns);
+    } else if (ns->contr.flowtype == 3) {
+        // Initialize visoelastic tensor domain
+        higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_for_extra_domain(ns);
+    } else if (ns->contr.flowtype == 4) {
+       // Initialize integral tensors domain
+        higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_for_extra_domain(ns);
+    }
+    if (ns->contr.modelflowtype == 1) {
+        // Initialize electro-osmotic domain
+        higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_for_extra_domain(ns);
+    }
+}
 
 // Initialize the pressure
 void higflow_initialize_pressure(higflow_solver *ns) {

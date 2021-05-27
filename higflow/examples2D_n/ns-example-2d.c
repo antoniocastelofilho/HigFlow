@@ -192,7 +192,6 @@ void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], re
     }
 }
 
-
 // *******************************************************************
 // Navier-Stokes main program
 // *******************************************************************
@@ -217,37 +216,44 @@ int main (int argc, char *argv[]) {
        // Load the controllers data for Navier-Stokes simulation
        //higflow_load_controllers(ns, myrank);
        // Load the controllers and parameters data for Navier-Stokes simulation
-    */
+   */
 	 printf("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
-    higflow_load_controllers_and_parameters(ns, myrank);
+    higflow_load_controllers_and_parameters_yaml(ns, myrank);
     // set the external functions
     higflow_set_external_functions(ns, get_pressure, get_velocity, 
         get_source_term, get_facet_source_term,
-        get_boundary_pressure,  get_boundary_velocity,
+        get_boundary_pressure, get_boundary_velocity,
         get_boundary_source_term, get_boundary_facet_source_term); 
     // Set the order of the interpolation to be used in the SD. 
     int order_center = 2;
     int order_facet = 2;
     // Set the cache: Reuse interpolation, 0 on, 1 off
     int cache = 1;
+
     // Create the simulation domain
     higflow_create_domain(ns, cache, order_center); 
     //higflow_create_domain_generalized_newtonian(ns, cache, order_center, get_viscosity); 
     //higflow_create_domain_viscoelastic(ns, cache, order_center, get_tensor, get_boundary_tensor, get_kernel, get_kernel_inverse, get_kernel_jacobian); 
-
+    
     // Initialize the domain
-    higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
-    // Load the controllers data for viscoelastic simulation
-    //higflow_load_viscoelastic_controllers(ns, myrank);
-    // Load the parameters data for viscoelastic simulation
-    //higflow_load_viscoelastic_parameters(ns, myrank);
-    // Set the user model
-    //higflow_define_user_function_viscoelastic(ns, calculate_m_user);
+    printf("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+    //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
+    higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
+    
+    /* NAO MAIS NECESSARIO - JA CARREGADOS PELA FUNCAO ''higflow_load_controllers_and_parameters''
+	    // Load the controllers data for viscoelastic simulation
+       //higflow_load_viscoelastic_controllers(ns, myrank);
+       // Load the parameters data for viscoelastic simulation
+       //higflow_load_viscoelastic_parameters(ns, myrank);
+    */
+
+    // Set the user mode
+	 //higflow_define_user_function_viscoelastic(ns, calculate_m_user);
 
     // Initialize the boundaries
+    printf("=+=+=+= Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_boundaries(ns);
-    printf("=+=+=+= Load Domain and Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=\n");
-    higflow_initialize_boundaries_conditions(ns);
+    higflow_initialize_boundaries_conditions_yaml(ns);
 
     // Creating distributed property  
     higflow_create_ditributed_properties(ns);

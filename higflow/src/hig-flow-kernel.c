@@ -286,7 +286,7 @@ void higflow_create_domain_generalized_newtonian (higflow_solver *ns, int cache,
 }
 
 // Create the simulation domain for multiphase flow
-void higflow_create_domain_multiphase (higflow_solver *ns, int cache, int order, 
+void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order, 
 real (*get_viscosity0)(Point center, real t), 
 real (*get_viscosity1)(Point center, real t), 
 real (*get_density0)(Point center, real t),
@@ -313,7 +313,7 @@ real (*get_fracvol)(Point center, Point delta, real t)) {
 }
 
 // Create the simulation domain for viscoelastic flow
-void higflow_create_domain_viscoelastic (higflow_solver *ns, int cache, int order,
+void higflow_create_domain_viscoelastic(higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
@@ -337,7 +337,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
 }
 
 // Define the user function for viscoelastic flow
-void higflow_define_user_function_viscoelastic (higflow_solver *ns, 
+void higflow_define_user_function_viscoelastic(higflow_solver *ns, 
 void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM],real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol)) {
     if (ns->contr.flowtype == 3) {
        // function for the user viscoelastic model
@@ -347,7 +347,7 @@ void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM],
 
 
 // Create the simulation domain for viscoelastic flow integral model
-void higflow_create_domain_viscoelastic_integral (higflow_solver *ns, int cache, int order,
+void higflow_create_domain_viscoelastic_integral(higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t)) {
    // simulation domain (SD) extra domain
    if (ns->contr.flowtype == 4) {
@@ -724,13 +724,13 @@ real (*get_boundary_facet_source_term)(int id, Point center, int dim, real t)) {
 void __higflow_readstring(char s[], int max, FILE *file) {
     int  i;
     for (i = 0; i < (max - 1); i++) {
-	char letra = fgetc(file);
-	if ((letra == '\n') && (i == 0)) {
-            printf("=+=+=+ Erro na leitura do string =+=+=+\n");
-            exit(1);
-	}
-	if (letra == '\n') break;
-	s[i] = letra;
+       char letra = fgetc(file);
+       if ((letra == '\n') && (i == 0)) {
+          printf("=+=+=+ Erro na leitura do string =+=+=+\n");
+          exit(1);
+       }
+       if (letra == '\n') break;
+       s[i] = letra;
     }
     s[i] = 0;
     return;

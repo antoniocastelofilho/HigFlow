@@ -1,6 +1,6 @@
 // *******************************************************************
 // *******************************************************************
-//  HiG-Flow Solver Boundary Condition - version 10/11/2016
+//  HiG-Flow Solver Boundary Condition - version 26/05/2021
 // *******************************************************************
 // *******************************************************************
 
@@ -760,10 +760,9 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
 
 // Navier-Stokes initialize the domain and boudaries
 void higflow_initialize_boundaries_conditions(higflow_solver *ns) {
-
     // Loading the boundary condition data
     char namefile[1024];
-    sprintf(namefile,"%s.bc.domain.yaml",ns->par.nameload);
+    sprintf(namefile,"%s.boundaries.conditions.yaml",ns->par.nameload);
     
     FILE *fbc = fopen(namefile, "r");
     struct fy_document *fyd = NULL;
@@ -868,7 +867,6 @@ void higflow_initialize_boundaries_conditions(higflow_solver *ns) {
             }
         }
     }
-    
     fy_document_destroy(fyd);
     // Setting the boundary conditions for the pressure
     higflow_set_boundary_condition_for_pressure(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
@@ -894,16 +892,16 @@ void higflow_initialize_boundaries_conditions(higflow_solver *ns) {
 	      
         // Number of boundaries
         int numbcs; 
-        int ifd_eletro = fy_document_scanf(fyd_eletro,"/y_condition/number_bc %d",&numbcs);
+        int ifd_eletro = fy_document_scanf(fyd_eletro,"/boundaries_condition/number_bc %d",&numbcs);
  
-		  sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
-        printf("nome: %s", namefile);
-        FILE *fbc = fopen(namefile, "r");
-        if (fbc == NULL) {
+		  //sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
+        //printf("nome: %s", namefile);
+        //FILE *fbc = fopen(namefile, "r");
+        //if (fbc == NULL) {
             // Error in open the file
-            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-            exit(1);
-        }
+        //    printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
+        //    exit(1);
+        //}
         // Number of boundaries
         //int numbcs; 
         //int ifd = fscanf(fbc,"%d\n",&numbcs);

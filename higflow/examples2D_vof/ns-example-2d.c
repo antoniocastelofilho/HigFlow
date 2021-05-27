@@ -591,7 +591,7 @@ int main (int argc, char *argv[]) {
 	// Initialize the boundaries
 	//higflow_initialize_boundaries(ns);
 	printf("=+=+=+= Load Domain and Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=\n");
-	higflow_initialize_boundaries_and_domain(ns);
+	higflow_initialize_boundaries_conditions(ns);
 	// Creating distributed property
 	higflow_create_ditributed_properties(ns);
 	// Creating distributed property for generalized newtonian simulation
