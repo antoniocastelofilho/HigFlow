@@ -27,14 +27,19 @@ simulation_contr:                     #***   ***
           De: 1.0                     #*** Deborah's Number ***
           beta: 0.5                   #*** The Beta Parameter for the Model of Phase_0 ***
           kernel_tol: 1.0e-2          #***   ***
+      model_gptt:                     #***   ***
+          alpha_gptt: 0.2
+          beta_gptt: 0.2
       model_lptt:                     #***   ***
           epsilon: 0.25               #***   ***
           psi: 0.0                    #***   ***
       model_giesekus:                 #***   ***
           alpha: 0.2                  #***   ***
       model_integral:                 #***   ***
-          a: 0                        #***   ***
-          lambda: 0                   #***   ***
+          a0: 0                       #***   ***
+          a1: 0                       #***   ***
+          lambda0: 0                   #***   ***
+          lambda1: 0                   #***   ***
    flowtype_1: newtonian              # newtonian, generalized_newtonian or viscoelastic
    par_phase1:                        #***   ***
       visc: 1.0                       #*** The Viscosity of Phase 1 ***

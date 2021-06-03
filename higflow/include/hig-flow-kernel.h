@@ -297,6 +297,10 @@ typedef struct ve_parameters{
     real   alpha;
     // Kernel tolerance parameter
     real   kernel_tol;
+    // GPTT parameters
+    real   alpha_gptt;
+    real   beta_gptt;
+    real   gamma_gptt;
 } ve_parameters;
 
 // Controllers for viscoelastic simulation
@@ -352,6 +356,13 @@ typedef struct im_parameters{
     // Relaxation parameters for KBKZ model
     real   a[NRP];
     real   lambda[NRP];
+    //  Integral points
+    real   eps_intpoints;
+    real   scorte; 
+    // 
+    real rho;
+    real v_ref;
+    real l_ref;
     // Relaxation parameters for KBKZ-Fractional model
     real   Phi1;
     real   Phi2;
@@ -364,6 +375,8 @@ typedef struct im_parameters{
 typedef struct im_controllers{
     // Viscoelastic model
     int    model;
+    // Relaxation model
+    int    model_H;
     // Viscoelastic discretization type
     int    discrtype;
     // Viscoelastic convective discretization type

@@ -52,6 +52,6 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f *.o 
+		$(RM) -f *.o VTKS/* 
 
 .PHONY: run clean compilerflags
