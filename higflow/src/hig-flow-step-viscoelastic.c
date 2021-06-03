@@ -5,7 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-viscoelastic.h"
-
+#include "hig-flow-mittag-leffler.h"
 // *******************************************************************
 // Constitutive Equations
 // *******************************************************************
@@ -45,9 +45,11 @@ void higflow_compute_kernel_tensor(higflow_solver *ns) {
                 }
             }
              //beta=0.1;
-            real frac=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            real beta2=(1-frac)*1.0 +frac*0.5;
-            real De2=(1-frac)*0 +frac*0.4;
+            if (ns->contr.flowtype == 2 ){
+              real frac=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+              real beta2=(1-frac)*1.0 +frac*0.5;
+              real De2=(1-frac)*0 +frac*0.4;
+            }
             //printf("******************dbeta=%lf\n",beta1-beta2);
             // Calculate the tensor A
             real A[DIM][DIM], D[DIM][DIM];
@@ -191,6 +193,11 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
         real beta  = ns->ed.ve.par.beta;
         real tol   = ns->ed.ve.par.kernel_tol;
         real small = 1.0e-14;
+        switch (ns->ed.ve.contr.model) {
+            case 3:
+               ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
+			   break;
+		  }
         //tol        = 1.0e-3;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -230,10 +237,11 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                 tr += S[i][i];
             }
             // Calculate the tensor A
-            
-            real frac=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            real beta2=(1-frac)*1.0 +frac*0.5;
-            real De2=(1-frac)*0 +frac*0.4;
+            if (ns->contr.flowtype == 2 ){
+               real frac=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               real beta2=(1-frac)*1.0 +frac*0.5;
+               real De2=(1-frac)*0 +frac*0.4;
+            }
             
             real A[DIM][DIM], D[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -277,6 +285,10 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                 case 2: 
                     // LPTT Model
                     hig_flow_calculate_m_lptt(ns, tr, lambda, M, R, M_aux, tol);
+                    break;
+                case 3: 
+                    // GPTT Model
+                    hig_flow_calculate_m_gptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
             }
             // Calculate Kernel matrix >> MM = R M(Lambda) JLambda R^t
@@ -547,6 +559,11 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
         real beta  = ns->ed.ve.par.beta;
         real tol   = ns->ed.ve.par.kernel_tol;
         real small = 1.0e-14;
+        switch (ns->ed.ve.contr.model) {
+            case 3:
+               ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
+            break;
+        }
         //tol        = 1.0e-3;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -623,6 +640,10 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
                 case 2: 
                     // LPTT Model
                     hig_flow_calculate_m_lptt(ns, tr, lambda, M, R, M_aux, tol);
+                    break;
+                case 3: 
+                    // GPTT Model
+                    hig_flow_calculate_m_gptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
             }
             // Calculate RHS = Omega Kernel - Kernel Omega + 2BB + MM/De
@@ -1598,6 +1619,62 @@ void hig_flow_calculate_m_lptt (higflow_solver *ns, real tr, real lambda[DIM],  
         }
         jlambda[i]   = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = (1.0-lambda[i])*(1.0+(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr)/(1.0-ns->ed.ve.par.beta))*jlambda[i];
+    }
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.ve.par.De*ns->ed.ve.par.psi*jlambda[j];
+        }
+    }
+}
+
+// Calculate the matrix MM for GPTT model
+void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  real M[DIM][DIM], real R[DIM][DIM], real M_aux[DIM][DIM], real tol) {
+    // Calculate the matrix MM for LPTT model
+    real B[DIM][DIM], jlambda[DIM];
+    real B_aux[DIM][DIM];
+    for (int i = 0; i < DIM; i++) {
+        for (int j = i+1; j < DIM; j++) {
+            B_aux[i][j] = 0.0;
+            B_aux[j][i] = 0.0;
+        }
+        B_aux[i][i]  = M[i][i];
+    }
+    // Calculate Kernel matrix >> B = R B_aux R^t
+    hig_flow_matrix_transpose_product(B_aux, R, B);
+    // Calculate the MM matrix
+    for (int i = 0; i < DIM; i++) {
+        for (int j = i+1; j < DIM; j++) {
+            M_aux[i][j] = 0.0;
+            M_aux[j][i] = 0.0;
+        }
+        jlambda[i]   = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+	real alfa1 = ns->ed.ve.par.alpha_gptt;
+	real beta1 = ns->ed.ve.par.beta_gptt;
+	real gama1 = ns->ed.ve.par.gamma_gptt;
+	//real gama1, gama1n; 
+	//gama1 = 0.572365;
+        //gama1n = lgamma(beta1);
+        numc z, mitt;
+	z.real = ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr/(1.0-ns->ed.ve.par.beta);
+	z.imag = 0.0;
+	mitt   =  mlfv(alfa1,beta1, z, 6);
+        // Exponêncial
+        //real mittreal;
+        //mittreal = exp(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr);
+        /*if(gama1==0)
+         printf("Gamma1=0");
+        else
+        printf("===> gamma1: %lf=\n",gama1);
+        
+        if (abs(mittreal-mitt.real)>1.0)
+        printf("===> %d: MittExp = %lf <===> MittML = %lf <===\n",i,mittreal,mitt.real);
+        */
+        // M da exponencial
+        //M_aux[i][i]  = (1.0-lambda[i])*mittreal*jlambda[i];
+        // M do GPTT
+        M_aux[i][i]  = (1.0-lambda[i])*gama1*mitt.real*jlambda[i];
+        // M teste
+         //M_aux[i][i]  = (1.0-lambda[i])*mitt.real*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {

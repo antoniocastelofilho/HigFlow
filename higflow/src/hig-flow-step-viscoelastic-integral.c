@@ -391,6 +391,12 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.im.par.De;
+        int Nnow   = ns->par.step+1;
+        int NDTL   = NDT;
+        
+        if(Nnow<NDTL) 
+         NDTL = Nnow;
+        
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the local sub-domain for the facets
@@ -401,7 +407,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Looping for each Finger Tensor
-        for (int k = 0; k <= NDT; k++) {
+        for (int k = 0; k <= NDTL; k++) {
             // Loop for each cell
             higcit_celliterator *it;
             for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
@@ -494,8 +500,6 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
                     for (int j = 0; j < DIM; j++) {
                         // Get S
                         B[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
-                         //if ( B[i][j] >= 5.0)
-                        // printf("B[%d][%d][%d] = %f \n",i,j,k, B[i][j]);
                         // Store Kernel
                         dp_set_value(ns->ed.im.dpB[k][i][j], clid, B[i][j]);
                     }
@@ -526,12 +530,456 @@ void hig_flow_integral_equation (higflow_solver *ns) {
 // Calculate the integral equation for KBKZ model
 void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
     real tensao[DIM][DIM], Bold[NDT+1][DIM][DIM], B[NDT+1][DIM][DIM];
-    real I1a, I2a, I1b, I2b,I1c, I2c, welambda, alpha, beta;
+    real I1a, I2a, I2aAux, I1b, I2b, I2bAux, I1c, I2c, I2cAux, welambda, alpha, beta;
     real A0, A1, A2, b0, b1, b2, ds, c1, c2;
     real De, Re;
     real a[8], lambda[8];
     real STensor; 
+    int  M;
+    
+    real s[NDT+1];
+    real sold[NDT+2];
+    real dsl[NDT+1];
+    real pareps, tcorte, vref, lref, rhoo;
+    real t, dt, translad;
+    real Q, ds1;
+    real eps, eps2;
+    tcorte = ns->ed.im.par.scorte;
+    pareps = ns->ed.im.par.eps_intpoints;
+    lref   = ns->ed.im.par.l_ref;
+    vref   = ns->ed.im.par.v_ref;
+    rhoo   = ns->ed.im.par.rho;
+     
+    int Nnow  = ns->par.step+1;
+    int NDTL  = NDT;
+        
+    if(Nnow<NDTL) NDTL = Nnow;
+    
+    real Smax[DIM][DIM], Smin[DIM][DIM];
+    for (int i = 0; i < DIM; i++) {
+       for (int j = 0; j < DIM; j++) {
+           Smax[i][j]   = -1.0e16;
+           Smin[i][j]   =  1.0e16;
+           tensao[i][j] =  0.0;
+       }
+    }
+    
+    dt    = ns->par.dt;
+    eps2  = dt;
+    //eps2  = (NDT-10)*dt;
+    t     = ns->par.t;
+    beta  = ns->ed.im.par.beta;
+    alpha = ns->ed.im.par.alpha;
+    M     = ns->ed.im.par.M;
+    De    = ns->ed.im.par.De;
+    Re    = ns->par.Re;
+    for (int i = 0; i < M; i++) {
+       a[i]      = ns->ed.im.par.a[i];
+       lambda[i] = ns->ed.im.par.lambda[i];
+    }  
+ 
+    // dimensionless
+    for (int i = 0; i < M; i++) {
+       a[i]      = a[i]/(rhoo*vref*vref);
+       lambda[i] = lambda[i]/(lref);
+    }
+    
+    // Distribuição ===> Prog. Geométrica
+    if(Nnow<NDT){  //igualmente espaçado nos primeiros NDT ciclos
+         s[0] = 0.0;
+         s[NDTL] = t; 
+        for (int k = 1; k <= NDTL; k++) {
+            s[k]    = s[k-1] + dt;
+            sold[k] = s[k];
+        }
+    }else{
+        for (int k = 0; k <= NDTL; k++) {
+          sold[k] = ns->ed.im.s[k];
+        }
+        if (t<tcorte){
+          s[0]     = 0.0;
+          s[NDTL]  = t;
+          Q        = pow((t/eps2),1.0/(NDTL));  
+          for (int k = 1; k < NDTL; k++) {  
+            dsl[k] =(eps2*pow(Q,k)) ;
+          }
+          dsl[0]     = 0.0;
+          dsl[NDTL]  = t;   
+       }else {
+          s[0]     = t-tcorte;
+          s[NDTL]  = t;
+          Q        = pow((tcorte/eps2),1.0/(NDTL));  
+          for (int k = 1; k < NDTL; k++) {  
+            dsl[k] =(eps2*pow(Q,k)) ;
+          }
+          dsl[0]     = 0.0;
+          dsl[NDTL]  = tcorte;   
+      }   
+      for (int k = 1; k < NDTL; k++) {
+          s[k] = t-dsl[NDTL-k]+eps2;
+      } 
+     // }
+   } //Fim ELSE  
+   
+    
+    for (int k = 0; k <= NDTL; k++) {
+      ns->ed.im.s[k] = s[k];
+    }
+
+    // Get the local sub-domain for the cells
+    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+    // Get the map for the domain properties
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    // Loop for each cell
+    higcit_celliterator *it;
+    // OBS: ciclo x temos ns->par.step=(x-1) e só entra se  ns->par.step>NDT
+    
+    if (ns->par.step >= 3) { 
+      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Get the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int clid    = mp_lookup(mp, hig_get_cid(c));
+        // Get the center of the cell
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        // Get the delta of the cell
+        Point cdelta;
+        hig_get_delta(c, cdelta);
+        // Loop for each Finger Tensor
+        for (int k = 0; k <= NDTL; k++) {
+           for (int i = 0; i < DIM; i++) {
+              for (int j = i; j < DIM; j++) {
+                  Bold[k][i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
+                  B[k][i][j]    = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
+              }
+           } 
+        } 
+    
+        ////////// interpolate the finger tensor at the new points s[k] ////////////////// 
+        int  cont=0;
+        real aux[DIM][DIM];
+        real s0, s1, s2, sms0, sms0sms1, sms0sms12;
+        for (int i = 0; i < DIM; i++) {
+           for (int j = 0; j < DIM; j++) {
+              if (i == j){
+                 aux[i][j] = 1.0;
+              } else {
+                 aux[i][j] = 0.0;
+              }
+           }
+        }  
+        sold[NDTL+1]=t; 
+        for (int k = 0; k < NDTL; k++) {
+           for(int l = 1;  l <= NDTL  ; l++){        
+              s0 =sold[l-1];
+              s1 =sold[l];
+              s2 =sold[l+1];
+              if (s[k]>=s0 && s[k]<=s2) {
+                 cont = l;
+                // printf("%d ",cont);
+                 break;
+              }     
+         }
+           sms0      = (s[k]-s0)/(s1-s0);
+           sms0sms1  = ((s[k]-s0)*(s[k]-s1))/((s2-s0)*(s2-s1));
+           sms0sms12 = ((s[k]-s0)*(s[k]-s1))/((s1-s0)*(s2-s0)); 
+ 
+            if (cont == (NDTL)){
+              for (int i = 0; i < DIM; i++) {
+                 for (int j = i; j < DIM; j++) {
+                   B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+ sms0sms1*(aux[i][j]-Bold[cont][i][j]) - sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
+                 }
+              }  
+           }else {
+              for (int i = 0; i < DIM; i++) {
+                 for (int j = i; j < DIM; j++) {  	     
+                B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+ sms0sms1*(Bold[cont+1][i][j]-Bold[cont][i][j]) - sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
+                 }
+              }       
+           }   
+        }    
+        // condition for B at time t  
+        for (int i = 0; i < DIM; i++) {
+          for (int j = i; j < DIM; j++) {
+            if (i == j) {
+              B[NDTL][i][j] = 1.0;
+            } else {
+              B[NDTL][i][j] = 0.0;
+            }
+          }
+        }
+        
+          
+        /////////      Save the finger tensor  ////////////
+        for (int k = 0; k <= NDTL; k++) {
+           for (int i = 0; i < DIM; i++) {
+              for (int j = i; j < DIM; j++) {
+                 dp_set_value(ns->ed.im.dpB[k][i][j], clid, B[k][i][j]);
+                   if (i != j) {
+                      dp_set_value(ns->ed.im.dpB[k][j][i], clid, B[k][i][j]);
+                   }  
+              }  
+           }   
+        } 
+      }
+    // Destroy the iterator
+    higcit_destroy(it);
+    
+    // Sync the finger tensor   
+    for (int k = 0; k <= NDTL; k++) {
+       for (int i = 0; i < DIM; i++) {
+          for (int j = 0; j < DIM; j++) {
+             dp_sync(ns->ed.im.dpB[k][i][j]);
+          }
+       }
+    } 
+   } 
+
+    // Loop for each cell
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+      // Get the cell
+      hig_cell *c = higcit_getcell(it);
+      // Get the cell identifier
+      int clid    = mp_lookup(mp, hig_get_cid(c));
+      // Get the center of the cell
+      Point ccenter;
+      hig_get_center(c, ccenter);
+      // Get the delta of the cell
+      Point cdelta;
+      hig_get_delta(c, cdelta);
+
+       // calclute of integral equation (Tau = integrate (-inf, t) M(t,s[k]) H B ds[k])  
+    
+       if (ns->par.step >= 3) {
+      // for t>-inf and t<=sc    
+       for (int k = 0; k <= NDTL; k++) {
+          for (int i = 0; i < DIM; i++) {
+             for (int j = 0; j < DIM; j++) {
+                 B[k][i][j]    = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
+             }
+          } 
+       }        
+              
+       for (int i = 0; i < DIM; i++) {
+         for (int j = 0; j < DIM; j++){
+           tensao[i][j] = 0.0;
+           I1a          = 0.0;
+           I2a          = 0.0;
+           I2aAux       = 0.0;
+         }    
+       }
+       for (int i = 0; i < DIM; i++) {
+         for (int j = 0; j < DIM; j++) {
+           if (i == j) {
+              I1a += B[0][i][j];   
+           }    
+         }
+       }
+       if (DIM == 2) I1a += 1.0;
+       
+       for (int i = 0; i < DIM; i++) {
+         for (int j = 0; j < DIM; j++) {
+           I2aAux += B[0][i][j]*B[0][j][i];   
+         }    
+       }
+       if (DIM == 2) I2aAux += 1.0;
+       
+       I2a= 0.5*((I1a*I1a)-I2aAux); 
+       for (int k = 0; k < M; k++) {
+          welambda = lambda[k]*De;  
+          for (int i = 0; i < DIM; i++) {
+             for (int j = i; j < DIM; j++) {
+                 switch (ns->ed.im.contr.model_H) {
+	            case 0:
+	               if (t<tcorte){
+                         tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
+                      }else{
+                         tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-tcorte/welambda)*B[0][i][j];
+                      }
+		    break;
+	            case 1: // UCM H=1
+                       if (t<tcorte){
+                         tensao[i][j] += a[k]*exp(-t/welambda)*B[0][i][j];
+                       }else{
+                         tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-tcorte/welambda)*B[0][i][j];
+                       }
+		    break;
+	          }
+             }
+          }
+       }   // end (for t>-inf and t<=sc )
+       
+       
+       // for t>=tcorte (or t>=0)  and t<=tmax   
+       for (int k = 1; k < NDTL; k+=2) {
+         I1a          = 0.0;
+         I2a          = 0.0;
+         I2aAux       = 0.0;
+         I1b          = 0.0;
+         I2b          = 0.0;
+         I2bAux       = 0.0;
+         I1c          = 0.0;
+         I2c          = 0.0;
+         I2cAux       = 0.0;
+         for (int i = 0; i < DIM; i++) {
+             for (int j = 0; j < DIM; j++) {
+                if (i == j) {
+                    I1a += B[k-1][i][j];   
+                    I1b += B[k  ][i][j];
+                    I1c += B[k+1][i][j];
+                }    
+             }    
+         }
+         if (DIM == 2){
+            I1a += 1.0;   
+            I1b += 1.0;
+            I1c += 1.0;
+         }
+         for (int i = 0; i < DIM; i++) {
+           for (int j = 0; j < DIM; j++) {
+             I2aAux += B[k-1][i][j]*B[k-1][j][i];
+             I2bAux += B[k  ][i][j]*B[k  ][j][i];
+             I2cAux += B[k+1][i][j]*B[k+1][j][i];
+           }    
+         }
+         if (DIM == 2){
+            I2aAux += 1.0;   
+            I2bAux += 1.0;
+            I2cAux += 1.0;
+         }
+         I2a= 0.5*((I1a*I1a)-I2aAux);
+         I2b= 0.5*((I1b*I1b)-I2bAux);
+         I2c= 0.5*((I1c*I1c)-I2cAux);
+         
+          b0 = s[k+1]-s[k-1];
+          b1 = (s[k+1]*s[k+1])/2.0 -(s[k-1]*s[k-1])/2.0; 
+          b2 = (s[k+1]*s[k+1]*s[k+1])/3.0 -(s[k-1]*s[k-1]*s[k-1])/3.0;
+        
+          A0 = (b2-(b1*s[k])+(b0*s[k]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k-1])+(s[k-1]*s[k-1]));
+          A1 = -((b2-(b1*s[k-1])+(b0*s[k-1]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k])+(s[k-1]*s[k])));
+          A2 =  b0 - A0 - A1;
+          for (int r = 0; r < M; r++) {
+             welambda = lambda[r]*De;  
+             for (int i = 0; i < DIM; i++) {
+                for (int j = i; j < DIM; j++) {
+                 switch (ns->ed.im.contr.model_H) {
+	            case 0: 
+                         tensao[i][j] +=A0 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+A1 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+ A2 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*exp((s[k+1]-t)/welambda)*B[k+1][i][j];
+                    break;
+	            case 1: // UCM H=1
+                         tensao[i][j] +=A0 *(a[r]/welambda)*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+  A1*(a[r]/welambda)*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+  A2*(a[r]/welambda)*exp((s[k+1]-t)/welambda)*B[k+1][i][j]; 
+		    break;
+	          }
+                }
+             }
+          }
+        }
+
+        if ((NDTL%2) != 0) {
+           I1a          = 0.0;
+           I2a          = 0.0;
+           I2aAux       = 0.0;
+           I1b          = 0.0;
+           I2b          = 0.0;
+           I2bAux       = 0.0;
+           ds    = s[NDTL]-s[NDTL-1];
+           for (int i = 0; i < DIM; i++) {
+              for (int j = 0; j < DIM; j++) {
+                 if (i == j) {
+                    I1a += B[NDTL-1][i][j];   
+                    I1b += B[NDTL  ][i][j];
+                 }    
+              }    
+           }
+           if (DIM == 2){
+             I1a += 1.0;   
+             I1b += 1.0;
+           }
+           for (int i = 0; i < DIM; i++) {
+             for (int j = 0; j < DIM; j++) {
+              I2aAux += B[NDTL-1][i][j]*B[NDTL-1][j][i];
+              I2bAux += B[NDTL  ][i][j]*B[NDTL  ][j][i];
+             }    
+           }
+           if (DIM == 2){
+             I2aAux += 1.0;   
+             I2bAux += 1.0;
+           }
+           I2a= 0.5*((I1a*I1a)-I2aAux);
+           I2b= 0.5*((I1b*I1b)-I2bAux);
+           c1 = 0.0;
+           c2 = 0.0;
+           for (int r = 0; r < M; r++) {
+              welambda = lambda[r]*De;
+              c1 += (a[r]/welambda)*exp((s[NDTL-1]-t)/welambda);
+              c2 += (a[r]/welambda)*exp((s[NDTL  ]-t)/welambda);
+           }
+           for (int i = 0; i < DIM; i++) {
+              for (int j = i; j < DIM; j++) {
+                  switch (ns->ed.im.contr.model_H) {
+	            case 0: 
+                         tensao[i][j] += (ds/2.0)*(c1*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[NDTL-1][i][j])+c2*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[NDTL][i][j]));
+                    break;
+	            case 1: // UCM H=1
+                          tensao[i][j] += (ds/2.0)*((c1*B[NDTL-1][i][j])+(c2*B[NDTL][i][j]));
+		    break;
+	          }
+              }
+           }
+       }
+    }
+       
+       //  Compute S= tau - (1/Re)*(nablaU + nablaUT)  
+       real Du[DIM][DIM];
+       for (int i = 0; i < DIM; i++) {
+          for (int j = 0; j < DIM; j++) {
+             // Get Du
+             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+          }
+       }
+       //  Save S tensor  
+       for (int i = 0; i < DIM; i++) {
+          for (int j = i; j < DIM; j++) {
+               STensor = tensao[i][j]- ((Du[i][j]+Du[j][i])*(1.0/Re));
+              // Store Kernel
+	          dp_set_value(ns->ed.im.dpS[i][j], clid, STensor);
+              if (i != j) {
+                 dp_set_value(ns->ed.im.dpS[j][i], clid, STensor);
+              }
+              if (tensao[i][j] > Smax[i][j]) Smax[i][j] = tensao[i][j];
+              if (tensao[i][j] < Smin[i][j]) Smin[i][j] = tensao[i][j];
+           }  
+       }
+   }
+   // Destroy the iterator
+   higcit_destroy(it);
+   //   Sync S Tensor 
+   for (int i = 0; i < DIM; i++) {
+      for (int j = 0; j < DIM; j++) {
+         dp_sync(ns->ed.im.dpS[i][j]);
+      }
+   }
+   for (int i = 0; i < DIM; i++) {
+      for (int j = i; j < DIM; j++) {
+         // Printing the min and max tensor
+         printf("===>  %d %d: Tmin = %lf <===> Tmax = %lf <===\n",i,j,Smin[i][j],Smax[i][j]);
+      }
+   }
+   
+}
+
+// Calculate the integral equation for KBKZ-Fractional model
+void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
+    real tensao[DIM][DIM], Bold[NDT+1][DIM][DIM], B[NDT+1][DIM][DIM];
+    real I1a, I2a, I2aAux, I1b, I2b, I2bAux, I1c, I2c, I2cAux, welambda, alpha, beta;
+    real A0, A1, A2, b0, b1, b2, ds, c1, c2;
+    real De, Re;
+    real alphafr, betafr, V, G; // for Mittag-Leffler function
+    real a[8], lambda[8];
+    real STensor; 
     int  M, Nnow;
+    numc tm, mitt, tm0, mitt0, tm1, mitt1, tm2, mitt2;
     
     real s[NDT+1];
     real sold[NDT+1];
@@ -551,14 +999,13 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
     t     = ns->par.t;
     beta  = ns->ed.im.par.beta;
     alpha = ns->ed.im.par.alpha;
-    M     = ns->ed.im.par.M;
     De    = ns->ed.im.par.De;
     Re    = ns->par.Re;
-    for (int i = 0; i < M; i++) {
-       a[i]      = ns->ed.im.par.a[i];
-       lambda[i] = ns->ed.im.par.lambda[i];
-    }  
-    
+    alphafr = ns->ed.im.par.alpha_frac;
+    betafr  = ns->ed.im.par.beta_frac;
+    V       = ns->ed.im.par.Phi1;
+    G       = ns->ed.im.par.Phi2; 
+
     //divide the interval [0,t] into (NDT+1) points  (vectors s[k], sold[k])
     Nnow = NDT;
     //real translad;
@@ -724,7 +1171,7 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
       Point cdelta;
       hig_get_delta(c, cdelta);
 
-       // calclute of integral equation (Tau = integrate (-inf, t) M(t,s[k]) H B ds[k])  
+       // calculate of integral equation (Tau = integrate (-inf, t) M(t,s[k]) H B ds[k])  
     
        // for t>-inf and t<=0   
       if (ns->par.step >= 3) {
@@ -742,6 +1189,7 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
            tensao[i][j] = 0.0;
            I1a          = 0.0;
            I2a          = 0.0;
+           I2aAux       = 0.0;
          }    
        }
        for (int i = 0; i < DIM; i++) {
@@ -751,25 +1199,40 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
            }    
          }
        }
-       I1a += 1.0;
-       I2a = B[0][0][0]*B[0][1][1] +  B[0][0][0] +  B[0][1][1] - B[0][0][1]*B[0][0][1]; 
-       for (int k = 0; k < M; k++) {
-          welambda = lambda[k]*De;  
+       if (DIM == 2) I1a += 1.0;
+       for (int i = 0; i < DIM; i++) {
+         for (int j = 0; j < DIM; j++) {
+           I2aAux += B[0][i][j]*B[0][j][i];   
+         }    
+       }
+       if (DIM == 2) I2aAux += 1.0;
+       I2a= 0.5*((I1a*I1a)-I2aAux); 
+       //I2a = B[0][0][0]*B[0][1][1] +  B[0][0][0] +  B[0][1][1] - B[0][0][1]*B[0][0][1]; 
+       //for (int k = 0; k < M; k++) {
+         // welambda = lambda[k]*De;  
+  	   tm.real = -G*pow(t,alphafr-betafr)/V;
+	   tm.imag = 0;
+	   mitt =  mlfv(alphafr-betafr,-betafr, tm, 6);
           for (int i = 0; i < DIM; i++) {
              for (int j = 0; j < DIM; j++) {
-                tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
+		tensao[i][j] += G*pow(t,-1-betafr)*mitt.real*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*B[0][i][j]; //a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
+                //if (tensao[i][j] > 0.0)
+                   //printf("I1a = %f, I2a = %f, Tensao[%d][%d] = %f \n",I1a, I2a, i,j,tensao[i][j]);  
              }
           }
-       }  
+      // }  
        // for t>=0 and t<=tmax   
        for (int k = 1; k <= Nnow-1; k+=2) {
-          I1a          = 0.0;
-          I2a          = 0.0;
-          I1b          = 0.0;
-          I2b          = 0.0;
-          I1c          = 0.0;
-          I2c          = 0.0;
-          for (int i = 0; i < DIM; i++) {
+         I1a          = 0.0;
+         I2a          = 0.0;
+         I2aAux       = 0.0;
+         I1b          = 0.0;
+         I2b          = 0.0;
+         I2bAux       = 0.0;
+         I1c          = 0.0;
+         I2c          = 0.0;
+         I2cAux       = 0.0;
+         for (int i = 0; i < DIM; i++) {
              for (int j = 0; j < DIM; j++) {
                 if (i == j) {
                     I1a += B[k-1][i][j];   
@@ -777,13 +1240,33 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
                     I1c += B[k+1][i][j];
                 }    
              }    
-          }
-          I1a += 1.0;   
-          I1b += 1.0;
-          I1c += 1.0;
-          I2a = B[k-1][0][0]*B[k-1][1][1] + B[k-1][0][0] + B[k-1][1][1] - B[k-1][0][1]*B[k-1][0][1]; 
-          I2b = B[k  ][0][0]*B[k  ][1][1] + B[k  ][0][0] + B[k  ][1][1] - B[k  ][0][1]*B[k  ][0][1]; 
-          I2c = B[k+1][0][0]*B[k+1][1][1] + B[k+1][0][0] + B[k+1][1][1] - B[k+1][0][1]*B[k+1][0][1]; 
+         }
+         if (DIM == 2){
+            I1a += 1.0;   
+            I1b += 1.0;
+            I1c += 1.0;
+         }
+         for (int i = 0; i < DIM; i++) {
+           for (int j = 0; j < DIM; j++) {
+             I2aAux += B[k-1][i][j]*B[k-1][j][i];
+             I2bAux += B[k  ][i][j]*B[k  ][j][i];
+             I2cAux += B[k+1][i][j]*B[k+1][j][i];
+           }    
+         }
+         if (DIM == 2){
+            I2aAux += 1.0;   
+            I2bAux += 1.0;
+            I2cAux += 1.0;
+         }
+         I2a= 0.5*((I1a*I1a)-I2aAux);
+         I2b= 0.5*((I1b*I1b)-I2bAux);
+         I2c= 0.5*((I1c*I1c)-I2cAux);
+          
+         //I2a = B[k-1][0][0]*B[k-1][1][1] + B[k-1][0][0] + B[k-1][1][1] - B[k-1][0][1]*B[k-1][0][1]; 
+         //I2b = B[k  ][0][0]*B[k  ][1][1] + B[k  ][0][0] + B[k  ][1][1] - B[k  ][0][1]*B[k  ][0][1]; 
+         //I2c = B[k+1][0][0]*B[k+1][1][1] + B[k+1][0][0] + B[k+1][1][1] - B[k+1][0][1]*B[k+1][0][1];
+          
+          
           b0 = s[k+1]-s[k-1];
           b1 = (s[k+1]*s[k+1])/2.0 -(s[k-1]*s[k-1])/2.0; 
           b2 = (s[k+1]*s[k+1]*s[k+1])/3.0 -(s[k-1]*s[k-1]*s[k-1])/3.0;
@@ -791,23 +1274,39 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
           A0 = (b2-(b1*s[k])+(b0*s[k]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k-1])+(s[k-1]*s[k-1]));
           A1 = -((b2-(b1*s[k-1])+(b0*s[k-1]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k])+(s[k-1]*s[k])));
           A2 =  b0 - A0 - A1;
-          for (int r = 0; r < M; r++) {
-             welambda = lambda[r]*De;  
+          //for (int r = 0; r < M; r++) {
+          //   welambda = lambda[r]*De;  
+          tm0.real = -G*pow((t-s[k-1]),alphafr-betafr)/V;
+	      tm0.imag = 0;
+	      mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
+	      tm1.real = -G*pow((t-s[k  ]),alphafr-betafr)/V;
+	      tm1.imag = 0;
+	      mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
+	      tm2.real = -G*pow((t-s[k+1]),alphafr-betafr)/V;
+	      tm2.imag = 0;
+	      mitt2 =  mlfv(alphafr-betafr,-betafr, tm2, 6);
+          
              for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
-                   tensao[i][j] +=A0 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+ 
-                                A1 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+
-                                A2 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*exp((s[k+1]-t)/welambda)*B[k+1][i][j];
-               }
+                    //if (alpha-3.0+beta*I1a+(1.0-beta)*I2a == 0.0) printf(" Divisão = %f  \n ",(alpha-3.0+beta*I1a+(1.0-beta)*I2a));
+                   tensao[i][j] +=A0 * G*pow(t-(s[k-1]),-1-betafr)*mitt0.real*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*B[k-1][i][j]+ 
+                                  A1 * G*pow((t-s[k  ]),-1-betafr)*mitt1.real*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*B[k  ][i][j]+
+                                  A2 * G*pow((t-s[k+1]),-1-betafr)*mitt2.real*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*B[k+1][i][j];
+		   //printf("tm0 = %f, mitt0 = %f, tm1 = %f, mitt1 = %f, tm2 = %f, mitt2 = %f\n", tm0.real, mitt0.real, tm1.real, mitt1.real, tm2.real, mitt2.real);
+                   //printf("I1a = %f, I1b = %f, I1c = %f, I2a = %f, I2b = %f, I2c = %f, Tensao[%d][%d] = %f \n",I1a, I1b, I1c, I2a, I2b, I2c, i,j,tensao[i][j]);  
+		   //exit(1);
+                }
              }
-          }
+         // }
         }
 
         if ((Nnow%2) != 0) {
            I1a          = 0.0;
            I2a          = 0.0;
+           I2aAux       = 0.0;
            I1b          = 0.0;
            I2b          = 0.0;
+           I2bAux       = 0.0;
            ds    = s[Nnow]-s[Nnow-1];
            for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
@@ -817,22 +1316,44 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
                  }    
               }    
            }
-           I1a += 1.0;   
-           I1b += 1.0;
-           I2a = B[Nnow-1][0][0]*B[Nnow-1][1][1] + B[Nnow-1][0][0] + B[Nnow-1][1][1] - B[Nnow-1][0][1]*B[Nnow-1][0][1]; 
-           I2b = B[Nnow  ][0][0]*B[Nnow  ][1][1] + B[Nnow  ][0][0] + B[Nnow  ][1][1] - B[Nnow  ][0][1]*B[Nnow  ][0][1];
-           c1 = 0.0;
-           c2 = 0.0;
-           for (int r = 0; r < M; r++) {
-              welambda = lambda[r]*De;
-              c1 += (a[r]/welambda)*exp((s[Nnow-1]-t)/welambda);
-              c2 += (a[r]/welambda)*exp((s[Nnow  ]-t)/welambda);
+           if (DIM == 2){
+             I1a += 1.0;   
+             I1b += 1.0;
            }
            for (int i = 0; i < DIM; i++) {
-              for (int j = 0; j < DIM; j++) {
-                 tensao[i][j] += (ds/2.0)*(c1*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[Nnow-1][i][j])+c2*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[Nnow][i][j]));
-              }
+             for (int j = 0; j < DIM; j++) {
+              I2aAux += B[Nnow-1][i][j]*B[Nnow-1][j][i];
+              I2bAux += B[Nnow  ][i][j]*B[Nnow  ][j][i];
+             }    
            }
+           if (DIM == 2){
+             I2aAux += 1.0;   
+             I2bAux += 1.0;
+           }
+           I2a= 0.5*((I1a*I1a)-I2aAux);
+           I2b= 0.5*((I1b*I1b)-I2bAux);
+           //I2a = B[Nnow-1][0][0]*B[Nnow-1][1][1] + B[Nnow-1][0][0] + B[Nnow-1][1][1] - B[Nnow-1][0][1]*B[Nnow-1][0][1]; 
+           //I2b = B[Nnow  ][0][0]*B[Nnow  ][1][1] + B[Nnow  ][0][0] + B[Nnow  ][1][1] - B[Nnow  ][0][1]*B[Nnow  ][0][1];
+           c1 = 0.0;
+           c2 = 0.0;
+         //  for (int r = 0; r < M; r++) {
+           //   welambda = lambda[r]*De;
+           //   c1 += (a[r]/welambda)*exp((s[Nnow-1]-t)/welambda);
+           //   c2 += (a[r]/welambda)*exp((s[Nnow  ]-t)/welambda);
+          // }
+          tm0.real = -G*pow((t-s[Nnow-1]),alphafr-betafr)/V;
+	      tm0.imag = 0;
+	      mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
+	      tm1.real = -G*pow((t-s[Nnow  ]),alphafr-betafr)/V;
+	      tm1.imag = 0;
+	      mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
+          for (int i = 0; i < DIM; i++) {
+             for (int j = 0; j < DIM; j++) {
+                tensao[i][j] += (ds/2.0)*(G*pow((t-s[Nnow-1]),-1-betafr)*mitt0.real*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[Nnow-1][i][j])+G*pow((t-s[Nnow  ]),-1-betafr)*mitt1.real*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[Nnow][i][j]));
+                //if ( tensao[i][j] != 0.0)
+                   //printf("I1a = %f, I1b = %f, I2a = %f, I2b = %f, Tensao[%d][%d] = %f \n",I1a, I1b, I2a, I2b, i,j,tensao[i][j]);  
+             }
+          }
        }
       }
        
@@ -870,723 +1391,6 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
       }
    }
    
-}
-/*
-// Calculate the integral equation for KBKZ model
-void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
-    real tensao[DIM][DIM], Bold[NDT+1][DIM][DIM], B[NDT+1][DIM][DIM];
-    real I1a, I2a, I1b, I2b,I1c, I2c, welambda, alpha, beta;
-    real A0, A1, A2, b0, b1, b2, ds, c1, c2;
-    real De, Re;
-    real a[8], lambda[8];
-    real STensor; 
-    int  M, Nnow;
-    
-    real s[NDT+1];
-    real sold[NDT+1];
-    real t, dt;
-    real Q, ds1;
-
-    real Smax[DIM][DIM], Smin[DIM][DIM];
-    for (int i = 0; i < DIM; i++) {
-       for (int j = 0; j < DIM; j++) {
-           Smax[i][j]   = -1.0e16;
-           Smin[i][j]   =  1.0e16;
-           tensao[i][j] =  0.0;
-       }
-    }
-    
-    dt    = ns->par.dt;
-    t     = ns->par.t;
-    beta  = ns->ed.im.par.beta;
-    alpha = ns->ed.im.par.alpha;
-    M     = ns->ed.im.par.M;
-    De    = ns->ed.im.par.De;
-    Re    = ns->par.Re;
-    for (int i = 0; i < M; i++) {
-       a[i]      = ns->ed.im.par.a[i];
-       lambda[i] = ns->ed.im.par.lambda[i];
-    }  
-    
-    //divide the interval [0,t] into (NDT+1) points  (vectors s[k], sold[k])
-    Nnow = NDT;
-    //real translad;
-    if (t > 0.0) { 
-     if ( ns->par.step+1 <= Nnow){
-       Nnow = ns->par.step+1;
-       s[0] = 0.0;
-       s[Nnow] = t;
-       for (int k = 1; k <= Nnow; k++) {
-          s[k]    = s[k-1] + dt;
-          sold[k] = s[k];
-      //printf(" s[%d] = %f, t= %f, Nnow = %d \n", k, s[k], t, Nnow); 
-     }
-    } else{
-       for (int k = 0; k <= Nnow; k++) {
-          sold[k] = ns->ed.im.s[k];
-         //printf(" sold[%d] = %f ", k, sold[k]);
-       }
-       s[0]     = 0.0;
-       s[Nnow]  = t;
-       Q        = pow((t/dt),1.0/(NDT));  
-     //  ds1      = (dt*pow(Q,1));
-     //  translad = 0.98*(ds1);
-       ds       = 0.0;
-       for (int k = 1; k < NDT; k++) {
-          ds        = (dt*pow(Q,k));
-          s[NDT-k] = t-ds;
-       //   s[NDT-k] = t-ds+translad;
-          if (ds <= 0.0) {
-             printf("ERROR: ds= s[m][%d] - s[m][%d] = %f <= 0!\n",k, k-1, ds);
-             exit(1);
-          }
-          if (s[k] < 0.0) {
-             printf("ERROR: s[%d] = %f ", k, s[k]);
-             exit(1);
-          }
-          //printf(" s[%d] = %f ", NDT-k, s[NDT-k]);  
-       }  
-    }
-    for (int k = 0; k <= Nnow; k++) {
-      //printf("s[%d] = %f \n",k,s[k]);
-     ns->ed.im.s[k] = s[k];
-    }
-   }
-   
-    // Get the local sub-domain for the cells
-    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-    // Get the map for the domain properties
-    mp_mapper *mp = sd_get_domain_mapper(sdp);
-    // Loop for each cell
-    higcit_celliterator *it;
-    if (ns->par.step+1 >= NDT) { 
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-       // Get the cell
-       hig_cell *c = higcit_getcell(it);
-       // Get the cell identifier
-       int clid    = mp_lookup(mp, hig_get_cid(c));
-       // Get the center of the cell
-       Point ccenter;
-       hig_get_center(c, ccenter);
-       // Get the delta of the cell
-       Point cdelta;
-       hig_get_delta(c, cdelta);
-       for (int k = 0; k <= Nnow; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                 Bold[k][i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
-                 B[k][i][j]    = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
-             }
-          } 
-       } 
-    
-       ////////// interpolate the finger tensor at the new points s[k] ////////////////// 
-      int  cont=0;
-       real aux[DIM][DIM];
-       real s0, s1, s2, sms0, sms0sms1, sms0sms12;
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             if (i == j){
-                aux[i][j] = 1.0;
-             } else {
-                aux[i][j] = 0.0;
-             }
-          }
-       }  
-      sold[NDT+1]=t; 
-//       if (ns->par.step+1 >= NDT) {
-         for (int k = 0; k < NDT; k++) {
-             for(int l = 1;  l <= NDT  ; l++){        
-                s0 =sold[l-1];
-                s1 =sold[l];
-                s2 =sold[l+1];
-                if (s[k]>=s0 && s[k]<=s2) {
-                   cont = l;
-                   break;
-                }
-             }
-             sms0      = (s[k]-s0)/(s1-s0);
-             sms0sms1  = ((s[k]-s0)*(s[k]-s1))/((s2-s0)*(s2-s1));
-             sms0sms12 = ((s[k]-s0)*(s[k]-s1))/((s1-s0)*(s2-s0)); 
- 
-             if (cont == (NDT)){
-                for (int i = 0; i < DIM; i++) {
-                   for (int j = 0; j < DIM; j++) {  	     
- 	              B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+sms0sms1*(aux[i][j]-Bold[cont][i][j])			    -sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
-                   }
-                }  
-             } else {
-                for (int i = 0; i < DIM; i++) {
-                   for (int j = 0; j < DIM; j++) {  	     
- 	              B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+sms0sms1*(Bold[cont+1][i][j]-Bold[cont][i][j])			    -sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
-                   }
-                }       
-             } 
-
-          }   
-        // condition for B at time t  
-        for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             if (i == j){
-                B[NDT][i][j] = 1.0;
-             } else {
-                B[NDT][i][j] = 0.0;
-             }
-          }
-       }
-           
-      /////////      Save the finger tensor  ////////////
-       for (int k = 0; k <= NDT; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                dp_set_value(ns->ed.im.dpB[k][i][j], clid, B[k][i][j]);
-             }  
-          }   
-       } 
-    } // end iterator
-     // Destroy the iterator
-     higcit_destroy(it);
-       ///////      Sync the finger tensor    //////////////  
-       for (int k = 0; k <= NDT; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.im.dpB[k][i][j]);
-             }
-          }
-       } 
-     } // end    if (ns->par.step+1 >= NDT)
-     
-     
-      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-       // Get the cell
-       hig_cell *c = higcit_getcell(it);
-       // Get the cell identifier
-       int clid    = mp_lookup(mp, hig_get_cid(c));
-       // Get the center of the cell
-       Point ccenter;
-       hig_get_center(c, ccenter);
-       // Get the delta of the cell
-       Point cdelta;
-       hig_get_delta(c, cdelta);
-     
-       /////  calclute of integral equation ( Tau= integrate (-inf, t) M(t,s[k]) H B ds[k])    //////////////// 
-      //////      for t>-inf and t<=0   //////////////////////////////////////////////////////////////////////
-       if (ns->par.step+1 >=3){ 
-              for (int k = 0; k <= Nnow; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-//                  Bold[k][i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
-                 B[k][i][j]    = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
-             }
-          } 
-       }    
-           
-           
-        for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++){
-             tensao[i][j] = 0.0;
-             I1a          = 0.0;
-             I2a          = 0.0;
-          }    
-       }
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             if (i == j) {
-                I1a += B[0][i][j];   
-             }    
-          }
-       }
-        I1a += 1.0;
-        I2a = B[0][0][0]*B[0][1][1] +  B[0][0][0] +  B[0][1][1] - B[0][0][1]*B[0][0][1]; 
-    
-       for (int k = 0; k < M; k++) {
-          welambda = lambda[k]*De;  
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
-             }
-          }
-       }  
-       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-       /////      for t>=0 and t<=tmax      /////////////////////////////////////////////////////////////////////////////
-       for (int k = 1; k <= Nnow-1; k+=2) {
-                I1a          = 0.0;
-                I2a          = 0.0;
-                I1b          = 0.0;
-                I2b          = 0.0;
-                I1c          = 0.0;
-                I2c          = 0.0;
-        for (int i = 0; i < DIM; i++) {
-           for (int j = 0; j < DIM; j++) {
-              if (i == j) {
-                  I1a += B[k-1][i][j];   
-                  I1b += B[k  ][i][j];
-                  I1c += B[k+1][i][j];
-              }    
-           }    
-        }
-          I1a += 1.0;   
-          I1b += 1.0;
-          I1c += 1.0;
-          I2a = B[k-1][0][0]*B[k-1][1][1] + B[k-1][0][0] + B[k-1][1][1] - B[k-1][0][1]*B[k-1][0][1]; 
-          I2b = B[k  ][0][0]*B[k  ][1][1] + B[k  ][0][0] + B[k  ][1][1] - B[k  ][0][1]*B[k  ][0][1]; 
-          I2c = B[k+1][0][0]*B[k+1][1][1] + B[k+1][0][0] + B[k+1][1][1] - B[k+1][0][1]*B[k+1][0][1]; 
-      
-          b0 = s[k+1]-s[k-1];
-          b1 = (s[k+1]*s[k+1])/2.0 -(s[k-1]*s[k-1])/2.0; 
-          b2 = (s[k+1]*s[k+1]*s[k+1])/3.0 -(s[k-1]*s[k-1]*s[k-1])/3.0;
-          
-          A0 = (b2-(b1*s[k])+(b0*s[k]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k-1])+(s[k-1]*s[k-1]));
-          A1 = -((b2-(b1*s[k-1])+(b0*s[k-1]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k])+(s[k-1]*s[k])));
-          A2 =  b0 - A0 - A1;
-
-          for (int r = 0; r < M; r++) {
-             welambda = lambda[r]*De;  
-             for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                   tensao[i][j] +=A0 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+ 
-                                  A1 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+
-                                  A2 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*exp((s[k+1]-t)/welambda)*B[k+1][i][j];
-               }
-             }
-          } 
-       }  
-       
-        if ((Nnow%2) != 0) {
-          I1a          = 0.0;
-          I2a          = 0.0;
-          I1b          = 0.0;
-          I2b          = 0.0;
-          int k = Nnow;
-          ds    = s[k]-s[k-1];
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                if (i == j) {
-                   I1a += B[k-1][i][j];   
-                   I1b += B[k  ][i][j];
-                }    
-             }    
-          }
-          I1a += 1.0;   
-          I1b += 1.0;
-          I2a = B[k-1][0][0]*B[k-1][1][1] + B[k-1][0][0] + B[k-1][1][1] - B[k-1][0][1]*B[k-1][0][1]; 
-          I2b = B[k  ][0][0]*B[k  ][1][1] + B[k  ][0][0] + B[k  ][1][1] - B[k  ][0][1]*B[k  ][0][1];
-          c1 = 0.0;
-          c2 = 0.0;
-          for (int r = 0; r < M; r++) {
-             welambda = lambda[r]*De;
-             c1 += (a[r]/welambda)*exp((s[k-1]-t)/welambda);
-             c2 += (a[r]/welambda)*exp((s[k  ]-t)/welambda);
-          }
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                tensao[i][j] += (ds/2.0)*(c1*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[k-1][i][j])+c2*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[k][i][j]));
-             }
-          }
-       }
-       }
-       
-       //////////  Compute S= tau - (1/Re)*(nablaU + nablaUT)  ///////////////
-       real Du[DIM][DIM];
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             // Get Du
-             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
-          }
-       }
-       /////////  Save S tensor  //////////////////////////////////
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-              STensor = tensao[i][j]- ((Du[i][j]+Du[j][i])/(Re));
-              // Store Kernel
-              dp_set_value(ns->ed.im.dpS[i][j], clid, STensor);
-              if (STensor > Smax[i][j]) Smax[i][j] = STensor;
-              if (STensor < Smin[i][j]) Smin[i][j] = STensor;
-           }  
-       }
-   }
-   // Destroy the iterator
-   higcit_destroy(it);
-   ///////   Sync S Tensor ///////////////////////////////
-   for (int i = 0; i < DIM; i++) {
-      for (int j = 0; j < DIM; j++) {
-         dp_sync(ns->ed.im.dpS[i][j]);
-      }
-   }
-   for (int i = 0; i < DIM; i++) {
-      for (int j = 0; j < DIM; j++) {
-         // Printing the min and max tensor
-         printf("===> %d %d: Tmin = %lf <===> Tmax = %lf <===\n",i,j,Smin[i][j],Smax[i][j]);
-      }
-   }
-}
-
-*/
-
-// Calculate the integral equation for KBKZ-Fractional model
-void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
-    real tensao[DIM][DIM], Bold[NDT+1][DIM][DIM], B[NDT+1][DIM][DIM];
-    real I1a, I2a, I1b, I2b,I1c, I2c, welambda, alpha, beta;
-    real A0, A1, A2, b0, b1, b2, ds, c1, c2;
-    real De, Re;
-    real alphafr, betafr, V, G; // for Mittag-Leffler function
-    real a[8], lambda[8];
-    real STensor; 
-    int  M, Nnow;
-    numc tm, mitt, tm0, mitt0, tm1, mitt1, tm2, mitt2;
-    
-    real s[NDT+1];
-    real sold[NDT+1];
-    real t, dt;
-    real Q, ds1;
-
-    real Smax[DIM][DIM], Smin[DIM][DIM];
-    for (int i = 0; i < DIM; i++) {
-       for (int j = 0; j < DIM; j++) {
-           Smax[i][j]   = -1.0e16;
-           Smin[i][j]   =  1.0e16;
-           tensao[i][j] =  0.0;
-       }
-    }
-    
-    dt    = ns->par.dt;
-    t     = ns->par.t;
-    beta  = ns->ed.im.par.beta;
-    alpha = ns->ed.im.par.alpha;
-    De    = ns->ed.im.par.De;
-    Re    = ns->par.Re;
-    alphafr = ns->ed.im.par.alpha_frac;
-    betafr  = ns->ed.im.par.beta_frac;
-    V       = ns->ed.im.par.Phi1;
-    G       = ns->ed.im.par.Phi2; 
-    
-    //divide the interval [0,t] into (NDT+1) points  (vectors s[k], sold[k])
-    Nnow = NDT;
-    real translad;
-    //dt = t/NDT;
-    if (t > 0.0) { 
-     if ( ns->par.step+1 <= Nnow){
-       Nnow = ns->par.step+1;
-       //dt = t/Nnow;
-       s[0] = 0.0;
-       s[Nnow] = t;
-       for (int k = 1; k <= Nnow; k++) {
-          s[k]    = s[k-1] + dt;
-          sold[k] = s[k];
-      //printf(" s[%d] = %f, t= %f, Nnow = %d \n", k, s[k], t, Nnow); 
-     }
-    } else{
-       for (int k = 0; k <= Nnow; k++) {
-          sold[k] = ns->ed.im.s[k];
-         //printf(" sold[%d] = %f ", k, sold[k]);
-       }
-       s[0]     = 0.0;
-       s[Nnow]  = t;
-       Q        = pow((t/dt),1.0/(NDT));  
-       ds1      = (dt*pow(Q,1));
-       translad = 0.98*(ds1);
-       ds       = 0.0;
-       for (int k = 1; k < NDT; k++) {
-          ds        = (dt*pow(Q,k));
-          s[NDT-k] = t-ds+translad;
-          if (ds <= 0.0) {
-             printf("ERROR: ds= s[m][%d] - s[m][%d] = %f <= 0!\n",k, k-1, ds);
-             exit(1);
-          }
-          if (s[k] < 0.0) {
-             printf("ERROR: s[%d] = %f ", k, s[k]);
-             exit(1);
-          }
-          //printf(" s[%d] = %f ", NDT-k, s[NDT-k]);  
-       }  
-    }
-    for (int k = 0; k <= Nnow; k++) {
-      //printf("s[%d] = %f \n",k,s[k]);
-     ns->ed.im.s[k] = s[k];
-    }
-   }
-   
-    // Get the local sub-domain for the cells
-    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-    // Get the map for the domain properties
-    mp_mapper *mp = sd_get_domain_mapper(sdp);
-    // Loop for each cell
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-       // Get the cell
-       hig_cell *c = higcit_getcell(it);
-       // Get the cell identifier
-       int clid    = mp_lookup(mp, hig_get_cid(c));
-       // Get the center of the cell
-       Point ccenter;
-       hig_get_center(c, ccenter);
-       // Get the delta of the cell
-       Point cdelta;
-       hig_get_delta(c, cdelta);
-       for (int k = 0; k <= Nnow; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                 Bold[k][i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
-                 B[k][i][j]    = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
-                //  Bold[k][i][j] = ns->ed.im.dpB[k][i][j];
-             }
-          } 
-       } 
-    
-       ////////// interpolate the finger tensor at the new points s[k] ////////////////// 
-       int  cont=0;
-       real aux[DIM][DIM];
-       real s0, s1, s2, sms0, sms0sms1, sms0sms12;
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             if (i == j){
-                aux[i][j] = 1.0;
-             } else {
-                aux[i][j] = 0.0;
-             }
-          }
-       }  
-      sold[NDT+1]=t; 
-      if (ns->par.step+1 >= NDT) {
-         // printf("Entreiiiiiiii ........ \n");
-          for (int k = 0; k < NDT; k++) {
-             for(int l = 1;  l <= NDT  ; l++){        
-                s0 =sold[l-1];
-                s1 =sold[l];
-                s2 =sold[l+1];
-                if (s[k]>=s0 && s[k]<=s2) {
-                   cont = l;
-                   break;
-                }
-             }
-             sms0      = (s[k]-s0)/(s1-s0);
-             sms0sms1  = ((s[k]-s0)*(s[k]-s1))/((s2-s0)*(s2-s1));
-             sms0sms12 = ((s[k]-s0)*(s[k]-s1))/((s1-s0)*(s2-s0)); 
-             //if (sms0 >=1.0) {
-               //  printf("sms0 = %f   sms0sms1 = %f  e  sms0sms12 = %f   k=%d  cont = %d\n", sms0, sms0sms1,sms0sms12,k,cont);
-             //}  
-             if (cont == (NDT)){
-                for (int i = 0; i < DIM; i++) {
-                   for (int j = 0; j < DIM; j++) {  	     
- 	              B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+sms0sms1*(aux[i][j]-Bold[cont][i][j])			    -sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
-                   }
-                }  
-             } else {
-                for (int i = 0; i < DIM; i++) {
-                   for (int j = 0; j < DIM; j++) {  	     
- 	              B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+sms0sms1*(Bold[cont+1][i][j]-Bold[cont][i][j])			    -sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
-                      //  if ( B[k][i][j] >= 5.0)
-                       // printf("B[%d][%d][%d] = %f - apos interpolar \n",i,j,k, B[k][i][j]);                   
-                       
-                }
-                }       
-             } 
-
-          }   
-        // condition for B at time t  
-        for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             if (i == j){
-                B[NDT][i][j] = 1.0;
-             } else {
-                B[NDT][i][j] = 0.0;
-             }
-          }
-       }
-           
-      /////////      Save the finger tensor  ////////////
-       for (int k = 0; k <= NDT; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                dp_set_value(ns->ed.im.dpB[k][i][j], clid, B[k][i][j]);
-             }  
-          }   
-       } 
-       ///////      Sync the finger tensor    //////////////  
-       for (int k = 0; k <= NDT; k++) {
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.im.dpB[k][i][j]);
-             }
-          }
-       } 
-      } 
-      // calclute of integral equation ( Tau= integrate (-inf, t) M(t,s[k]) H B ds[k])
-      // for t>-inf and t<=0   
-       if (ns->par.step+1 >=3){       
-        for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++){
-             tensao[i][j] = 0.0;
-             I1a          = 0.0;
-             I2a          = 0.0;
-          }    
-       }
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             if (i == j) {
-                I1a += B[0][i][j];   
-             }    
-            //printf(" I1a = %f   ",I1a);  
-          }
-       }
-        I1a += 1.0;
-        I2a = B[0][0][0]*B[0][1][1] +  B[0][0][0] +  B[0][1][1] - B[0][0][1]*B[0][0][1];
-                  //  printf(" \n" );    
-       // for (int k = 0; k < M; k++) {
-       //   welambda = lambda[k]*De;  
-	  tm.real = -G*pow(t,alphafr-betafr)/V;
-	  tm.imag = 0;
-	  mitt =  mlfv(alphafr-betafr,-betafr, tm, 6);
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-		tensao[i][j] += G*pow(t,-1-betafr)*mitt.real*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*B[0][i][j]; //a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
-                //if (tensao[i][j] > 0.0)
-                   //printf("I1a = %f, I2a = %f, Tensao[%d][%d] = %f \n",I1a, I2a, i,j,tensao[i][j]);  
-             }
-          }
-      // }  
-      // for t>=0 and t<=tmax  
-       for (int k = 1; k <= Nnow-1; k+=2) {
-          //for (int i = 0; i < DIM; i++) {
-           //  for (int j = 0; j < DIM; j++) {
-                //tensao[i][j] = 0.0;
-                I1a          = 0.0;
-                I2a          = 0.0;
-                I1b          = 0.0;
-                I2b          = 0.0;
-                I1c          = 0.0;
-                I2c          = 0.0;
-            // }
-         // }
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                if (i == j) {
-                   I1a += B[k-1][i][j];   
-                   I1b += B[k  ][i][j];
-                   I1c += B[k+1][i][j];
-                }    
-             }    
-          }
-          I1a += 1.0;   
-          I1b += 1.0;
-          I1c += 1.0;
-          I2a = B[k-1][0][0]*B[k-1][1][1] + B[k-1][0][0] + B[k-1][1][1] - B[k-1][0][1]*B[k-1][0][1]; 
-          I2b = B[k  ][0][0]*B[k  ][1][1] + B[k  ][0][0] + B[k  ][1][1] - B[k  ][0][1]*B[k  ][0][1]; 
-          I2c = B[k+1][0][0]*B[k+1][1][1] + B[k+1][0][0] + B[k+1][1][1] - B[k+1][0][1]*B[k+1][0][1]; 
-      
-          b0 = s[k+1]-s[k-1];
-          b1 = (s[k+1]*s[k+1])/2.0 -(s[k-1]*s[k-1])/2.0; 
-          b2 = (s[k+1]*s[k+1]*s[k+1])/3.0 -(s[k-1]*s[k-1]*s[k-1])/3.0;
-          
-          A0 = (b2-(b1*s[k])+(b0*s[k]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k-1])+(s[k-1]*s[k-1]));
-          A1 = -((b2-(b1*s[k-1])+(b0*s[k-1]-b1)*s[k+1])/((s[k]-s[k-1])*s[k+1]-(s[k]*s[k])+(s[k-1]*s[k])));
-          A2 =  b0 - A0 - A1;
-          
-          //printf(" k = %d  A0= %f,   A1 = %f,  A2 = %f\n",k, A0, A1, A2);
-          //printf("M = %d ", M);
-          //for (int r = 0; r < M; r++) {
-             //welambda = lambda[r]*De;  
-            // printf("welambda = %f ",welambda );
-	  tm0.real = -G*pow((t-s[k-1]),alphafr-betafr)/V;
-	  tm0.imag = 0;
-	  mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
-	  tm1.real = -G*pow((t-s[k  ]),alphafr-betafr)/V;
-	  tm1.imag = 0;
-	  mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
-	  tm2.real = -G*pow((t-s[k+1]),alphafr-betafr)/V;
-	  tm2.imag = 0;
-	  mitt2 =  mlfv(alphafr-betafr,-betafr, tm2, 6);
-          
-             for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    //if (alpha-3.0+beta*I1a+(1.0-beta)*I2a == 0.0) printf(" Divisão = %f  \n ",(alpha-3.0+beta*I1a+(1.0-beta)*I2a));
-                   tensao[i][j] +=A0 * G*pow(t-(s[k-1]),-1-betafr)*mitt0.real*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*B[k-1][i][j]+ 
-                                  A1 * G*pow((t-s[k  ]),-1-betafr)*mitt1.real*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*B[k  ][i][j]+
-                                  A2 * G*pow((t-s[k+1]),-1-betafr)*mitt2.real*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*B[k+1][i][j];
-		   //printf("tm0 = %f, mitt0 = %f, tm1 = %f, mitt1 = %f, tm2 = %f, mitt2 = %f\n", tm0.real, mitt0.real, tm1.real, mitt1.real, tm2.real, mitt2.real);
-                   //printf("I1a = %f, I1b = %f, I1c = %f, I2a = %f, I2b = %f, I2c = %f, Tensao[%d][%d] = %f \n",I1a, I1b, I1c, I2a, I2b, I2c, i,j,tensao[i][j]);  
-		   //exit(1);
-                }
-             }
-          //} 
-       }  
-       
-        if ((Nnow%2) != 0) {
-          I1a          = 0.0;
-          I2a          = 0.0;
-          I1b          = 0.0;
-          I2b          = 0.0;
-          int k = Nnow;
-          ds    = s[k]-s[k-1];
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                if (i == j) {
-                   I1a += B[k-1][i][j];   
-                   I1b += B[k  ][i][j];
-                }    
-             }    
-          }
-          I1a += 1.0;   
-          I1b += 1.0;
-          I2a = B[k-1][0][0]*B[k-1][1][1] + B[k-1][0][0] + B[k-1][1][1] - B[k-1][0][1]*B[k-1][0][1]; 
-          I2b = B[k  ][0][0]*B[k  ][1][1] + B[k  ][0][0] + B[k  ][1][1] - B[k  ][0][1]*B[k  ][0][1]; 
-          //c1 = 0.0;
-          //c2 = 0.0;
-          //for (int r = 0; r < M; r++) {
-            // welambda = lambda[r]*De;
-             //c1 += (a[r]/welambda)*exp((s[k-1]-t)/welambda);
-             //c2 += (a[r]/welambda)*exp((s[k  ]-t)/welambda);
-          //}
-          tm0.real = -G*pow((t-s[k-1]),alphafr-betafr)/V;
-	  tm0.imag = 0;
-	  mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
-	  tm1.real = -G*pow((t-s[k  ]),alphafr-betafr)/V;
-	  tm1.imag = 0;
-	  mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
-          for (int i = 0; i < DIM; i++) {
-             for (int j = 0; j < DIM; j++) {
-                tensao[i][j] += (ds/2.0)*(G*pow((t-s[k-1]),-1-betafr)*mitt0.real*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[k-1][i][j])+G*pow((t-s[k  ]),-1-betafr)*mitt1.real*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[k][i][j]));
-                //if ( tensao[i][j] != 0.0)
-                   //printf("I1a = %f, I1b = %f, I2a = %f, I2b = %f, Tensao[%d][%d] = %f \n",I1a, I1b, I2a, I2b, i,j,tensao[i][j]);  
-             }
-          }
-       }
-       }
-       
-       //////////  Compute S= tau - (1/Re)*(nablaU + nablaUT)  ///////////////
-       real Du[DIM][DIM];
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-             // Get Du
-             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
-          }
-       }
-       /////////  Save S tensor  //////////////////////////////////
-       for (int i = 0; i < DIM; i++) {
-          for (int j = 0; j < DIM; j++) {
-              STensor = tensao[i][j]- ((Du[i][j]+Du[j][i])/(Re));
-              // Store Kernel
-              dp_set_value(ns->ed.im.dpS[i][j], clid, STensor);
-              //printf("Tensao[%d][%d] = %lf \n",i,j,tensao[i][j]);
-              if (tensao[i][j] > Smax[i][j]) Smax[i][j] = tensao[i][j];
-              if (tensao[i][j] < Smin[i][j]) Smin[i][j] = tensao[i][j];
-           }  
-       }
-   }
-   // Destroy the iterator
-   higcit_destroy(it);
-   ///////   Sync S Tensor ///////////////////////////////
-   for (int i = 0; i < DIM; i++) {
-      for (int j = 0; j < DIM; j++) {
-         dp_sync(ns->ed.im.dpS[i][j]);
-      }
-   }
-   for (int i = 0; i < DIM; i++) {
-      for (int j = 0; j < DIM; j++) {
-         // Printing the min and max tensor
-         printf("===> %d %d: Tmin = %lf <===> Tmax = %lf <===\n",i,j,Smin[i][j],Smax[i][j]);
-      }
-   }
 }
 
 // Calculate RHS = Du^t B + B Du
@@ -1637,8 +1441,10 @@ void hig_flow_derivative_b_at_center_cell (higflow_solver *ns, Point ccenter, Po
         if ((incell_left == 1) && (incell_right == 1)) { 
            dBdx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, Bleft, Bright);
         } else if (incell_right == 1) { 
-           dBdx[dim] = compute_dpdxr_at_point(cdelta, dim, 1.0, Bcenter, Bright);
+          //Bcenter=0.0; if (i==j) Bcenter=1.0;
+          dBdx[dim] = compute_dpdxr_at_point(cdelta, dim, 1.0, Bcenter, Bright);
         } else {
+           //Bcenter=0.0; if (i==j) Bcenter=1.0;
            dBdx[dim] = compute_dpdxl_at_point(cdelta, dim, 1.0, Bleft, Bcenter);
         }
     }
@@ -2049,7 +1855,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic_integral(hig
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                //real w = - (ns->par.dt*0.01)/(fdelta[dim2]*fdelta[dim2]);
+                real w = -ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= 2.0 * w ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -2497,7 +2304,7 @@ void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
            break;
     }
     // Set outflow for ustar velocity 
-    //higflow_outflow_ustar_step(ns);
+    higflow_outflow_ustar_step(ns);
     // Boundary condition for pressure
     higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
@@ -2507,7 +2314,7 @@ void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
     // Set outflow for velocity
-    //higflow_outflow_u_step(ns);
+    higflow_outflow_u_step(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
     // Calculate the velocity derivative tensor
@@ -2516,7 +2323,6 @@ void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
     higflow_explicit_euler_constitutive_equation_integral(ns);
     // Computing the Polymeric and Extra-Stress Tensors
     hig_flow_integral_equation(ns);
-    // Print the Polymeric Tensor
-    //higflow_print_polymeric_tensor_integral(ns);
+
 }
 
