@@ -53,7 +53,7 @@ run:
 		input/example-3d.load \
 		output/example-3d.save \
 		VTKS/example-3d.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
 
 run-ve:
 	mkdir -p VTKS128 || true
@@ -62,7 +62,7 @@ run-ve:
 		input128/example-3d.load \
 		output128/example-3d.save \
 		VTKS128/example-3d.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
 
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)

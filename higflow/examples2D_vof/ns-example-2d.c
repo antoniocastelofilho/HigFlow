@@ -532,14 +532,11 @@ void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], re
 void set_generalized_newtonian(higflow_solver *ns,int cache,int order_center,
 		real(*get_viscosity)(Point center,real q,real t))
 {
-
 	higflow_create_domain_generalized_newtonian(ns, cache, order_center,get_viscosity); 
 	higflow_create_ditributed_properties_generalized_newtonian(ns);
 
 	//real (*get_electroosmotic_source_term)(Point center, int dim, real t);
 	//real get_viscosity(Point center, real q, real t)
-
-
 }
 
 // *******************************************************************
@@ -559,13 +556,15 @@ int main (int argc, char *argv[]) {
 	higflow_solver *ns = higflow_create();
 	// Load the data files
 	higflow_load_data_files(argc, argv, ns);
-	 // Load the parameters data for Navier-Stokes simulation
-    //higflow_load_parameters(ns, myrank);
-    // Load the controllers data for Navier-Stokes simulation
-    //higflow_load_controllers(ns, myrank);
-    // Load the controllers and parameters data for Navier-Stokes simulation
-	printf("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
-	higflow_load_controllers_and_parameters(ns, myrank);
+	/* NAO MAIS NECESSARIO
+	    // Load the parameters data for Navier-Stokes simulation
+       //higflow_load_parameters(ns, myrank);
+       // Load the controllers data for Navier-Stokes simulation
+       //higflow_load_controllers(ns, myrank);
+       // Load the controllers and parameters data for Navier-Stokes simulation
+   */
+	printf("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
+   higflow_load_controllers_and_parameters_yaml(ns, myrank);
 	higflow_set_external_functions(ns, get_pressure, get_velocity,
 			get_source_term, get_facet_source_term,
 			get_boundary_pressure,  get_boundary_velocity,
@@ -578,20 +577,23 @@ int main (int argc, char *argv[]) {
 	// Create the simulation domain
 	higflow_create_domain(ns, cache, order_center);
 	// Create the simulation domain for non newtonian simulation
-	// higflow_create_domain_generalized_newtonian(ns, cache, order_center,
-	// get_viscosity);
-	higflow_create_domain_multiphase(ns, cache, order_center,
-			get_viscosity0, get_viscosity1, get_density0, get_density1, get_fracvol);
-	higflow_create_domain_viscoelastic(ns, cache, order_center,
-			get_tensor, get_kernel, get_kernel_inverse, get_kernel_jacobian);
+	// higflow_create_domain_generalized_newtonian(ns, cache, order_center, get_viscosity);
+	higflow_create_domain_multiphase(ns, cache, order_center, get_viscosity0, get_viscosity1, get_density0, get_density1, get_fracvol);
+	higflow_create_domain_viscoelastic(ns, cache, order_center,	get_tensor, get_kernel, get_kernel_inverse, get_kernel_jacobian);
+	
 	// Initialize the domain
-	higflow_initialize_domain(ns, ntasks, myrank, order_facet);
-	// Set the user model
-	// higflow_define_user_function_viscoelastic(ns, calculate_m_user);
+   printf("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+   //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
+   higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
+    
+	// Set the user mode
+	//higflow_define_user_function_viscoelastic(ns, calculate_m_user);
+    
 	// Initialize the boundaries
-	//higflow_initialize_boundaries(ns);
-	printf("=+=+=+= Load Domain and Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=\n");
-	higflow_initialize_boundaries_conditions(ns);
+   printf("=+=+=+= Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+   //higflow_initialize_boundaries(ns);
+   higflow_initialize_boundaries_conditions_yaml(ns);
+   
 	// Creating distributed property
 	higflow_create_ditributed_properties(ns);
 	// Creating distributed property for generalized newtonian simulation
