@@ -7,7 +7,6 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-
 CC = gcc
 
 DIM=2
@@ -19,22 +18,21 @@ CFLAGS+= $(shell pkg-config --cflags glib-2.0) -Werror
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
 
-LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5)
+LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
 LDFLAGS+= -L$(LIBPATH) $(OPTSOPT)
 
 LIBS+= -lhig$(DIM)d
-LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5)
+LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
 LIBS+= -lm -ltrilinos_zoltan -lHYPRE_krylov
-#LIBS+= -lm -lzoltan -lHYPRE
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)
 	LIBS+= -lrt
 endif
 
-OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-step-viscoelastic-integral.o  ../src/hig-flow-vof-finite-difference-normal-curvature.o ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-adap-hf.o
+OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-finite-difference-normal-curvature.o ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-adap-hf.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
@@ -43,19 +41,19 @@ ns-example: $(OBJ1)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run:
-	mkdir VTKS || true
-	mkdir octave || true
-	mkdir octave/data || true
+	mkdir -p VTKS || true
+	mkdir -p DATA || true
+	mkdir -p output || true
 	mpirun -n 1 ./ns-example \
 		input/example-3d.load \
 		output/example-3d.save \
 		VTKS/example-3d.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
 
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f *.o VTKS/* octave/data/* ns-example
+		$(RM) -f *.o VTKS/* DATA/* output/* ns-example
 
 .PHONY: run clean compilerflags

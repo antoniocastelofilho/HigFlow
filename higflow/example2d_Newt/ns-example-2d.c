@@ -239,14 +239,7 @@ int main (int argc, char *argv[]) {
     printf("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
-    
-    /* NAO MAIS NECESSARIO - JA CARREGADOS PELA FUNCAO ''higflow_load_controllers_and_parameters''
-	    // Load the controllers data for viscoelastic simulation
-       //higflow_load_viscoelastic_controllers(ns, myrank);
-       // Load the parameters data for viscoelastic simulation
-       //higflow_load_viscoelastic_parameters(ns, myrank);
-    */
-
+   
     // Set the user mode
 	 //higflow_define_user_function_viscoelastic(ns, calculate_m_user);
 

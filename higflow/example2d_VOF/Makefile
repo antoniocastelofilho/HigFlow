@@ -32,15 +32,10 @@ ifeq ($(ARCH), Linux)
 	LIBS+= -lrt
 endif
 
-OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-vof-finite-difference-normal-curvature.o ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-adap-hf.o
-
-OBJ2 = ns-ve-3d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-step-viscoelastic.o
+OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-finite-difference-normal-curvature.o ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-adap-hf.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
-
-ns-ve: $(OBJ2)
-	$(CC) $(LDFLAGS) $(OBJ2) -o $@ $(LIBS)
 
 %.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -53,15 +48,6 @@ run:
 		input/example-3d.load \
 		output/example-3d.save \
 		VTKS/example-3d.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
-
-run-ve:
-	mkdir -p VTKS128 || true
-	mkdir -p DATA128 || true
-	mpirun -n 1 ./ns-ve \
-		input128/example-3d.load \
-		output128/example-3d.save \
-		VTKS128/example-3d.print \
 		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
 
 compilerflags:

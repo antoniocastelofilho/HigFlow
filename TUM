@@ -1,3 +1,0 @@
-source varsrc ; \
-(cd higtree/ ; make clean ; make DIM=2 ; make DIM=3) ; \
-(cd higflow/ ; make clean && make DIM=2)

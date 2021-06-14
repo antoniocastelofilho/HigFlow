@@ -1,0 +1,9 @@
+(cd higtree/ ; make clean)         ; \
+(cd higflow/ ; make clean)         ; \
+(cd higflow/example2d_Newt/        ; make clean) ; \
+(cd higflow/example2d_VOF/         ; make clean) ; \
+(cd higflow/example2d_Gptt/        ; make clean) ; \
+(cd higflow/example2d_KBKZ/        ; make clean) ; \
+(cd higflow/example2d_Oldroyd/     ; make clean) ; \
+(cd higflow/example2d_VOF_Oldroyd/ ; make clean) ; \
+(cd higflow/example2d_VOF_Gptt/    ; make clean)

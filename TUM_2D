@@ -1,0 +1,13 @@
+source varsrc                            ; \
+echo '*********************************************************'
+echo 'Compiling the Higtree: Case 2D'    ; \
+echo '*********************************************************'
+(cd higtree/ ; make clean ; make DIM=2 ; make DIM=3)  ; \
+echo '*********************************************************'
+echo 'Compiling the HigFlow: Case 2D'    ; \
+echo '*********************************************************'
+(cd higflow/ ; make clean && make DIM=2) ; \
+echo '*********************************************************'
+echo 'The end of the compilation: HigTree and HigFlow - Case 2D'    
+echo '*********************************************************'
+

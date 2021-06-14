@@ -40,7 +40,7 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank);
 void higflow_load_data_files(int argc, char *argv[], higflow_solver *ns); 
 
 // Loading the controllers and Parameters
-void higflow_load_controllers_and_parameters(higflow_solver *ns, int myrank);
+void higflow_load_controllers_and_parameters_yaml(higflow_solver *ns, int myrank);
 
 // Loading the controllers
 void higflow_load_controllers(higflow_solver *ns, int myrank); 

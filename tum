@@ -1,2 +1,0 @@
-source varsrc ; \
-(cd higflow/examples2D_n ; make clean ; make DIM=2)

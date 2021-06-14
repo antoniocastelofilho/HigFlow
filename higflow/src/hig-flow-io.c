@@ -454,6 +454,12 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     }
                     higcit_destroy(it);
         break;
+        
+        case 5:
+        break;
+        
+        case 6:
+        break;
     }
     
     // Saving pressure from the center of the cell 
@@ -500,6 +506,12 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         break;
         
         case 4:
+        break;
+        
+        case 5:
+        break;
+        
+        case 6:
         break;
     }
     fclose(f);
@@ -986,6 +998,12 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
                     }
                     higcit_destroy(it);
         break;
+        
+        case 5:
+        break;
+        
+        case 6:
+        break;
     }
     
     fprintf(f, "\nCELL_DATA %ld\nSCALARS p FLOAT\nLOOKUP_TABLE default\n", numcells);
@@ -1027,6 +1045,12 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
         break;
         
         case 4:
+        break;
+        
+        case 5:
+        break;
+        
+        case 6:
         break;
     }
     
@@ -1295,7 +1319,7 @@ void higflow_load_data_files(int argc, char *argv[], higflow_solver *ns) {
 }
 
 // Loading the controllers and parameters
-void higflow_load_controllers_and_parameters(higflow_solver *ns, int myrank) {
+void higflow_load_controllers_and_parameters_yaml(higflow_solver *ns, int myrank) {
     // Parameters file name
     char ParContr[1024], InitRestart[1024];
     
@@ -1323,7 +1347,7 @@ void higflow_load_controllers_and_parameters(higflow_solver *ns, int myrank) {
         }
         char auxchar[1024];
         // Projtype
-         ifd += fy_document_scanf(fyd, "/simulation_contr/projtype %s", auxchar);
+        ifd += fy_document_scanf(fyd, "/simulation_contr/projtype %s", auxchar);
          if (strcmp(auxchar,"non_incremental") == 0) {
            ns->contr.projtype = 0;
            if (myrank == 0) printf("=+=+=+= Projection Method: Non Incremental =+=+=+=\n");
@@ -2336,7 +2360,7 @@ void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myra
                     printf("=+=+=+= Constitutive Equation Model: KBKZ-PSM =+=+=+=\n");
                     break;
                 case 1:
-                    printf("=+=+=+= Constitutive Equation Model: UCM =+=+=+=\n");
+                    printf("=+=+=+= Constitutive Equation Model: Fractional =+=+=+=\n");
                     break;
             }
 			   switch (ns->ed.im.contr.model_H) {

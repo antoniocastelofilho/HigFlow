@@ -104,7 +104,7 @@ int main()
 	/*MESH RESOLUTION*/
 	
 	int Nx,Ny;
-	Nx=512; Ny=256;
+	Nx=128; Ny=64;
 	printf("x0 = %.12lf , y0 = %.12lf , xf = %.12lf , yf = %.12lf,  nx= %d , ny = %d \n", x0,y0,xf,yf,Nx,Ny);
 	create_domain_amr(x0,xf,y0,yf,Nx,Ny);
 	create_boundary_amr(x0,xf,y0,yf,Nx,Ny);

@@ -759,7 +759,7 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
 }
 
 // Navier-Stokes initialize the domain and boudaries
-void higflow_initialize_boundaries_conditions(higflow_solver *ns) {
+void higflow_initialize_boundaries_conditions_yaml(higflow_solver *ns) {
     // Loading the boundary condition data
     char namefile[1024];
     sprintf(namefile,"%s.boundaries.conditions.yaml",ns->par.nameload);

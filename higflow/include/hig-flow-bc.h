@@ -37,6 +37,6 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
 void higflow_initialize_boundaries(higflow_solver *ns); 
 
 // Navier-Stokes initialize the domain and boudaries
-void higflow_initialize_boundaries_conditions(higflow_solver *ns);
+void higflow_initialize_boundaries_conditions_yaml(higflow_solver *ns);
 
 #endif

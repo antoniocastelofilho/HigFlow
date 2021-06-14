@@ -1,0 +1,5 @@
+domain:
+   number_domain: 1                      #*** The Total Number of the Domains ***
+   domain0:
+      id: 0                              #*** The Domain Identifier           ***
+      path: amrs/domain/ch-d-0.amr       #*** The Path to the Domain          ***

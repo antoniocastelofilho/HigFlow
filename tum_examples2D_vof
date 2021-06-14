@@ -1,3 +1,0 @@
-echo " Twophase test" ;
-echo "====================================================================================" ;
-(cd higflow/; make clean; make DIM=2 ; cd examples2D_vof/ ; make clean ; make ; make run)
