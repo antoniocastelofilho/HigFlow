@@ -23,6 +23,9 @@ void higflow_print_velocity(higflow_solver *ns, FILE *data, int dimprint, real p
 // Print the VTK file for vilusalize
 void higflow_print_vtk(higflow_solver *ns, int rank); 
 
+// Print the kinetic energy
+void higflow_kinetic_energy(higflow_solver *ns, FILE *data);
+
 // Print the VTK 2D file for vilusalize
 void higflow_print_vtk2D(higflow_solver *ns, int rank); 
 

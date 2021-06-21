@@ -149,6 +149,56 @@ void higflow_print_vtk(higflow_solver *ns, int rank) {
     }
 }
 
+// Print the kinetic energy
+void higflow_kinetic_energy(higflow_solver *ns, FILE *data) {
+    // Get the local sub-domain for the cells
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    // Get the local sub-domain for the facets
+    sim_facet_domain *sfdu[DIM];
+    for(int i = 0; i < DIM; i++) {
+        sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
+    }
+    // Get the map for the domain properties
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    // Loop for each cell
+    higcit_celliterator *it;
+    real volume  = 0.0;
+    real kinetic = 0.0;
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Get the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int clid    = mp_lookup(mp, hig_get_cid(c));
+        // Get the center of the cell
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        // Get the delta of the cell
+        Point cdelta;
+        hig_get_delta(c, cdelta);
+        int infacet;
+        // 
+        real norm2vel = 0.0;
+        real volcel   = 1.0;
+        for(int dim = 0; dim < DIM; dim++) {
+            //Get the velocity in the left facet center
+            real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            //Get the velocity in the right facet center
+            real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            real u = 0.5*(ur + ul);
+            norm2vel += u*u;
+            volcel   *= cdelta[dim];
+        }
+        volume  += volcel;
+        kinetic += norm2vel*volcel;
+    }
+    kinetic = 0.5*kinetic/volume;
+    // Destroy the iterator
+    higcit_destroy(it);
+    // Printing the min and max velocity
+    printf("<===> t = %.12lf <===> kinetic = %.12lf <===\n",ns->par.t,kinetic);
+    fprintf(data,"%.12lf  %.12lf \n",ns->par.t,kinetic);
+}
+
 // Print the VTK file for visualize 2D
 void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     //  Open the VTK file
