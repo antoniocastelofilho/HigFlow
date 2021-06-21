@@ -853,10 +853,7 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 					// Find the dimensional size of the new tree,
 					// relies on the information of the old tree
 					unsigned calculated_size;
-					calculated_size = _calc_chunk_numcells(tree,
-						nodes[0]->posinparent,
-						nodes[new_count - 1]->posinparent,
-						(unsigned int*)out->numcells);
+					calculated_size = _calc_chunk_numcells(tree, nodes[0]->posinparent, nodes[new_count - 1]->posinparent, (unsigned int*)out->numcells);
 					assert(calculated_size == new_count);
 
 					// Adjust posinparent for children:
@@ -868,9 +865,8 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 					_calc_boundingbox_from_children(out);
 
 					// Add the new tree in the output list
-					ctx->output[ctx->num_out_higs].group =
-						params.tree_index[i]->group;
-					ctx->output[ctx->num_out_higs].tree = out;
+					ctx->output[ctx->num_out_higs].group = params.tree_index[i]->group;
+					ctx->output[ctx->num_out_higs].tree  = out;
 
 					ctx->num_out_higs++;
 				}
