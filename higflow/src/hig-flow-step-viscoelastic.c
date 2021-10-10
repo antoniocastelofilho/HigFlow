@@ -6,14 +6,14 @@
 
 #include "hig-flow-step-viscoelastic.h"
 #include "hig-flow-mittag-leffler.h"
+
 // *******************************************************************
 // Constitutive Equations
 // *******************************************************************
 
-
 // Computing the Kernel Tensor
 void higflow_compute_kernel_tensor(higflow_solver *ns) {
-    if ((ns->contr.flowtype == 3) || (ns->contr.flowtype == 2)){
+    if (ns->contr.flowtype == 3){
         // Get the cosntants
         real Re   = ns->par.Re;
         real De   = ns->ed.ve.par.De;
@@ -44,13 +44,6 @@ void higflow_compute_kernel_tensor(higflow_solver *ns) {
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                 }
             }
-             //beta=0.1;
-            if (ns->contr.flowtype == 2 ){
-              real frac=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-              real beta2=(1-frac)*1.0 +frac*0.5;
-              real De2=(1-frac)*0 +frac*0.4;
-            }
-            //printf("******************dbeta=%lf\n",beta1-beta2);
             // Calculate the tensor A
             real A[DIM][DIM], D[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -76,7 +69,6 @@ void higflow_compute_kernel_tensor(higflow_solver *ns) {
                 }
             }
         }
-        //printf("PAUSE 72\n");getchar();
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the ditributed pressure property
@@ -90,7 +82,7 @@ void higflow_compute_kernel_tensor(higflow_solver *ns) {
 
 // Computing the Polymeric Tensor
 void higflow_compute_polymeric_tensor(higflow_solver *ns) {
-    if ((ns->contr.flowtype == 3)||(ns->contr.flowtype == 2)) {
+    if (ns->contr.flowtype == 3) {
         // Get the constants
         real Re   = ns->par.Re;
         real De   = ns->ed.ve.par.De;
@@ -186,7 +178,7 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
 // Constitutive Equation Step for the Explicit Euler Method
 // *******************************************************************
 void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
-    if ((ns->contr.flowtype == 3)||(ns->contr.flowtype == 2)) {
+    if (ns->contr.flowtype == 3) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.ve.par.De;
@@ -237,12 +229,6 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                 tr += S[i][i];
             }
             // Calculate the tensor A
-            if (ns->contr.flowtype == 2 ){
-               real frac=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-               real beta2=(1-frac)*1.0 +frac*0.5;
-               real De2=(1-frac)*0 +frac*0.4;
-            }
-            
             real A[DIM][DIM], D[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
@@ -551,7 +537,7 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
 // Constitutive Equation Step for the Implicit Euler Method
 // *******************************************************************
 void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
-    if ((ns->contr.flowtype == 3)||(ns->contr.flowtype == 2)) {
+    if (ns->contr.flowtype == 3) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -742,7 +728,6 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
         }
     }
 }
-
 
 // *******************************************************************
 // Navier-Stokes Step for the Explicit Euler Method
@@ -1386,7 +1371,6 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns) {
     // Computing the Polymeric Tensor
     higflow_compute_polymeric_tensor(ns);
 }
-
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
 void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]) {

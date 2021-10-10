@@ -34,11 +34,12 @@ real higflow_source_term(higflow_solver *ns) {
 }
 
 // Cell term contribution for the interfacial tension
-real higflow_interfacial_tension_term(higflow_solver *ns) {	
-    real Bo = 0.18;
-    real value = ns->cc.IF;
+real higflow_interfacial_tension_term(higflow_solver *ns) {
+    //real Bo = 0.18;
+    //real value = ns->cc.IF;
     //real value = 24.5*ns->cc.IF;
-    value = value/(Bo*ns->cc.dens);
+    //value = value/(Bo*ns->cc.dens);
+    real value = 0.0;
     return value;
 }
 
@@ -56,12 +57,14 @@ real higflow_gravity_term(higflow_solver *ns) {
 real higflow_tensor_term(higflow_solver *ns) {
     // Set the tensor term
     real value = 0.0;
+    
     // Non Newtonian contribution
     if (ns->contr.flowtype == 3) {
         for (int dim2 = 0; dim2 < DIM; dim2++) {
             value += ns->cc.dSdx[dim2];
         }
     }
+    
     // Non Newtonian contribution
     if (ns->contr.flowtype == 4) {
         for (int dim2 = 0; dim2 < DIM; dim2++) {
@@ -69,10 +72,12 @@ real higflow_tensor_term(higflow_solver *ns) {
         }
     }
     
+    // Two-phase contribution
     if (ns->contr.flowtype == 2) {
         for (int dim2 = 0; dim2 < DIM; dim2++) {
-            //value += ns->cc.dSdx[dim2];
+            value += ns->cc.dSdx[dim2];
         }
+        value /= ns->cc.dens;
     }
     
     return value;
