@@ -51,11 +51,13 @@ MODULES = \
 	step \
 	step-generalized-newtonian \
 	step-multiphase \
+	step-multiphase-viscoelastic \
 	vof-plic \
 	vof-adap-hf \
+	vof-9-cells\
 	vof-finite-difference-normal-curvature \
 	step-viscoelastic \
-        step-viscoelastic-integral \
+	step-viscoelastic-integral \
 	step-electroosmotic \
 
 OBJS = $(MODULES:%=$(HIGFLOW_OBJPATH)/hig-flow-%.o)
