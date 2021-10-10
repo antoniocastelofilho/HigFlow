@@ -1,4 +1,3 @@
-
 #include "hig-flow-vof-plic.h"
 
 void arquivoDist(char*nome_dist,real x,real y,real distance){

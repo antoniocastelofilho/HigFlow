@@ -22,6 +22,96 @@ void calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(higflo
 	}
 }
 
+void ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Horizontal(higflow_solver *ns, int clid, real Ht,real Hm,real dx,real dy,int auxh){
+
+	real Hy=-auxh*(Ht-Hm)*dx/(dy);
+	Point Normal;
+	Normal[0]=auxh;
+	Normal[1]=-auxh*Hy;
+	real norm=norm_vec(Normal,2);
+	Normal[0]=Normal[0]/norm;
+	Normal[1]=Normal[1]/norm;
+	for (int i=0; i<DIM; i++){
+		dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+	}
+}
+
+void ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Horizontal(higflow_solver *ns, int clid, real Hm,real Hb,real dx,real dy,int auxh){
+
+	real Hy=-auxh*(Hm-Hb)*dx/(dy);
+	Point Normal;
+	Normal[0]=auxh;
+	Normal[1]=-auxh*Hy;
+	real norm=norm_vec(Normal,2);
+	Normal[0]=Normal[0]/norm;
+	Normal[1]=Normal[1]/norm;
+	for (int i=0; i<DIM; i++){
+		dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+	}
+}
+
+void ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(higflow_solver *ns, int clid, real Ht,real Hb,real dx,real dy,int auxh){
+
+	real Hy=-auxh*(Ht-Hb)*dx/(2.0*dy);
+	Point Normal;
+	Normal[0]=auxh;
+	Normal[1]=-auxh*Hy;
+	real norm=norm_vec(Normal,2);
+	Normal[0]=Normal[0]/norm;
+	Normal[1]=Normal[1]/norm;
+	for (int i=0; i<DIM; i++){
+		dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+	}
+}
+
+void ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Vertical
+(higflow_solver *ns, int clid, real Vr,real Vl,real dx,real dy,int auxv){
+
+	real Vx=-auxv*(Vr-Vl)*dy/(2*dx);
+	Point Normal;
+	Normal[0]=-auxv*Vx;
+	Normal[1]=auxv;
+	real norm=norm_vec(Normal,2);
+	Normal[0]=Normal[0]/norm;
+	Normal[1]=Normal[1]/norm;
+
+	for (int i=0; i<DIM; i++){
+		dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+	}
+}
+
+void ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Vertical
+(higflow_solver *ns, int clid, real Vr,real Vm,real dx,real dy,int auxv){
+
+	real Vx=-auxv*(Vr-Vm)*dy/(dx);
+	Point Normal;
+	Normal[0]=-auxv*Vx;
+	Normal[1]=auxv;
+	real norm=norm_vec(Normal,2);
+	Normal[0]=Normal[0]/norm;
+	Normal[1]=Normal[1]/norm;
+
+	for (int i=0; i<DIM; i++){
+		dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+	}
+}
+
+void ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Vertical
+(higflow_solver *ns, int clid, real Vm,real Vl,real dx,real dy,int auxv){
+
+	real Vx=-auxv*(Vm-Vl)*dy/(dx);
+	Point Normal;
+	Normal[0]=-auxv*Vx;
+	Normal[1]=auxv;
+	real norm=norm_vec(Normal,2);
+	Normal[0]=Normal[0]/norm;
+	Normal[1]=Normal[1]/norm;
+
+	for (int i=0; i<DIM; i++){
+		dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+	}
+}
+
 void calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal
 (higflow_solver *ns, int clid, real Hk_,real H,real Hk,real dx,real dy,int auxh){
 
@@ -162,4 +252,43 @@ void calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical
 	real Vxx=-auxv*(Vk_k_- 2*Vk_ + V)*dy/(dx*dx);
 	real curv = auxv*Vxx/pow((1.0+Vx*Vx),1.5);
 	dp_set_value(ns->ed.mult.dpcurvature, clid, curv);// Set the curvature in the distributed curvature property
+}
+
+
+void calculate_exact_normal_x_dominant_2D(higflow_solver *ns, int clid, Point p){
+		 
+		 Point Nt;
+		 if(p[0] > 0.5){
+			 Nt[0] = sqrt(pow(0.25,2)-(pow(p[1]-0.5,2)));
+			 Nt[1] = p[1]-0.5;
+			 real norm=norm_vec(Nt,2);
+			 Nt[0] = -Nt[0]/norm;
+			 Nt[1] = -Nt[1]/norm;
+		}else{
+			 Nt[0] = (-sqrt(pow(0.25,2)-(pow(p[1]-0.5,2))));
+			 Nt[1] = p[1]-0.5;
+			 real norm=norm_vec(Nt,2);
+			 Nt[0] = -Nt[0]/norm;
+			 Nt[1] = -Nt[1]/norm;
+		}	
+			//printf("%lf %lf\n", Nt[0], Nt[1]);
+}
+
+void calculate_exact_normal_y_dominant_2D(higflow_solver *ns, int clid, Point p){
+		 
+		 Point Nt;
+		 if(p[1] > 0.5){
+			 Nt[0] = p[0]-0.5;
+			 Nt[1] = sqrt(pow(0.25,2)-(pow(p[0]-0.5,2)));
+			 real norm=norm_vec(Nt,2);
+			 Nt[0] = -Nt[0]/norm;
+			 Nt[1] = -Nt[1]/norm;
+		}else{
+			 Nt[0] = p[0]-0.5;
+			 Nt[1] = -sqrt(pow(0.25,2)-(pow(p[0]-0.5,2)));
+			 real norm=norm_vec(Nt,3);
+			 Nt[0] = -Nt[0]/norm;
+			 Nt[1] = -Nt[1]/norm;
+		}	
+		//printf("%lf %lf\n", Nt[0], Nt[1]);
 }

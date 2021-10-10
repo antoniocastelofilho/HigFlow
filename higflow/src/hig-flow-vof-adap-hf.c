@@ -1,5 +1,6 @@
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 #include "hig-flow-vof-adap-hf.h"
+#include "hig-flow-vof-9-cells.h"
 
 //// Plot
 //void arquivoTempo(double t,char*nome_curv,char*nome_norm,char*nome_frac)
@@ -76,9 +77,9 @@ void vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p
 	status = get_frac_vol(sdp, ns, 1, center, p, delta, &fracvol);
 	if (status != 1) {
 		if (status == -1) {
-			printf("Up - Vertical cells with different sizes \n");
+			//printf("Up - Vertical cells with different sizes \n");
 		} else {
-			printf("Up - Vertical cell out of domain \n");
+			//printf("Up - Vertical cell out of domain \n");
 		}
 		return;
 	}
@@ -92,10 +93,10 @@ void vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p
 		if (status == 1) {
 			*vertical += fracvol;
 		} else if (status == 0) {
-			printf("Up - Vertical cell out of domain \n");
+			//printf("Up - Vertical cell out of domain \n");
 			return;
 		} else {
-			printf("Up - Vertical cells with different sizes \n");
+			//printf("Up - Vertical cells with different sizes \n");
 			return;
 		}
 	} while (fracvol > 0.0 && fracvol < 1.0 && status == 1);
@@ -111,10 +112,10 @@ void vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p
 		if (status == 1) {
 			*vertical += fracvol;
 		} else if (status == 0) {
-			printf("Down - Vertical cell out of domain \n");
+			//printf("Down - Vertical cell out of domain \n");
 			return;
 		} else {
-			printf("Down - Vertical cells with different sizes \n");
+			//printf("Down - Vertical cells with different sizes \n");
 			return;
 		}
 	} while (fracvol > 0.0 && fracvol < 1.0 && fabs(fracvol - fracvol_aux)>1.0e-12 && status == 1);
@@ -144,9 +145,9 @@ void horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, 
 	status = get_frac_vol(sdp, ns, 0, center, p, delta, &fracvol);
 	if (status != 1) {
 		if (status == -1) {
-			printf("Right - Horizontal cells with different sizes \n");
+			//printf("Right - Horizontal cells with different sizes \n");
 		} else {
-			printf("Right - Horizontal cell out of domain \n");
+			//printf("Right - Horizontal cell out of domain \n");
 		}
 		return;
 	}
@@ -160,10 +161,10 @@ void horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, 
 		if (status == 1) {
 			*horizontal += fracvol;
 		} else if (status == 0) {
-			printf("Right - Horizontal cell out of domain \n");
+			//printf("Right - Horizontal cell out of domain \n");
 			return;
 		} else {
-			printf("Right - Horizontal cells with different sizes \n");
+			//printf("Right - Horizontal cells with different sizes \n");
 			return;
 		}
 	} while (fracvol > 0.0 && fracvol < 1.0 && status == 1);
@@ -181,10 +182,10 @@ void horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, 
 		if (status == 1) {
 			*horizontal += fracvol;
 		} else if (status == 0) {
-			printf("Left - Horizontal cell out of domain \n");
+			//printf("Left - Horizontal cell out of domain \n");
 			return;
 		} else {
-			printf("Left - Horizontal cells with different sizes \n");
+			//printf("Left - Horizontal cells with different sizes \n");
 			return;
 		}
 	}while (fracvol > 0.0 && fracvol < 1.0 && fabs(fracvol - fracvol_aux)>1.0e-12 && status == 1);
@@ -343,28 +344,30 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 				dp_set_value(ns->ed.mult.dpIF[i], clid, 0.0);
 				dp_set_value(ns->ed.mult.dpnormal[i], clid, 0.0);
 			}
-
+			
 			if (frac == 0.0 || frac == 1.0){
 				continue;
 			}
-
+			
+			shirani_9_cells(sdp, ns, clid, center, p, delta);
+			
 			real hm, hb, ht;
 			int aux_mh, aux_b, aux_t;
 			real orig_mh, orig_b, orig_t;
 //			printf("***********************************************\n");
 //			printf("x=%lf, y=%lf, frac=%lf\n",center[0],center[1],frac);
-
+			
 			// Middle
 //			printf("Horizontal: going middle\n");
 			horizontal_row(sdp, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
 //			printf("Horizontal: MIDDLE: hm=%lf auxhm=%d orighm=%lf\n",hm,aux_mh,orig_mh);
-
+			
 			// Top
 			p[1] = center[1] + delta[1];
 //			printf("Horizontal: going top\n");
 			horizontal_row(sdp, ns, center, p, delta, &ht, &aux_t, &orig_t);
 //			printf("Horizontal: TOP: ht=%lf auxht=%d oright=%lf\n",ht,aux_t,orig_t);
-
+			
 			// Bottom
 			p[1] = center[1] - delta[1];
 //			printf("Horizontal: going BOTTOM\n");
@@ -382,7 +385,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 				origh[1] = orig_mh;
 				origh[2] = orig_t;
 				set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
-				calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
+				//calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
 				calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
 				//calculate_interfacial_force(sdp, ns, clid, center, IF);
 //				real curvaturech = compute_value_at_point(sdp, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
@@ -429,7 +432,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 				origv[1] = orig_mv;
 				origv[2] = orig_r;
 				set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
-				calculate_normal_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+				//calculate_normal_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
 				calculate_curvature_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
 				//calculate_interfacial_force(sdp, ns, clid, center, IF);
 //				real curvaturecv = compute_value_at_point(sdp, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
@@ -467,7 +470,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 					origh[2] = orig_tt;
 					
 					set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
-					calculate_normal_cell_progressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+					//calculate_normal_cell_progressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
 					calculate_curvature_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
 					//calculate_interfacial_force(sdp, ns, clid, center, IF);
 //					real curvaturecp = compute_value_at_point(sdp, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
@@ -506,7 +509,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 					origh[2] = orig_mh;
 					
 					set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
-					calculate_normal_cell_regressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+					//calculate_normal_cell_regressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
 					calculate_curvature_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
 					//calculate_interfacial_force(sdp, ns, clid, center, IF);
 //					real curvaturerh = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
@@ -545,7 +548,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 					origv[2] = orig_rr;
 					
 					set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
-					calculate_normal_cell_progressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+					//calculate_normal_cell_progressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
 					calculate_curvature_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
 					//calculate_interfacial_force(sdp, ns, clid, center, IF);
 					continue;
@@ -579,7 +582,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 					origv[2] = orig_mv;
 
 					set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
-					calculate_normal_cell_regressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+					//calculate_normal_cell_regressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
 					calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
 					//calculate_interfacial_force(sdp, ns, clid, center, IF);
 					continue;
