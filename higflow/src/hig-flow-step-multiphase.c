@@ -1,3 +1,4 @@
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Multiphase - version 10/11/2016
@@ -9,8 +10,6 @@
 #include "hig-flow-step-multiphase.h"
 #include "hig-flow-vof-adap-hf.h"
 #include "hig-flow-vof-plic.h"
-#include "hig-flow-step-viscoelastic.h"
-
 
 char nome_frac[100];
 char nome_fracaux[100];
@@ -24,8 +23,9 @@ char nome_IF[100];
 char nome_visc[100];
 char nome_beta[100];
 int count;
-void arquivoTempo(int step)
-{
+
+void arquivoTempo(int step) {
+	
 	//sprintf(nome_curv,"DATA/%f_curv.txt", t);
 	//sprintf(nome_norm,"DATA/%f_norm.txt", t);
 	sprintf(nome_frac,"DATA/%d_frac.txt", step);
@@ -83,71 +83,57 @@ void arquivoTempo(int step)
 	
 	fp=fopen(nome_beta,"a");
 	fclose(fp);
-	
-	
-	
-	
 }
 
-void arquivoFrac(char*nome,real x,real y,real frac)
-{
+void arquivoFrac(char*nome,real x,real y,real frac) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf %lf %lf\n",x,y,frac);
    fclose(fp);
 }
 
-void arquivoV(char*nome,real vl,real vr)
-{
+void arquivoV(char*nome,real vl,real vr) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf %lf\n",vl,vr);
    fclose(fp);
 }
 
-void arquivod(char*nome,real d)
-{
+void arquivod(char*nome,real d) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf\n",d);
    fclose(fp);
 }
 
-void arquivoN(char*nome,real nx,real ny)
-{
+void arquivoN(char*nome,real nx,real ny) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf %lf\n",nx,ny);
    fclose(fp);
 }
 
-void arquivoIF(char*nome,real ifx,real ify)
-{
+void arquivoIF(char*nome,real ifx,real ify) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf %lf\n",ifx,ify);
    fclose(fp);
 }
 
-
-void arquivoK(char*nome,real k)
-{
+void arquivoK(char*nome,real k) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf\n",k);
    fclose(fp);
 }
 
-void arquivobeta(char*nome,real k)
-{
+void arquivobeta(char*nome,real k) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf\n",k);
    fclose(fp);
 }
 
-void arquivovisc(char*nome,real k)
-{
+void arquivovisc(char*nome,real k) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf\n",k);
    fclose(fp);
 }
 
-void arquivopress(char*nome,real press)
-{
+void arquivopress(char*nome,real press) {
    FILE *fp=fopen(nome,"a");
    fprintf(fp,"%lf\n",press);
    fclose(fp);
@@ -156,7 +142,7 @@ void arquivopress(char*nome,real press)
 
 void save_cell_values(higflow_solver *ns,int aux) {
     if (ns->contr.flowtype == 2) {
-		//count=0;
+        //count=0;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local sub-domain for the facets
@@ -181,108 +167,90 @@ void save_cell_values(higflow_solver *ns,int aux) {
             Point cdelta;
             hig_get_delta(c, cdelta);
             int infacet;
-            if(aux==1)
-            {
-				real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-				arquivoFrac(nome_frac,ccenter[0],ccenter[1],fracvol);
-				
-				
-				real d = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-				arquivod(nome_d,d);
-				
-				Point Normal;
-				
-				Normal[0] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-				
-				arquivoN(nome_N,Normal[0],Normal[1]);
-				
-				real k = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
-				//arquivoK(nome_Kappa,k);
-				//if(k> 0.0) printf("%lf\n", k);
-				
-				//=============================================================dpp ou ddeltap?
-				real press = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->ed.stn);
-				arquivopress(nome_press,press);
-				
-				real beta = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpbeta, ns->ed.stn);
-				arquivobeta(nome_beta,beta);
-				
-				real visc = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpvisc, ns->ed.stn);
-				arquivopress(nome_visc,visc);
-				//if(press< 0.0) printf("%lf\n", press);
-				
-				//saving interfacial force
-				
-				real dens=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdens, ns->ed.stn);
-				
-				Point Pr;Pr[0]=ccenter[0]+cdelta[0];Pr[1]=ccenter[1];
-				Point Pl;Pl[0]=ccenter[0]-cdelta[0];Pl[1]=ccenter[1];
-				
-				real fracr  = compute_value_at_point(sdp, ccenter, Pr, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-				real fracl  = compute_value_at_point(sdp, ccenter, Pl, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-				
-				real fx=(fracr-fracl)/(2*cdelta[0]);
-
-				Point Pt;Pt[1]=ccenter[1]+cdelta[1];Pt[0]=ccenter[0];
-				Point Pb;Pb[1]=ccenter[1]-cdelta[1];Pb[0]=ccenter[0];
-				
-				real fract  = compute_value_at_point(sdp, ccenter, Pt, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-				real fracb  = compute_value_at_point(sdp, ccenter, Pb, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-
-				real fy=(fract-fracb)/(2*cdelta[1]);
-				
-				real ifx=k*fx/(10.0*dens);
-				real ify=k*fy/(10.0*dens);
-				
-//				printf("(%lf , %lf)\n", fx, fy);
-				
-				
-				arquivoIF(nome_IF,ifx,ify);
-				
-				
-				
-				int dim=0;
-				real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-				real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-				//arquivoV(nome_vx,ul,ur);
-				
-				dim=1;
-				 ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-				 ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-				//arquivoV(nome_vy,ul,ur);
-				//count=count+1;
-				continue;
-			}
-			//printf("blabla\n");
-            real fracvolaux  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.stn);
-            //arquivoFrac(nome_fracaux,ccenter[0],ccenter[1],fracvolaux);
-        }
-        // Destroy the iterator
-        higcit_destroy(it);//printf("count=%d\n",count);
-        // Sync the distributed pressure property
-        //dp_sync(ns->ed.mult.dpfracvol);
-        //dp_sync(ns->ed.mult.dpfracvolaux);
-  }
+            if(aux==1) {
+		real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+		arquivoFrac(nome_frac,ccenter[0],ccenter[1],fracvol);
+		real d = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+		arquivod(nome_d,d);
+		Point Normal;
+		Normal[0] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+		Normal[1] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+		
+		arquivoN(nome_N,Normal[0],Normal[1]);
+		real k = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
+		//=============================================================dpp ou ddeltap?
+		real press = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->ed.stn);
+		arquivopress(nome_press,press);
+		
+		real beta = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpbeta, ns->ed.stn);
+		arquivobeta(nome_beta,beta);
+		
+		real visc = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpvisc, ns->ed.stn);
+		arquivopress(nome_visc,visc);
+		//if(press< 0.0) printf("%lf\n", press);
+		
+		//saving interfacial force
+		
+		real dens=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdens, ns->ed.stn);
+		
+		Point Pr;Pr[0]=ccenter[0]+cdelta[0];Pr[1]=ccenter[1];
+		Point Pl;Pl[0]=ccenter[0]-cdelta[0];Pl[1]=ccenter[1];
+		
+		real fracr  = compute_value_at_point(sdp, ccenter, Pr, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+		real fracl  = compute_value_at_point(sdp, ccenter, Pl, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+		
+		real fx=(fracr-fracl)/(2*cdelta[0]);
+		Point Pt;Pt[1]=ccenter[1]+cdelta[1];Pt[0]=ccenter[0];
+		Point Pb;Pb[1]=ccenter[1]-cdelta[1];Pb[0]=ccenter[0];
+		
+		real fract  = compute_value_at_point(sdp, ccenter, Pt, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+		real fracb  = compute_value_at_point(sdp, ccenter, Pb, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+		real fy=(fract-fracb)/(2*cdelta[1]);
+		real ifx=k*fx/(10.0*dens);
+		real ify=k*fy/(10.0*dens);
+		
+//		printf("(%lf , %lf)\n", fx, fy);
+		
+		arquivoIF(nome_IF,ifx,ify);
+		
+		int dim=0;
+		real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+		real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+		//arquivoV(nome_vx,ul,ur);
+		
+		dim=1;
+		 ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+		 ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+		//arquivoV(nome_vy,ul,ur);
+		//count=count+1;
+		continue;
+	}
+	//printf("blabla\n");
+	real fracvolaux  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.stn);
+	//arquivoFrac(nome_fracaux,ccenter[0],ccenter[1],fracvolaux);
+	}
+	// Destroy the iterator
+	higcit_destroy(it);//printf("count=%d\n",count);
+	// Sync the distributed pressure property
+	//dp_sync(ns->ed.mult.dpfracvol);
+	//dp_sync(ns->ed.mult.dpfracvolaux);
+    }
 }
-
-
-
 
 // *******************************************************************
 // Navier-Stokes step elements
 // *******************************************************************
-
 // Computing the curvature
 void higflow_compute_curvature_multiphase(higflow_solver *ns) {
     if (DIM == 2) {
-    	higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-    	higflow_compute_distance_multiphase_2D(ns);
+        higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+        //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
+        higflow_compute_distance_multiphase_2D(ns);
     } else if (DIM == 3) {
         //higflow_compute_curvature_multiphase_3D(ns);
     } else {
         printf("Dimension out of range %d\n",DIM);
-   exit(1);
+        exit(1);
     }
 }
 
@@ -310,8 +278,8 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns) {
             // Calculate the viscosity
             real visc0 = ns->ed.mult.get_viscosity0(ccenter, ns->par.t);
             real visc1 = ns->ed.mult.get_viscosity1(ccenter, ns->par.t);
-            real visc  = (1.0-fracvol) + fracvol*visc1;
-            //real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
+            //real visc  = (1.0-fracvol) + fracvol*visc1;
+            real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.mult.dpvisc, clid, visc);
         }
@@ -352,8 +320,8 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
             // Calculate the density
             real dens0 = ns->ed.mult.get_density0(ccenter, ns->par.t);
             real dens1 = ns->ed.mult.get_density1(ccenter, ns->par.t);
-            real dens  = (1.0-fracvol) + fracvol*dens1;
-            //real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
+            //real dens  = (1.0-fracvol) + fracvol*dens1;
+            real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.mult.dpdens, clid, dens);\
         }
@@ -364,6 +332,7 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
     }
 }
 
+/*
 // Computing beta viscoelastic
 void higflow_compute_beta_visc_multiphase(higflow_solver *ns) {
     if (ns->contr.flowtype == 2) {
@@ -392,7 +361,7 @@ void higflow_compute_beta_visc_multiphase(higflow_solver *ns) {
             // Calculate the density
             real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
             // Calculate the density
-            real beta0 = 1.0;
+            real beta0 = 0.5;
             real beta1 = 0.5;
             real beta  = (1.0-fracvol)*beta0 + fracvol*beta1;
             //real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
@@ -406,7 +375,8 @@ void higflow_compute_beta_visc_multiphase(higflow_solver *ns) {
         //dp_sync(ns->ed.mult.dpbeta);
     }
 }
-
+*/
+/*
 // Computing S viscoelastic
 void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
     if (ns->contr.flowtype == 2) {
@@ -444,7 +414,7 @@ void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Kernel
                     S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                    S[i][j]=(1.0 - fracvol)*S[i][j];
+                    //S[i][j]=(1.0 - fracvol)*S[i][j];
                     //printf("S[%d][%d]=%lf   ",i,j,S[i][j]);
                     dp_set_value(ns->ed.mult.dpS[i][j], clid, S[i][j]);
                 }
@@ -459,7 +429,7 @@ void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
         //dp_sync(ns->ed.mult.dpbeta);
     }
 }
-
+*/
 
 // *******************************************************************
 // Volume Fraction Transport Step with PLIC fractional step
@@ -492,16 +462,14 @@ void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
 		dp_sync(ns->ed.mult.dpfracvol);
 	}
 }
+
 void fraction_correction_at_set(real *fracvol){
-	
 	if(fabs(*fracvol - 1.0)<1.0e-5){
 		*fracvol = 1.0;
 	}else if(fabs(*fracvol)<1.0e-5){
 		*fracvol=0.0;
 	}
-	
 	//return;
-	
 	if(*fracvol>1.0){
 		*fracvol=1.0;
 	}else if(*fracvol<0.0){
@@ -939,7 +907,6 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 }
 
 // ***********************************************************************
-
 // ***********************************************************************
 // Volume Fraction Transport Step with PLIC fractional step on direction x
 // ***********************************************************************
@@ -1562,7 +1529,6 @@ void hig_flow_derivative_fracvol_at_center_cell (higflow_solver *ns, Point ccent
     }
 }
 
-
 // *******************************************************************
 // Calculate convective term CUBISTA for volume fraction
 // *******************************************************************
@@ -1741,7 +1707,6 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
     real value_tol = ((conv1 - conv2)/cdelta[dim]);
     return value_tol;
 }
-
 
 // Navier-Stokes final velocity using the projection method for multiphase flow
 void higflow_final_velocity_multiphase(higflow_solver *ns) {
@@ -1965,7 +1930,6 @@ void higflow_explicit_euler_intermediate_velocity_multiphase(higflow_solver *ns,
         dp_sync(dpustar[dim]);
     }
 }
-
 
 // *******************************************************************
 // Navier-Stokes Step for the Second Order Explicit Runge-Kutta Method
@@ -2509,9 +2473,9 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
     // Calculate beta
-    higflow_compute_beta_visc_multiphase(ns);
+    //higflow_compute_beta_visc_multiphase(ns);
     // Calculate S
-    higflow_compute_S_visc_multiphase(ns);
+    //higflow_compute_S_visc_multiphase(ns);
     // Calculate the viscosity
     higflow_compute_viscosity_multiphase(ns);
     // Calculate the viscosity
@@ -2555,18 +2519,18 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    if (ns->par.stepaux%50==0)
+    /*if (ns->par.stepaux%1000==0)
     {
     	printf("creating archives at step: %d\n",ns->par.stepaux);
     	arquivoTempo(ns->par.stepaux);
     	save_cell_values(ns,1);
-    }
+    }*/
     // Calculate the velocity derivative tensor
-    higflow_compute_velocity_derivative_tensor(ns);
+    //higflow_compute_velocity_derivative_tensor(ns);
     // Computing the Kernel Tensor
-    higflow_compute_kernel_tensor(ns);
+    //higflow_compute_kernel_tensor(ns);
     // Constitutive Equation Step for the Explicit Euler Method
-    switch (ns->ed.ve.contr.discrtype) {
+    /*switch (ns->ed.ve.contr.discrtype) {
         case 0:
            // Explicit method
            higflow_explicit_euler_constitutive_equation(ns);
@@ -2575,9 +2539,9 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
            // Implicit method
            higflow_implicit_euler_constitutive_equation(ns);
            break;
-    }
+    }*/
     // Computing the Polymeric Tensor
-    higflow_compute_polymeric_tensor(ns);
+    //higflow_compute_polymeric_tensor(ns);
     // Calculate the volume fraction
     higflow_plic_advection_volume_fraction(ns);
     //higflow_explicit_euler_volume_fraction(ns);
