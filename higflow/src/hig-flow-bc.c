@@ -819,7 +819,7 @@ void higflow_initialize_boundaries_conditions_yaml(higflow_solver *ns) {
             pbcvaluetype[h] = freestream;
          } else if(strcmp(aux,"empty") == 0) {
             pbcvaluetype[h] = empty;
-         } else if(strcmp(aux,"time_independent") == 0) {
+         } else if(strcmp(aux,"time_dependent") == 0) {
             pbcvaluetype[h] = timedependent;
          } else if(strcmp(aux,"outflow") == 0) {
              pbcvaluetype[h] = outflow;
@@ -857,7 +857,7 @@ void higflow_initialize_boundaries_conditions_yaml(higflow_solver *ns) {
                ubcvaluetype[dim][h] = freestream;
             } else if(strcmp(aux,"empty") == 0) {
                ubcvaluetype[dim][h] = empty;
-            } else if(strcmp(aux,"time_independent") == 0) {
+            } else if(strcmp(aux,"time_dependent") == 0) {
                ubcvaluetype[dim][h] = timedependent;
             } else if(strcmp(aux,"outflow") == 0) {
                ubcvaluetype[dim][h] = outflow;

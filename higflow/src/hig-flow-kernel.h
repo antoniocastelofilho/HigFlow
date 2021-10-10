@@ -165,8 +165,68 @@ typedef struct higflow_gen_newtonian{
     real (*get_viscosity)(Point center, real q, real t);
 } higflow_gen_newtonian;
 
+// Parameters for viscoelastic multiphase simulation
+typedef struct mult_parameters{
+    // Parameters - phase 0
+    // Deborah Number
+    real   De0;
+    // Ratio of solvent to total viscosity
+    real   beta0;
+    // LPTT parameter
+    real   epsilon0;
+    // LPTT parameter
+    real   psi0;
+    // Giesekus parameter
+    real   alpha0;
+    // Kernel tolerance parameter
+    real   kernel_tol0;
+    // GPTT parameters
+    real   alpha_gptt0;
+    real   beta_gptt0;
+    real   gamma_gptt0;
+    // Parameters - phase 1
+    // Deborah Number
+    real   De1;
+    // Ratio of solvent to total viscosity
+    real   beta1;
+    // LPTT parameter
+    real   epsilon1;
+    // LPTT parameter
+    real   psi1;
+    // Giesekus parameter
+    real   alpha1;
+    // Kernel tolerance parameter
+    real   kernel_tol1;
+    // GPTT parameters
+    real   alpha_gptt1;
+    real   beta_gptt1;
+    real   gamma_gptt1;
+} mult_parameters;
+
+// Controllers for viscoelastic multiphase simulation
+typedef struct mult_controllers{
+    // Controlers - phase 0
+    // Viscoelastic model
+    int    model0;
+    // Viscoelastic discretization type
+    int    discrtype0;
+    // Viscoelastic convective discretization type
+    int    convecdiscrtype0;
+    // Controlers - phase 1
+    // Viscoelastic model
+    int    model1;
+    // Viscoelastic discretization type
+    int    discrtype1;
+    // Viscoelastic convective discretization type
+    int    convecdiscrtype1;
+} mult_controllers;
+
 // Domains and distributed properties for multiphase flows 
 typedef struct higflow_multiphase{
+    // Mult controllers
+    mult_controllers        contr;
+    // Mult parameters
+    mult_parameters         par;
     // Distributed property for velocity derivative tensor 
     distributed_property *dpD[DIM][DIM];
     // Distributed property for viscosity
@@ -187,8 +247,14 @@ typedef struct higflow_multiphase{
     distributed_property *dpIF[DIM];
     // Distributed property for beta viscoelastic
     distributed_property *dpbeta;
-    // Distributed property for S viscoelastic
-    distributed_property *dpS[DIM][DIM];
+    // Distributed property for S viscoelastic - phase 0
+    distributed_property *dpS0[DIM][DIM];
+    // Distributed property for S viscoelastic - phase 1
+    distributed_property *dpS1[DIM][DIM];
+    // Distributed property for kernel tensor - phase 0
+    distributed_property *dpKernel0[DIM][DIM];
+    // Distributed property for kernel tensor - phase 1
+    distributed_property *dpKernel1[DIM][DIM];
     // Function to get the viscosity for phase 0
     real (*get_viscosity0)(Point center, real t);
     // Function to get the viscosity for phase 1
@@ -199,6 +265,16 @@ typedef struct higflow_multiphase{
     real (*get_density1)(Point center, real t);
     // Function to get the volume fraction 
     real (*get_fracvol)(Point center, Point delta, real t);
+    // Function to get the tensor - phase 0
+    real (*get_tensor0)(Point center, int i, int j, real t);
+    // Function to get the tensor - phase 1
+    real (*get_tensor1)(Point center, int i, int j, real t);
+    // Function to get the kernel transformation
+    real (*get_kernel)(int dim, real lambda, real tol);
+    // Function to get the inverse kernel transformation
+    real (*get_kernel_inverse)(int dim, real lambda, real tol);
+    // Function to get the kernel jacobian
+    real (*get_kernel_jacobian)(int dim, real lambda, real tol);
 } higflow_multiphase;
 
 // Parameters for electro-osmotic simulation
@@ -515,12 +591,17 @@ void higflow_create_domain (higflow_solver *ns, int cache, int order);
 void higflow_create_domain_generalized_newtonian (higflow_solver *ns, int cache, int order, real (*get_viscosity)(Point center, real q, real t)); 
 
 // Create the simulation domain for multiphase flow
-void higflow_create_domain_multiphase (higflow_solver *ns, int cache, int order, 
-real (*get_viscosity0)(Point center, real t), 
-real (*get_viscosity1)(Point center, real t), 
-real (*get_density0)(Point center, real t), 
-real (*get_density1)(Point center, real t), 
-real (*get_fracvol)(Point center, Point delta, real t)); 
+void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order,
+real (*get_viscosity0)(Point center, real t),
+real (*get_viscosity1)(Point center, real t),
+real (*get_density0)(Point center, real t),
+real (*get_density1)(Point center, real t),
+real (*get_fracvol)(Point center, Point delta, real t),
+real (*get_tensor0)(Point center, int i, int j, real t),
+real (*get_tensor1)(Point center, int i, int j, real t),
+real (*get_kernel)(int dim, real lambda, real tol),
+real (*get_kernel_inverse)(int dim, real lambda, real tol),
+real (*get_kernel_jacobian)(int dim, real lambda, real tol));
 
 // Create the simulation domain for viscoelastic flow
 void higflow_create_domain_viscoelastic (higflow_solver *ns, int cache, int order,

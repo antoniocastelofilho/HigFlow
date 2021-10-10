@@ -65,7 +65,10 @@ void higflow_destroy (higflow_solver *ns) {
             for (int i = 0; i < DIM; i++)
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.mult.dpS[i][j]);
+                    dp_destroy(ns->ed.mult.dpS0[i][j]);
+                    dp_destroy(ns->ed.mult.dpS1[i][j]);
+                    dp_destroy(ns->ed.mult.dpKernel0[i][j]);
+                    dp_destroy(ns->ed.mult.dpKernel1[i][j]);
                 }
             
             // Destroy the stencil for extra domains
@@ -291,7 +294,12 @@ real (*get_viscosity0)(Point center, real t),
 real (*get_viscosity1)(Point center, real t), 
 real (*get_density0)(Point center, real t),
 real (*get_density1)(Point center, real t),
-real (*get_fracvol)(Point center, Point delta, real t)) {
+real (*get_fracvol)(Point center, Point delta, real t),
+real (*get_tensor0)(Point center, int i, int j, real t),
+real (*get_tensor1)(Point center, int i, int j, real t),
+real (*get_kernel)(int dim, real lambda, real tol),
+real (*get_kernel_inverse)(int dim, real lambda, real tol),
+real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
     if (ns->contr.flowtype == 2) {
        // simulation domain (SD) extra domain
        ns->ed.sdED = sd_create(NULL);
@@ -300,15 +308,25 @@ real (*get_fracvol)(Point center, Point delta, real t)) {
        //Sets the order of the interpolation to bhe used for the SD. 
        sd_set_interpolator_order(ns->ed.sdED, order);
        // function for the domain
-       ns->ed.mult.get_viscosity0  = get_viscosity0;
+       ns->ed.mult.get_viscosity0      = get_viscosity0;
        // function for the domain
-       ns->ed.mult.get_viscosity1  = get_viscosity1;
+       ns->ed.mult.get_viscosity1      = get_viscosity1;
        // function for the domain
-       ns->ed.mult.get_density0    = get_density0;
+       ns->ed.mult.get_density0        = get_density0;
        // function for the domain
-       ns->ed.mult.get_density1    = get_density1;
+       ns->ed.mult.get_density1        = get_density1;
        // function for the domain
-       ns->ed.mult.get_fracvol     = get_fracvol;
+       ns->ed.mult.get_fracvol         = get_fracvol;
+       // function for the domain
+       ns->ed.mult.get_tensor0         = get_tensor0;
+       // function for the domain
+       ns->ed.mult.get_tensor1         = get_tensor1;
+       // function for the kernel transformation
+       ns->ed.mult.get_kernel          = get_kernel;
+       // function for the inverse kernel transformation
+       ns->ed.mult.get_kernel_inverse  = get_kernel_inverse;
+       // function for the kernel transformation jacobian
+       ns->ed.mult.get_kernel_jacobian = get_kernel_jacobian;
     }
 }
 
@@ -602,7 +620,10 @@ void higflow_create_ditributed_properties_multiphase(higflow_solver *ns) {
 		
 		for (int i = 0; i < DIM; i++) {
 			for (int j = 0; j < DIM; j++) {
-				ns->ed.mult.dpS[i][j]      = psd_create_property(ns->ed.psdED);
+				ns->ed.mult.dpS0[i][j]      = psd_create_property(ns->ed.psdED);
+				ns->ed.mult.dpS1[i][j]      = psd_create_property(ns->ed.psdED);
+            ns->ed.mult.dpKernel0[i][j] = psd_create_property(ns->ed.psdED);
+            ns->ed.mult.dpKernel1[i][j] = psd_create_property(ns->ed.psdED);
 			}
 		}
 		
