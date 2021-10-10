@@ -98,13 +98,13 @@ int main()
 	
 	double x0,xf,y0,yf;
 	
-	x0=0.0;xf=16.0;
-	y0=0.0;yf=8.0;
+	x0=0.0;xf=1.0;
+	y0=0.0;yf=1.0;
 	
 	/*MESH RESOLUTION*/
 	
 	int Nx,Ny;
-	Nx=128; Ny=64;
+	Nx=61; Ny=61;
 	printf("x0 = %.12lf , y0 = %.12lf , xf = %.12lf , yf = %.12lf,  nx= %d , ny = %d \n", x0,y0,xf,yf,Nx,Ny);
 	create_domain_amr(x0,xf,y0,yf,Nx,Ny);
 	create_boundary_amr(x0,xf,y0,yf,Nx,Ny);

@@ -3,5 +3,3 @@ export HIGTREE_DIR=$(pwd)/higtree
 export HIGFLOW_DIR=$(pwd)/higflow
 export PETSC_EXTRA_LIB="-lmpi"
 
-
-

@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "../src/hig-flow-step-multiphase.h"
+#include "../src/hig-flow-step-multiphase-viscoelastic.h"
 #include "../src/hig-flow-io.h"
 #include "../src/hig-flow-ic.h"
 #include "../src/hig-flow-bc.h"

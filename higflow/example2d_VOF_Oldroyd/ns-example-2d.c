@@ -3,9 +3,7 @@
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
-
 #include "ns-example-2d.h"
-
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
@@ -25,39 +23,41 @@ real get_boundary_tensor(int id, Point center, int i, int j, real t) {
 // Value of the Kernel
 real get_kernel(int dim, real lambda, real tol) {
 	real value;
-	//if (lambda < tol)
-	//   value = log(tol);
-	//else
-	//   value = log(lambda);
+	if (lambda < tol){
+		value = log(tol);
+	} else{
+		value = log(lambda);
+	}
 	//if (lambda < tol)
 	//   value = sqrt(tol);
 	//else
 	//   value = sqrt(lambda);
-	value = lambda;
+	//value = lambda;
 	return value;
 }
 
 // Value of the Kernel inverse
 real get_kernel_inverse(int dim, real lambda, real tol) {
 	real value;
-	//value = exp(lambda);
+	value = exp(lambda);
 	//value = lambda*lambda;
-	value = lambda;
+	//value = lambda;
 	return value;
 }
 
 // Value of the Kernel Jacobian
 real get_kernel_jacobian(int dim, real lambda, real tol) {
 	real value;
-	//if (lambda < tol)
-	//   value = 1.0/tol;
-	//else
-	//   value = 1.0/lambda;
+	if (lambda < tol) {
+		value = 1.0/tol;
+	} else{
+		value = 1.0/lambda;
+	}
 	//if (lambda < tol)
 	//   value = 0.5/sqrt(tol);
 	//else
 	//   value = 0.5/sqrt(lambda);
-	value = 1.0;
+	//value = 1.0;
 	return value;
 }
 
@@ -70,8 +70,7 @@ real get_pressure(Point center, real t) {
 // Value of the velocity
 real get_velocity(Point center, int dim, real t) {
 	real value      = 0.0;
-	
-	
+	/*
 	if(dim==0)
 	{
 		real ut=4.0;
@@ -79,7 +78,7 @@ real get_velocity(Point center, int dim, real t) {
 		real Ly=8.0;
 		value=(ut-ub)*center[1]/Ly +ub;
 		
-	}
+	}*/
 	return value;
 }
 
@@ -97,10 +96,10 @@ real get_facet_source_term(Point center, int dim, real t) {
 
 real func (Point p) {
 	Point c, raio;
-	c[0]     = 8.0;
-	c[1]     = 4.0;
-	raio[0]  = 1.0;
-	raio[1]  = 1.0;
+	c[0]     = 0.5;
+	c[1]     = 0.5;
+	raio[0]  = 1.0/6.0;
+	raio[1]  = 1.0/6.0;
 	real ans = -(p[0]-c[0])*(p[0]-c[0])/raio[0]/raio[0]
 			   -(p[1]-c[1])*(p[1]-c[1])/raio[1]/raio[1] + 1.0;
 	return ans;
@@ -397,7 +396,7 @@ real get_fracvol(Point center, Point delta, real t) {
 // Value of the viscosity 
 real get_viscosity0(Point center, real t) {
 	real value;
-	value = 1.0;
+	value = 0.5;
 	return value;
 }
 
@@ -419,7 +418,6 @@ real get_density0(Point center, real t) {
 real get_density1(Point center, real t) {
 	real value;
 	value = 1.0;
-	//value = 1.0;
 	return value;
 }
 
@@ -465,8 +463,7 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
 	case 1:
 		switch (dim) {
 		case 0:
-			value = 0.0;
-			value = 4.0;
+			value = 8.0*(1.0 + tanh(8.0*t-4.0))*center[0]*center[0]*(1-center[0])*(1-center[0]); 
 			break;
 		case 1:
 			value = 0.0;
@@ -487,7 +484,6 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
 		switch (dim) {
 		case 0:
 			value = 0.0;
-			value = -4.0;
 			break;
 		case 1:
 			value = 0.0;
@@ -512,7 +508,7 @@ real get_boundary_facet_source_term(int id, Point center, int dim, real t) {
 
 // Value of the boundary viscosity
 real get_boundary_viscosity(int id, Point center, real q, real t) {
-	real value = 1.0;
+	real value = 0.5;
 	return value;
 }
 
@@ -530,18 +526,14 @@ void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], re
 }
 
 void set_generalized_newtonian(higflow_solver *ns,int cache,int order_center,
-		real(*get_viscosity)(Point center,real q,real t))
-{
+		real(*get_viscosity)(Point center,real q,real t)){
 
 	higflow_create_domain_generalized_newtonian(ns, cache, order_center,get_viscosity); 
 	higflow_create_ditributed_properties_generalized_newtonian(ns);
 
 	//real (*get_electroosmotic_source_term)(Point center, int dim, real t);
 	//real get_viscosity(Point center, real q, real t)
-
-
 }
-
 
 // *******************************************************************
 // Navier-Stokes main program
@@ -622,6 +614,7 @@ int main (int argc, char *argv[]) {
 	// ********************************************************
 	// Begin Loop for the Navier-Stokes equations integration
 	// ********************************************************
+	FILE *data;
 	int step0 = ns->par.step;
 	for (int step = ns->par.step; step < ns->par.finalstep; step++) {
 		//for (int step = ns->par.step; step < 1; step++) {
@@ -634,7 +627,7 @@ int main (int argc, char *argv[]) {
 		// higflow_solver_step(ns);
 		// higflow_solver_step_gen_newt(ns);
 		printf("calling step multiphase at step:%d\n",ns->par.stepaux);
-		higflow_solver_step_multiphase(ns);
+		higflow_solver_step_multiphase_viscoelastic(ns);
 		ns->par.stepaux=ns->par.stepaux+1;
 		// higflow_solver_step_viscoelastic(ns);
 		
@@ -659,10 +652,16 @@ int main (int argc, char *argv[]) {
 		}
 		// Saving the properties
 		if (ns->par.t >= ns->par.ts + ns->par.dts) {
+			// Kinetic Energy salving
+			if (myrank == 0)
+				printf("===> Kinetic Energy         <====> ts = %15.10lf <===\n",ns->par.ts);
+			data = (FILE *) fopen("DATA/Kinetic.txt","a");
+			higflow_kinetic_energy(ns, data);
+			fclose(data);
 			// tsave update
 			ns->par.ts += ns->par.dts;
-			if (myrank == 0)
-				printf("===> Saving               <====> ts = %15.10lf <===\n",ns->par.ts);
+			//if (myrank == 0)
+			//	printf("===> Saving               <====> ts = %15.10lf <===\n",ns->par.ts);
 			// Saving the properties
 			//higflow_save_properties(ns, myrank, ntasks);
 			// Saving the parameters

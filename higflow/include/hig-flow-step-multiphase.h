@@ -8,6 +8,8 @@
 #define HIG_FLOW_STEP_MULTIPHASE
 
 #include "hig-flow-step.h"
+//#include "hig-flow-vof-ELVIRA.h"
+#include "hig-flow-vof-adap-hf.h"
 
 // *******************************************************************
 // Navier-Stokes Step
@@ -27,9 +29,6 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns);
 
 // Calculate the density
 void higflow_compute_density_multiphase(higflow_solver *ns);
-
-// Computing beta viscoelastic
-void higflow_compute_beta_visc_multiphase(higflow_solver *ns);
 
 // ******************************************************************
 // PLIC ADVECTION
