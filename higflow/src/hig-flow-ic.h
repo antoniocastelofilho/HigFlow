@@ -45,6 +45,9 @@ void higflow_initialize_cell_source_term(higflow_solver *ns);
 // Initialize the viscoelastic Tensor
 void higflow_initialize_viscoelastic_tensor(higflow_solver *ns);
 
+// Initialize the Non-Newtonian Tensor - multiphase
+void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns);
+
 // Initialize the viscoelastic integral Tensor
 void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns); 
 

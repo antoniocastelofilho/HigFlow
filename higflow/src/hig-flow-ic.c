@@ -211,7 +211,7 @@ void higflow_initialize_viscosity_gn(higflow_solver *ns) {
     dp_sync(ns->ed.gn.dpvisc);
 }
 
-// Initialize the viscosity
+// Initialize the viscosity - Multiphase
 void higflow_initialize_viscosity_mult(higflow_solver *ns) {
     // Setting the cell iterator
     higcit_celliterator *it;
@@ -232,7 +232,7 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
         // Calculate the viscosity
         real visc0 = ns->ed.mult.get_viscosity0(center, ns->par.t);
         real visc1 = ns->ed.mult.get_viscosity1(center, ns->par.t);
-	real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
+	     real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpvisc, cgid, visc);
     }
@@ -293,7 +293,7 @@ void higflow_initialize_density(higflow_solver *ns) {
         // Calculate the density
         real dens0 = ns->ed.mult.get_density0(center, ns->par.t);
         real dens1 = ns->ed.mult.get_density1(center, ns->par.t);
-	real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
+	     real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpdens, cgid, dens);
     }
@@ -362,11 +362,62 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
         // Destroying the iterator
         higcit_destroy(it);
         // Sync initial values among processes
-	for (int i = 0; i < DIM; i++) {
+        for (int i = 0; i < DIM; i++) {
+           for (int j = 0; j < DIM; j++) {
+              dp_sync(ns->ed.ve.dpS[i][j]);
+           }
+        }
+    }
+}
+
+// Initialize the Non-Newtonian Tensor - multiphase
+void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
+    // Non Newtonian flow - multiphase
+    if (ns->contr.flowtype == 2) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            // Calculate the density
+            real fracvol  = compute_value_at_point(sddens, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real S0 = ns->ed.mult.get_tensor0(center, i, j, ns->par.t);
+                    real S1 = ns->ed.mult.get_tensor1(center, i, j, ns->par.t);
+                    if (fracvol == 0.0){
+                       S1 = 0.0;
+                    }
+                    if (fracvol == 1.0){
+                       S0 = 0.0;
+                    }
+                    // Set the value for tensor distributed property - phase 0
+                    dp_set_value(ns->ed.mult.dpS0[i][j], cgid, S0);
+                    // Set the value for tensor distributed property - phase 1
+                    dp_set_value(ns->ed.mult.dpS1[i][j], cgid, S1);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	     for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.ve.dpS[i][j]);
-	    }
-	}
+                dp_sync(ns->ed.mult.dpS0[i][j]);
+                dp_sync(ns->ed.mult.dpS1[i][j]);
+	         }
+	     }
     }
 }
 
@@ -402,11 +453,11 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
         // Destroying the iterator
         higcit_destroy(it);
         // Sync initial values among processes
-	for (int i = 0; i < DIM; i++) {
+	     for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.im.dpS[i][j]);
-	    }
-	}
+	         }
+	     }
     }
 }
 
@@ -682,6 +733,8 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         higflow_initialize_viscosity_mult(ns);
         // Initialize density distributed property
         higflow_initialize_density(ns);
+        // Initialize Tensor distributed property
+        higflow_initialize_viscoelastic_mult_tensor(ns);
     } else if (ns->contr.flowtype == 3) {
         // Initialize non Newtonian tensor distributed property
         higflow_initialize_viscoelastic_tensor(ns);
