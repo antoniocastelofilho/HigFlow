@@ -54,6 +54,6 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f *.o VTKS/* DATA/* output/* ns-example
+		$(RM) -f *.o VTKS/* Dados/Pressao/* Dados/Tensores/* Dados/Velocidade/*  DATA/* output/* ns-example
 
 .PHONY: run clean compilerflags
