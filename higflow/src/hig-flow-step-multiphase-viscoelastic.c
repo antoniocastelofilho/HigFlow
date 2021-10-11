@@ -6,31 +6,48 @@
 #include "hig-flow-step-multiphase-viscoelastic.h"
 
 char nome_Frac_Visc[100];
-char nome_Txx[100];
-char nome_Txy[100];
-char nome_Tyx[100];
-char nome_Tyy[100];
+char nome_Txx0[100]; char nome_Txx1[100];
+char nome_Txy0[100]; char nome_Txy1[100];
+char nome_Tyx0[100]; char nome_Tyx1[100];
+char nome_Tyy0[100]; char nome_Tyy1[100];
 
 void arquivoTempo_visc(int step) {
     sprintf(nome_Frac_Visc,"DATA/%d_frac_visc.txt", step);
-    sprintf(nome_Txx,"DATA/%d_Txx.txt", step);
-    sprintf(nome_Txy,"DATA/%d_Txy.txt", step);
-    sprintf(nome_Tyx,"DATA/%d_Tyx.txt", step);
-    sprintf(nome_Tyy,"DATA/%d_Tyy.txt", step);
+    sprintf(nome_Txx0,"DATA/%d_Txx.txt", step);
+    sprintf(nome_Txx1,"DATA/%d_Txx.txt", step);
+    sprintf(nome_Txy0,"DATA/%d_Txy.txt", step);
+    sprintf(nome_Txy1,"DATA/%d_Txy.txt", step);
+    sprintf(nome_Tyx0,"DATA/%d_Tyx.txt", step);
+    sprintf(nome_Tyx1,"DATA/%d_Tyx.txt", step);
+    sprintf(nome_Tyy0,"DATA/%d_Tyy.txt", step);
+    sprintf(nome_Tyy1,"DATA/%d_Tyy.txt", step);
+
     
     FILE*fp=fopen(nome_Frac_Visc,"a");
     fclose(fp);
     
-    fp=fopen(nome_Txx,"a");
+    fp=fopen(nome_Txx0,"a");
     fclose(fp);
     
-    fp=fopen(nome_Txy,"a");
+    fp=fopen(nome_Txx1,"a");
+    fclose(fp);
+
+    fp=fopen(nome_Txy0,"a");
     fclose(fp);
     
-    fp=fopen(nome_Tyx,"a");
+    fp=fopen(nome_Txy1,"a");
     fclose(fp);
     
-    fp=fopen(nome_Tyy,"a");
+	 fp=fopen(nome_Tyx0,"a");
+    fclose(fp);
+    
+    fp=fopen(nome_Tyx1,"a");
+    fclose(fp);
+    
+	 fp=fopen(nome_Tyy0,"a");
+    fclose(fp);
+    
+	 fp=fopen(nome_Tyy1,"a");
     fclose(fp);
 }
 
@@ -76,17 +93,26 @@ void save_cell_values_visc(higflow_solver *ns,int aux) {
             arquivo_Frac_Visc(nome_Frac_Visc,ccenter[0],ccenter[1],fracvol);
             
             //saving Tensor
-            real S[DIM][DIM];
+            real S0[DIM][DIM], S1[DIM][DIM];
             // Get Kernel
-            S[1][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[1][1], ns->ed.stn);
-            S[1][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[1][2], ns->ed.stn);
-            S[2][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[2][1], ns->ed.stn);
-            S[2][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[2][2], ns->ed.stn);
+            S0[1][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[1][1], ns->ed.stn);
+            S0[1][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[1][2], ns->ed.stn);
+            S0[2][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[2][1], ns->ed.stn);
+            S0[2][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[2][2], ns->ed.stn);
             
-            arquivo_Frac_Ten(nome_Txx,ccenter[0],ccenter[1],S[1][1]); 
-            arquivo_Frac_Ten(nome_Txy,ccenter[0],ccenter[1],S[1][2]); 
-            arquivo_Frac_Ten(nome_Tyx,ccenter[0],ccenter[1],S[2][1]); 
-            arquivo_Frac_Ten(nome_Tyy,ccenter[0],ccenter[1],S[2][2]); 
+            S1[1][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[1][1], ns->ed.stn);
+            S1[1][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[1][2], ns->ed.stn);
+            S1[2][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[2][1], ns->ed.stn);
+            S1[2][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[2][2], ns->ed.stn);
+            
+				arquivo_Frac_Ten(nome_Txx0,ccenter[0],ccenter[1],S0[1][1]); 
+				arquivo_Frac_Ten(nome_Txx1,ccenter[0],ccenter[1],S1[1][1]); 
+            arquivo_Frac_Ten(nome_Txy0,ccenter[0],ccenter[1],S0[1][2]); 
+            arquivo_Frac_Ten(nome_Txy1,ccenter[0],ccenter[1],S1[1][2]); 
+            arquivo_Frac_Ten(nome_Tyx0,ccenter[0],ccenter[1],S0[2][1]); 
+            arquivo_Frac_Ten(nome_Tyx1,ccenter[0],ccenter[1],S1[2][1]); 
+            arquivo_Frac_Ten(nome_Tyy0,ccenter[0],ccenter[1],S0[2][2]); 
+            arquivo_Frac_Ten(nome_Tyy1,ccenter[0],ccenter[1],S1[2][2]); 
             
             continue;
             }
@@ -121,8 +147,8 @@ void higflow_compute_beta_multiphase_viscoelastic(higflow_solver *ns) {
             // Calculate the density
             real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
             // Calculate the density
-            real beta0 = 1.0;
-            real beta1 = 0.5;
+            real beta0 = ns->ed.mult.par.beta0;
+            real beta1 = ns->ed.mult.par.beta1;
             real beta  = (1.0-fracvol)*beta0 + fracvol*beta1;
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.mult.dpbeta, clid, beta);
@@ -157,17 +183,19 @@ void higflow_compute_S_multiphase_viscoelastic(higflow_solver *ns) {
             // Get the delta of the cell
             Point cdelta;
             hig_get_delta(c, cdelta);
-            // Calculate the density
+            // Calculate the volume fraction
             real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            real S[DIM][DIM];
+            real S0[DIM][DIM], S1[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Kernel
-                    S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                    //S[i][j]  = (1.0 - fracvol)*S[i][j];
-                    S[i][j]  = fracvol*S[i][j];
-                    //printf("S[%d][%d]=%lf   ",i,j,S[i][j]);
-                    dp_set_value(ns->ed.mult.dpS[i][j], clid, S[i][j]);
+                    S0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
+                    S1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
+                    S0[i][j]  = (1.0 - fracvol)*S0[i][j];
+                    S1[i][j]  = fracvol*S1[i][j];
+                    // Set tensor
+                    dp_set_value(ns->ed.mult.dpS0[i][j], clid, S0[i][j]);
+                    dp_set_value(ns->ed.mult.dpS1[i][j], clid, S1[i][j]);
                 }
             }
         }
@@ -176,7 +204,8 @@ void higflow_compute_S_multiphase_viscoelastic(higflow_solver *ns) {
         // Sync the ditributed S property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.mult.dpS[i][j]);
+                dp_sync(ns->ed.mult.dpS0[i][j]);
+                dp_sync(ns->ed.mult.dpS1[i][j]);
             }
         }
 }
@@ -187,9 +216,12 @@ void higflow_compute_S_multiphase_viscoelastic(higflow_solver *ns) {
 void higflow_compute_kernel_tensor_multiphase_viscoelastic(higflow_solver *ns) {
         // Get the cosntants
         real Re   = ns->par.Re;
-        real De   = ns->ed.ve.par.De;
-        real beta = ns->ed.ve.par.beta;
-        real tol  = ns->ed.ve.par.kernel_tol;
+        real De0   = ns->ed.mult.par.De0;
+        real De1   = ns->ed.mult.par.De1;
+        real beta0 = ns->ed.mult.par.beta0;
+        real beta1 = ns->ed.mult.par.beta1;
+        real tol0  = ns->ed.mult.par.kernel_tol0;
+        real tol1  = ns->ed.mult.par.kernel_tol1;
         //tol       = 1.0e-3;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -1016,11 +1048,11 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns) {
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    if (ns->par.stepaux%1000==0) {
+    /*if (ns->par.stepaux%1000==0) {
         printf("creating archives at step: %d\n",ns->par.stepaux);
         arquivoTempo_visc(ns->par.stepaux);
         save_cell_values_visc(ns,1);
-    }
+    }*/
     // Calculate the velocity derivative tensor
     higflow_compute_velocity_derivative_tensor(ns);
     // Computing the Kernel Tensor
