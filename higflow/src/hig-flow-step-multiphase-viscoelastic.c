@@ -241,10 +241,10 @@ void higflow_compute_kernel_tensor_multiphase_viscoelastic(higflow_solver *ns) {
             real Du0[DIM][DIM], S0[DIM][DIM], Du1[DIM][DIM], S1[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
-                    // Get Du
+                    // Get Du0 and Du1
                     Du0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD0[i][j], ns->ed.stn);
                     Du1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD1[i][j], ns->ed.stn);
-                    // Get S
+                    // Get S0 and S1
                     S0[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
                     S1[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
                 }

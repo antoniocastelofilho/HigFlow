@@ -779,138 +779,118 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
          break;
             
         case 3:
-        fprintf(f, "\nTENSORS Tensor FLOAT\n");
-                   for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                        hig_cell *c = higcit_getcell(it);
-                        Point cdelta, ccenter, clowpoint, chightpoint;
-                        hig_get_delta(c,cdelta);
-                        hig_get_center(c,ccenter);
-                        // Pontos onde será interpolada a velocidade
-                        Point p0, p1, p2, p3, p4, p5, p6, p7;
-                        p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];  p0[2] = c->lowpoint[2];
-                        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];  p1[2] = c->lowpoint[2];
-                        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
-                        p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
-                        p4[0] = c->lowpoint[0];  p4[1] = c->lowpoint[1];  p4[2] = c->highpoint[2];
-                        p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1];  p5[2] = c->highpoint[2];
-                        p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
-                        p7[0] = c->lowpoint[0];  p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
-
-                        uniqueid id = hig_get_cid(c);
-                        int cgid = mp_lookup(m, id);
-                        
-                        real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
-                        real taup4[DIM+1][DIM+1], taup5[DIM+1][DIM+1], taup6[DIM+1][DIM+1], taup7[DIM+1][DIM+1];
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                          for (int j = 0; j <= DIM; j++) {
-                            taup0[i][j]=0.0; taup1[i][j]=0.0; taup2[i][j]=0.0; taup3[i][j]=0.0;
-                            taup4[i][j]=0.0; taup5[i][j]=0.0; taup6[i][j]=0.0; taup7[i][j]=0.0;
-                          }
-                        }
-                        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-                        
-                        real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
-                        real Dp4[DIM][DIM], Dp5[DIM][DIM], Dp6[DIM][DIM], Dp7[DIM][DIM];
-                        for (int i = 0; i < DIM; i++) {
-                          for (int j = 0; j < DIM; j++) {
-                             // Get Du
-                             Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp4[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p4, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp5[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p5, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp6[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p6, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                             Dp7[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p7, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                          }
-                         }
-                         
-                         for (int i = 0; i < DIM; i++) {
-                           for (int j = 0; j < DIM; j++) {
-                             taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
-                             
-                             taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
-                             
-                             taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
-                             
-                             taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
-                             
-                             taup4[i][j] = compute_value_at_point(ns->ed.sdED, p4, p4, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup4[i][j]+= 2.0*(1-beta)*0.5*(Dp4[i][j]+Dp4[j][i])/Re;
-                             
-                             taup5[i][j] = compute_value_at_point(ns->ed.sdED, p5, p5, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup5[i][j]+= 2.0*(1-beta)*0.5*(Dp5[i][j]+Dp5[j][i])/Re;
-                             
-                             taup6[i][j] = compute_value_at_point(ns->ed.sdED, p6, p6, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup6[i][j]+= 2.0*(1-beta)*0.5*(Dp6[i][j]+Dp6[j][i])/Re;
-                             
-                             taup7[i][j] = compute_value_at_point(ns->ed.sdED, p7, p7, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                             taup7[i][j]+= 2.0*(1-beta)*0.5*(Dp7[i][j]+Dp7[j][i])/Re;
-                          }
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup0[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup1[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup2[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup3[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup4[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup5[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup6[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
-                        
-                        for (int i = 0; i <= DIM; i++) {
-                           for (int j = 0; j <= DIM; j++) {
-                              fprintf(f, "%e ", taup7[i][j]);
-                           }
-                           fprintf(f, "\n");
-                        }
+            fprintf(f, "\nTENSORS Tensor FLOAT\n");
+            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+                hig_cell *c = higcit_getcell(it);
+                Point cdelta, ccenter, clowpoint, chightpoint;
+                hig_get_delta(c,cdelta);
+                hig_get_center(c,ccenter);
+                // Pontos onde será interpolada a velocidade
+                Point p0, p1, p2, p3, p4, p5, p6, p7;
+                p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];  p0[2] = c->lowpoint[2];
+                p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];  p1[2] = c->lowpoint[2];
+                p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
+                p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
+                p4[0] = c->lowpoint[0];  p4[1] = c->lowpoint[1];  p4[2] = c->highpoint[2];
+                p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1];  p5[2] = c->highpoint[2];
+                p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
+                p7[0] = c->lowpoint[0];  p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
+                uniqueid id = hig_get_cid(c);
+                int cgid = mp_lookup(m, id);
+                real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
+                real taup4[DIM+1][DIM+1], taup5[DIM+1][DIM+1], taup6[DIM+1][DIM+1], taup7[DIM+1][DIM+1];
+                for (int i = 0; i <= DIM; i++) {
+                    for (int j = 0; j <= DIM; j++) {
+                        taup0[i][j]=0.0; taup1[i][j]=0.0; taup2[i][j]=0.0; taup3[i][j]=0.0;
+                        taup4[i][j]=0.0; taup5[i][j]=0.0; taup6[i][j]=0.0; taup7[i][j]=0.0;
                     }
-                    higcit_destroy(it);
+                }
+                sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+                real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
+                real Dp4[DIM][DIM], Dp5[DIM][DIM], Dp6[DIM][DIM], Dp7[DIM][DIM];
+                for (int i = 0; i < DIM; i++) {
+                    for (int j = 0; j < DIM; j++) {
+                        // Get Du
+                        Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp4[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p4, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp5[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p5, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp6[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p6, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp7[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p7, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                    }
+                }
+                 for (int i = 0; i < DIM; i++) {
+                   for (int j = 0; j < DIM; j++) {
+                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                     taup4[i][j] = compute_value_at_point(ns->ed.sdED, p4, p4, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup4[i][j]+= 2.0*(1-beta)*0.5*(Dp4[i][j]+Dp4[j][i])/Re;
+                     taup5[i][j] = compute_value_at_point(ns->ed.sdED, p5, p5, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup5[i][j]+= 2.0*(1-beta)*0.5*(Dp5[i][j]+Dp5[j][i])/Re;
+                     taup6[i][j] = compute_value_at_point(ns->ed.sdED, p6, p6, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup6[i][j]+= 2.0*(1-beta)*0.5*(Dp6[i][j]+Dp6[j][i])/Re;
+                     taup7[i][j] = compute_value_at_point(ns->ed.sdED, p7, p7, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup7[i][j]+= 2.0*(1-beta)*0.5*(Dp7[i][j]+Dp7[j][i])/Re;
+                  }
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup0[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup1[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup2[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup3[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup4[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup5[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup6[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup7[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+            }
+            higcit_destroy(it);
         break;
         
         case 4:
@@ -1573,8 +1553,10 @@ void higflow_load_controllers_and_parameters_yaml(higflow_solver *ns, int myrank
                if (myrank == 0) printf("=+=+=+= Kernel_tol in the Phase 0: %f =+=+=+=\n", ns->ed.ve.par.kernel_tol);
                
                } else {
-               if (myrank == 0) printf("=+=+=+= Flow Model Invalid in the Phase 0 =+=+=+=\n");
-               exit(1);
+                if (myrank == 0) {
+                    printf("=+=+=+= Flow Model Invalid in the Phase 0 =+=+=+=\n");
+                }
+                exit(1);
             }
            
             // Flowtype for Phase 1
@@ -2057,6 +2039,49 @@ void higflow_load_viscoelastic_parameters(higflow_solver *ns, int myrank) {
         if (myrank == 0) {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.ve.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.ve.par.beta);
+        }
+    } else {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Loading the multiphase viscoelastic parameters
+void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myrank) {
+    // Parameters file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.mult.viscpar", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL) {
+        // Loading the parameters
+        int ifd;
+        // Phase 0
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.De0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.beta0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.epsilon0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.psi0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.alpha0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.kernel_tol0));
+        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.alpha_gptt0));
+        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.beta_gptt0));
+        // Phase 1
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.De1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.beta1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.epsilon1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.psi1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.alpha1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.kernel_tol1));
+        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.alpha_gptt1));
+        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.beta_gptt1));
+        fclose(fd);
+        if (myrank == 0) {
+            printf("=+=+=+= Phase 0: =+=+=+=\n");
+            printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.par.De0);
+            printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.par.beta0);
+            printf("=+=+=+= Phase 1: =+=+=+=\n");
+            printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.par.De1);
+            printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.par.beta1);
         }
     } else {
         // Error in open the file

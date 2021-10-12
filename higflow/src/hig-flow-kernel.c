@@ -610,14 +610,13 @@ void higflow_create_ditributed_properties_multiphase(higflow_solver *ns) {
         ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
         // Distributed property for curvature
         ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
-        // Distributed property for interfacial force
+        // Distributed property for beta
+        ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
+        // Distributed property for interfacial force and Normal
         for (int i = 0; i < DIM; i++) {
             ns->ed.mult.dpIF[i]          = psd_create_property(ns->ed.psdED);
             ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
         }
-        // Distributed property for beta
-        ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
-        
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 ns->ed.mult.dpD0[i][j]         = psd_create_property(ns->ed.psdED);
