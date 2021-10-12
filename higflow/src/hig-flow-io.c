@@ -2143,9 +2143,9 @@ void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank) {
                 case 2:
                     printf("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
                     break;
-	             case 3:
-	                 printf("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
-		              break;
+                case 3:
+                    printf("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+                    break;
             }
             switch (ns->ed.ve.contr.discrtype) {
                 case 0:
@@ -2161,6 +2161,105 @@ void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank) {
                     break;
                 case 1:
                     printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+                    break;
+            }
+        }
+    } else {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Loading the multiphase viscoelastic controllers
+void higflow_load_multiphase_viscoelastic_controllers(higflow_solver *ns, int myrank) {
+    // Parameters file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.mult.visccontr", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL) {
+        // Loading the parameters
+        int ifd;
+        // Phase 0
+        ifd = fscanf(fd, "%d", &(ns->ed.mult.contr.model0));
+        ifd = fscanf(fd, "%d", &(ns->ed.mult.contr.discrtype0));
+        ifd = fscanf(fd, "%d", &(ns->ed.mult.contr.convecdiscrtype0));
+        // Phase 1
+        ifd = fscanf(fd, "%d", &(ns->ed.mult.contr.model1));
+        ifd = fscanf(fd, "%d", &(ns->ed.mult.contr.discrtype1));
+        ifd = fscanf(fd, "%d", &(ns->ed.mult.contr.convecdiscrtype1));
+        fclose(fd);
+        if (myrank == 0) {
+            //Constitutive Equation Model - Phase 0
+            switch (ns->ed.mult.contr.model0) {
+                case -1:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 0: User Defined =+=+=+=\n");
+                    break;
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 0: Oldroyd =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 0: Giesekus =+=+=+=\n");
+                    break;
+                case 2:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 0: LPTT =+=+=+=\n");
+                    break;
+                case 3:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 0: GPTT =+=+=+=\n");
+                    break;
+            }
+            //Constitutive Equation Model - Phase 1
+            switch (ns->ed.mult.contr.model1) {
+                case -1:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 1: User Defined =+=+=+=\n");
+                    break;
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 1: Oldroyd =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 1: Giesekus =+=+=+=\n");
+                    break;
+                case 2:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 1: LPTT =+=+=+=\n");
+                    break;
+                case 3:
+                    printf("=+=+=+= Constitutive Equation Model - Phase 1 GPTT =+=+=+=\n");
+                    break;
+            }
+            // Constitutive Equation Discretization - Phase 0
+            switch (ns->ed.mult.contr.discrtype0) {
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Discretization - Phase 0: Explicit =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Discretization - Phase 0: Implicit =+=+=+=\n");
+                    break;
+            }
+            // Constitutive Equation Discretization - Phase 1
+            switch (ns->ed.mult.contr.discrtype1) {
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Discretization - Phase 1: Explicit =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Discretization - Phase 1: Implicit =+=+=+=\n");
+                    break;
+            }
+            // Constitutive Equation Convective Term - Phase 0
+            switch (ns->ed.mult.contr.convecdiscrtype0) {
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Convective Term - Phase 0: Upwind  =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Convective Term - Phase 0: CUBISTA =+=+=+=\n");
+                    break;
+            }
+            // Constitutive Equation Convective Term - Phase 1
+            switch (ns->ed.mult.contr.convecdiscrtype1) {
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Convective Term - Phase 1: Upwind  =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Convective Term - Phase 1: CUBISTA =+=+=+=\n");
                     break;
             }
         }
