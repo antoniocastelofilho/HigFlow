@@ -247,6 +247,10 @@ typedef struct higflow_multiphase{
     distributed_property *dpIF[DIM];
     // Distributed property for beta viscoelastic
     distributed_property *dpbeta;
+     // Distributed property for D viscoelastic - phase 0
+    distributed_property *dpD0[DIM][DIM];
+    // Distributed property for D viscoelastic - phase 1
+    distributed_property *dpD1[DIM][DIM];
     // Distributed property for S viscoelastic - phase 0
     distributed_property *dpS0[DIM][DIM];
     // Distributed property for S viscoelastic - phase 1

@@ -56,15 +56,15 @@ void higflow_destroy (higflow_solver *ns) {
             dp_destroy(ns->ed.mult.dpfracvolaux);
             dp_destroy(ns->ed.mult.dpcurvature);
             dp_destroy(ns->ed.mult.dpdistance);
-            for (int i = 0; i < DIM; i++){
-               dp_destroy(ns->ed.mult.dpIF[i]);
-               dp_destroy(ns->ed.mult.dpnormal[i]);
-            }
-            // Destroy the beta viscoelastic
             dp_destroy(ns->ed.mult.dpbeta);
+            // Interfacial Term and Normal
             for (int i = 0; i < DIM; i++)
+                dp_destroy(ns->ed.mult.dpIF[i]);
+                dp_destroy(ns->ed.mult.dpnormal[i]);
+                // Tensor terms destroy
                 for (int j = 0; j < DIM; j++) {
-                    // Tensor terms destroy
+                    dp_destroy(ns->ed.mult.dpD0[i][j]);
+                    dp_destroy(ns->ed.mult.dpD1[i][j]);
                     dp_destroy(ns->ed.mult.dpS0[i][j]);
                     dp_destroy(ns->ed.mult.dpS1[i][j]);
                     dp_destroy(ns->ed.mult.dpKernel0[i][j]);
@@ -596,38 +596,39 @@ void higflow_create_ditributed_properties_generalized_newtonian(higflow_solver *
 
 // Create the distributed properties for multiphase simulation
 void higflow_create_ditributed_properties_multiphase(higflow_solver *ns) {
-	// Non Newtonian tensor
-	if (ns->contr.flowtype == 2) {
-		// Distributed property for viscosity
-		ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
-		// Distributed property for density
-		ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
-		// Distributed property for volume fraction
-		ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
-		// Distributed property for auxiliary volume fraction
-		ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
-		// Distributed property for curvature
-		ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
-		// Distributed property for curvature
-		ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
-		// Distributed property for interfacial force
-		for (int i = 0; i < DIM; i++) {
-			ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
-			ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
-		}
-		// Distributed property for beta
-		ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
-		
-		for (int i = 0; i < DIM; i++) {
-			for (int j = 0; j < DIM; j++) {
-				ns->ed.mult.dpS0[i][j]      = psd_create_property(ns->ed.psdED);
-				ns->ed.mult.dpS1[i][j]      = psd_create_property(ns->ed.psdED);
-            ns->ed.mult.dpKernel0[i][j] = psd_create_property(ns->ed.psdED);
-            ns->ed.mult.dpKernel1[i][j] = psd_create_property(ns->ed.psdED);
-			}
-		}
-		
-	}
+    // Non Newtonian tensor
+    if (ns->contr.flowtype == 2) {
+        // Distributed property for viscosity
+        ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
+        // Distributed property for density
+        ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
+        // Distributed property for volume fraction
+        ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
+        // Distributed property for auxiliary volume fraction
+        ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
+        // Distributed property for curvature
+        ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
+        // Distributed property for curvature
+        ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
+        // Distributed property for interfacial force
+        for (int i = 0; i < DIM; i++) {
+            ns->ed.mult.dpIF[i]          = psd_create_property(ns->ed.psdED);
+            ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
+        }
+        // Distributed property for beta
+        ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
+        
+        for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                ns->ed.mult.dpD0[i][j]         = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpD1[i][j]         = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpS0[i][j]         = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpS1[i][j]         = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpKernel0[i][j] = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpKernel1[i][j] = psd_create_property(ns->ed.psdED);
+            }
+        }
+    }
 }
 
 // Create the distributed properties for viscoelastic simulation

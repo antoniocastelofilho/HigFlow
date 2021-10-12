@@ -105,8 +105,8 @@ void save_cell_values_visc(higflow_solver *ns,int aux) {
             S1[2][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[2][1], ns->ed.stn);
             S1[2][2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[2][2], ns->ed.stn);
             
-				arquivo_Frac_Ten(nome_Txx0,ccenter[0],ccenter[1],S0[1][1]); 
-				arquivo_Frac_Ten(nome_Txx1,ccenter[0],ccenter[1],S1[1][1]); 
+            arquivo_Frac_Ten(nome_Txx0,ccenter[0],ccenter[1],S0[1][1]); 
+            arquivo_Frac_Ten(nome_Txx1,ccenter[0],ccenter[1],S1[1][1]); 
             arquivo_Frac_Ten(nome_Txy0,ccenter[0],ccenter[1],S0[1][2]); 
             arquivo_Frac_Ten(nome_Txy1,ccenter[0],ccenter[1],S1[1][2]); 
             arquivo_Frac_Ten(nome_Tyx0,ccenter[0],ccenter[1],S0[2][1]); 
@@ -238,31 +238,21 @@ void higflow_compute_kernel_tensor_multiphase_viscoelastic(higflow_solver *ns) {
             Point ccenter;
             hig_get_center(c, ccenter);
             // Get the velocity derivative tensor Du and the S tensor
-            real Du[DIM][DIM], S[DIM][DIM];
+            real Du0[DIM][DIM], S0[DIM][DIM], Du1[DIM][DIM], S1[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                    Du0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD0[i][j], ns->ed.stn);
+                    Du1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD1[i][j], ns->ed.stn);
                     // Get S
-                    S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                    S0[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
+                    S1[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
                 }
             }
             // Multiphase
             real frac  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            real beta2, De2;
-            int casovisc = 1;
-            if (casovisc == 0) {
-               // Ambas as fases são iguais (viscoelasticas)
-               beta2 = (1.0 - frac)*beta + frac*beta;
-               De2   = (1.0 - frac)*De    + frac*De;
-            } else if (casovisc == 1) {
-               beta2 = (1.0 - frac)*1.0 + frac*beta;
-               De2   = (1.0 - frac)*0.0 + frac*De;
-            } else if (casovisc == 2) {
-               // Bolha Newtoniana
-               beta2 = (1.0 - frac)*beta + frac*1.0;
-               De2   = (1.0 - frac)*De   + frac*0.0;
-            }
+            real beta2 = (1.0 - frac)*beta0 + frac*beta1;
+            real De2   = (1.0 - frac)*De0    + frac*De1;
             // Calculate the tensor A
             real A[DIM][DIM], D[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
