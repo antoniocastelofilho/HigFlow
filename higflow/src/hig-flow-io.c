@@ -1087,7 +1087,6 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
     fclose(f);
 }
 
-
 // Print the VTK file for vilusalize 3D
 void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank) {
     // Open the VTK file
@@ -1727,7 +1726,6 @@ void higflow_load_controllers_and_parameters_yaml(higflow_solver *ns, int myrank
     fy_document_destroy(fyd);
     fy_document_destroy(fydini);
 }
-
 
 // Loading the controllers
 void higflow_load_controllers(higflow_solver *ns, int myrank) {

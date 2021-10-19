@@ -72,11 +72,11 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {
                 if (ns->contr.flowtype == 1) {
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == 2){
+                } else if (ns->contr.flowtype == 2) {
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == 3){
+                } else if (ns->contr.flowtype == 3) {
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == 4){
+                } else if (ns->contr.flowtype == 4) {
                     dp_sync(ns->ed.im.dpD[dim][dim2]);
                 }
             }

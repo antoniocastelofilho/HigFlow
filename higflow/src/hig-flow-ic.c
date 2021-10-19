@@ -1,16 +1,12 @@
 // *******************************************************************
+//  HiG-Flow Solver Initial Condition - version 11/10/2021
 // *******************************************************************
-//  HiG-Flow Solver Initial Condition - version 10/11/2016
-// *******************************************************************
-// *******************************************************************
-
 #include "hig-flow-ic.h"
 #include <libfyaml.h>
 
 // *******************************************************************
 // Navier-Stokes Initialize Properties
 // *******************************************************************
-
 // Navier-Stokes initialize the domain
 void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int order) {
     // Loading the domain data
@@ -80,36 +76,30 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
 
 // Navier-Stokes initialize the domain yaml
 void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, int order) {
-    
-	 // Loading the boundary condition data
+    // Loading the boundary condition data
     char namefile[1024];
     sprintf(namefile,"%s.domain.yaml",ns->par.nameload);
-    
     FILE *fdomain = fopen(namefile, "r");
     struct fy_document *fyd = NULL;
     fyd = fy_document_build_from_file(NULL, namefile);
-     
     if (fyd == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
         exit(1);
     }
-	  
     // Number of HigTrees
     int numhigs;
     int ifd = fy_document_scanf(fyd,"/domain/number_domain %d",&numhigs);
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         char atrib[1024], amrfilename[1024];
-		  sprintf(atrib,"/domain/domain%d/id %%d",h);
+        sprintf(atrib,"/domain/domain%d/id %%d",h);
         //ifd = fy_document_scanf(fyd,atrib,&(id[h]));
-		  
-		  // Name of the HigTree file
+        // Name of the HigTree file
         //char *amrfilename = argv[1]; argv++;
-        
         sprintf(atrib,"/domain/domain%d/path %%s",h);
         ifd = fy_document_scanf(fyd,atrib,amrfilename);
-
+        
         FILE *fd = fopen(amrfilename, "r");
         mi[h] = higio_read_amr_info(fd);
         fclose(fd);
@@ -420,7 +410,6 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
 	     }
     }
 }
-
 
 // Initialize the viscoelastic integral Tensor
 void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {

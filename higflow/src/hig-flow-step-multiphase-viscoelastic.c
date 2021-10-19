@@ -161,131 +161,145 @@ void higflow_compute_beta_multiphase_viscoelastic(higflow_solver *ns) {
 
 // Computing S viscoelastic
 void higflow_compute_S_multiphase_viscoelastic(higflow_solver *ns) {
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int dim = 0; dim < DIM; dim++) {
-           sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the delta of the cell
-            Point cdelta;
-            hig_get_delta(c, cdelta);
-            // Calculate the volume fraction
-            real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            real S0[DIM][DIM], S1[DIM][DIM];
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    // Get Kernel
-                    S0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
-                    S1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
-                    S0[i][j]  = (1.0 - fracvol)*S0[i][j];
-                    S1[i][j]  = fracvol*S1[i][j];
-                    // Set tensor
-                    dp_set_value(ns->ed.mult.dpS0[i][j], clid, S0[i][j]);
-                    dp_set_value(ns->ed.mult.dpS1[i][j], clid, S1[i][j]);
-                }
-            }
-        }
-        // Destroy the iterator
-        higcit_destroy(it);
-        // Sync the ditributed S property
+    // Get the local sub-domain for the cells
+    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+    // Get the local sub-domain for the facets
+    sim_facet_domain *sfdu[DIM];
+    for(int dim = 0; dim < DIM; dim++) {
+       sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+    }
+    // Get the map for the domain properties
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    // Loop for each cell
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Get the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int clid    = mp_lookup(mp, hig_get_cid(c));
+        // Get the center of the cell
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        // Get the delta of the cell
+        Point cdelta;
+        hig_get_delta(c, cdelta);
+        // Calculate the volume fraction
+        real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        real S0[DIM][DIM], S1[DIM][DIM];
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.mult.dpS0[i][j]);
-                dp_sync(ns->ed.mult.dpS1[i][j]);
+                // Get Kernel
+                S0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
+                S1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
+                S0[i][j]  = (1.0 - fracvol)*S0[i][j];
+                S1[i][j]  = fracvol*S1[i][j];
+                // Set tensor
+                dp_set_value(ns->ed.mult.dpS0[i][j], clid, S0[i][j]);
+                dp_set_value(ns->ed.mult.dpS1[i][j], clid, S1[i][j]);
             }
         }
+    }
+    // Destroy the iterator
+    higcit_destroy(it);
+    // Sync the ditributed S property
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            dp_sync(ns->ed.mult.dpS0[i][j]);
+            dp_sync(ns->ed.mult.dpS1[i][j]);
+        }
+    }
 }
 
 // *******************************************************************
 // Constitutive Equations
 // Computing the Kernel Tensor
 void higflow_compute_kernel_tensor_multiphase_viscoelastic(higflow_solver *ns) {
-        // Get the cosntants
-        real Re   = ns->par.Re;
-        real De0   = ns->ed.mult.par.De0;
-        real De1   = ns->ed.mult.par.De1;
-        real beta0 = ns->ed.mult.par.beta0;
-        real beta1 = ns->ed.mult.par.beta1;
-        real tol0  = ns->ed.mult.par.kernel_tol0;
-        real tol1  = ns->ed.mult.par.kernel_tol1;
-        //tol       = 1.0e-3;
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the velocity derivative tensor Du and the S tensor
-            real Du0[DIM][DIM], S0[DIM][DIM], Du1[DIM][DIM], S1[DIM][DIM];
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    // Get Du0 and Du1
-                    Du0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD0[i][j], ns->ed.stn);
-                    Du1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD1[i][j], ns->ed.stn);
-                    // Get S0 and S1
-                    S0[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
-                    S1[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
-                }
-            }
-            // Multiphase
-            real frac  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            real beta2 = (1.0 - frac)*beta0 + frac*beta1;
-            real De2   = (1.0 - frac)*De0    + frac*De1;
-            // Calculate the tensor A
-            real A[DIM][DIM], D[DIM][DIM];
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
-                    A[i][j]=0.0;
-                    if (beta2 <= 0.999){
-                       A[i][j] = Re*De2*S[i][j]/(1.0-beta2) + 2.0*De2*D[i][j];
-                    }
-                }
-                A[i][i] += 1.0;
-            }
-            // Eige-values and eige-vectors of A
-            real R[DIM][DIM], lambda[DIM];
-            hig_flow_jacobi(A, lambda, R);
-            // Calculate the Kernel tansformation matrix
-            real Kernel[DIM][DIM];
-            hig_flow_calculate_kernel(ns, lambda, R, Kernel, tol);
-            // Store the Kernel Tensor
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                   dp_set_value(ns->ed.ve.dpKernel[i][j], clid, Kernel[i][j]);
-                }
-            }
-        }
-        // Destroy the iterator
-        higcit_destroy(it);
-        // Sync the ditributed pressure property
+    // Get the cosntants
+    real Re   = ns->par.Re;
+    real De0   = ns->ed.mult.par.De0;
+    real De1   = ns->ed.mult.par.De1;
+    real beta0 = ns->ed.mult.par.beta0;
+    real beta1 = ns->ed.mult.par.beta1;
+    real tol0  = ns->ed.mult.par.kernel_tol0;
+    real tol1  = ns->ed.mult.par.kernel_tol1;
+    //tol       = 1.0e-3;
+    // Get the local sub-domain for the cells
+    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+    // Get the map for the domain properties
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    // Loop for each cell
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Get the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int clid    = mp_lookup(mp, hig_get_cid(c));
+        // Get the center of the cell
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        // Get the velocity derivative tensor Du and the S tensor
+        real Du0[DIM][DIM], S0[DIM][DIM], Du1[DIM][DIM], S1[DIM][DIM];
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.ve.dpKernel[i][j]);
+                // Get Du0 and Du1
+                Du0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD0[i][j], ns->ed.stn);
+                Du1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpD1[i][j], ns->ed.stn);
+                // Get S0 and S1
+                S0[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
+                S1[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
             }
         }
+        // Multiphase
+        real frac    = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        //real beta2 = (1.0 - frac)*beta0 + frac*beta1;
+        //real De2   = (1.0 - frac)*De0   + frac*De1;
+        
+		  // Calculate the tensor A
+        real A0[DIM][DIM], D0[DIM][DIM];
+        real A1[DIM][DIM], D1[DIM][DIM];
+        for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                D0[i][j] = 0.5*(Du[i][j]+Du[j][i]);
+                D1[i][j] = 0.5*(Du[i][j]+Du[j][i]);
+                A0[i][j] = 0.0;
+                A1[i][j] = 0.0;
+                if (beta0 <= 0.999){
+                   A0[i][j] = Re*De0*S0[i][j]/(1.0-beta0) + 2.0*De0*D0[i][j];
+                }
+                if (beta1 <= 0.999){
+                   A1[i][j] = Re*De1*S1[i][j]/(1.0-beta1) + 2.0*De1*D1[i][j];
+                }
+            }
+            A0[i][i] += 1.0;
+            A1[i][i] += 1.0;
+        }
+        // Eige-values and eige-vectors of A
+        real R0[DIM][DIM], lambda0[DIM];
+        real R1[DIM][DIM], lambda1[DIM];
+        hig_flow_jacobi(A0, lambda0, R0);
+        hig_flow_jacobi(A1, lambda1, R1);
+        // Calculate the Kernel tansformation matrix
+        real Kernel0[DIM][DIM];
+        real Kernel1[DIM][DIM];
+        hig_flow_calculate_kernel(ns, lambda0, R0, Kernel0, tol0);
+        hig_flow_calculate_kernel(ns, lambda1, R1, Kernel1, tol1);
+        // Store the Kernel Tensor
+        for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+               dp_set_value(ns->ed.mult.dpKernel0[i][j], clid, Kernel0[i][j]);
+               dp_set_value(ns->ed.mult.dpKernel1[i][j], clid, Kernel1[i][j]);
+            }
+        }
+    }
+    // Destroy the iterator
+    higcit_destroy(it);
+    // Sync the ditributed pressure property
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            dp_sync(ns->ed.mult.dpKernel0[i][j]);
+            dp_sync(ns->ed.mult.dpKernel1[i][j]);
+        }
+    }
 }
 
 // Constitutive Equation Step for the Explicit Euler Method
