@@ -49,7 +49,7 @@ real higflow_gravity_term(higflow_solver *ns) {
     // real value = ns->cc.curv;
     //real value = 1.0/pow(Fr,2.0);
     //real value = 9.8;
-	real value = 0.0;
+   real value = 0.0;
     return value;
 }
 

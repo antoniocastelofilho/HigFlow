@@ -51,8 +51,8 @@ void higflow_compute_kernel_tensor(higflow_solver *ns) {
                     D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
                     //A[i][j]=0.0;
                     //if (beta<=0.99){
-						A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
-					//}
+                  A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+               //}
                 }
                 A[i][i] += 1.0;
             }
@@ -188,8 +188,8 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
         switch (ns->ed.ve.contr.model) {
             case 3:
                ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
-			   break;
-		  }
+            break;
+        }
         //tol        = 1.0e-3;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -235,8 +235,8 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                     D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
                     //A[i][j]=0.0;
                     //if(beta<0.99){
-						A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
-					//}
+                  A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+               //}
                 }
                 A[i][i] += 1.0;
             }
@@ -395,11 +395,11 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                     if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
                     else                                  conv1 = vbar[dim]*kc;
                 }
@@ -416,11 +416,11 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi < b) 
+          if (fi < b) 
                         conv1 = vbar[dim]*(a*kr - c*krr);
                     if ((fi >= b) && (fi <= c))
                         conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }
@@ -433,9 +433,9 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi <= c) 
+          if (fi <= c) 
                         conv1 = vbar[dim]*kr;
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }/*
@@ -462,34 +462,34 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi < b)
-	                conv2 = vbar[dim]*(a*kl - c*kll);
-	            if ((fi >= b) && (fi <= c))
-	                conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
         }else if ((incell_l == 1) && (incell_ll == 0)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi <= c)
-	                conv2 = vbar[dim]*kl;
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }/*
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi <= c)
+                   conv2 = vbar[dim]*kl;
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }/*
             vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
             if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
             else                 conv1 = vbar[dim]*kr;
@@ -515,19 +515,19 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
             if ((fi <= 0.0) || (fi >= 1.0)) {
                 conv2 = vbar[dim]*kc;
             }else {
-	        if (fi < b){
+           if (fi < b){
                     if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	    }
+       }
         }
     }
     return ((conv1-conv2)/cdelta[dim]);
@@ -677,7 +677,7 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
             // Get the solution of linear system
             for (int i = 0; i < DIM; i++) {
                 for (int j = i; j < DIM; j++) {
-               	    // Get the value of kernel
+                      // Get the value of kernel
                     real kernel = b[i*DIM+j];
                     // Set the value of kernel
                     dp_set_value(ns->ed.ve.dpS[i][j], clid, kernel);
@@ -1632,16 +1632,16 @@ void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  
             M_aux[j][i] = 0.0;
         }
         jlambda[i]   = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
-	real alfa1 = ns->ed.ve.par.alpha_gptt;
-	real beta1 = ns->ed.ve.par.beta_gptt;
-	real gama1 = ns->ed.ve.par.gamma_gptt;
-	//real gama1, gama1n; 
-	//gama1 = 0.572365;
+   real alfa1 = ns->ed.ve.par.alpha_gptt;
+   real beta1 = ns->ed.ve.par.beta_gptt;
+   real gama1 = ns->ed.ve.par.gamma_gptt;
+   //real gama1, gama1n; 
+   //gama1 = 0.572365;
         //gama1n = lgamma(beta1);
         numc z, mitt;
-	z.real = ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr/(1.0-ns->ed.ve.par.beta);
-	z.imag = 0.0;
-	mitt   =  mlfv(alfa1,beta1, z, 6);
+   z.real = ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr/(1.0-ns->ed.ve.par.beta);
+   z.imag = 0.0;
+   mitt   =  mlfv(alfa1,beta1, z, 6);
         // Exponêncial
         //real mittreal;
         //mittreal = exp(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr);
@@ -1714,15 +1714,15 @@ void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DI
         l = k;
         for (i = k+1; i < n; i++){
             if (fabs(A[i][k]) > max){
-	        max = fabs(A[i][k]);
-	        l = i;
+           max = fabs(A[i][k]);
+           l = i;
              }
         }
         if (l != k){
             for (j = k; j <= n; j++){
-	        aux = A[k][j];
-	            A[k][j] = A[l][j];
-	            A[l][j] = aux;
+           aux = A[k][j];
+               A[k][j] = A[l][j];
+               A[l][j] = aux;
             }
         }
         // Gauss algorithm
@@ -1730,7 +1730,7 @@ void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DI
                 s = A[i][k]/A[k][k];
                 A[i][k] = 0;
             for (j = k+1; j <= n; j++){
-	        A[i][j] -= s * A[k][j];
+           A[i][j] -= s * A[k][j];
             }
         }
     }
@@ -1760,9 +1760,9 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
             I[i][j] = 0.0;
-	    if (i==j)
+       if (i==j)
                 I[i][j] = 1.0;
-	}
+   }
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = i; j < DIM; j++) {
@@ -1772,7 +1772,7 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
                         w[i*DIM + k][j*DIM + l] = I[k][l] - dt*Omega[k][l] - dt*Omega[i][i]*I[k][l];
                     }
                     else{
-		        w[i*DIM + k][j*DIM + l] =  dt*Omega[j][i]*I[k][l];
+              w[i*DIM + k][j*DIM + l] =  dt*Omega[j][i]*I[k][l];
                         w[j*DIM + l][i*DIM + k] = - dt*Omega[j][i]*I[k][l];
                     }
                 }

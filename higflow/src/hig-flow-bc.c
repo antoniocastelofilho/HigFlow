@@ -32,7 +32,7 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -88,7 +88,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbc
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     sim_facet_domain *sfd;
     // Loop for the dimension
@@ -124,7 +124,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbc
             // Destroying the iterator 
             higcit_destroy(it);
         }
-	
+   
         // Mapping the properties in the domain (velocities)
         psfd_compute_sfbi(ns->psfdu[dim]);
         // Sync mapper for velocities
@@ -139,7 +139,7 @@ void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solve
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     sim_facet_domain *sfd;
     // Loop for the dimension
@@ -175,7 +175,7 @@ void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solve
             // Destroying the iterator 
             higcit_destroy(it);
         }
-	
+   
         // Mapping the properties in the domain (velocities)
         psfd_compute_sfbi(ns->ed.eo.psfdEOFeo[dim]);
         // Sync mapper for velocities
@@ -190,7 +190,7 @@ void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, i
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -240,7 +240,7 @@ void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, i
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -290,7 +290,7 @@ void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns,
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -340,7 +340,7 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -390,7 +390,7 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -432,7 +432,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
-	fclose(fd);
+   fclose(fd);
     }
     sim_facet_domain *sfdF;
     // Loop for the dimension
@@ -469,7 +469,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
             // Destroying the iterator 
             higcit_destroy(it);
         }
-	
+   
         // Mapping the properties in the domain (velocities)
         psfd_compute_sfbi(ns->psfdF[dim]);
         // Sync mapper for velocities
@@ -773,7 +773,7 @@ void higflow_initialize_boundaries_conditions_yaml(higflow_solver *ns) {
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
         exit(1);
     }
-	  
+     
     // Number of boundaries
     int numbcs; 
     int ifd = fy_document_scanf(fyd,"/boundary_condition/number_bc %d",&numbcs);
@@ -889,12 +889,12 @@ void higflow_initialize_boundaries_conditions_yaml(higflow_solver *ns) {
             printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile_eletro);
             exit(1);
         }
-	      
+         
         // Number of boundaries
         int numbcs; 
         int ifd_eletro = fy_document_scanf(fyd_eletro,"/boundaries_condition/number_bc %d",&numbcs);
  
-		  //sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
+        //sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
         //printf("nome: %s", namefile);
         //FILE *fbc = fopen(namefile, "r");
         //if (fbc == NULL) {

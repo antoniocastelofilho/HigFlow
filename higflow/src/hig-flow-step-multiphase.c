@@ -14,62 +14,62 @@ char nome_IF[100]; char nome_visc[100];
 char nome_beta[100]; int count;
 
 void arquivoTempo(int step) {
-	
-	//sprintf(nome_curv,"DATA/%f_curv.txt", t);
-	//sprintf(nome_norm,"DATA/%f_norm.txt", t);
-	sprintf(nome_frac,"DATA/%d_frac.txt", step);
-	sprintf(nome_fracaux,"DATA/%d_fracaux.txt", step);
-	sprintf(nome_vx,"DATA/%d_vx.txt", step);
-	sprintf(nome_vy,"DATA/%d_vy.txt", step);
-	sprintf(nome_d,"DATA/%d_d.txt", step);
-	sprintf(nome_N,"DATA/%d_norm.txt", step);
-	sprintf(nome_Kappa,"DATA/%d_curv.txt", step);
-	sprintf(nome_press,"DATA/%d_press.txt", step);
-	sprintf(nome_IF,"DATA/%d_if.txt", step);
-	sprintf(nome_visc,"DATA/%d_visc.txt", step);
-	sprintf(nome_beta,"DATA/%d_beta.txt", step);
-	
-	//FILE*fp=fopen("DATA/time.txt","a");
-	//fprintf(fp,"%lf\n",t);
-	//fclose(fp);
-	
-	//FILE*fp=fopen(nome_curv,"a");
-	//fclose(fp);
-	
-	//fp=fopen(nome_norm,"a");
-	//fclose(fp);
-	
-	FILE*fp=fopen(nome_frac,"a");
-	fclose(fp);
-	fp=fopen(nome_fracaux,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_vx,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_vy,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_d,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_N,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_Kappa,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_press,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_IF,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_visc,"a");
-	fclose(fp);
-	
-	fp=fopen(nome_beta,"a");
-	fclose(fp);
+   
+   //sprintf(nome_curv,"DATA/%f_curv.txt", t);
+   //sprintf(nome_norm,"DATA/%f_norm.txt", t);
+   sprintf(nome_frac,"DATA/%d_frac.txt", step);
+   sprintf(nome_fracaux,"DATA/%d_fracaux.txt", step);
+   sprintf(nome_vx,"DATA/%d_vx.txt", step);
+   sprintf(nome_vy,"DATA/%d_vy.txt", step);
+   sprintf(nome_d,"DATA/%d_d.txt", step);
+   sprintf(nome_N,"DATA/%d_norm.txt", step);
+   sprintf(nome_Kappa,"DATA/%d_curv.txt", step);
+   sprintf(nome_press,"DATA/%d_press.txt", step);
+   sprintf(nome_IF,"DATA/%d_if.txt", step);
+   sprintf(nome_visc,"DATA/%d_visc.txt", step);
+   sprintf(nome_beta,"DATA/%d_beta.txt", step);
+   
+   //FILE*fp=fopen("DATA/time.txt","a");
+   //fprintf(fp,"%lf\n",t);
+   //fclose(fp);
+   
+   //FILE*fp=fopen(nome_curv,"a");
+   //fclose(fp);
+   
+   //fp=fopen(nome_norm,"a");
+   //fclose(fp);
+   
+   FILE*fp=fopen(nome_frac,"a");
+   fclose(fp);
+   fp=fopen(nome_fracaux,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_vx,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_vy,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_d,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_N,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_Kappa,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_press,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_IF,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_visc,"a");
+   fclose(fp);
+   
+   fp=fopen(nome_beta,"a");
+   fclose(fp);
 }
 
 void arquivoFrac(char*nome,real x,real y,real frac) {
@@ -154,67 +154,67 @@ void save_cell_values(higflow_solver *ns,int aux) {
             hig_get_delta(c, cdelta);
             int infacet;
             if(aux==1) {
-		real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-		arquivoFrac(nome_frac,ccenter[0],ccenter[1],fracvol);
-		real d = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-		arquivod(nome_d,d);
-		Point Normal;
-		Normal[0] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-		Normal[1] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-		
-		arquivoN(nome_N,Normal[0],Normal[1]);
-		real k = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
-		//=============================================================dpp ou ddeltap?
-		real press = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->ed.stn);
-		arquivopress(nome_press,press);
-		
-		real beta = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpbeta, ns->ed.stn);
-		arquivobeta(nome_beta,beta);
-		
-		real visc = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpvisc, ns->ed.stn);
-		arquivopress(nome_visc,visc);
-		//if(press< 0.0) printf("%lf\n", press);
-		
-		//saving interfacial force
-		
-		real dens=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdens, ns->ed.stn);
-		
-		Point Pr;Pr[0]=ccenter[0]+cdelta[0];Pr[1]=ccenter[1];
-		Point Pl;Pl[0]=ccenter[0]-cdelta[0];Pl[1]=ccenter[1];
-		
-		real fracr  = compute_value_at_point(sdp, ccenter, Pr, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-		real fracl  = compute_value_at_point(sdp, ccenter, Pl, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-		
-		real fx=(fracr-fracl)/(2*cdelta[0]);
-		Point Pt;Pt[1]=ccenter[1]+cdelta[1];Pt[0]=ccenter[0];
-		Point Pb;Pb[1]=ccenter[1]-cdelta[1];Pb[0]=ccenter[0];
-		
-		real fract  = compute_value_at_point(sdp, ccenter, Pt, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-		real fracb  = compute_value_at_point(sdp, ccenter, Pb, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-		real fy=(fract-fracb)/(2*cdelta[1]);
-		real ifx=k*fx/(10.0*dens);
-		real ify=k*fy/(10.0*dens);
-		
-		arquivoIF(nome_IF,ifx,ify);
-		
-		int dim=0;
-		real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		dim=1;
+      real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+      arquivoFrac(nome_frac,ccenter[0],ccenter[1],fracvol);
+      real d = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+      arquivod(nome_d,d);
+      Point Normal;
+      Normal[0] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+      Normal[1] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+      
+      arquivoN(nome_N,Normal[0],Normal[1]);
+      real k = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
+      //=============================================================dpp ou ddeltap?
+      real press = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->ed.stn);
+      arquivopress(nome_press,press);
+      
+      real beta = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpbeta, ns->ed.stn);
+      arquivobeta(nome_beta,beta);
+      
+      real visc = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpvisc, ns->ed.stn);
+      arquivopress(nome_visc,visc);
+      //if(press< 0.0) printf("%lf\n", press);
+      
+      //saving interfacial force
+      
+      real dens=compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdens, ns->ed.stn);
+      
+      Point Pr;Pr[0]=ccenter[0]+cdelta[0];Pr[1]=ccenter[1];
+      Point Pl;Pl[0]=ccenter[0]-cdelta[0];Pl[1]=ccenter[1];
+      
+      real fracr  = compute_value_at_point(sdp, ccenter, Pr, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+      real fracl  = compute_value_at_point(sdp, ccenter, Pl, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+      
+      real fx=(fracr-fracl)/(2*cdelta[0]);
+      Point Pt;Pt[1]=ccenter[1]+cdelta[1];Pt[0]=ccenter[0];
+      Point Pb;Pb[1]=ccenter[1]-cdelta[1];Pb[0]=ccenter[0];
+      
+      real fract  = compute_value_at_point(sdp, ccenter, Pt, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+      real fracb  = compute_value_at_point(sdp, ccenter, Pb, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+      real fy=(fract-fracb)/(2*cdelta[1]);
+      real ifx=k*fx/(10.0*dens);
+      real ify=k*fy/(10.0*dens);
+      
+      arquivoIF(nome_IF,ifx,ify);
+      
+      int dim=0;
+      real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+      real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+      dim=1;
 
-		ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		continue;
-	}
-	//printf("blabla\n");
-	real fracvolaux  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.stn);
-	//arquivoFrac(nome_fracaux,ccenter[0],ccenter[1],fracvolaux);
-	}
-	// Destroy the iterator
-	higcit_destroy(it);//printf("count=%d\n",count);
-	// Sync the distributed pressure property
-	//dp_sync(ns->ed.mult.dpfracvol);
-	//dp_sync(ns->ed.mult.dpfracvolaux);
+      ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+      ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+      continue;
+   }
+   //printf("blabla\n");
+   real fracvolaux  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.stn);
+   //arquivoFrac(nome_fracaux,ccenter[0],ccenter[1],fracvolaux);
+   }
+   // Destroy the iterator
+   higcit_destroy(it);//printf("count=%d\n",count);
+   // Sync the distributed pressure property
+   //dp_sync(ns->ed.mult.dpfracvol);
+   //dp_sync(ns->ed.mult.dpfracvolaux);
     }
 }
 
@@ -417,47 +417,47 @@ void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
 // Volume Fraction Transport Step with PLIC fractional step
 // *******************************************************************
 void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
-	if (ns->contr.flowtype == 2) {
-		if (ns->par.step % 2) {
-			//printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
-			higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
-			higflow_plic_copy_fractionaux_to_fraction(ns);
+   if (ns->contr.flowtype == 2) {
+      if (ns->par.step % 2) {
+         //printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
+         higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
+         higflow_plic_copy_fractionaux_to_fraction(ns);
 
-			//higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-			higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
-			higflow_compute_distance_multiphase_2D(ns);
+         //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+         higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
+         higflow_compute_distance_multiphase_2D(ns);
 
-			higflow_plic_advection_volume_fraction_y_direction(ns, 1);
-			higflow_plic_copy_fractionaux_to_fraction(ns);
-		} else {
-			//printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
-			higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
-			higflow_plic_copy_fractionaux_to_fraction(ns);
+         higflow_plic_advection_volume_fraction_y_direction(ns, 1);
+         higflow_plic_copy_fractionaux_to_fraction(ns);
+      } else {
+         //printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
+         higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
+         higflow_plic_copy_fractionaux_to_fraction(ns);
 
-			//higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-			higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
-			higflow_compute_distance_multiphase_2D(ns);
+         //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+         higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
+         higflow_compute_distance_multiphase_2D(ns);
 
-			higflow_plic_advection_volume_fraction_x_direction(ns, 0);
-			higflow_plic_copy_fractionaux_to_fraction(ns);
-		}
-//		DEBUG_INSPECT(ns->par.step,%d);
-		// Sync the distributed pressure property
-		dp_sync(ns->ed.mult.dpfracvol);
-	}
+         higflow_plic_advection_volume_fraction_x_direction(ns, 0);
+         higflow_plic_copy_fractionaux_to_fraction(ns);
+      }
+//      DEBUG_INSPECT(ns->par.step,%d);
+      // Sync the distributed pressure property
+      dp_sync(ns->ed.mult.dpfracvol);
+   }
 }
 void fraction_correction_at_set(real *fracvol){
-	if(fabs(*fracvol - 1.0)<1.0e-5){
-		*fracvol = 1.0;
-	}else if(fabs(*fracvol)<1.0e-5){
-		*fracvol=0.0;
-	}
-	//return;
-	if(*fracvol>1.0){
-		*fracvol=1.0;
-	}else if(*fracvol<0.0){
-		*fracvol=0.0;
-	}
+   if(fabs(*fracvol - 1.0)<1.0e-5){
+      *fracvol = 1.0;
+   }else if(fabs(*fracvol)<1.0e-5){
+      *fracvol=0.0;
+   }
+   //return;
+   if(*fracvol>1.0){
+      *fracvol=1.0;
+   }else if(*fracvol<0.0){
+      *fracvol=0.0;
+   }
 }
 // ***********************************************************************
 // Volume Fraction Transport Step with PLIC fractional step on direction x
@@ -488,188 +488,188 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the velocity at facet
-			int infacet;
-//			// Get the velocity in the left facet center
-			real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//			// Get the velocity in the right facet center
-			real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-			//real ul = 1.0;ul=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
-			//real ur = 1.0;ur=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
-			//real ul = -4.0*(ccenter[1] - 1.0)*ccenter[1];
-			//real ur = -4.0*(ccenter[1] - 1.0)*ccenter[1];
-			
-			//arquivoV(nome_vx,ccenter[0],ccenter[1],ul,ur);
-			
-			Point Normal, p, Delta_New;
-			real d, fracvol,fracr,fracl;
-			
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]+0.5*cdelta[dim];
-			fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]-0.5*cdelta[dim];
-			fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
-			fraction_correction_at_get(&fracvol);
-			
-			// Area
-			real Ar = 0.0;
-			real Al = 0.0;
-			fracr = 0.0;
-			fracl = 0.0;
-			//  Right Facet
-			if(fabs(ur)>tol_u){
-				if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if(ur>0.0){
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
-						Ar = fracvol*cdelta[1]*ur*ns->par.dt;
-					} else {
-//						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-//						printf("ur*dt = %lf\n",ur*ns->par.dt);
-//						printf("cdelta[0] = %lf, cdelta[1] = %lf\n",cdelta[0],cdelta[1]);
-						d = d - 0.5*(cdelta[0]-ur*ns->par.dt)*Normal[0];
-//						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-						Delta_New[0] = ur*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
-				} else {
-					p[0] = ccenter[0]+cdelta[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Ar = fracvol * cdelta[1] * fabs(ur) * ns->par.dt;
-					} else {
-//						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-						Delta_New[0] = fabs(ur)*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						d = d + 0.5 * (cdelta[0] - fabs(ur) * ns->par.dt)*Normal[0];
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
-//						getchar();
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
-				}
-			}
-			//  Left Facet
-			if (fabs(ul) > tol_u) {
-				if (fabs(ul) * ns->par.dt > 0.5 * cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if (ul > 0.0) {
-					p[0] = ccenter[0] - cdelta[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[1] * ul * ns->par.dt;
-					} else {
-//						printf("########################################################################\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-						d = d - 0.5 * (cdelta[0] - ul * ns->par.dt) * Normal[0];
-						Delta_New[0] = ul*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d,Al,Normal[0],Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol,ccenter[0],ccenter[1],ul);
-//						getchar();
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
-				} else {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[1] * fabs(ul) * ns->par.dt;
-					} else {
-//						printf("########################################################################\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-						d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
-						Delta_New[0] = fabs(ul)*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d, Al, Normal[0], Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol, ccenter[0], ccenter[1], ul);
-//						getchar();
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
-				}
-			}
-			
-			// Fraction
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			real fracvolaux;
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
-			
-			/*if(fracr==1.0 && fracl==1.0){
-				fracvolaux=fracvol;
-			}else{*/
-			fracvolaux = fracvol*(1 + ns->par.dt*(ur - ul)/cdelta[0]) - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[0];
-			//}
-			
-			// Auxiliary fraction correction
-			fraction_correction_at_set(&fracvolaux);
-			
-			//if(fracvolaux>1.0 || fracvolaux<0.0)
-			//{
-				//printf("P = %lf %lf f=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
-			//}
-			
-			dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
-		}
+         int infacet;
+//         // Get the velocity in the left facet center
+         real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+//         // Get the velocity in the right facet center
+         real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+         //real ul = 1.0;ul=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
+         //real ur = 1.0;ur=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
+         //real ul = -4.0*(ccenter[1] - 1.0)*ccenter[1];
+         //real ur = -4.0*(ccenter[1] - 1.0)*ccenter[1];
+         
+         //arquivoV(nome_vx,ccenter[0],ccenter[1],ul,ur);
+         
+         Point Normal, p, Delta_New;
+         real d, fracvol,fracr,fracl;
+         
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]+0.5*cdelta[dim];
+         fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]-0.5*cdelta[dim];
+         fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
+         fraction_correction_at_get(&fracvol);
+         
+         // Area
+         real Ar = 0.0;
+         real Al = 0.0;
+         fracr = 0.0;
+         fracl = 0.0;
+         //  Right Facet
+         if(fabs(ur)>tol_u){
+            if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if(ur>0.0){
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
+                  Ar = fracvol*cdelta[1]*ur*ns->par.dt;
+               } else {
+//                  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+//                  printf("ur*dt = %lf\n",ur*ns->par.dt);
+//                  printf("cdelta[0] = %lf, cdelta[1] = %lf\n",cdelta[0],cdelta[1]);
+                  d = d - 0.5*(cdelta[0]-ur*ns->par.dt)*Normal[0];
+//                  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                  Delta_New[0] = ur*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
+            } else {
+               p[0] = ccenter[0]+cdelta[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Ar = fracvol * cdelta[1] * fabs(ur) * ns->par.dt;
+               } else {
+//                  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+                  Delta_New[0] = fabs(ur)*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  d = d + 0.5 * (cdelta[0] - fabs(ur) * ns->par.dt)*Normal[0];
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
+//                  getchar();
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
+            }
+         }
+         //  Left Facet
+         if (fabs(ul) > tol_u) {
+            if (fabs(ul) * ns->par.dt > 0.5 * cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if (ul > 0.0) {
+               p[0] = ccenter[0] - cdelta[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[1] * ul * ns->par.dt;
+               } else {
+//                  printf("########################################################################\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+                  d = d - 0.5 * (cdelta[0] - ul * ns->par.dt) * Normal[0];
+                  Delta_New[0] = ul*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d,Al,Normal[0],Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol,ccenter[0],ccenter[1],ul);
+//                  getchar();
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
+            } else {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[1] * fabs(ul) * ns->par.dt;
+               } else {
+//                  printf("########################################################################\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+                  d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
+                  Delta_New[0] = fabs(ul)*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d, Al, Normal[0], Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol, ccenter[0], ccenter[1], ul);
+//                  getchar();
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
+            }
+         }
+         
+         // Fraction
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         real fracvolaux;
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
+         
+         /*if(fracr==1.0 && fracl==1.0){
+            fracvolaux=fracvol;
+         }else{*/
+         fracvolaux = fracvol*(1 + ns->par.dt*(ur - ul)/cdelta[0]) - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[0];
+         //}
+         
+         // Auxiliary fraction correction
+         fraction_correction_at_set(&fracvolaux);
+         
+         //if(fracvolaux>1.0 || fracvolaux<0.0)
+         //{
+            //printf("P = %lf %lf f=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
+         //}
+         
+         dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
+      }
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the distributed vol frac aux property
@@ -706,171 +706,171 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the velocity at facet
-			int infacet;
-//			// Get the velocity in the left facet center
-			real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//			// Get the velocity in the right facet center
-			real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-			//real ul = 0.0;//ul=0.4*cos(3.1416*ns->par.t);
-			//real ur = 0.0;//ur=0.4*cos(3.1416*ns->par.t);
-			
-			//arquivoV(nome_vy,ccenter[0],ccenter[1],ul,ur);
-			
-			Point Normal, p, Delta_New;
-			real d, fracvol,fracr,fracl;
-			
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]+0.5*cdelta[dim];
-			fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]-0.5*cdelta[dim];
-			fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
-			fraction_correction_at_get(&fracvol);
-			
-			/*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
-				
-				dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
-				continue;
-				
-			}*/
+         int infacet;
+//         // Get the velocity in the left facet center
+         real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+//         // Get the velocity in the right facet center
+         real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+         //real ul = 0.0;//ul=0.4*cos(3.1416*ns->par.t);
+         //real ur = 0.0;//ur=0.4*cos(3.1416*ns->par.t);
+         
+         //arquivoV(nome_vy,ccenter[0],ccenter[1],ul,ur);
+         
+         Point Normal, p, Delta_New;
+         real d, fracvol,fracr,fracl;
+         
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]+0.5*cdelta[dim];
+         fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]-0.5*cdelta[dim];
+         fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
+         fraction_correction_at_get(&fracvol);
+         
+         /*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
+            
+            dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
+            continue;
+            
+         }*/
 
-			// Area
-			real Ar = 0.0;
-			real Al = 0.0;
-			fracr = 0.0;
-			fracl = 0.0;
-			//  Right Facet (UP)
-			if(fabs(ur)>tol_u){
-				if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if(ur>0.0){
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
-						Ar = fracvol*cdelta[0]*ur*ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d - 0.5*(cdelta[1]-ur*ns->par.dt)*Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = ur*ns->par.dt;
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
-				} else {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1]+cdelta[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Ar = fracvol * cdelta[0] * fabs(ur) * ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d + 0.5 * (cdelta[1] - fabs(ur) * ns->par.dt)*Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = fabs(ur)*ns->par.dt;
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
-				}
-			}
-			//  Left Facet (DWON)
-			if (fabs(ul) > tol_u) {
-				if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if (ul > 0.0) {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1]-cdelta[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[0] * ul * ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d - 0.5 * (cdelta[1] - ul * ns->par.dt) * Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = ul*ns->par.dt;
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
-				} else {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[0] * fabs(ul) * ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d + 0.5 * (cdelta[1] - fabs(ul) * ns->par.dt) * Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = fabs(ul)*ns->par.dt;
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
-				}
-			}
-			
-			// Fraction
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			real fracvolaux;
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
-			
-			/*if(fracr==1.0 && fracl==1.0){
-				fracvolaux=fracvol;
-			}else{*/
-			fracvolaux = fracvol*(1 + ns->par.dt*(ur - ul)/cdelta[1]) - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[1];
-			//}
+         // Area
+         real Ar = 0.0;
+         real Al = 0.0;
+         fracr = 0.0;
+         fracl = 0.0;
+         //  Right Facet (UP)
+         if(fabs(ur)>tol_u){
+            if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if(ur>0.0){
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
+                  Ar = fracvol*cdelta[0]*ur*ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d - 0.5*(cdelta[1]-ur*ns->par.dt)*Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = ur*ns->par.dt;
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
+            } else {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1]+cdelta[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Ar = fracvol * cdelta[0] * fabs(ur) * ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d + 0.5 * (cdelta[1] - fabs(ur) * ns->par.dt)*Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = fabs(ur)*ns->par.dt;
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
+            }
+         }
+         //  Left Facet (DWON)
+         if (fabs(ul) > tol_u) {
+            if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if (ul > 0.0) {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1]-cdelta[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[0] * ul * ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d - 0.5 * (cdelta[1] - ul * ns->par.dt) * Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = ul*ns->par.dt;
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
+            } else {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[0] * fabs(ul) * ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d + 0.5 * (cdelta[1] - fabs(ul) * ns->par.dt) * Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = fabs(ul)*ns->par.dt;
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
+            }
+         }
+         
+         // Fraction
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         real fracvolaux;
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
+         
+         /*if(fracr==1.0 && fracl==1.0){
+            fracvolaux=fracvol;
+         }else{*/
+         fracvolaux = fracvol*(1 + ns->par.dt*(ur - ul)/cdelta[1]) - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[1];
+         //}
 
-			// Auxiliary fraction correction
-			fraction_correction_at_set(&fracvolaux);
-			
-			//if(fracvolaux>1.0 || fracvolaux<0.0)
-			//{
-				//printf("P = %lf %lf  frac=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
-			//}
-			
-			dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
+         // Auxiliary fraction correction
+         fraction_correction_at_set(&fracvolaux);
+         
+         //if(fracvolaux>1.0 || fracvolaux<0.0)
+         //{
+            //printf("P = %lf %lf  frac=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
+         //}
+         
+         dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
         // Destroy the iterator
         higcit_destroy(it);
@@ -909,198 +909,198 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the velocity at facet
-			int infacet;
-//			// Get the velocity in the left facet center
-			real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//			// Get the velocity in the right facet center
-			real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-			//real ul = 1.0;ul=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
-			//real ur = 1.0;ur=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
-			//real ul = -4.0*(ccenter[1] - 1.0)*ccenter[1];
-			//real ur = -4.0*(ccenter[1] - 1.0)*ccenter[1];
+         int infacet;
+//         // Get the velocity in the left facet center
+         real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+//         // Get the velocity in the right facet center
+         real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+         //real ul = 1.0;ul=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
+         //real ur = 1.0;ur=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
+         //real ul = -4.0*(ccenter[1] - 1.0)*ccenter[1];
+         //real ur = -4.0*(ccenter[1] - 1.0)*ccenter[1];
 
-			//arquivoV(nome_vx,ccenter[0],ccenter[1],ul,ur);
+         //arquivoV(nome_vx,ccenter[0],ccenter[1],ul,ur);
 
-			Point Normal, p, Delta_New;
-			real d, fracvol,fracr,fracl;
+         Point Normal, p, Delta_New;
+         real d, fracvol,fracr,fracl;
 
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]+0.5*cdelta[dim];
-			fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]+0.5*cdelta[dim];
+         fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]-0.5*cdelta[dim];
-			fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]-0.5*cdelta[dim];
+         fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
-			fraction_correction_at_get(&fracvol);
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
+         fraction_correction_at_get(&fracvol);
 
-			/*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
+         /*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
 
-				dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
-				continue;
+            dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
+            continue;
 
-			}*/
+         }*/
 
-			// Area
-			real Ar = 0.0;
-			real Al = 0.0;
-			fracr = 0.0;
-			fracl = 0.0;
-			//  Right Facet
-			if(fabs(ur)>tol_u){
-				if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if(ur>0.0){
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
-						Ar = fracvol*cdelta[1]*ur*ns->par.dt;
-					} else {
-//						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-//						printf("ur*dt = %lf\n",ur*ns->par.dt);
-//						printf("cdelta[0] = %lf, cdelta[1] = %lf\n",cdelta[0],cdelta[1]);
-						d = d - 0.5*(cdelta[0]-ur*ns->par.dt)*Normal[0];
-//						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-						Delta_New[0] = ur*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
-//						getchar();
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
-				} else {
-					p[0] = ccenter[0]+cdelta[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Ar = fracvol * cdelta[1] * fabs(ur) * ns->par.dt;
-					} else {
-//						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-						Delta_New[0] = fabs(ur)*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						d = d + 0.5 * (cdelta[0] - fabs(ur) * ns->par.dt)*Normal[0];
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
-//						getchar();
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
-				}
-			}
-			//  Left Facet
-			if (fabs(ul) > tol_u) {
-				if (fabs(ul) * ns->par.dt > 0.5 * cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if (ul > 0.0) {
-					p[0] = ccenter[0] - cdelta[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[1] * ul * ns->par.dt;
-					} else {
-//						printf("########################################################################\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-						d = d - 0.5 * (cdelta[0] - ul * ns->par.dt) * Normal[0];
-						Delta_New[0] = ul*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d,Al,Normal[0],Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol,ccenter[0],ccenter[1],ul);
-//						getchar();
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
-				} else {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[1] * fabs(ul) * ns->par.dt;
-					} else {
-//						printf("########################################################################\n");
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-//						printf("d = %lf\n",d);
-						d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
-						Delta_New[0] = fabs(ul)*ns->par.dt;
-						Delta_New[1] = cdelta[1];
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d, Al, Normal[0], Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol, ccenter[0], ccenter[1], ul);
-//						getchar();
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
-				}
-			}
+         // Area
+         real Ar = 0.0;
+         real Al = 0.0;
+         fracr = 0.0;
+         fracl = 0.0;
+         //  Right Facet
+         if(fabs(ur)>tol_u){
+            if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if(ur>0.0){
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
+                  Ar = fracvol*cdelta[1]*ur*ns->par.dt;
+               } else {
+//                  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+//                  printf("ur*dt = %lf\n",ur*ns->par.dt);
+//                  printf("cdelta[0] = %lf, cdelta[1] = %lf\n",cdelta[0],cdelta[1]);
+                  d = d - 0.5*(cdelta[0]-ur*ns->par.dt)*Normal[0];
+//                  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                  Delta_New[0] = ur*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
+//                  getchar();
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
+            } else {
+               p[0] = ccenter[0]+cdelta[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Ar = fracvol * cdelta[1] * fabs(ur) * ns->par.dt;
+               } else {
+//                  printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+                  Delta_New[0] = fabs(ur)*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  d = d + 0.5 * (cdelta[0] - fabs(ur) * ns->par.dt)*Normal[0];
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
+//                  getchar();
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
+            }
+         }
+         //  Left Facet
+         if (fabs(ul) > tol_u) {
+            if (fabs(ul) * ns->par.dt > 0.5 * cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if (ul > 0.0) {
+               p[0] = ccenter[0] - cdelta[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[1] * ul * ns->par.dt;
+               } else {
+//                  printf("########################################################################\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+                  d = d - 0.5 * (cdelta[0] - ul * ns->par.dt) * Normal[0];
+                  Delta_New[0] = ul*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d,Al,Normal[0],Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol,ccenter[0],ccenter[1],ul);
+//                  getchar();
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
+            } else {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[1] * fabs(ul) * ns->par.dt;
+               } else {
+//                  printf("########################################################################\n");
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+//                  printf("d = %lf\n",d);
+                  d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
+                  Delta_New[0] = fabs(ul)*ns->par.dt;
+                  Delta_New[1] = cdelta[1];
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+//                  printf("d_c_l = %lf, Al = %lf, n_x_l = %lf, n_y_l = %lf\n",d, Al, Normal[0], Normal[1]);
+//                  printf("Frac = %lf, x = %lf, y = %lf, ul = %lf\n",fracvol, ccenter[0], ccenter[1], ul);
+//                  getchar();
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[1]);
+            }
+         }
 
-			// Fraction
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         // Fraction
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
-			real fracvolaux;
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
+         real fracvolaux;
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
 
-			/*if(fracr==1.0 && fracl==1.0){
-				fracvolaux=fracvol;
-			}else{*/
-			fracvolaux = (fracvol - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[0])/(1.0 - ns->par.dt*(ur - ul)/cdelta[0]);
-			//}
+         /*if(fracr==1.0 && fracl==1.0){
+            fracvolaux=fracvol;
+         }else{*/
+         fracvolaux = (fracvol - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[0])/(1.0 - ns->par.dt*(ur - ul)/cdelta[0]);
+         //}
 
-			// Auxiliary fraction correction
-			fraction_correction_at_set(&fracvolaux);
+         // Auxiliary fraction correction
+         fraction_correction_at_set(&fracvolaux);
 
-			//if(fracvolaux>1.0 || fracvolaux<0.0)
-			//{
-				//printf("P = %lf %lf f=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
-			//}
+         //if(fracvolaux>1.0 || fracvolaux<0.0)
+         //{
+            //printf("P = %lf %lf f=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
+         //}
 
-			dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
-		}
+         dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
+      }
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the distributed vol frac aux property
@@ -1137,164 +1137,164 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the velocity at facet
-			int infacet;
-//			// Get the velocity in the left facet center
-			real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//			// Get the velocity in the right facet center
-			real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-			//real ul = 0.0;//ul=0.4*cos(3.1416*ns->par.t);
-			//real ur = 0.0;//ur=0.4*cos(3.1416*ns->par.t);
+         int infacet;
+//         // Get the velocity in the left facet center
+         real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+//         // Get the velocity in the right facet center
+         real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+         //real ul = 0.0;//ul=0.4*cos(3.1416*ns->par.t);
+         //real ur = 0.0;//ur=0.4*cos(3.1416*ns->par.t);
 
-			//arquivoV(nome_vy,ccenter[0],ccenter[1],ul,ur);
+         //arquivoV(nome_vy,ccenter[0],ccenter[1],ul,ur);
 
-			Point Normal, p, Delta_New;
-			real d, fracvol,fracr,fracl;
+         Point Normal, p, Delta_New;
+         real d, fracvol,fracr,fracl;
 
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]+0.5*cdelta[dim];
-			fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]+0.5*cdelta[dim];
+         fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
-			p[0]=ccenter[0];p[1]=ccenter[1];
-			p[dim]=p[dim]-0.5*cdelta[dim];
-			fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         p[0]=ccenter[0];p[1]=ccenter[1];
+         p[dim]=p[dim]-0.5*cdelta[dim];
+         fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
-			fraction_correction_at_get(&fracvol);
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
+         fraction_correction_at_get(&fracvol);
 
-			/*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
+         /*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
 
-				dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
-				continue;
+            dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
+            continue;
 
-			}*/
+         }*/
 
-			// Area
-			real Ar = 0.0;
-			real Al = 0.0;
-			fracr = 0.0;
-			fracl = 0.0;
-			//  Right Facet (UP)
-			if(fabs(ur)>tol_u){
-				if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if(ur>0.0){
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
-						Ar = fracvol*cdelta[0]*ur*ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d - 0.5*(cdelta[1]-ur*ns->par.dt)*Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = ur*ns->par.dt;
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
-				} else {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1]+cdelta[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Ar = fracvol * cdelta[0] * fabs(ur) * ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d + 0.5 * (cdelta[1] - fabs(ur) * ns->par.dt)*Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = fabs(ur)*ns->par.dt;
-						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
-				}
-			}
-			//  Left Facet (DWON)
-			if (fabs(ul) > tol_u) {
-				if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
-					printf("Time step is large!!!\n");
-					exit(1);
-				}
-				if (ul > 0.0) {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1]-cdelta[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					// Fraction correction
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[0] * ul * ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d - 0.5 * (cdelta[1] - ul * ns->par.dt) * Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = ul*ns->par.dt;
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
-				} else {
-					p[0] = ccenter[0];
-					p[1] = ccenter[1];
-					// Normal
-					Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-					Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-					// Correction of Normal
-					normal_correction_at_get(Normal);
-					// Fraction
-					fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-					fraction_correction_at_get(&fracvol);
-					if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
-						Al = fracvol * cdelta[0] * fabs(ul) * ns->par.dt;
-					} else {
-						d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
-						d = d + 0.5 * (cdelta[1] - fabs(ul) * ns->par.dt) * Normal[1];
-						Delta_New[0] = cdelta[0];
-						Delta_New[1] = fabs(ul)*ns->par.dt;
-						Al = area_left_line_origin_center(Normal, Delta_New, d);
-					}
-					fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
-				}
-			}
+         // Area
+         real Ar = 0.0;
+         real Al = 0.0;
+         fracr = 0.0;
+         fracl = 0.0;
+         //  Right Facet (UP)
+         if(fabs(ur)>tol_u){
+            if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if(ur>0.0){
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0)){
+                  Ar = fracvol*cdelta[0]*ur*ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d - 0.5*(cdelta[1]-ur*ns->par.dt)*Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = ur*ns->par.dt;
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
+            } else {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1]+cdelta[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Ar = fracvol * cdelta[0] * fabs(ur) * ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d + 0.5 * (cdelta[1] - fabs(ur) * ns->par.dt)*Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = fabs(ur)*ns->par.dt;
+                  Ar = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[0]);
+            }
+         }
+         //  Left Facet (DWON)
+         if (fabs(ul) > tol_u) {
+            if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
+               printf("Time step is large!!!\n");
+               exit(1);
+            }
+            if (ul > 0.0) {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1]-cdelta[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               // Fraction correction
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[0] * ul * ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d - 0.5 * (cdelta[1] - ul * ns->par.dt) * Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = ul*ns->par.dt;
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
+            } else {
+               p[0] = ccenter[0];
+               p[1] = ccenter[1];
+               // Normal
+               Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+               Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+               // Correction of Normal
+               normal_correction_at_get(Normal);
+               // Fraction
+               fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               fraction_correction_at_get(&fracvol);
+               if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0)) {
+                  Al = fracvol * cdelta[0] * fabs(ul) * ns->par.dt;
+               } else {
+                  d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+                  d = d + 0.5 * (cdelta[1] - fabs(ul) * ns->par.dt) * Normal[1];
+                  Delta_New[0] = cdelta[0];
+                  Delta_New[1] = fabs(ul)*ns->par.dt;
+                  Al = area_left_line_origin_center(Normal, Delta_New, d);
+               }
+               fracl = Al/(fabs(ul)*ns->par.dt*cdelta[0]);
+            }
+         }
 
-			// Fraction
-			fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-			real fracvolaux;
-			fraction_correction_at_get(&fracr);
-			fraction_correction_at_get(&fracl);
+         // Fraction
+         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         real fracvolaux;
+         fraction_correction_at_get(&fracr);
+         fraction_correction_at_get(&fracl);
 
-			/*if(fracr==1.0 && fracl==1.0){
-				fracvolaux=fracvol;
-			}else{*/
-			fracvolaux = (fracvol - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[1])/(1.0 - ns->par.dt*(ur - ul)/cdelta[1]);
-			//}
+         /*if(fracr==1.0 && fracl==1.0){
+            fracvolaux=fracvol;
+         }else{*/
+         fracvolaux = (fracvol - ns->par.dt*(fracr*ur - fracl*ul)/cdelta[1])/(1.0 - ns->par.dt*(ur - ul)/cdelta[1]);
+         //}
 
-			// Auxiliary fraction correction
-			fraction_correction_at_set(&fracvolaux);
+         // Auxiliary fraction correction
+         fraction_correction_at_set(&fracvolaux);
                         
                        dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
@@ -1350,12 +1350,12 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
 
 // Correction Normal
 void normal_correction_at_get(Point Normal) {
-	real tol_n = 1.0e-8;
-	for(int i=0;i<DIM;i++){
-		if (fabs(Normal[i])<=tol_n) {
-			Normal[i] = 0.0;
-		}
-	}
+   real tol_n = 1.0e-8;
+   for(int i=0;i<DIM;i++){
+      if (fabs(Normal[i])<=tol_n) {
+         Normal[i] = 0.0;
+      }
+   }
 }
 
 // *******************************************************************
@@ -1741,7 +1741,7 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
         // Printing the min and max velocity
         printf("===> %d: Vmin = %lf <===> Vmax = %lf <===\n",dim,velmin,velmax);
     }
-	 //ns->par.dt = ;
+    //ns->par.dt = ;
 }
 
 // Navier-Stokes pressure with variable density using the projection method
@@ -1829,7 +1829,7 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
     }
     // Destroy the iterator
     higcit_destroy(it);
-	// Assemble the solver
+   // Assemble the solver
     slv_assemble(ns->slvp);    
     // aqui é pra remover
     remove_pressure_singularity(ns, ns->slvp);
@@ -2490,9 +2490,9 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_final_pressure(ns);
     /*if (ns->par.stepaux%1000==0)
     {
-    	printf("creating archives at step: %d\n",ns->par.stepaux);
-    	arquivoTempo(ns->par.stepaux);
-    	save_cell_values(ns,1);
+       printf("creating archives at step: %d\n",ns->par.stepaux);
+       arquivoTempo(ns->par.stepaux);
+       save_cell_values(ns,1);
     }*/
     // Calculate the velocity derivative tensor
     //higflow_compute_velocity_derivative_tensor(ns);

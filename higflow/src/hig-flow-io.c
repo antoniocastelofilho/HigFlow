@@ -254,7 +254,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     real dist[maxpts+1];
     real w0[maxpts], w1[maxpts], w2[maxpts], w3[maxpts], w4[maxpts], w5[maxpts], w6[maxpts], w7[maxpts];
     uniqueid gids[maxpts];
-	 // Saving vector properties of cell faces
+    // Saving vector properties of cell faces
     fprintf(f, "\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 4*numleafs);
     for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
@@ -2445,10 +2445,10 @@ void higflow_load_viscoelastic_integral_parameters(higflow_solver *ns, int myran
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.im.par.De);
             printf("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.im.par.alpha);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.im.par.beta);
-	         printf("=+=+=+= Scorte: %f =+=+=+=\n",ns->ed.im.par.scorte);
-	         printf("=+=+=+= Rho: %f =+=+=+=\n",ns->ed.im.par.rho);
-	         printf("=+=+=+= v_ref: %f =+=+=+=\n",ns->ed.im.par.v_ref);
-	         printf("=+=+=+= l_ref: %f =+=+=+=\n",ns->ed.im.par.l_ref);
+            printf("=+=+=+= Scorte: %f =+=+=+=\n",ns->ed.im.par.scorte);
+            printf("=+=+=+= Rho: %f =+=+=+=\n",ns->ed.im.par.rho);
+            printf("=+=+=+= v_ref: %f =+=+=+=\n",ns->ed.im.par.v_ref);
+            printf("=+=+=+= l_ref: %f =+=+=+=\n",ns->ed.im.par.l_ref);
             if (ns->ed.im.contr.model == 0) {
                 printf("=+=+=+= M: %d =+=+=+=\n", ns->ed.im.par.M);
                 for (int i = 0; i < 8; i++) {
@@ -2535,14 +2535,14 @@ void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myra
                     printf("=+=+=+= Constitutive Equation Model: Fractional =+=+=+=\n");
                     break;
             }
-			   switch (ns->ed.im.contr.model_H) {
-	             case 0:
-	               printf("=+=+=+= Constitutive Equation Model: PSM =+=+=+=\n");
-		          break;
-	             case 1:
-	               printf("=+=+=+= Constitutive Equation Model: UCM =+=+=+=\n");
-		          break;
-	         }
+            switch (ns->ed.im.contr.model_H) {
+                case 0:
+                  printf("=+=+=+= Constitutive Equation Model: PSM =+=+=+=\n");
+                break;
+                case 1:
+                  printf("=+=+=+= Constitutive Equation Model: UCM =+=+=+=\n");
+                break;
+            }
             switch (ns->ed.im.contr.discrtype) {
                 case 0:
                     printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");

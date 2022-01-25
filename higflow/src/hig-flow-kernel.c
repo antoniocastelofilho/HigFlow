@@ -12,7 +12,7 @@
 
 // Create the NS object
 higflow_solver *higflow_create (void) {
-    DECL_AND_ALLOC(higflow_solver, ns, 1);	
+    DECL_AND_ALLOC(higflow_solver, ns, 1);   
     return ns;
 }
 

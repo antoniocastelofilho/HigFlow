@@ -585,11 +585,11 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase0(higflow_solver *ns, distribu
                     if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
                     else                                  conv1 = vbar[dim]*kc;
                 }
@@ -606,11 +606,11 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase0(higflow_solver *ns, distribu
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi < b) 
+          if (fi < b) 
                         conv1 = vbar[dim]*(a*kr - c*krr);
                     if ((fi >= b) && (fi <= c))
                         conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }
@@ -623,9 +623,9 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase0(higflow_solver *ns, distribu
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi <= c) 
+          if (fi <= c) 
                         conv1 = vbar[dim]*kr;
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }/*
@@ -652,34 +652,34 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase0(higflow_solver *ns, distribu
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi < b)
-	                conv2 = vbar[dim]*(a*kl - c*kll);
-	            if ((fi >= b) && (fi <= c))
-	                conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
         }else if ((incell_l == 1) && (incell_ll == 0)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi <= c)
-	                conv2 = vbar[dim]*kl;
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }/*
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi <= c)
+                   conv2 = vbar[dim]*kl;
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }/*
             vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
             if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
             else                 conv1 = vbar[dim]*kr;
@@ -705,19 +705,19 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase0(higflow_solver *ns, distribu
             if ((fi <= 0.0) || (fi >= 1.0)) {
                 conv2 = vbar[dim]*kc;
             }else {
-	        if (fi < b){
+           if (fi < b){
                     if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	    }
+       }
         }
     }
     return ((conv1-conv2)/cdelta[dim]);
@@ -756,11 +756,11 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase1(higflow_solver *ns, distribu
                     if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
                     else                                  conv1 = vbar[dim]*kc;
                 }
@@ -777,11 +777,11 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase1(higflow_solver *ns, distribu
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi < b) 
+          if (fi < b) 
                         conv1 = vbar[dim]*(a*kr - c*krr);
                     if ((fi >= b) && (fi <= c))
                         conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }
@@ -794,9 +794,9 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase1(higflow_solver *ns, distribu
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi <= c) 
+          if (fi <= c) 
                         conv1 = vbar[dim]*kr;
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }/*
@@ -823,34 +823,34 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase1(higflow_solver *ns, distribu
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi < b)
-	                conv2 = vbar[dim]*(a*kl - c*kll);
-	            if ((fi >= b) && (fi <= c))
-	                conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
         }else if ((incell_l == 1) && (incell_ll == 0)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi <= c)
-	                conv2 = vbar[dim]*kl;
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }/*
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi <= c)
+                   conv2 = vbar[dim]*kl;
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }/*
             vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
             if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
             else                 conv1 = vbar[dim]*kr;
@@ -876,19 +876,19 @@ real hig_flow_conv_tensor_term_cub_mult_visc_phase1(higflow_solver *ns, distribu
             if ((fi <= 0.0) || (fi >= 1.0)) {
                 conv2 = vbar[dim]*kc;
             }else {
-	        if (fi < b){
+           if (fi < b){
                     if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	    }
+       }
         }
     }
     return ((conv1-conv2)/cdelta[dim]);

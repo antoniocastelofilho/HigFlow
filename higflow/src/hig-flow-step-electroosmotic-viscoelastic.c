@@ -369,11 +369,11 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                     if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
                     else                                  conv1 = vbar[dim]*kc;
                 }
@@ -390,11 +390,11 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi < b) 
+          if (fi < b) 
                         conv1 = vbar[dim]*(a*kr - c*krr);
                     if ((fi >= b) && (fi <= c))
                         conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }
@@ -407,9 +407,9 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi <= c) 
+          if (fi <= c) 
                         conv1 = vbar[dim]*kr;
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }/*
@@ -436,34 +436,34 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi < b)
-	                conv2 = vbar[dim]*(a*kl - c*kll);
-	            if ((fi >= b) && (fi <= c))
-	                conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
         }else if ((incell_l == 1) && (incell_ll == 0)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi <= c)
-	                conv2 = vbar[dim]*kl;
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }/*
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi <= c)
+                   conv2 = vbar[dim]*kl;
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }/*
             vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
             if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
             else                 conv1 = vbar[dim]*kr;
@@ -489,19 +489,19 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
             if ((fi <= 0.0) || (fi >= 1.0)) {
                 conv2 = vbar[dim]*kc;
             }else {
-	        if (fi < b){
+           if (fi < b){
                     if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	    }
+       }
         }
     }
     return ((conv1-conv2)/cdelta[dim]);
@@ -635,7 +635,7 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
             // Get the solution of linear system
             for (int i = 0; i < DIM; i++) {
                 for (int j = i; j < DIM; j++) {
-               	    // Get the value of kernel
+                      // Get the value of kernel
                     real kernel = b[i*DIM+j];
                     // Set the value of kernel
                     dp_set_value(ns->ed.ve.dpS[i][j], clid, kernel);
@@ -980,15 +980,15 @@ void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DI
         l = k;
         for (i = k+1; i < n; i++){
             if (fabs(A[i][k]) > max){
-	        max = fabs(A[i][k]);
-	        l = i;
+           max = fabs(A[i][k]);
+           l = i;
              }
         }
         if (l != k){
             for (j = k; j <= n; j++){
-	        aux = A[k][j];
-	            A[k][j] = A[l][j];
-	            A[l][j] = aux;
+           aux = A[k][j];
+               A[k][j] = A[l][j];
+               A[l][j] = aux;
             }
         }
         // Gauss algorithm
@@ -996,7 +996,7 @@ void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DI
                 s = A[i][k]/A[k][k];
                 A[i][k] = 0;
             for (j = k+1; j <= n; j++){
-	        A[i][j] -= s * A[k][j];
+           A[i][j] -= s * A[k][j];
             }
         }
     }
@@ -1026,9 +1026,9 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
             I[i][j] = 0.0;
-	    if (i==j)
+       if (i==j)
                 I[i][j] = 1.0;
-	}
+   }
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = i; j < DIM; j++) {
@@ -1038,7 +1038,7 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
                         w[i*DIM + k][j*DIM + l] = I[k][l] - dt*Omega[k][l] - dt*Omega[i][i]*I[k][l];
                     }
                     else{
-		        w[i*DIM + k][j*DIM + l] =  dt*Omega[j][i]*I[k][l];
+              w[i*DIM + k][j*DIM + l] =  dt*Omega[j][i]*I[k][l];
                         w[j*DIM + l][i*DIM + k] = - dt*Omega[j][i]*I[k][l];
                     }
                 }
@@ -1305,7 +1305,7 @@ void higflow_implicit_euler_ionic_transport_equation_nplus(higflow_solver *ns) {
             real *vals = stn_get_vals(ns->ed.stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.stn);
-	    int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+       int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.stn));
             // Set the line of matrix of the solver linear system
@@ -1415,7 +1415,7 @@ void higflow_implicit_euler_ionic_transport_equation_nminus(higflow_solver *ns) 
             real *vals = stn_get_vals(ns->ed.stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.stn);
-	    int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+       int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.stn));
             // Set the line of matrix of the solver linear system
@@ -1469,10 +1469,10 @@ real higflow_convective_ionic_term_cubista(higflow_solver *ns, distributed_prope
                 if (fi < b){ 
                     conv1 = vbar[dim]*(a*kc - c*kl);
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     conv1 = vbar[dim]*(e*kc + c*kr);
                 }
                     
@@ -1488,11 +1488,11 @@ real higflow_convective_ionic_term_cubista(higflow_solver *ns, distributed_prope
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi < b) 
+          if (fi < b) 
                         conv1 = vbar[dim]*(a*kr - c*krr);
                     if ((fi >= b) && (fi <= c))
                         conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }
@@ -1513,20 +1513,20 @@ real higflow_convective_ionic_term_cubista(higflow_solver *ns, distributed_prope
     if (vbar[dim] > 0.0){
         if (incell_l == 1){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi < b)
-	                conv2 = vbar[dim]*(a*kl - c*kll);
-	            if ((fi >= b) && (fi <= c))
-	                conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
        }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
@@ -1545,16 +1545,16 @@ real higflow_convective_ionic_term_cubista(higflow_solver *ns, distributed_prope
             if ((fi <= 0.0) || (fi >= 1.0)) {
                 conv2 = vbar[dim]*kc;
             }else {
-	        if (fi < b){
+           if (fi < b){
                     conv2 = vbar[dim]*(a*kc - c*kr);
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     conv2 = vbar[dim]*(e*kc + c*kl);
                 }
-	    }
+       }
         }
     }
     return ((conv1-conv2)/cdelta[dim]);
@@ -2093,7 +2093,7 @@ void higflow_explicit_euler_intermediate_velocity_electroosmotic(higflow_solver 
         // Syncing the intermediate velocity
         dp_sync(dpustar[dim]);
         // Set the velocity at outflow
-	//set_outflow(ns->psfdu[dim], ns->dpustar[dim], 20.0);
+   //set_outflow(ns->psfdu[dim], ns->dpustar[dim], 20.0);
     }
 }
 
@@ -2236,13 +2236,13 @@ void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_so
     }
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -2295,7 +2295,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_so
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -2311,7 +2311,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_so
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real ustar = slv_get_xi(ns->slvu[dim], fgid);
@@ -2340,13 +2340,13 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(h
     }
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -2401,7 +2401,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(h
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -2417,7 +2417,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(h
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real ustar = slv_get_xi(ns->slvu[dim], fgid);
@@ -2447,13 +2447,13 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
     }
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -2508,7 +2508,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -2524,7 +2524,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real uaux = slv_get_xi(ns->slvu[dim], fgid);
@@ -2539,13 +2539,13 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
     // Second Stage of Tr-BDF2
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -2599,7 +2599,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -2617,7 +2617,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real ustar = slv_get_xi(ns->slvu[dim], flid);

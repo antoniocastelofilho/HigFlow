@@ -105,7 +105,7 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         fclose(fd);
     }
     fy_document_destroy(fyd);
-	 fclose(fdomain);
+    fclose(fdomain);
     // Taking the sub-domain of the myrank process
     // Creates a partition table.
     partition_graph *pg = pg_create(MPI_COMM_WORLD);
@@ -283,7 +283,7 @@ void higflow_initialize_density(higflow_solver *ns) {
         // Calculate the density
         real dens0 = ns->ed.mult.get_density0(center, ns->par.t);
         real dens1 = ns->ed.mult.get_density1(center, ns->par.t);
-	     real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
+        real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpdens, cgid, dens);
     }
@@ -442,11 +442,11 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
         // Destroying the iterator
         higcit_destroy(it);
         // Sync initial values among processes
-	     for (int i = 0; i < DIM; i++) {
+        for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.im.dpS[i][j]);
-	         }
-	     }
+            }
+        }
     }
 }
 
@@ -485,12 +485,12 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
         higcit_destroy(it);
         // Sync initial values among processes
         for (int k = 0; k <= NDT; k++) {
-	    for (int i = 0; i < DIM; i++) {
+       for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     dp_sync(ns->ed.im.dpB[k][i][j]);
-	        }
-	    }
-	}
+           }
+       }
+   }
     }
 }
 

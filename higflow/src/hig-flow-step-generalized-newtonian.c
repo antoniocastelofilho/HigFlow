@@ -54,13 +54,13 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                     }
                     dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
                     if (ns->contr.flowtype == 1) {
-						dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
+                  dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == 2) {
-						dp_set_value(ns->ed.mult.dpD[dim][dim2], clid, dudx);
-					} else if (ns->contr.flowtype == 3) {
-						dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
+                  dp_set_value(ns->ed.mult.dpD[dim][dim2], clid, dudx);
+               } else if (ns->contr.flowtype == 3) {
+                  dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == 4){
-						dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
+                  dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
                     }
                 }
             }
@@ -371,9 +371,9 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             rhs += higflow_tensor_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
-	    // Difusive term contribution (acrescentado)
+       // Difusive term contribution (acrescentado)
             rhs += higflow_difusive_term(ns, fdelta);
-	    // Total contribuition terms by delta t
+       // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
             rhs += ns->cc.ucell;
@@ -392,12 +392,12 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
                 
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-		wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+      wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
-		
+      
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-		wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+      wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
@@ -410,7 +410,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
             // Get the cell identifier of the cell
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -460,7 +460,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
     for (int dim = 0; dim < DIM; dim++) {
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
-	// Loop for each facet
+   // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
@@ -518,7 +518,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
             // Get the cell identifier of the cell
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -566,7 +566,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
     for (int dim = 0; dim < DIM; dim++) {
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
-    	// Loop for each facet
+       // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
@@ -621,7 +621,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
