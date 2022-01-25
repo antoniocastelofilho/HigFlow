@@ -1,3 +1,4 @@
+source varsrc ; \
 (cd higtree/ ; make clean)         ; \
 (cd higflow/ ; make clean)         ; \
 (cd higflow/example2d_Newt/        ; make clean) ; \

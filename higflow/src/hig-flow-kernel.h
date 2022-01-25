@@ -247,10 +247,8 @@ typedef struct higflow_multiphase{
     distributed_property *dpIF[DIM];
     // Distributed property for beta viscoelastic
     distributed_property *dpbeta;
-     // Distributed property for D viscoelastic - phase 0
-    distributed_property *dpD0[DIM][DIM];
-    // Distributed property for D viscoelastic - phase 1
-    distributed_property *dpD1[DIM][DIM];
+    // Distributed property for S viscoelastic - Momento
+    distributed_property *dpS[DIM][DIM];
     // Distributed property for S viscoelastic - phase 0
     distributed_property *dpS0[DIM][DIM];
     // Distributed property for S viscoelastic - phase 1
@@ -279,6 +277,8 @@ typedef struct higflow_multiphase{
     real (*get_kernel_inverse)(int dim, real lambda, real tol);
     // Function to get the kernel jacobian
     real (*get_kernel_jacobian)(int dim, real lambda, real tol);
+    // User function to define the viscoelastic model
+    void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol);
 } higflow_multiphase;
 
 // Parameters for electro-osmotic simulation
@@ -606,6 +606,11 @@ real (*get_tensor1)(Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol));
+
+// Define the user function for Multiphase viscoelastic flow
+void higflow_define_user_function_multiphase_viscoelastic (higflow_solver *ns, 
+void (*calculate_m_and_b_user)(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol));
+
 
 // Create the simulation domain for viscoelastic flow
 void higflow_create_domain_viscoelastic (higflow_solver *ns, int cache, int order,

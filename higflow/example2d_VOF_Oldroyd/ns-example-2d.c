@@ -1,7 +1,5 @@
 // *******************************************************************
-// *******************************************************************
-//  Example for HiG-Flow Solver - version 10/11/2016
-// *******************************************************************
+//  Example for HiG-Flow Solver - version 20/01/2022
 // *******************************************************************
 #include "ns-example-2d.h"
 // *******************************************************************
@@ -9,7 +7,12 @@
 // *******************************************************************
 
 // Value of the Tensor
-real get_tensor(Point center, int i, int j, real t) {
+real get_tensor0(Point center, int i, int j, real t) {
+	real value = 0.0;
+	return value;
+}
+
+real get_tensor1(Point center, int i, int j, real t) {
 	real value = 0.0;
 	return value;
 }
@@ -373,8 +376,8 @@ real get_fracvol(Point center, Point delta, real t) {
 		value = delta[0]*delta[1];
 	}
 	else{
-		value =0.0;
-		int N=16;
+		value = 0.0;
+		int N = 64;
 		real delta_new[2];
 		delta_new[0]=delta[0]/N;delta_new[1]=delta[1]/N;
 		real center_new[2];
@@ -506,12 +509,6 @@ real get_boundary_facet_source_term(int id, Point center, int dim, real t) {
 	return value;
 }
 
-// Value of the boundary viscosity
-real get_boundary_viscosity(int id, Point center, real q, real t) {
-	real value = 0.5;
-	return value;
-}
-
 // Define the user function for viscoelastic flow
 void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol) {
 	// Calculate the matrix MM and BB for Oldroyd model
@@ -525,8 +522,7 @@ void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], re
 	}
 }
 
-void set_generalized_newtonian(higflow_solver *ns,int cache,int order_center,
-		real(*get_viscosity)(Point center,real q,real t)){
+void set_generalized_newtonian(higflow_solver *ns,int cache,int order_center, real(*get_viscosity)(Point center,real q,real t)){
 
 	higflow_create_domain_generalized_newtonian(ns, cache, order_center,get_viscosity); 
 	higflow_create_ditributed_properties_generalized_newtonian(ns);
@@ -573,15 +569,14 @@ int main (int argc, char *argv[]) {
 	// higflow_create_domain_generalized_newtonian(ns, cache, order_center,
 	// get_viscosity);
 	higflow_create_domain_multiphase(ns, cache, order_center,
-			get_viscosity0, get_viscosity1, get_density0, get_density1, get_fracvol);
-	higflow_create_domain_viscoelastic(ns, cache, order_center,
-			get_tensor, get_kernel, get_kernel_inverse, get_kernel_jacobian);
+			get_viscosity0, get_viscosity1, get_density0, get_density1, get_fracvol, 
+			get_tensor0, get_tensor1, get_kernel, get_kernel_inverse, get_kernel_jacobian);
 	// Initialize the domain
 	higflow_initialize_domain(ns, ntasks, myrank, order_facet);
 	// Load the controllers data for viscoelastic simulation
-	higflow_load_viscoelastic_controllers(ns, myrank);
+	higflow_load_multiphase_viscoelastic_controllers(ns, myrank);
 	// Load the parameters data for viscoelastic simulation
-	higflow_load_viscoelastic_parameters(ns, myrank);
+	higflow_load_multiphase_viscoelastic_parameters(ns, myrank);
 	// Set the user model
 	// higflow_define_user_function_viscoelastic(ns, calculate_m_user);
 	// Initialize the boundaries
@@ -591,7 +586,6 @@ int main (int argc, char *argv[]) {
 	// Creating distributed property for generalized newtonian simulation
 	// higflow_create_ditributed_properties_generalized_newtonian(ns);
 	higflow_create_ditributed_properties_multiphase(ns);
-	higflow_create_ditributed_properties_viscoelastic(ns);
 	// Initialize distributed properties
 	higflow_initialize_distributed_properties(ns);
 	// Create the linear system solvers
@@ -602,7 +596,6 @@ int main (int argc, char *argv[]) {
 		printf("===> Loading t = %f <===\n",ns->par.t);
 		//higflow_load_properties(ns);
 	}
-
 	// Printing the properties to visualize: first step
 	if (ns->par.step == 0) {
 		if (myrank == 0)
@@ -619,8 +612,8 @@ int main (int argc, char *argv[]) {
 	for (int step = ns->par.step; step < ns->par.finalstep; step++) {
 		//for (int step = ns->par.step; step < 1; step++) {
 		// Print the step
-		if (myrank == 0)
-			printf("===> Step:        %7d <====> t  = %15.10lf <===\n", step, ns->par.t);
+		//if (myrank == 0)
+		printf("===> Step:        %7d <====> t  = %15.10lf <===\n", step, ns->par.t);
 		// Start the first step time
 		if (step == step0)  START_CLOCK(firstiter);
 		// Update velocities and pressure using the projection method
@@ -630,7 +623,6 @@ int main (int argc, char *argv[]) {
 		higflow_solver_step_multiphase_viscoelastic(ns);
 		ns->par.stepaux=ns->par.stepaux+1;
 		// higflow_solver_step_viscoelastic(ns);
-		
 		// Time update
 		ns->par.t += ns->par.dt;
 		//--- compute norm ---
@@ -644,8 +636,9 @@ int main (int argc, char *argv[]) {
 			// tprint update
 			ns->par.tp += ns->par.dtp;
 			// Printing the properties to visualize
-			if (myrank == 0)
+			if (myrank == 0) {
 				printf("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+			}
 			higflow_print_vtk(ns, myrank);
 			// frame update
 			ns->par.frame++;
@@ -653,8 +646,7 @@ int main (int argc, char *argv[]) {
 		// Saving the properties
 		if (ns->par.t >= ns->par.ts + ns->par.dts) {
 			// Kinetic Energy salving
-			if (myrank == 0)
-				printf("===> Kinetic Energy         <====> ts = %15.10lf <===\n",ns->par.ts);
+			printf("===> Kinetic Energy         <====> ts = %15.10lf <===\n",ns->par.ts);
 			data = (FILE *) fopen("DATA/Kinetic.txt","a");
 			higflow_kinetic_energy(ns, data);
 			fclose(data);
@@ -676,7 +668,6 @@ int main (int argc, char *argv[]) {
 	// ********************************************************
 	// End Loop for the Navier-Stokes equations integration
 	// ********************************************************
-
 	// Saving
 	if (myrank == 0)
 		printf("===> Saving               <====> t  = %15.10lf <===\n",ns->par.t);

@@ -229,7 +229,8 @@ static unsigned _create_proc_list(void *procs, unsigned count, size_t size, size
 	return num_procs;
 }
 
-static unsigned
+// Alertas de nao usados !!!
+/*static unsigned 
 _calc_chunk_numcells(hig_cell *original_tree, int initial_node_idx, int final_node_idx, unsigned *out_numcells)
 {
 	// Find the dimensional size of the new tree
@@ -247,6 +248,7 @@ _calc_chunk_numcells(hig_cell *original_tree, int initial_node_idx, int final_no
 
 	return total_size;
 }
+*/
 
 static void _calc_boundingbox_from_children(hig_cell *tree)
 {
@@ -703,12 +705,13 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 					// find its bounding box
 					if(ptree_idx != last_tree) {
 						if(first_tree_child != -1) {
-							unsigned count;
+                     // Alertas de nao usados !!!
+							/*unsigned count;
 							count = _calc_chunk_numcells(
 								params.tree_index[last_tree]->tree,
 								first_tree_child, to_export[k-2].fid[1],
 								&sizes_buffs[pidx][DIM * otree_it++]);
-							assert(count == tree_child_count);
+							assert(count == tree_child_count);*/
 						}
 						tree_child_count = 1;
 						first_tree_child = to_exp->fid[1];
@@ -725,11 +728,12 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 				if(first_tree_child != -1) {
 					size_t last_tree_child = to_export[k-1].fid[1];
 					last_tree = to_export[k-1].fid[0] - ctx->first_tree_id;
-					unsigned count;
+               // Alertas de nao usados !!!
+					/*unsigned count;
 					count = _calc_chunk_numcells(params.tree_index[last_tree]->tree,
 						first_tree_child, last_tree_child,
 						&sizes_buffs[pidx][DIM * otree_it++]);
-					assert(count == tree_child_count);
+					assert(count == tree_child_count);*/
 				}
 				assert(otree_it == num_trees_to_send[pidx]);
 
@@ -852,9 +856,10 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 
 					// Find the dimensional size of the new tree,
 					// relies on the information of the old tree
-					unsigned calculated_size;
+               // Alertas de nao usados !!!
+					/*unsigned calculated_size;
 					calculated_size = _calc_chunk_numcells(tree, nodes[0]->posinparent, nodes[new_count - 1]->posinparent, (unsigned int*)out->numcells);
-					assert(calculated_size == new_count);
+					assert(calculated_size == new_count);*/
 
 					// Adjust posinparent for children:
 					for(unsigned i = 0; i < new_count; ++i) {

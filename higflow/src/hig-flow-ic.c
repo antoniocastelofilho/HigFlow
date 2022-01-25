@@ -31,7 +31,7 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         FILE *fd = fopen(amrfilename, "r");
         // Reading the higtree information from the file 
         mi[h] = higio_read_amr_info(fd);
-		  // Close the AMR format file
+        // Close the AMR format file
         fclose(fd);
     }
     fclose(fdomain);
@@ -222,7 +222,7 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
         // Calculate the viscosity
         real visc0 = ns->ed.mult.get_viscosity0(center, ns->par.t);
         real visc1 = ns->ed.mult.get_viscosity1(center, ns->par.t);
-	     real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
+        real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpvisc, cgid, visc);
     }
@@ -380,7 +380,7 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
             Point center;
             hig_get_center(c, center);
             // Calculate the density
-            real fracvol  = compute_value_at_point(sddens, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+            real fracvol  = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -402,12 +402,12 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
         // Destroying the iterator
         higcit_destroy(it);
         // Sync initial values among processes
-	     for (int i = 0; i < DIM; i++) {
+         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.mult.dpS0[i][j]);
                 dp_sync(ns->ed.mult.dpS1[i][j]);
-	         }
-	     }
+            }
+        }
     }
 }
 

@@ -1,0 +1,21 @@
+#PBS -N name_job
+#PBS -l select=1:ncpus=40
+#PBS -l walltime=96:00:00 
+
+module load higtree/deps 
+
+cd /lustre/juniormr/HigFlow/higtree
+make clean
+make DIM=2
+make DIM=3
+
+cd /lustre/juniormr/HigFlow/higflow
+make clean
+make DIM=2
+
+cd /lustre/juniormr/HigFlow/higflow/example2d_VOF_Oldroyd
+make clean
+make
+make run
+
+

@@ -682,19 +682,15 @@ void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp
 			POINT_ASSIGN(p, fcenter);
 
 			p[dim2]      = fcenter[dim2] + 0.5*fdelta[dim2];
-
 			/*non-mixed*/
 			real ucl     = compute_facet_u_left(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
 			real ucr     = compute_facet_u_right(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
 			real duidxjr = compute_facet_dudxc(fdelta, dim2, 0.5, ns->cc.ucell, ucl, ucr);
-
 			/*mixed*/
 			real vcl     = compute_facet_u_left(sfdu[dim2], p, fdelta, dim, 0.5, dpu[dim2], ns->stn, &infacet);
 			real vcr     = compute_facet_u_right(sfdu[dim2], p, fdelta, dim, 0.5, dpu[dim2], ns->stn, &infacet);
 			real dujdxir = compute_facet_dudxc(fdelta, dim, 0.5, ns->cc.ucell, vcl, vcr);
-
 			p[dim2]      =  fcenter[dim2] - 0.5*fdelta[dim2];
-
 			/*non-mixed*/
 			ucl          = compute_facet_u_left(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
 			ucr          = compute_facet_u_right(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
@@ -928,17 +924,12 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 				}
 			}
 			
-			
-			
 			if(dim2==dim){
-			
 				// Get the cell viscosity in the left cell
 				ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
 				// Get the cell viscosity in the right cell
 				ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
-			}
-			else{
-				
+			} else {
 				Point p1,p2,p3,p4,p3_,p4_;
 				
 				POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
@@ -963,14 +954,12 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 				ns->cc.viscl=4*v1*v2*v3_*v4_/(v1+v2+v3_+v4_);
 				ns->cc.viscr=4*v1*v2*v3*v4/(v1+v2+v3+v4);
 				
-				
 				// Get the cell viscosity in the left cell
 				//ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
 				// Get the cell viscosity in the right cell
 				//ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
 				
 			}
-			
 			
 			// Compute multiphase viscous term
 			ns->cc.du2dx2[dim2] = 0.0;
@@ -1000,8 +989,6 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 			ns->cc.du2dx2[dim2] += (ns->cc.viscr*duidxjr - ns->cc.viscl*duidxjl)/fdelta[dim2];
 			ns->cc.du2dx2[dim2] += (ns->cc.viscr*dujdxir - ns->cc.viscl*dujdxil)/fdelta[dim2];
 			
-			
-			
 			// Compute the viscoelastic contribution
 			if (dim2 == dim) {
 				// Get the tensor in the left cell
@@ -1018,9 +1005,6 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 				// Compute the tensor derivative
 				ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
 			}
-			
-			
-			
 		}
 		//break;
 	}
@@ -1266,16 +1250,12 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
 			ucl          = compute_facet_u_left(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
 			ucr          = compute_facet_u_right(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
 			real duidxjl = compute_facet_dudxc(fdelta, dim2, 0.5, ns->cc.ucell, ucl, ucr);
-
 			/* mixed */
 			vcl          = compute_facet_u_left(sfdu[dim2], p, fdelta, dim, 0.5, dpu[dim2], ns->stn, &infacet);
 			vcr          = compute_facet_u_right(sfdu[dim2], p, fdelta, dim, 0.5, dpu[dim2], ns->stn, &infacet);
 			real dujdxil = compute_facet_dudxc(fdelta, dim, 0.5, ns->cc.ucell, vcl, vcr);
-
 			//ns->cc.du2dx2[dim2] += (ns->cc.viscr*duidxjr - ns->cc.viscl*duidxjl)/fdelta[dim];
 			ns->cc.du2dx2[dim2] += (ns->cc.viscr*dujdxir - ns->cc.viscl*dujdxil)/fdelta[dim];
-			
-			
 			// Compute the viscoelastic contribution
 			if (dim2 == dim) {
 				// Get the tensor in the left cell

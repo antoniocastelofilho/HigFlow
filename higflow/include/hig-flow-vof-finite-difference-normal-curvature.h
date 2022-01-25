@@ -33,16 +33,16 @@ void calculate_exact_normal_x_dominant_2D(higflow_solver *ns, int clid, Point p)
 
 void calculate_exact_normal_y_dominant_2D(higflow_solver *ns, int clid, Point p);
 
-void ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Horizontal(higflow_solver *ns, int clid, real Ht,real Hm,real dx,real dy,int auxh);
+void ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Horizontal(higflow_solver *ns, int clid, Point Normal,real Ht,real Hm,real dx,real dy,int auxh);
 
-void ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Horizontal(higflow_solver *ns, int clid, real Hm,real Hb,real dx,real dy,int auxh);
+void ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Horizontal(higflow_solver *ns, int clid, Point Normal,real Hm,real Hb,real dx,real dy,int auxh);
 
-void ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(higflow_solver *ns, int clid, real Ht,real Hb,real dx,real dy,int auxh);
+void ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(higflow_solver *ns, int clid, Point Normal,real Ht,real Hb,real dx,real dy,int auxh);
 
-void ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Vertical(higflow_solver *ns, int clid, real Vr,real Vl,real dx,real dy,int auxv);
+void ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Vertical(higflow_solver *ns, int clid, Point Normal,real Vr,real Vl,real dx,real dy,int auxv);
 
-void ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Vertical(higflow_solver *ns, int clid, real Vr,real Vm,real dx,real dy,int auxv);
+void ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Vertical(higflow_solver *ns, int clid, Point Normal,real Vr,real Vm,real dx,real dy,int auxv);
 
-void ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Vertical(higflow_solver *ns, int clid, real Vm,real Vl,real dx,real dy,int auxv);
+void ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Vertical(higflow_solver *ns, int clid, Point Normal, real Vm,real Vl,real dx,real dy,int auxv);
 
 #endif

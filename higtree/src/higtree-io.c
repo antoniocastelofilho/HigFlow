@@ -1016,7 +1016,8 @@ void higio_write_cell_property_hdf5(higio_hdf5 *ctx, const char *dataset_path,
 }
 
 /* Used only inside an assert, compiler will warn when building optimized. */
-static bool _components_matches(distributed_property * const* dp_component, size_t num_components) {
+// Alertas de nao usados !!!
+/*static bool _components_matches(distributed_property * const* dp_component, size_t num_components) {
 	for(size_t i = 1; i < num_components; ++i) {
 		if(dp_component[0]->pdata->local_count != dp_component[i]->pdata->local_count) {
 			return false;
@@ -1024,6 +1025,7 @@ static bool _components_matches(distributed_property * const* dp_component, size
 	}
 	return true;
 }
+*/
 
 static int _create_read_prop_dataset(higio_hdf5 *ctx, const char *dataset_path,
 		size_t prop_dimension, size_t rank,

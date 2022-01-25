@@ -225,7 +225,8 @@ static void petsc_slv_assemble_output(solver *cs) {
     VecAssemblyEnd  (s->x);
 }
 
-static real calc_res_norm(_solver_impl_petsc *s)
+// Alertas de nao usados !!!
+/*static real calc_res_norm(_solver_impl_petsc *s)
 {
 	MatMult(s->A, s->x, s->tmp);
 	VecAXPY(s->tmp, -1.0, s->b);
@@ -235,8 +236,10 @@ static real calc_res_norm(_solver_impl_petsc *s)
 
 	return abs_res_norm;
 }
+*/
 
-static PetscErrorCode abs_convergence_test(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *cctx)
+// Alertas de nao usados !!!
+/*static PetscErrorCode abs_convergence_test(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *cctx)
 {
 	_solver_impl_petsc *s = (_solver_impl_petsc*)cctx;
 
@@ -250,6 +253,7 @@ static PetscErrorCode abs_convergence_test(KSP ksp, PetscInt it, PetscReal rnorm
 
 	return 0;
 }
+*/
 
 static void petsc_slv_solve(solver *cs) {
     _solver_impl_petsc *s = (_solver_impl_petsc*)cs;

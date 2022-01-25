@@ -12,7 +12,7 @@ OPTSOPT = -Ofast -march=native -mtune=native -flto=8 -fno-fat-lto-objects
 #OPTSOPT = -g
 STANDARDS = -std=gnu99
 
-CFLAGS+= $(shell pkg-config --cflags glib-2.0) -Werror
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml) -Werror
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
 CFLAGS+= -I$(INCPATH) 
@@ -54,7 +54,8 @@ MODULES = \
 	step-multiphase-viscoelastic \
 	vof-plic \
 	vof-adap-hf \
-	vof-9-cells\
+	vof-elvira \
+	vof-9-cells \
 	vof-finite-difference-normal-curvature \
 	step-viscoelastic \
 	step-viscoelastic-integral \

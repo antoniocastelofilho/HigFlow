@@ -290,7 +290,7 @@ void higflow_final_velocity(higflow_solver *ns) {
         // Sync the ditributed velocity property
         dp_sync(ns->dpu[dim]);
         // Printing the min and max velocity
-        printf("===> %d: Vmin = %lf <===> Vmax = %lf <===\n",dim,velmin,velmax);
+        //printf("===> %d: Vmin = %lf <===> Vmax = %lf <===\n",dim,velmin,velmax);
     }
 }
 

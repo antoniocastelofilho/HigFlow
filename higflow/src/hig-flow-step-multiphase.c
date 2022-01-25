@@ -1,28 +1,17 @@
-
 // *******************************************************************
-// *******************************************************************
-//  HiG-Flow Solver Step Multiphase - version 10/11/2016
-// *******************************************************************
+//  HiG-Flow Solver Step Multiphase - version 20/01/2022
 // *******************************************************************
 //#define DEBUG
 
 #include "Debug-c.h"
 #include "hig-flow-step-multiphase.h"
-#include "hig-flow-vof-adap-hf.h"
-#include "hig-flow-vof-plic.h"
 
-char nome_frac[100];
-char nome_fracaux[100];
-char nome_vx[100];
-char nome_vy[100];
-char nome_d[100];
-char nome_N[100];
-char nome_Kappa[100];
-char nome_press[100];
-char nome_IF[100];
-char nome_visc[100];
-char nome_beta[100];
-int count;
+char nome_frac[100]; char nome_fracaux[100];
+char nome_vx[100]; char nome_vy[100];
+char nome_d[100]; char nome_N[100];
+char nome_Kappa[100]; char nome_press[100];
+char nome_IF[100]; char nome_visc[100];
+char nome_beta[100]; int count;
 
 void arquivoTempo(int step) {
 	
@@ -61,7 +50,6 @@ void arquivoTempo(int step) {
 	fp=fopen(nome_vy,"a");
 	fclose(fp);
 	
-	
 	fp=fopen(nome_d,"a");
 	fclose(fp);
 	
@@ -76,7 +64,6 @@ void arquivoTempo(int step) {
 	
 	fp=fopen(nome_IF,"a");
 	fclose(fp);
-	
 	
 	fp=fopen(nome_visc,"a");
 	fclose(fp);
@@ -138,7 +125,6 @@ void arquivopress(char*nome,real press) {
    fprintf(fp,"%lf\n",press);
    fclose(fp);
 }
-
 
 void save_cell_values(higflow_solver *ns,int aux) {
     if (ns->contr.flowtype == 2) {
@@ -209,20 +195,15 @@ void save_cell_values(higflow_solver *ns,int aux) {
 		real ifx=k*fx/(10.0*dens);
 		real ify=k*fy/(10.0*dens);
 		
-//		printf("(%lf , %lf)\n", fx, fy);
-		
 		arquivoIF(nome_IF,ifx,ify);
 		
 		int dim=0;
 		real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
 		real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		//arquivoV(nome_vx,ul,ur);
-		
 		dim=1;
-		 ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		 ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-		//arquivoV(nome_vy,ul,ur);
-		//count=count+1;
+
+		ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+		ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
 		continue;
 	}
 	//printf("blabla\n");
@@ -243,8 +224,9 @@ void save_cell_values(higflow_solver *ns,int aux) {
 // Computing the curvature
 void higflow_compute_curvature_multiphase(higflow_solver *ns) {
     if (DIM == 2) {
-        higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-        //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
+        //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+        higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
+        //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL_adap(ns);
         higflow_compute_distance_multiphase_2D(ns);
     } else if (DIM == 3) {
         //higflow_compute_curvature_multiphase_3D(ns);
@@ -286,7 +268,7 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns) {
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the distributed pressure property
-   dp_sync(ns->ed.mult.dpvisc);
+        dp_sync(ns->ed.mult.dpvisc);
     }
 }
 
@@ -441,7 +423,8 @@ void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
 			higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
 			higflow_plic_copy_fractionaux_to_fraction(ns);
 
-			higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+			//higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+			higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
 			higflow_compute_distance_multiphase_2D(ns);
 
 			higflow_plic_advection_volume_fraction_y_direction(ns, 1);
@@ -451,7 +434,8 @@ void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
 			higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
 			higflow_plic_copy_fractionaux_to_fraction(ns);
 
-			higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+			//higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+			higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
 			higflow_compute_distance_multiphase_2D(ns);
 
 			higflow_plic_advection_volume_fraction_x_direction(ns, 0);
@@ -462,7 +446,6 @@ void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
 		dp_sync(ns->ed.mult.dpfracvol);
 	}
 }
-
 void fraction_correction_at_set(real *fracvol){
 	if(fabs(*fracvol - 1.0)<1.0e-5){
 		*fracvol = 1.0;
@@ -535,13 +518,6 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 			fraction_correction_at_get(&fracl);
 			fraction_correction_at_get(&fracvol);
 			
-			/*if((fracr==1.0&&fracl==1.0&&fracvol==1.0)||(fracr==0.0&&fracl==0.0&&fracvol==0.0)){
-				
-				dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvol);
-				continue;
-				
-			}*/
-
 			// Area
 			real Ar = 0.0;
 			real Al = 0.0;
@@ -578,9 +554,6 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 						Delta_New[0] = ur*ns->par.dt;
 						Delta_New[1] = cdelta[1];
 						Ar = area_left_line_origin_center(Normal, Delta_New, d);
-//						printf("d_c_r = %lf, Ar = %lf, n_x_r = %lf, n_y_r = %lf\n",d,Ar,Normal[0],Normal[1]);
-//						printf("Frac = %lf, x = %lf, y = %lf, ur = %lf\n",fracvol,ccenter[0],ccenter[1],ur);
-//						getchar();
 					}
 					fracr = Ar/(fabs(ur)*ns->par.dt*cdelta[1]);
 				} else {
@@ -1322,15 +1295,8 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 
 			// Auxiliary fraction correction
 			fraction_correction_at_set(&fracvolaux);
-
-			//if(fracvolaux>1.0 || fracvolaux<0.0)
-			//{
-				//printf("P = %lf %lf  frac=%lf at t= %d at cell %d\n",ccenter[0],ccenter[1],fracvolaux,ns->par.stepaux,clid);getchar();
-			//}
-
-
-
-			dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
+                        
+                       dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
         // Destroy the iterator
         higcit_destroy(it);
@@ -1383,10 +1349,10 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
 }
 
 // Correction Normal
-void normal_correction_at_get(Point Normal){
+void normal_correction_at_get(Point Normal) {
 	real tol_n = 1.0e-8;
 	for(int i=0;i<DIM;i++){
-		if(fabs(Normal[i])<tol_n) {
+		if (fabs(Normal[i])<=tol_n) {
 			Normal[i] = 0.0;
 		}
 	}
@@ -1715,10 +1681,11 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
     sim_facet_domain *sfdu[DIM];
     // Loop for each dimension
     higfit_facetiterator *fit;
-    for(int dim = 0; dim < DIM; dim++) {
+    //real absvelmin =  1.0e16;
+    for (int dim = 0; dim < DIM; dim++) {
         // Initialize the min and max velocity
-        real velmax = -1.0e16;
-        real velmin =  1.0e16;
+        real velmax    = -1.0e16;
+        real velmin    =  1.0e16;
         // Get the local partitioned domain for facets
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
         // Get the map of the distributed properties in the facets
@@ -1765,6 +1732,7 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
             // Update the min and max velocity
             if (utdt > velmax) velmax = utdt;
             if (utdt < velmin) velmin = utdt;
+            //if (fabs(utdt) < absvelmin) absvelmin = fabs(utdt);
         }
         // Destroy the iterator
         higfit_destroy(fit);
@@ -1773,6 +1741,7 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
         // Printing the min and max velocity
         printf("===> %d: Vmin = %lf <===> Vmax = %lf <===\n",dim,velmin,velmax);
     }
+	 //ns->par.dt = ;
 }
 
 // Navier-Stokes pressure with variable density using the projection method

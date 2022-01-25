@@ -2061,8 +2061,8 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.psi0));
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.alpha0));
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.kernel_tol0));
-        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.alpha_gptt0));
-        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.beta_gptt0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.alpha_gptt0));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.beta_gptt0));
         // Phase 1
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.De1));
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.beta1));
@@ -2070,8 +2070,8 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.psi1));
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.alpha1));
         ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.kernel_tol1));
-        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.alpha_gptt1));
-        ifd = fscanf(fd,"%lf",&(ns->ed.mult.par.beta_gptt1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.alpha_gptt1));
+        ifd = fscanf(fd, "%lf", &(ns->ed.mult.par.beta_gptt1));
         fclose(fd);
         if (myrank == 0) {
             printf("=+=+=+= Phase 0: =+=+=+=\n");
@@ -2080,87 +2080,6 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
             printf("=+=+=+= Phase 1: =+=+=+=\n");
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.par.De1);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.par.beta1);
-        }
-    } else {
-        // Error in open the file
-        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
-        exit(1);
-    }
-}
-
-// Saving the viscoelastic parameters
-void higflow_save_viscoelastic_parameters(higflow_solver *ns, int myrank) {
-    if (myrank == 0) {
-        // Parameters file name
-        char namefile[1024];
-        snprintf(namefile, sizeof namefile, "%s.viscpar", ns->par.namesave);
-        FILE *fd = fopen(namefile, "w");
-        if (fd != NULL) {
-            // Saving the parameters
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.De));
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.beta));
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.epsilon));
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.psi));
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.alpha));
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.kernel_tol));
-            fprintf(fd,"%lf\n",(ns->ed.ve.par.alpha_gptt));
-            fprintf(fd,"%lf\n",(ns->ed.ve.par.beta_gptt));
-            fclose(fd);
-        } else {
-            // Error in open the file
-            printf("=+=+=+= Error saving file %s =+=+=+=\n", namefile);
-            exit(1);
-        }
-    }
-}
-
-// Loading the viscoelastic controllers
-void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank) {
-    // Parameters file name
-    char namefile[1024];
-    snprintf(namefile, sizeof namefile, "%s.visccontr", ns->par.nameload);
-    FILE *fd = fopen(namefile, "r");
-    if (fd != NULL) {
-        // Loading the parameters
-        int ifd;
-        ifd = fscanf(fd, "%d", &(ns->ed.ve.contr.model));
-        ifd = fscanf(fd, "%d", &(ns->ed.ve.contr.discrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.ve.contr.convecdiscrtype));
-        fclose(fd);
-        if (myrank == 0) {
-            switch (ns->ed.ve.contr.model) {
-                case -1:
-                    printf("=+=+=+= Constitutive Equation Model: User Defined =+=+=+=\n");
-                    break;
-                case 0:
-                    printf("=+=+=+= Constitutive Equation Model: Oldroyd =+=+=+=\n");
-                    break;
-                case 1:
-                    printf("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
-                    break;
-                case 2:
-                    printf("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
-                    break;
-                case 3:
-                    printf("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
-                    break;
-            }
-            switch (ns->ed.ve.contr.discrtype) {
-                case 0:
-                    printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
-                    break;
-                case 1:
-                    printf("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
-                    break;
-            }
-            switch (ns->ed.ve.contr.convecdiscrtype) {
-                case 0:
-                    printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
-                    break;
-                case 1:
-                    printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
-                    break;
-            }
         }
     } else {
         // Error in open the file
@@ -2258,6 +2177,87 @@ void higflow_load_multiphase_viscoelastic_controllers(higflow_solver *ns, int my
                     break;
                 case 1:
                     printf("=+=+=+= Constitutive Equation Convective Term - Phase 1: CUBISTA =+=+=+=\n");
+                    break;
+            }
+        }
+    } else {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Saving the viscoelastic parameters
+void higflow_save_viscoelastic_parameters(higflow_solver *ns, int myrank) {
+    if (myrank == 0) {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.viscpar", ns->par.namesave);
+        FILE *fd = fopen(namefile, "w");
+        if (fd != NULL) {
+            // Saving the parameters
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.De));
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.beta));
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.epsilon));
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.psi));
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.alpha));
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.kernel_tol));
+            fprintf(fd,"%lf\n",(ns->ed.ve.par.alpha_gptt));
+            fprintf(fd,"%lf\n",(ns->ed.ve.par.beta_gptt));
+            fclose(fd);
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error saving file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+}
+
+// Loading the viscoelastic controllers
+void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank) {
+    // Parameters file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.visccontr", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL) {
+        // Loading the parameters
+        int ifd;
+        ifd = fscanf(fd, "%d", &(ns->ed.ve.contr.model));
+        ifd = fscanf(fd, "%d", &(ns->ed.ve.contr.discrtype));
+        ifd = fscanf(fd, "%d", &(ns->ed.ve.contr.convecdiscrtype));
+        fclose(fd);
+        if (myrank == 0) {
+            switch (ns->ed.ve.contr.model) {
+                case -1:
+                    printf("=+=+=+= Constitutive Equation Model: User Defined =+=+=+=\n");
+                    break;
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Model: Oldroyd =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
+                    break;
+                case 2:
+                    printf("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
+                    break;
+                case 3:
+                    printf("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+                    break;
+            }
+            switch (ns->ed.ve.contr.discrtype) {
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
+                    break;
+            }
+            switch (ns->ed.ve.contr.convecdiscrtype) {
+                case 0:
+                    printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+                    break;
+                case 1:
+                    printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
                     break;
             }
         }

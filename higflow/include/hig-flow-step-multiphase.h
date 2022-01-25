@@ -1,20 +1,18 @@
 // *******************************************************************
-// *******************************************************************
-//  HiG-Flow Solver Step multiphase - version 10/11/2016
-// *******************************************************************
+//  HiG-Flow Solver Step multiphase - version 20/01/2022
 // *******************************************************************
 
 #ifndef HIG_FLOW_STEP_MULTIPHASE
 #define HIG_FLOW_STEP_MULTIPHASE
 
 #include "hig-flow-step.h"
-//#include "hig-flow-vof-ELVIRA.h"
+#include "hig-flow-vof-plic.h"
+#include "hig-flow-vof-elvira.h"
 #include "hig-flow-vof-adap-hf.h"
 
 // *******************************************************************
 // Navier-Stokes Step
 // *******************************************************************
-
 // Computing the filter for the curvature
 void higflow_compute_filter_fracvol_multiphase(higflow_solver *ns);
 
@@ -31,7 +29,7 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns);
 void higflow_compute_density_multiphase(higflow_solver *ns);
 
 // ******************************************************************
-// PLIC ADVECTION
+// Plic advection
 // ******************************************************************
 void higflow_plic_advection_volume_fraction(higflow_solver *ns);
 

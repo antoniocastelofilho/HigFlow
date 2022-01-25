@@ -53,9 +53,6 @@ int get_frac_vol(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Poin
 	} else {
 		Point Delta2;
 		hig_get_delta(c, Delta2);
-//		printf("x=%lf y=%lf\n",P[0],P[1]);
-//		printf(" dc=[%lf %lf] \t dp= [%lf %lf] \t ",Delta[0],Delta[1],Delta2[0],Delta2[1]);
-
 		if (fabs(Delta[dim] - Delta2[dim])>1.0e-12){
 			printf("Different sizes dc=[%.18lf %.18lf] dp= [%.18lf %.18lf] \t ",Delta[0],Delta[1],Delta2[0],Delta2[1]);
 			return -1;
@@ -216,18 +213,18 @@ real real_max_vec(real *vec,int n){
 	return max;
 }
 
-real real_min_vec(real *vec,int n){
+real real_min_vec(real *vec,int n) {
 	real min = vec[1];
-	for(int i=1;i<n;i++){
-		if(vec[i]<min){
+	for (int i=1;i<n;i++) {
+		if (vec[i]<min) {
 			min=vec[i];
 		}
 	}
 	return min;
 }
 
-void real_times_vec(real c,real *vec,int n){
-	for(int i=0;i<n;i++){
+void real_times_vec(real c,real *vec,int n) {
+	for (int i=0;i<n;i++) {
 		vec[i]=c*vec[i];
 	}
 }
@@ -317,35 +314,31 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 		for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
 			// Get the cell
 			hig_cell *c = higcit_getcell(it);
-
+			
 			// Get the cell identifier
 			int clid = mp_lookup(mp, hig_get_cid(c));
-
+			
 			// Get the center of the cell
 			Point center;
 			hig_get_center(c, center);
-
+			
 			// Get the delta of the cell
 			Point delta;
 			hig_get_delta(c, delta);
-
+			
 			// Case bi-dimensional
 			Point p;
-
+			
 			p[0] = center[0];
 			p[1] = center[1];
 			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-
-//			arquivoFrac(NULL,p[0],p[1],frac);
-//			continue;
-
-			dp_set_value(ns->ed.mult.dpcurvature, clid, 0.0);/* Set the curvature in the distributed curvature property*/
-			for (int i = 0; i < DIM; i++) {
-				dp_set_value(ns->ed.mult.dpIF[i], clid, 0.0);
-				dp_set_value(ns->ed.mult.dpnormal[i], clid, 0.0);
-			}
-			
+			// As funçoes foram alteradas de lugar
 			if (frac == 0.0 || frac == 1.0){
+				dp_set_value(ns->ed.mult.dpcurvature, clid, 0.0);/* Set the curvature in the distributed curvature property*/
+				for (int i = 0; i < DIM; i++) {
+					dp_set_value(ns->ed.mult.dpIF[i], clid, 0.0);
+					dp_set_value(ns->ed.mult.dpnormal[i], clid, 0.0);
+				}
 				continue;
 			}
 			
