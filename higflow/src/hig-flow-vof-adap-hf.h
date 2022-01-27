@@ -33,6 +33,8 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(higflow_solver *ns);
 
-void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_shirami(higflow_solver *ns);
+void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_adap(higflow_solver *ns);
+
+void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_shirani(higflow_solver *ns);
 
 #endif
