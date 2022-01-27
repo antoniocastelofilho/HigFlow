@@ -14,20 +14,20 @@ void arquivoFracAux(char*nome_dist,real x,real y,real frac){
 
 void solve_equation(int Rx, int Ry, Point Normal, Point Delta, real area, Point Value){
    real A, B, C;
-   
-   A = (1.0-Rx-Ry)/fabs(Normal[0]*Normal[1]);
-   B = 2.0*(Rx*Delta[0]/fabs(Normal[1])+Ry*Delta[1]/fabs(Normal[0]));
-   C = -2.0*area-Rx*Delta[0]*Delta[0]*fabs(Normal[0]/Normal[1])-
-   Ry*Delta[1]*Delta[1]*fabs(Normal[1]/Normal[0]);
-   
-   if(A==0){
-      Value[0]=-C/B;
-      Value[1]=-C/B;
-      return;
-   }
-   Value[0]=(-B+sqrt(B*B-4.0*A*C))/(2.0*A);
-   Value[1]=(-B-sqrt(B*B-4.0*A*C))/(2.0*A);
-   return;
+  
+  A = (1.0-Rx-Ry)/fabs(Normal[0]*Normal[1]);
+  B = 2.0*(Rx*Delta[0]/fabs(Normal[1])+Ry*Delta[1]/fabs(Normal[0]));
+  C = -2.0*area-Rx*Delta[0]*Delta[0]*fabs(Normal[0]/Normal[1])-
+  Ry*Delta[1]*Delta[1]*fabs(Normal[1]/Normal[0]);
+  
+  if(A==0){
+     Value[0]=-C/B;
+     Value[1]=-C/B;
+     return;
+  }
+  Value[0]=(-B+sqrt(B*B-4.0*A*C))/(2.0*A);
+  Value[1]=(-B-sqrt(B*B-4.0*A*C))/(2.0*A);
+  return;
 }
 
 real parallel_left_line_origin_center_distance(Point Normal,Point Delta,real area,real tol_n){
@@ -325,7 +325,6 @@ int sign(real value) {
 }
 
 void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
-   if (ns->contr.flowtype == 2) {
       real IF[DIM];
       // Get the local sub-domain for the cells
       sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -375,11 +374,9 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
       higcit_destroy(it);
       // Sync the distributed pressure property
       dp_sync(ns->ed.mult.dpdistance);
-   }
 }
 
 void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
-   if (ns->contr.flowtype == 2) {
       real IF[DIM];
       // Get the local sub-domain for the cells
       sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -422,6 +419,5 @@ void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
       }
       // Destroy the iterator
       higcit_destroy(it);
-   }
 }
 

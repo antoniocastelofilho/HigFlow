@@ -1956,7 +1956,7 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns) {
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    if (ns->par.stepaux%100==0) {
+    if (ns->par.stepaux%80==0) {
         printf("creating archives at step: %d\n",ns->par.stepaux);
         arquivoTempo_visc(ns->par.stepaux);
         save_cell_values_visc(ns,1);

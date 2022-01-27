@@ -31,4 +31,8 @@ void calculate_interfacial_force(sim_domain *sdp, higflow_solver *ns, int clid, 
 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_solver *ns);
 
+void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(higflow_solver *ns);
+
+void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_shirami(higflow_solver *ns);
+
 #endif

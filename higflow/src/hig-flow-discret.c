@@ -1197,7 +1197,7 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
                            conv2 = ns->cc.vc[dim2]*(c*ns->cc.ucell + e*ul[dim]);
                      }
                   }
-               }else {
+               } else {
                   //v2bar < 0.0
                   if (fabs(ul[dim] - ur[dim]) <= tol) {
                      conv2 = ns->cc.vc[dim2]*ns->cc.ucell;

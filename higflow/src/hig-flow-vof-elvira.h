@@ -19,6 +19,8 @@ void ELVIRA_horizontal_row_adap(sim_domain *sdp, higflow_solver *ns, Point cente
 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(higflow_solver *ns);
 
+void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain *sdp, mp_mapper *mp, higcit_celliterator *it, hig_cell *c,int clid, Point center, Point delta);
+
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL_adap(higflow_solver *ns);
 
 #endif

@@ -1,8 +1,7 @@
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 //#include "hig-flow-vof-HF-3D_adap.h"
 
-void shirani_9_cells(sim_domain *sdp, higflow_solver *ns, int clid,
-   Point center, Point p, Point delta){
+void shirani_9_cells(sim_domain *sdp, higflow_solver *ns, int clid, Point center, Point p, Point delta){
       
    Point pp, Normal;
    real fracvol, gradFij1, gradFij2, gradFij3, gradFij, gradFik1, gradFik2,

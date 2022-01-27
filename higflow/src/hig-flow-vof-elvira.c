@@ -424,7 +424,6 @@ real elvira_interface_error(real area[6], real areaE[6][9], int s) {
 }
 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(higflow_solver *ns) {
-   if (ns->contr.flowtype == 2) {
       real IF[DIM];
       // Get the local sub-domain for the cells
       sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -449,7 +448,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(higflow
          p[0] = center[0];   p[1] = center[1];
          real fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          
-         dp_set_value(ns->ed.mult.dpcurvature, clid, 0.0);/* Set the curvature in the distributed curvature property*/
+         //dp_set_value(ns->ed.mult.dpcurvature, clid, 0.0);/* Set the curvature in the distributed curvature property*/
          for (int i = 0; i < DIM; i++) {
             dp_set_value(ns->ed.mult.dpIF[i], clid, 0.0);
             dp_set_value(ns->ed.mult.dpnormal[i], clid, 0.0);
@@ -642,9 +641,209 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(higflow
          //dp_sync(ns->ed.mult.dpIF[i]);
          dp_sync(ns->ed.mult.dpnormal[i]);
       }
-   }
 }
 
+void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain *sdp, mp_mapper *mp, higcit_celliterator *it, hig_cell *c,int clid, Point center, Point delta) {
+      real IF[DIM];
+      // Get the local sub-domain for the cells
+      //sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+      // Get the map for the domain properties
+      //mp_mapper *mp = sd_get_domain_mapper(sdp);
+      // Loop for each cell
+      //higcit_celliterator *it;
+//      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+         // Get the cell
+         //hig_cell *c = higcit_getcell(it);
+         // Get the cell identifier
+         //int clid = mp_lookup(mp, hig_get_cid(c));
+         // Get the center of the cell
+         //Point center;
+         //hig_get_center(c, center);
+         // Get the delta of the cell
+         //Point delta;
+         //hig_get_delta(c, delta);
+         // Case bi-dimensional
+         Point p;
+         real area[9];
+         p[0] = center[0];   p[1] = center[1];
+         real fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         
+         real hf_horizontal = direction_hf_horizontal(sdp, ns, center, delta); 
+         //height deriction verification
+         real hf_vertical = direction_hf_vertical(sdp, ns, center, delta); //height deriction verification
+         
+         area[4] = fracvol*delta[0]*delta[1];
+         
+         //normal calculation ======================================
+         real hm, hb, ht, vm, vl, vr;
+         int aux_mh = 0, aux_b = 0, aux_t = 0;
+         int aux_mv = 0, aux_l = 0, aux_r = 0;
+         
+         // Middle
+         // Horizontal: going middle
+         ELVIRA_horizontal_row(sdp, ns, center, p, delta, &hm, &aux_mh);
+         
+         // Top
+         p[1] = center[1] + delta[1];
+         // Volume Faction and Area (required for error calculation)
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[7] = fracvol*delta[0]*delta[1];
+         // Horizontal: going top
+         ELVIRA_horizontal_row(sdp, ns, center, p, delta, &ht, &aux_t);
+         
+         // Bottom
+         p[1] = center[1] - delta[1];
+         // Volume Faction and Area (required for error calculation)
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[1] = fracvol*delta[0]*delta[1];
+         //Horizontal: going BOTTOM
+         ELVIRA_horizontal_row(sdp, ns, center, p, delta, &hb, &aux_b);
+         
+         real H[3];
+         H[0] = hb; H[1] = hm; H[2] = ht;
+         p[0] = center[0]; p[1] = center[1];
+         // Middle
+         // Vertical: going middle
+         ELVIRA_vertical_collumn(sdp, ns, center, p, delta, &vm, &aux_mv);
+         // Right
+         p[0] = center[0] + delta[0];
+         // Volume Faction and Area (required for error calculation)
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[5] = fracvol*delta[0]*delta[1];
+         // Vertical: going Right
+         ELVIRA_vertical_collumn(sdp, ns, center, p, delta, &vr, &aux_r);
+         // Left
+         p[0] = center[0] - delta[0];
+         // Volume Faction and Area (required for error calculation)
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[3] = fracvol*delta[0]*delta[1];
+         // Vertical: going Left
+         ELVIRA_vertical_collumn(sdp, ns, center, p, delta, &vl, &aux_l);
+         
+         real V[3];
+         V[0] = vl; V[1] = vm; V[2] = vr;
+         
+         // Volume Faction and Area in the Corns (required for error calculation)
+         // Left-Botton
+         p[0] = center[0] - delta[0];
+         p[1] = center[1] - delta[1];
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[0] = fracvol*delta[0]*delta[1];
+         // Left-Top
+         p[1] = center[1] + delta[1];
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[6] = fracvol*delta[0]*delta[1];
+         // Right-Botton
+         p[0] = center[0] + delta[0];
+         p[1] = center[1] - delta[1];
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[2] = fracvol*delta[0]*delta[1];
+         // Right-Top
+         p[1] = center[1] + delta[1];
+         fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+         area[8] = fracvol*delta[0]*delta[1];
+         
+         Point Normal;
+         real nx[6], ny[6];
+         real areaE[6][9], distanceE[6][9], d[9];
+         real dl;
+         real sinalXl[9], sinalYl[9];
+         sinalXl[0] = -1;sinalXl[1] = 0;sinalXl[2] = 1;
+         sinalXl[3] = -1;sinalXl[4] = 0;sinalXl[5] = 1;
+         sinalXl[6] = -1;sinalXl[7] = 0;sinalXl[8] = 1;
+
+         sinalYl[0] = -1; sinalYl[1] = -1; sinalYl[2] = -1;
+         sinalYl[3] = 0;  sinalYl[4] = 0;  sinalYl[5] = 0;
+         sinalYl[6] = 1;  sinalYl[7] = 1;  sinalYl[8] = 1;
+         //==========================================================
+         ////horizontal-regressive finite difference 
+         ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, Normal, hm, hb, delta[0], delta[1], aux_mh);
+         normal_correction_at_get(Normal);
+         nx[0] = Normal[0]; ny[0] = Normal[1];
+         distanceE[0][4] = distance_from_center(Normal,delta,area[4]);
+         for (int j=0; j<9; j++) {
+            d[j]        = distanceE[0][4] - (sinalXl[j]*Normal[0]*delta[0] + sinalYl[j]*Normal[1]*delta[1]);
+            areaE[0][j] = area_left_line_origin_center(Normal, delta, d[j]);
+            areaE[0][j] = area_correction_at_get(delta , areaE[0][j]);
+         }
+         //==========================================================
+         ////horizontal-central finite difference 
+         ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(ns, clid, Normal, ht, hb, delta[0], delta[1], aux_mh);
+         normal_correction_at_get(Normal);
+         nx[1] = Normal[0]; ny[1] = Normal[1];
+         distanceE[1][4] = distance_from_center(Normal,delta,area[4]);
+         for (int j=0; j<9; j++) {
+            d[j]        = distanceE[1][4] - (sinalXl[j]*Normal[0]*delta[0] + sinalYl[j]*Normal[1]*delta[1]);
+            //distanceE[0][j] = distance_from_center(Normal,delta,area[j]);
+            areaE[1][j] = area_left_line_origin_center(Normal, delta, d[j]);
+            areaE[1][j] = area_correction_at_get(delta , areaE[1][j]);
+         }
+         //==========================================================
+         ////horizontal-progressive finite difference 
+         ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, Normal, ht, hm, delta[0], delta[1], aux_mh);
+         normal_correction_at_get(Normal);
+         nx[2] = Normal[0]; ny[2] = Normal[1];
+         distanceE[2][4] = distance_from_center(Normal,delta,area[4]);
+         for (int j=0; j<9; j++) {
+            d[j]        = distanceE[2][4] - (sinalXl[j]*Normal[0]*delta[0] + sinalYl[j]*Normal[1]*delta[1]);
+            areaE[2][j] = area_left_line_origin_center(Normal, delta, d[j]);
+            areaE[2][j] = area_correction_at_get(delta , areaE[2][j]);
+         }
+         //==========================================================
+         ////vertical-progressive finite difference 
+         ELVIRA_calculate_normal_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, Normal, vr, vm, delta[0], delta[1], aux_mv);
+         normal_correction_at_get(Normal);
+         nx[3] = Normal[0]; ny[3] = Normal[1];
+         distanceE[3][4] = distance_from_center(Normal,delta,area[4]);
+         for (int j=0; j<9; j++) {
+            d[j]        = distanceE[3][4] - (sinalXl[j]*Normal[0]*delta[0] + sinalYl[j]*Normal[1]*delta[1]);
+            areaE[3][j] = area_left_line_origin_center(Normal, delta, d[j]);
+            areaE[3][j] = area_correction_at_get(delta , areaE[3][j]);
+         }
+         //==========================================================
+         //vertical-central finite difference 
+         ELVIRA_calculate_normal_cell_central_2nd_order_finite_difference_Vertical(ns, clid, Normal, vr, vl, delta[0], delta[1], aux_mv);
+         normal_correction_at_get(Normal);
+         nx[4] = Normal[0]; ny[4] = Normal[1];
+         distanceE[4][4] = distance_from_center(Normal,delta,area[4]);
+         for (int j=0; j<9; j++) {
+            d[j]        = distanceE[4][4] - (sinalXl[j]*Normal[0]*delta[0] + sinalYl[j]*Normal[1]*delta[1]);
+            areaE[4][j] = area_left_line_origin_center(Normal, delta, d[j]);
+            areaE[4][j] = area_correction_at_get(delta , areaE[4][j]);
+         }
+         //==========================================================
+         ////vertical-regressive finite difference 
+         ELVIRA_calculate_normal_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, Normal, vm, vl, delta[0], delta[1], aux_mv);
+         normal_correction_at_get(Normal);
+         nx[5] = Normal[0]; ny[5] = Normal[1];
+         distanceE[5][4] = distance_from_center(Normal,delta,area[4]);
+         for (int j=0; j<9; j++) {
+            d[j]        = distanceE[5][4] - (sinalXl[j]*Normal[0]*delta[0] + sinalYl[j]*Normal[1]*delta[1]);
+            areaE[5][j] = area_left_line_origin_center(Normal, delta, d[j]);
+            areaE[5][j] = area_correction_at_get(delta , areaE[5][j]);
+         }
+         //==========================================================
+         real err_min = 1.0e32;
+         real errors;
+         for (int s=0; s<6; s++){
+            errors = elvira_interface_error(area, areaE, s);
+            if (errors < err_min){
+               err_min = errors;
+               Normal[0] = nx[s];
+               Normal[1] = ny[s];
+            }
+         }
+         for (int i=0; i<DIM; i++){
+            dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
+         }
+      //}
+      // Destroy the iterator
+      //higcit_destroy(it);
+      // Sync the distributed pressure property
+      for (int i = 0; i < DIM; i++) {
+         dp_sync(ns->ed.mult.dpnormal[i]);
+      }
+}
 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL_adap(higflow_solver *ns) {
    real IF[DIM];

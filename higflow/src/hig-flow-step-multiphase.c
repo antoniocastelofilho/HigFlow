@@ -127,21 +127,20 @@ void arquivopress(char*nome,real press) {
 }
 
 void save_cell_values(higflow_solver *ns,int aux) {
-    if (ns->contr.flowtype == 2) {
-        //count=0;
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->psdp);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int i = 0; i < DIM; i++) {
-            sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
+    //count=0;
+    // Get the local sub-domain for the cells
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    // Get the local sub-domain for the facets
+    sim_facet_domain *sfdu[DIM];
+    for(int i = 0; i < DIM; i++) {
+        sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
         }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        //printf("*******saving cell properties at %s*************\n",nome_frac);
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+         // Get the map for the domain properties
+         mp_mapper *mp = sd_get_domain_mapper(sdp);
+         // Loop for each cell
+         higcit_celliterator *it;
+         //printf("*******saving cell properties at %s*************\n",nome_frac);
+         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
             // Get the cell
             hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
@@ -215,7 +214,6 @@ void save_cell_values(higflow_solver *ns,int aux) {
    // Sync the distributed pressure property
    //dp_sync(ns->ed.mult.dpfracvol);
    //dp_sync(ns->ed.mult.dpfracvolaux);
-    }
 }
 
 // *******************************************************************
@@ -225,7 +223,7 @@ void save_cell_values(higflow_solver *ns,int aux) {
 void higflow_compute_curvature_multiphase(higflow_solver *ns) {
     if (DIM == 2) {
         //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-        higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
+        higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
         //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL_adap(ns);
         higflow_compute_distance_multiphase_2D(ns);
     } else if (DIM == 3) {
@@ -261,7 +259,7 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns) {
             real visc0 = ns->ed.mult.get_viscosity0(ccenter, ns->par.t);
             real visc1 = ns->ed.mult.get_viscosity1(ccenter, ns->par.t);
             //real visc  = (1.0-fracvol) + fracvol*visc1;
-            real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
+            real visc  = (1.0 - fracvol)*visc0 + fracvol*visc1;
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.mult.dpvisc, clid, visc);
         }
@@ -303,9 +301,9 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
             real dens0 = ns->ed.mult.get_density0(ccenter, ns->par.t);
             real dens1 = ns->ed.mult.get_density1(ccenter, ns->par.t);
             //real dens  = (1.0-fracvol) + fracvol*dens1;
-            real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
+            real dens  = (1.0 - fracvol)*dens0 + fracvol*dens1;
             // Set the viscosity in the distributed viscosity property
-            dp_set_value(ns->ed.mult.dpdens, clid, dens);\
+            dp_set_value(ns->ed.mult.dpdens, clid, dens);
         }
         // Destroy the iterator
         higcit_destroy(it);
@@ -314,220 +312,119 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
     }
 }
 
-/*
-// Computing beta viscoelastic
-void higflow_compute_beta_visc_multiphase(higflow_solver *ns) {
-    if (ns->contr.flowtype == 2) {
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int dim = 0; dim < DIM; dim++) {
-            sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the delta of the cell
-            Point cdelta;
-            hig_get_delta(c, cdelta);
-            // Calculate the density
-            real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            // Calculate the density
-            real beta0 = 0.5;
-            real beta1 = 0.5;
-            real beta  = (1.0-fracvol)*beta0 + fracvol*beta1;
-            //real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
-            // Set the viscosity in the distributed viscosity property
-            
-            dp_set_value(ns->ed.mult.dpbeta, clid, beta);
-        }
-        // Destroy the iterator
-        higcit_destroy(it);
-        // Sync the distributed beta property
-        //dp_sync(ns->ed.mult.dpbeta);
-    }
-}
-*/
-/*
-// Computing S viscoelastic
-void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
-    if (ns->contr.flowtype == 2) {
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int dim = 0; dim < DIM; dim++) {
-            sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the delta of the cell
-            Point cdelta;
-            hig_get_delta(c, cdelta);
-            // Calculate the density
-            real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            // Calculate the density
-            
-            //real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
-            // Set the viscosity in the distributed viscosity property
-            
-            real S[DIM][DIM];
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    // Get Kernel
-                    S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                    //S[i][j]=(1.0 - fracvol)*S[i][j];
-                    //printf("S[%d][%d]=%lf   ",i,j,S[i][j]);
-                    dp_set_value(ns->ed.mult.dpS[i][j], clid, S[i][j]);
-                }
-                
-            }
-            //printf("\n");
-        }
-        //getchar();
-        // Destroy the iterator
-        higcit_destroy(it);
-        // Sync the distributed beta property
-        //dp_sync(ns->ed.mult.dpbeta);
-    }
-}
-*/
-
 // *******************************************************************
 // Volume Fraction Transport Step with PLIC fractional step
 // *******************************************************************
 void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
-   if (ns->contr.flowtype == 2) {
-      if (ns->par.step % 2) {
-         //printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
-         higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
-         higflow_plic_copy_fractionaux_to_fraction(ns);
-
-         //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-         higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
-         higflow_compute_distance_multiphase_2D(ns);
-
-         higflow_plic_advection_volume_fraction_y_direction(ns, 1);
-         higflow_plic_copy_fractionaux_to_fraction(ns);
-      } else {
-         //printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
-         higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
-         higflow_plic_copy_fractionaux_to_fraction(ns);
-
-         //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-         higflow_compute_curvature_interfacial_force_normal_multiphase_2D_EL(ns);
-         higflow_compute_distance_multiphase_2D(ns);
-
-         higflow_plic_advection_volume_fraction_x_direction(ns, 0);
-         higflow_plic_copy_fractionaux_to_fraction(ns);
-      }
-//      DEBUG_INSPECT(ns->par.step,%d);
-      // Sync the distributed pressure property
-      dp_sync(ns->ed.mult.dpfracvol);
+   if (ns->par.step % 2) {
+      //printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
+      higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
+      higflow_plic_copy_fractionaux_to_fraction(ns);
+      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+      higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+      higflow_compute_distance_multiphase_2D(ns);
+      higflow_plic_advection_volume_fraction_y_direction(ns, 1);
+      higflow_plic_copy_fractionaux_to_fraction(ns);
+   } else {
+      //printf("Step = %d result = %d\n", ns->par.step, ns->par.step % 2);
+      higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
+      higflow_plic_copy_fractionaux_to_fraction(ns);
+      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+      higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
+      higflow_compute_distance_multiphase_2D(ns);
+      higflow_plic_advection_volume_fraction_x_direction(ns, 0);
+      higflow_plic_copy_fractionaux_to_fraction(ns);
    }
+//   DEBUG_INSPECT(ns->par.step,%d);
+   // Sync the distributed pressure property
+   dp_sync(ns->ed.mult.dpfracvol);
 }
+
 void fraction_correction_at_set(real *fracvol){
-   if(fabs(*fracvol - 1.0)<1.0e-5){
+   real tolfracvol = 1.0e-12;
+   // Antes
+   //real tolfracvol = 1.0e-5
+   if(fabs(*fracvol - 1.0) < tolfracvol){
       *fracvol = 1.0;
-   }else if(fabs(*fracvol)<1.0e-5){
-      *fracvol=0.0;
+   }else if(fabs(*fracvol) < tolfracvol){
+      *fracvol = 0.0;
    }
    //return;
-   if(*fracvol>1.0){
-      *fracvol=1.0;
-   }else if(*fracvol<0.0){
-      *fracvol=0.0;
+   if(*fracvol > 1.0){
+      *fracvol = 1.0;
+   }else if(*fracvol < 0.0){
+      *fracvol = 0.0;
    }
 }
+
 // ***********************************************************************
 // Volume Fraction Transport Step with PLIC fractional step on direction x
 // ***********************************************************************
 void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int dim) {
-    if (ns->contr.flowtype == 2) {
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->psdp);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int i = 0; i < DIM; i++) {
-            sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
-        }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        real tol_u = 1.0e-8;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the delta of the cell
-            Point cdelta;
-            hig_get_delta(c, cdelta);
-            // Get the velocity at facet
-         int infacet;
-//         // Get the velocity in the left facet center
-         real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//         // Get the velocity in the right facet center
-         real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-         //real ul = 1.0;ul=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
-         //real ur = 1.0;ur=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
-         //real ul = -4.0*(ccenter[1] - 1.0)*ccenter[1];
-         //real ur = -4.0*(ccenter[1] - 1.0)*ccenter[1];
-         
-         //arquivoV(nome_vx,ccenter[0],ccenter[1],ul,ur);
-         
-         Point Normal, p, Delta_New;
-         real d, fracvol,fracr,fracl;
-         
-         p[0]=ccenter[0];p[1]=ccenter[1];
-         p[dim]=p[dim]+0.5*cdelta[dim];
-         fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-         
-         p[0]=ccenter[0];p[1]=ccenter[1];
-         p[dim]=p[dim]-0.5*cdelta[dim];
-         fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-         
-         
-         fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-         
-         fraction_correction_at_get(&fracr);
-         fraction_correction_at_get(&fracl);
-         fraction_correction_at_get(&fracvol);
-         
-         // Area
-         real Ar = 0.0;
-         real Al = 0.0;
-         fracr = 0.0;
-         fracl = 0.0;
-         //  Right Facet
-         if(fabs(ur)>tol_u){
-            if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
-               printf("Time step is large!!!\n");
-               exit(1);
+   // Get the local sub-domain for the cells
+   sim_domain *sdp = psd_get_local_domain(ns->psdp);
+   // Get the local sub-domain for the facets
+   sim_facet_domain *sfdu[DIM];
+   for(int i = 0; i < DIM; i++) {
+      sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
+   }
+   // Get the map for the domain properties
+   mp_mapper *mp = sd_get_domain_mapper(sdp);
+   // Loop for each cell
+   higcit_celliterator *it;
+   real tol_u = 1.0e-8;
+   for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+      // Get the cell
+      hig_cell *c = higcit_getcell(it);
+      // Get the cell identifier
+      int clid    = mp_lookup(mp, hig_get_cid(c));
+      // Get the center of the cell
+      Point ccenter;
+      hig_get_center(c, ccenter);
+      // Get the delta of the cell
+      Point cdelta;
+      hig_get_delta(c, cdelta);
+      // Get the velocity at facet
+      int infacet;
+//      // Get the velocity in the left facet center
+        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+//      // Get the velocity in the right facet center
+        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+        //real ul = 1.0;ul=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
+        //real ur = 1.0;ur=sin(3.1416*ns->par.t);ul=-4.0*(ccenter[1] - 1.0)*ccenter[1];
+        //real ul = -4.0*(ccenter[1] - 1.0)*ccenter[1];
+        //real ur = -4.0*(ccenter[1] - 1.0)*ccenter[1];
+      
+        //arquivoV(nome_vx,ccenter[0],ccenter[1],ul,ur);
+      
+        Point Normal, p, Delta_New;
+        real d, fracvol,fracr,fracl;
+        
+        p[0]=ccenter[0];p[1]=ccenter[1];
+        p[dim]=p[dim]+0.5*cdelta[dim];
+        fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        
+        p[0]=ccenter[0];p[1]=ccenter[1];
+        p[dim]=p[dim]-0.5*cdelta[dim];
+        fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        
+        
+        fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        
+        fraction_correction_at_get(&fracr);
+        fraction_correction_at_get(&fracl);
+        fraction_correction_at_get(&fracvol);
+        
+        // Area
+        real Ar = 0.0;
+        real Al = 0.0;
+        fracr = 0.0;
+        fracl = 0.0;
+        //  Right Facet
+        if(fabs(ur)>tol_u) {
+           if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
+              printf("Time step is large!!!\n");
+              exit(1);
             }
             if(ur>0.0){
                p[0] = ccenter[0];
@@ -674,7 +571,6 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
         higcit_destroy(it);
         // Sync the distributed vol frac aux property
         dp_sync(ns->ed.mult.dpfracvolaux);
-  }
 }
 
 // ***********************************************************************
@@ -1458,7 +1354,6 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
         dp_sync(ns->ed.mult.dpfracvol);
    // Print the volume
    printf("===> Volume = %16.10lf <====> Volume Error = %16.13lf <===\n",volume_new,volume_new-volume_old);
-
     }
 }
 
@@ -1879,7 +1774,7 @@ void higflow_explicit_euler_intermediate_velocity_multiphase(higflow_solver *ns,
             // Interfacial force contribution
             rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 0) rhs -= higflow_gravity_term(ns);
+            if (dim == 1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2058,9 +1953,9 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Interfacial tension contribution
-            rhs += higflow_interfacial_tension_term(ns);            
+            rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 0) rhs -= higflow_gravity_term(ns);
+            if (dim == 1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2122,7 +2017,6 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Get the solution of linear system
-
         // Gets the values of the solution
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
@@ -2140,7 +2034,6 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
         dp_sync(ns->dpustar[dim]);
     }
 }
-
 
 // *******************************************************************
 // Navier-Stokes Step for the Semi-Implicit Crank-Nicolson Method

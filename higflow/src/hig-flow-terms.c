@@ -1,7 +1,5 @@
 // *******************************************************************
-// *******************************************************************
-//  HiG-Flow Solver - version 10/11/2016
-// *******************************************************************
+//  HiG-Flow Solver - version 25/01/2022
 // *******************************************************************
 
 #include "hig-flow-terms.h"
@@ -35,11 +33,11 @@ real higflow_source_term(higflow_solver *ns) {
 
 // Cell term contribution for the interfacial tension
 real higflow_interfacial_tension_term(higflow_solver *ns) {
-    //real Bo = 0.18;
-    //real value = ns->cc.IF;
+    real Bo = 10.0;
+    real value = ns->cc.IF;
     //real value = 24.5*ns->cc.IF;
-    //value = value/(Bo*ns->cc.dens);
-    real value = 0.0;
+    value = value/(Bo*ns->cc.dens);
+    //real value = 0.0;
     return value;
 }
 
@@ -48,8 +46,8 @@ real higflow_gravity_term(higflow_solver *ns) {
     //real Fr = 1.0;
     // real value = ns->cc.curv;
     //real value = 1.0/pow(Fr,2.0);
-    //real value = 9.8;
-   real value = 0.0;
+    real value = 0.98;
+    //real value = 0.0;
     return value;
 }
 

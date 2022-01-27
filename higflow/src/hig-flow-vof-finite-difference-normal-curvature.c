@@ -208,7 +208,7 @@ void calculate_exact_normal_x_dominant_2D(higflow_solver *ns, int clid, Point p)
       real norm=norm_vec(Nt,2);
       Nt[0] = -Nt[0]/norm;
       Nt[1] = -Nt[1]/norm;
-   }   
+   }
 }
 
 void calculate_exact_normal_y_dominant_2D(higflow_solver *ns, int clid, Point p){
