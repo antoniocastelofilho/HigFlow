@@ -49,10 +49,10 @@ void higflow_compute_kernel_tensor(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
-                    //A[i][j]=0.0;
+                    A[i][j]=0.0;
                     //if (beta<=0.99){
-                  A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
-               //}
+                    A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+                    //}
                 }
                 A[i][i] += 1.0;
             }
@@ -235,7 +235,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                     D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
                     //A[i][j]=0.0;
                     //if(beta<0.99){
-                  A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+                    A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
                //}
                 }
                 A[i][i] += 1.0;

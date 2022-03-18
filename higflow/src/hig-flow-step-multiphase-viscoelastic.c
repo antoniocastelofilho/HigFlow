@@ -1,6 +1,7 @@
 // *******************************************************************
 //  HiG-Flow Solver Step Multiphase - version 20/01/2022
 // *******************************************************************
+
 #include "hig-flow-step-multiphase-viscoelastic.h"
 
 char nome_Frac_Visc[100];
@@ -128,10 +129,9 @@ void save_cell_values_visc(higflow_solver *ns,int aux) {
             arquivo_Frac_Ten(nome_Tyx1,ccenter[0],ccenter[1],S1[2][1]); 
             arquivo_Frac_Ten(nome_Tyy0,ccenter[0],ccenter[1],S0[2][2]); 
             arquivo_Frac_Ten(nome_Tyy1,ccenter[0],ccenter[1],S1[2][2]); 
-            
-            continue;
-            }
+            //continue;
         }
+    }
     higcit_destroy(it);
 }
 
@@ -167,7 +167,7 @@ void higflow_compute_S_multiphase_viscoelastic(higflow_solver *ns) {
                 // Get Kernel
                 S0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS0[i][j], ns->ed.stn);
                 S1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpS1[i][j], ns->ed.stn);
-                S[i][j]  = (1.0 - fracvol)*S0[i][j] + fracvol*S1[i][j];
+                S[i][j]  = (1.0 - fracvol) * S0[i][j] + fracvol * S1[i][j];
                 // Set tensor
                 dp_set_value(ns->ed.mult.dpS[i][j], clid, S[i][j]);
             }
@@ -1901,10 +1901,68 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
     }
 }
 
+
+// Set velocity for the test: Zalesak and single vortex
+void higflow_set_velocity_multiphase(higflow_solver *ns) {
+    // Get the local sub-domain
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    sim_facet_domain *sfdu[DIM];
+    // Loop for each dimension
+    higfit_facetiterator *fit;
+    //real absvelmin =  1.0e16;
+    for (int dim = 0; dim < DIM; dim++) {
+        // Get the local partitioned domain for facets
+        sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+        // Get the map of the distributed properties in the facets
+        mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
+        // Loop for each facet
+        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+            // Get the facet
+            hig_facet *f = higfit_getfacet(fit);
+            int flid = mp_lookup(mu, hig_get_fid(f));
+            // Get the center of the facet
+            Point fcenter;
+            hig_get_facet_center(f, fcenter);
+            // Get the delta of the facet
+            Point fdelta;
+            hig_get_facet_delta(f, fdelta);
+            // Get the velocity
+            real uset, pii;
+            pii = 3.14159265359;
+            if (dim == 0) {
+               // Zalesak
+               uset = 0.5 - fcenter[1];
+               // Single vortex
+               /*if (ns->par.t < 1.0) {
+                  uset = -2.0*pow(sin(pii*fcenter[0]),2)*sin(pii*fcenter[1])*cos(pii*fcenter[1]);
+               } else {
+                  uset = 2.0*pow(sin(pii*fcenter[0]),2)*sin(pii*fcenter[1])*cos(pii*fcenter[1]);
+               }*/
+            } else if (dim == 1) {
+               // Zalesak
+               uset =  fcenter[0] - 0.5;
+               // Single vortex
+               /*if (ns->par.t < 1.0) {
+                  uset = 2.0*pow(sin(pii*fcenter[1]),2)*sin(pii*fcenter[0])*cos(pii*fcenter[0]);
+               } else {
+                  uset = -2.0*pow(sin(pii*fcenter[1]),2)*sin(pii*fcenter[0])*cos(pii*fcenter[0]);
+               }*/           
+            }
+            // Set the final velocity in the distributed velocity property
+            dp_set_value(ns->dpu[dim], flid, uset);
+        }
+        // Destroy the iterator
+        higfit_destroy(fit);
+        // Sync the ditributed velocity property
+        dp_sync(ns->dpu[dim]);
+    }
+}
+
+
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns) {
     // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
+    /*higflow_boundary_condition_for_velocity(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
@@ -1916,10 +1974,10 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns) {
     // Calculate the viscosity
     higflow_compute_viscosity_multiphase(ns);
     // Calculate the viscosity
-    higflow_compute_density_multiphase(ns);
+    higflow_compute_density_multiphase(ns);*/
     // Calculate the curvature
     higflow_compute_curvature_multiphase(ns);
-    // Calculate the intermediated velocity
+    /*// Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
         case 0:
            // Explicit Euler method
@@ -1952,17 +2010,18 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns) {
     higflow_pressure_multiphase(ns);
     // Calculate the final velocity
     higflow_final_velocity_multiphase(ns);
+    higflow_set_velocity_multiphase(ns);
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
-    higflow_final_pressure(ns);
-    if (ns->par.stepaux%80==0) {
+    //higflow_final_pressure(ns);*/
+    if (ns->par.stepaux%10000==0) {
         printf("creating archives at step: %d\n",ns->par.stepaux);
         arquivoTempo_visc(ns->par.stepaux);
         save_cell_values_visc(ns,1);
     }
     // Calculate the velocity derivative tensor
-    higflow_compute_velocity_derivative_tensor(ns);
+    /*higflow_compute_velocity_derivative_tensor(ns);
     // Computing the Kernel Tensor
     higflow_compute_kernel_tensor_multiphase_viscoelastic(ns);
     // Constitutive Equation Step for the Explicit Euler Method
@@ -1977,7 +2036,7 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns) {
            break;
     }
     // Computing the Polymeric Tensor
-    higflow_compute_polymeric_tensor_multiphase_viscoelastic(ns); 
+    higflow_compute_polymeric_tensor_multiphase_viscoelastic(ns);*/
     // Calculate the volume fraction
     higflow_plic_advection_volume_fraction(ns);
     //higflow_explicit_euler_volume_fraction(ns);

@@ -11,33 +11,34 @@
 // *******************************************************************
 
 real interpolate_from_stencil(distributed_property *dp, sim_stencil *stn) {
-    /* Computing property at a point using the Moving Least Square method */
-    /* Evaluating the property at the point using the stencil using the center of the cells */
-    real res = 0.0;
-    /* Geting value from boundary (Diriclet boundary condition) */
-    res += -stn_get_rhs(stn);
-    DEBUG_INSPECT(-stn_get_rhs(stn),%10.7f); 
-    
-    /* Getting the number of elements of internal centers cells */
-    int numelems = stn_get_numelems(stn);
-    DEBUG_INSPECT(stn_get_numelems(stn),%d);
-    
-    /* Getting the center and weights (MLS calculation) from neighborhood */
-    for (int i = 0; i < numelems; i++) {
-        /* Getting the identifier */
-        int id = stn_get_id(stn, i);
-        DEBUG_INSPECT(stn_get_id(stn,i),%d);
-        /* Getting the weight value */
-        real w = stn_get_val(stn, i);
-        DEBUG_INSPECT(stn_get_val(stn,i),%10.7f);
-        
-        /* Getting the property value at the point with identifier id */
-        real value = dp_get_value(dp, id);
-        DEBUG_INSPECT(dp_get_value(dp,id),%10.7f);
-        /* Computing the value at the given point */
-        res += value * w;
-    }
-    return res;
+   /* Computing property at a point using the Moving Least Square method */
+   /* Evaluating the property at the point using the stencil using the center of the cells */
+   real res = 0.0;
+   /* Geting value from boundary (Diriclet boundary condition) */
+   res += -stn_get_rhs(stn);
+   DEBUG_INSPECT(-stn_get_rhs(stn),%10.7f); 
+
+   /* Getting the number of elements of internal centers cells */
+   int numelems = stn_get_numelems(stn);
+   DEBUG_INSPECT(stn_get_numelems(stn),%d);
+
+   /* Getting the center and weights (MLS calculation) from neighborhood */
+   for (int i = 0; i < numelems; i++) {
+      /* Getting the identifier */
+      int id = stn_get_id(stn, i);
+      DEBUG_INSPECT(stn_get_id(stn,i),%d);
+
+      /* Getting the weight value */
+      real w = stn_get_val(stn, i);
+      DEBUG_INSPECT(stn_get_val(stn,i),%10.7f);
+
+      /* Getting the property value at the point with identifier id */
+      real value = dp_get_value(dp, id);
+      DEBUG_INSPECT(dp_get_value(dp,id),%10.7f);
+      /* Computing the value at the given point */
+      res += value * w;
+   }
+   return res;
 }
 // Get the value of a facet property
 real compute_facet_value_at_point(sim_facet_domain *sfdu, Point center, Point p, real weight, distributed_property *dpu, sim_stencil *stn) {

@@ -1,13 +1,10 @@
 // *******************************************************************
 //  HiG-Flow Solver - version 25/01/2022
 // *******************************************************************
-
 #include "hig-flow-terms.h"
-
 // *******************************************************************
 // Navier-Stokes Equation Components
 // *******************************************************************
-
 // Pressure term contribution for the Navier-Stokes equation
 real higflow_pressure_term(higflow_solver *ns) {
     // Set the pressure term
@@ -33,11 +30,11 @@ real higflow_source_term(higflow_solver *ns) {
 
 // Cell term contribution for the interfacial tension
 real higflow_interfacial_tension_term(higflow_solver *ns) {
-    real Bo = 10.0;
-    real value = ns->cc.IF;
-    //real value = 24.5*ns->cc.IF;
-    value = value/(Bo*ns->cc.dens);
-    //real value = 0.0;
+    real Bo, value;
+    /*Bo = 10.0;
+    value = ns->cc.IF;
+    value = value/(Bo*ns->cc.dens);*/
+    value = 0.0;
     return value;
 }
 
@@ -46,8 +43,8 @@ real higflow_gravity_term(higflow_solver *ns) {
     //real Fr = 1.0;
     // real value = ns->cc.curv;
     //real value = 1.0/pow(Fr,2.0);
-    real value = 0.98;
-    //real value = 0.0;
+    //real value = 0.98;
+    real value = 0.0;
     return value;
 }
 
@@ -55,21 +52,6 @@ real higflow_gravity_term(higflow_solver *ns) {
 real higflow_tensor_term(higflow_solver *ns) {
     // Set the tensor term
     real value = 0.0;
-    
-    // Non Newtonian contribution
-    if (ns->contr.flowtype == 3) {
-        for (int dim2 = 0; dim2 < DIM; dim2++) {
-            value += ns->cc.dSdx[dim2];
-        }
-    }
-    
-    // Non Newtonian contribution
-    if (ns->contr.flowtype == 4) {
-        for (int dim2 = 0; dim2 < DIM; dim2++) {
-            value += ns->cc.dSdx[dim2];
-        }
-    }
-    
     // Two-phase contribution
     if (ns->contr.flowtype == 2) {
         for (int dim2 = 0; dim2 < DIM; dim2++) {
@@ -77,7 +59,18 @@ real higflow_tensor_term(higflow_solver *ns) {
         }
         value /= ns->cc.dens;
     }
-    
+    // Non Newtonian contribution
+    if (ns->contr.flowtype == 3) {
+        for (int dim2 = 0; dim2 < DIM; dim2++) {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
+    // Non Newtonian contribution
+    if (ns->contr.flowtype == 4) {
+        for (int dim2 = 0; dim2 < DIM; dim2++) {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
     return value;
 }
 

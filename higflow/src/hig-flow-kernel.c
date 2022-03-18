@@ -375,7 +375,6 @@ void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM],
     }
 }
 
-
 // Create the simulation domain for viscoelastic flow integral model
 void higflow_create_domain_viscoelastic_integral(higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t)) {
@@ -608,25 +607,25 @@ void higflow_create_ditributed_properties_generalized_newtonian(higflow_solver *
 
 // Create the distributed properties for multiphase simulation
 void higflow_create_ditributed_properties_multiphase(higflow_solver *ns) {
-    // Non Newtonian tensor
-    if (ns->contr.flowtype == 2) {
-        // Distributed property for viscosity
-        ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
-        // Distributed property for density
-        ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
-        // Distributed property for volume fraction
-        ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
-        // Distributed property for auxiliary volume fraction
-        ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
-        // Distributed property for curvature
-        ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
-        // Distributed property for curvature
-        ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
-        // Distributed property for beta
-        ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
-        // Distributed property for interfacial force and Normal
-        for (int i = 0; i < DIM; i++) {
-            ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
+   // Non Newtonian tensor
+   if (ns->contr.flowtype == 2) {
+      // Distributed property for viscosity
+      ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
+      // Distributed property for density
+      ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
+      // Distributed property for volume fraction
+      ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
+      // Distributed property for auxiliary volume fraction
+      ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
+      // Distributed property for curvature
+      ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
+      // Distributed property for curvature
+      ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
+      // Distributed property for beta
+      ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
+      // Distributed property for interfacial force and Normal
+      for (int i = 0; i < DIM; i++) {
+         ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
             ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
         }
         for (int i = 0; i < DIM; i++) {
@@ -757,13 +756,13 @@ real (*get_boundary_facet_source_term)(int id, Point center, int dim, real t)) {
 void __higflow_readstring(char s[], int max, FILE *file) {
     int  i;
     for (i = 0; i < (max - 1); i++) {
-       char letra = fgetc(file);
-       if ((letra == '\n') && (i == 0)) {
-          printf("=+=+=+ Erro na leitura do string =+=+=+\n");
-          exit(1);
-       }
-       if (letra == '\n') break;
-       s[i] = letra;
+   char letra = fgetc(file);
+   if ((letra == '\n') && (i == 0)) {
+            printf("=+=+=+ Erro na leitura do string =+=+=+\n");
+            exit(1);
+   }
+   if (letra == '\n') break;
+   s[i] = letra;
     }
     s[i] = 0;
     return;

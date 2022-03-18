@@ -3,8 +3,10 @@ function[]=draw()
 	global nx ny XXh YYh hplot
 	disp('Plot interface');
 	
-	xf=1.0;          yf = 1.0;
-	nx=61;         ny = 61;
+	xf  = 1.0;
+	yf  = 1.0;
+	nx = 16;
+	ny = 16;
 	dx=xf/nx;	   dy = yf/ny;
 	x = 0:dx:xf;  y = 0:dy:yf;
 	

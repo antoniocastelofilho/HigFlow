@@ -54,8 +54,8 @@ MODULES = \
 	step-multiphase-viscoelastic \
 	vof-plic \
 	vof-adap-hf \
-	vof-elvira \
 	vof-9-cells \
+	vof-elvira \
 	vof-finite-difference-normal-curvature \
 	step-viscoelastic \
 	step-viscoelastic-integral \

@@ -156,7 +156,6 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
             //DEBUG_INSPECT(fcenter[1],%lf);
             //DEBUG_INSPECT(dim,%d);
             //DEBUG_INSPECT(dim2,%d);
-            //printf("\n\n");
             //ns->cc.convec_type = 1;
          }
          // Get the velocity in the right facet center
@@ -951,8 +950,6 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
             real v3_=compute_value_at_point(ns->ed.sdED,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
             real v4_=compute_value_at_point(ns->ed.sdED,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
             
-            //ns->cc.viscl=4*v1*v2*v3_*v4_/(v1+v2+v3_+v4_);
-            //ns->cc.viscr=4*v1*v2*v3*v4/(v1+v2+v3+v4);
             ns->cc.viscl=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3_ + 1.0/v4_);
             ns->cc.viscr=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3  + 1.0/v4);
          }
@@ -1218,7 +1215,6 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
                ns->cc.vc[dim2] = ((conv1-conv2)/fdelta[dim]);
             }
          }
-         
          if(dim2==dim){
             // Get the cell viscosity in the left cell
             ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
@@ -1246,12 +1242,9 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
             real v3_=compute_value_at_point(ns->ed.sdED,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
             real v4_=compute_value_at_point(ns->ed.sdED,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
             
-            //ns->cc.viscl=4*v1*v2*v3_*v4_/(v1+v2+v3_+v4_);
-            //ns->cc.viscr=4*v1*v2*v3*v4/(v1+v2+v3+v4);
-            ns->cc.viscl=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3_ + 1.0/v4_);
-            ns->cc.viscr=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3  + 1.0/v4);
+            ns->cc.viscl=4.0 / (1.0/v1 + 1.0/v2 +1.0/v3_ + 1.0/v4_);
+            ns->cc.viscr=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3 + 1.0/v4);
          }
-         
          // Compute multiphase viscous term
          ns->cc.du2dx2[dim2] = 0.0;
          Point p;

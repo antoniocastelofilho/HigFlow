@@ -1,8 +1,6 @@
 #ifndef HIG_FLOW_VOF_ADAP_HF
 #define HIG_FLOW_VOF_ADAP_HF
 
-#include "hig-flow-discret.h"
-
 void fraction_correction_at_get(real *fracvol);
 
 int get_frac_vol(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Point P,Point Delta,real *fracvol);
@@ -35,6 +33,6 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_adap(higflow_solver *ns);
 
-void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_shirani(higflow_solver *ns);
+void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(higflow_solver *ns);
 
 #endif

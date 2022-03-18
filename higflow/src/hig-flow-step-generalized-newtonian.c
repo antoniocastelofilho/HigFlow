@@ -12,8 +12,7 @@
 
 // Computing the velocity derivative Tensor
 void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
-    if ((ns->contr.flowtype == 1) || (ns->contr.flowtype == 2) ||
-        (ns->contr.flowtype == 3) || (ns->contr.flowtype == 4)) {
+    if ((ns->contr.flowtype == 1) || (ns->contr.flowtype == 2) || (ns->contr.flowtype == 3) || (ns->contr.flowtype == 4)) {
         int infacet, infacetl, infacetr, auxl, auxr;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);

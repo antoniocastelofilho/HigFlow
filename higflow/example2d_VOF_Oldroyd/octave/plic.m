@@ -48,15 +48,13 @@ end
 
 function[d]=distance_from_center(nx,ny,dx,dy,AREA)
 	
-	tol_area=1e-8;
-	tol_n=1e-8;
+	tol_area=1e-14;
+	tol_n=1e-14;
 	
 	if(abs(nx)<tol_n||abs(ny)<tol_n)
 		
-		d=parallel_left_line_origin_center_DISTANCE...
-		(nx,ny,dx,dy,AREA,tol_n);
-		d=trans_bl_2_center(dx,...
-		dy,nx,ny,d);
+		d=parallel_left_line_origin_center_DISTANCE(nx,ny,dx,dy,AREA,tol_n);
+		d=trans_bl_2_center(dx,dy,nx,ny,d);
 		
 	elseif(nx*ny>0)
 		
@@ -212,7 +210,7 @@ function [area] = area_left_line_origin_center(nx,ny,dx,dy,d_from_center)
 	n_x   = abs(nx);
 	n_y   = abs(ny);
 	
-	tol_n = 1e-8;
+	tol_n = 1e-14;
 	
 	srt = left_right([0.5*dx 0.5*dy],nx,ny,d_from_center);
 	srb = left_right([0.5*dx -0.5*dy],nx,ny,d_from_center);

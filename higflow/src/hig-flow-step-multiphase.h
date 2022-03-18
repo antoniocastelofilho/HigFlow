@@ -7,6 +7,7 @@
 
 #include "hig-flow-step.h"
 #include "hig-flow-vof-plic.h"
+#include "hig-flow-vof-9-cells.h"
 #include "hig-flow-vof-elvira.h"
 #include "hig-flow-vof-adap-hf.h"
 

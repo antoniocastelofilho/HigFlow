@@ -1,12 +1,9 @@
 // *******************************************************************
-// *******************************************************************
 //  HiG-Flow Solver Step multiphase - version 10/11/2016
-// *******************************************************************
 // *******************************************************************
 
 #ifndef HIG_FLOW_STEP_MULTIPHASE_VISC
 #define HIG_FLOW_STEP_MULTIPHASE_VISC
-
 #include "hig-flow-step.h"
 #include "hig-flow-vof-plic.h"
 #include "hig-flow-vof-elvira.h"
@@ -44,9 +41,6 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
 
 // Calculate RHS = OK - KO + 2B * M/De
 void hig_flow_kernel_rhs_multiphase_viscoelastic(real De, real K[DIM][DIM], real O[DIM][DIM], real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]) ;
-
-// One step of the Navier-Stokes the projection method
-void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns); 
 
 // Calculate RHS = OK - KO + 2B * M/De
 void hig_flow_kernel_rhs_multiphase_viscoelastic(real De, real K[DIM][DIM], real O[DIM][DIM], real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]) ;
@@ -113,5 +107,11 @@ void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], 
 
 // Calculate the matrix product
 void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt) ;
+
+// Set velocity for the test: Zalesak and single vortex
+void higflow_set_velocity_multiphase(higflow_solver *ns) ;
+
+// One step of the Navier-Stokes the projection method
+void higflow_solver_step_multiphase_viscoelastic(higflow_solver *ns); 
 
 #endif

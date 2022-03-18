@@ -12,21 +12,19 @@ void arquivoFracAux(char*nome_dist,real x,real y,real frac){
    fclose(fp);
 }
 
-void solve_equation(int Rx, int Ry, Point Normal, Point Delta, real area, Point Value){
-   real A, B, C;
+void solve_equation(int Rx, int Ry, Point Normal, Point Delta, real area, Point Value){real A, B, C;
   
   A = (1.0-Rx-Ry)/fabs(Normal[0]*Normal[1]);
   B = 2.0*(Rx*Delta[0]/fabs(Normal[1])+Ry*Delta[1]/fabs(Normal[0]));
-  C = -2.0*area-Rx*Delta[0]*Delta[0]*fabs(Normal[0]/Normal[1])-
-  Ry*Delta[1]*Delta[1]*fabs(Normal[1]/Normal[0]);
+  C = -2.0*area-Rx*Delta[0]*Delta[0]*fabs(Normal[0]/Normal[1])-Ry*Delta[1]*Delta[1]*fabs(Normal[1]/Normal[0]);
   
   if(A==0){
-     Value[0]=-C/B;
-     Value[1]=-C/B;
+     Value[0] = -C/B;
+     Value[1] = -C/B;
      return;
   }
-  Value[0]=(-B+sqrt(B*B-4.0*A*C))/(2.0*A);
-  Value[1]=(-B-sqrt(B*B-4.0*A*C))/(2.0*A);
+  Value[0] = (-B+sqrt(B*B-4.0*A*C))/(2.0*A);
+  Value[1] = (-B-sqrt(B*B-4.0*A*C))/(2.0*A);
   return;
 }
 
@@ -39,14 +37,14 @@ real parallel_left_line_origin_center_distance(Point Normal,Point Delta,real are
    real dy = Delta[1];
    real d;
    
-   if(n_x < tol_n){
+   if (n_x < tol_n) {
       n_x = 0;
       if(ny > 0){
          n_y = 1;
       } else {
          n_y = -1;
       }
-   } else {
+   } else if (n_y < tol_n) {
       n_y = 0;
       if(nx > 0){
          n_x = 1;
@@ -55,21 +53,21 @@ real parallel_left_line_origin_center_distance(Point Normal,Point Delta,real are
       }
    }
    
-   if(n_x == -1){
+   if (n_x == -1) {
       d = -area/dy;
-   } else if(n_x == 1) {
+   } else if (n_x == 1) {
       d = -(area/dy - dx);
-   } else if(n_y == -1) {
+   } else if (n_y == -1) {
       d = -area/dx;
-   } else if(n_y == 1) {
+   } else if (n_y == 1) {
       d = -(area/dx - dy);
    }
    return d;
 }
 
 real distance_from_center(Point Normal,Point Delta,real AREA){
-   real tol_area = 1e-8;
-   real tol_n    = 1e-8;
+   real tol_area = 1e-14;
+   real tol_n    = 1e-14;
    real nx       = Normal[0];
    real ny       = Normal[1];
    real dx       = Delta[0];
@@ -78,11 +76,11 @@ real distance_from_center(Point Normal,Point Delta,real AREA){
    real area;
    real d;
 
-   if (fabs(nx) < tol_n || fabs(ny) < tol_n){
+   if (fabs(nx) < tol_n || fabs(ny) < tol_n) {
       d = parallel_left_line_origin_center_distance(Normal, Delta, AREA,tol_n);
       d = trans_bl_2_center(Delta, Normal, d);
       return d;
-   } else if (nx * ny > 0.0){
+   } else if (nx * ny > 0) {
       real dLT = nx * (-0.5 * dx) + ny * (0.5 * dy);
       real aLT = area_left_line_origin_center(Normal, Delta, dLT);
 
@@ -100,13 +98,12 @@ real distance_from_center(Point Normal,Point Delta,real AREA){
 
       if (nx > 0) {
          area = dx * dy - AREA;
-         aLT  = dx * dy - aLT;
-         aRB  = dx * dy - aRB;
+         aLT = dx * dy - aLT;
+         aRB = dx * dy - aRB;
       }
 
       real amax = fmax(aLT, aRB);
       real amin = fmin(aLT, aRB);
-      
       Point d_vec;
       int Rx, Ry;
       if (area > amax) {
@@ -194,16 +191,16 @@ real parallel_left_line_origin_center_area(Point Normal,Point Delta,real d_from_
    int n_x, n_y;
    real area, d;
    
-   if(abs(nx) < tol_n) {
+   if (fabs(nx) < tol_n) {
       n_x = 0;
       if(ny > 0) {
          n_y = 1;
       } else {
          n_y = -1;
       }
-   } else {
+   } else if (fabs(ny) < tol_n) {
       n_y = 0;
-      if(nx > 0) {
+      if (nx > 0) {
          n_x = 1;
       } else {
          n_x = -1;
@@ -212,13 +209,13 @@ real parallel_left_line_origin_center_area(Point Normal,Point Delta,real d_from_
    
    d = trans_center_2_bl(Delta,Normal,d_from_center);
    
-   if(n_x==-1) {
+   if (n_x==-1) {
       area=-d*dy;
-   } else if(n_x==1) {
+   } else if (n_x==1) {
       area=dy*(dx-d);
-   } else if(n_y==-1) {
+   } else if (n_y==-1) {
       area=-d*dx;
-   } else if(n_y==1) {
+   } else if (n_y==1) {
       area=dx*(dy-d);
    }
    return area;
@@ -234,7 +231,7 @@ real area_left_line_origin_center(Point Normal,Point Delta,real d_from_center){
 
    real n_x   = fabs(Normal[0]);
    real n_y   = fabs(Normal[1]);
-   real tol_n = 1e-8;
+   real tol_n = 1e-14;
    
    Point Prt, Prb, Plt, Plb;
    Prt[0] = 0.5*dx;Prt[1]  = 0.5*dy;
@@ -247,9 +244,9 @@ real area_left_line_origin_center(Point Normal,Point Delta,real d_from_center){
    int slt = left_right(Plt,Normal,d_from_center);
    int slb = left_right(Plb,Normal,d_from_center);
 
-   if(srt <= 0 && srb <= 0 && slt <= 0 && slb <= 0) {
+   if (srt <= 0 && srb <= 0 && slt <= 0 && slb <= 0) {
       return area = dx*dy;
-   } else if(srt >= 0 && srb >= 0 && slt >= 0 && slb >= 0) {
+   } else if (srt >= 0 && srb >= 0 && slt >= 0 && slb >= 0) {
       return area = 0.0;
    }
    
@@ -265,16 +262,16 @@ real area_left_line_origin_center(Point Normal,Point Delta,real d_from_center){
    
    d = fabs(d);
    
-   real aux1   = 1.0/(2.0*n_x*n_y);
+   real aux1   = 1/(2.0*n_x*n_y);
    real auxx   = d - n_x*dx;
-   real auxx_1 = auxx * auxx;
+   real auxx_1 = auxx*auxx;
    real auxy   = d - n_y*dy;
    real auxy_1 = auxy*auxy;
    
    area   = aux1*(d*d - R(auxx)*auxx_1 - R(auxy)*auxy_1);
    
-   if(ny>0){
-      area = dx*dy - area;
+   if (ny>0) {
+      area=dx*dy-area;
    }
    return area;
 }
@@ -325,55 +322,43 @@ int sign(real value) {
 }
 
 void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
-      real IF[DIM];
-      // Get the local sub-domain for the cells
-      sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-      
-      // Get the map for the domain properties
-      mp_mapper *mp = sd_get_domain_mapper(sdp);
-      
-      // Loop for each cell
-      higcit_celliterator *it;
-      
-      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-         // Get the cell
-         hig_cell *c = higcit_getcell(it);
-         
-         // Get the cell identifier
-         int clid = mp_lookup(mp, hig_get_cid(c));
-         
-         // Get the center of the cell
-         Point center;
-         hig_get_center(c, center);
-         
-         // Get the delta of the cell
-         Point delta;
-         hig_get_delta(c, delta);
-         
-         // Case bi-dimensional
-         Point Normal;
-         Normal[0] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-         Normal[1] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
-         
-         if (fabs(Normal[0]) < 1.0e-12 && fabs(Normal[1]) < 1.0e-12){
-            continue;
-         }
-         
-         real frac = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-         real area = frac*delta[0]*delta[1];
-         if (Normal[0]*Normal[1] < 0.0){
-            //printf("x=%lf y=%lf\n",center[0],center[1]);
-         }
-         real distance = distance_from_center(Normal,delta,area);
-         
-         dp_set_value(ns->ed.mult.dpdistance, clid, distance);
-         
-         //arquivoDist(NULL,center[0],center[1],distance);
-      }
-      // Destroy the iterator
-      higcit_destroy(it);
-      // Sync the distributed pressure property
-      dp_sync(ns->ed.mult.dpdistance);
+    real IF[DIM];
+    // Get the local sub-domain for the cells
+    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+    // Get the map for the domain properties
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    // Loop for each cell
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+       // Get the cell
+       hig_cell *c = higcit_getcell(it);
+       // Get the cell identifier
+       int clid = mp_lookup(mp, hig_get_cid(c));
+       // Get the center of the cell
+       Point center;
+       hig_get_center(c, center);
+       // Get the delta of the cell
+       Point delta;
+       hig_get_delta(c, delta);
+       // Case bi-dimensional
+       Point Normal;
+       Normal[0] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+       Normal[1] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+       // If the cell is not interfacial, the distance is not calculated 
+       if (fabs(Normal[0]) < 1.0e-14 && fabs(Normal[1]) < 1.0e-14) {
+          continue;
+       }
+       real fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+       real area = fracvol*delta[0]*delta[1];
+       // Calculate distance from center
+       real distance = distance_from_center(Normal,delta,area);
+       // Set value distance
+       dp_set_value(ns->ed.mult.dpdistance, clid, distance);
+    }
+    // Destroy the iterator
+    higcit_destroy(it);
+    // Sync the distributed pressure property
+    dp_sync(ns->ed.mult.dpdistance);
 }
 
 void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
@@ -407,7 +392,7 @@ void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
          Normal[0] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
          Normal[1] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
 
-         if (fabs(Normal[0]) < 1.0e-8 && fabs(Normal[1]) < 1.0e-8){
+         if (fabs(Normal[0]) < 1.0e-14 && fabs(Normal[1]) < 1.0e-14){
             continue;
          }
 
