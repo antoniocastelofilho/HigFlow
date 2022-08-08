@@ -1,7 +1,6 @@
-export PETSC_DIR=/usr/lib/petscdir/3.7.7/x86_64-linux-gnu-real
 export HIGTREE_DIR=$(pwd)/higtree
 export HIGFLOW_DIR=$(pwd)/higflow
 export PETSC_EXTRA_LIB="-lmpi"
 
-
-
+export PETSC_DIR=$(pwd)/bibliotecas/petsc-3.14.0/x86_64
+export PETSC_ARCH=arch-linux-c-debug
