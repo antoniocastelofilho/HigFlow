@@ -24,7 +24,47 @@
 \date{\today}
 \maketitle
 
+\section{Configurações iniciais}\label{sec:configuracoes}
+As primeiras/recomendadas configurações para uso do \textit{Github}, deve-se (após instalado o \textit{git}) abrir um terminal e digitar \cite{site1}:
+\begin{itemize}
+	\item \textbf{git config  -\hspace{0.5mm}-lobal user.name ``\textcolor{blue}{Your Name}"}
+	\item \textbf{git config -\hspace{0.5mm}-global user.email \textcolor{blue}{your\_email\_github@example.com}}
+\end{itemize}
+
+Para conseguir fazer alterações no GitHub do grupo deve-se registrar uma chave \textit{ssh} da máquina que você usa. Para criar uma nova chave \textit{ssh} da sua máquina, digite no terminal \cite{site2}:
+\begin{itemize}
+	\item \textbf{ssh-keygen -t ed25519 -C ``\textcolor{blue}{your\_email\_github@example.com}"}
+\end{itemize}
+Ainda no terminal, para visualizar a chave pública recém criada, digite:
+\begin{itemize}
+	\item \textbf{cat $\sim$/.ssh/id\_ed25519.pub}
+\end{itemize}
+Este comando deve imprimir em tela algo parecido com:
+\begin{itemize}
+	\item[] ssh-ed25519 LetrasAleat0riasENumer0s7amb3m your\_email\_github@example.com
+\end{itemize}
+Copiei esta mensagem do seu terminal (essa é a parte publica da chave criada)! Posteriormente entre no seu GitHub no site e siga as seguintes instruções:
+
+\begin{itemize}
+	\item \textbf{Acesse: Settings \textrightarrow\quad SSH and GPG keys \textrightarrow\quad New SSH key }
+	\item No campo \textbf{Title}, utilize um nome para identificar a máquina que está utilizando e no campo \textbf{Key} cole a mensagem gerada no terminal ao digitar o comando \textbf{cat $\sim$/.ssh/id\_ed25519.pub}. Abaixo seguem algumas imagens dos passos acima:
+\end{itemize}
+\newpage
+\begin{figure}[htb]
+	\centering
+	\includegraphics[width=0.4\linewidth]{figures/ssh_1}
+	\includegraphics[width=0.4\linewidth]{figures/ssh_2}
+\end{figure}
+
+\begin{figure}[htb]
+	\centering
+	\includegraphics[width=0.4\linewidth]{figures/ssh_3}
+	\includegraphics[width=0.4\linewidth]{figures/ssh_4}
+\end{figure}
+
 \section{Comandos básicos do Git}\label{sec:comandos_pc}
+
+Alguns comandos de uso cotidiano:
 
 \begin{itemize}
 	\item \textbf{git init} $:=$ Cria o controle de versões git na pasta.
@@ -37,31 +77,31 @@
 	
 	\item \textbf{git add -u} $:=$ Adiciona somente os arquivos já adicionados e que foram modificados.
 	
-	\item \textbf{git commit -m ``Comentario da versao"} $:=$ Faz os arquivos adicionados serem controlados pelo git e adiciona o comentário 'Comentario da versao'.
+	\item \textbf{git commit -m ``\textcolor{blue}{Comentario da versao}"} $:=$ Faz os arquivos adicionados serem controlados pelo git e adiciona o comentário 'Comentario da versao'.
 	
-	\item \textbf{git checkout -b add-var-in-main} $:=$ Cria um Branch (=ramo) com o nome 'add-var-in-main', que na pratica pode ser usado para voltar um determinado arquivo antes de algumas alterações. 
+	\item \textbf{git checkout -b \textcolor{blue}{add-var-in-main}} $:=$ Cria um Branch (=ramo) com o nome 'add-var-in-main', que na pratica pode ser usado para voltar um determinado arquivo antes de algumas alterações. 
 	
 	\item \textbf{git checkout master} $:=$ Muda para o Branch denominado 'master'.
 	
-	\item \textbf{git merge teste\_merge -m ``teste de domingo"} $:=$ Quando no Branch 'master' este comando unifica a versão contida no branch 'teste\_merge' ao 'master' com o comentário `teste de domingo'.
+	\item \textbf{git merge teste\_merge -m ``\textcolor{blue}{teste de domingo}"} $:=$ Quando no Branch 'master' este comando unifica a versão contida no branch 'teste\_merge' ao 'master' com o comentário `teste de domingo'.
 	
-	\item \textbf{git log --oneline --decorate --all --graph} $:=$ Mostra um diagrama do estado de controle dos arquivos.
+	\item \textbf{git log -\hspace{0.5mm}-oneline -\hspace{0.5mm}-decorate -\hspace{0.5mm}-all -\hspace{0.5mm}-graph} $:=$ Mostra um diagrama do estado de controle dos arquivos.
 	
-	\item \textbf{git config -\hspace{0.5mm}-global alias.tree "log -\hspace{0.5mm}-oneline -\hspace{0.5mm}-decorate -\hspace{0.5mm}-all -\hspace{0.5mm}-graph"} $:=$ Cria o comando 'tree' que executa o comando 'log -\hspace{0.5mm}-oneline -\hspace{0.5mm}-decorate -\hspace{0.5mm}-all -\hspace{0.5mm}-graph'.
+	\item \textbf{git config -\hspace{0.5mm}-global alias.tree ``log -\hspace{0.5mm}-oneline -\hspace{0.5mm}-decorate -\hspace{0.5mm}-all -\hspace{0.5mm}-graph"} $:=$ Cria o comando 'tree' que executa o comando 'log -\hspace{0.5mm}-oneline -\hspace{0.5mm}-decorate -\hspace{0.5mm}-all -\hspace{0.5mm}-graph'.
 	
-	\item \textbf{git tree} $:=$ Executa o comando 'tree' criado.
+	\item \textbf{git tree} $:=$ Executa o comando `tree' criado.
 	
 	\item \textbf{sudo apt install gitk} $:=$ Instala um visualizador gráfico.
 	
 	\item \textbf{gitk} $:=$ Executa o visualizador gráfico.
 	
-	\item \textbf{git remote add origin https://github.com/juniormarorganista/Teste\_Segunda.git} $:=$ Usado para adicionar um 'origin' para o repositório se não existe nenhum.
+	\item \textbf{git remote add origin \textcolor{blue}{https://github.com/juniormarorganista/Teste\_Segunda.git}} $:=$ Usado para adicionar um 'origin' para o repositório se não existe nenhum.
 	
 	\item \textbf{git pull origin master} $:=$ Caso o 'origin' já esteja adicionado na pasta, este comando é usado para buscar e baixar conteúdo de repositórios remotos e fazer a atualização imediata ao repositório local.
 	
 	\item \textbf{git push -u origin master} $:=$ É usado para enviar conteúdo do repositório local para um repositório remoto.
 	
-	\item \textbf{git clone https://github.com/juniormarorganista/Teste\_Segunda.git} $:=$ É utilizado para selecionar um repositório existente e criar um clone ou cópia do repositório alvo (no caso GitHub).
+	\item \textbf{git clone \textcolor{blue}{https://github.com/juniormarorganista/Teste\_Segunda.git}} $:=$ É utilizado para selecionar um repositório existente e criar um clone ou cópia do repositório alvo (no caso GitHub).
 	
 \end{itemize}
 
@@ -82,7 +122,7 @@ O primeiro passo para se ter acesso ao projeto HigFlow no GitHub é solicitar a 
 	
 \end{itemize}
 
-%\bibliographystyle{plain}
-%\bibliography{cluster_euler}
+\bibliographystyle{plain}
+\bibliography{git.bib}
 
 \end{document}

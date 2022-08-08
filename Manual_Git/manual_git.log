@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2022.6.29)  8 AUG 2022 19:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2022.6.29)  8 AUG 2022 20:16
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**manual_euler.tex
-(./manual_euler.tex
+**manual_git.tex
+(./manual_git.tex
 LaTeX2e <2021-11-15> patch level 1
 L3 programming layer <2022-01-21>
 (/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
@@ -337,8 +337,8 @@ File: l3backend-pdftex.def 2022-01-12 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count287
 \l__pdf_internal_box=\box54
 )
-(./manual_euler.aux)
-\openout1 = `manual_euler.aux'.
+(./manual_git.aux)
+\openout1 = `manual_git.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 20.
 LaTeX Font Info:    ... okay on input line 20.
@@ -430,8 +430,10 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 LaTeX Info: Redefining \ref on input line 20.
 LaTeX Info: Redefining \pageref on input line 20.
 LaTeX Info: Redefining \nameref on input line 20.
+
+(./manual_git.out) (./manual_git.out)
 \@outlinefile=\write3
-\openout3 = `manual_euler.out'.
+\openout3 = `manual_git.out'.
 
 LaTeX Font Info:    Trying to load font information for U+msa on input line 26.
 
@@ -445,63 +447,66 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 26.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-Overfull \hbox (14.4647pt too wide) in paragraph at lines 32--33
-[]\OT1/cmr/bx/n/12 scp -r di-re-to-rio usu-a-rio@euler.cemeai.icmc.usp.br:/dire
-torio[]de[]destino[]no[]cluster/
+Overfull \hbox (7.14545pt too wide) in paragraph at lines 50--51
+\OT1/cmr/bx/n/12 Key \OT1/cmr/m/n/12 cole a men-sa-gem ge-rada no ter-mi-nal ao
+ di-gi-tar o co-mando \OT1/cmr/bx/n/12 cat $\OMS/cmsy/m/n/12 ^^X$\OT1/cmr/bx/n/
+12 /.ssh/id[]ed25519.pub\OT1/cmr/m/n/12 .
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 38--41
-
- []
-
-<figures/export_bashrc.png, id=6, 471.7625pt x 40.15pt>
-File: figures/export_bashrc.png Graphic file (type png)
-<use figures/export_bashrc.png>
-Package pdftex.def Info: figures/export_bashrc.png  used on input line 45.
-(pdftex.def)             Requested size: 488.6872pt x 41.5908pt.
-<figures/module_list.png, id=8, 1175.39125pt x 91.34125pt>
-File: figures/module_list.png Graphic file (type png)
-<use figures/module_list.png>
-Package pdftex.def Info: figures/module_list.png  used on input line 58.
-(pdftex.def)             Requested size: 498.66258pt x 38.7519pt.
-<figures/submission_job.png, id=9, 616.3025pt x 500.87125pt>
-File: figures/submission_job.png Graphic file (type png)
-<use figures/submission_job.png>
-Package pdftex.def Info: figures/submission_job.png  used on input line 68.
-(pdftex.def)             Requested size: 398.93158pt x 324.21733pt.
 [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map} <./figures/export_bashrc.pn
-g>] [2 <./figures/module_list.png> <./figures/submission_job.png>]
-(./manual_euler.aux)
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]
+<figures/ssh_1.png, id=32, 519.9425pt x 571.13374pt>
+File: figures/ssh_1.png Graphic file (type png)
+<use figures/ssh_1.png>
+Package pdftex.def Info: figures/ssh_1.png  used on input line 55.
+(pdftex.def)             Requested size: 199.46198pt x 219.09848pt.
+<figures/ssh_2.png, id=34, 519.9425pt x 571.13374pt>
+File: figures/ssh_2.png Graphic file (type png)
+<use figures/ssh_2.png>
+Package pdftex.def Info: figures/ssh_2.png  used on input line 56.
+(pdftex.def)             Requested size: 199.46198pt x 219.09848pt.
+<figures/ssh_3.png, id=35, 519.9425pt x 571.13374pt>
+File: figures/ssh_3.png Graphic file (type png)
+<use figures/ssh_3.png>
+Package pdftex.def Info: figures/ssh_3.png  used on input line 61.
+(pdftex.def)             Requested size: 199.46198pt x 219.09848pt.
+<figures/ssh_4.png, id=36, 519.9425pt x 571.13374pt>
+File: figures/ssh_4.png Graphic file (type png)
+<use figures/ssh_4.png>
+Package pdftex.def Info: figures/ssh_4.png  used on input line 62.
+(pdftex.def)             Requested size: 199.46198pt x 219.09848pt.
+ [2 <./figures/ssh_1.png> <./figures/ssh_2.png> <./figures/ssh_3.png> <./figure
+s/ssh_4.png>] [3]
+(./manual_git.bbl
+Underfull \hbox (badness 10000) in paragraph at lines 4--6
+[]\OT1/cmr/m/n/12 https://docs.github.com/pt/authentication/connecting-to-githu
+b-with-ssh/generating-a-new-
+ []
 
-Package rerunfilecheck Warning: File `manual_euler.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `manual_euler.out':
-(rerunfilecheck)             Before: <no file>
-(rerunfilecheck)             After:  C69B357F6F7826BE3A60FF43D95B9D46;571.
+) [4] (./manual_git.aux)
+Package rerunfilecheck Info: File `manual_git.out' has not changed.
+(rerunfilecheck)             Checksum: E68DB73D0036D1E8338124ED0DE9AC19;547.
  ) 
 Here is how much of TeX's memory you used:
- 11427 strings out of 478287
- 177112 string characters out of 5849289
- 496246 words of memory out of 5000000
- 29475 multiletter control sequences out of 15000+600000
- 478052 words of font info for 62 fonts, out of 8000000 for 9000
+ 11458 strings out of 478287
+ 177265 string characters out of 5849289
+ 494286 words of memory out of 5000000
+ 29491 multiletter control sequences out of 15000+600000
+ 478740 words of font info for 64 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 60i,7n,63p,510b,348s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 60i,6n,63p,350b,412s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texmf/fonts/enc/dvips/cm-super/cm-super-ts1.enc}</usr/share/texli
 ve/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist
 /fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texmf/fonts/type1/public/cm-sup
-er/sfrm1200.pfb>
-Output written on manual_euler.pdf (2 pages, 133113 bytes).
+type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/
+public/amsfonts/cm/cmti12.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfb
+x1200.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1200.pfb>
+Output written on manual_git.pdf (4 pages, 227922 bytes).
 PDF statistics:
- 55 PDF objects out of 1000 (max. 8388607)
- 34 compressed objects within 1 object stream
- 6 named destinations out of 1000 (max. 500000)
- 16 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 90 PDF objects out of 1000 (max. 8388607)
+ 61 compressed objects within 1 object stream
+ 11 named destinations out of 1000 (max. 500000)
+ 45 words of extra memory for PDF output out of 10000 (max. 10000000)
 
