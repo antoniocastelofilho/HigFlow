@@ -30,4 +30,16 @@ Você pode também editar o '.bashrc' para que carregue automaticamente o arquiv
 Após realizar um dos passos anterior você já pode utilizar o sistema!
 
 ## Usando o sistema HigFlow
+Inicialmente é preciso ter um terminal aberto no diretório do sistema HigFlow. Navegue via terminal para o diretório 'higtree' e compile, fazendo:
+
+* make clean && make DIM=2 && make DIM=3
+
+Retorne ao diretório 'higflow' (no mesmo terminal) e compile o código fazendo:
+
+* make clean && make DIM=2
+
+Posteriormente basta escolher qual exemplo (já adicionado) deseja estudar e executar (dentro do diretório):
+
+* make clean && make && make run
+
 
