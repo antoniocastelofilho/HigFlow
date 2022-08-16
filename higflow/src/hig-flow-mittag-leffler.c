@@ -44,72 +44,72 @@ return p;
 /* Romberg Integration*/
 
 numc rombint(char funfcn, double a, double b, int order, double v1, double v2, numc v3, double v4){
-	int iorder, ipower,i,j,k;
-	double hh;
-	double zero = 0.0;
-	double two = 2, um = 1, six = 6, pcin = 0.5;
-	numc a1,a2,auxsum;
-	numc rom[3][9];
-	
-	iorder=order;
+   int iorder, ipower,i,j,k;
+   double hh;
+   double zero = 0.0;
+   double two = 2, um = 1, six = 6, pcin = 0.5;
+   numc a1,a2,auxsum;
+   numc rom[3][9];
+   
+   iorder=order;
 
-	if(funfcn == 'K') { 
-		iorder = six;
-	  //printf("iorder = %d\n", iorder); //cout << "iorder = 6!" << endl;
-	}
-	if(order > 8) {
-		//printf("need to increase size of matrix r which is 8, order is %d\n", iorder);
-  		//cout << "need to increase size of matrix r which is 8, order is" <<  iorder << endl;
-  		/*break;*/
-	}
-	for (i=1; i<=2; i++) {
-  		for (j=1; j<=iorder; j++) {
-    		rom[i][j].real=zero;
-    		rom[i][j].imag=zero;
-  		}
-	}
-	hh=b-a;
-	//printf("hh = %f\n ", hh);  //cout << "hh=" << hh << endl;
-	if(funfcn == 'K') {
-  		a1=kk(a,v1,v2,v3);
-  		a2=kk(b,v1,v2,v3);
-	}else{
-  		a1=pp(a,v1,v2,v3,v4);
-  		a2=pp(b,v1,v2,v3,v4);
-	}
+   if(funfcn == 'K') { 
+      iorder = six;
+     //printf("iorder = %d\n", iorder); //cout << "iorder = 6!" << endl;
+   }
+   if(order > 8) {
+      //printf("need to increase size of matrix r which is 8, order is %d\n", iorder);
+        //cout << "need to increase size of matrix r which is 8, order is" <<  iorder << endl;
+        /*break;*/
+   }
+   for (i=1; i<=2; i++) {
+        for (j=1; j<=iorder; j++) {
+          rom[i][j].real=zero;
+          rom[i][j].imag=zero;
+        }
+   }
+   hh=b-a;
+   //printf("hh = %f\n ", hh);  //cout << "hh=" << hh << endl;
+   if(funfcn == 'K') {
+        a1=kk(a,v1,v2,v3);
+        a2=kk(b,v1,v2,v3);
+   }else{
+        a1=pp(a,v1,v2,v3,v4);
+        a2=pp(b,v1,v2,v3,v4);
+   }
         
-	rom[1][1].real=hh*(a1.real+a2.real)/two;
-	rom[1][1].imag=hh*(a1.imag+a2.imag)/two;
-	
-	ipower=1;
-	for (i=2; i<=iorder; i++) {
-  		auxsum.real=zero;
-		auxsum.imag=zero;
-  		for (j=1;j<=ipower;j++) {
+   rom[1][1].real=hh*(a1.real+a2.real)/two;
+   rom[1][1].imag=hh*(a1.imag+a2.imag)/two;
+   
+   ipower=1;
+   for (i=2; i<=iorder; i++) {
+        auxsum.real=zero;
+      auxsum.imag=zero;
+        for (j=1;j<=ipower;j++) {
 
-    			if(funfcn == 'K') {
-      				a1=kk((a+hh*(j-pcin)),v1,v2,v3);
-    			}else{
-      				a1=pp((a+hh*(j-pcin)),v1,v2,v3,v4);
-    			}
-    			auxsum.real=auxsum.real+a1.real;
-			auxsum.imag=auxsum.imag+a1.imag;
-  		}
-  		rom[2][1].real=(rom[1][1].real+hh*auxsum.real)/two;
-		rom[2][1].imag=(rom[1][1].imag+hh*auxsum.imag)/two;
-  		for (k=1; k<=(i-1); k++) {
-    			rom[2][k+1].real=((pow(4,k))*rom[2][k].real-rom[1][k].real)/((pow(4,k))-1);
-			rom[2][k+1].imag=((pow(4,k))*rom[2][k].imag-rom[1][k].imag)/((pow(4,k))-1);
-  		}
-  		for (j=0; j<=(i-1); j++) {
-    			rom[1][j+1].real=rom[2][j+1].real;
-			rom[1][j+1].imag=rom[2][j+1].imag;
-  		}
-  		ipower=ipower*2;
-  		hh=hh/two;
-	}
-	//printf("rom[1][%d]=%f + i %f \n",iorder,rom[1][iorder].real, rom[1][iorder].imag );
-	//cout << "rom[1][iorder]="<< rom[1][iorder] << endl;	
+             if(funfcn == 'K') {
+                  a1=kk((a+hh*(j-pcin)),v1,v2,v3);
+             }else{
+                  a1=pp((a+hh*(j-pcin)),v1,v2,v3,v4);
+             }
+             auxsum.real=auxsum.real+a1.real;
+         auxsum.imag=auxsum.imag+a1.imag;
+        }
+        rom[2][1].real=(rom[1][1].real+hh*auxsum.real)/two;
+      rom[2][1].imag=(rom[1][1].imag+hh*auxsum.imag)/two;
+        for (k=1; k<=(i-1); k++) {
+             rom[2][k+1].real=((pow(4,k))*rom[2][k].real-rom[1][k].real)/((pow(4,k))-1);
+         rom[2][k+1].imag=((pow(4,k))*rom[2][k].imag-rom[1][k].imag)/((pow(4,k))-1);
+        }
+        for (j=0; j<=(i-1); j++) {
+             rom[1][j+1].real=rom[2][j+1].real;
+         rom[1][j+1].imag=rom[2][j+1].imag;
+        }
+        ipower=ipower*2;
+        hh=hh/two;
+   }
+   //printf("rom[1][%d]=%f + i %f \n",iorder,rom[1][iorder].real, rom[1][iorder].imag );
+   //cout << "rom[1][iorder]="<< rom[1][iorder] << endl;   
  
 return rom[1][iorder];
 }
@@ -165,7 +165,7 @@ numc mlfv(double alpha, double beta, numc z, int fi) {
    // printf("r0 = %f\n", r0);//cout << "r0=" << r0 << endl;
    angz=atan2 (z.imag, z.real);  //angz=atan2 (imag(z), real(z));
    aaz=fabs(angz);
-	
+   
    // printf("aaz= %f\n", aaz); //cout << "aaz=" << aaz << endl;
    if (alpha == 1 && beta == 1) {
       res.real=exp(z.real)*cos(z.imag);
@@ -187,7 +187,7 @@ numc mlfv(double alpha, double beta, numc z, int fi) {
       // complex<double> oldsum(0.0, 0.0);
       // oldsum=dcmplx(0d0,0d0);
       oldsum.real=zero;
-      oldsum.imag=zero; 	
+      oldsum.imag=zero;    
       // printf("oldsum = %f+ i %f\n", oldsum.real, oldsum.imag); //cout << "oldsum=" << oldsum << endl;
       k=0;
       while ((alpha*k+beta) <= zero) {
@@ -206,7 +206,7 @@ numc mlfv(double alpha, double beta, numc z, int fi) {
          oldsum.imag=newsum.imag;
          k=k+1;
          term.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //term=pow(z,k)/tgamma(alpha*k+beta);
-         term.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);	
+         term.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);   
          newsum.real=newsum.real+term.real;//newsum=newsum+term;
          newsum.imag=newsum.imag+term.imag;
          k=k+1;
@@ -281,86 +281,86 @@ numc mlfv(double alpha, double beta, numc z, int fi) {
       return res;
    }
 
-	if (alpha <= 1) { 
+   if (alpha <= 1) { 
 
- 	 	if (aaz<(pi*alpha/two+fmin(pi,pi*alpha))/two) { 
-    			//newsum=(pow(z,((um-beta)/alpha)))*exp(pow(z,(um/alpha)))/alpha;
-			newsum.real = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
-			newsum.imag = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+        if (aaz<(pi*alpha/two+fmin(pi,pi*alpha))/two) { 
+             //newsum=(pow(z,((um-beta)/alpha)))*exp(pow(z,(um/alpha)))/alpha;
+         newsum.real = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+         newsum.imag = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
 
-    			for (k=1; k<=floor(fi/log10(norz));k++) {
-       				if (ceil(beta-alpha*k)!=floor(beta-alpha*k)) {
-         			//newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
-				newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
-				newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
-				//cout << "passei aqui 1  " << gamma <<endl;
-				// printf("passei aqui 1: \n ");
-				//cout << "passei aqui 1  " << k <<endl;
-				// printf("passei aqui 1: %d\n", k);
-       				}
-    			}
-    			//res=newsum;
-			res.real=newsum.real;
-			res.imag=newsum.imag;
-			//cout << "res6=" << res<< endl;
-			// printf("res6=%f+i %f\n", res.real, res.imag);
-  		}else{ 
-    			//newsum=zero;
-			newsum.real =zero;
-			newsum.imag =zero;
-    			for (k=1;k<=floor(fi/log10(norz));k++) {
-       				if (ceil(beta-alpha*k) != floor(beta-alpha*k)) {
-          			//newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
-				newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
-				newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
-				//cout << "passei aqui 2" << gamma(beta-alpha*k) <<endl;
-				// printf("passei aqui 2: %f \n ", tgamma(beta-alpha*k));
-       				}
-    			}
-    			//res=newsum;
-			res.real=newsum.real;
-			res.imag=newsum.imag;
-			//cout << "res7=" << res<< endl;
-			// printf("res7=%f+i %f\n", res.real, res.imag);
-  		}
-	}else{
- 		 if (alpha >= two) {
-   			m=floor(alpha/two);
-    		 	//aux=zero;
-			aux.real = zero;
-			aux.imag = zero;
-   			for (h=0;h<=m;h++) {
-      				//zn=(pow(z,um/(m+um)))*exp((h*two*pi*ic)/(m+um));
-				zn.real = pow(norz,um/(m+um))*cos((2*pi*h+angz)/(m+um));
-				zn.imag = pow(norz,um/(m+um))*sin((2*pi*h+angz)/(m+um));
-      				// aux=aux+mlfv(alpha/(m+1),beta,zn,fi);
-				aux1=mlfv(alpha/(m+1),beta,zn,fi);
-				aux.real= aux.real + aux1.real;
-				aux.imag = aux.imag + aux1.imag;
-				//cout << "conta=" << (2.0*pi*h)/(m+1) << endl;    
-   			}
-    			//res=(um/(m+um))*aux;
-			res.real = (um/(m+um))*aux.real;
-			res.imag = (um/(m+um))*aux.imag;
-			//cout << "res8=" << res<< endl;
-			// printf("res8=%f+i %f\n", res.real, res.imag);
-  		}else{
-			raiz1z.real = sqrt(norz)*cos(angz/2);
-			raiz1z.imag = sqrt(norz)*sin(angz/2);
-			raiz2z.real = -sqrt(norz)*cos(angz/2);
-			raiz2z.imag = -sqrt(norz)*sin(angz/2);
-			a1=mlfv(alpha/two,beta,raiz1z,fi);
-    			a2=mlfv(alpha/two,beta,raiz2z,fi);
-    			//res=(a1+a2)/two;
-			res.real = (a1.real+a2.real)/two;
-			res.imag = (a1.imag+a2.imag)/two;
-			//cout << "res9=" << res<< endl;
-			// printf("res9=%f+i %f\n", res.real, res.imag);
-  		}
-	return res;
-	//cout << "res10=" << res<< endl;
-	// printf("res10=%f+i %f\n", res.real, res.imag);
-	}
+             for (k=1; k<=floor(fi/log10(norz));k++) {
+                   if (ceil(beta-alpha*k)!=floor(beta-alpha*k)) {
+                  //newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
+            newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
+            newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
+            //cout << "passei aqui 1  " << gamma <<endl;
+            // printf("passei aqui 1: \n ");
+            //cout << "passei aqui 1  " << k <<endl;
+            // printf("passei aqui 1: %d\n", k);
+                   }
+             }
+             //res=newsum;
+         res.real=newsum.real;
+         res.imag=newsum.imag;
+         //cout << "res6=" << res<< endl;
+         // printf("res6=%f+i %f\n", res.real, res.imag);
+        }else{ 
+             //newsum=zero;
+         newsum.real =zero;
+         newsum.imag =zero;
+             for (k=1;k<=floor(fi/log10(norz));k++) {
+                   if (ceil(beta-alpha*k) != floor(beta-alpha*k)) {
+                   //newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
+            newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
+            newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
+            //cout << "passei aqui 2" << gamma(beta-alpha*k) <<endl;
+            // printf("passei aqui 2: %f \n ", tgamma(beta-alpha*k));
+                   }
+             }
+             //res=newsum;
+         res.real=newsum.real;
+         res.imag=newsum.imag;
+         //cout << "res7=" << res<< endl;
+         // printf("res7=%f+i %f\n", res.real, res.imag);
+        }
+   }else{
+        if (alpha >= two) {
+            m=floor(alpha/two);
+              //aux=zero;
+         aux.real = zero;
+         aux.imag = zero;
+            for (h=0;h<=m;h++) {
+                  //zn=(pow(z,um/(m+um)))*exp((h*two*pi*ic)/(m+um));
+            zn.real = pow(norz,um/(m+um))*cos((2*pi*h+angz)/(m+um));
+            zn.imag = pow(norz,um/(m+um))*sin((2*pi*h+angz)/(m+um));
+                  // aux=aux+mlfv(alpha/(m+1),beta,zn,fi);
+            aux1=mlfv(alpha/(m+1),beta,zn,fi);
+            aux.real= aux.real + aux1.real;
+            aux.imag = aux.imag + aux1.imag;
+            //cout << "conta=" << (2.0*pi*h)/(m+1) << endl;    
+            }
+             //res=(um/(m+um))*aux;
+         res.real = (um/(m+um))*aux.real;
+         res.imag = (um/(m+um))*aux.imag;
+         //cout << "res8=" << res<< endl;
+         // printf("res8=%f+i %f\n", res.real, res.imag);
+        }else{
+         raiz1z.real = sqrt(norz)*cos(angz/2);
+         raiz1z.imag = sqrt(norz)*sin(angz/2);
+         raiz2z.real = -sqrt(norz)*cos(angz/2);
+         raiz2z.imag = -sqrt(norz)*sin(angz/2);
+         a1=mlfv(alpha/two,beta,raiz1z,fi);
+             a2=mlfv(alpha/two,beta,raiz2z,fi);
+             //res=(a1+a2)/two;
+         res.real = (a1.real+a2.real)/two;
+         res.imag = (a1.imag+a2.imag)/two;
+         //cout << "res9=" << res<< endl;
+         // printf("res9=%f+i %f\n", res.real, res.imag);
+        }
+   return res;
+   //cout << "res10=" << res<< endl;
+   // printf("res10=%f+i %f\n", res.real, res.imag);
+   }
 
 return res;
 //cout << "res11=" << res<< endl;

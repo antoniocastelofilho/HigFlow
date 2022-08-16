@@ -49,72 +49,72 @@ return p;
 /* Romberg Integration*/
 
 numc rombint(char funfcn, double a, double b, int order, double v1, double v2, numc v3, double v4){
-	int iorder, ipower,i,j,k;
-	double hh;
-	double zero = 0.0;
-	double two = 2, um = 1, six = 6, pcin = 0.5;
-	numc a1,a2,auxsum;
-	numc rom[3][9];
-	
-	iorder=order;
+   int iorder, ipower,i,j,k;
+   double hh;
+   double zero = 0.0;
+   double two = 2, um = 1, six = 6, pcin = 0.5;
+   numc a1,a2,auxsum;
+   numc rom[3][9];
+   
+   iorder=order;
 
-	if(funfcn == 'K') { 
-		iorder = six;
-	  //printf("iorder = %d\n", iorder); //cout << "iorder = 6!" << endl;
-	}
-	if(order > 8) {
-		//printf("need to increase size of matrix r which is 8, order is %d\n", iorder);
-  		//cout << "need to increase size of matrix r which is 8, order is" <<  iorder << endl;
-  		/*break;*/
-	}
-	for (i=1; i<=2; i++) {
-  		for (j=1; j<=iorder; j++) {
-    		rom[i][j].real=zero;
-    		rom[i][j].imag=zero;
-  		}
-	}
-	hh=b-a;
-	//printf("hh = %f\n ", hh);  //cout << "hh=" << hh << endl;
-	if(funfcn == 'K') {
-  		a1=kk(a,v1,v2,v3);
-  		a2=kk(b,v1,v2,v3);
-	}else{
-  		a1=pp(a,v1,v2,v3,v4);
-  		a2=pp(b,v1,v2,v3,v4);
-	}
+   if(funfcn == 'K') { 
+      iorder = six;
+     //printf("iorder = %d\n", iorder); //cout << "iorder = 6!" << endl;
+   }
+   if(order > 8) {
+      //printf("need to increase size of matrix r which is 8, order is %d\n", iorder);
+        //cout << "need to increase size of matrix r which is 8, order is" <<  iorder << endl;
+        /*break;*/
+   }
+   for (i=1; i<=2; i++) {
+        for (j=1; j<=iorder; j++) {
+          rom[i][j].real=zero;
+          rom[i][j].imag=zero;
+        }
+   }
+   hh=b-a;
+   //printf("hh = %f\n ", hh);  //cout << "hh=" << hh << endl;
+   if(funfcn == 'K') {
+        a1=kk(a,v1,v2,v3);
+        a2=kk(b,v1,v2,v3);
+   }else{
+        a1=pp(a,v1,v2,v3,v4);
+        a2=pp(b,v1,v2,v3,v4);
+   }
         
-	rom[1][1].real=hh*(a1.real+a2.real)/two;
-	rom[1][1].imag=hh*(a1.imag+a2.imag)/two;
-	
-	ipower=1;
-	for (i=2; i<=iorder; i++) {
-  		auxsum.real=zero;
-		auxsum.imag=zero;
-  		for (j=1;j<=ipower;j++) {
+   rom[1][1].real=hh*(a1.real+a2.real)/two;
+   rom[1][1].imag=hh*(a1.imag+a2.imag)/two;
+   
+   ipower=1;
+   for (i=2; i<=iorder; i++) {
+        auxsum.real=zero;
+      auxsum.imag=zero;
+        for (j=1;j<=ipower;j++) {
 
-    			if(funfcn == 'K') {
-      				a1=kk((a+hh*(j-pcin)),v1,v2,v3);
-    			}else{
-      				a1=pp((a+hh*(j-pcin)),v1,v2,v3,v4);
-    			}
-    			auxsum.real=auxsum.real+a1.real;
-			auxsum.imag=auxsum.imag+a1.imag;
-  		}
-  		rom[2][1].real=(rom[1][1].real+hh*auxsum.real)/two;
-		rom[2][1].imag=(rom[1][1].imag+hh*auxsum.imag)/two;
-  		for (k=1; k<=(i-1); k++) {
-    			rom[2][k+1].real=((pow(4,k))*rom[2][k].real-rom[1][k].real)/((pow(4,k))-1);
-			rom[2][k+1].imag=((pow(4,k))*rom[2][k].imag-rom[1][k].imag)/((pow(4,k))-1);
-  		}
-  		for (j=0; j<=(i-1); j++) {
-    			rom[1][j+1].real=rom[2][j+1].real;
-			rom[1][j+1].imag=rom[2][j+1].imag;
-  		}
-  		ipower=ipower*2;
-  		hh=hh/two;
-	}
-	//printf("rom[1][%d]=%f + i %f \n",iorder,rom[1][iorder].real, rom[1][iorder].imag );
-	//cout << "rom[1][iorder]="<< rom[1][iorder] << endl;	
+             if(funfcn == 'K') {
+                  a1=kk((a+hh*(j-pcin)),v1,v2,v3);
+             }else{
+                  a1=pp((a+hh*(j-pcin)),v1,v2,v3,v4);
+             }
+             auxsum.real=auxsum.real+a1.real;
+         auxsum.imag=auxsum.imag+a1.imag;
+        }
+        rom[2][1].real=(rom[1][1].real+hh*auxsum.real)/two;
+      rom[2][1].imag=(rom[1][1].imag+hh*auxsum.imag)/two;
+        for (k=1; k<=(i-1); k++) {
+             rom[2][k+1].real=((pow(4,k))*rom[2][k].real-rom[1][k].real)/((pow(4,k))-1);
+         rom[2][k+1].imag=((pow(4,k))*rom[2][k].imag-rom[1][k].imag)/((pow(4,k))-1);
+        }
+        for (j=0; j<=(i-1); j++) {
+             rom[1][j+1].real=rom[2][j+1].real;
+         rom[1][j+1].imag=rom[2][j+1].imag;
+        }
+        ipower=ipower*2;
+        hh=hh/two;
+   }
+   //printf("rom[1][%d]=%f + i %f \n",iorder,rom[1][iorder].real, rom[1][iorder].imag );
+   //cout << "rom[1][iorder]="<< rom[1][iorder] << endl;   
  
 return rom[1][iorder];
 }
@@ -125,250 +125,250 @@ return rom[1][iorder];
 
 
 numc mlfv(double alpha, double beta, numc z, int fi){
-	int k,m,h;
-	//double pi = 3.1415926535897932384626434;
-	double two = 2, um = 1, pcin = 0.5, ten = 10, cinc=5, six = 6, zero = 0.0, dum=2.1, ccinc=5.5, vint=20, cinq=50;
-	double r0, rc, angz, eps, aaz, norz, pr1, pr2, pq1, pq2;
-	int l1,l2,l3,l4;
-	numc newsum, term, aux, aux1, a1, a2, oldsum, zn, ic, res, raiz1z, raiz2z;
-	char PN = 'P';
-	char KN = 'K';
-	ic.real = 0;
-	ic.imag = 1;
+   int k,m,h;
+   //double pi = 3.1415926535897932384626434;
+   double two = 2, um = 1, pcin = 0.5, ten = 10, cinc=5, six = 6, zero = 0.0, dum=2.1, ccinc=5.5, vint=20, cinq=50;
+   double r0, rc, angz, eps, aaz, norz, pr1, pr2, pq1, pq2;
+   int l1,l2,l3,l4;
+   numc newsum, term, aux, aux1, a1, a2, oldsum, zn, ic, res, raiz1z, raiz2z;
+   char PN = 'P';
+   char KN = 'K';
+   ic.real = 0;
+   ic.imag = 1;
 
-	//printf("z=%f +i %f\n",z.real, z.imag); //cout << "z=" << z << endl;
-	//printf("alpha = %f\n",alpha); //cout << "alpha=" << alpha << endl;
+   //printf("z=%f +i %f\n",z.real, z.imag); //cout << "z=" << z << endl;
+   //printf("alpha = %f\n",alpha); //cout << "alpha=" << alpha << endl;
 
-	a1.real=zero;
-	a1.imag=zero;
-	a2.real=zero;
-	a2.imag=zero;
-	newsum.real=zero; 
-	newsum.imag=zero; 
-	oldsum.real=zero; 
-	oldsum.imag=zero; 
-	res.real=zero;
-	res.imag=zero;
+   a1.real=zero;
+   a1.imag=zero;
+   a2.real=zero;
+   a2.imag=zero;
+   newsum.real=zero; 
+   newsum.imag=zero; 
+   oldsum.real=zero; 
+   oldsum.imag=zero; 
+   res.real=zero;
+   res.imag=zero;
 
-	if (alpha < 0) {
-		printf("alpha must be greater than zero\n"); //cout << "alpha must be greater than zero" << endl;
-	} else if (alpha > 5) {
-	printf("alpha must be smaller than five\n"); //cout << "alpha must be smaller than five" << endl;
-	}
-	if (beta > 5) {
-	printf("beta must be smaller than zero\n");//cout << "beta must be smaller than zero" << endl;
-	} else {
-	 // printf("beta is Ok!\n"); //cout << "beta is OK!" << endl;
-	}
+   if (alpha < 0) {
+      printf("alpha must be greater than zero\n"); //cout << "alpha must be greater than zero" << endl;
+   } else if (alpha > 5) {
+   printf("alpha must be smaller than five\n"); //cout << "alpha must be smaller than five" << endl;
+   }
+   if (beta > 5) {
+   printf("beta must be smaller than zero\n");//cout << "beta must be smaller than zero" << endl;
+   } else {
+    // printf("beta is Ok!\n"); //cout << "beta is OK!" << endl;
+   }
 
-	rc=pow((-two*log((pow(ten,-fi))*pi/six)),alpha);
-	norz = sqrt(pow(z.real,2) + pow(z.imag,2));
-	r0=fmax (um, two*norz);
-	r0=fmax (r0, rc);
-	// printf("two*abs(z)=%f\n", two*norz); //cout << "two*abs(z)=" << two*abs(z) << endl;
-	// printf("rc = %f\n", rc);//cout << "rc=" << rc << endl;
-	// printf("r0 = %f\n", r0);//cout << "r0=" << r0 << endl;
-	angz=atan2 (z.imag, z.real);  //angz=atan2 (imag(z), real(z));
-	aaz=fabs(angz);
-	
-	// printf("aaz= %f\n", aaz); //cout << "aaz=" << aaz << endl;
-	if (alpha == 1 && beta == 1) {
-		res.real=exp(z.real)*cos(z.imag);
-		res.imag=exp(z.real)*sin(z.imag);
-	}
+   rc=pow((-two*log((pow(ten,-fi))*pi/six)),alpha);
+   norz = sqrt(pow(z.real,2) + pow(z.imag,2));
+   r0=fmax (um, two*norz);
+   r0=fmax (r0, rc);
+   // printf("two*abs(z)=%f\n", two*norz); //cout << "two*abs(z)=" << two*abs(z) << endl;
+   // printf("rc = %f\n", rc);//cout << "rc=" << rc << endl;
+   // printf("r0 = %f\n", r0);//cout << "r0=" << r0 << endl;
+   angz=atan2 (z.imag, z.real);  //angz=atan2 (imag(z), real(z));
+   aaz=fabs(angz);
+   
+   // printf("aaz= %f\n", aaz); //cout << "aaz=" << aaz << endl;
+   if (alpha == 1 && beta == 1) {
+      res.real=exp(z.real)*cos(z.imag);
+      res.imag=exp(z.real)*sin(z.imag);
+   }
 
-	l1=(alpha < 1 && norz <= 1);
-	// printf("abs(z) = %f\n", norz); //cout << "abs(z)=" << abs(z) << endl;
-	l2=(1 <= alpha && alpha < two);
-	l3=(norz <= floor (vint/pow(dum-alpha, ccinc-two*alpha)));
-	// printf("teste: %f\n", floor (vint/pow(dum-alpha, ccinc-two*alpha))); //cout << "teste" << floor (vint/pow(dum-alpha, ccinc-two*alpha)) << endl;
-	l4=(alpha >= two && norz <= cinq);
-	// printf("l1= %d\n", l1); //cout << "l1=" << l1 << endl;
-	// printf("l2= %d\n", l2); // cout << "l2=" << l2 << endl;
-	// printf("l3= %d\n", l3); //cout << "l3=" << l3 << endl;
-	// printf("l4= %d\n", l4); //cout << "l4=" << l4 << endl;
+   l1=(alpha < 1 && norz <= 1);
+   // printf("abs(z) = %f\n", norz); //cout << "abs(z)=" << abs(z) << endl;
+   l2=(1 <= alpha && alpha < two);
+   l3=(norz <= floor (vint/pow(dum-alpha, ccinc-two*alpha)));
+   // printf("teste: %f\n", floor (vint/pow(dum-alpha, ccinc-two*alpha))); //cout << "teste" << floor (vint/pow(dum-alpha, ccinc-two*alpha)) << endl;
+   l4=(alpha >= two && norz <= cinq);
+   // printf("l1= %d\n", l1); //cout << "l1=" << l1 << endl;
+   // printf("l2= %d\n", l2); // cout << "l2=" << l2 << endl;
+   // printf("l3= %d\n", l3); //cout << "l3=" << l3 << endl;
+   // printf("l4= %d\n", l4); //cout << "l4=" << l4 << endl;
 
-	if (l1 || l2 && l3 || l4) {
-  		 /*complex<double> oldsum(0.0, 0.0);
-  		oldsum=dcmplx(0d0,0d0);*/
-		oldsum.real=zero;
-		oldsum.imag=zero; 	
-		// printf("oldsum = %f+ i %f\n", oldsum.real, oldsum.imag); //cout << "oldsum=" << oldsum << endl;
-		k=0;
-  		while ((alpha*k+beta) <= zero) {
-    			k=k+1;
-  		}
-  		/*newsum=pow(real(z),k/tgamma(alpha*k+beta));*/
-		// printf("k= %d\n", k);//cout << "k=" << k << endl;
-		// printf("z= %f+ i %f\n",z.real, z.imag);//cout << "z=" << z << endl;
-		// printf("pow(z,k)= %f + i %f\n", pow(norz,k)*cos(angz*k), pow(norz,k)*sin(angz*k));//cout << "pow(z,k)=" << pow(z,k) << endl;
-  		newsum.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //pow(z,k)/tgamma(alpha*k+beta);
-  		newsum.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);//pow(z,k)/tgamma(alpha*k+beta);
+   if (l1 || l2 && l3 || l4) {
+         /*complex<double> oldsum(0.0, 0.0);
+        oldsum=dcmplx(0d0,0d0);*/
+      oldsum.real=zero;
+      oldsum.imag=zero;    
+      // printf("oldsum = %f+ i %f\n", oldsum.real, oldsum.imag); //cout << "oldsum=" << oldsum << endl;
+      k=0;
+        while ((alpha*k+beta) <= zero) {
+             k=k+1;
+        }
+        /*newsum=pow(real(z),k/tgamma(alpha*k+beta));*/
+      // printf("k= %d\n", k);//cout << "k=" << k << endl;
+      // printf("z= %f+ i %f\n",z.real, z.imag);//cout << "z=" << z << endl;
+      // printf("pow(z,k)= %f + i %f\n", pow(norz,k)*cos(angz*k), pow(norz,k)*sin(angz*k));//cout << "pow(z,k)=" << pow(z,k) << endl;
+        newsum.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //pow(z,k)/tgamma(alpha*k+beta);
+        newsum.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);//pow(z,k)/tgamma(alpha*k+beta);
 
-		/* double summation because z can be negative */
-  		while (newsum.real != oldsum.real || newsum.imag != oldsum.imag) {//while (newsum != oldsum) {
-    			oldsum.real=newsum.real;
-			oldsum.imag=newsum.imag;
-   			k=k+1;
-    			term.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //term=pow(z,k)/tgamma(alpha*k+beta);
-			term.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);	
-    			newsum.real=newsum.real+term.real;//newsum=newsum+term;
-			newsum.imag=newsum.imag+term.imag;
-    			k=k+1;
-    			term.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //term=pow(z,k)/tgamma(alpha*k+beta);
-			term.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);
-    			newsum.real=newsum.real+term.real;//newsum=newsum+term;
-			newsum.imag=newsum.imag+term.imag;
-  		}
-  		res.real=newsum.real;
-		res.imag=newsum.imag;
-		// printf("newsummmmm= %f + i %f\n",newsum.real, newsum.imag); //cout << "newsummmmm=" << newsum << endl;
-	return res;
-	}
+      /* double summation because z can be negative */
+        while (newsum.real != oldsum.real || newsum.imag != oldsum.imag) {//while (newsum != oldsum) {
+             oldsum.real=newsum.real;
+         oldsum.imag=newsum.imag;
+            k=k+1;
+             term.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //term=pow(z,k)/tgamma(alpha*k+beta);
+         term.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);   
+             newsum.real=newsum.real+term.real;//newsum=newsum+term;
+         newsum.imag=newsum.imag+term.imag;
+             k=k+1;
+             term.real=pow(norz,k)*cos(angz*k)/tgamma(alpha*k+beta); //term=pow(z,k)/tgamma(alpha*k+beta);
+         term.imag=pow(norz,k)*sin(angz*k)/tgamma(alpha*k+beta);
+             newsum.real=newsum.real+term.real;//newsum=newsum+term;
+         newsum.imag=newsum.imag+term.imag;
+        }
+        res.real=newsum.real;
+      res.imag=newsum.imag;
+      // printf("newsummmmm= %f + i %f\n",newsum.real, newsum.imag); //cout << "newsummmmm=" << newsum << endl;
+   return res;
+   }
 
 /*! the matlab function fix rounds toward zero, can  use floor since alpha is positive*/
-	if (alpha <= 1 && norz <= floor(cinc*alpha+ten)) {
-   		if ((aaz > pi*alpha) && (fabs(aaz-(pi*alpha)) > pow(ten,(-fi)))) {
-    			if (beta <= 1) {
-    				res=rombint(KN,zero,r0,fi,alpha,beta,z,zero);
-				//printf("res1=%f+ i%f\n",res.real, res.imag);//cout << "res1=" << res<< endl;
-   			 } else {
+   if (alpha <= 1 && norz <= floor(cinc*alpha+ten)) {
+         if ((aaz > pi*alpha) && (fabs(aaz-(pi*alpha)) > pow(ten,(-fi)))) {
+             if (beta <= 1) {
+                res=rombint(KN,zero,r0,fi,alpha,beta,z,zero);
+            //printf("res1=%f+ i%f\n",res.real, res.imag);//cout << "res1=" << res<< endl;
+             } else {
 
-      				eps=1;
-      				aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps);
-      				res=rombint(KN,eps,r0,fi,alpha,beta,z,zero);//+aux;
-				res.real = res.real + aux.real;
-				res.imag = res.imag + aux.imag;
-				// printf("res2=%f+ i%f\n",res.real, res.imag);//cout << "res2=" << res<< endl;
-			}
+                  eps=1;
+                  aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps);
+                  res=rombint(KN,eps,r0,fi,alpha,beta,z,zero);//+aux;
+            res.real = res.real + aux.real;
+            res.imag = res.imag + aux.imag;
+            // printf("res2=%f+ i%f\n",res.real, res.imag);//cout << "res2=" << res<< endl;
+         }
 
-  		} else if (aaz < pi*alpha && fabs(aaz-(pi*alpha)) > pow(ten,(-fi))) {
-    				if (beta <= 1) {
-      					//aux=(pow(z,((1-beta)/alpha)))*(exp(pow(z,1/alpha))/alpha);
-					aux.real = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha))); //cos(angz*(1-beta)/alpha);
-					aux.imag = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
-					//cout << "pow(z,((1-beta)/alpha))=" << pow(z,((1-beta)/alpha)) << endl;
-					pr1 = pow(norz,((1-beta)/alpha))*cos(angz*(1-beta)/alpha);
-					pr2 = pow(norz,((1-beta)/alpha))*sin(angz*(1-beta)/alpha);
-					// printf("pow(z,((1-beta)/alpha))= %f+ i %f\n",pr1, pr2);
-					//cout << "exp(pow(z,1/alpha))/alpha=" << exp(pow(z,1/alpha))/alpha << endl;
-					pq1= exp(pow(norz,(1/alpha))*cos(angz/alpha))*cos(pow(norz,(1/alpha))*sin(angz/alpha));
-					pq2 = exp(pow(norz,(1/alpha))*cos(angz/alpha))*sin(pow(norz,(1/alpha))*sin(angz/alpha));
-					// printf("exp(pow(z,1/alpha))/alpha= %f+ i %f\n",pq1, pq2);
-					//cout << "aux=" << aux << endl;
-					//printf("aux = %f+ i%f\n",aux.real,aux.imag);
-     					res=rombint(KN,zero,r0,fi,alpha,beta,z,zero);//+aux;
-					res.real = res.real + aux.real;
-					res.imag = res.imag + aux.imag;
-					//cout << "res3=" << res<< endl;
-					// printf("res3=%f+i %f\n", res.real, res.imag);
-				} else {
-      					eps=norz/two;//eps=abs(z)/two;
-     					aux1=rombint(KN,eps,r0,fi,alpha,beta,z,zero);
-					aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps);//+aux1;
-					aux.real = aux.real+ aux1.real;
-					aux.imag = aux.imag+ aux1.imag;
-      					//res=aux+(pow(z,((um-beta)/alpha)))*(exp (pow(z,um/alpha))/alpha);
-					res.real=aux.real+ (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
-					res.imag = aux.imag + (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
-					//cout << "res4=" << res<< endl;
-					// printf("res4=%f+i %f\n", res.real, res.imag);
-    				}
-  		} else {
-    			eps=norz+pcin;
-    			aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps);
-    			res=rombint(KN,eps,r0,fi,alpha,beta,z,zero);//+aux;
-			res.real = res.real + aux.real;
-			res.imag = res.imag + aux.imag;
-			//cout << "res5=" << res<< endl;
-			//printf("res4=%f+i %f\n", res.real, res.imag);
-  		}
-	//cout << "res6=" << res<< endl;
-	// printf("res6=%f+i %f\n", res.real, res.imag);
-	return res;
+        } else if (aaz < pi*alpha && fabs(aaz-(pi*alpha)) > pow(ten,(-fi))) {
+                if (beta <= 1) {
+                     //aux=(pow(z,((1-beta)/alpha)))*(exp(pow(z,1/alpha))/alpha);
+               aux.real = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha))); //cos(angz*(1-beta)/alpha);
+               aux.imag = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+               //cout << "pow(z,((1-beta)/alpha))=" << pow(z,((1-beta)/alpha)) << endl;
+               pr1 = pow(norz,((1-beta)/alpha))*cos(angz*(1-beta)/alpha);
+               pr2 = pow(norz,((1-beta)/alpha))*sin(angz*(1-beta)/alpha);
+               // printf("pow(z,((1-beta)/alpha))= %f+ i %f\n",pr1, pr2);
+               //cout << "exp(pow(z,1/alpha))/alpha=" << exp(pow(z,1/alpha))/alpha << endl;
+               pq1= exp(pow(norz,(1/alpha))*cos(angz/alpha))*cos(pow(norz,(1/alpha))*sin(angz/alpha));
+               pq2 = exp(pow(norz,(1/alpha))*cos(angz/alpha))*sin(pow(norz,(1/alpha))*sin(angz/alpha));
+               // printf("exp(pow(z,1/alpha))/alpha= %f+ i %f\n",pq1, pq2);
+               //cout << "aux=" << aux << endl;
+               //printf("aux = %f+ i%f\n",aux.real,aux.imag);
+                    res=rombint(KN,zero,r0,fi,alpha,beta,z,zero);//+aux;
+               res.real = res.real + aux.real;
+               res.imag = res.imag + aux.imag;
+               //cout << "res3=" << res<< endl;
+               // printf("res3=%f+i %f\n", res.real, res.imag);
+            } else {
+                     eps=norz/two;//eps=abs(z)/two;
+                    aux1=rombint(KN,eps,r0,fi,alpha,beta,z,zero);
+               aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps);//+aux1;
+               aux.real = aux.real+ aux1.real;
+               aux.imag = aux.imag+ aux1.imag;
+                     //res=aux+(pow(z,((um-beta)/alpha)))*(exp (pow(z,um/alpha))/alpha);
+               res.real=aux.real+ (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+               res.imag = aux.imag + (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+               //cout << "res4=" << res<< endl;
+               // printf("res4=%f+i %f\n", res.real, res.imag);
+                }
+        } else {
+             eps=norz+pcin;
+             aux=rombint(PN,-pi*alpha,pi*alpha,fi,alpha,beta,z,eps);
+             res=rombint(KN,eps,r0,fi,alpha,beta,z,zero);//+aux;
+         res.real = res.real + aux.real;
+         res.imag = res.imag + aux.imag;
+         //cout << "res5=" << res<< endl;
+         //printf("res4=%f+i %f\n", res.real, res.imag);
+        }
+   //cout << "res6=" << res<< endl;
+   // printf("res6=%f+i %f\n", res.real, res.imag);
+   return res;
 
-	}
+   }
 
-	if (alpha <= 1) { 
+   if (alpha <= 1) { 
 
- 	 	if (aaz<(pi*alpha/two+fmin(pi,pi*alpha))/two) { 
-    			//newsum=(pow(z,((um-beta)/alpha)))*exp(pow(z,(um/alpha)))/alpha;
-			newsum.real = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
-			newsum.imag = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+        if (aaz<(pi*alpha/two+fmin(pi,pi*alpha))/two) { 
+             //newsum=(pow(z,((um-beta)/alpha)))*exp(pow(z,(um/alpha)))/alpha;
+         newsum.real = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( cos(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - sin(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
+         newsum.imag = (pow(norz,((1-beta)/alpha))/alpha)*exp(pow(norz,(1/alpha))*cos(angz/alpha))*( sin(angz*(1-beta)/alpha)*cos(pow(norz,(1/alpha))*sin(angz/alpha)) - cos(angz*(1-beta)/alpha)*sin(pow(norz,(1/alpha))*sin(angz/alpha)));
 
-    			for (k=1; k<=floor(fi/log10(norz));k++) {
-       				if (ceil(beta-alpha*k)!=floor(beta-alpha*k)) {
-         			//newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
-				newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
-				newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
-				//cout << "passei aqui 1  " << gamma <<endl;
-				// printf("passei aqui 1: \n ");
-				//cout << "passei aqui 1  " << k <<endl;
-				// printf("passei aqui 1: %d\n", k);
-       				}
-    			}
-    			//res=newsum;
-			res.real=newsum.real;
-			res.imag=newsum.imag;
-			//cout << "res6=" << res<< endl;
-			// printf("res6=%f+i %f\n", res.real, res.imag);
-  		}else{ 
-    			//newsum=zero;
-			newsum.real =zero;
-			newsum.imag =zero;
-    			for (k=1;k<=floor(fi/log10(norz));k++) {
-       				if (ceil(beta-alpha*k) != floor(beta-alpha*k)) {
-          			//newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
-				newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
-				newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
-				//cout << "passei aqui 2" << gamma(beta-alpha*k) <<endl;
-				// printf("passei aqui 2: %f \n ", tgamma(beta-alpha*k));
-       				}
-    			}
-    			//res=newsum;
-			res.real=newsum.real;
-			res.imag=newsum.imag;
-			//cout << "res7=" << res<< endl;
-			// printf("res7=%f+i %f\n", res.real, res.imag);
-  		}
-	}else{
- 		 if (alpha >= two) {
-   			m=floor(alpha/two);
-    		 	//aux=zero;
-			aux.real = zero;
-			aux.imag = zero;
-   			for (h=0;h<=m;h++) {
-      				//zn=(pow(z,um/(m+um)))*exp((h*two*pi*ic)/(m+um));
-				zn.real = pow(norz,um/(m+um))*cos((2*pi*h+angz)/(m+um));
-				zn.imag = pow(norz,um/(m+um))*sin((2*pi*h+angz)/(m+um));
-      				// aux=aux+mlfv(alpha/(m+1),beta,zn,fi);
-				aux1=mlfv(alpha/(m+1),beta,zn,fi);
-				aux.real= aux.real + aux1.real;
-				aux.imag = aux.imag + aux1.imag;
-				/*cout << "conta=" << (2.0*pi*h)/(m+1) << endl;*/     
-   			}
-    			//res=(um/(m+um))*aux;
-			res.real = (um/(m+um))*aux.real;
-			res.imag = (um/(m+um))*aux.imag;
-			//cout << "res8=" << res<< endl;
-			// printf("res8=%f+i %f\n", res.real, res.imag);
-  		}else{
-			raiz1z.real = sqrt(norz)*cos(angz/2);
-			raiz1z.imag = sqrt(norz)*sin(angz/2);
-			raiz2z.real = -sqrt(norz)*cos(angz/2);
-			raiz2z.imag = -sqrt(norz)*sin(angz/2);
-			a1=mlfv(alpha/two,beta,raiz1z,fi);
-    			a2=mlfv(alpha/two,beta,raiz2z,fi);
-    			//res=(a1+a2)/two;
-			res.real = (a1.real+a2.real)/two;
-			res.imag = (a1.imag+a2.imag)/two;
-			//cout << "res9=" << res<< endl;
-			// printf("res9=%f+i %f\n", res.real, res.imag);
-  		}
-	return res;
-	//cout << "res10=" << res<< endl;
-	// printf("res10=%f+i %f\n", res.real, res.imag);
-	}
+             for (k=1; k<=floor(fi/log10(norz));k++) {
+                   if (ceil(beta-alpha*k)!=floor(beta-alpha*k)) {
+                  //newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
+            newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
+            newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
+            //cout << "passei aqui 1  " << gamma <<endl;
+            // printf("passei aqui 1: \n ");
+            //cout << "passei aqui 1  " << k <<endl;
+            // printf("passei aqui 1: %d\n", k);
+                   }
+             }
+             //res=newsum;
+         res.real=newsum.real;
+         res.imag=newsum.imag;
+         //cout << "res6=" << res<< endl;
+         // printf("res6=%f+i %f\n", res.real, res.imag);
+        }else{ 
+             //newsum=zero;
+         newsum.real =zero;
+         newsum.imag =zero;
+             for (k=1;k<=floor(fi/log10(norz));k++) {
+                   if (ceil(beta-alpha*k) != floor(beta-alpha*k)) {
+                   //newsum=newsum-((pow(z,(-k)))/tgamma(beta-alpha*k));
+            newsum.real = newsum.real - ((pow(norz,-k)*cos(angz*k))/tgamma(beta-alpha*k));
+            newsum.imag = newsum.imag - (-(pow(norz,-k)*sin(angz*k))/tgamma(beta-alpha*k));
+            //cout << "passei aqui 2" << gamma(beta-alpha*k) <<endl;
+            // printf("passei aqui 2: %f \n ", tgamma(beta-alpha*k));
+                   }
+             }
+             //res=newsum;
+         res.real=newsum.real;
+         res.imag=newsum.imag;
+         //cout << "res7=" << res<< endl;
+         // printf("res7=%f+i %f\n", res.real, res.imag);
+        }
+   }else{
+        if (alpha >= two) {
+            m=floor(alpha/two);
+              //aux=zero;
+         aux.real = zero;
+         aux.imag = zero;
+            for (h=0;h<=m;h++) {
+                  //zn=(pow(z,um/(m+um)))*exp((h*two*pi*ic)/(m+um));
+            zn.real = pow(norz,um/(m+um))*cos((2*pi*h+angz)/(m+um));
+            zn.imag = pow(norz,um/(m+um))*sin((2*pi*h+angz)/(m+um));
+                  // aux=aux+mlfv(alpha/(m+1),beta,zn,fi);
+            aux1=mlfv(alpha/(m+1),beta,zn,fi);
+            aux.real= aux.real + aux1.real;
+            aux.imag = aux.imag + aux1.imag;
+            /*cout << "conta=" << (2.0*pi*h)/(m+1) << endl;*/     
+            }
+             //res=(um/(m+um))*aux;
+         res.real = (um/(m+um))*aux.real;
+         res.imag = (um/(m+um))*aux.imag;
+         //cout << "res8=" << res<< endl;
+         // printf("res8=%f+i %f\n", res.real, res.imag);
+        }else{
+         raiz1z.real = sqrt(norz)*cos(angz/2);
+         raiz1z.imag = sqrt(norz)*sin(angz/2);
+         raiz2z.real = -sqrt(norz)*cos(angz/2);
+         raiz2z.imag = -sqrt(norz)*sin(angz/2);
+         a1=mlfv(alpha/two,beta,raiz1z,fi);
+             a2=mlfv(alpha/two,beta,raiz2z,fi);
+             //res=(a1+a2)/two;
+         res.real = (a1.real+a2.real)/two;
+         res.imag = (a1.imag+a2.imag)/two;
+         //cout << "res9=" << res<< endl;
+         // printf("res9=%f+i %f\n", res.real, res.imag);
+        }
+   return res;
+   //cout << "res10=" << res<< endl;
+   // printf("res10=%f+i %f\n", res.real, res.imag);
+   }
 
 return res;
 //cout << "res11=" << res<< endl;
@@ -693,7 +693,7 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
               }  
            }else {
               for (int i = 0; i < DIM; i++) {
-                 for (int j = i; j < DIM; j++) {  	     
+                 for (int j = i; j < DIM; j++) {          
                 B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+ sms0sms1*(Bold[cont+1][i][j]-Bold[cont][i][j]) - sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
                  }
               }       
@@ -791,21 +791,21 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
           for (int i = 0; i < DIM; i++) {
              for (int j = i; j < DIM; j++) {
                  switch (ns->ed.im.contr.model_H) {
-	            case 0:
-	               if (t<tcorte){
+               case 0:
+                  if (t<tcorte){
                          tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
                       }else{
                          tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-tcorte/welambda)*B[0][i][j];
                       }
-		    break;
-	            case 1: // UCM H=1
+          break;
+               case 1: // UCM H=1
                        if (t<tcorte){
                          tensao[i][j] += a[k]*exp(-t/welambda)*B[0][i][j];
                        }else{
                          tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-tcorte/welambda)*B[0][i][j];
                        }
-		    break;
-	          }
+          break;
+             }
              }
           }
        }   // end (for t>-inf and t<=sc )
@@ -864,13 +864,13 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
              for (int i = 0; i < DIM; i++) {
                 for (int j = i; j < DIM; j++) {
                  switch (ns->ed.im.contr.model_H) {
-	            case 0: 
+               case 0: 
                          tensao[i][j] +=A0 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+A1 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+ A2 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*exp((s[k+1]-t)/welambda)*B[k+1][i][j];
                     break;
-	            case 1: // UCM H=1
+               case 1: // UCM H=1
                          tensao[i][j] +=A0 *(a[r]/welambda)*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+  A1*(a[r]/welambda)*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+  A2*(a[r]/welambda)*exp((s[k+1]-t)/welambda)*B[k+1][i][j]; 
-		    break;
-	          }
+          break;
+             }
                 }
              }
           }
@@ -918,13 +918,13 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
            for (int i = 0; i < DIM; i++) {
               for (int j = i; j < DIM; j++) {
                   switch (ns->ed.im.contr.model_H) {
-	            case 0: 
+               case 0: 
                          tensao[i][j] += (ds/2.0)*(c1*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[NDTL-1][i][j])+c2*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[NDTL][i][j]));
                     break;
-	            case 1: // UCM H=1
+               case 1: // UCM H=1
                           tensao[i][j] += (ds/2.0)*((c1*B[NDTL-1][i][j])+(c2*B[NDTL][i][j]));
-		    break;
-	          }
+          break;
+             }
               }
            }
        }
@@ -943,7 +943,7 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
           for (int j = i; j < DIM; j++) {
                STensor = tensao[i][j]- ((Du[i][j]+Du[j][i])*(1.0/Re));
               // Store Kernel
-	          dp_set_value(ns->ed.im.dpS[i][j], clid, STensor);
+             dp_set_value(ns->ed.im.dpS[i][j], clid, STensor);
               if (i != j) {
                  dp_set_value(ns->ed.im.dpS[j][i], clid, STensor);
               }
@@ -1109,18 +1109,18 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
  
            if (cont == (NDT)){
               for (int i = 0; i < DIM; i++) {
-                 for (int j = 0; j < DIM; j++) {  	     
- 	            B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+
-		          sms0sms1*(aux[i][j]-Bold[cont][i][j]) -
-		   sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
+                 for (int j = 0; j < DIM; j++) {          
+                B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+
+                sms0sms1*(aux[i][j]-Bold[cont][i][j]) -
+         sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
                  }
               }  
            } else {
               for (int i = 0; i < DIM; i++) {
-                 for (int j = 0; j < DIM; j++) {  	     
+                 for (int j = 0; j < DIM; j++) {          
                 B[k][i][j] = Bold[cont-1][i][j]+sms0*(Bold[cont][i][j]-Bold[cont-1][i][j])+
-		         sms0sms1*(Bold[cont+1][i][j]-Bold[cont][i][j]) -
-		  sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
+               sms0sms1*(Bold[cont+1][i][j]-Bold[cont][i][j]) -
+        sms0sms12*(Bold[cont][i][j]-Bold[cont-1][i][j]);
                  }
               }       
            } 
@@ -1210,12 +1210,12 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
        //I2a = B[0][0][0]*B[0][1][1] +  B[0][0][0] +  B[0][1][1] - B[0][0][1]*B[0][0][1]; 
        //for (int k = 0; k < M; k++) {
          // welambda = lambda[k]*De;  
-  	   tm.real = -G*pow(t,alphafr-betafr)/V;
-	   tm.imag = 0;
-	   mitt =  mlfv(alphafr-betafr,-betafr, tm, 6);
+        tm.real = -G*pow(t,alphafr-betafr)/V;
+      tm.imag = 0;
+      mitt =  mlfv(alphafr-betafr,-betafr, tm, 6);
           for (int i = 0; i < DIM; i++) {
              for (int j = 0; j < DIM; j++) {
-		tensao[i][j] += G*pow(t,-1-betafr)*mitt.real*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*B[0][i][j]; //a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
+      tensao[i][j] += G*pow(t,-1-betafr)*mitt.real*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*B[0][i][j]; //a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
                 //if (tensao[i][j] > 0.0)
                    //printf("I1a = %f, I2a = %f, Tensao[%d][%d] = %f \n",I1a, I2a, i,j,tensao[i][j]);  
              }
@@ -1277,14 +1277,14 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
           //for (int r = 0; r < M; r++) {
           //   welambda = lambda[r]*De;  
           tm0.real = -G*pow((t-s[k-1]),alphafr-betafr)/V;
-	      tm0.imag = 0;
-	      mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
-	      tm1.real = -G*pow((t-s[k  ]),alphafr-betafr)/V;
-	      tm1.imag = 0;
-	      mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
-	      tm2.real = -G*pow((t-s[k+1]),alphafr-betafr)/V;
-	      tm2.imag = 0;
-	      mitt2 =  mlfv(alphafr-betafr,-betafr, tm2, 6);
+         tm0.imag = 0;
+         mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
+         tm1.real = -G*pow((t-s[k  ]),alphafr-betafr)/V;
+         tm1.imag = 0;
+         mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
+         tm2.real = -G*pow((t-s[k+1]),alphafr-betafr)/V;
+         tm2.imag = 0;
+         mitt2 =  mlfv(alphafr-betafr,-betafr, tm2, 6);
           
              for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
@@ -1292,9 +1292,9 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
                    tensao[i][j] +=A0 * G*pow(t-(s[k-1]),-1-betafr)*mitt0.real*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*B[k-1][i][j]+ 
                                   A1 * G*pow((t-s[k  ]),-1-betafr)*mitt1.real*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*B[k  ][i][j]+
                                   A2 * G*pow((t-s[k+1]),-1-betafr)*mitt2.real*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*B[k+1][i][j];
-		   //printf("tm0 = %f, mitt0 = %f, tm1 = %f, mitt1 = %f, tm2 = %f, mitt2 = %f\n", tm0.real, mitt0.real, tm1.real, mitt1.real, tm2.real, mitt2.real);
+         //printf("tm0 = %f, mitt0 = %f, tm1 = %f, mitt1 = %f, tm2 = %f, mitt2 = %f\n", tm0.real, mitt0.real, tm1.real, mitt1.real, tm2.real, mitt2.real);
                    //printf("I1a = %f, I1b = %f, I1c = %f, I2a = %f, I2b = %f, I2c = %f, Tensao[%d][%d] = %f \n",I1a, I1b, I1c, I2a, I2b, I2c, i,j,tensao[i][j]);  
-		   //exit(1);
+         //exit(1);
                 }
              }
          // }
@@ -1342,11 +1342,11 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
            //   c2 += (a[r]/welambda)*exp((s[Nnow  ]-t)/welambda);
           // }
           tm0.real = -G*pow((t-s[Nnow-1]),alphafr-betafr)/V;
-	      tm0.imag = 0;
-	      mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
-	      tm1.real = -G*pow((t-s[Nnow  ]),alphafr-betafr)/V;
-	      tm1.imag = 0;
-	      mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
+         tm0.imag = 0;
+         mitt0 =  mlfv(alphafr-betafr,-betafr, tm0, 6);
+         tm1.real = -G*pow((t-s[Nnow  ]),alphafr-betafr)/V;
+         tm1.imag = 0;
+         mitt1 =  mlfv(alphafr-betafr,-betafr, tm1, 6);
           for (int i = 0; i < DIM; i++) {
              for (int j = 0; j < DIM; j++) {
                 tensao[i][j] += (ds/2.0)*(G*pow((t-s[Nnow-1]),-1-betafr)*mitt0.real*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[Nnow-1][i][j])+G*pow((t-s[Nnow  ]),-1-betafr)*mitt1.real*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[Nnow][i][j]));
@@ -1486,11 +1486,11 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
                     if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
                     else                                  conv1 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
                     else                                  conv1 = vbar[dim]*kc;
                 }
@@ -1507,11 +1507,11 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi < b) 
+          if (fi < b) 
                         conv1 = vbar[dim]*(a*kr - c*krr);
                     if ((fi >= b) && (fi <= c))
                         conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }
@@ -1524,9 +1524,9 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
                 if ((fi <= 0.0) || (fi >= 1.0)) {
                     conv1 = vbar[dim]*kr;
                 }else {
-		    if (fi <= c) 
+          if (fi <= c) 
                         conv1 = vbar[dim]*kr;
-	            if (fi > c) 
+               if (fi > c) 
                         conv1 = vbar[dim]*(c*kc + e*kr);
                 }
             }/*
@@ -1553,34 +1553,34 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi < b)
-	                conv2 = vbar[dim]*(a*kl - c*kll);
-	            if ((fi >= b) && (fi <= c))
-	                conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
         }else if ((incell_l == 1) && (incell_ll == 0)){
             if (fabs(kc-kll) <= tol) {
-	        conv2 = vbar[dim]*kl;
+           conv2 = vbar[dim]*kl;
             }else {
-	        fi = (kl - kll)/(kc - kll);
-	        if ((fi <= 0.0) || (fi >= 1.0)) {
-	            conv2 = vbar[dim]*kl;
-	        }else {
-	            if (fi <= c)
-	                conv2 = vbar[dim]*kl;
-	            if (fi > c)  
-	                conv2 = vbar[dim]*(c*kc + e*kl);
-	        }
-	    }/*
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi <= c)
+                   conv2 = vbar[dim]*kl;
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }/*
             vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
             if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
             else                 conv1 = vbar[dim]*kr;
@@ -1606,19 +1606,19 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
             if ((fi <= 0.0) || (fi >= 1.0)) {
                 conv2 = vbar[dim]*kc;
             }else {
-	        if (fi < b){
+           if (fi < b){
                     if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if ((fi >= b) && (fi <= c)){
+           if ((fi >= b) && (fi <= c)){
                     if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	        if (fi > c){ 
+           if (fi > c){ 
                     if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
                     else                                  conv2 = vbar[dim]*kc;
                 }
-	    }
+       }
         }
     }
     return ((conv1-conv2)/cdelta[dim]);

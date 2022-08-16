@@ -66,16 +66,23 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks);
 // Loading the viscoelastic parameters
 void higflow_load_viscoelastic_parameters(higflow_solver *ns, int myrank); 
 
+// Loading the multiphase viscoelastic parameters
+void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myrank);
+
 // Loading the electroosmotic parameters
 void higflow_load_electroosmotic_parameters(higflow_solver *ns, int myrank); 
 
 // Saving the viscoelastic parameters
 void higflow_save_viscoelastic_parameters(higflow_solver *ns, int myrank); 
+
 // Saving the electroosmotic parameters
 void higflow_save_electroosmotic_parameters(higflow_solver *ns, int myrank);
 
 // Loading the viscoelastic controllers
-void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank); 
+void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank);
+
+// Loading the multiphase viscoelastic controllers
+void higflow_load_multiphase_viscoelastic_controllers(higflow_solver *ns, int myrank);
 
 // Loading the electroosmotic controllers
 void higflow_load_electroosmotic_controllers(higflow_solver *ns, int myrank);

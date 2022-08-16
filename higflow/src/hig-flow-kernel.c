@@ -12,7 +12,7 @@
 
 // Create the NS object
 higflow_solver *higflow_create (void) {
-    DECL_AND_ALLOC(higflow_solver, ns, 1);	
+    DECL_AND_ALLOC(higflow_solver, ns, 1);   
     return ns;
 }
 
@@ -56,43 +56,49 @@ void higflow_destroy (higflow_solver *ns) {
             dp_destroy(ns->ed.mult.dpfracvolaux);
             dp_destroy(ns->ed.mult.dpcurvature);
             dp_destroy(ns->ed.mult.dpdistance);
-            for (int i = 0; i < DIM; i++){
-               dp_destroy(ns->ed.mult.dpIF[i]);
-               dp_destroy(ns->ed.mult.dpnormal[i]);
-            }
-            // Destroy the beta viscoelastic
             dp_destroy(ns->ed.mult.dpbeta);
-            for (int i = 0; i < DIM; i++)
+            // Interfacial Term and Normal
+            for (int i = 0; i < DIM; i++) {
+                dp_destroy(ns->ed.mult.dpIF[i]);
+                dp_destroy(ns->ed.mult.dpnormal[i]);
+                // Tensor terms destroy
                 for (int j = 0; j < DIM; j++) {
-                    // Tensor terms destroy
+                    dp_destroy(ns->ed.mult.dpD[i][j]);
                     dp_destroy(ns->ed.mult.dpS[i][j]);
+                    dp_destroy(ns->ed.mult.dpS0[i][j]);
+                    dp_destroy(ns->ed.mult.dpS1[i][j]);
+                    dp_destroy(ns->ed.mult.dpKernel0[i][j]);
+                    dp_destroy(ns->ed.mult.dpKernel1[i][j]);
                 }
-            
+            }
             // Destroy the stencil for extra domains
             stn_destroy(ns->ed.stn);
             break;
         case 3:
             // Viscoelastic
-            for (int i = 0; i < DIM; i++)
+            for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
                     dp_destroy(ns->ed.ve.dpD[i][j]);
                     dp_destroy(ns->ed.ve.dpS[i][j]);
                     dp_destroy(ns->ed.ve.dpKernel[i][j]);
                 }
+            }
             // Destroy the stencil for extra domains
             stn_destroy(ns->ed.stn);
             break;
          case 4:
            // Viscoelastic integral model
-           for (int i = 0; i < DIM; i++)
+           for (int i = 0; i < DIM; i++) {
                for (int j = 0; j < DIM; j++) {
                    // Tensor terms destroy
                    dp_destroy(ns->ed.im.dpD[i][j]);
                    dp_destroy(ns->ed.im.dpS[i][j]);
-                   for (int k = 0; k <= NDT; k++)
+                   for (int k = 0; k <= NDT; k++) {
                        dp_destroy(ns->ed.im.dpB[k][i][j]);
+                   }
                }
+           }
            // Destroy the stencil for extra domains
            stn_destroy(ns->ed.stn);
            break;   
@@ -291,7 +297,12 @@ real (*get_viscosity0)(Point center, real t),
 real (*get_viscosity1)(Point center, real t), 
 real (*get_density0)(Point center, real t),
 real (*get_density1)(Point center, real t),
-real (*get_fracvol)(Point center, Point delta, real t)) {
+real (*get_fracvol)(Point center, Point delta, real t),
+real (*get_tensor0)(Point center, int i, int j, real t),
+real (*get_tensor1)(Point center, int i, int j, real t),
+real (*get_kernel)(int dim, real lambda, real tol),
+real (*get_kernel_inverse)(int dim, real lambda, real tol),
+real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
     if (ns->contr.flowtype == 2) {
        // simulation domain (SD) extra domain
        ns->ed.sdED = sd_create(NULL);
@@ -300,15 +311,34 @@ real (*get_fracvol)(Point center, Point delta, real t)) {
        //Sets the order of the interpolation to bhe used for the SD. 
        sd_set_interpolator_order(ns->ed.sdED, order);
        // function for the domain
-       ns->ed.mult.get_viscosity0  = get_viscosity0;
+       ns->ed.mult.get_viscosity0      = get_viscosity0;
        // function for the domain
-       ns->ed.mult.get_viscosity1  = get_viscosity1;
+       ns->ed.mult.get_viscosity1      = get_viscosity1;
        // function for the domain
-       ns->ed.mult.get_density0    = get_density0;
+       ns->ed.mult.get_density0        = get_density0;
        // function for the domain
-       ns->ed.mult.get_density1    = get_density1;
+       ns->ed.mult.get_density1        = get_density1;
        // function for the domain
-       ns->ed.mult.get_fracvol     = get_fracvol;
+       ns->ed.mult.get_fracvol         = get_fracvol;
+       // function for the domain
+       ns->ed.mult.get_tensor0         = get_tensor0;
+       // function for the domain
+       ns->ed.mult.get_tensor1         = get_tensor1;
+       // function for the kernel transformation
+       ns->ed.mult.get_kernel          = get_kernel;
+       // function for the inverse kernel transformation
+       ns->ed.mult.get_kernel_inverse  = get_kernel_inverse;
+       // function for the kernel transformation jacobian
+       ns->ed.mult.get_kernel_jacobian = get_kernel_jacobian;
+    }
+}
+
+// Define the user function for viscoelastic flow
+void higflow_define_user_function_multiphase_viscoelastic(higflow_solver *ns, 
+void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM],real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol)) {
+    if (ns->contr.flowtype == 2) {
+       // function for the user viscoelastic model
+       ns->ed.mult.calculate_m_user = calculate_m_user;
     }
 }
 
@@ -318,7 +348,7 @@ real (*get_tensor)(Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
-    if ((ns->contr.flowtype == 3) || (ns->contr.flowtype == 2)) {
+    if (ns->contr.flowtype == 3) {
        // simulation domain (SD) extra domain
        ns->ed.sdED = sd_create(NULL);
        //reuse interpolation, 0 on, 1 off
@@ -344,7 +374,6 @@ void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM],
        ns->ed.ve.calculate_m_user = calculate_m_user;
     }
 }
-
 
 // Create the simulation domain for viscoelastic flow integral model
 void higflow_create_domain_viscoelastic_integral(higflow_solver *ns, int cache, int order,
@@ -578,41 +607,44 @@ void higflow_create_ditributed_properties_generalized_newtonian(higflow_solver *
 
 // Create the distributed properties for multiphase simulation
 void higflow_create_ditributed_properties_multiphase(higflow_solver *ns) {
-	// Non Newtonian tensor
-	if (ns->contr.flowtype == 2) {
-		// Distributed property for viscosity
-		ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
-		// Distributed property for density
-		ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
-		// Distributed property for volume fraction
-		ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
-		// Distributed property for auxiliary volume fraction
-		ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
-		// Distributed property for curvature
-		ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
-		// Distributed property for curvature
-		ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
-		// Distributed property for interfacial force
-		for (int i = 0; i < DIM; i++) {
-			ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
-			ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
-		}
-		// Distributed property for beta
-		ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
-		
-		for (int i = 0; i < DIM; i++) {
-			for (int j = 0; j < DIM; j++) {
-				ns->ed.mult.dpS[i][j]      = psd_create_property(ns->ed.psdED);
-			}
-		}
-		
-	}
+   // Non Newtonian tensor
+   if (ns->contr.flowtype == 2) {
+      // Distributed property for viscosity
+      ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
+      // Distributed property for density
+      ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
+      // Distributed property for volume fraction
+      ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
+      // Distributed property for auxiliary volume fraction
+      ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
+      // Distributed property for curvature
+      ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
+      // Distributed property for curvature
+      ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
+      // Distributed property for beta
+      ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
+      // Distributed property for interfacial force and Normal
+      for (int i = 0; i < DIM; i++) {
+         ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
+            ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
+        }
+        for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                ns->ed.mult.dpD[i][j]       = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpS[i][j]       = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpS0[i][j]      = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpS1[i][j]      = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpKernel0[i][j] = psd_create_property(ns->ed.psdED);
+                ns->ed.mult.dpKernel1[i][j] = psd_create_property(ns->ed.psdED);
+            }
+        }
+    }
 }
 
 // Create the distributed properties for viscoelastic simulation
 void higflow_create_ditributed_properties_viscoelastic(higflow_solver *ns) {
     // Non Newtonian tensor
-    if ((ns->contr.flowtype == 3) || (ns->contr.flowtype == 2)) {
+    if (ns->contr.flowtype == 3) {
          // Distributed property for viscoelastic tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
@@ -724,13 +756,13 @@ real (*get_boundary_facet_source_term)(int id, Point center, int dim, real t)) {
 void __higflow_readstring(char s[], int max, FILE *file) {
     int  i;
     for (i = 0; i < (max - 1); i++) {
-       char letra = fgetc(file);
-       if ((letra == '\n') && (i == 0)) {
-          printf("=+=+=+ Erro na leitura do string =+=+=+\n");
-          exit(1);
-       }
-       if (letra == '\n') break;
-       s[i] = letra;
+   char letra = fgetc(file);
+   if ((letra == '\n') && (i == 0)) {
+            printf("=+=+=+ Erro na leitura do string =+=+=+\n");
+            exit(1);
+   }
+   if (letra == '\n') break;
+   s[i] = letra;
     }
     s[i] = 0;
     return;

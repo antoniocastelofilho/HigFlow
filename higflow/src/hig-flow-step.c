@@ -20,14 +20,14 @@ void remove_pressure_singularity(higflow_solver *ns, solver *slvp) {
         real t, dt;
         if (rank == 0) {
             sim_domain *sdp = psd_get_local_domain(ns->psdp);
-	    mp_mapper *mp = sd_get_domain_mapper(sdp);
+       mp_mapper *mp = sd_get_domain_mapper(sdp);
             Point ccenter, ccenter2;
             // Toma a primeira celula que aparecer
             hig_cell *c = sd_get_higtree(sdp, 0);
             hig_get_center(c, ccenter);
             hig_cell *c2;
             c2 = hig_get_cell_with_point(c, ccenter);
-	    clid = mp_lookup(mp, hig_get_cid(c2));
+       clid = mp_lookup(mp, hig_get_cid(c2));
             hig_get_center(c2, ccenter2);
             t = ns->par.t;
             dt = ns->par.dt;
@@ -38,7 +38,7 @@ void remove_pressure_singularity(higflow_solver *ns, solver *slvp) {
                 value = ns->func.get_pressure(ccenter2,t+dt);
             }
             cgid = psd_lid_to_gid(ns->psdp, clid);
-	    slv_impose_value(slvp, cgid, value);
+       slv_impose_value(slvp, cgid, value);
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -137,7 +137,7 @@ void higflow_outflow_u_step(higflow_solver *ns) {
     for(int dim = 0; dim < DIM; dim++) {
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
         // Set the velocity at outflow
-	set_outflow(ns->psfdu[dim], ns->dpu[dim], 1.0);
+   set_outflow(ns->psfdu[dim], ns->dpu[dim], 1.0);
     }
 }
 
@@ -152,87 +152,87 @@ void higflow_outflow_ustar_step(higflow_solver *ns) {
         // Get the local partitioned domain for facets
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
         // Set the velocity at outflow
-	set_outflow(ns->psfdu[dim], ns->dpustar[dim], 1.0);
+   set_outflow(ns->psfdu[dim], ns->dpustar[dim], 1.0);
     }
 }
 
 void set_outflow(psim_facet_domain *psfdu, distributed_property *dpu, real alpha) {
-	sim_facet_domain *sfd = psfd_get_local_domain(psfdu);
-	int dim = sfd_get_dim(sfd);
-	int numnbcs = sfd_get_num_bcs(sfd, NEUMANN);
-	int numhigs = sfd_get_num_higtrees(sfd);
-	for (int i = 0; i < numnbcs; i++) {
-		sim_boundary *sb = sfd_get_bc(sfd, NEUMANN, i);
-		hig_cell *bchig = sb_get_higtree(sb);
-		Point bcl, bch;
-		hig_get_lowpoint(bchig, bcl);
-		hig_get_highpoint(bchig, bch);
-		int bcdim = hig_get_narrowest_dim(bchig);
-		POINT_SUB_SCALAR(bcl, bcl, EPSDELTA);
-		POINT_ADD_SCALAR(bch, bch, EPSDELTA);
-		for (int j = 0; j < numhigs; j++) {
-			hig_cell *root = sfd_get_higtree(sfd, j);
-			mp_mapper *m = sfd_get_domain_mapper(sfd);
-			Point delta;
-			Point center;
-			higcit_celliterator *it =
-			    higcit_create_bounding_box(root, bcl, bch);
-			if (higcit_isfinished(it)) {
-				higcit_destroy(it);
-				continue;
-			}
-			hig_cell *c = higcit_getcell(it);
-			hig_get_delta(c, delta);
-			hig_get_center(c, center);
-			higcit_destroy(it);
-			Point backwarddelta;
-			POINT_ASSIGN_SCALAR(backwarddelta, 0.0);
-			Point flowl, flowh;
-			POINT_ASSIGN(flowl, bcl);
-			POINT_ASSIGN(flowh, bch);
-			if (center[bcdim] < bcl[bcdim]) {
-				backwarddelta[bcdim] = -alpha * delta[bcdim];
-				flowl[bcdim] -= alpha * delta[bcdim];
-				//printf("Positivo: center[%d]=%5.10f; bcl[%d]=%5.10f; bch[%d]=%5.10f\n",bcdim,center[bcdim],bcdim,bcl[bcdim],bcdim,bch[bcdim]);
-			} else {
-				backwarddelta[bcdim] = alpha * delta[bcdim];
-				flowh[bcdim] += alpha * delta[bcdim];
-				//printf("Negativo: center[%d]=%5.10f; bcl[%d]=%5.10f; bch[%d]=%5.10f\n",bcdim,center[bcdim],bcdim,bcl[bcdim],bcdim,bch[bcdim]);
-			}
-			int dimofinterest[DIM];
-			POINT_ASSIGN_SCALAR(dimofinterest, 0);
-			dimofinterest[dim] = 1;
-			higfit_facetiterator *fit;
-			for (fit =
-			     higfit_create_bounding_box_facets(root,
-							       dimofinterest,
-							       flowl, flowh);
-			     !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-				hig_facet *f = higfit_getfacet(fit);
-				int fgid = mp_lookup(m, hig_get_fid(f));
-				Point fcenter;
-				hig_get_facet_center(f, fcenter);
+   sim_facet_domain *sfd = psfd_get_local_domain(psfdu);
+   int dim = sfd_get_dim(sfd);
+   int numnbcs = sfd_get_num_bcs(sfd, NEUMANN);
+   int numhigs = sfd_get_num_higtrees(sfd);
+   for (int i = 0; i < numnbcs; i++) {
+      sim_boundary *sb = sfd_get_bc(sfd, NEUMANN, i);
+      hig_cell *bchig = sb_get_higtree(sb);
+      Point bcl, bch;
+      hig_get_lowpoint(bchig, bcl);
+      hig_get_highpoint(bchig, bch);
+      int bcdim = hig_get_narrowest_dim(bchig);
+      POINT_SUB_SCALAR(bcl, bcl, EPSDELTA);
+      POINT_ADD_SCALAR(bch, bch, EPSDELTA);
+      for (int j = 0; j < numhigs; j++) {
+         hig_cell *root = sfd_get_higtree(sfd, j);
+         mp_mapper *m = sfd_get_domain_mapper(sfd);
+         Point delta;
+         Point center;
+         higcit_celliterator *it =
+             higcit_create_bounding_box(root, bcl, bch);
+         if (higcit_isfinished(it)) {
+            higcit_destroy(it);
+            continue;
+         }
+         hig_cell *c = higcit_getcell(it);
+         hig_get_delta(c, delta);
+         hig_get_center(c, center);
+         higcit_destroy(it);
+         Point backwarddelta;
+         POINT_ASSIGN_SCALAR(backwarddelta, 0.0);
+         Point flowl, flowh;
+         POINT_ASSIGN(flowl, bcl);
+         POINT_ASSIGN(flowh, bch);
+         if (center[bcdim] < bcl[bcdim]) {
+            backwarddelta[bcdim] = -alpha * delta[bcdim];
+            flowl[bcdim] -= alpha * delta[bcdim];
+            //printf("Positivo: center[%d]=%5.10f; bcl[%d]=%5.10f; bch[%d]=%5.10f\n",bcdim,center[bcdim],bcdim,bcl[bcdim],bcdim,bch[bcdim]);
+         } else {
+            backwarddelta[bcdim] = alpha * delta[bcdim];
+            flowh[bcdim] += alpha * delta[bcdim];
+            //printf("Negativo: center[%d]=%5.10f; bcl[%d]=%5.10f; bch[%d]=%5.10f\n",bcdim,center[bcdim],bcdim,bcl[bcdim],bcdim,bch[bcdim]);
+         }
+         int dimofinterest[DIM];
+         POINT_ASSIGN_SCALAR(dimofinterest, 0);
+         dimofinterest[dim] = 1;
+         higfit_facetiterator *fit;
+         for (fit =
+              higfit_create_bounding_box_facets(root,
+                            dimofinterest,
+                            flowl, flowh);
+              !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+            hig_facet *f = higfit_getfacet(fit);
+            int fgid = mp_lookup(m, hig_get_fid(f));
+            Point fcenter;
+            hig_get_facet_center(f, fcenter);
 
-				hig_facet fc;
-				Point fcopy;
-				POINT_ADD(fcopy, fcenter, backwarddelta);
+            hig_facet fc;
+            Point fcopy;
+            POINT_ADD(fcopy, fcenter, backwarddelta);
 
-				hig_get_facet_with_point(root, dim, fcopy, &fc);
-				int fcgid = mp_lookup(m, hig_get_fid(&fc));
+            hig_get_facet_with_point(root, dim, fcopy, &fc);
+            int fcgid = mp_lookup(m, hig_get_fid(&fc));
 
-                		//DEBUG_INSPECT(fcenter[0], %lf);
-                		//DEBUG_INSPECT(fcenter[1], %lf);
-				//DEBUG_INSPECT(fgid, %d);
+                      //DEBUG_INSPECT(fcenter[0], %lf);
+                      //DEBUG_INSPECT(fcenter[1], %lf);
+            //DEBUG_INSPECT(fgid, %d);
 
-				if (fgid >= 0 && fcgid >= 0) {
+            if (fgid >= 0 && fcgid >= 0) {
 
-					dp_set_value(dpu, fgid,
-						     dp_get_value(dpu, fcgid));
-				}
-			}
-		        higfit_destroy(fit);
-		}
-	}
+               dp_set_value(dpu, fgid,
+                       dp_get_value(dpu, fcgid));
+            }
+         }
+              higfit_destroy(fit);
+      }
+   }
 }
 
 // Navier-Stokes final velocity using the projection method
@@ -676,13 +676,13 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
 
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -731,7 +731,7 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -747,7 +747,7 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real ustar = slv_get_xi(ns->slvu[dim], fgid);
@@ -776,13 +776,13 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity(higflow_solver *
     }
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -833,7 +833,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity(higflow_solver *
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -849,7 +849,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity(higflow_solver *
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real ustar = slv_get_xi(ns->slvu[dim], fgid);
@@ -879,13 +879,13 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
     }
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -936,7 +936,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -952,7 +952,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real uaux = slv_get_xi(ns->slvu[dim], fgid);
@@ -967,13 +967,13 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
     // Second Stage of Tr-BDF2
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-	// Get the map of domain
+   // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -1023,7 +1023,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-	    int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -1041,7 +1041,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
+       int flid = mp_lookup(mu, hig_get_fid(f));
             int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Get the value of ustar
             real ustar = slv_get_xi(ns->slvu[dim], flid);
