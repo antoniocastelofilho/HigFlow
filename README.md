@@ -6,9 +6,9 @@ Basta dar permissão de execução ao arquivo fazendo:
 
 * chmod +x install_higflow_ubuntu22
 
-Excecute o arquivo em modo de root:
+Excecute o arquivo:
 
-* sudo ./install_higflow_ubuntu22
+* ./install_higflow_ubuntu22
 
 Após a instalação terminar (pode levar bastante tempo), você pode testar se o código está funcionando fazendo:
 
@@ -27,7 +27,8 @@ Você pode também editar o '.bashrc' para que carregue automaticamente o arquiv
 * source /caminho/ate/o/arquivo/varsrc
 
 
-Após realizar um dos passos anterior você já pode utilizar o sistema!
+Após re./configure --prefix=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 --PETSC_ARCH=x86_64 --download-openmpi --download-hdf5 --download-hypre --download-fblaslapack --with-debubbing=yes --with-cc=gcc --with-cxx=g++ --with-fc=gfortran ;
+sleep 5alizar um dos passos anterior você já pode utilizar o sistema!
 
 ## Usando o sistema HigFlow
 Inicialmente é preciso ter um terminal aberto no diretório do sistema HigFlow. Navegue via terminal para o diretório 'higtree' e compile, fazendo:
