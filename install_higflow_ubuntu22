@@ -134,13 +134,13 @@ sleep 5 ;
 cd bibliotecas/ ;
 tar -vzxf petsc-3.14.0.tar.gz ;
 cd petsc-3.14.0/ ; 
-./configure --prefix=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 --PETSC_ARCH=x86_64 --download-openmpi --download-hdf5 --download-hypre --download-fblaslapack --with-debubbing=yes --with-cc=gcc --with-cxx=g++ --with-fc=gfortran ;
+sudo ./configure --prefix=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 --PETSC_ARCH=x86_64 --download-openmpi --download-hdf5 --download-hypre --download-fblaslapack --with-debubbing=yes --with-cc=gcc --with-cxx=g++ --with-fc=gfortran ;
 sleep 5 ; 
-make PETSC_DIR=$PWD PETSC_ARCH=x86_64 all ; 
+sudo make PETSC_DIR=$PWD PETSC_ARCH=x86_64 all ; 
 sleep 5 ; 
-make PETSC_DIR=$PWD PETSC_ARCH=x86_64 install ; 
+sudo make PETSC_DIR=$PWD PETSC_ARCH=x86_64 install ; 
 sleep 5 ; 
-make PETSC_DIR=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 PETSC_ARCH="" check ;
+sudo make PETSC_DIR=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 PETSC_ARCH="" check ;
 cd ../../ ;
 
 echo '===============================================================================' ;
@@ -150,14 +150,14 @@ echo '==========================================================================
 echo '===============================================================================' ;
 sleep 5 ;
 sudo ln -s /opt/petsc-3.14.0-openmnpi-hypre-hdf5/lib/libHYPRE.so /opt/petsc-3.14.0-openmnpi-hypre-hdf5/lib/libHYPRE_krylov.so ;
-export PKG_CONFIG_PATH=$PWD/bibliotecas/hypre/ ;
+sudo export PKG_CONFIG_PATH=$PWD/bibliotecas/hypre/ ;
 
 echo '===============================================================================' ;
 echo '===============================================================================' ;
 echo 'Configure libfyaml ...' ;
 echo '===============================================================================' ;
 echo '===============================================================================' ;
-export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/libfyaml.pc ;
+sudo export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/libfyaml.pc ;
 
 sudo apt -y install libyaml-dev ;
 
