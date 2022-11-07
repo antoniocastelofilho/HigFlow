@@ -670,6 +670,8 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
                     b[i*DIM + j] = rhs;
                 }
             }
+            // Calculate Kernel matrix >> MM = R M(Lambda) JLambda R^t
+            hig_flow_matrix_transpose_product(M_aux, R, MM);
             //Calculate de kronecker product Omega*I - I*Omega
             hig_flow_kernel_system_matrix (w, Omega, dt);
             //Solve the linear system
