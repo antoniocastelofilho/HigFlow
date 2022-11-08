@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# Dir
+bibliotecas/
+
 # files
 *.out
 *.log
