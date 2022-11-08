@@ -1,6 +1,7 @@
 #PBS -N name_job
-#PBS -l select=1:ncpus=40
-#PBS -l walltime=96:00:00 
+#PBS -l select=1:ncpus=10
+#PBS -l walltime=336:00:00 
+#PBS -q Higflow
 
 module load higtree/deps 
 
@@ -16,7 +17,4 @@ make DIM=2
 cd /lustre/juniormr/HigFlow/higflow/examples2D_vof
 make clean
 make
-touch tela_resul
-make run >> tela_resul
-
-
+make run
