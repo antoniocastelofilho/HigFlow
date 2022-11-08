@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2022.6.29)  8 AUG 2022 19:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2022.6.29)  8 NOV 2022 14:11
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -330,7 +330,7 @@ Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1373.
 Package xcolor Info: Model `Gray' substituted by `gray' on input line 1374.
 Package xcolor Info: Model `wave' substituted by `hsb' on input line 1375.
 )
-Package hyperref Info: Option `colorlinks' set `true' on input line 18.
+Package hyperref Info: Option `colorlinks' set `true' on input line 19.
 
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2022-01-12 L3 backend support: PDF output (pdfTeX)
@@ -340,24 +340,24 @@ File: l3backend-pdftex.def 2022-01-12 L3 backend support: PDF output (pdfTeX)
 (./manual_euler.aux)
 \openout1 = `manual_euler.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 20.
-LaTeX Font Info:    ... okay on input line 20.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 21.
+LaTeX Font Info:    ... okay on input line 21.
 
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
@@ -415,7 +415,7 @@ e
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-Package hyperref Info: Link coloring ON on input line 20.
+Package hyperref Info: Link coloring ON on input line 21.
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
 
@@ -427,68 +427,64 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count294
 )
-LaTeX Info: Redefining \ref on input line 20.
-LaTeX Info: Redefining \pageref on input line 20.
-LaTeX Info: Redefining \nameref on input line 20.
+LaTeX Info: Redefining \ref on input line 21.
+LaTeX Info: Redefining \pageref on input line 21.
+LaTeX Info: Redefining \nameref on input line 21.
+
+(./manual_euler.out) (./manual_euler.out)
 \@outlinefile=\write3
 \openout3 = `manual_euler.out'.
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 26.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 27.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 26.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 27.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-Overfull \hbox (14.4647pt too wide) in paragraph at lines 32--33
+Overfull \hbox (14.4647pt too wide) in paragraph at lines 33--34
 []\OT1/cmr/bx/n/12 scp -r di-re-to-rio usu-a-rio@euler.cemeai.icmc.usp.br:/dire
 torio[]de[]destino[]no[]cluster/
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 38--41
+Underfull \hbox (badness 10000) in paragraph at lines 39--42
 
  []
 
-<figures/export_bashrc.png, id=6, 471.7625pt x 40.15pt>
+<figures/export_bashrc.png, id=18, 471.7625pt x 40.15pt>
 File: figures/export_bashrc.png Graphic file (type png)
 <use figures/export_bashrc.png>
-Package pdftex.def Info: figures/export_bashrc.png  used on input line 45.
+Package pdftex.def Info: figures/export_bashrc.png  used on input line 46.
 (pdftex.def)             Requested size: 488.6872pt x 41.5908pt.
-<figures/module_list.png, id=8, 1175.39125pt x 91.34125pt>
+<figures/module_list.png, id=20, 1175.39125pt x 91.34125pt>
 File: figures/module_list.png Graphic file (type png)
 <use figures/module_list.png>
-Package pdftex.def Info: figures/module_list.png  used on input line 58.
+Package pdftex.def Info: figures/module_list.png  used on input line 59.
 (pdftex.def)             Requested size: 498.66258pt x 38.7519pt.
-<figures/submission_job.png, id=9, 616.3025pt x 500.87125pt>
+<figures/submission_job.png, id=21, 616.3025pt x 500.87125pt>
 File: figures/submission_job.png Graphic file (type png)
 <use figures/submission_job.png>
-Package pdftex.def Info: figures/submission_job.png  used on input line 68.
+Package pdftex.def Info: figures/submission_job.png  used on input line 69.
 (pdftex.def)             Requested size: 398.93158pt x 324.21733pt.
 [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map} <./figures/export_bashrc.pn
 g>] [2 <./figures/module_list.png> <./figures/submission_job.png>]
 (./manual_euler.aux)
-
-Package rerunfilecheck Warning: File `manual_euler.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `manual_euler.out':
-(rerunfilecheck)             Before: <no file>
-(rerunfilecheck)             After:  C69B357F6F7826BE3A60FF43D95B9D46;571.
+Package rerunfilecheck Info: File `manual_euler.out' has not changed.
+(rerunfilecheck)             Checksum: C69B357F6F7826BE3A60FF43D95B9D46;571.
  ) 
 Here is how much of TeX's memory you used:
- 11427 strings out of 478287
- 177112 string characters out of 5849289
- 496246 words of memory out of 5000000
- 29475 multiletter control sequences out of 15000+600000
+ 11435 strings out of 478287
+ 177215 string characters out of 5849289
+ 496320 words of memory out of 5000000
+ 29479 multiletter control sequences out of 15000+600000
  478052 words of font info for 62 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  60i,7n,63p,510b,348s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -498,10 +494,10 @@ mf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist
 /fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texmf-dist/fonts/
 type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texmf/fonts/type1/public/cm-sup
 er/sfrm1200.pfb>
-Output written on manual_euler.pdf (2 pages, 133113 bytes).
+Output written on manual_euler.pdf (2 pages, 133411 bytes).
 PDF statistics:
- 55 PDF objects out of 1000 (max. 8388607)
- 34 compressed objects within 1 object stream
+ 65 PDF objects out of 1000 (max. 8388607)
+ 44 compressed objects within 1 object stream
  6 named destinations out of 1000 (max. 500000)
- 16 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 40 words of extra memory for PDF output out of 10000 (max. 10000000)
 
