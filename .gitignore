@@ -1,6 +1,15 @@
 # Prerequisites
 *.d
 
+# files
+*.out
+*.log
+*.gz
+*.aux
+*.vtk
+*.txt
+*.dat
+
 # Object files
 *.o
 *.ko
