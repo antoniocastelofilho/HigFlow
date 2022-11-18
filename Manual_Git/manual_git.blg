@@ -1,0 +1,59 @@
+This is BibTeX, Version 0.99d (TeX Live 2022/dev/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: manual_git.aux
+The style file: plain.bst
+Database file #1: git.bib
+Warning--to sort, need author or key in site1
+Warning--to sort, need author or key in site2
+Warning--to sort, need author or key in site3
+Warning--empty author in site2
+Warning--empty journal in site2
+Warning--empty year in site2
+Warning--empty author in site1
+Warning--empty journal in site1
+Warning--empty year in site1
+Warning--empty author in site3
+Warning--empty journal in site3
+Warning--empty year in site3
+You've used 3 entries,
+            2118 wiz_defined-function locations,
+            503 strings with 4232 characters,
+and the built_in function-call counts, 497 in all, are:
+= -- 39
+> -- 3
+< -- 0
++ -- 3
+- -- 0
+* -- 44
+:= -- 66
+add.period$ -- 3
+call.type$ -- 3
+change.case$ -- 9
+chr.to.int$ -- 0
+cite$ -- 15
+duplicate$ -- 30
+empty$ -- 55
+format.name$ -- 0
+if$ -- 100
+int.to.chr$ -- 0
+int.to.str$ -- 3
+missing$ -- 3
+newline$ -- 12
+num.names$ -- 0
+pop$ -- 24
+preamble$ -- 1
+purify$ -- 6
+quote$ -- 0
+skip$ -- 18
+stack$ -- 0
+substring$ -- 15
+swap$ -- 0
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 12
+warning$ -- 12
+while$ -- 0
+width$ -- 4
+write$ -- 17
+(There were 12 warnings)
