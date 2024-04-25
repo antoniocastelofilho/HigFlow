@@ -6,6 +6,7 @@
 #include <string.h>
 #include <mpi.h>
 #include <assert.h>
+#define __USE_POSIX199309 1
 #include <time.h>
 #include "solver-centralized.h"
 

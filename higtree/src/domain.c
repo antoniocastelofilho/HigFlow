@@ -316,8 +316,11 @@ void sd_add_boundary(sim_domain *d, sim_boundary *bc) {
 int sd_get_num_bcs(sim_domain *d, int type) {
 	if (type == DIRICHLET) {
 		return d->numdirichlet_bcs;
-	} else {
+	} else if (type == NEUMANN) {
 		return d->numneumann_bcs;
+	}
+	else {
+		return -1;
 	}
 }
 

@@ -9,18 +9,18 @@
 
 //! Type of boundary conditions.
 typedef enum bc_type {
-	DIRICHLET,
-	NEUMANN,
+	DIRICHLET = 0,
+	NEUMANN = 1,
 } bc_type;
 
 //! Value type of boundary contition
 typedef enum bc_valuetype {
-	fixedValue,
-	zeroGradient,
-        freestream,
-        empty,
-        timedependent,
-	outflow,
+	fixedValue = 0,
+	zeroGradient = 1,
+        freestream = 2,
+        empty = 3,
+        timedependent = 4,
+	outflow = 5,
 } bc_valuetype;
 
 //! \brief A boundary condition (BC).

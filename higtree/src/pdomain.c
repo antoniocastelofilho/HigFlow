@@ -1130,7 +1130,7 @@ void dp_sync(distributed_property *dp)
 			tag, comm, &reqs[nb->idx + nb_count]);
 	}
 
-	MPI_Waitall(nb_count, reqs, MPI_STATUSES_IGNORE);
+	MPI_Waitall(nb_count * 2, reqs, MPI_STATUSES_IGNORE);
 }
 
 int psfd_get_global_id(psim_facet_domain *psfd, hig_facet *f)
@@ -1323,182 +1323,265 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 	}
 }
 
-// Restart simulation ---> 20_01_26
-void loadOneU(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+// Restart simulation ---> 04_04_23
+
+static int _save_fdp_single(psim_facet_domain *psfdu, distributed_property *dpu, MPI_File *fd, int myrank, int ntasks, int proc_offset) {
     higfit_facetiterator *fit;
     sim_facet_domain *sfdu = psfd_get_local_domain(psfdu);
     mp_mapper *mu = sfd_get_domain_mapper(sfdu);
+	int buff_count = DIM + 1;
+	real buff[buff_count];
+	int buff_size = buff_count * sizeof(real);
 
+	int facet_count = 0;
     for(fit = sfd_get_domain_facetiterator(sfdu); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
         hig_facet *f = higfit_getfacet(fit);
-        int fgid = mp_lookup(mu, hig_get_fid(f));
+        int flid = mp_lookup(mu, hig_get_fid(f));
         Point fcenter;
         hig_get_facet_center(f, fcenter);
-        real val;
-        fread(&val, 1, sizeof(real), fd);
-        dp_set_value(dpu, fgid, val);
-	 }
-	 higfit_destroy(fit);
-}
+        real val = dp_get_value(dpu, flid);
 
-void loadOneP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    higcit_celliterator *cit;
-    sim_domain *sdu = psd_get_local_domain(psdu);
-    mp_mapper *mu = sd_get_domain_mapper(sdu);
+		POINT_ASSIGN(buff, fcenter);
+		buff[DIM] = val;
 
-    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
-        hig_cell *c = higcit_getcell(cit);
-        int cgid = mp_lookup(mu, hig_get_cid(c));
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        real val;
-        fread(&val, 1, sizeof(real), fd);
-        dp_set_value(dpu, cgid, val);
-	 }
-	 higcit_destroy(cit);
-}
+		MPI_File_write_at(*fd, (proc_offset + facet_count)*buff_size, buff, buff_count, MPI_HIGREAL, MPI_STATUS_IGNORE);
 
-void loadOneVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    higcit_celliterator *cit;
-    sim_domain *sdu = psd_get_local_domain(psdu);
-    mp_mapper *mu = sd_get_domain_mapper(sdu);
-
-    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
-        hig_cell *c = higcit_getcell(cit);
-        int cgid = mp_lookup(mu, hig_get_cid(c));
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        real val;
-        fread(&val, 1, sizeof(real), fd);
-        dp_set_value(dpu, cgid, val);
-    }
-    higcit_destroy(cit);
-}
-
-void loadOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    higcit_celliterator *cit;
-    sim_domain *sdu = psd_get_local_domain(psdu);
-    mp_mapper *mu = sd_get_domain_mapper(sdu);
-
-    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
-        hig_cell *c = higcit_getcell(cit);
-        int cgid = mp_lookup(mu, hig_get_cid(c));
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        real val;
-        fread(&val, 1, sizeof(real), fd);
-        dp_set_value(dpu, cgid, val);
-    }
-    higcit_destroy(cit);
-}
-
-// Save Properties
-void saveOneU(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    higfit_facetiterator *fit;
-    sim_facet_domain *sfdu = psfd_get_local_domain(psfdu);
-    mp_mapper *mu = sfd_get_domain_mapper(sfdu);
-
-    for(fit = sfd_get_domain_facetiterator(sfdu); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-        hig_facet *f = higfit_getfacet(fit);
-        int fgid = mp_lookup(mu, hig_get_fid(f));
-        Point fcenter;
-        hig_get_facet_center(f, fcenter);
-        real val = dp_get_value(dpu, fgid);
-        fwrite(&val, 1, sizeof(real), fd);
+		assert(facet_count < dpu->pdata->local_count);
+		facet_count++;
     }
     higfit_destroy(fit);
+
+	return facet_count;
 }
 
-void saveOneP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
+
+static int _save_dp_single(psim_domain *psdu, distributed_property *dpu, MPI_File *fd, int myrank, int ntasks, int proc_offset) {
     higcit_celliterator *cit;
     sim_domain *sdu = psd_get_local_domain(psdu);
     mp_mapper *mu = sd_get_domain_mapper(sdu);
+	int buff_count = DIM + 1;
+	real buff[buff_count];
+	int buff_size = buff_count * sizeof(real);
 
+	int cell_count = 0;
     for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
         hig_cell *c = higcit_getcell(cit);
-        int cgid = mp_lookup(mu, hig_get_cid(c));
+        int clid = mp_lookup(mu, hig_get_cid(c));
         Point ccenter;
         hig_get_center(c, ccenter);
-        real val = dp_get_value(dpu, cgid);
-        fwrite(&val, 1, sizeof(real), fd);
+        real val = dp_get_value(dpu, clid);
+
+		POINT_ASSIGN(buff, ccenter);
+		buff[DIM] = val;
+
+		MPI_File_write_at(*fd, (proc_offset + cell_count)*buff_size, buff, buff_count, MPI_HIGREAL, MPI_STATUS_IGNORE);
+
+		assert(cell_count < dpu->pdata->local_count);
+		cell_count++;
     }
     higcit_destroy(cit);
+
+	return cell_count;
 }
 
-void saveOneVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    higcit_celliterator *cit;
+static int _load_fdp_single(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks, int global_size) {
+    sim_facet_domain *sfdu = psfd_get_local_domain(psfdu);
+    mp_mapper *mu = sfd_get_domain_mapper(sfdu);
+	int buff_count = DIM + 1;
+	real buff[buff_count];
+	int buff_size = buff_count * sizeof(real);
+	
+	hig_facet *f, f_dummy;
+	f = &f_dummy;
+	int found_count_local = 0;
+	for(int i = 0; i < global_size; i++) {
+		fread(buff, buff_size, 1, fd);
+		if(sfd_get_facet_with_point(sfdu, buff, f) != 0) {
+			int flid = mp_lookup(mu, hig_get_fid(f));
+			// even if the cell of the facet belongs to the local domain, the facet may not
+			if(flid >= 0) { // NOT the case in which it is to the left of the first non-fringe facet
+				real val = buff[DIM];
+				dp_set_value(dpu, flid, val);
+				found_count_local++;
+			}
+		}
+		else continue;
+	}
+
+	return found_count_local;
+}
+
+
+static int _load_dp_single(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks, int global_size) {
     sim_domain *sdu = psd_get_local_domain(psdu);
     mp_mapper *mu = sd_get_domain_mapper(sdu);
+	int buff_count = DIM + 1;
+	real buff[buff_count];
+	int buff_size = buff_count * sizeof(real);
+	
+	hig_cell *c;
+	int found_count_local = 0;
+	for(int i = 0; i < global_size; i++) {
+		fread(buff, buff_size, 1, fd);
+		c = sd_get_cell_with_point(sdu, buff);
+		if(c != NULL) {
+			int clid = mp_lookup(mu, hig_get_cid(c));
+			real val = buff[DIM];
+			dp_set_value(dpu, clid, val);
+			found_count_local++;
+		}
+		else continue;
+	}
 
-    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
-        hig_cell *c = higcit_getcell(cit);
-        int cgid = mp_lookup(mu, hig_get_cid(c));
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        real val = dp_get_value(dpu, cgid);
-        fwrite(&val, 1, sizeof(real), fd);
-    }
-    higcit_destroy(cit);
+	return found_count_local;
 }
 
-void saveOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    higcit_celliterator *cit;
-    sim_domain *sdu = psd_get_local_domain(psdu);
-    mp_mapper *mu = sd_get_domain_mapper(sdu);
 
-    for(cit = sd_get_domain_celliterator(sdu); !higcit_isfinished(cit); higcit_nextcell(cit)) {
-        hig_cell *c = higcit_getcell(cit);
-        int cgid = mp_lookup(mu, hig_get_cid(c));
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        real val = dp_get_value(dpu, cgid);
-        fwrite(&val, 1, sizeof(real), fd);
+// Save Properties
+void save_dp_scalar(psim_domain *psdu, distributed_property *dpu, char *filename_base, int myrank, int ntasks) {
+	dp_sync(dpu);
+
+	char filename[1024];
+
+	sprintf(filename, "%s", filename_base);
+
+	MPI_File fd;
+    int openerr = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fd);
+    if(openerr != MPI_SUCCESS) {
+        fprintf(stderr, "Error opening file %s to save property on process %d\n", filename, myrank);
+		MPI_Abort(MPI_COMM_WORLD, 1);
     }
-    higcit_destroy(cit);
+
+	int local_count = _save_dp_single(psdu, dpu, &fd, myrank, ntasks, dpu->pdata->firstid);
+	
+	MPI_File_close(&fd);
+
+	int global_count;
+	MPI_Allreduce(&local_count, &global_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	int global_size = psd_get_global_domain_size(psdu);
+	assert(global_count == global_size); // check if all cells were saved
 }
 
-void saveUV(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], FILE *fd, int myrank, int ntasks) {
+void save_fdp_vec(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], char *filename_base, int myrank, int ntasks) {
     for(int dim = 0; dim < DIM; dim++) {
-        saveOneU(psfdu[dim], dpu[dim], fd, myrank, ntasks);
+		dp_sync(dpu[dim]);
+
+		char filename[1024];
+
+		sprintf(filename, "%s%d", filename_base, dim);
+
+		MPI_File fd;
+		int openerr = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fd);
+		if(openerr != MPI_SUCCESS) {
+			fprintf(stderr, "Error opening file %s to save property on process %d\n", filename, myrank);
+			MPI_Abort(MPI_COMM_WORLD, 1);
+		}
+
+        int local_count = _save_fdp_single(psfdu[dim], dpu[dim], &fd, myrank, ntasks, dpu[dim]->pdata->firstid);
+
+		MPI_File_close(&fd);
+
+		int global_count;
+		MPI_Allreduce(&local_count, &global_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+		int global_size = psfd_get_global_domain_size(psfdu[dim]);
+		assert(global_count == global_size); // check if all facets were saved
     }
 }
 
-void saveP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-     saveOneP(psdu, dpu, fd, myrank, ntasks);
-}
+void save_dp_tensor(psim_domain *psdu, distributed_property *dpu[DIM][DIM], char *filename_base, int myrank, int ntasks) {
+    for (int dim = 0; dim < DIM; dim++) {
+        for (int dim2 = 0; dim2 < DIM; dim2++) {
+			char filename[1024];
+			sprintf(filename, "%s%d%d", filename_base, dim, dim2);
 
-void saveVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    saveOneVF(psdu, dpu, fd, myrank, ntasks);
-}
-
-void saveS(psim_domain *psdu, distributed_property *dpu[DIM][DIM], FILE *fd, int myrank, int ntasks) {
-    for (int i = 0; i < DIM; i++) {
-        for (int j = 0; j < DIM; j++) {
-            saveOneS(psdu, dpu[i][j], fd, myrank, ntasks);
+			save_dp_scalar(psdu, dpu[dim][dim2], filename, myrank, ntasks);
         }
     }
 }
 
+
 // Load Properties
-void loadUV(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], FILE *fd, int myrank, int ntasks) {
-    for(int dim = 0; dim < DIM; dim++) {
-        loadOneU(psfdu[dim], dpu[dim], fd, myrank, ntasks);
+void load_dp_scalar(psim_domain *psdu, distributed_property *dpu, char *filename_base, int myrank, int ntasks) {
+	FILE *fd;
+	char filename[1024];
+
+	sprintf(filename, "%s", filename_base);
+
+	fd = fopen(filename, "rb");
+	if (fd == NULL) {
+		fprintf(stderr, "Error opening file %s to load property on process %d\n", filename, myrank);
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
+
+	int global_size = psd_get_global_domain_size(psdu); // size without fringe
+
+    fseek(fd, 0, SEEK_END);
+    int file_size = ftell(fd);
+    fseek(fd, 0, SEEK_SET);
+	int buff_count = DIM + 1;
+	int buff_size = buff_count * sizeof(real);
+	assert(file_size == global_size * buff_size); // Check if the file size is correct
+
+	int found_count_local = _load_dp_single(psdu, dpu, fd, myrank, ntasks, global_size);
+
+	fclose(fd);
+
+	int found_count;
+	MPI_Allreduce(&found_count_local, &found_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	int total_count_proc = dpu->pdata->total_count;
+	int total_count;
+	MPI_Allreduce(&total_count_proc, &total_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	assert(found_count == total_count); // check if all cells were loaded - includes fringe
+
+	dp_sync(dpu);
+}
+
+
+void load_fdp_vec(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], char *filename_base, int myrank, int ntasks) {
+	for(int dim = 0; dim < DIM; dim++) {
+		FILE *fd;
+		char filename[1024];
+
+		sprintf(filename, "%s%d", filename_base, dim);
+
+		fd = fopen(filename, "rb");
+		if (fd == NULL) {
+			fprintf(stderr, "Error opening file %s to load property on process %d\n", filename, myrank);
+			MPI_Abort(MPI_COMM_WORLD, 1);
+		}
+
+		int global_size = psfd_get_global_domain_size(psfdu[dim]);  // size without fringe
+
+		fseek(fd, 0, SEEK_END);
+		int file_size = ftell(fd);
+		fseek(fd, 0, SEEK_SET);
+		int buff_count = DIM + 1;
+		int buff_size = buff_count * sizeof(real);
+		assert(file_size == global_size * buff_size); // Check if the file size is correct
+
+		int found_count_local = _load_fdp_single(psfdu[dim], dpu[dim], fd, myrank, ntasks, global_size);
+		
+		fclose(fd);
+
+		int found_count;
+		MPI_Allreduce(&found_count_local, &found_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+		int total_count_proc = dpu[dim]->pdata->total_count;
+		int total_count;
+		MPI_Allreduce(&total_count_proc, &total_count, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+		assert(found_count == total_count); // check if all facets were loaded - includes fringe
+
+		dp_sync(dpu[dim]);
     }
 }
 
-void loadP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-     loadOneP(psdu, dpu, fd, myrank, ntasks);
-}
 
-void loadVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks) {
-    loadOneVF(psdu, dpu, fd, myrank, ntasks);
-}
+void load_dp_tensor(psim_domain *psdu, distributed_property *dpu[DIM][DIM], char *filename_base, int myrank, int ntasks) {
+    for (int dim = 0; dim < DIM; dim++) {
+        for (int dim2 = 0; dim2 < DIM; dim2++) {
+			char filename[1024];
+			sprintf(filename, "%s%d%d", filename_base, dim, dim2);
 
-void loadS(psim_domain *psdu, distributed_property *dpu[DIM][DIM], FILE *fd, int myrank, int ntasks) {
-    for (int i = 0; i < DIM; i++) {
-        for (int j = 0; j < DIM; j++) {
-            loadOneS(psdu, dpu[i][j], fd, myrank, ntasks);
-            //dp_sync(ns->ed.mult.dpS[i][j]);
+			load_dp_scalar(psdu, dpu[dim][dim2], filename, myrank, ntasks);
         }
     }
 }

@@ -143,7 +143,7 @@ static void mat_prealloc_assemble_matrix(solver *cs)
 static void petsc_set_max_nonzeros(solver *cs)
 {
     /* Don't use this value anymore. */
-}
+} 
 
 static void petsc_slv_set_Ai(solver *cs, int i, int numjs, const int *j, const real *v)
 {

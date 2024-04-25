@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
-#include <sys/time.h>
+#define __USE_POSIX199309 1
+#include <time.h>
 #include <sys/resource.h>
 #include <petsc.h>
 #include <mpi.h>
@@ -147,7 +148,7 @@ int int_cmp(const int *a, const int *b)
 }
 
 #ifdef __MACH__
-#include <sys/time.h>
+#include <time.h>
 //clock_gettime is not implemented on OSX
 int clock_gettime(int clk_id, struct timespec* t) {
     struct timeval now;
