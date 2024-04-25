@@ -9,9 +9,9 @@
 real higflow_pressure_term(higflow_solver *ns) {
     // Set the pressure term
     real value = 0.0;
-    if (ns->contr.projtype == 1) {
+    if (ns->contr.projtype == INCREMENTAL) {
        value = ns->cc.dpdx;
-       if (ns->contr.flowtype == 2) {
+       if (ns->contr.flowtype == MULTIPHASE) {
            value /= ns->cc.dens;
        }
     }
@@ -22,7 +22,7 @@ real higflow_pressure_term(higflow_solver *ns) {
 real higflow_source_term(higflow_solver *ns) {
     // Set the source term
     real value = ns->cc.F;
-    if (ns->contr.flowtype == 2) {
+    if (ns->contr.flowtype == MULTIPHASE) {
         value /= ns->cc.dens;
     }
     return value;
@@ -30,11 +30,16 @@ real higflow_source_term(higflow_solver *ns) {
 
 // Cell term contribution for the interfacial tension
 real higflow_interfacial_tension_term(higflow_solver *ns) {
-    real Bo, value;
+    real We, Bo, value;
     /*Bo = 10.0;
     value = ns->cc.IF;
     value = value/(Bo*ns->cc.dens);*/
     value = 0.0;
+    /*Re = ns->par.Re;
+    Ca = ns->ed.mult.par.Ca;
+    We = Ca*Re;
+    value = ns->cc.IF;
+    value = ns->cc.IF/(We*ns->cc.dens);*/
     return value;
 }
 
@@ -45,6 +50,7 @@ real higflow_gravity_term(higflow_solver *ns) {
     //real value = 1.0/pow(Fr,2.0);
     //real value = 0.98;
     real value = 0.0;
+    //real value = 1.0/(ns->par.Fr*ns->par.Fr);
     return value;
 }
 
@@ -53,20 +59,22 @@ real higflow_tensor_term(higflow_solver *ns) {
     // Set the tensor term
     real value = 0.0;
     // Two-phase contribution
-    if (ns->contr.flowtype == 2) {
-        for (int dim2 = 0; dim2 < DIM; dim2++) {
-            value += ns->cc.dSdx[dim2];
-        }
-        value /= ns->cc.dens;
-    }
-    // Non Newtonian contribution
-    if (ns->contr.flowtype == 3) {
-        for (int dim2 = 0; dim2 < DIM; dim2++) {
-            value += ns->cc.dSdx[dim2];
+    if (ns->contr.flowtype == MULTIPHASE) {
+        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            for (int dim2 = 0; dim2 < DIM; dim2++) {
+                value += ns->cc.dSdx[dim2];
+            }
+            value /= ns->cc.dens;
         }
     }
     // Non Newtonian contribution
-    if (ns->contr.flowtype == 4) {
+    if (ns->contr.flowtype == VISCOELASTIC) {
+        for (int dim2 = 0; dim2 < DIM; dim2++) {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
+    // Non Newtonian contribution
+    if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
         for (int dim2 = 0; dim2 < DIM; dim2++) {
             value += ns->cc.dSdx[dim2];
         }
@@ -125,15 +133,15 @@ real higflow_convective_term_second_order(higflow_solver *ns, Point delta, int d
     real value;
     switch (ns->contr.secondconvecdiscrtype) {
         // Modified Coefficient Upwind scheme
-        case 0:
+        case MCU:
            value = higflow_convective_term_mcupwind(ns, delta, dim);
            break;
         // Cubista scheme
-        case 1:
+        case CUBISTA:
            value = higflow_convective_term_cubista(ns, delta, dim);
            break;
         // Quick scheme
-        case 2:
+        case QUICK:
            value = higflow_convective_term_quick(ns, delta, dim);
            break;
     }
@@ -167,15 +175,15 @@ real higflow_convective_term(higflow_solver *ns, Point delta, int dim) {
     real value;
     switch (ns->cc.convec_type) {
         // Cental differening scheme
-        case 0:
+        case CENTRAL:
            value = higflow_convective_term_central(ns, delta, dim);
            break;
         // First order upwind scheme
-        case 1:
+        case FIRST_ORDER:
            value = higflow_convective_term_first_order(ns, delta, dim);
            break;
         // Second order upwind scheme
-        case 2:
+        case SECOND_ORDER:
            value = higflow_convective_term_second_order(ns, delta, dim);
            break;
     }
@@ -187,21 +195,21 @@ real higflow_difusive_term(higflow_solver *ns, Point delta) {
     real value = 0.0;
     switch (ns->contr.flowtype) {
         // Newtonian
-        case 0:
+        case NEWTONIAN:
            for (int dim2 = 0; dim2 < DIM; dim2++) {
                value += ns->cc.du2dx2[dim2];
            }
            value /= ns->par.Re;
            break;
         // Generalized Newtonian
-        case 1:
+        case GENERALIZED_NEWTONIAN:
            for (int dim2 = 0; dim2 < DIM; dim2++) {
                value += ns->cc.du2dx2[dim2];
            }
            value /= ns->par.Re;
            break;
         // Multiphase
-        case 2:
+        case MULTIPHASE:
            for (int dim2 = 0; dim2 < DIM; dim2++) {
                value += ns->cc.du2dx2[dim2];
            }
@@ -209,14 +217,14 @@ real higflow_difusive_term(higflow_solver *ns, Point delta) {
            value /= ns->cc.dens;
            break;
         // Viscoelastic
-        case 3:
+        case VISCOELASTIC:
            for (int dim2 = 0; dim2 < DIM; dim2++) {
                value += ns->cc.du2dx2[dim2];
            }
            value /= ns->par.Re;
            break;
        // Viscoelastic
-        case 4:
+        case VISCOELASTIC_INTEGRAL:
            for (int dim2 = 0; dim2 < DIM; dim2++) {
                value += ns->cc.du2dx2[dim2];
            }
@@ -228,8 +236,13 @@ real higflow_difusive_term(higflow_solver *ns, Point delta) {
 
 // Cell electroosmotic source term contribution for the Navier-Stokes equation
 real higflow_electroosmotic_source_term(higflow_solver *ns) {
+    // conversion factor
+    real G_x = 1.0/(ns->par.Re*ns->ed.eo.par.Ex);
     // Set the source term
-    real value = ns->cc.Feo;
+    real value = G_x*ns->cc.Feo;
+    if(ns->contr.flowtype == MULTIPHASE) {
+        value /= ns->cc.dens;
+    }
     return value;
 }
 
@@ -241,10 +254,26 @@ real higflow_diffusive_ionic_term(higflow_solver *ns) {
 }
 
 // Cell electroosmotic potential ionic term contribution for the Navier-Stokes equation
-real higflow_potential_ionic_term(higflow_solver *ns) {
+real higflow_potential_ionic_term(higflow_solver *ns) { // not used anymore
     // Set the potential ionic term
     real value;
     value   = ns->cc.dndx*(ns->cc.dphidx + ns->cc.dpsidx) + ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2);
     value   *= ns->ed.eo.par.alpha/ns->ed.eo.par.Pe;
+    return value;
+}
+
+// Cell electroosmotic convective electric term contribution for the Navier-Stokes equation
+// grad (phi + psi) dot grad n
+real higflow_electric_convective_ionic_term_central(higflow_solver *ns) { 
+    real value;
+    value   = ns->cc.dndx*(ns->cc.dphidx + ns->cc.dpsidx)*ns->ed.eo.par.alpha/ns->ed.eo.par.Pe;
+    return value;
+}
+
+// Cell electroosmotic divergence electric term contribution for the Navier-Stokes equation
+// n * lapl (phi + psi)
+real higflow_electric_divergence_ionic_term(higflow_solver *ns) { 
+    real value;
+    value   = ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2)*ns->ed.eo.par.alpha/ns->ed.eo.par.Pe;
     return value;
 }

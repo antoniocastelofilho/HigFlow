@@ -12,216 +12,87 @@
 // *******************************************************************
 
 // Computing the Kernel Tensor
-// void higflow_compute_kernel_tensor(higflow_solver *ns) {
-//     if (ns->contr.flowtype == VISCOELASTIC){
-//         // Get the cosntants
-//         real Re   = ns->par.Re;
-//         real De   = ns->ed.ve.par.De;
-//         real beta = ns->ed.ve.par.beta;
-//         real tol  = ns->ed.ve.par.kernel_tol;
-//         //tol       = 1.0e-3;
-//         // Get the local sub-domain for the cells
-//         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-//         // Get the map for the domain properties
-//         mp_mapper *mp = sd_get_domain_mapper(sdp);
-//         // Loop for each cell
-//         higcit_celliterator *it;
-//         int num_neg_lambda = 0;
-//         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-//             // Get the cell
-//             hig_cell *c = higcit_getcell(it);
-//             // Get the cell identifier
-//             int clid    = mp_lookup(mp, hig_get_cid(c));
-//             // Get the center of the cell
-//             Point ccenter;
-//             hig_get_center(c, ccenter);
-//             // Get the velocity derivative tensor Du and the S tensor
-//             real Du[DIM][DIM], S[DIM][DIM];
-//             for (int i = 0; i < DIM; i++) {
-//                 for (int j = 0; j < DIM; j++) {
-//                     // Get Du
-//                     Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-//                     // Get S
-//                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-//                 }
-//             }
-
-//             // Calculate the tensor A
-//             real A[DIM][DIM], D[DIM][DIM];
-
-//             switch(ns->ed.ve.contr.model) {
-//                 case 4: ;////////////////////////////////////////////////// FENE-P
-//                     real Rhs[DIM][DIM];
-//                     real L2 = ns->ed.ve.par.L2_fene;
-//                     //real b_fene = L2;
-//                     real a = L2/(L2-3);
-//                     real trRhs = 0;
-//                     for (int i = 0; i < DIM; i++) {
-//                         for (int j = 0; j < DIM; j++) {
-//                             D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
-//                             Rhs[i][j]=0.0;
-//                             Rhs[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];    //FENE-P
-//                         }
-//                         Rhs[i][i] += a*1.0;
-//                         trRhs += Rhs[i][i];
-//                     }
-                    
-//                     real cRhs = L2/(L2+trRhs);
-//                     for (int i = 0; i < DIM; i++) {
-//                         for (int j = 0; j < DIM; j++) {
-//                             A[i][j] = cRhs*Rhs[i][j];    //FENE-P
-//                         }
-//                     }
-//                     break;
-//                 case 5: ;////////////////////////////////////////////////// e-FENE
-//                     real Du_prev[DIM][DIM];
-//                     // for(int i = 0; i < DIM; i++) {
-//                     //         for(int j = 0; j < DIM; j++) {
-//                     //             Du_prev[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD_prev[i][j], ns->ed.stn);
-//                     //     }
-//                     // }
-
-//                     // if(ns->par.step==0 && ns->par.t==0.0){ //initial conformation tensor
-//                     //     real Rhs[DIM][DIM], D_prev[DIM][DIM];
-//                     //     for (int i = 0; i < DIM; i++) {
-//                     //         for (int j = 0; j < DIM; j++) {
-//                     //             D_prev[i][j] = 0.5*(Du_prev[i][j]+Du_prev[j][i]);  
-//                     //             Rhs[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D_prev[i][j]; //previous adimensional t_p
-//                     //         }
-//                     //         Rhs[i][i] += 1.0;
-//                     //     }
-//                     //     hig_flow_compute_initial_conformation_e_fene(Rhs,A,ns->ed.ve.par.L2_fene,ns->ed.ve.par.lambda_fene,ns->ed.ve.par.E_fene);
-//                     // }
-//                     // else{
-//                         /// obtain A using kernel, then use the difference of Du to get the new A
-//                         real Kernel[DIM][DIM];
-//                         for (int i = 0; i < DIM; i++) {
-//                             for (int j = 0; j < DIM; j++) {
-//                                 Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
-//                             }
-//                         }
-//                         // Eige-values and eige-vectors of Kernel
-//                         real R[DIM][DIM], lambda[DIM];
-//                         hig_flow_jacobi(Kernel, lambda, R);
-//                         // Calculate the Inverse Kernel tansformation matrix
-//                         real B[DIM][DIM];
-//                         for (int i = 0; i < DIM; i++) {
-//                             for (int j = i+1; j < DIM; j++) {
-//                                 B[i][j] = 0.0;
-//                                 B[j][i] = 0.0;
-//                             }
-//                             B[i][i] = ns->ed.ve.get_kernel_inverse(i, lambda[i], tol);
-//                         }
-//                         // Calculate A matrix >> A = R B R^t
-//                         // D = 0.5*(Du + Du^t)
-//                         real A[DIM][DIM];
-//                         hig_flow_matrix_transpose_product(B, R, A);
-//                         // new A
-//                         real D_dif[DIM][DIM];
-//                         for (int i = 0; i < DIM; i++) {
-//                             for (int j = 0; j < DIM; j++) {
-//                                 //difference between D and previous D
-//                                 D_dif[i][j] = 0.5*(Du[i][j]+Du[j][i])-0.5*(Du_prev[i][j]+Du_prev[j][i]);
-//                                 A[i][j] = A[i][j] + 2.0*De*D_dif[i][j]; 
-//                             }
-//                         }
-//                     // }
-//                     break;
-//                 default: ///////////////////////////////////////////// Outros
-//                     for (int i = 0; i < DIM; i++) {
-//                         for (int j = 0; j < DIM; j++) {
-//                             D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
-//                             A[i][j]=0.0;
-//                             A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j]; //Alterar para FENE-P
-//                         }
-//                         A[i][i] += 1.0;
-//                     }
-//                     //printf("A = (%lf %lf)\n    (%lf %lf)\n",A[0][0],A[0][1],A[1][0],A[1][1]);
-//                     break;
-//             }
-
-//             // Eige-values and eige-vectors of A
-//             real R[DIM][DIM], lambda[DIM];
-//             hig_flow_jacobi(A, lambda, R);
-//             for (int dim = 0; dim < DIM; dim++)
-//                 if (lambda[dim] < 0.0) num_neg_lambda++;
-//             // Calculate the Kernel tansformation matrix
-//             real Kernel[DIM][DIM];
-//             hig_flow_calculate_kernel(ns, lambda, R, Kernel, tol);
-//             // Store the Kernel Tensor
-//             for (int i = 0; i < DIM; i++) {
-//                 for (int j = 0; j < DIM; j++) {
-//                    dp_set_value(ns->ed.ve.dpKernel[i][j], clid, Kernel[i][j]);
-//                 }
-//             }
-//         }
-//         print0f("===> negative eigenvalues - CKT = %d | ",num_neg_lambda);
-//         // Destroy the iterator
-//         higcit_destroy(it);
-//         // Sync the distributed pressure property
-//         for (int i = 0; i < DIM; i++) {
-//             for (int j = 0; j < DIM; j++) {
-//                 dp_sync(ns->ed.ve.dpKernel[i][j]);
-//             }
-//         }
-//     }
-// }
-
-// void higflow_compute_initial_kernel_tensor(higflow_solver *ns) {
-//     if (ns->contr.flowtype == VISCOELASTIC){
-//         if(ns->par.step==0 && ns->par.t==0.0){ //initial conformation tensor
-//             real tol  = ns->ed.ve.par.kernel_tol;
-//             // Get the local sub-domain for the cells
-//             sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-//             // Get the map for the domain properties
-//             mp_mapper *mp = sd_get_domain_mapper(sdp);
-//             // Loop for each cell
-//             higcit_celliterator *it;
-//             real Kernel[DIM][DIM];
-//             for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-//                 // Get the cell
-//                 hig_cell *c = higcit_getcell(it);
-//                 // Get the cell identifier
-//                 int clid    = mp_lookup(mp, hig_get_cid(c));
-//                 for (int i = 0; i < DIM; i++) {
-//                     for (int j = 0; j < DIM; j++) {
-//                         Kernel[i][j] = 0.0;
-//                     }
-//                     Kernel[i][i] = ns->ed.ve.get_kernel(i, 1.0, tol);
-//                 }
-//                 // Store the Kernel Tensor
-//                 for (int i = 0; i < DIM; i++) {
-//                     for (int j = 0; j < DIM; j++) {
-//                     dp_set_value(ns->ed.ve.dpKernel[i][j], clid, Kernel[i][j]);
-//                     }
-//                 }
-//             }
-//             // Destroy the iterator
-//             higcit_destroy(it);
-//             // Sync the distributed pressure property
-//             for (int i = 0; i < DIM; i++) {
-//                 for (int j = 0; j < DIM; j++) {
-//                     dp_sync(ns->ed.ve.dpKernel[i][j]);
-//                 }
-//             }
-//         }
-//     }
-// }
-
+void higflow_compute_kernel_tensor(higflow_solver *ns) {
+    if (ns->contr.flowtype == 3){
+        // Get the cosntants
+        real Re   = ns->par.Re;
+        real De   = ns->ed.ve.par.De;
+        real beta = ns->ed.ve.par.beta;
+        real tol  = ns->ed.ve.par.kernel_tol;
+        //tol       = 1.0e-3;
+        // Get the local sub-domain for the cells
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Get the map for the domain properties
+        mp_mapper *mp = sd_get_domain_mapper(sdp);
+        // Loop for each cell
+        higcit_celliterator *it;
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid    = mp_lookup(mp, hig_get_cid(c));
+            // Get the center of the cell
+            Point ccenter;
+            hig_get_center(c, ccenter);
+            // Get the velocity derivative tensor Du and the S tensor
+            real Du[DIM][DIM], S[DIM][DIM];
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get Du
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                    // Get S
+                    S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                }
+            }
+            // Calculate the tensor A
+            real A[DIM][DIM], D[DIM][DIM];
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
+                    A[i][j]=0.0;
+                    //if (beta<=0.99){
+                    A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+                    //}
+                }
+                A[i][i] += 1.0;
+            }
+            // Eige-values and eige-vectors of A
+            real R[DIM][DIM], lambda[DIM];
+            hig_flow_jacobi(A, lambda, R);
+            // Calculate the Kernel tansformation matrix
+            real Kernel[DIM][DIM];
+            hig_flow_calculate_kernel(ns, lambda, R, Kernel, tol);
+            // Store the Kernel Tensor
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                   dp_set_value(ns->ed.ve.dpKernel[i][j], clid, Kernel[i][j]);
+                }
+            }
+        }
+        // Destroy the iterator
+        higcit_destroy(it);
+        // Sync the ditributed pressure property
+        for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.ve.dpKernel[i][j]);
+            }
+        }
+    }
+}
 
 // Computing the Polymeric Tensor
 void higflow_compute_polymeric_tensor(higflow_solver *ns) {
-    if (ns->contr.flowtype == VISCOELASTIC) {
+    if (ns->contr.flowtype == 3) {
         // Get the constants
         real Re   = ns->par.Re;
         real De   = ns->ed.ve.par.De;
         real beta = ns->ed.ve.par.beta;
         real tol  = ns->ed.ve.par.kernel_tol;
-        real Tmax[DIM][DIM], Tmin[DIM][DIM];
+        real Smax[DIM][DIM], Smin[DIM][DIM];
         for (int i = 0; i < DIM; i++) {
            for (int j = 0; j < DIM; j++) {
-               Tmax[i][j] = -1.0e16;
-               Tmin[i][j] =  1.0e16;
+               Smax[i][j] = -1.0e16;
+               Smin[i][j] =  1.0e16;
            }
         }
         // Get the local sub-domain for the cells
@@ -248,8 +119,6 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
                     Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-                    // if(ns->ed.ve.contr.model==5) //e-fene
-                    //     dp_set_value(ns->ed.ve.dpD_prev[i][j], clid, Du[i][j]);
                     // Get Kernel
                     Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 }
@@ -271,62 +140,32 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
             real A[DIM][DIM], D[DIM][DIM];
             hig_flow_matrix_transpose_product(B, R, A);
             // Calculate the tensor S
-            
-            real a, trA, fA;
-            switch (ns->ed.ve.contr.model) {
-                case 4: ;///////////////////////////////////// FENE-P
-                    real L2 = ns->ed.ve.par.L2_fene;
-                    trA = 0;
-                    for (int i = 0; i < DIM; i++)
-                        trA += A[i][i];
-                    fA = L2/(L2 - trA);
-                    a = L2/(L2-3);
-                    break;
-                case 5: ;///////////////////////////////////// e-FENE
-                    real b_fene = ns->ed.ve.par.L2_fene;
-                    real lambda_fene = ns->ed.ve.par.lambda_fene;
-                    real E = ns->ed.ve.par.E_fene;
-                    trA = 0;
-                    for (int i = 0; i < DIM; i++)
-                        trA += A[i][i];
-                    fA = b_fene/(b_fene-trA) - E*sqrt(b_fene)*exp(-sqrt(trA)/lambda_fene)*(1.0/(trA*lambda_fene)+1/(trA*sqrt(trA)));
-                    a  = 1.0;
-                default: ///////////////////////////////////// Outros
-                    fA = 1.0;
-                    a  = 1.0;
-                    break;
-            } 
-
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
-                    S[i][j] = (1.0-beta)*(fA*A[i][j]-2.0*De*D[i][j])/(Re*De);
+                    S[i][j] = (1.0-beta)*(A[i][j]-2.0*De*D[i][j])/(Re*De);
                 }
-                S[i][i] += -a*(1.0-beta)/(Re*De);
+                S[i][i] += -(1.0-beta)/(Re*De);
             }
-
             // Store the Polymeric Tensor
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                    real T = S[i][j] + 2.0*(1-beta)*D[i][j]/Re;
-                   if (T > Tmax[i][j]) Tmax[i][j] = T;
-                   if (T < Tmin[i][j]) Tmin[i][j] = T;
+                   if (T > Smax[i][j]) Smax[i][j] = T;
+                   if (T < Smin[i][j]) Smin[i][j] = T;
                    dp_set_value(ns->ed.ve.dpS[i][j], clid, S[i][j]);
                 }
             }
         }
         for (int i = 0; i < DIM; i++) {
-           for (int j = 0; j <= i; j++) {
+           for (int j = 0; j < DIM; j++) {
                // Printing the min and max tensor
-               real tmin_global, tmax_global;
-               MPI_Allreduce(&Tmin[i][j], &tmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-               MPI_Allreduce(&Tmax[i][j], &tmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-               print0f("===> %d %d: Tmin = %15.10lf <===> Tmax = %15.10lf <===\n",i,j,tmin_global,tmax_global);
+               printf("===> %d %d: Tmin = %lf <===> Tmax = %lf <===\n",i,j,Smin[i][j],Smax[i][j]);
            }
         }
         // Destroy the iterator
         higcit_destroy(it);
-        // Sync the distributed pressure property
+        // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.ve.dpS[i][j]);
@@ -339,14 +178,15 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
 // Constitutive Equation Step for the Explicit Euler Method
 // *******************************************************************
 void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
-    if (ns->contr.flowtype == VISCOELASTIC) {
+    if (ns->contr.flowtype == 3) {
         // Get the cosntants
-        real Re          = ns->par.Re;
-        real De          = ns->ed.ve.par.De;
-        real tol         = ns->ed.ve.par.kernel_tol;
-        real small       = 1.0e-14;
+        real Re    = ns->par.Re;
+        real De    = ns->ed.ve.par.De;
+        real beta  = ns->ed.ve.par.beta;
+        real tol   = ns->ed.ve.par.kernel_tol;
+        real small = 1.0e-14;
         switch (ns->ed.ve.contr.model) {
-            case GPTT:
+            case 3:
                ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
             break;
         }
@@ -374,9 +214,9 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the velocity derivative tensor Du, S and Kernel tensor
-            real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
+            real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM];
             // Get the S tensor trace
-            real trS = 0.0;
+            real tr = 0.0;
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
@@ -385,60 +225,56 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                     // Get Kernel
                     Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
-                    KernelCopy[i][j] = Kernel[i][j];
                 }
-                trS += S[i][i];
+                tr += S[i][i];
             }
-
+            // Calculate the tensor A
+            real A[DIM][DIM], D[DIM][DIM];
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
+                    //A[i][j]=0.0;
+                    //if(beta<0.99){
+                    A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+               //}
+                }
+                A[i][i] += 1.0;
+            }
             // Eige-values and eige-vectors of A
-            real R[DIM][DIM], Klambda[DIM], lambda[DIM];
-            hig_flow_jacobi(KernelCopy, Klambda, R);
-            for (int dim = 0; dim < DIM; dim++)
-                lambda[dim] = ns->ed.ve.get_kernel_inverse(dim, Klambda[dim], tol);
-
+            real R[DIM][DIM], lambda[DIM];
+            hig_flow_jacobi(A, lambda, R);
             // Calculate M matrix >> M = R^t Du R
             real M[DIM][DIM];
             hig_flow_matrix_product(Du, R, M);
             // Calculate Omega matrix >> Omega = R Omega_aux R^t
             real Omega[DIM][DIM];
             hig_flow_calculate_omega(lambda, R, M, Omega, small);
-            // Calculate the Kernel jacobian
-            real jlambda[DIM];
-            for(int i = 0; i < DIM; i++)
-                jlambda[i] = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
-            // Calculate the matrix BB and the matrix B
-            real BB[DIM][DIM]; real B[DIM][DIM];
-            hig_flow_calculate_bs (lambda, jlambda, R, M, BB, B);
+            // Calculate the matrix BB 
+            real BB[DIM][DIM];
+            // Calculate the matrix BB 
+            hig_flow_calculate_b (ns, lambda, R, M, BB, tol);
             // Calculate the matrix MM for the model
             real MM[DIM][DIM], M_aux[DIM][DIM];
             switch (ns->ed.ve.contr.model) {
-                case USERSET: 
+                case -1: 
                     // User Model
-                    ns->ed.ve.calculate_m_user(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    ns->ed.ve.calculate_m_user(ns->par.Re, ns->ed.ve.par.De, ns->ed.ve.par.beta, tr, lambda, R, M, M_aux, tol);
                     break;
-                case OLDROYD_B: 
+                case 0: 
                     // Oldroyd-B Model
-                    hig_flow_calculate_m_oldroyd(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_oldroyd(ns, lambda, M, M_aux, tol);
                     break;
-                case GIESEKUS: 
+                case 1: 
                     // Giesekus Model
-                    hig_flow_calculate_m_giesekus(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_giesekus(ns, lambda, M, M_aux, tol);
                     break;
-                case LPTT: 
+                case 2: 
                     // LPTT Model
-                    hig_flow_calculate_m_lptt(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_lptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
-                case GPTT: 
+                case 3: 
                     // GPTT Model
-                    hig_flow_calculate_m_gptt(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
-                    break;
-                case FENE_P: 
-                    // FENE-P Model
-                    hig_flow_calculate_m_fene_p(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
-                    break;
-                case E_FENE:
-                    // e-FENE Model
-                    hig_flow_calculate_m_e_fene(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_gptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
             }
             // Calculate Kernel matrix >> MM = R M(Lambda) JLambda R^t
@@ -455,7 +291,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.ve.contr.convecdiscrtype) {
-                        case CELL_CENTRAL: 
+                        case 0: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -463,10 +299,10 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                                 rhs -= u[dim]*dKdx[dim];
                             }
                             break;
-                        case CELL_CUBISTA: 
+                        case 1: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
-                                rhs -= hig_flow_convective_cell_term_cubista(ns->dpu[dim], ns->sfdu[dim], ns->stn, ns->ed.ve.dpKernel[i][j], ns->ed.sdED, ns->ed.stn, Kernel[i][j], ccenter, cdelta, dim);
+                                rhs -= hig_flow_convective_tensor_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, Kernel, ccenter, cdelta, dim, i, j);
                             }
                             break;
                     }
@@ -484,39 +320,38 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
         }
         // Destroy the iterator
         higcit_destroy(it);
-        // Sync the distributed pressure property
+        // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.ve.dpS[i][j]);
             }
         }
         // Store the Kernel Tensor
-        for (int i = 0; i < DIM; i++) {
-            for (int j = 0; j < DIM; j++) {
-                for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                    // Get the cell
-                    hig_cell *c = higcit_getcell(it);
-                    // Get the cell identifier
-                    int clid    = mp_lookup(mp, hig_get_cid(c));
-                    // Get the center of the cell
-                    Point ccenter;
-                    hig_get_center(c, ccenter);
-                    // Get the S tensor and store in Kernel
-                    real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-
-                    if(j>=i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
-                
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid    = mp_lookup(mp, hig_get_cid(c));
+            // Get the center of the cell
+            Point ccenter;
+            hig_get_center(c, ccenter);
+            // Get the delta of the cell
+            Point cdelta;
+            hig_get_delta(c, cdelta);
+            // Get the S tensor and store in Kernel
+            real S[DIM][DIM];
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get S
+                    S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                     // Store Kernel
-                    dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S);   
+                    dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S[i][j]);
                 }
-                // Destroy the iterator
-                higcit_destroy(it);
-
-                if(j>=i) UPDATE_RESIDUALS(ns, ns->residuals->Kernel[i][j])
             }
         }
-        
-        // Sync the distributed pressure property
+        // Destroy the iterator
+        higcit_destroy(it);
+        // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.ve.dpKernel[i][j]);
@@ -528,188 +363,190 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 // *******************************************************************
 // Calculate convective tensor term CUBISTA
 // *******************************************************************
-// real hig_flow_convective_cell_term_cubista(distributed_property *dpu, sim_facet_domain *sfdu, sim_stencil *stn, distributed_property *dpK, sim_domain *sdED, sim_stencil *stnED, real kc, Point ccenter, Point cdelta, int dim) {
-//     real  vbar, kr, krr, kl, kll, kc, a, b, c, d, e, tol, fi, conv1,conv2;
-//     a     = 1.7500;
-//     b     = 0.3750;
-//     c     = 0.7500;
-//     d     = 0.1250;
-//     e     = 0.2500;
-//     tol   = 1.0e-14;
-//     conv1 = 0.0;
-//     conv2 = 0.0;
-//     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
-
-//     // Get the low, high, lowlow, highhigh component kernel at center cell
-//     kl  = compute_center_p_left_22(sdED, ccenter, cdelta, dim, 1.0, dpK, stnED, &incell_l); 
-//     kr  = compute_center_p_right_22(sdED, ccenter, cdelta, dim, 1.0, dpK, stnED, &incell_r); 
-//     kll = compute_center_p_left_22(sdED, ccenter, cdelta, dim, 2.0, dpK, stnED, &incell_ll);
-//     krr = compute_center_p_right_22(sdED, ccenter, cdelta, dim, 2.0, dpK, stnED, &incell_rr);
-//     // Get the velocity  v1bar(i+1/2,j) in the facet center
-//     vbar = compute_facet_u_right(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//     if (vbar > 0.0){
-//         if (fabs(kr - kl) <= tol){
-//             conv1 = vbar*kc;
-//         }else {
-//             fi = (kc - kl)/(kr - kl);
-//             if ((fi <= 0.0) || (fi >= 1.0)) {
-//                 conv1 = vbar*kc;
-//             }else {
-//                 if (fi < b){ 
-//                     if (incell_l == 1)                    conv1 = vbar*(a*kc - c*kl);
-//                     else                                  conv1 = vbar*kc;
-//                 }
-//            if ((fi >= b) && (fi <= c)){
-//                     if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar*(c*kc + b*kr -d*kl);
-//                     else                                  conv1 = vbar*kc;
-//                 }
-//            if (fi > c){ 
-//                     if (incell_r == 1)                    conv1 = vbar*(e*kc + c*kr);
-//                     else                                  conv1 = vbar*kc;
-//                 }
+real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdp, sim_stencil *stn, real K[DIM][DIM], Point ccenter, Point cdelta, int dim, int i, int j) {
+    real  vbar[DIM], dKdx[dim], kr, krr, kl, kll, kc, a, b, c, d, e, tol, fi, conv1,conv2;
+    a     = 1.7500;
+    b     = 0.3750;
+    c     = 0.7500;
+    d     = 0.1250;
+    e     = 0.2500;
+    tol   = 1.0e-14;
+    conv1 = 0.0;
+    conv2 = 0.0;
+    int   incell_r, incell_l, incell_ll, incell_rr, infacet;
+    // Get the kernel at center cell
+    kc  = K[i][j];
+    // Get the low, high, lowlow, highhigh component kernel at center cell
+    kl  = compute_center_p_left_22(ns->ed.sdED, ccenter, cdelta, dim, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn, &incell_l); 
+    kr  = compute_center_p_right_22(ns->ed.sdED, ccenter, cdelta, dim, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn, &incell_r); 
+    kll = compute_center_p_left_22(ns->ed.sdED, ccenter, cdelta, dim, 2.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn, &incell_ll);
+    krr = compute_center_p_right_22(ns->ed.sdED, ccenter, cdelta, dim, 2.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn, &incell_rr);
+    // Get the velocity  v1bar(i+1/2,j) in the facet center
+    vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+    if (vbar[dim] > 0.0){
+        if (fabs(kr - kl) <= tol){
+            conv1 = vbar[dim]*kc;
+        }else {
+            fi = (kc - kl)/(kr - kl);
+            if ((fi <= 0.0) || (fi >= 1.0)) {
+                conv1 = vbar[dim]*kc;
+            }else {
+                if (fi < b){ 
+                    if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
+                    else                                  conv1 = vbar[dim]*kc;
+                }
+           if ((fi >= b) && (fi <= c)){
+                    if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
+                    else                                  conv1 = vbar[dim]*kc;
+                }
+           if (fi > c){ 
+                    if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
+                    else                                  conv1 = vbar[dim]*kc;
+                }
                     
-//             }    
-//         }
-//     //v1bar < 0.0
-//     }else {
-//         if ((incell_r == 1) && (incell_rr == 1)){
-//             if (fabs(kc - krr) <= tol){
-//                 conv1 = vbar*kr;
-//             }else {
-//                 fi = (kr- krr)/(kc - krr);
-//                 if ((fi <= 0.0) || (fi >= 1.0)) {
-//                     conv1 = vbar*kr;
-//                 }else {
-//           if (fi < b) 
-//                         conv1 = vbar*(a*kr - c*krr);
-//                     if ((fi >= b) && (fi <= c))
-//                         conv1 = vbar*(c*kr + b*kc -d*krr);
-//                if (fi > c) 
-//                         conv1 = vbar*(c*kc + e*kr);
-//                 }
-//             }
-//         //Return upwind value at boundary
-//         }else if ((incell_r == 1) && (incell_rr == 0)){
-//             if (fabs(kc - krr) <= tol){
-//                 conv1 = vbar*kr;
-//             }else {
-//                 fi = (kr- krr)/(kc - krr);
-//                 if ((fi <= 0.0) || (fi >= 1.0)) {
-//                     conv1 = vbar*kr;
-//                 }else {
-//           if (fi <= c) 
-//                         conv1 = vbar*kr;
-//                if (fi > c) 
-//                         conv1 = vbar*(c*kc + e*kr);
-//                 }
-//             }/*
-//             vbar = compute_facet_u_right(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//             if (vbar > 0.0) conv1 = vbar*kc;
-//             else                 conv1 = vbar*kr;
-//             vbar = compute_facet_u_left(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//             if (vbar > 0.0) conv2 = vbar*kl;
-//             else                 conv2 = vbar*kc;
-//             return ((conv1 - conv2)/cdelta[dim]); */
-//         }else {
-//                 vbar = compute_facet_u_right(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//                 if (vbar > 0.0) conv1 = vbar*kc;
-//                 else                 conv1 = vbar*kc;
-//                 vbar = compute_facet_u_left(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//                 if (vbar > 0.0) conv2 = vbar*kl;
-//                 else                 conv2 = vbar*kc;
-//                 return ((conv1 - conv2)/cdelta[dim]); 
-//         }
+            }    
+        }
+    //v1bar < 0.0
+    }else {
+        if ((incell_r == 1) && (incell_rr == 1)){
+            if (fabs(kc - krr) <= tol){
+                conv1 = vbar[dim]*kr;
+            }else {
+                fi = (kr- krr)/(kc - krr);
+                if ((fi <= 0.0) || (fi >= 1.0)) {
+                    conv1 = vbar[dim]*kr;
+                }else {
+          if (fi < b) 
+                        conv1 = vbar[dim]*(a*kr - c*krr);
+                    if ((fi >= b) && (fi <= c))
+                        conv1 = vbar[dim]*(c*kr + b*kc -d*krr);
+               if (fi > c) 
+                        conv1 = vbar[dim]*(c*kc + e*kr);
+                }
+            }
+        //Return upwind value at boundary
+        }else if ((incell_r == 1) && (incell_rr == 0)){
+            if (fabs(kc - krr) <= tol){
+                conv1 = vbar[dim]*kr;
+            }else {
+                fi = (kr- krr)/(kc - krr);
+                if ((fi <= 0.0) || (fi >= 1.0)) {
+                    conv1 = vbar[dim]*kr;
+                }else {
+          if (fi <= c) 
+                        conv1 = vbar[dim]*kr;
+               if (fi > c) 
+                        conv1 = vbar[dim]*(c*kc + e*kr);
+                }
+            }/*
+            vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
+            else                 conv1 = vbar[dim]*kr;
+            vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
+            else                 conv2 = vbar[dim]*kc;
+            return ((conv1 - conv2)/cdelta[dim]); */
+        }else {
+                vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+                if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
+                else                 conv1 = vbar[dim]*kc;
+                vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
+                else                 conv2 = vbar[dim]*kc;
+                return ((conv1 - conv2)/cdelta[dim]); 
+        }
         
-//     }
-//     // Get the velocity  v2bar(i-1/2,j) in the facet center
-//     vbar = compute_facet_u_left(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//     if (vbar > 0.0){
-//         if ((incell_l == 1) && (incell_ll == 1)){
-//             if (fabs(kc-kll) <= tol) {
-//            conv2 = vbar*kl;
-//             }else {
-//            fi = (kl - kll)/(kc - kll);
-//            if ((fi <= 0.0) || (fi >= 1.0)) {
-//                conv2 = vbar*kl;
-//            }else {
-//                if (fi < b)
-//                    conv2 = vbar*(a*kl - c*kll);
-//                if ((fi >= b) && (fi <= c))
-//                    conv2 = vbar*(b*kc + c*kl - d*kll);
-//                if (fi > c)  
-//                    conv2 = vbar*(c*kc + e*kl);
-//            }
-//        }
-//         }else if ((incell_l == 1) && (incell_ll == 0)){
-//             if (fabs(kc-kll) <= tol) {
-//            conv2 = vbar*kl;
-//             }else {
-//            fi = (kl - kll)/(kc - kll);
-//            if ((fi <= 0.0) || (fi >= 1.0)) {
-//                conv2 = vbar*kl;
-//            }else {
-//                if (fi <= c)
-//                    conv2 = vbar*kl;
-//                if (fi > c)  
-//                    conv2 = vbar*(c*kc + e*kl);
-//            }
-//        }/*
-//             vbar = compute_facet_u_right(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//             if (vbar > 0.0) conv1 = vbar*kc;
-//             else                 conv1 = vbar*kr;
-//             vbar = compute_facet_u_left(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//             if (vbar > 0.0) conv2 = vbar*kl;
-//             else                 conv2 = vbar*kc;
-//             return ((conv1 - conv2)/cdelta[dim]); */
-//        }else {
-//                 vbar = compute_facet_u_right(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//                 if (vbar > 0.0) conv1 = vbar*kc;
-//                 else                 conv1 = vbar*kr;
-//                 vbar = compute_facet_u_left(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
-//                 if (vbar > 0.0) conv2 = vbar*kc;
-//                 else                 conv2 = vbar*kc;
-//                 return ((conv1 - conv2)/cdelta[dim]); 
-//         } 
-//     }else {
-//     //v2bar < 0.0 
-//         if (fabs(kl - kr) <= tol) {
-//             conv2 = vbar*kc;
-//         }else {
-//             fi = (kc - kr)/(kl - kr);
-//             if ((fi <= 0.0) || (fi >= 1.0)) {
-//                 conv2 = vbar*kc;
-//             }else {
-//            if (fi < b){
-//                     if (incell_r == 1)                    conv2 = vbar*(a*kc - c*kr);
-//                     else                                  conv2 = vbar*kc;
-//                 }
-//            if ((fi >= b) && (fi <= c)){
-//                     if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar*(c*kc + b*kl -d*kr);
-//                     else                                  conv2 = vbar*kc;
-//                 }
-//            if (fi > c){ 
-//                     if (incell_l == 1)                    conv2 = vbar*(e*kc + c*kl);
-//                     else                                  conv2 = vbar*kc;
-//                 }
-//        }
-//         }
-//     }
-//     return ((conv1-conv2)/cdelta[dim]);
-// }
+    }
+    // Get the velocity  v2bar(i-1/2,j) in the facet center
+    vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+    if (vbar[dim] > 0.0){
+        if ((incell_l == 1) && (incell_ll == 1)){
+            if (fabs(kc-kll) <= tol) {
+           conv2 = vbar[dim]*kl;
+            }else {
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi < b)
+                   conv2 = vbar[dim]*(a*kl - c*kll);
+               if ((fi >= b) && (fi <= c))
+                   conv2 = vbar[dim]*(b*kc + c*kl - d*kll);
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }
+        }else if ((incell_l == 1) && (incell_ll == 0)){
+            if (fabs(kc-kll) <= tol) {
+           conv2 = vbar[dim]*kl;
+            }else {
+           fi = (kl - kll)/(kc - kll);
+           if ((fi <= 0.0) || (fi >= 1.0)) {
+               conv2 = vbar[dim]*kl;
+           }else {
+               if (fi <= c)
+                   conv2 = vbar[dim]*kl;
+               if (fi > c)  
+                   conv2 = vbar[dim]*(c*kc + e*kl);
+           }
+       }/*
+            vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
+            else                 conv1 = vbar[dim]*kr;
+            vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
+            else                 conv2 = vbar[dim]*kc;
+            return ((conv1 - conv2)/cdelta[dim]); */
+       }else {
+                vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+                if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
+                else                 conv1 = vbar[dim]*kr;
+                vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kc;
+                else                 conv2 = vbar[dim]*kc;
+                return ((conv1 - conv2)/cdelta[dim]); 
+        } 
+    }else {
+    //v2bar < 0.0 
+        if (fabs(kl - kr) <= tol) {
+            conv2 = vbar[dim]*kc;
+        }else {
+            fi = (kc - kr)/(kl - kr);
+            if ((fi <= 0.0) || (fi >= 1.0)) {
+                conv2 = vbar[dim]*kc;
+            }else {
+           if (fi < b){
+                    if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
+                    else                                  conv2 = vbar[dim]*kc;
+                }
+           if ((fi >= b) && (fi <= c)){
+                    if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
+                    else                                  conv2 = vbar[dim]*kc;
+                }
+           if (fi > c){ 
+                    if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
+                    else                                  conv2 = vbar[dim]*kc;
+                }
+       }
+        }
+    }
+    return ((conv1-conv2)/cdelta[dim]);
+}
 
 // *******************************************************************
 // Constitutive Equation Step for the Implicit Euler Method
 // *******************************************************************
 void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
-    if (ns->contr.flowtype == VISCOELASTIC) {
+    if (ns->contr.flowtype == 3) {
         // Get the cosntants
         real dt    = ns->par.dt;
-        real Re          = ns->par.Re;
-        real De          = ns->ed.ve.par.De;
-        real tol         = ns->ed.ve.par.kernel_tol;
-        real small       = 1.0e-14;
+        real Re    = ns->par.Re;
+        real De    = ns->ed.ve.par.De;
+        real beta  = ns->ed.ve.par.beta;
+        real tol   = ns->ed.ve.par.kernel_tol;
+        real small = 1.0e-14;
         switch (ns->ed.ve.contr.model) {
-            case GPTT:
+            case 3:
                ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
             break;
         }
@@ -737,8 +574,8 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the velocity derivative tensor Du, S and Kernel tensor
-            real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
-            real trS = 0.0;
+            real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM];
+            real tr = 0.0;
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
@@ -747,60 +584,52 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                     // Get Kernel
                     Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
-                    KernelCopy[i][j] = Kernel[i][j];
                 }
-                trS += S[i][i];
+                tr += S[i][i];
             }
-            
+            // Calculate the tensor A
+            real A[DIM][DIM], D[DIM][DIM];
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
+                    A[i][j] = Re*De*S[i][j]/(1.0-beta) + 2.0*De*D[i][j];
+                }
+                A[i][i] += 1.0;
+            }
             // Eige-values and eige-vectors of A
-            real R[DIM][DIM], Klambda[DIM], lambda[DIM];
-            hig_flow_jacobi(KernelCopy, Klambda, R);
-            for (int dim = 0; dim < DIM; dim++)
-                lambda[dim] = ns->ed.ve.get_kernel_inverse(dim, Klambda[dim], tol);
-
+            real R[DIM][DIM], lambda[DIM];
+            hig_flow_jacobi(A, lambda, R);
             // Calculate M matrix >> M = R^t Du R
             real M[DIM][DIM];
             hig_flow_matrix_product(Du, R, M);
             // Calculate Omega matrix >> Omega = R Omega_aux R^t
             real Omega[DIM][DIM];
             hig_flow_calculate_omega(lambda, R, M, Omega, small);
-            // Calculate the Kernel jacobian
-            real jlambda[DIM];
-            for(int i = 0; i < DIM; i++)
-                jlambda[i] = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
-            // Calculate the matrix BB and the matrix B
-            real BB[DIM][DIM]; real B[DIM][DIM];
-            hig_flow_calculate_bs (lambda, jlambda, R, M, BB, B);
+            // Calculate the matrix BB
+            real BB[DIM][DIM];
+            hig_flow_calculate_b (ns, lambda, R, M, BB, tol);
             // Calculate the matrix MM for the model
             real MM[DIM][DIM], M_aux[DIM][DIM];
             switch (ns->ed.ve.contr.model) {
-                case USERSET: 
+                case -1: 
                     // User Model
-                    ns->ed.ve.calculate_m_user(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    ns->ed.ve.calculate_m_user(ns->par.Re, ns->ed.ve.par.De, ns->ed.ve.par.beta, tr, lambda, R, M, M_aux, tol);
                     break;
-                case OLDROYD_B: 
+                case 0: 
                     // Oldroyd-B Model
-                    hig_flow_calculate_m_oldroyd(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_oldroyd(ns, lambda, M, M_aux, tol);
                     break;
-                case GIESEKUS: 
+                case 1: 
                     // Giesekus Model
-                    hig_flow_calculate_m_giesekus(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_giesekus(ns, lambda, M, M_aux, tol);
                     break;
-                case LPTT: 
+                case 2: 
                     // LPTT Model
-                    hig_flow_calculate_m_lptt(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_lptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
-                case GPTT: 
+                case 3: 
                     // GPTT Model
-                    hig_flow_calculate_m_gptt(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
-                    break;
-                case FENE_P: 
-                    // FENE-P Model
-                    hig_flow_calculate_m_fene_p(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
-                    break;
-                case E_FENE:
-                    // e-FENE Model
-                    hig_flow_calculate_m_e_fene(lambda, jlambda, B, M_aux, Re, trS, &(ns->ed.ve.par));
+                    hig_flow_calculate_m_gptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
             }
             // Calculate Kernel matrix >> MM = R M(Lambda) JLambda R^t
@@ -816,10 +645,12 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
             //Assign the linear system to solve the constitutive equation K - dtKOmega + dtOmegaK = rhs 
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
+                    // Kernel derivative at cell center
+                    hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.ve.contr.convecdiscrtype) {
-                        case CELL_CENTRAL: 
+                        case 0: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -827,10 +658,10 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
                                 rhs -= u[dim]*dKdx[dim];
                             }
                             break;
-                        case CELL_CUBISTA: 
+                        case 1: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
-                                rhs -= hig_flow_convective_cell_term_cubista(ns->dpu[dim], ns->sfdu[dim], ns->stn, ns->ed.ve.dpKernel[i][j], ns->ed.sdED, ns->ed.stn, Kernel[i][j], ccenter, cdelta, dim);
+                                rhs -= hig_flow_convective_tensor_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, Kernel, ccenter, cdelta, dim, i, j);
                             }
                             break;
                     }
@@ -860,39 +691,38 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
         }
         // Destroy the iterator
         higcit_destroy(it);
-        // Sync the distributed pressure property
+        // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.ve.dpS[i][j]);
             }
         }
         // Store the Kernel Tensor
-        for (int i = 0; i < DIM; i++) {
-            for (int j = 0; j < DIM; j++) {
-                for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                    // Get the cell
-                    hig_cell *c = higcit_getcell(it);
-                    // Get the cell identifier
-                    int clid    = mp_lookup(mp, hig_get_cid(c));
-                    // Get the center of the cell
-                    Point ccenter;
-                    hig_get_center(c, ccenter);
-                    // Get the S tensor and store in Kernel
-                    real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-
-                    if(j>=i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
-
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid    = mp_lookup(mp, hig_get_cid(c));
+            // Get the center of the cell
+            Point ccenter;
+            hig_get_center(c, ccenter);
+            // Get the delta of the cell
+            Point cdelta;
+            hig_get_delta(c, cdelta);
+            // Get the S tensor and store in Kernel
+            real S[DIM][DIM];
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get S
+                    S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                     // Store Kernel
-                    dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S);   
+                    dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S[i][j]);
                 }
-                // Destroy the iterator
-                higcit_destroy(it);
-
-                if(j>=i) UPDATE_RESIDUALS(ns, ns->residuals->Kernel[i][j])
             }
         }
-        
-        // Sync the distributed pressure property
+        // Destroy the iterator
+        higcit_destroy(it);
+        // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 dp_sync(ns->ed.ve.dpKernel[i][j]);
@@ -944,7 +774,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic(higflow_solver *n
             // Difusive term contribution
             rhs += higflow_difusive_term(ns, fdelta);
             // Compute the intermediate velocity
-            real ustar = ns->cc.ufacet + ns->par.dt * rhs;
+            real ustar = ns->cc.ucell + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
@@ -996,7 +826,7 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic(higflow_s
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the distributed velocity property
+        // Sync the ditributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -1041,7 +871,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic(higflow_s
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the distributed velocity property
+        // Sync the ditributed velocity property
         dp_sync(ns->dpuaux[dim]);
     }
     // Calculate the order 2 Runge-Kutta method using the euler method
@@ -1074,7 +904,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic(higflow_s
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the distributed velocity property
+        // Sync the ditributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -1122,7 +952,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(higflow_solv
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ufacet;
+            rhs += ns->cc.ucell;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1230,7 +1060,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(hig
             // Total contribuition terms times delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ufacet;
+            rhs += ns->cc.ucell;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1332,11 +1162,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms times delta t
-            rhs *= 0.5*ns->par.dt;
-            // Difusive term contribution
-            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+            rhs *= 0.25*ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ufacet;
+            rhs += ns->cc.ucell;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1416,17 +1244,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
             real uaux = dp_get_value(ns->dpuaux[dim], flid);
             // Right hand side equation
             real rhs = 0.0;
-            // Source term contribution
-            rhs += higflow_source_term(ns);
-            // Pressure term contribution
-            rhs -= higflow_pressure_term(ns);
-            // Tensor term contribution
-            rhs += higflow_tensor_term(ns);
-            // Convective term contribution
-            rhs -= higflow_convective_term(ns, fdelta, dim);
-            // Total contribuition terms times delta t
-            rhs *= 1.0/3.0*ns->par.dt;
-            rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
+            rhs = (4.0*uaux - ns->cc.ucell)/3.0;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1490,65 +1308,35 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_viscoelastic(higflow_solver *ns) {
-
-    if(ns->ed.ve.par.beta<0.999999) { //otherwise newtonian
-         // Calculate the velocity derivative tensor
-        higflow_compute_velocity_derivative_tensor(ns);
-
-        // Computing the Kernel Tensor
-        //higflow_compute_initial_kernel_tensor(ns);
-        //higflow_compute_kernel_tensor(ns);
-
-        // Constitutive Equation Step for the Explicit Euler Method
-        switch (ns->ed.ve.contr.discrtype) {
-            case EXPLICIT:
-            // Explicit method
-            higflow_explicit_euler_constitutive_equation(ns);
-            break;
-            case IMPLICIT: 
-            // Implicit method
-            higflow_implicit_euler_constitutive_equation(ns);
-            break;
-        }
-
-        // Computing the Polymeric Tensor
-        higflow_compute_polymeric_tensor(ns);
-    }
-
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
-    // Boundary conditions for source term
-    higflow_boundary_condition_for_cell_source_term(ns);
-    higflow_boundary_condition_for_facet_source_term(ns);
-    // // Initial velocity derivative
-    // if(ns->par.step==0 && ns->par.t==0.0) hig_flow_compute_initial_velocity_derivative_tensor(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
-        case EXPLICIT_EULER:
+        case 0:
            // Explicit Euler method
            higflow_explicit_euler_intermediate_velocity_viscoelastic(ns, ns->dpu, ns->dpustar);
            break;
-        case EXPLICIT_RK2: 
+        case 1: 
            // Explicit RK2 method
            higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic(ns);
            break;
-        case EXPLICIT_RK3: 
+        case 2: 
            // Explicit RK3 method
            higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic(ns);
            break;
-        case SEMI_IMPLICIT_EULER: 
+        case 3: 
            // Semi-Implicit Euler Method
            higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(ns);
            break;
-        case SEMI_IMPLICIT_CN: 
+        case 4: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(ns);
            break;
-        case SEMI_IMPLICIT_BDF2: 
+        case 5: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(ns, ns->dpu, ns->dpustar);
            break;
@@ -1567,6 +1355,23 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns) {
     //higflow_outflow_u_step(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
+    // Calculate the velocity derivative tensor
+    higflow_compute_velocity_derivative_tensor(ns);
+    // Computing the Kernel Tensor
+    higflow_compute_kernel_tensor(ns);
+    // Constitutive Equation Step for the Explicit Euler Method
+    switch (ns->ed.ve.contr.discrtype) {
+        case 0:
+           // Explicit method
+           higflow_explicit_euler_constitutive_equation(ns);
+           break;
+        case 1: 
+           // Implicit method
+           higflow_implicit_euler_constitutive_equation(ns);
+           break;
+    }
+    // Computing the Polymeric Tensor
+    higflow_compute_polymeric_tensor(ns);
 }
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
@@ -1705,19 +1510,19 @@ void hig_flow_kernel_rhs (real De, real K[DIM][DIM], real O[DIM][DIM], real B[DI
 }
 
 // Calculate the Kernel matrix
-// void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real Kernel[DIM][DIM], real tol) {
-//    // Calculate the Kernel tansformation matrix
-//    real Kernel_aux[DIM][DIM];
-//    for (int i = 0; i < DIM; i++) {
-//        for (int j = i+1; j < DIM; j++) {
-//            Kernel_aux[i][j] = 0.0;
-//            Kernel_aux[j][i] = 0.0;
-//        }
-//        Kernel_aux[i][i] = ns->ed.ve.get_kernel(i, lambda[i], tol);
-//    }
-//    // Calculate Kernel matrix >> Kernel = R Kernel_aux R^t
-//    hig_flow_matrix_transpose_product(Kernel_aux, R, Kernel);
-// }
+void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real Kernel[DIM][DIM], real tol) {
+   // Calculate the Kernel tansformation matrix
+   real Kernel_aux[DIM][DIM];
+   for (int i = 0; i < DIM; i++) {
+       for (int j = i+1; j < DIM; j++) {
+           Kernel_aux[i][j] = 0.0;
+           Kernel_aux[j][i] = 0.0;
+       }
+       Kernel_aux[i][i] = ns->ed.ve.get_kernel(i, lambda[i], tol);
+   }
+   // Calculate Kernel matrix >> Kernel = R Kernel_aux R^t
+   hig_flow_matrix_transpose_product(Kernel_aux, R, Kernel);
+}
 
 // Calculate the Omega matrix
 void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small) {
@@ -1735,8 +1540,8 @@ void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][D
     hig_flow_matrix_transpose_product(Omega_aux, R, Omega);
 }
 
-// Calculate the matrix BB and the matrix B
-void hig_flow_calculate_bs (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM], real B[DIM][DIM]) {
+// Calculate the matrix BB
+void hig_flow_calculate_b (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM], real tol) {
     // Calculate the matrix BB 
     real B_aux[DIM][DIM];
     for (int i = 0; i < DIM; i++) {
@@ -1744,11 +1549,45 @@ void hig_flow_calculate_bs (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM
             B_aux[i][j] = 0.0;
             B_aux[j][i] = 0.0;
         }
-        B_aux[i][i]  = M[i][i]*lambda[i]*jlambda[i];
+        real jlambda = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+        B_aux[i][i]  = M[i][i]*lambda[i]*jlambda;
     }
     // Calculate Kernel matrix >> BB = R Btilde Lambda JLambda R^t
     hig_flow_matrix_transpose_product(B_aux, R, BB);
+}
 
+// Calculate the matrix MM for Oldroyd-B model
+void hig_flow_calculate_m_oldroyd (higflow_solver *ns, real lambda[DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol) {
+    // Calculate the matrix MM for Oldroyd-B model
+    for (int i = 0; i < DIM; i++) {
+        for (int j = i+1; j < DIM; j++) {
+            M_aux[i][j] = 0.0;
+            M_aux[j][i] = 0.0;
+        }
+        real jlambda = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+        M_aux[i][i]  = (1.0-lambda[i])*jlambda;
+    }
+}
+
+// Calculate the matrix MM for Giesekus model
+void hig_flow_calculate_m_giesekus (higflow_solver *ns, real lambda[DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol) {
+    // Calculate the matrix MM for Giesekus model
+    for (int i = 0; i < DIM; i++) {
+        for (int j = i+1; j < DIM; j++) {
+            M_aux[i][j] = 0.0;
+            M_aux[j][i] = 0.0;
+        }
+        real jlambda = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+        real aux     = 1.0-lambda[i];
+        M_aux[i][i]  = (aux - ns->ed.ve.par.alpha*aux*aux)*jlambda;
+    }
+}
+
+// Calculate the matrix MM for LPTT model
+void hig_flow_calculate_m_lptt (higflow_solver *ns, real tr, real lambda[DIM],  real M[DIM][DIM], real R[DIM][DIM], real M_aux[DIM][DIM], real tol) {
+    // Calculate the matrix MM for LPTT model
+    real B[DIM][DIM], jlambda[DIM];
+    real B_aux[DIM][DIM];
     for (int i = 0; i < DIM; i++) {
         for (int j = i+1; j < DIM; j++) {
             B_aux[i][j] = 0.0;
@@ -1758,107 +1597,53 @@ void hig_flow_calculate_bs (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM
     }
     // Calculate Kernel matrix >> B = R B_aux R^t
     hig_flow_matrix_transpose_product(B_aux, R, B);
-}
-
-
-
-// Calculate the matrix MM for Oldroyd-B model
-void hig_flow_calculate_m_oldroyd (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
-    // Calculate the matrix MM for Oldroyd-B model
-    for (int i = 0; i < DIM; i++) {
-        for (int j = i+1; j < DIM; j++) {
-            M_aux[i][j] = 0.0;
-            M_aux[j][i] = 0.0;
-        }
-        M_aux[i][i]  = (1.0-lambda[i])*jlambda[i];
-    }
-}
-
-// Calculate the matrix MM for Giesekus model
-void hig_flow_calculate_m_giesekus (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
-    // Calculate the matrix MM for Giesekus model
-    real alpha = par->alpha;
-
-    for (int i = 0; i < DIM; i++) {
-        for (int j = i+1; j < DIM; j++) {
-            M_aux[i][j] = 0.0;
-            M_aux[j][i] = 0.0;
-        }
-        real aux     = 1.0-lambda[i];
-        M_aux[i][i]  = (aux - alpha*aux*aux)*jlambda[i];
-    }
-}
-
-// Calculate the matrix MM for LPTT model
-void hig_flow_calculate_m_lptt (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
-    // Calculate the matrix MM for LPTT model
-    // real B[DIM][DIM], jlambda[DIM];
-    // real B_aux[DIM][DIM];
-    // for (int i = 0; i < DIM; i++) {
-    //     for (int j = i+1; j < DIM; j++) {
-    //         B_aux[i][j] = 0.0;
-    //         B_aux[j][i] = 0.0;
-    //     }
-    //     B_aux[i][i]  = M[i][i];
-    // }
-    // // Calculate Kernel matrix >> B = R B_aux R^t
-    // hig_flow_matrix_transpose_product(B_aux, R, B);
-
-    real De      = par->De;
-    real beta    = par->beta;
-    real epsilon = par->epsilon;
-    real psi     = par->psi;
     // Calculate the MM matrix
     for (int i = 0; i < DIM; i++) {
         for (int j = i+1; j < DIM; j++) {
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        M_aux[i][i]  = (1.0-lambda[i])*(1.0+(epsilon*Re*De*trS)/(1.0-beta))*jlambda[i];
+        jlambda[i]   = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+        M_aux[i][i]  = (1.0-lambda[i])*(1.0+(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr)/(1.0-ns->ed.ve.par.beta))*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*De*psi*jlambda[j];
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.ve.par.De*ns->ed.ve.par.psi*jlambda[j];
         }
     }
 }
 
 // Calculate the matrix MM for GPTT model
-void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
+void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  real M[DIM][DIM], real R[DIM][DIM], real M_aux[DIM][DIM], real tol) {
     // Calculate the matrix MM for LPTT model
-    // real B[DIM][DIM], jlambda[DIM];
-    // real B_aux[DIM][DIM];
-    // for (int i = 0; i < DIM; i++) {
-    //     for (int j = i+1; j < DIM; j++) {
-    //         B_aux[i][j] = 0.0;
-    //         B_aux[j][i] = 0.0;
-    //     }
-    //     B_aux[i][i]  = M[i][i];
-    // }
-    // // Calculate Kernel matrix >> B = R B_aux R^t
-    // hig_flow_matrix_transpose_product(B_aux, R, B);
-
-    real De      = par->De;
-    real beta    = par->beta;
-    real epsilon = par->epsilon;
-    real psi     = par->psi;
-    real alpha_gptt = par->alpha_gptt;
-    real beta_gptt = par->beta_gptt;
-    real gamma_gptt = par->gamma_gptt;
-
+    real B[DIM][DIM], jlambda[DIM];
+    real B_aux[DIM][DIM];
+    for (int i = 0; i < DIM; i++) {
+        for (int j = i+1; j < DIM; j++) {
+            B_aux[i][j] = 0.0;
+            B_aux[j][i] = 0.0;
+        }
+        B_aux[i][i]  = M[i][i];
+    }
+    // Calculate Kernel matrix >> B = R B_aux R^t
+    hig_flow_matrix_transpose_product(B_aux, R, B);
     // Calculate the MM matrix
     for (int i = 0; i < DIM; i++) {
         for (int j = i+1; j < DIM; j++) {
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        //real gama1, gama1n; 
-        //gama1 = 0.572365;
-                //gama1n = lgamma(beta1);
-                numc z, mitt;
-        z.real = epsilon*Re*De*trS/(1.0-beta);
-        z.imag = 0.0;
-        mitt   =  mlfv(alpha_gptt,beta_gptt, z, 6);
+        jlambda[i]   = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+   real alfa1 = ns->ed.ve.par.alpha_gptt;
+   real beta1 = ns->ed.ve.par.beta_gptt;
+   real gama1 = ns->ed.ve.par.gamma_gptt;
+   //real gama1, gama1n; 
+   //gama1 = 0.572365;
+        //gama1n = lgamma(beta1);
+        numc z, mitt;
+   z.real = ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr/(1.0-ns->ed.ve.par.beta);
+   z.imag = 0.0;
+   mitt   =  mlfv(alfa1,beta1, z, 6);
         // Exponêncial
         //real mittreal;
         //mittreal = exp(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr);
@@ -1873,61 +1658,14 @@ void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM
         // M da exponencial
         //M_aux[i][i]  = (1.0-lambda[i])*mittreal*jlambda[i];
         // M do GPTT
-        M_aux[i][i]  = (1.0-lambda[i])*gamma_gptt*mitt.real*jlambda[i];
+        M_aux[i][i]  = (1.0-lambda[i])*gama1*mitt.real*jlambda[i];
         // M teste
          //M_aux[i][i]  = (1.0-lambda[i])*mitt.real*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*De*psi*jlambda[j];
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.ve.par.De*ns->ed.ve.par.psi*jlambda[j];
         }
-    }
-}
-
-// Calculate the matrix MM for FENE-P model
-void hig_flow_calculate_m_fene_p (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
-
-    real L2 = par->L2_fene;
-    //real b_fene = L2;
-    real a = L2/(L2-3);
-    real trA = 0;
-    for (int i = 0; i < DIM; i++) {
-        trA += lambda[i];
-    }
-    real fA = L2/(L2 - trA);
-
-    // Calculate the MM matrix
-    for (int i = 0; i < DIM; i++) {
-        for (int j = i+1; j < DIM; j++) {
-            M_aux[i][j] = 0.0;
-            M_aux[j][i] = 0.0;
-        }
-        M_aux[i][i]  = (a - fA*lambda[i])*jlambda[i];
-        //M_aux[i][i]  = (1.0-lambda[i])*(1.0+(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr)/(1.0-ns->ed.ve.par.beta))*jlambda[i];
-    }
-}
-
-// Calculate the matrix MM for e-FENE model
-void hig_flow_calculate_m_e_fene (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
-
-    real L2 = par->L2_fene;
-    real lambda_fene = par->lambda_fene;
-    real E = par->E_fene;
-
-    real b = L2;
-    real trA = 0;
-    for (int i = 0; i < DIM; i++) {
-        trA += lambda[i];
-    }
-    real fA = b/(b-trA) - E*sqrt(b)*exp(-sqrt(trA)/lambda_fene)*(1.0/(trA*lambda_fene)+1/(trA*sqrt(trA)));
-
-    // Calculate the MM matrix
-    for (int i = 0; i < DIM; i++) {
-        for (int j = i+1; j < DIM; j++) {
-            M_aux[i][j] = 0.0;
-            M_aux[j][i] = 0.0;
-        }
-        M_aux[i][i]  = (1.0 - fA*lambda[i])*jlambda[i];
     }
 }
 
@@ -2024,9 +1762,9 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
             I[i][j] = 0.0;
-            if (i==j)
+       if (i==j)
                 I[i][j] = 1.0;
-        }
+   }
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = i; j < DIM; j++) {
@@ -2036,7 +1774,7 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
                         w[i*DIM + k][j*DIM + l] = I[k][l] - dt*Omega[k][l] - dt*Omega[i][i]*I[k][l];
                     }
                     else{
-                        w[i*DIM + k][j*DIM + l] =  dt*Omega[j][i]*I[k][l];
+              w[i*DIM + k][j*DIM + l] =  dt*Omega[j][i]*I[k][l];
                         w[j*DIM + l][i*DIM + k] = - dt*Omega[j][i]*I[k][l];
                     }
                 }
@@ -2044,100 +1782,3 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
         }
     }
 }
-
-void hig_flow_compute_initial_conformation_e_fene(real Rhs[DIM][DIM], real A[DIM][DIM], real b, real l, real E){
-    int maxiter = 20;
-    real eps = 1.0e-6;
-    real num,den,step;
-
-    //take the trace of T
-    real r = 0.0;
-    for (int i = 0; i < DIM; i++) {
-        r += Rhs[i][i];
-    }
-    //printf("r = %15.10lf\n", r);
-
-    for (int i = 0; i < DIM; i++) {
-        for(int j = 0; j < DIM; j++) {
-            if(fabs(Rhs[i][j])<eps) {
-                A[i][j] = 0.0;
-                continue;
-            }
-            // newton's method
-            real tr = r;
-            real tr_next;
-            for (int i = 0; i < maxiter; i++) {
-                num = 2*l*tr*(tr-b)*(sqrt(b)*E*(sqrt(tr)+l)*(-tr+b) - exp(sqrt(tr)/l)*l*sqrt(tr)*((b+r)*tr-b*r));
-                den = 2*b*b*exp(sqrt(tr)/l)*l*l*sqrt(tr)*tr + sqrt(b)*E*(-tr+b)*(-tr+b)*(tr+l*sqrt(tr)+l*l);
-                step = num/den;
-                //printf("step = %lf\n", step);
-                tr_next = tr - step;
-                tr = tr_next;
-                if(fabs(step) < eps) break;
-            }
-
-            real test = (-sqrt(b)*E*exp(-sqrt(tr)/l)*(1.0/(sqrt(tr)*tr)+1.0/(l*tr)) + b/(b-tr))*tr - r;
-            //printf("test = %lf\n", test);
-
-            real mul = -sqrt(b)*E*exp(-sqrt(tr)/l)*(1.0/(sqrt(tr)*tr)+1.0/(l*tr)) + b/(b-tr);
-            real val = Rhs[i][j]/mul;
-            //printf("val = %lf", val);
-            A[i][j] = val;
-        }
-    }
-}
-
-// void hig_flow_compute_initial_velocity_derivative_tensor(higflow_solver *ns){
-//     int infacet;
-//     // Get the local sub-domain for the cells
-//     sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-//     // Get the local sub-domain for the facets
-//     sim_facet_domain *sfdu[DIM];
-//     for(int dim = 0; dim < DIM; dim++) {
-//         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-//     }
-//     // Get the map for the domain properties
-//     mp_mapper *mp = sd_get_domain_mapper(sdp);
-//     // Loop for each cell
-//     higcit_celliterator *it;
-
-//     for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-//         // Get the cell
-//         hig_cell *c = higcit_getcell(it);
-//         // Get the cell identifier
-//         int clid    = mp_lookup(mp, hig_get_cid(c));
-//         // Get the center of the cell
-//         Point ccenter;
-//         hig_get_center(c, ccenter);
-//         // Get the delta of the cell
-//         Point cdelta;
-//         hig_get_delta(c, cdelta);
-//         // Calculate the velocity derivative tensor
-//         for (int dim = 0; dim < DIM; dim++) {
-//             for (int dim2 = 0; dim2 < DIM; dim2++) {
-//                 real dudx, ul, ur;
-//                 if (dim == dim2) {
-//                     // Get the velocity in the left facet center
-//                     ul   = compute_facet_u_left(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//                     // Get the velocity in the right facet center
-//                     ur   = compute_facet_u_right(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-//                 } else {
-//                     // Get the velocity in the left facet center
-//                     ul = compute_facet_u_4_left(sfdu[dim], ccenter, cdelta, dim, dim2, 1.0, ns->dpu[dim], ns->stn);
-//                     // Get the velocity in the right facet center
-//                     ur = compute_facet_u_4_right(sfdu[dim], ccenter, cdelta, dim, dim2, 1.0, ns->dpu[dim], ns->stn);
-//                 }
-//                 dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
-//                 dp_set_value(ns->ed.ve.dpD_prev[dim][dim2], clid, dudx);
-//             }
-//         }
-//     }
-//     // Destroy the iterator
-//     higcit_destroy(it);
-//     // Sync the distributed pressure property
-//     for (int dim = 0; dim < DIM; dim++) {
-//         for (int dim2 = 0; dim2 < DIM; dim2++) {
-//             dp_sync(ns->ed.ve.dpD_prev[dim][dim2]);
-//         }
-//     }
-// }

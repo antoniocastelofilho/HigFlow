@@ -57,17 +57,17 @@ hig-flow-discret.c:                 ur[dim2]  = compute_facet_u_right(sfdu[dim],
 hig-flow-discret.c:                 ns->cc.dudxc[dim2]  = compute_facet_dudxc(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
-hig-flow-discret.c:                 if ((infacet_l == 0)){// && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet_l == 0)){// && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ul[dim2] = compute_facet_u_2_left(sfdu[dim], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                      ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 0.5, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                      //ns->cc.convec_type = 1;
-hig-flow-discret.c:                 if ((infacet_r == 0)){// && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet_r == 0)){// && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ur[dim2] = compute_facet_u_2_right(sfdu[dim], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                      ns->cc.dudxr[dim2]  = compute_facet_dudxl(fdelta, dim2, 0.5, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                      //ns->cc.convec_type = 1;
 hig-flow-discret.c:                 urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
 hig-flow-discret.c:                 ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if (ns->cc.convec_type == 2) {
+hig-flow-discret.c:                 if (ns->cc.convec_type == 0) {
 hig-flow-discret.c:                     if (ns->contr.secondconvecdiscrtype == 2) {
 hig-flow-discret.c:                         ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ucell, urr[dim2]);
 hig-flow-discret.c:                         ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ucell);
@@ -131,17 +131,17 @@ hig-flow-discret.c:            //viscr         = compute_center_p_right(ns->ed.s
 hig-flow-discret.c:                      ns->cc.v[dim2] = ns->cc.ucell;
 hig-flow-discret.c:                      ns->cc.v[dim2] = compute_facet_u_2(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                 ul[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ur[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);         
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ns->cc.dudxc[dim2]  = compute_facet_dudxc(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
 hig-flow-discret.c:                 ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if (ns->cc.convec_type == 2) {
+hig-flow-discret.c:                 if (ns->cc.convec_type == 0) {
 hig-flow-discret.c:                     if (ns->contr.secondconvecdiscrtype == 2) {
 hig-flow-discret.c:                         ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ucell, urr[dim2]);
 hig-flow-discret.c:                         ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ucell);
@@ -220,17 +220,17 @@ hig-flow-discret.c:            ns->cc.dens   = compute_value_at_mid_point(rhol, 
 hig-flow-discret.c:                      ns->cc.v[dim2] = ns->cc.ucell;
 hig-flow-discret.c:                      ns->cc.v[dim2] = compute_facet_u_2(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                 ul[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ur[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);         
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ns->cc.dudxc[dim2]  = compute_facet_dudxc(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
 hig-flow-discret.c:                 ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if (ns->cc.convec_type == 2) {
+hig-flow-discret.c:                 if (ns->cc.convec_type == 0) {
 hig-flow-discret.c:                     if (ns->contr.secondconvecdiscrtype == 2) {
 hig-flow-discret.c:                         ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ucell, urr[dim2]);
 hig-flow-discret.c:                         ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ucell);
@@ -304,17 +304,17 @@ hig-flow-discret.c:            ns->cc.F     += compute_value_at_mid_point(Fl, Fr
 hig-flow-discret.c:                      ns->cc.v[dim2] = ns->cc.ucell;
 hig-flow-discret.c:                      ns->cc.v[dim2] = compute_facet_u_2(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                 ul[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ur[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);         
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ns->cc.dudxc[dim2]  = compute_facet_dudxc(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
 hig-flow-discret.c:                 ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if (ns->cc.convec_type == 2) {
+hig-flow-discret.c:                 if (ns->cc.convec_type == 0) {
 hig-flow-discret.c:                     if (ns->contr.secondconvecdiscrtype == 2) {
 hig-flow-discret.c:                         ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ucell, urr[dim2]);
 hig-flow-discret.c:                         ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ucell);
@@ -385,17 +385,17 @@ hig-flow-discret.c:                 ur[dim2]  = compute_facet_u_right(sfdu[dim],
 hig-flow-discret.c:                 ns->cc.dudxc[dim2]  = compute_facet_dudxc(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
-hig-flow-discret.c:                 if ((infacet_l == 0)){// && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet_l == 0)){// && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ul[dim2] = compute_facet_u_2_left(sfdu[dim], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                      ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 0.5, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                      //ns->cc.convec_type = 1;
-hig-flow-discret.c:                 if ((infacet_r == 0)){// && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet_r == 0)){// && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ur[dim2] = compute_facet_u_2_right(sfdu[dim], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                      ns->cc.dudxr[dim2]  = compute_facet_dudxl(fdelta, dim2, 0.5, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                      //ns->cc.convec_type = 1;
 hig-flow-discret.c:                 urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
 hig-flow-discret.c:                 ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if (ns->cc.convec_type == 2) {
+hig-flow-discret.c:                 if (ns->cc.convec_type == 0) {
 hig-flow-discret.c:                     if (ns->contr.secondconvecdiscrtype == 2) {
 hig-flow-discret.c:                         ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ucell, urr[dim2]);
 hig-flow-discret.c:                         ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ucell);
@@ -494,17 +494,17 @@ hig-flow-discret.c:            //ns->cc.F     += compute_value_at_mid_point(Fl, 
 hig-flow-discret.c:                      ns->cc.v[dim2] = ns->cc.ucell;
 hig-flow-discret.c:                      ns->cc.v[dim2] = compute_facet_u_2(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 hig-flow-discret.c:                 ul[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ur[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet);         
-hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 2)) {
+hig-flow-discret.c:                 if ((infacet == 0) && (ns->cc.convec_type == 0)) {
 hig-flow-discret.c:                      ns->cc.convec_type = 1;
 hig-flow-discret.c:                 ns->cc.dudxc[dim2]  = compute_facet_dudxc(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ucell, ul[dim2], ur[dim2]);
 hig-flow-discret.c:                 urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
 hig-flow-discret.c:                 ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet);
-hig-flow-discret.c:                 if (ns->cc.convec_type == 2) {
+hig-flow-discret.c:                 if (ns->cc.convec_type == 0) {
 hig-flow-discret.c:                     if (ns->contr.secondconvecdiscrtype == 2) {
 hig-flow-discret.c:                         ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ucell, urr[dim2]);
 hig-flow-discret.c:                         ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ucell);

@@ -387,7 +387,7 @@ return res;
 // Constitutive Equation Step for the Explicit Euler Method
 // *******************************************************************
 void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
-    if (ns->contr.flowtype == 4) {
+    if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.im.par.De;
@@ -441,7 +441,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
                         // Right hand side equation
                         real rhs = 0.0;
                         switch (ns->ed.im.contr.convecdiscrtype) {
-                            case 0: 
+                            case CELL_CENTRAL: 
                                 // Kernel derivative at cell center
                                 hig_flow_derivative_b_at_center_cell(ns, ccenter, cdelta, k, i, j, B[i][j], dBdx);
                                 for (int dim = 0; dim < DIM; dim++) {
@@ -449,7 +449,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
                                     rhs -= u[dim]*dBdx[dim];
                                 }
                                 break;
-                            case 1: 
+                            case CELL_CUBISTA: 
                                 //Compute convective tensor term CUBISTA in rhs
                                 for (int dim = 0; dim < DIM; dim++) {
                                     rhs -= hig_flow_convective_tensor_term_b_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, B, ccenter, cdelta, dim, k, i, j);
@@ -470,7 +470,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
             }
             // Destroy the iterator
             higcit_destroy(it);
-            // Sync the ditributed pressure property
+            // Sync the distributed pressure property
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     dp_sync(ns->ed.im.dpS[i][j]);
@@ -507,7 +507,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
             }
             // Destroy the iterator
             higcit_destroy(it);
-            // Sync the ditributed pressure property
+            // Sync the distributed pressure property
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     dp_sync(ns->ed.im.dpB[k][i][j]);
@@ -519,9 +519,9 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
 
 // Calculate the integral equation 
 void hig_flow_integral_equation (higflow_solver *ns) {
-    if (ns->ed.im.contr.model == 0) {
+    if (ns->ed.im.contr.model == KBKZ) {
         hig_flow_integral_equation_KBKZ(ns);
-    } else if (ns->ed.im.contr.model == 1) {
+    } else if (ns->ed.im.contr.model == KBKZ_FRACTIONAL) {
         hig_flow_integral_equation_KBKZ_Fractional(ns);
     }
 }
@@ -555,11 +555,11 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
         
     if(Nnow<NDTL) NDTL = Nnow;
     
-    real Smax[DIM][DIM], Smin[DIM][DIM];
+    real Tmax[DIM][DIM], Tmin[DIM][DIM];
     for (int i = 0; i < DIM; i++) {
        for (int j = 0; j < DIM; j++) {
-           Smax[i][j]   = -1.0e16;
-           Smin[i][j]   =  1.0e16;
+           Tmax[i][j]   = -1.0e16;
+           Tmin[i][j]   =  1.0e16;
            tensao[i][j] =  0.0;
        }
     }
@@ -791,14 +791,14 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
           for (int i = 0; i < DIM; i++) {
              for (int j = i; j < DIM; j++) {
                  switch (ns->ed.im.contr.model_H) {
-               case 0:
+               case PSM:
                   if (t<tcorte){
                          tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-t/welambda)*B[0][i][j];
                       }else{
                          tensao[i][j] += a[k]*(alpha/(alpha-3.0 + beta*I1a + (1.0-beta)*I2a))*exp(-tcorte/welambda)*B[0][i][j];
                       }
           break;
-               case 1: // UCM H=1
+               case UCM: // UCM H=1
                        if (t<tcorte){
                          tensao[i][j] += a[k]*exp(-t/welambda)*B[0][i][j];
                        }else{
@@ -864,10 +864,10 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
              for (int i = 0; i < DIM; i++) {
                 for (int j = i; j < DIM; j++) {
                  switch (ns->ed.im.contr.model_H) {
-               case 0: 
+               case PSM: 
                          tensao[i][j] +=A0 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1a+((1.0-beta)*I2a)))*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+A1 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1b+((1.0-beta)*I2b)))*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+ A2 * (a[r]/welambda)*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*exp((s[k+1]-t)/welambda)*B[k+1][i][j];
                     break;
-               case 1: // UCM H=1
+               case UCM: // UCM H=1
                          tensao[i][j] +=A0 *(a[r]/welambda)*exp((s[k-1]-t)/welambda)*B[k-1][i][j]+  A1*(a[r]/welambda)*exp((s[k  ]-t)/welambda)*B[k  ][i][j]+  A2*(a[r]/welambda)*exp((s[k+1]-t)/welambda)*B[k+1][i][j]; 
           break;
              }
@@ -918,10 +918,10 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
            for (int i = 0; i < DIM; i++) {
               for (int j = i; j < DIM; j++) {
                   switch (ns->ed.im.contr.model_H) {
-               case 0: 
+               case PSM: 
                          tensao[i][j] += (ds/2.0)*(c1*((alpha/(alpha-3.0+beta*I1a+(1.0-beta)*I2a))*B[NDTL-1][i][j])+c2*((alpha/(alpha-3.0+beta*I1b+(1.0-beta)*I2b))*B[NDTL][i][j]));
                     break;
-               case 1: // UCM H=1
+               case UCM: // UCM H=1
                           tensao[i][j] += (ds/2.0)*((c1*B[NDTL-1][i][j])+(c2*B[NDTL][i][j]));
           break;
              }
@@ -947,8 +947,8 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
               if (i != j) {
                  dp_set_value(ns->ed.im.dpS[j][i], clid, STensor);
               }
-              if (tensao[i][j] > Smax[i][j]) Smax[i][j] = tensao[i][j];
-              if (tensao[i][j] < Smin[i][j]) Smin[i][j] = tensao[i][j];
+              if (tensao[i][j] > Tmax[i][j]) Tmax[i][j] = tensao[i][j];
+              if (tensao[i][j] < Tmin[i][j]) Tmin[i][j] = tensao[i][j];
            }  
        }
    }
@@ -960,12 +960,15 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
          dp_sync(ns->ed.im.dpS[i][j]);
       }
    }
-   for (int i = 0; i < DIM; i++) {
-      for (int j = i; j < DIM; j++) {
-         // Printing the min and max tensor
-         printf("===>  %d %d: Tmin = %lf <===> Tmax = %lf <===\n",i,j,Smin[i][j],Smax[i][j]);
-      }
-   }
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j <= i; j++) {
+            // Printing the min and max tensor
+            real tmin_global, tmax_global;
+            MPI_Allreduce(&Tmin[i][j], &tmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&Tmax[i][j], &tmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            print0f("===> %d %d: Tmin = %15.10lf <===> Tmax = %15.10lf <===\n",i,j,tmin_global,tmax_global);
+        }
+    }
    
 }
 
@@ -986,11 +989,11 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
     real t, dt;
     real Q, ds1;
 
-    real Smax[DIM][DIM], Smin[DIM][DIM];
+    real Tmax[DIM][DIM], Tmin[DIM][DIM];
     for (int i = 0; i < DIM; i++) {
        for (int j = 0; j < DIM; j++) {
-           Smax[i][j]   = -1.0e16;
-           Smin[i][j]   =  1.0e16;
+           Tmax[i][j]   = -1.0e16;
+           Tmin[i][j]   =  1.0e16;
            tensao[i][j] =  0.0;
        }
     }
@@ -1371,8 +1374,8 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
               STensor = tensao[i][j]- ((Du[i][j]+Du[j][i])/(Re));
               // Store Kernel
               dp_set_value(ns->ed.im.dpS[i][j], clid, STensor);
-              if (STensor > Smax[i][j]) Smax[i][j] = STensor;
-              if (STensor < Smin[i][j]) Smin[i][j] = STensor;
+              if (STensor > Tmax[i][j]) Tmax[i][j] = STensor;
+              if (STensor < Tmin[i][j]) Tmin[i][j] = STensor;
            }  
        }
    }
@@ -1384,12 +1387,15 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
          dp_sync(ns->ed.im.dpS[i][j]);
       }
    }
-   for (int i = 0; i < DIM; i++) {
-      for (int j = 0; j < DIM; j++) {
-         // Printing the min and max tensor
-         printf("===> %d %d: Tmin = %lf <===> Tmax = %lf <===\n",i,j,Smin[i][j],Smax[i][j]);
-      }
-   }
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j <= i; j++) {
+            // Printing the min and max tensor
+            real tmin_global, tmax_global;
+            MPI_Allreduce(&Tmin[i][j], &tmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&Tmax[i][j], &tmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            print0f("===> %d %d: Tmin = %15.10lf <===> Tmax = %15.10lf <===\n",i,j,tmin_global,tmax_global);
+        }
+    }
    
 }
 
@@ -1668,7 +1674,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_integral(higflow_
             // Difusive term contribution
             rhs += higflow_difusive_term(ns, fdelta);
             // Compute the intermediate velocity
-            real ustar = ns->cc.ucell + ns->par.dt * rhs;
+            real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
@@ -1720,7 +1726,7 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic_integral(
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -1765,7 +1771,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_integral(
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpuaux[dim]);
     }
     // Calculate the order 2 Runge-Kutta method using the euler method
@@ -1798,7 +1804,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_integral(
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -1846,7 +1852,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic_integral(hig
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1955,7 +1961,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_int
             // Total contribuition terms times delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2057,9 +2063,11 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higf
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms times delta t
-            rhs *= 0.25*ns->par.dt;
+            rhs *= 0.5*ns->par.dt;
+            // Difusive term contribution
+            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2139,7 +2147,17 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higf
             real uaux = dp_get_value(ns->dpuaux[dim], flid);
             // Right hand side equation
             real rhs = 0.0;
-            rhs = (4.0*uaux - ns->cc.ucell)/3.0;
+            // Source term contribution
+            rhs += higflow_source_term(ns);
+            // Pressure term contribution
+            rhs -= higflow_pressure_term(ns);
+            // Tensor term contribution
+            rhs += higflow_tensor_term(ns);
+            // Convective term contribution
+            rhs -= higflow_convective_term(ns, fdelta, dim);
+            // Total contribuition terms times delta t
+            rhs *= 1.0/3.0*ns->par.dt;
+            rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2203,7 +2221,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higf
 
 // Print the Polymeric Tensor
 void higflow_print_polymeric_tensor_integral(higflow_solver *ns) {
-    if (ns->contr.flowtype == 4) {
+    if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
         FILE *data1;
         //FILE *data2;
         //FILE *data3;
@@ -2270,35 +2288,46 @@ void higflow_print_polymeric_tensor_integral(higflow_solver *ns) {
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
+    if(ns->ed.im.par.beta<0.999999) { //otherwise newtonian
+        // Calculate the velocity derivative tensor
+        higflow_compute_velocity_derivative_tensor(ns);
+        // Constitutive Equation Step for the Explicit Euler Method
+        higflow_explicit_euler_constitutive_equation_integral(ns);
+        // Computing the Polymeric and Extra-Stress Tensors
+        hig_flow_integral_equation(ns);
+    }
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
+    // Boundary conditions for source term
+    higflow_boundary_condition_for_cell_source_term(ns);
+    higflow_boundary_condition_for_facet_source_term(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
-        case 0:
+        case EXPLICIT_EULER:
            // Explicit Euler method
            higflow_explicit_euler_intermediate_velocity_viscoelastic_integral(ns, ns->dpu, ns->dpustar);
            break;
-        case 1: 
+        case EXPLICIT_RK2: 
            // Explicit RK2 method
            higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic_integral(ns);
            break;
-        case 2: 
+        case EXPLICIT_RK3: 
            // Explicit RK3 method
            higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_integral(ns);
            break;
-        case 3: 
+        case SEMI_IMPLICIT_EULER: 
            // Semi-Implicit Euler Method
            higflow_semi_implicit_euler_intermediate_velocity_viscoelastic_integral(ns);
            break;
-        case 4: 
+        case SEMI_IMPLICIT_CN: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_integral(ns);
            break;
-        case 5: 
+        case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(ns, ns->dpu, ns->dpustar);
            break;
@@ -2317,12 +2346,6 @@ void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
     higflow_outflow_u_step(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    // Calculate the velocity derivative tensor
-    higflow_compute_velocity_derivative_tensor(ns);
-    // Constitutive Equation Step for the Explicit Euler Method
-    higflow_explicit_euler_constitutive_equation_integral(ns);
-    // Computing the Polymeric and Extra-Stress Tensors
-    hig_flow_integral_equation(ns);
 
 }
 

@@ -52,20 +52,26 @@ void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM
 // Calculate the Omega matrix
 void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small); 
 
-// Calculate the matrix BB
-void hig_flow_calculate_b (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM], real tol); 
+// Calculate the matrix BB and the matrix B
+void hig_flow_calculate_bs (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM], real B[DIM][DIM]);
 
-// Calculate the matrix MM for Oldroyd model
-void hig_flow_calculate_m_oldroyd (higflow_solver *ns, real lambda[DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol); 
+// Calculate the matrix MM for Oldroyd-B model
+void hig_flow_calculate_m_oldroyd (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for Giesekus model
-void hig_flow_calculate_m_giesekus (higflow_solver *ns, real lambda[DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol); 
+void hig_flow_calculate_m_giesekus (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for LPTT model
-void hig_flow_calculate_m_lptt (higflow_solver *ns, real tr, real lambda[DIM], real M[DIM][DIM], real R[DIM][DIM], real M_aux[DIM][DIM], real tol); 
+void hig_flow_calculate_m_lptt (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for GPTT model
-void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  real M[DIM][DIM], real R[DIM][DIM], real M_aux[DIM][DIM], real tol); 
+void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par); 
+
+// Calculate the matrix MM for FENE-P model
+void hig_flow_calculate_m_fene_p (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+
+// Calculate the matrix MM for e-FENE model
+void hig_flow_calculate_m_e_fene (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Get the velocity at cell center 
 void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
@@ -74,7 +80,7 @@ void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point 
 void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Kcenter, real dKdx[DIM]); 
 
 // Calculate the kronecker product 
-void hig_flow_kernel_system_matrix (real w[DIM*DIM+1][DIM*DIM+1], real Omega[DIM][DIM], real dt);
+void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt);
 
 // Calculate RHS = 2B * M/De
 void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);
@@ -82,11 +88,14 @@ void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], 
 // Solve linear system for constitutive equation
 void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DIM+1], real x[DIM*DIM] ); 
 
-//Calculate convective tensor term CUBISTA
-real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdp, sim_stencil *stn, real K[DIM][DIM], Point ccenter, Point cdelta, int dim, int i, int j);
+// //Calculate convective tensor term CUBISTA
+// real hig_flow_convective_tensor_term_cubista(distributed_property *dpu, sim_facet_domain *sfdu, sim_stencil *stn, distributed_property *dpK, sim_domain *sdED, sim_stencil *stnED, real kc, Point ccenter, Point cdelta, int dim);
 
-// Computing the Kernel Tensor
-void higflow_compute_kernel_tensor(higflow_solver *ns);
+// // Computing the Kernel Tensor
+// void higflow_compute_kernel_tensor(higflow_solver *ns);
+
+// // Computing the Initial Kernel Tensor
+// void higflow_compute_initial_kernel_tensor(higflow_solver *ns);
 
 // Constitutive Equation Step for the Explicit Euler Method
 void higflow_explicit_euler_constitutive_equation(higflow_solver *ns);
@@ -96,5 +105,11 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns);
 
 // Computing the Polymeric Tensor
 void higflow_compute_polymeric_tensor(higflow_solver *ns);
+
+// Compute initial conformation tensor for e-FENE model
+void hig_flow_compute_initial_conformation_e_fene(real Rhs[DIM][DIM], real A[DIM][DIM], real b, real l, real E);
+
+// Compute initial velocity derivative tensor for e-FENE model
+void hig_flow_compute_initial_velocity_derivative_tensor(higflow_solver *ns);
 
 #endif

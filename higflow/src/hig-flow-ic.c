@@ -45,28 +45,28 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
     // Creating the stencil for properties interpolation
     higflow_create_stencil(ns);
     // Creating the partitioned sub-domain for extra properties
-    if (ns->contr.flowtype == 1) {
+    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
         // Initialize generalized newtonian domain
         higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == 2) {
+    } else if (ns->contr.flowtype == MULTIPHASE) {
         // Initialize multiphase domain
         higflow_create_partitioned_domain_multiphase(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == 3) {
+    } else if (ns->contr.flowtype == VISCOELASTIC) {
         // Initialize visoelastic tensor domain
         higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == 4) {
+    } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
        // Initialize integral tensors domain
         higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     }
-    if (ns->contr.modelflowtype == 1) {
+    if (ns->contr.eoflow == true) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
         // Creating the stencil for properties interpolation
@@ -116,28 +116,28 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     // Creating the stencil for properties interpolation
     higflow_create_stencil(ns);
     // the partitioned sub-domain for extra properties
-    if (ns->contr.flowtype == 1) {
+    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
         // Initialize generalized newtonian domain
         higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == 2) {
+    } else if (ns->contr.flowtype == MULTIPHASE) {
         // Initialize multiphase domain
         higflow_create_partitioned_domain_multiphase(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == 3) {
+    } else if (ns->contr.flowtype == VISCOELASTIC) {
         // Initialize visoelastic tensor domain
         higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == 4) {
+    } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
        // Initialize integral tensors domain
         higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     }
-    if (ns->contr.modelflowtype == 1) {
+    if (ns->contr.eoflow == true) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
         // Creating the stencil for properties interpolation
@@ -158,14 +158,14 @@ void higflow_initialize_pressure(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for pressure in this cell
         real val = ns->func.get_pressure(center, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->dpp, cgid, val);
+        dp_set_value(ns->dpp, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -186,14 +186,14 @@ void higflow_initialize_viscosity_gn(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for pressure in this cell
         real val = ns->ed.gn.get_viscosity(center, 0.0, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->ed.gn.dpvisc, cgid, val);
+        dp_set_value(ns->ed.gn.dpvisc, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -214,7 +214,7 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
@@ -224,7 +224,7 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
         real visc1 = ns->ed.mult.get_viscosity1(center, ns->par.t);
         real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
         // Set the viscosity in the distributed viscosity property
-        dp_set_value(ns->ed.mult.dpvisc, cgid, visc);
+        dp_set_value(ns->ed.mult.dpvisc, clid, visc);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -245,7 +245,7 @@ void higflow_initialize_fracvol(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center, delta;
         hig_get_center(c, center);
@@ -253,7 +253,7 @@ void higflow_initialize_fracvol(higflow_solver *ns) {
         // Get the value for pressure in this cell
         real val = ns->ed.mult.get_fracvol(center, delta, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->ed.mult.dpfracvol, cgid, val);
+        dp_set_value(ns->ed.mult.dpfracvol, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -274,7 +274,7 @@ void higflow_initialize_density(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
@@ -285,12 +285,53 @@ void higflow_initialize_density(higflow_solver *ns) {
         real dens1 = ns->ed.mult.get_density1(center, ns->par.t);
         real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
         // Set the viscosity in the distributed viscosity property
-        dp_set_value(ns->ed.mult.dpdens, cgid, dens);
+        dp_set_value(ns->ed.mult.dpdens, clid, dens);
     }
     // Destroying the iterator
     higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.mult.dpdens);
+}
+
+void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
+    if (ns->contr.flowtype == MULTIPHASE) {
+        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            // Setting the cell iterator
+            higcit_celliterator *it;
+            // Getting the local domain
+            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+            // Getting the Mapper for the local domain
+            mp_mapper *m = sd_get_domain_mapper(sdp);
+            // Traversing the cells of local domain
+            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+                // Getting the cell
+                hig_cell *c = higcit_getcell(it);
+                // Get the cell identifier
+                int clid = mp_lookup(m, hig_get_cid(c));
+                // Get the center of the cell
+                Point center;
+                hig_get_center(c, center);
+                Point delta;
+                hig_get_delta(c, delta);
+                for (int i = 0; i < DIM; i++) {
+                    for (int j = 0; j < DIM; j++) {
+                        // Get the value for the tensor in this cell
+                        real fracvol = ns->ed.mult.get_fracvol(center, delta, ns->par.t);
+                        real val = ns->ed.mult.ve.get_tensor_multiphase(fracvol, center, i, j, ns->par.t);
+                        dp_set_value(ns->ed.mult.ve.dpKernel[i][j], clid, val);                 
+                    }
+                }
+            }
+            // Destroying the iterator
+            higcit_destroy(it);
+            // Sync initial values among processes
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    dp_sync(ns->ed.mult.ve.dpKernel[i][j]);
+                }
+            }     
+        }
+    }
 }
 
 // Initialize the cell source term
@@ -306,14 +347,14 @@ void higflow_initialize_cell_source_term(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for the source term in this cell
         real val = ns->func.get_source_term(center, ns->par.t);
         // Set the value for source term distributed property
-        dp_set_value(ns->dpF, cgid, val);
+        dp_set_value(ns->dpF, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -324,7 +365,7 @@ void higflow_initialize_cell_source_term(higflow_solver *ns) {
 // Initialize the Non-Newtonian Tensor
 void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.flowtype == 3) {
+    if (ns->contr.flowtype == VISCOELASTIC) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -336,7 +377,7 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
             // Getting the cell
             hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+            int clid = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point center;
             hig_get_center(c, center);
@@ -345,7 +386,8 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
                     // Get the value for the tensor in this cell
                     real val = ns->ed.ve.get_tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
-                    dp_set_value(ns->ed.ve.dpS[i][j], cgid, val);
+                    //dp_set_value(ns->ed.ve.dpS[i][j], clid, val);    
+                    dp_set_value(ns->ed.ve.dpKernel[i][j], clid, val);                 
                 }
             }
         }
@@ -353,68 +395,69 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
         higcit_destroy(it);
         // Sync initial values among processes
         for (int i = 0; i < DIM; i++) {
-           for (int j = 0; j < DIM; j++) {
-              dp_sync(ns->ed.ve.dpS[i][j]);
-           }
-        }
+            for (int j = 0; j < DIM; j++) {
+                // dp_sync(ns->ed.ve.dpS[i][j]);
+                dp_sync(ns->ed.ve.dpKernel[i][j]);
+            }
+        }     
     }
 }
 
 // Initialize the Non-Newtonian Tensor - multiphase
-void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
-    // Non Newtonian flow - multiphase
-    if (ns->contr.flowtype == 2) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
-        // Getting the local domain
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
-        // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
-            // Get the center of the cell
-            Point center;
-            hig_get_center(c, center);
-            // Calculate the density
-            real fracvol  = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    // Get the value for the tensor in this cell
-                    real S0 = ns->ed.mult.get_tensor0(center, i, j, ns->par.t);
-                    real S1 = ns->ed.mult.get_tensor1(center, i, j, ns->par.t);
-                    if (fracvol == 0.0){
-                       S1 = 0.0;
-                    }
-                    if (fracvol == 1.0){
-                       S0 = 0.0;
-                    }
-                    // Set the value for tensor distributed property - phase 0
-                    dp_set_value(ns->ed.mult.dpS0[i][j], cgid, S0);
-                    // Set the value for tensor distributed property - phase 1
-                    dp_set_value(ns->ed.mult.dpS1[i][j], cgid, S1);
-                }
-            }
-        }
-        // Destroying the iterator
-        higcit_destroy(it);
-        // Sync initial values among processes
-         for (int i = 0; i < DIM; i++) {
-            for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.mult.dpS0[i][j]);
-                dp_sync(ns->ed.mult.dpS1[i][j]);
-            }
-        }
-    }
-}
+// void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
+//     // Non Newtonian flow - multiphase
+//     if (ns->contr.flowtype == MULTIPHASE) {
+//         // Setting the cell iterator
+//         higcit_celliterator *it;
+//         // Getting the local domain
+//         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+//         // Getting the Mapper for the local domain
+//         mp_mapper *m = sd_get_domain_mapper(sdp);
+//         // Traversing the cells of local domain
+//         for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+//             // Getting the cell
+//             hig_cell *c = higcit_getcell(it);
+//             // Get the cell identifier
+//             int clid = mp_lookup(m, hig_get_cid(c));
+//             // Get the center of the cell
+//             Point center;
+//             hig_get_center(c, center);
+//             // Calculate the density
+//             real fracvol  = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+//             for (int i = 0; i < DIM; i++) {
+//                 for (int j = 0; j < DIM; j++) {
+//                     // Get the value for the tensor in this cell
+//                     real S0 = ns->ed.mult.get_tensor0(center, i, j, ns->par.t);
+//                     real S1 = ns->ed.mult.get_tensor1(center, i, j, ns->par.t);
+//                     if (fracvol == 0.0){
+//                        S1 = 0.0;
+//                     }
+//                     if (fracvol == 1.0){
+//                        S0 = 0.0;
+//                     }
+//                     // Set the value for tensor distributed property - phase 0
+//                     dp_set_value(ns->ed.mult.dpS0[i][j], clid, S0);
+//                     // Set the value for tensor distributed property - phase 1
+//                     dp_set_value(ns->ed.mult.dpS1[i][j], clid, S1);
+//                 }
+//             }
+//         }
+//         // Destroying the iterator
+//         higcit_destroy(it);
+//         // Sync initial values among processes
+//          for (int i = 0; i < DIM; i++) {
+//             for (int j = 0; j < DIM; j++) {
+//                 dp_sync(ns->ed.mult.dpS0[i][j]);
+//                 dp_sync(ns->ed.mult.dpS1[i][j]);
+//             }
+//         }
+//     }
+// }
 
 // Initialize the viscoelastic integral Tensor
 void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.flowtype == 4) {
+    if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -426,7 +469,7 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
             // Getting the cell
             hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+            int clid = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point center;
             hig_get_center(c, center);
@@ -435,7 +478,7 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
                     // Get the value for the tensor in this cell
                     real val = ns->ed.im.get_tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
-                    dp_set_value(ns->ed.im.dpS[i][j], cgid, val);
+                    dp_set_value(ns->ed.im.dpS[i][j], clid, val);
                 }
             }
         }
@@ -453,7 +496,7 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
 // Initialize the viscoelastic integral finger Tensor
 void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.flowtype == 4) {
+    if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -465,7 +508,7 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
             // Getting the cell
             hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+            int clid = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point center;
             hig_get_center(c, center);
@@ -476,7 +519,7 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
                         real val = 0.0;
                         if (i == j) val = 1.0;
                         // Set the value for tensor distributed property
-                        dp_set_value(ns->ed.im.dpB[k][i][j], cgid, val);
+                        dp_set_value(ns->ed.im.dpB[k][i][j], clid, val);
                     }
                 }
             }
@@ -510,14 +553,14 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
             real val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->ed.eo.dpFeo[dim], fgid, val);
+            dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -539,14 +582,14 @@ void higflow_initialize_electroosmotic_phi(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for electro-osmotic phi in this cell
         real val = ns->ed.eo.get_electroosmotic_phi(center, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dpphi, cgid, val);
+        dp_set_value(ns->ed.eo.dpphi, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -567,14 +610,14 @@ void higflow_initialize_electroosmotic_psi(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for electro-osmotic psi in this cell
         real val = ns->ed.eo.get_electroosmotic_psi(center, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dppsi, cgid, val);
+        dp_set_value(ns->ed.eo.dppsi, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -595,14 +638,14 @@ void higflow_initialize_electroosmotic_nplus(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for electro-osmotic nplus in this cell
         real val = ns->ed.eo.get_electroosmotic_nplus(center, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dpnplus, cgid, val);
+        dp_set_value(ns->ed.eo.dpnplus, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -623,14 +666,14 @@ void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
         // Getting the cell
         hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+        int clid = mp_lookup(m, hig_get_cid(c));
         // Get the center of the cell
         Point center;
         hig_get_center(c, center);
         // Get the value for electro-osmotic nminus in this cell
         real val = ns->ed.eo.get_electroosmotic_nminus(center, ns->par.t);
         // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dpnminus, cgid, val);
+        dp_set_value(ns->ed.eo.dpnminus, clid, val);
     }
     // Destroying the iterator
     higcit_destroy(it);
@@ -654,14 +697,14 @@ void higflow_initialize_velocity(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
             real val = ns->func.get_velocity(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->dpu[dim], fgid, val);
+            dp_set_value(ns->dpu[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -686,14 +729,14 @@ void higflow_initialize_facet_source_term(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the facet source term in this cell facet
             real val = ns->func.get_facet_source_term(center, dim, ns->par.t);
             // Set the value for the facet source term distributed property
-            dp_set_value(ns->dpFU[dim], fgid, val);
+            dp_set_value(ns->dpFU[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -712,28 +755,39 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
     higflow_initialize_cell_source_term(ns);
     // Initialize facet source term distributed property
     higflow_initialize_facet_source_term(ns);
-    if (ns->contr.flowtype == 1) {
-        // Initialize viscosity distributed property
-        higflow_initialize_viscosity_gn(ns);
-    } else if (ns->contr.flowtype == 2) {
-        // Initialize volume fraction distributed property
-        higflow_initialize_fracvol(ns);
-        // Initialize viscosity distributed property
-        higflow_initialize_viscosity_mult(ns);
-        // Initialize density distributed property
-        higflow_initialize_density(ns);
-        // Initialize Tensor distributed property
-        higflow_initialize_viscoelastic_mult_tensor(ns);
-    } else if (ns->contr.flowtype == 3) {
-        // Initialize non Newtonian tensor distributed property
-        higflow_initialize_viscoelastic_tensor(ns);
-    } else if (ns->contr.flowtype == 4) {
-        // Initialize non Newtonian integral tensor distributed property
-        higflow_initialize_viscoelastic_integral_tensor(ns);
-        // Initialize non Newtonian integral finger tensor distributed property
-        higflow_initialize_viscoelastic_integral_finger_tensor(ns);
+
+    switch (ns->contr.flowtype) {
+        case GENERALIZED_NEWTONIAN:
+            // Initialize viscosity distributed property
+            higflow_initialize_viscosity_gn(ns);
+        break;
+        case MULTIPHASE:
+            // Initialize volume fraction distributed property
+            higflow_initialize_fracvol(ns);
+            // Initialize viscosity distributed property
+            higflow_initialize_viscosity_mult(ns);
+            // Initialize density distributed property
+            higflow_initialize_density(ns);
+            // // Initialize Tensor distributed property
+            // higflow_initialize_viscoelastic_mult_tensor(ns);
+            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+                // Initialize Tensor distributed property
+                higflow_initialize_viscoelastic_mult_tensor(ns);
+            }
+        break;
+        case VISCOELASTIC:
+            // Initialize non Newtonian tensor distributed property
+            higflow_initialize_viscoelastic_tensor(ns);
+        break;
+        case VISCOELASTIC_INTEGRAL:
+            // Initialize non Newtonian integral tensor distributed property
+            higflow_initialize_viscoelastic_integral_tensor(ns);
+            // Initialize non Newtonian integral finger tensor distributed property
+            higflow_initialize_viscoelastic_integral_finger_tensor(ns);
+        break;
     }
-    if (ns->contr.modelflowtype == 1) {
+    
+    if (ns->contr.eoflow == true) {
         // Initialize electro-osmotic phi distributed property
         higflow_initialize_electroosmotic_phi(ns);
         // Initialize electro-osmotic psi distributed property
@@ -741,7 +795,9 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         // Initialize electro-osmotic nplus distributed property
         higflow_initialize_electroosmotic_nplus(ns);
         // Initialize electro-osmotic nminus distributed property
-        higflow_initialize_electroosmotic_nminus(ns);
+        higflow_initialize_electroosmotic_nminus(ns); 
+        // Initialize electro-osmotic source term distributed property
+        higflow_initialize_electroosmotic_source_term(ns);
     }
 }
 

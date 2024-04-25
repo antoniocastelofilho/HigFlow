@@ -30,7 +30,7 @@ real compute_facet_du2dx2(Point delta, int dim, real alpha, real u, real ul, rea
 real compute_dpdx_at_point(Point delta, int dim, real alpha, real valuel, real valueh); 
 
 // Compute the first derivative using the forward method
-real compute_dpdxr_at_point(Point delta, int dim, real alpha, real valuec, real valueh); 
+real compute_dpdxr_at_point(Point delta, int dim, real alpha, real valuec, real valuer); 
 
 // Compute the first derivative using the backward method
 real compute_dpdxl_at_point(Point delta, int dim, real alpha, real valuel, real valuec); 
@@ -48,14 +48,8 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
 // Computing the necessary term for the Generalized Newtonian Navier-Stokes equation
 void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
-// Computing the necessary term for the Implicit Generalized Newtonian Navier-Stokes equation
-void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
-
 // Computing the necessary term for the Multifase Navier-Stokes equation
 void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
-
-// Computing the necessary term for the Multifase Navier-Stokes equation
-void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 // Computing the necessary term for the Viscoelastic Navier-Stokes equation
 void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 

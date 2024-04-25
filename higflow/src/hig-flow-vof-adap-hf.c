@@ -19,16 +19,17 @@ int get_frac_vol(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Poin
    if (c == NULL) {
       return 0;
    } else {
-      Point Delta2;
-      hig_get_delta(c, Delta2);
-      if (fabs(Delta[dim] - Delta2[dim])>1.0e-12){
-         printf("Different sizes dc=[%.18lf %.18lf] dp= [%.18lf %.18lf] \t ",Delta[0],Delta[1],Delta2[0],Delta2[1]);
-         return -1;
-      } else {
+      // TODO
+      // Point Delta2;
+      // hig_get_delta(c, Delta2);
+      // if (fabs(Delta[dim] - Delta2[dim])>1.0e-12){
+      //    printf("Different sizes dc=[%.18lf %.18lf] dp= [%.18lf %.18lf] \t ",Delta[0],Delta[1],Delta2[0],Delta2[1]);
+      //    return -1;
+      // } else {
          *fracvol = compute_value_at_point(sd, Center, P, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          fraction_correction_at_get(fracvol);
          return 1;
-      }
+      // }
    }
 }
 
@@ -57,8 +58,9 @@ void vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
-         //printf("Up - Vertical cell out of domain \n");
-         return;
+         // //printf("Up - Vertical cell out of domain \n");
+         // return;
+         break;
       } else {
          //printf("Up - Vertical cells with different sizes \n");
          return;
@@ -75,8 +77,9 @@ void vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
-         //printf("Down - Vertical cell out of domain \n");
-         return;
+         // //printf("Down - Vertical cell out of domain \n");
+         // return;
+         break;
       } else {
          //printf("Down - Vertical cells with different sizes \n");
          return;
@@ -123,8 +126,9 @@ void horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, 
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
-         //printf("Right - Horizontal cell out of domain \n");
-         return;
+         // //printf("Right - Horizontal cell out of domain \n");
+         // return;
+         break;
       } else {
          //printf("Right - Horizontal cells with different sizes \n");
          return;
@@ -143,8 +147,9 @@ void horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, 
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
-         //printf("Left - Horizontal cell out of domain \n");
-         return;
+         // //printf("Left - Horizontal cell out of domain \n");
+         // return;
+         break;
       } else {
          //printf("Left - Horizontal cells with different sizes \n");
          return;

@@ -157,8 +157,8 @@ void save_cell_values(higflow_solver *ns,int aux) {
             real press = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->ed.stn);
             arquivopress(nome_press,press);
             
-            real beta = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpbeta, ns->ed.stn);
-            arquivobeta(nome_beta,beta);
+            // real beta = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpbeta, ns->ed.stn);
+            // arquivobeta(nome_beta,beta);
             
             real visc = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpvisc, ns->ed.stn);
             arquivopress(nome_visc,visc);
@@ -323,100 +323,100 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
         dp_sync(ns->ed.mult.dpdens);
 }
 
-// Computing beta viscoelastic
-void higflow_compute_beta_visc_multiphase(higflow_solver *ns) {
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int dim = 0; dim < DIM; dim++) {
-            sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the delta of the cell
-            Point cdelta;
-            hig_get_delta(c, cdelta);
-            // Calculate the density
-            real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            // Calculate the density
-            real beta0 = 1.0;
-            real beta1 = 0.5;
-            real beta  = (1.0-fracvol)*beta0 + fracvol*beta1;
-            // Set the viscosity in the distributed viscosity property
-            dp_set_value(ns->ed.mult.dpbeta, clid, beta);
-        }
-        // Destroy the iterator
-        higcit_destroy(it);
-        // Sync the distributed beta property
-        dp_sync(ns->ed.mult.dpbeta);
-}
+// // Computing beta viscoelastic
+// void higflow_compute_beta_visc_multiphase(higflow_solver *ns) {
+//         // Get the local sub-domain for the cells
+//         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+//         // Get the local sub-domain for the facets
+//         sim_facet_domain *sfdu[DIM];
+//         for(int dim = 0; dim < DIM; dim++) {
+//             sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+//         }
+//         // Get the map for the domain properties
+//         mp_mapper *mp = sd_get_domain_mapper(sdp);
+//         // Loop for each cell
+//         higcit_celliterator *it;
+//         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+//             // Get the cell
+//             hig_cell *c = higcit_getcell(it);
+//             // Get the cell identifier
+//             int clid    = mp_lookup(mp, hig_get_cid(c));
+//             // Get the center of the cell
+//             Point ccenter;
+//             hig_get_center(c, ccenter);
+//             // Get the delta of the cell
+//             Point cdelta;
+//             hig_get_delta(c, cdelta);
+//             // Calculate the density
+//             real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+//             // Calculate the density
+//             real beta0 = 1.0;
+//             real beta1 = 0.5;
+//             real beta  = (1.0-fracvol)*beta0 + fracvol*beta1;
+//             // Set the viscosity in the distributed viscosity property
+//             dp_set_value(ns->ed.mult.dpbeta, clid, beta);
+//         }
+//         // Destroy the iterator
+//         higcit_destroy(it);
+//         // Sync the distributed beta property
+//         dp_sync(ns->ed.mult.dpbeta);
+// }
 
-// Computing S viscoelastic
-void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
-       // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int dim = 0; dim < DIM; dim++) {
-            sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        }
-        // Get the map for the domain properties
-        mp_mapper *mp = sd_get_domain_mapper(sdp);
-        // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Get the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
-            // Get the center of the cell
-            Point ccenter;
-            hig_get_center(c, ccenter);
-            // Get the delta of the cell
-            Point cdelta;
-            hig_get_delta(c, cdelta);
-            // Calculate the density
-            real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
-            // Calculate the density
+// // Computing S viscoelastic
+// void higflow_compute_S_visc_multiphase(higflow_solver *ns) {
+//        // Get the local sub-domain for the cells
+//         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+//         // Get the local sub-domain for the facets
+//         sim_facet_domain *sfdu[DIM];
+//         for(int dim = 0; dim < DIM; dim++) {
+//             sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+//         }
+//         // Get the map for the domain properties
+//         mp_mapper *mp = sd_get_domain_mapper(sdp);
+//         // Loop for each cell
+//         higcit_celliterator *it;
+//         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+//             // Get the cell
+//             hig_cell *c = higcit_getcell(it);
+//             // Get the cell identifier
+//             int clid    = mp_lookup(mp, hig_get_cid(c));
+//             // Get the center of the cell
+//             Point ccenter;
+//             hig_get_center(c, ccenter);
+//             // Get the delta of the cell
+//             Point cdelta;
+//             hig_get_delta(c, cdelta);
+//             // Calculate the density
+//             real fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+//             // Calculate the density
             
-            //real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
-            // Set the viscosity in the distributed viscosity property
+//             //real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
+//             // Set the viscosity in the distributed viscosity property
             
-            real S[DIM][DIM];
-            for (int i = 0; i < DIM; i++) {
-                for (int j = 0; j < DIM; j++) {
-                    // Get Kernel
-                    S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                    //S[i][j]  = (1.0 - fracvol)*S[i][j];
-                    S[i][j]  = fracvol*S[i][j];
-                    //printf("S[%d][%d]=%lf   ",i,j,S[i][j]);
-                    dp_set_value(ns->ed.mult.dpS[i][j], clid, S[i][j]);
-                }
+//             real S[DIM][DIM];
+//             for (int i = 0; i < DIM; i++) {
+//                 for (int j = 0; j < DIM; j++) {
+//                     // Get Kernel
+//                     S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+//                     //S[i][j]  = (1.0 - fracvol)*S[i][j];
+//                     S[i][j]  = fracvol*S[i][j];
+//                     //printf("S[%d][%d]=%lf   ",i,j,S[i][j]);
+//                     dp_set_value(ns->ed.mult.dpS[i][j], clid, S[i][j]);
+//                 }
                 
-            }
-            //printf("\n");
-        }
-        // Destroy the iterator
-        higcit_destroy(it);
-        // Sync the distributed beta property
-        // Sync the ditributed pressure property
-        for (int i = 0; i < DIM; i++) {
-            for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.mult.dpS[i][j]);
-            }
-        }
-}
+//             }
+//             //printf("\n");
+//         }
+//         // Destroy the iterator
+//         higcit_destroy(it);
+//         // Sync the distributed beta property
+//         // Sync the distributed pressure property
+//         for (int i = 0; i < DIM; i++) {
+//             for (int j = 0; j < DIM; j++) {
+//                 dp_sync(ns->ed.mult.dpS[i][j]);
+//             }
+//         }
+// }
 
 // Fraction Correction  
 void fraction_correction_at_set(real *fracvol){
@@ -630,11 +630,16 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
       
       // Auxiliary fraction correction
       fraction_correction_at_set(&fracvolaux);
+
+      UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
       
       dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
    }
    // Destroy the iterator
    higcit_destroy(it);
+
+   UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[0])
+
    // Sync the distributed vol frac aux property
    dp_sync(ns->ed.mult.dpfracvolaux);
 }
@@ -643,7 +648,7 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 // Volume Fraction Transport Step with PLIC fractional step on direction y
 // ***********************************************************************
 void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int dim){
-    if (ns->contr.flowtype == 2) {
+    if (ns->contr.flowtype == MULTIPHASE) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local sub-domain for the facets
@@ -842,11 +847,16 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 
             // Auxiliary fraction correction
             fraction_correction_at_set(&fracvolaux);
+
+            UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
             
             dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
         // Destroy the iterator
         higcit_destroy(it);
+
+        UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[1])
+
         // Sync the distributed vol frac aux property
         dp_sync(ns->ed.mult.dpfracvolaux);
     }
@@ -857,7 +867,7 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 // Volume Fraction Transport Step with PLIC fractional step on direction x
 // ***********************************************************************
 void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, int dim) {
-    if (ns->contr.flowtype == 2) {
+    if (ns->contr.flowtype == MULTIPHASE) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local sub-domain for the facets
@@ -1068,10 +1078,15 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
             // Auxiliary fraction correction
             fraction_correction_at_set(&fracvolaux);
 
+            UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
+
             dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
         // Destroy the iterator
         higcit_destroy(it);
+
+        UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[0])
+
         // Sync the distributed vol frac aux property
         dp_sync(ns->ed.mult.dpfracvolaux);
     }
@@ -1081,7 +1096,7 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 // Volume Fraction Transport Step with PLIC fractional step on direction y
 // ***********************************************************************
 void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, int dim){
-    if (ns->contr.flowtype == 2) {
+    if (ns->contr.flowtype == MULTIPHASE) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local sub-domain for the facets
@@ -1280,10 +1295,16 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 
             // Auxiliary fraction correction
             fraction_correction_at_set(&fracvolaux);
+
+            UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
+
             dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
         // Destroy the iterator
         higcit_destroy(it);
+
+        UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[1])
+
         // Sync the distributed vol frac aux property
         dp_sync(ns->ed.mult.dpfracvolaux);
     }
@@ -1294,7 +1315,7 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 //Copy Auxiliary Volume Fraction to Volume Fraction
 // ***********************************************************************
 void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
-    if (ns->contr.flowtype == 2) {
+    if (ns->contr.flowtype == MULTIPHASE) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local sub-domain for the facets
@@ -1346,7 +1367,7 @@ void normal_correction_at_get(Point Normal) {
 // Volume Fraction Transport Step for the Explicit Euler Method
 // *******************************************************************
 void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
-    if (ns->contr.flowtype == 2) {
+    if (ns->contr.flowtype == MULTIPHASE) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local sub-domain for the facets
@@ -1383,7 +1404,7 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
        real rhs = 0.0;
        int  convecdiscrtype = 1;
            switch (convecdiscrtype) {
-              case 0: 
+              case CELL_CENTRAL: 
                  // Kernel derivative at cell center
                  hig_flow_derivative_fracvol_at_center_cell(ns, ccenter, cdelta, fracvol, dfracvoldx);
                  for (int dim = 0; dim < DIM; dim++) {
@@ -1391,7 +1412,7 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
                     rhs -= u[dim]*dfracvoldx[dim];
                  }
                  break;
-              case 1: 
+              case CELL_CUBISTA: 
                  //Compute convective fracvol term CUBISTA in rhs
                  for (int dim = 0; dim < DIM; dim++) {
                     rhs -= hig_flow_fracvol_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, fracvol, ccenter, cdelta, dim);
@@ -1691,7 +1712,7 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
             // Compute the density in the facet
             real rho = 0.5*(rhol + rhor);
             real pl, pr;
-            if (ns->contr.projtype == 1) {
+            if (ns->contr.projtype == INCREMENTAL) {
                 // Get the pressure in the left cell
                 pl    = compute_center_p_left(sdp, fcenter, fdelta, dim, 0.5, ns->ddeltap, ns->stn);
                 // Get the pressure in the right cell
@@ -1707,19 +1728,28 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
             // Get the intermediate velocity
             real ustar = dp_get_value(ns->dpustar[dim], flid);
             // Compute the final velocity
-            real utdt  = ustar - ns->par.dt*dpdx/rho;
+            real u  = ustar - ns->par.dt*dpdx/rho;
+
+            UPDATE_RESIDUAL_BUFFER_FACET(ns, dp_get_value(ns->dpu[dim], flid), u, f, fcenter)
+
             // Set the final velocity in the distributed velocity property
-            dp_set_value(ns->dpu[dim], flid, utdt);
+            dp_set_value(ns->dpu[dim], flid, u);
             // Update the min and max velocity
-            if (utdt > velmax) velmax = utdt;
-            if (utdt < velmin) velmin = utdt;
+            if (u > velmax) velmax = u;
+            if (u < velmin) velmin = u;
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+
+        UPDATE_RESIDUALS(ns, ns->residuals->u[dim])
+
+        // Sync the distributed velocity property
         dp_sync(ns->dpu[dim]);
         // Printing the min and max velocity
-        printf("===> %d: Vmin = %lf <===> Vmax = %lf <===\n",dim,velmin,velmax);
+        real velmin_global, velmax_global;
+        MPI_Allreduce(&velmin, &velmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&velmax, &velmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> %d: Vmin = %15.10lf <===> Vmax = %15.10lf <===\n",dim,velmin_global,velmax_global);
     }
 }
 
@@ -1732,8 +1762,10 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
     for(int dim = 0; dim < DIM; dim++) {
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
     }
+
     // Get the map for the domain properties
-    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    //mp_mapper *mp = sd_get_domain_mapper(sdp);
+    remove_pressure_singularity(ns, ns->slvp);
     // Loop for each cell
     higcit_celliterator *it;
     for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
@@ -1791,13 +1823,16 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
         // Get the stencil
         sd_get_stencil(sdp, ccenter, ccenter, alpha, ns->stn);
         // Get the index of the stencil
-        int *ids   = stn_get_ids(ns->stn);
+        int *ids   = psd_stn_get_gids(ns->psdp, ns->stn);
         // Get the value of the stencil
         real *vals = stn_get_vals(ns->stn);
         // Get the number of elements of the stencil
         int numelems = stn_get_numelems(ns->stn);
         // Get the cell identifier of the cell
         int cgid = psd_get_global_id(ns->psdp, c);
+        if (ns->contr.desingpressure == true) { // cell with pressure desingularized
+            if(cgid==ns->slvp->imposed_line) continue;
+        }
         // Set the right side of solver linear system
         slv_set_bi(ns->slvp, cgid, stn_get_rhs(ns->stn));
         // Set the line of matrix of the solver linear system
@@ -1805,17 +1840,14 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
     }
     // Destroy the iterator
     higcit_destroy(it);
-   // Assemble the solver
-    slv_assemble(ns->slvp);    
-    // aqui é pra remover
-    remove_pressure_singularity(ns, ns->slvp);
     // Assemble the solver
     slv_assemble(ns->slvp);
     // Solve the linear system
     slv_solve(ns->slvp);
     // Set the solver solution in the pressure or pressure difference distributed property
-    distributed_property *dp = (ns->contr.projtype == 1) ? ns->ddeltap : ns->dpp;
+    distributed_property *dp = (ns->contr.projtype == INCREMENTAL) ? ns->ddeltap : ns->dpp;
     dp_slv_load_from_solver(dp, ns->slvp);
+    dp_sync(dp);
 }
 
 // *******************************************************************
@@ -1865,7 +1897,7 @@ void higflow_explicit_euler_intermediate_velocity_multiphase(higflow_solver *ns,
             // Difusive term contribution
             rhs += higflow_difusive_term(ns, fdelta);
             // Compute the intermediate velocity
-            real ustar = ns->cc.ucell + ns->par.dt * rhs;
+            real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
@@ -1916,7 +1948,7 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase(higflow_sol
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -1961,7 +1993,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase(higflow_sol
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpuaux[dim]);
     }
     // Calculate the order 2 Runge-Kutta method using the euler method
@@ -2028,7 +2060,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
             // Set the computational cell
-            higflow_computational_cell_imp_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
+            higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
             real rhs = 0.0;
             // Source term contribution
@@ -2046,54 +2078,53 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
             stn_set_rhs(ns->stn,rhs);
             // Calculate the point and weight of the stencil
             // Calculate the point and weight of the stencil
-            real alpha = 0.0, wr = 0.0, wl = 0.0;
+            real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
-                if(dim2==dim) {
-                    // Get the cell viscosity in the left cell
-                    ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
-                    // Get the cell viscosity in the right cell
-                    ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
-                } else {
-                    Point p1,p2,p3,p4,p3_,p4_;
-                    // p1 and p2 in facet center
-                    POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
-                    // p1 and p2 in cell center
-                    p1[dim]=p1[dim]-0.5*fdelta[dim];p2[dim]=p2[dim]+0.5*fdelta[dim];
-                    // copy p1 and p2 in p3 and p4
-                    POINT_ASSIGN(p3, p1);POINT_ASSIGN(p4, p2);
-                    POINT_ASSIGN(p3_, p1);POINT_ASSIGN(p4_, p2);
-                    // p3 and p4 in cell center
-                    p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
-                    p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
-                    // viscosity 
-                    real v1=compute_value_at_point(ns->ed.sdED,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-                    real v2=compute_value_at_point(ns->ed.sdED,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-                    real v3=compute_value_at_point(ns->ed.sdED,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-                    real v4=compute_value_at_point(ns->ed.sdED,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-                    real v3_=compute_value_at_point(ns->ed.sdED,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-                    real v4_=compute_value_at_point(ns->ed.sdED,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-                    ns->cc.viscl=4.0/(1.0/v1+1.0/v2+1.0/v3_+1.0/v4_);
-                    ns->cc.viscr=4.0/(1.0/v1+1.0/v2+1.0/v3+1.0/v4);
-                }
+                // if(dim2==dim) {
+                //     // Get the cell viscosity in the left cell
+                //     ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
+                //     // Get the cell viscosity in the right cell
+                //     ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
+                // } else {
+                //     Point p1,p2,p3,p4,p3_,p4_;
+                //     // p1 and p2 in facet center
+                //     POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
+                //     // p1 and p2 in cell center
+                //     p1[dim]=p1[dim]-0.5*fdelta[dim];p2[dim]=p2[dim]+0.5*fdelta[dim];
+                //     // copy p1 and p2 in p3 and p4
+                //     POINT_ASSIGN(p3, p1);POINT_ASSIGN(p4, p2);
+                //     POINT_ASSIGN(p3_, p1);POINT_ASSIGN(p4_, p2);
+                //     // p3 and p4 in cell center
+                //     p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
+                //     p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
+                //     // viscosity 
+                //     real v1=compute_value_at_point(ns->ed.sdED,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+                //     real v2=compute_value_at_point(ns->ed.sdED,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+                //     real v3=compute_value_at_point(ns->ed.sdED,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+                //     real v4=compute_value_at_point(ns->ed.sdED,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+                //     real v3_=compute_value_at_point(ns->ed.sdED,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+                //     real v4_=compute_value_at_point(ns->ed.sdED,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+                //     ns->cc.viscl=4.0/(1.0/v1+1.0/v2+1.0/v3_+1.0/v4_);
+                //     ns->cc.viscr=4.0/(1.0/v1+1.0/v2+1.0/v3+1.0/v4);
+                // }
                 // Stencil weight update
-                real w = ns->par.dt*(ns->cc.viscr + ns->cc.viscl)/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                alpha += w ;
+                real wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
@@ -2182,7 +2213,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(higfl
             // Total contribuition terms times delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2191,22 +2222,23 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(higfl
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 0.5 * ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha -= 2.0 * w ;
+                real wr = - 0.5*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 0.5*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
             sfd_get_stencil(sfdu[dim], fcenter, fcenter, alpha, ns->stn);
             // Get the index of the stencil
-            int *ids   = stn_get_ids(ns->stn);
+            int *ids   = psfd_stn_get_gids(ns->psfdu[dim], ns->stn);
             // Get the value of the stencil
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
@@ -2284,9 +2316,11 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms times delta t
-            rhs *= 0.25*ns->par.dt;
+            rhs *= 0.5*ns->par.dt;
+            // Difusive term contribution
+            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2295,22 +2329,23 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 0.25*ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha -= 2.0 * w ; //divide po 4 para usar regra trapezio em t(n+1/2)
+                real wr = - 0.25*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 0.25*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
             sfd_get_stencil(sfdu[dim], fcenter, fcenter, alpha, ns->stn);
             // Get the index of the stencil
-            int *ids   = stn_get_ids(ns->stn);
+            int *ids   = psfd_stn_get_gids(ns->psfdu[dim], ns->stn);
             // Get the value of the stencil
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
@@ -2366,7 +2401,17 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             real uaux = dp_get_value(ns->dpuaux[dim], flid);
             // Right hand side equation
             real rhs = 0.0;
-            rhs = (4.0*uaux - ns->cc.ucell)/3.0;
+            // Source term contribution
+            rhs += higflow_source_term(ns);
+            // Pressure term contribution
+            rhs -= higflow_pressure_term(ns);
+            // Tensor term contribution
+            rhs += higflow_tensor_term(ns);
+            // Convective term contribution
+            rhs -= higflow_convective_term(ns, fdelta, dim);
+            // Total contribuition terms times delta t
+            rhs *= 1.0/3.0*ns->par.dt;
+            rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2375,22 +2420,23 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 1.0/3.0*ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha -=  2.0 * w ;
+                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
             sfd_get_stencil(sfdu[dim], fcenter, fcenter, alpha, ns->stn);
             // Get the index of the stencil
-            int *ids   = stn_get_ids(ns->stn);
+            int *ids   = psfd_stn_get_gids(ns->psfdu[dim], ns->stn);
             // Get the value of the stencil
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
@@ -2432,47 +2478,52 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
 void higflow_solver_step_multiphase(higflow_solver *ns) {
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
+    // Boundary conditions for source term
+    higflow_boundary_condition_for_cell_source_term(ns);
+    higflow_boundary_condition_for_facet_source_term(ns);
     // Calculate the source term
-    // higflow_calculate_source_term(ns);
+    higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
     // Calculate beta
-    higflow_compute_beta_visc_multiphase(ns);
+    //higflow_compute_beta_visc_multiphase(ns); //used to be uncommented
     // Calculate S
-    higflow_compute_S_visc_multiphase(ns);
+    //higflow_compute_S_visc_multiphase(ns); //used to be uncommented
     // Calculate the viscosity
     higflow_compute_viscosity_multiphase(ns);
     // Calculate the viscosity
     higflow_compute_density_multiphase(ns);
     // Calculate the curvature
     higflow_compute_curvature_multiphase(ns);
+
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
-        case 0:
+        case EXPLICIT_EULER:
            // Explicit Euler method
            higflow_explicit_euler_intermediate_velocity_multiphase(ns, ns->dpu, ns->dpustar);
            break;
-        case 1: 
+        case EXPLICIT_RK2: 
            // Explicit RK2 method
            higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase(ns);
            break;
-        case 2: 
+        case EXPLICIT_RK3: 
            // Explicit RK3 method
            higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase(ns);
            break;
-        case 3: 
+        case SEMI_IMPLICIT_EULER: 
            // Semi-Implicit Euler Method
            higflow_semi_implicit_euler_intermediate_velocity_multiphase(ns);
            break;
-        case 4: 
+        case SEMI_IMPLICIT_CN: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(ns);
            break;
-        case 5: 
+        case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns, ns->dpu, ns->dpustar);
            break;
     }
+
     // Boundary condition for pressure
     higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
@@ -2483,22 +2534,23 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    if (ns->par.stepaux%1000==0) {
-       printf("creating archives at step: %d\n",ns->par.stepaux);
-       arquivoTempo(ns->par.stepaux);
-       save_cell_values(ns,1);
-    }
+    // if (ns->par.stepaux%1000==0) {
+    //    printf("creating archives at step: %d\n",ns->par.stepaux);
+    //    arquivoTempo(ns->par.stepaux);
+    //    save_cell_values(ns,1);
+    // }
+
     // Calculate the velocity derivative tensor
     /*higflow_compute_velocity_derivative_tensor(ns);
     // Computing the Kernel Tensor
     higflow_compute_kernel_tensor(ns);
     // Constitutive Equation Step for the Explicit Euler Method
     switch (ns->ed.ve.contr.discrtype) {
-        case 0:
+        case EXPLICIT:
         // Explicit method
          higflow_explicit_euler_constitutive_equation(ns);
          break;
-        case 1: 
+        case IMPLICIT: 
            // Implicit method
            higflow_implicit_euler_constitutive_equation(ns);
            break;

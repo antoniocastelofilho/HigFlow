@@ -12,7 +12,7 @@
 
 // Computing the velocity derivative Tensor
 void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
-    if ((ns->contr.flowtype == 1) || (ns->contr.flowtype == 2) || (ns->contr.flowtype == 3) || (ns->contr.flowtype == 4)) {
+    if ((ns->contr.flowtype == GENERALIZED_NEWTONIAN) || (ns->contr.flowtype == MULTIPHASE) || (ns->contr.flowtype == VISCOELASTIC) || (ns->contr.flowtype == VISCOELASTIC_INTEGRAL)) {
         int infacet, infacetl, infacetr, auxl, auxr;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -52,13 +52,14 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                         ur = compute_facet_u_4_right(sfdu[dim], ccenter, cdelta, dim, dim2, 1.0, ns->dpu[dim], ns->stn);
                     }
                     dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
-                    if (ns->contr.flowtype == 1) {
+                    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
                   dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
-                    } else if (ns->contr.flowtype == 2) {
-                  dp_set_value(ns->ed.mult.dpD[dim][dim2], clid, dudx);
-               } else if (ns->contr.flowtype == 3) {
+                    } else if (ns->contr.flowtype == MULTIPHASE) {
+                        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC)
+                            dp_set_value(ns->ed.mult.ve.dpD[dim][dim2], clid, dudx);
+               } else if (ns->contr.flowtype == VISCOELASTIC) {
                   dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
-                    } else if (ns->contr.flowtype == 4){
+                    } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL){
                   dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
                     }
                 }
@@ -66,16 +67,17 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
         }
         // Destroy the iterator
         higcit_destroy(it);
-        // Sync the ditributed pressure property
+        // Sync the distributed pressure property
         for (int dim = 0; dim < DIM; dim++) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {
-                if (ns->contr.flowtype == 1) {
+                if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == 2) {
-                    dp_sync(ns->ed.mult.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == 3) {
+                } else if (ns->contr.flowtype == MULTIPHASE) {
+                    if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) 
+                        dp_sync(ns->ed.mult.ve.dpD[dim][dim2]);
+                } else if (ns->contr.flowtype == VISCOELASTIC) {
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == 4) {
+                } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
                     dp_sync(ns->ed.im.dpD[dim][dim2]);
                 }
             }
@@ -85,7 +87,7 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
 
 // Computing viscosity
 void higflow_compute_viscosity_gn(higflow_solver *ns) {
-    if (ns->contr.flowtype == 1) {
+    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the local sub-domain for the facets
@@ -147,7 +149,7 @@ void higflow_compute_viscosity_gn(higflow_solver *ns) {
         }
         // Destroy the iterator
         higcit_destroy(it);
-        // Sync the ditributed pressure property
+        // Sync the distributed pressure property
         dp_sync(ns->ed.gn.dpvisc);
     }
 }
@@ -188,14 +190,12 @@ void higflow_explicit_euler_intermediate_velocity_gen_newt(higflow_solver *ns, d
             rhs += higflow_source_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
-            // Tensor term contribution
-            rhs += higflow_tensor_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
             rhs += higflow_difusive_term(ns, fdelta);
             // Compute the intermediate velocity
-            real ustar = ns->cc.ucell + ns->par.dt * rhs;
+            real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
@@ -247,7 +247,7 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_gen_newt(higflow_solve
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -292,7 +292,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_gen_newt(higflow_solve
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpuaux[dim]);
     }
     // Calculate the order 2 Runge-Kutta method using the euler method
@@ -325,7 +325,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_gen_newt(higflow_solve
         }
         // Destroy the iterator
         higfit_destroy(fit);
-        // Sync the ditributed velocity property
+        // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
 }
@@ -359,44 +359,41 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
             // Set the computational cell
-            higflow_computational_cell_imp_gen_newt(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu); 
+            higflow_computational_cell_gen_newt(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu); 
             // Right hand side equation
             real rhs = 0.0;
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
-            // Tensor term contribution
-            rhs += higflow_tensor_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
-       // Difusive term contribution (acrescentado)
-            rhs += higflow_difusive_term(ns, fdelta);
-       // Total contribuition terms by delta t
+            // Difusive term contribution (acrescentado)
+            //rhs += higflow_difusive_term(ns, fdelta);
+            // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
             stn_set_rhs(ns->stn,rhs);
             // Calculate the point and weight of the stencil
-            real alpha = 0.0, wr = 0.0, wl = 0.0;
+            real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = ns->par.dt*(ns->cc.viscr + ns->cc.viscl)/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha += w ;
+                real wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                alpha -= (wr + wl) ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
                 
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-      wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
       
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-      wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
@@ -409,7 +406,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
             // Get the cell identifier of the cell
-       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
@@ -480,14 +477,12 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
             rhs += higflow_source_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
-            // Tensor term contribution
-            rhs += higflow_tensor_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms times delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -496,16 +491,19 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 0.5 * ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha -= 2.0 * w ;
+                real wr = - 0.5*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - 0.5*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                alpha -= (wr + wl) ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
+                
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
+      
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
@@ -584,14 +582,14 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             rhs += higflow_source_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
-            // Tensor term contribution
-            rhs += higflow_tensor_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms times delta t
-            rhs *= 0.25*ns->par.dt;
+            rhs *= 0.5*ns->par.dt;
+            // Difusive term contribution
+            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -600,16 +598,19 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 0.25*ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha -= 2.0 * w ; //divide po 4 para usar regra trapezio em t(n+1/2)
+                real wr = - 0.25*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - 0.25*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                alpha -= (wr + wl); //divide po 4 para usar regra trapezio em t(n+1/2)
                 Point p;
                 POINT_ASSIGN(p, fcenter);
+                
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
+      
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
@@ -670,7 +671,15 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             real uaux = dp_get_value(ns->dpuaux[dim], flid);
             // Right hand side equation
             real rhs = 0.0;
-            rhs = (4.0*uaux - ns->cc.ucell)/3.0;
+            // Source term contribution
+            rhs += higflow_source_term(ns);
+            // Pressure term contribution
+            rhs -= higflow_pressure_term(ns);
+            // Convective term contribution
+            rhs -= higflow_convective_term(ns, fdelta, dim);
+            // Total contribuition terms times delta t
+            rhs *= 1.0/3.0*ns->par.dt;
+            rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -679,16 +688,19 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 1.0/3.0*ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                alpha -=  2.0 * w ;
+                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                alpha -= (wr + wl); //divide po 4 para usar regra trapezio em t(n+1/2)
                 Point p;
                 POINT_ASSIGN(p, fcenter);
+                
                 // Stencil point update: right point
                 p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
+      
                 // Stencil point update: left point
                 p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, w, ns->stn);
+                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
@@ -736,6 +748,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
 void higflow_solver_step_gen_newt(higflow_solver *ns) {
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
+    // Boundary conditions for source term
+    higflow_boundary_condition_for_cell_source_term(ns);
+    higflow_boundary_condition_for_facet_source_term(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
@@ -746,27 +761,27 @@ void higflow_solver_step_gen_newt(higflow_solver *ns) {
     higflow_compute_viscosity_gn(ns);
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
-        case 0:
+        case EXPLICIT_EULER:
            // Explicit Euler method
            higflow_explicit_euler_intermediate_velocity_gen_newt(ns, ns->dpu, ns->dpustar);
            break;
-        case 1: 
+        case EXPLICIT_RK2: 
            // Explicit RK2 method
            higflow_explicit_runge_kutta_2_intermediate_velocity_gen_newt(ns);
            break;
-        case 2: 
+        case EXPLICIT_RK3: 
            // Explicit RK3 method
            higflow_explicit_runge_kutta_3_intermediate_velocity_gen_newt(ns);
            break;
-        case 3: 
+        case SEMI_IMPLICIT_EULER: 
            // Semi-Implicit Euler Method
            higflow_semi_implicit_euler_intermediate_velocity_gen_newt(ns);
            break;
-        case 4: 
+        case SEMI_IMPLICIT_CN: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(ns);
            break;
-        case 5: 
+        case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(ns, ns->dpu, ns->dpustar);
            break;
