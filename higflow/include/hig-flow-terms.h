@@ -62,4 +62,12 @@ real higflow_diffusive_ionic_term(higflow_solver *ns);
 
 // Cell electroosmotic potential ionic term contribution for the Navier-Stokes equation
 real higflow_potential_ionic_term(higflow_solver *ns); 
+
+// Cell electroosmotic convective electric term contribution for the Navier-Stokes equation
+// grad (phi + psi) dot grad n
+real higflow_electric_convective_ionic_term_central(higflow_solver *ns);
+
+// Cell electroosmotic divergence electric term contribution for the Navier-Stokes equation
+// n * lapl (phi + psi)
+real higflow_electric_divergence_ionic_term(higflow_solver *ns);
 #endif

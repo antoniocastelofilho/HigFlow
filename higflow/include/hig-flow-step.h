@@ -11,6 +11,7 @@
 #include "hig-flow-eval.h"
 #include "hig-flow-discret.h"
 #include "hig-flow-terms.h"
+#include "hig-flow-res.h"
 
 // *******************************************************************
 // Navier-Stokes Step
@@ -46,6 +47,12 @@ void higflow_boundary_condition_for_velocity(higflow_solver *ns);
 // Apply the boundary condition for the pressure
 void higflow_boundary_condition_for_pressure(higflow_solver *ns);
 
+// Apply the boundary condition for the cell source term
+void higflow_boundary_condition_for_cell_source_term(higflow_solver *ns);
+
+// Apply the boundary condition for the facet source term
+void higflow_boundary_condition_for_facet_source_term(higflow_solver *ns);
+
 // Navier-Stokes outflow for u velocity 
 void higflow_outflow_u_step(higflow_solver *ns);
 
@@ -72,5 +79,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step(higflow_solver *ns); 
+
+//Calculate convective cell term CUBISTA
+real hig_flow_convective_cell_term_cubista(distributed_property *dpu, sim_facet_domain *sfdu, sim_stencil *stn, distributed_property *dpK, sim_domain *sdED, sim_stencil *stnED, real kc, Point ccenter, Point cdelta, int dim);
 
 #endif

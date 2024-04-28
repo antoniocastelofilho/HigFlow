@@ -24,11 +24,19 @@
 // HiG-Flow Solver Data Structure
 // *******************************************************************
 
+typedef enum convecdiscr_type{
+    CENTRAL = 0,
+    FIRST_ORDER = 1,
+    SECOND_ORDER = 2
+} convecdiscr_type;
+
 // Computational cell data structure
 typedef struct higflow_compcell{
     // Convective Method
-    int     convec_type;
-    // Cental velocity
+    convecdiscr_type     convec_type;
+    // Central velocity at facet
+    real    ufacet;
+    // Central velocity at cell
     real    ucell;
     // Velocity for convective term
     real    v[DIM];
@@ -70,6 +78,8 @@ typedef struct higflow_compcell{
     real    dndx;
     // Second order ionic derivative
     real    d2ndx2;
+    // Psi at the center
+    real    psicell;
     // Viscosity at left cell
     real    viscl;
     // Viscosity at right cell
@@ -82,16 +92,18 @@ typedef struct higflow_compcell{
 
 // Parameters for simulation data structure
 typedef struct higflow_parameters{
-    // Density
-    real   rho;
-    // Viscosity
-    real   nu;
+    // // Density
+    // real   rho;
+    // // Viscosity
+    // real   nu;
     // Reynolds number
     real   Re;
     // Time
     real   t;
     // Difference time
     real   dt;
+    // Initial step number
+    int    initstep;
     // Current step number
     int    step;
     int    stepaux;
@@ -113,24 +125,59 @@ typedef struct higflow_parameters{
     char   *nameload;
     // File name for save
     char   *namesave;
+    // Folder name for residual
+    char   nameres[512];
 } higflow_parameters;
+
+typedef enum projection_type{
+    NON_INCREMENTAL = 0,
+    INCREMENTAL = 1
+} projection_type;
+
+typedef enum flow_type{
+    NEWTONIAN = 0,
+    GENERALIZED_NEWTONIAN = 1,
+    MULTIPHASE = 2,
+    VISCOELASTIC = 3,
+    VISCOELASTIC_INTEGRAL = 4
+} flow_type;
+
+typedef enum tempdiscr_type{
+    EXPLICIT_EULER = 0,
+    EXPLICIT_RK2 = 1,
+    EXPLICIT_RK3 = 2,
+    SEMI_IMPLICIT_EULER = 3,
+    SEMI_IMPLICIT_CN = 4,
+    SEMI_IMPLICIT_BDF2 = 5
+} tempdiscr_type;
+
+typedef enum spatialdiscr_type{
+    ORDER2 = 0,
+    ORDER4 = 1
+} spatialdiscr_type;
+
+typedef enum secondconvecdiscr_type{
+    MCU = 0,
+    CUBISTA = 1,
+    QUICK = 2
+} secondconvecdiscr_type;
 
 // Methods controllers for simulation data structure
 typedef struct higflow_controllers{
     // Projection type: 0 non incremental, 1 incremental
-    int   projtype;
+    projection_type   projtype;
     // Model type: 0 Newtonian, 1 Generalized Newtonian, 2 Multifase, 3 Viscoelastic
-    int   flowtype;
-    // Diferencial Model type: 0 Single, 1 Electro-osmotic, 
-    int   modelflowtype;
+    flow_type   flowtype;
+    // Electroosmotic flow? : 0 No, 1 Electro-osmotic, 
+    int   eoflow;
     // Temporal discretization type: 0 Explicit Euler, 1 Explicit RK2, .....
-    int   tempdiscrtype;
+    tempdiscr_type   tempdiscrtype;
     // Spatial discretization type: 0 second order, 1 forth order
-    int   spatialdiscrtype;
+    spatialdiscr_type   spatialdiscrtype;
     // Convective discretization type: 0 central, 1 first order, 2 second order
-    int   convecdiscrtype;
-    // Second order discretization type: 0 Cubista, 1 Quick
-    int   secondconvecdiscrtype;
+    convecdiscr_type   convecdiscrtype;
+    // Second order discretization type: 0 Modiffied Coefficient Upwind, 1 CUBISTA, 2 Quick
+    secondconvecdiscr_type   secondconvecdiscrtype;
     // Desingualrization controllers for the pressure: 0 no desing. and 1 desing.
     int   desingpressure; 
 } higflow_controllers;
@@ -165,121 +212,74 @@ typedef struct higflow_gen_newtonian{
     real (*get_viscosity)(Point center, real q, real t);
 } higflow_gen_newtonian;
 
-// Parameters for viscoelastic multiphase simulation
-typedef struct mult_parameters{
-    // Parameters - phase 0
-    // Deborah Number
-    real   De0;
-    // Ratio of solvent to total viscosity
-    real   beta0;
-    // LPTT parameter
-    real   epsilon0;
-    // LPTT parameter
-    real   psi0;
-    // Giesekus parameter
-    real   alpha0;
-    // Kernel tolerance parameter
-    real   kernel_tol0;
-    // GPTT parameters
-    real   alpha_gptt0;
-    real   beta_gptt0;
-    real   gamma_gptt0;
-    // Parameters - phase 1
-    // Deborah Number
-    real   De1;
-    // Ratio of solvent to total viscosity
-    real   beta1;
-    // LPTT parameter
-    real   epsilon1;
-    // LPTT parameter
-    real   psi1;
-    // Giesekus parameter
-    real   alpha1;
-    // Kernel tolerance parameter
-    real   kernel_tol1;
-    // GPTT parameters
-    real   alpha_gptt1;
-    real   beta_gptt1;
-    real   gamma_gptt1;
-} mult_parameters;
 
-// Controllers for viscoelastic multiphase simulation
-typedef struct mult_controllers{
-    // Controlers - phase 0
-    // Viscoelastic model
-    int    model0;
-    // Viscoelastic discretization type
-    int    discrtype0;
-    // Viscoelastic convective discretization type
-    int    convecdiscrtype0;
-    // Controlers - phase 1
-    // Viscoelastic model
-    int    model1;
-    // Viscoelastic discretization type
-    int    discrtype1;
-    // Viscoelastic convective discretization type
-    int    convecdiscrtype1;
-} mult_controllers;
 
-// Domains and distributed properties for multiphase flows 
-typedef struct higflow_multiphase{
-    // Mult controllers
-    mult_controllers        contr;
-    // Mult parameters
-    mult_parameters         par;
-    // Distributed property for velocity derivative tensor 
-    distributed_property *dpD[DIM][DIM];
-    // Distributed property for viscosity
-    distributed_property *dpvisc;
-    // Distributed property for density 
-    distributed_property *dpdens;
-    // Distributed property for volume fraction 
-    distributed_property *dpfracvol;
-    // Distributed property for auxiliary volume fraction
-    distributed_property *dpfracvolaux;
-    // Distributed property for normal
-    distributed_property *dpnormal[DIM];
-    // Distributed property for curvature 
-    distributed_property *dpcurvature;
-    // Distributed property for distance (plic)
-    distributed_property *dpdistance;
-    // Distributed property for interfacial force
-    distributed_property *dpIF[DIM];
-    // Distributed property for beta viscoelastic
-    distributed_property *dpbeta;
-    // Distributed property for S viscoelastic - Momento
-    distributed_property *dpS[DIM][DIM];
-    // Distributed property for S viscoelastic - phase 0
-    distributed_property *dpS0[DIM][DIM];
-    // Distributed property for S viscoelastic - phase 1
-    distributed_property *dpS1[DIM][DIM];
-    // Distributed property for kernel tensor - phase 0
-    distributed_property *dpKernel0[DIM][DIM];
-    // Distributed property for kernel tensor - phase 1
-    distributed_property *dpKernel1[DIM][DIM];
-    // Function to get the viscosity for phase 0
-    real (*get_viscosity0)(Point center, real t);
-    // Function to get the viscosity for phase 1
-    real (*get_viscosity1)(Point center, real t);
-    // Function to get the density for phase 0
-    real (*get_density0)(Point center, real t);
-    // Function to get the density for phase 1
-    real (*get_density1)(Point center, real t);
-    // Function to get the volume fraction 
-    real (*get_fracvol)(Point center, Point delta, real t);
-    // Function to get the tensor - phase 0
-    real (*get_tensor0)(Point center, int i, int j, real t);
-    // Function to get the tensor - phase 1
-    real (*get_tensor1)(Point center, int i, int j, real t);
-    // Function to get the kernel transformation
-    real (*get_kernel)(int dim, real lambda, real tol);
-    // Function to get the inverse kernel transformation
-    real (*get_kernel_inverse)(int dim, real lambda, real tol);
-    // Function to get the kernel jacobian
-    real (*get_kernel_jacobian)(int dim, real lambda, real tol);
-    // User function to define the viscoelastic model
-    void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol);
-} higflow_multiphase;
+// Parameters for multiphase viscoelastic simulation
+// typedef struct mult_ve_parameters{
+//     // Parameters - phase 0
+//     // Deborah Number
+//     real   De0;
+//     // Ratio of solvent to total viscosity
+//     real   beta0;
+//     // LPTT parameter
+//     real   epsilon0;
+//     // LPTT parameter
+//     real   psi0;
+//     // Giesekus parameter
+//     real   alpha0;
+//     // Kernel tolerance parameter
+//     real   kernel_tol0;
+//     // GPTT parameters
+//     real   alpha_gptt0;
+//     real   beta_gptt0;
+//     real   gamma_gptt0;
+//     // FENE parameters
+//     real   L2_fene0;
+//     real   lambda_fene0;
+//     real   E_fene0;
+//     // Parameters - phase 1
+//     // Deborah Number
+//     real   De1;
+//     // Ratio of solvent to total viscosity
+//     real   beta1;
+//     // LPTT parameter
+//     real   epsilon1;
+//     // LPTT parameter
+//     real   psi1;
+//     // Giesekus parameter
+//     real   alpha1;
+//     // Kernel tolerance parameter
+//     real   kernel_tol1;
+//     // GPTT parameters
+//     real   alpha_gptt1;
+//     real   beta_gptt1;
+//     real   gamma_gptt1;
+//     // FENE parameters
+//     real   L2_fene1;
+//     real   lambda_fene1;
+//     real   E_fene1;
+// } mult_ve_parameters;
+
+
+typedef enum visc_model_type{
+    USERSET = -1,
+    OLDROYD_B = 0,
+    GIESEKUS = 1,
+    LPTT = 2,
+    GPTT = 3,
+    FENE_P = 4,
+    E_FENE = 5
+} visc_model_type;
+
+typedef enum inhomogenous_discr_type{
+    EXPLICIT = 0,
+    IMPLICIT = 1
+} inhomogenous_discr_type;
+
+typedef enum cell_convecdiscr_type{
+    CELL_CENTRAL = 0,
+    CELL_CUBISTA = 1
+} cell_convecdiscr_type;
 
 // Parameters for electro-osmotic simulation
 typedef struct eo_parameters{
@@ -290,14 +290,27 @@ typedef struct eo_parameters{
     // Peclet number = U*H/D 
     real   Pe;
     // External electric field
-    real   dphidx;
+    real   Ex;
 } eo_parameters;
+
+typedef enum eo_model_type{
+    PNP = 0,
+    PB = 1,
+    PBDH = 2,
+    PBDH_ANALYTIC = 3
+} eo_model_type;
 
 // Controllers for viscoelastic simulation
 typedef struct eo_controllers{
     // EO model Nernst-Planck, Poisson-Boltzmann or Debye-Hückel 
-    int    eo_model;
-    int    convecdiscrtype;
+    eo_model_type    eo_model;
+    tempdiscr_type    tempdiscrtype;             // temporal discretization (relative to diffusive term)
+    cell_convecdiscr_type    convecdiscrtype;       // (u + grad (phi + psi)) dot grad n term
+    // cell_convecdiscr_type    electric_convecdiscrtype; // grad (phi + psi) dot grad n    term
+    // inhomogenous_discr_type    electricdiv_discrtype; // n lap (phi + psi) term
+    int    is_phibc_timedependent; // if boundary conditions are time dependent - determines if laplace equation should be solved again
+    int    is_psibc_timedependent; // if boundary conditions are time dependent - determines if poisson equation should be solved again
+                                  // only relevant for poisson-boltzmann and poisson-boltzmann-debye huckel
 } eo_controllers;
 
 // Domains and distributed properties for electro-osmotic
@@ -381,16 +394,20 @@ typedef struct ve_parameters{
     real   alpha_gptt;
     real   beta_gptt;
     real   gamma_gptt;
+    // FENE parameters
+    real   L2_fene;
+    real   lambda_fene;
+    real   E_fene;
 } ve_parameters;
 
 // Controllers for viscoelastic simulation
 typedef struct ve_controllers{
     // Viscoelastic model
-    int    model;
+    visc_model_type    model;
     // Viscoelastic discretization type
-    int    discrtype;
+    inhomogenous_discr_type    discrtype;
     // Viscoelastic convective discretization type
-    int    convecdiscrtype;
+    cell_convecdiscr_type    convecdiscrtype;
 } ve_controllers;
 
 // Domains and distributed properties for viscoelastic
@@ -401,6 +418,8 @@ typedef struct higflow_viscoelastic{
     ve_parameters        par;
     // Distributed property for velocity derivative tensor 
     distributed_property *dpD[DIM][DIM];
+    // // Distributed property for velocity derivative tensor previous (used for e-FENE)
+    // distributed_property *dpD_prev[DIM][DIM];
     // Distributed property for polymeric tensor 
     distributed_property *dpS[DIM][DIM];
     // Distributed property for kernel tensor 
@@ -414,7 +433,7 @@ typedef struct higflow_viscoelastic{
     // Function to get the kernel jacobian
     real (*get_kernel_jacobian)(int dim, real lambda, real tol);
     // User function to define the viscoelastic model
-    void (*calculate_m_user)(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol);
+    void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 } higflow_viscoelastic;
 
 
@@ -451,16 +470,26 @@ typedef struct im_parameters{
     real   beta_frac;
 } im_parameters;
 
+typedef enum visc_integral_model_type {
+    KBKZ = 0,
+    KBKZ_FRACTIONAL = 1
+} visc_integral_model_type;
+
+typedef enum visc_integral_relax_model_type {
+    PSM = 0,
+    UCM = 1
+} visc_integral_relax_model_type;
+
 // Controllers for viscoelastic simulation integral models
 typedef struct im_controllers{
     // Viscoelastic model
-    int    model;
+    visc_integral_model_type    model;
     // Relaxation model
-    int    model_H;
+    visc_integral_relax_model_type    model_H;
     // Viscoelastic discretization type
-    int    discrtype;
+    inhomogenous_discr_type    discrtype;
     // Viscoelastic convective discretization type
-    int    convecdiscrtype;
+    cell_convecdiscr_type    convecdiscrtype;
 } im_controllers;
 
 // Domains and distributed properties for viscoelastic integral models
@@ -483,6 +512,123 @@ typedef struct higflow_viscoelastic_integral{
     real (*get_tensor)(Point center, int i, int j, real t);
 } higflow_viscoelastic_integral;
 
+// Controllers for multiphase viscoelastic simulation
+typedef struct mult_ve_controllers{
+    // Controlers - phase 0
+    // Viscoelastic model
+    visc_model_type    model0;
+    // Controlers - phase 1
+    // Viscoelastic model
+    visc_model_type    model1;
+
+    // Viscoelastic discretization type
+    inhomogenous_discr_type    discrtype;
+    // Viscoelastic convective discretization type
+    cell_convecdiscr_type    convecdiscrtype;
+} mult_ve_controllers;
+
+
+typedef struct higflow_multiphase_viscoelastic{
+     // Mult viscoelastic controllers
+    mult_ve_controllers   contr;
+    // Mult viscoelastic parameters
+    ve_parameters    par0;
+    ve_parameters    par1;
+    // Distributed property for velocity derivative tensor 
+    distributed_property *dpD[DIM][DIM];
+    // // Distributed property for beta viscoelastic
+    // distributed_property *dpbeta;
+    // Distributed property for S viscoelastic - Momento
+    distributed_property *dpS[DIM][DIM];
+    // // Distributed property for S viscoelastic - phase 0
+    // distributed_property *dpS0[DIM][DIM];
+    // // Distributed property for S viscoelastic - phase 1
+    // distributed_property *dpS1[DIM][DIM];
+    // Distributed property for kernel tensor - phase 0
+    // distributed_property *dpKernel0[DIM][DIM];
+    // // Distributed property for kernel tensor - phase 1
+    // distributed_property *dpKernel1[DIM][DIM];
+    // Distributed property for kernel tensor
+    distributed_property *dpKernel[DIM][DIM];
+
+    // Function to get the tensor - phase 0
+    // real (*get_tensor0)(Point center, int i, int j, real t);
+    // // Function to get the tensor - phase 1
+    // real (*get_tensor1)(Point center, int i, int j, real t);
+
+
+    // Function to get the tensor
+    real (*get_tensor_multiphase)(real fracvol, Point center, int i, int j, real t);
+    // Function to get the kernel transformation
+    real (*get_kernel)(int dim, real lambda, real tol);
+    // Function to get the inverse kernel transformation
+    real (*get_kernel_inverse)(int dim, real lambda, real tol);
+    // Function to get the kernel jacobian
+    real (*get_kernel_jacobian)(int dim, real lambda, real tol);
+    // User function to define the viscoelastic model
+    void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1);
+} higflow_multiphase_viscoelastic;
+
+
+typedef struct mult_parameters{
+    // Capillary number
+    real Ca;
+} mult_parameters;
+
+typedef struct mult_controllers{
+    // Controlers - phase 0
+    flow_type flowtype0;
+    int eoflow0;
+
+    // Controlers - phase 1
+    flow_type flowtype1;
+    int eoflow1;
+
+    // Controllers - set whenever either phase is
+    // viscoelastic
+    flow_type flowtype_either;
+    // Controllers - set whenever either phase is
+    // electro-osmotic
+    int eoflow_either;
+} mult_controllers;
+
+// Domains and distributed properties for multiphase flows 
+typedef struct higflow_multiphase{
+    // Multiphase viscoelastic
+    higflow_multiphase_viscoelastic ve;
+    // Mult controllers
+    mult_controllers      contr;
+    // Mult parameters
+    mult_parameters       par;
+    // Distributed property for viscosity
+    distributed_property *dpvisc;
+    // Distributed property for density 
+    distributed_property *dpdens;
+    // Distributed property for volume fraction 
+    distributed_property *dpfracvol;
+    // Distributed property for auxiliary volume fraction
+    distributed_property *dpfracvolaux;
+    // Distributed property for normal
+    distributed_property *dpnormal[DIM];
+    // Distributed property for curvature 
+    distributed_property *dpcurvature;
+    // Distributed property for distance (plic)
+    distributed_property *dpdistance;
+    // Distributed property for interfacial force
+    distributed_property *dpIF[DIM];
+    
+    // Function to get the viscosity for phase 0
+    real (*get_viscosity0)(Point center, real t);
+    // Function to get the viscosity for phase 1
+    real (*get_viscosity1)(Point center, real t);
+    // Function to get the density for phase 0
+    real (*get_density0)(Point center, real t);
+    // Function to get the density for phase 1
+    real (*get_density1)(Point center, real t);
+    // Function to get the volume fraction 
+    real (*get_fracvol)(Point center, Point delta, real t);
+} higflow_multiphase;
+
 // Domains and distributed properties for non newtonian and multiphase flows
 typedef struct higflow_extra_domains{
     // Sub-domain to simulation for extra domain
@@ -503,6 +649,9 @@ typedef struct higflow_extra_domains{
     // Stencil for properties interpolation for extra domains
     sim_stencil           *stn;
 } higflow_extra_domains;
+
+// #define COMPUTE_RESIDUALS
+typedef struct sim_residuals sim_residuals;
 
 // Navier-Stokes Solver Data Structure
 typedef struct higflow_solver {
@@ -555,6 +704,8 @@ typedef struct higflow_solver {
     distributed_property       *dpuaux[DIM];
     // Source term for the facets
     distributed_property       *dpFU[DIM];
+    // structure responsible for tracking residuals of consecutive iterations
+    sim_residuals              *residuals;
 } higflow_solver;
 
 // *******************************************************************
@@ -600,16 +751,18 @@ real (*get_viscosity0)(Point center, real t),
 real (*get_viscosity1)(Point center, real t),
 real (*get_density0)(Point center, real t),
 real (*get_density1)(Point center, real t),
-real (*get_fracvol)(Point center, Point delta, real t),
-real (*get_tensor0)(Point center, int i, int j, real t),
-real (*get_tensor1)(Point center, int i, int j, real t),
+real (*get_fracvol)(Point center, Point delta, real t));
+
+// Create the simulation domain for multiphase viscoelastic flow
+void higflow_create_domain_multiphase_viscoelastic (higflow_solver *ns,
+real (*get_tensor_multiphase)(real fracvol, Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol));
 
 // Define the user function for Multiphase viscoelastic flow
 void higflow_define_user_function_multiphase_viscoelastic (higflow_solver *ns, 
-void (*calculate_m_and_b_user)(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol));
+void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1));
 
 
 // Create the simulation domain for viscoelastic flow
@@ -621,7 +774,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol));
 
 // Define the user function for viscoelastic flow
 void higflow_define_user_function_viscoelastic (higflow_solver *ns, 
-void (*calculate_m_and_b_user)(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol));
+void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par));
 
 
 // Create the simulation domain for viscoelastic flow integral model
@@ -659,26 +812,29 @@ void higflow_create_partitioned_domain_viscoelastic_integral (higflow_solver *ns
 // Create the partitioned simulation sub-domain for NS object Electro-osmotic
 void higflow_create_partitioned_domain_electroosmotic (higflow_solver *ns, partition_graph *pg, int order); 
 
-// Create the distributed properties for generalized newtonian simulation
-void higflow_create_ditributed_properties_generalized_newtonian(higflow_solver *ns); 
+// // Create the distributed properties for generalized newtonian simulation
+// void higflow_create_distributed_properties_generalized_newtonian(higflow_solver *ns); 
 
-// Create the distributed properties for multiphase simulation
-void higflow_create_ditributed_properties_multiphase(higflow_solver *ns); 
+// // Create the distributed properties for multiphase simulation
+// void higflow_create_distributed_properties_multiphase(higflow_solver *ns); 
 
-// Create the distributed properties for viscoelastic simulation
-void higflow_create_ditributed_properties_viscoelastic(higflow_solver *ns); 
+// // Create the distributed properties for multiphase viscoelastic simulation
+// void higflow_create_distributed_properties_multiphase_viscoelastic(higflow_solver *ns); 
 
-// Create the distributed properties for viscoelastic simulation integral model
-void higflow_create_ditributed_properties_viscoelastic_integral(higflow_solver *ns); 
+// // Create the distributed properties for viscoelastic simulation
+// void higflow_create_distributed_properties_viscoelastic(higflow_solver *ns); 
 
-// Create the distributed properties for electro-osmotic simulation
-void higflow_create_ditributed_properties_electroosmotic(higflow_solver *ns); 
+// // Create the distributed properties for viscoelastic simulation integral model
+// void higflow_create_distributed_properties_viscoelastic_integral(higflow_solver *ns); 
+
+// // Create the distributed properties for electro-osmotic simulation
+// void higflow_create_distributed_properties_electroosmotic(higflow_solver *ns); 
 
 // Create the distributed properties for NS object
-void higflow_create_ditributed_properties(higflow_solver *ns); 
+void higflow_create_distributed_properties(higflow_solver *ns); 
 
-// Create the distributed properties for the non newtonian simulation
-void higflow_create_ditributed_properties_non_newtonian(higflow_solver *ns);
+// // Create the distributed properties for the non newtonian simulation
+// void higflow_create_distributed_properties_non_newtonian(higflow_solver *ns);
 
 // Create the stencil for the NS object
 void higflow_create_stencil(higflow_solver *ns); 
