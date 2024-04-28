@@ -32,6 +32,10 @@ ifeq ($(ARCH), Linux)
 	LIBS+= -lrt
 endif
 
+ifeq ($(NP),)
+	NP = 1
+endif
+
 OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-finite-difference-normal-curvature.o ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-adap-hf.o
 
 ns-example: $(OBJ1)
@@ -44,16 +48,31 @@ run:
 	mkdir -p VTKS || true
 	mkdir -p DATA || true
 	mkdir -p output || true
-	mpirun -n 1 ./ns-example \
+	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example \
 		input/example-3d.load \
 		output/example-3d.save \
-		VTKS/example-3d.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
-
+		VTKS/newt.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f *.o VTKS/* DATA/* output/* ns-example
+		$(RM) -f ns-example-2d.o ns-example
+
+rebuild_higflow:
+	$(MAKE) -C .. clean
+	$(MAKE) -C .. DIM=$(DIM) DEBUG=$(DEBUG) RES=$(RES)
+
+rebuild_higtree:
+	$(MAKE) -C $(HIGTREE_DIR) clean
+	$(MAKE) -C $(HIGTREE_DIR) DIM=$(DIM) DEBUG=$(DEBUG)
+
+rebuild_hig:
+	$(MAKE) rebuild_higtree DEBUG=$(DEBUG)
+	$(MAKE) rebuild_higflow DEBUG=$(DEBUG) RES=$(RES)
+rebuild_all:
+	$(MAKE) rebuild_hig DEBUG=$(DEBUG) RES=$(RES)
+	$(MAKE) clean
+	$(MAKE)
 
 .PHONY: run clean compilerflags
