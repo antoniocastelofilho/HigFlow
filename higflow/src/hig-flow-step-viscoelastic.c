@@ -1520,6 +1520,8 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns) {
     // Boundary conditions for source term
     higflow_boundary_condition_for_cell_source_term(ns);
     higflow_boundary_condition_for_facet_source_term(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
     // // Initial velocity derivative
     // if(ns->par.step==0 && ns->par.t==0.0) hig_flow_compute_initial_velocity_derivative_tensor(ns);
     // Calculate the source term

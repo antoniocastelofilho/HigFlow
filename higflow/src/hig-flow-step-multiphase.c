@@ -2485,6 +2485,8 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
     // Calculate beta
     //higflow_compute_beta_visc_multiphase(ns); //used to be uncommented
     // Calculate S

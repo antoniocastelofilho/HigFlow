@@ -1193,7 +1193,6 @@ void higflow_solver_step(higflow_solver *ns) {
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
-
     
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
@@ -1222,6 +1221,7 @@ void higflow_solver_step(higflow_solver *ns) {
            higflow_semi_implicit_bdf2_intermediate_velocity(ns, ns->dpu, ns->dpustar);
            break;
     }
+
     // Set outflow for ustar velocity 
     //higflow_outflow_ustar_step(ns);
     // Boundary condition for pressure

@@ -218,14 +218,8 @@ void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns) {
         // Get the cosntants
         // Get the local sub-domain for the cells
         sim_domain *sdnplus  = psd_get_local_domain(ns->ed.eo.psdEOnplus);
-        sim_domain *sdnminus = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         sim_domain *sdpsi    = psd_get_local_domain(ns->ed.eo.psdEOpsi);
         sim_domain *sdphi    = psd_get_local_domain(ns->ed.eo.psdEOphi);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int i = 0; i < DIM; i++) {
-            sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
-        }
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
@@ -290,11 +284,6 @@ void higflow_explicit_euler_ionic_transport_equation_nminus(higflow_solver *ns) 
         sim_domain *sdnminus = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         sim_domain *sdpsi    = psd_get_local_domain(ns->ed.eo.psdEOpsi);
         sim_domain *sdphi    = psd_get_local_domain(ns->ed.eo.psdEOphi);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int i = 0; i < DIM; i++) {
-            sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
-        }
         // Get the map for the domain property nminus
         mp_mapper *m = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
@@ -356,11 +345,6 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
         sim_domain *sdnplus  = psd_get_local_domain(ns->ed.eo.psdEOnplus);
         sim_domain *sdpsi    = psd_get_local_domain(ns->ed.eo.psdEOpsi);
         sim_domain *sdphi    = psd_get_local_domain(ns->ed.eo.psdEOphi);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int i = 0; i < DIM; i++) {
-            sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
-        }
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
@@ -384,7 +368,6 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
             // Solving the Transport Equation using the Euler Method
             // Right hand side equation
             real rhs = 0.0;
-            real d2phidx2[DIM], d2psidx2[DIM];
             for (int dim = 0; dim < DIM; dim++) { // sum in both directions
                 // Set the computational cell in this particular direction
                 higflow_computational_cell_electroosmotic_ionic(ns, sdnplus, sdpsi, sdphi, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.dppsi, ns->ed.eo.dpphi);
@@ -457,11 +440,6 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver 
         sim_domain *sdnminus = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         sim_domain *sdpsi    = psd_get_local_domain(ns->ed.eo.psdEOpsi);
         sim_domain *sdphi    = psd_get_local_domain(ns->ed.eo.psdEOphi);
-        // Get the local sub-domain for the facets
-        sim_facet_domain *sfdu[DIM];
-        for(int i = 0; i < DIM; i++) {
-            sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
-        }
         // Get the map for the domain property nminus
         mp_mapper *m = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
@@ -484,7 +462,6 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver 
             nminus = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.stn);
             // Right hand side equation
             real rhs = 0.0;
-            real d2phidx2[DIM], d2psidx2[DIM];
             for (int dim = 0; dim < DIM; dim++) { // sum in both directions
                 // Set the computational cell in this particular direction
                 higflow_computational_cell_electroosmotic_ionic(ns, sdnminus, sdpsi, sdphi, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.dppsi, ns->ed.eo.dpphi);
@@ -565,7 +542,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
 
     distributed_property *dpu = ns->dpu[dim];
     sim_facet_domain *sfdu = ns->sfdu[dim];
-    sim_stencil *stn = ns->ed.stn;
+    sim_stencil *stn = ns->stn;
 
     distributed_property *dpn; 
     sim_domain *sdn;
@@ -981,9 +958,8 @@ void higflow_electroosmotic_phi(higflow_solver *ns) {
 // Electro-osmotic source term
 // *******************************************************************
 void higflow_calculate_electroosmotic_source_term_pnp( higflow_solver *ns) {
-    real psil, psir, nplus, nminus;
+    real phil, phir, psil, psir, dphidx, dpsidx, npl, npr, nml, nmr, nplus, nminus, rho, Feo;
     // Get the necessary parameters
-    real alphaeo = ns->ed.eo.par.alpha;
     real delta   = ns->ed.eo.par.delta;
     // Get the local sub-domain
     sim_domain *sdpsi = psd_get_local_domain(ns->ed.eo.psdEOpsi);
@@ -1007,38 +983,26 @@ void higflow_calculate_electroosmotic_source_term_pnp( higflow_solver *ns) {
             // Get the delta of the facet
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
-            // Get the applied potential in the left cell
-            psil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
-            // Get the applied potential in the right cell
-            psir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
-            // Set the derivative of applied potential
-            real phi    = compute_value_at_mid_point(psil, psir);
-            real dphidx = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
-            // Get the induced potential in the left cell
+            // Get the derivative of applied potential
+            phil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
+            phir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
+            dphidx = compute_dpdx_at_point(fdelta, dim, 0.5, phil, phir);
+            // Get the derivative of induced potential
             psil        = compute_center_p_left(sdpsi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dppsi, ns->ed.stn);
-            // Get the induced potential in the right cell
             psir        = compute_center_p_right(sdpsi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dppsi, ns->ed.stn);
-            // Set the induced potential
-            real psi    = compute_value_at_mid_point(psil, psir);
-            // Set the derivative of induced potential
-            real dpsidy = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
-            // Get the ionic concentration n+ in the left cell
-            psil     = compute_center_p_left(ns->ed.eo.sdEOnplus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnplus, ns->ed.stn);
-            // Get the ionic concentration n+ in the right cell
-            psir     = compute_center_p_right(ns->ed.eo.sdEOnplus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnplus, ns->ed.stn);
+            dpsidx = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
             // Get the ionic concentration n+ at center cell
-            nplus    = compute_value_at_mid_point(psil, psir);
-            // Get the ionic concentration n- in the left cell
-            psil     = compute_center_p_left(ns->ed.eo.sdEOnminus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnminus, ns->ed.stn);
-            // Get the ionic concentration n- in the right cell
-            psir     = compute_center_p_right(ns->ed.eo.sdEOnminus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnminus, ns->ed.stn);
+            npl     = compute_center_p_left(ns->ed.eo.sdEOnplus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnplus, ns->ed.stn);
+            npr     = compute_center_p_right(ns->ed.eo.sdEOnplus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnplus, ns->ed.stn);
+            nplus    = compute_value_at_mid_point(npl, npr);
             // Get the ionic concentration n- at center cell
-            nminus   = compute_value_at_mid_point(psil, psir);
-            // Compute the electrical density
-            real rho = (nplus - nminus)*delta;
+            nml     = compute_center_p_left(ns->ed.eo.sdEOnminus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnminus, ns->ed.stn);
+            nmr     = compute_center_p_right(ns->ed.eo.sdEOnminus, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpnminus, ns->ed.stn);
+            nminus   = compute_value_at_mid_point(nml, nmr);
+            // Compute the electric density
+            rho = (nplus - nminus)*delta;
             // Compute the electro-osmotic source term
-            real Feo;
-            Feo   = -rho*(dphidx + dpsidy);
+            Feo = -rho*(dphidx + dpsidx);
             // Get the electroosmotic extra source term defined by user
             Feo   += ns->ed.eo.get_electroosmotic_source_term(fcenter, dim, ns->par.t);
             // Set the distributed source term property
@@ -1052,7 +1016,7 @@ void higflow_calculate_electroosmotic_source_term_pnp( higflow_solver *ns) {
 }
 
 void higflow_calculate_electroosmotic_source_term_pb( higflow_solver *ns) {
-    real psil, psir;
+    real phil, phir, psil, psir, dphidx, dpsidx, psi, rho, Feo;
     real alphaeo= ns->ed.eo.par.alpha;
     real delta  = ns->ed.eo.par.delta;
     real eps    = 7.0e-10;
@@ -1079,28 +1043,21 @@ void higflow_calculate_electroosmotic_source_term_pb( higflow_solver *ns) {
             // Get the delta of the facet
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
-            real y      = fcenter[1];
-            // Get the applied potential in the left cell
-            psil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
-            // Get the applied potential in the right cell
-            psir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
-            // Set the derivative of applied potential
-            real dphidx = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
+            // Get the derivative of applied potential
+            phil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
+            phir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
+            dphidx = compute_dpdx_at_point(fdelta, dim, 0.5, phil, phir);
             //       DEBUG_INSPECT(dphidx,%lf);
-                   // Get the induced potential in the left cell
+            // Get the induced potential and its derivative
             psil        = compute_center_p_left(sdp, fcenter, fdelta, dim, 0.5, ns->ed.eo.dppsi, ns->ed.stn);
-            // Get the induced potential in the right cell
             psir        = compute_center_p_right(sdp, fcenter, fdelta, dim, 0.5, ns->ed.eo.dppsi, ns->ed.stn);
-            // Set the induced potential
-            real psi    = compute_value_at_mid_point(psil, psir);
-            // Set the derivative of induced potential
-            real dpsidy = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
-            // Set the charge density 
+            psi    = compute_value_at_mid_point(psil, psir);
+            dpsidx = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
+            // Compute the charge density 
             //real rho    = -eps*zeta*2.0*alphaeo*delta*psi;
             real rho = -2.0*delta*sinh(alphaeo*psi);
-            // Set the electro-osmotic source term
-            real Feo;
-            Feo   = -rho*(dphidx + dpsidy) ;
+            // Compute the electro-osmotic source term
+            real Feo = -rho*(dphidx + dpsidx) ;
             // if (dim == 0){
             //     Feo   = -rho*dphidx;
             // }else Feo   = -rho*dpsidy;
@@ -1118,8 +1075,8 @@ void higflow_calculate_electroosmotic_source_term_pb( higflow_solver *ns) {
 }
 
 void higflow_calculate_electroosmotic_source_term_pbdh( higflow_solver *ns) {
-    real psil, psir;
-    real alphaeo= ns->ed.eo.par.alpha;
+    real phil, phir, psil, psir, dphidx, dpsidx, psi, rho, Feo;
+    real alphaeo = ns->ed.eo.par.alpha;
     real delta  = ns->ed.eo.par.delta;
     // Get the local sub-domain
     sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
@@ -1143,27 +1100,20 @@ void higflow_calculate_electroosmotic_source_term_pbdh( higflow_solver *ns) {
             // Get the delta of the facet
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
-            real y      = fcenter[1];
-            // Get the applied potential in the left cell
-            psil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
-            // Get the applied potential in the right cell
-            psir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
-            // Set the derivative of applied potential
-            real dphidx = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
-            //          DEBUG_INSPECT(dphidx,%lf);
-                      // Get the induced potential in the left cell
+            // Get the derivative of applied potential
+            phil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
+            phir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.stn);
+            dphidx = compute_dpdx_at_point(fdelta, dim, 0.5, phil, phir);
+            //       DEBUG_INSPECT(dphidx,%lf);
+            // Get the induced potential and its derivative
             psil        = compute_center_p_left(sdp, fcenter, fdelta, dim, 0.5, ns->ed.eo.dppsi, ns->ed.stn);
-            // Get the induced potential in the right cell
             psir        = compute_center_p_right(sdp, fcenter, fdelta, dim, 0.5, ns->ed.eo.dppsi, ns->ed.stn);
-            // Set the induced potential
-            real psi    = compute_value_at_mid_point(psil, psir);
-            // Set the derivative of induced potential
-            real dpsidy = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
-            // Set the charge density where  "epsez = epsilon/ez" 
-            real rho   = -2.0*alphaeo*delta*psi;
-            // Set the electro-osmotic source term
-            real Feo;
-            Feo   = -rho*(dphidx + dpsidy) ;
+            psi    = compute_value_at_mid_point(psil, psir);
+            dpsidx = compute_dpdx_at_point(fdelta, dim, 0.5, psil, psir);
+            // Compute the charge density where  "epsez = epsilon/ez" 
+            rho   = -2.0*alphaeo*delta*psi;
+            // Compute the electro-osmotic source term
+            Feo = -rho*(dphidx + dpsidx) ;
             // Get the electroosmotic source term defined by user
             Feo  += ns->ed.eo.get_electroosmotic_source_term(fcenter, dim, ns->par.t);
             // Set the distributed source term property

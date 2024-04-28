@@ -54,22 +54,12 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
             // Get the cell center
             Point bccenter;
             hig_get_center(bcell, bccenter);
-
             // Get the id of the cell
             int bclid = mp_lookup(bm, hig_get_cid(bcell));
             // Set the time to get the pressure
             real t = ns->par.t + ns->par.dt;
             // Get the pressure defined by the user
-            real val;
-            if (ns->contr.projtype == NON_INCREMENTAL) {
-                    // Non incremental projection method
-                val = ns->func.get_boundary_pressure(id[h], bccenter, ns->par.t);
-            } else {
-                // Incremental projection method
-                val = ns->func.get_boundary_pressure(id[h], bccenter, t) - ns->func.get_boundary_pressure(id[h], bccenter, ns->par.t);
-            }
-            // Set the value 
-            // val = ns->func.get_boundary_pressure(id[h], bccenter, ns->par.t);
+            real val = ns->func.get_boundary_pressure(id[h], bccenter, ns->par.t);
             sb_set_value(bc, bclid, val);
         }
         // Destroy the iterator
@@ -558,10 +548,10 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
             // HigTree Boundary condition file name
             __higflow_readstring(amrBCfilename[h],1024,fbc);
             // Electro-osmotic potential boundary condition type
-            ifd = fscanf(fbc,"%d",(int *)&(phibctypes));
+            ifd = fscanf(fbc,"%d",(int *)&(phibctypes[h]));
             // Electro-osmotic potential boundary condition value
             ifd = fscanf(fbc,"%d",(int *)&(phibcvaluetype[h]));
-            if(phibcvaluetype[h] == timedependent) phibc_timedependent = 1;
+            if(phibcvaluetype[h] == timedependent) phibc_timedependent = true;
 
             // Electro-osmotic potential boundary condition type
             ifd = fscanf(fbc,"%d",(int *)&(psibctypes[h]));
