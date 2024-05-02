@@ -58,3 +58,6 @@ bibliotecas/
 *.mod*
 *.cmd
 .tmp_versions/
+
+# Vscode
+.vscode*
