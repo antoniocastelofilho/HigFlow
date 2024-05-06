@@ -330,7 +330,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         case GENERALIZED_NEWTONIAN:
         break;
         case MULTIPHASE:
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
                 real beta0 = ns->ed.mult.ve.par0.beta;
                 real beta1 = ns->ed.mult.ve.par1.beta;
                 real t = ns->par.t;
@@ -366,7 +366,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     for (int i = 0; i < DIM; i++) {
                         for (int j = 0; j < DIM; j++) {
                             
-                            fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p0, t);
                             visc1 = ns->ed.mult.get_density1(p0, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -374,7 +374,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                             taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
                             taup0[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p1, t);
                             visc1 = ns->ed.mult.get_density1(p1, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -382,7 +382,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                             taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
                             taup1[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p2, t);
                             visc1 = ns->ed.mult.get_density1(p2, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -390,7 +390,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                             taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
                             taup2[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
                             
-                            fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p3, t);
                             visc1 = ns->ed.mult.get_density1(p3, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -527,11 +527,10 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         
         case MULTIPHASE:
             fprintf(f,"\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n");
-            sfdu2[0] = psfd_get_local_domain(ns->psfdu[0]);
             for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
                 hig_cell *c = higcit_getcell(it);
                 hig_get_center(c, ccenter);
-                real value  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                fprintf(f, "%e\n", value);
             }
             higcit_destroy(it);
@@ -600,6 +599,97 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             higcit_destroy(it);
         break;
     }
+    fclose(f);
+}
+
+
+// Print the VTK file for visualize 2D
+void higflow_print_vtk2D_multiphase(higflow_solver *ns, int rank) {
+
+    if(ns->contr.flowtype != MULTIPHASE) {
+        return;
+    }
+
+    //  Open the VTK file
+    char vtkname[1024];
+    snprintf(vtkname, sizeof vtkname, "%s_mult_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
+    FILE *f = fopen(vtkname, "w");
+    if (f == NULL) {
+        return;
+    }
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    int numhigs = sd_get_num_higtrees(sdm);
+    higcit_celliterator *it;
+
+    it = sd_get_domain_celliterator(sdm);
+    long numleafs = higcit_count_without_advancing(it);
+
+    fprintf(f, "# vtk DataFile Version 3.0\n");
+    fprintf(f, "higtree multiphase\n");
+    fprintf(f, "ASCII\n");
+    fprintf(f, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(f, "\nPOINTS %ld float\n", 4*numleafs);
+    hig_cell *c;
+    for (; !higcit_isfinished(it); higcit_nextcell(it)) {
+        c = higcit_getcell(it);
+        fprintf(f, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n", 
+        c->lowpoint[0], c->lowpoint[1], c->highpoint[0], c->lowpoint[1], 
+        c->highpoint[0], c->highpoint[1], c->lowpoint[0], c->highpoint[1]);
+    }
+    higcit_destroy(it);
+    fprintf(f, "\nCELLS %ld %ld\n", numleafs, 5*numleafs);
+    for (int i = 0; i < numleafs; i++) {
+        fprintf(f, "%d %d %d %d %d\n", 4, 4*i, 4*i+1, 4*i+2, 4*i+3);
+    }
+    fprintf(f, "\nCELL_TYPES %ld\n", numleafs);
+    for (int i = 0; i < numleafs; i++) {
+        fprintf(f, "7 "); //vtk cell types 7 = VTK_POLYGON // 9
+    }
+    
+
+    fprintf(f, "\n\nPOINT_DATA %ld\nSCALARS FracVol_pts FLOAT\nLOOKUP_TABLE default\n", 4*numleafs);
+
+    // Saving scalar properties at points
+    for(it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        Point ccenter;
+        hig_get_center(c,ccenter);
+        // Pontos onde será interpolada a velocidade
+        Point p0, p1, p2, p3;
+        p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+        p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+
+        real f0 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        real f1 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        real f2 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        real f3 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        
+        fprintf(f, "%e\n%e\n%e\n%e\n", f0, f1, f2, f3);
+    }
+    higcit_destroy(it);
+
+    Point ccenter;   
+
+    fprintf(f, "\nCELL_DATA %ld\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n", numleafs);
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        hig_get_center(c, ccenter);
+        real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        fprintf(f, "%e\n", value);
+    }
+    higcit_destroy(it);
+
+    fprintf(f, "\nSCALARS \u03BA FLOAT\nLOOKUP_TABLE default\n");
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        hig_get_center(c, ccenter);
+        real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+        fprintf(f, "%e\n", value);
+    }
+    higcit_destroy(it);
+     
     fclose(f);
 }
 
@@ -886,7 +976,7 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
         case GENERALIZED_NEWTONIAN:
         break;
         case MULTIPHASE:
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
                 sprintf(local_str, "\nTENSORS \u03C4\u209A FLOAT\n");
                 if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
                 curr_file_ptr_pos += strlen(local_str);
@@ -933,7 +1023,7 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                     for (int i = 0; i < DIM; i++) {
                         for (int j = 0; j < DIM; j++) {
                             
-                            fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p0, t);
                             visc1 = ns->ed.mult.get_density1(p0, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -941,7 +1031,7 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                             taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
                             taup0[i][j] += 2.0*(1-beta_interp)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p1, t);
                             visc1 = ns->ed.mult.get_density1(p1, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -949,7 +1039,7 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                             taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
                             taup1[i][j] += 2.0*(1-beta_interp)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p2, t);
                             visc1 = ns->ed.mult.get_density1(p2, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -957,7 +1047,7 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                             taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
                             taup2[i][j] += 2.0*(1-beta_interp)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                            fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_density0(p3, t);
                             visc1 = ns->ed.mult.get_density1(p3, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -1180,7 +1270,7 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
             for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
                 hig_cell *c = higcit_getcell(it);
                 hig_get_center(c, ccenter);
-                real value  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+                real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                 
                 sprintf(local_str, "%e\n", value);
                 paddn_before_last(local_str, local_str_size);
@@ -1191,6 +1281,31 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
             higcit_destroy(it);
 
             curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
+            sprintf(local_str, "\nSCALARS \u03BA FLOAT\nLOOKUP_TABLE default\n");
+            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+            curr_file_ptr_pos += strlen(local_str);
+
+            // hardcoded buffer size
+            local_str_size = (e_max_size + 1) * sizeof(char);
+            proc_block_size = local_str_size * numleafs;
+            proc_offset = get_offset_cummulative(proc_block_size);
+            it_count = 0;
+
+            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+                hig_cell *c = higcit_getcell(it);
+                hig_get_center(c, ccenter);
+                real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+                
+                sprintf(local_str, "%e\n", value);
+                paddn_before_last(local_str, local_str_size);
+                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+                it_count++;
+            }
+            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+            higcit_destroy(it);
+
+            curr_file_ptr_pos += get_offset_sum(proc_block_size);      
                     
         break;
             
@@ -1354,6 +1469,236 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
         break;
     }
 
+    free(write_buff);
+    MPI_File_close(&f);
+}
+
+
+void higflow_print_vtk2D_multiphase_parallel_single(higflow_solver *ns, int rank, int nprocs) {
+    
+    if(ns->contr.flowtype != MULTIPHASE) {
+        return;
+    }
+    
+    //  Open the VTK file
+    char vtkname[1024];
+    snprintf(vtkname, sizeof vtkname, "%s_mult_%d.vtk", ns->par.nameprint, ns->par.frame);
+    //FILE *f;
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+
+    //////////////////// Get number of leafs /////////////////////////////////////////////
+    higcit_celliterator *it;
+
+    it = sd_get_domain_celliterator(sdm);
+    long numleafs = higcit_count_without_advancing(it);
+    long numleafs_global;
+    MPI_Allreduce(&numleafs, &numleafs_global, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+    /////////////////// Buffers and variables ////////////////////////////////////////////
+
+    long curr_file_ptr_pos = 0, proc_block_size, proc_offset;
+    char local_str[1024];
+    int local_str_size, lf_max_size = 20, d_max_size, e_max_size = 13;
+    long it_count;
+    long buff_count = min(numleafs, 1048576), buff_size;
+    char *write_buff;
+
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    MPI_File f;
+    int openerr = MPI_File_open(MPI_COMM_WORLD, vtkname, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &f);
+    if(openerr != MPI_SUCCESS) {
+        printf("Error opening file %s\n", vtkname);
+        return;
+    }
+    
+    /////////////////////////////// Header /////////////////////////////////////////////////
+    
+    // header
+    sprintf(local_str, "# vtk DataFile Version 3.0\nhigtree multiphase\nASCII\nDATASET UNSTRUCTURED_GRID\n\nPOINTS %ld float\n",
+    4*numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    ////////////////////////////// Points //////////////////////////////////////////////////
+
+    // hardcoded buffer size
+    local_str_size = 4 * (2 * e_max_size + 4) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+    
+    for (; !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        // update buffer
+        sprintf(local_str, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n", 
+        c->lowpoint[0], c->lowpoint[1], c->highpoint[0], c->lowpoint[1], 
+        c->highpoint[0], c->highpoint[1], c->lowpoint[0], c->highpoint[1]);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    higcit_destroy(it);
+
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+    
+    ///////////////////////////////// Cells /////////////////////////////////////////////////
+
+    // header
+    sprintf(local_str, "\nCELLS %ld %ld\n", numleafs_global, 5*numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    // hardcoded buffer size
+    int num_leafs_cummulative;
+    MPI_Scan(&numleafs, &num_leafs_cummulative, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    num_leafs_cummulative -= numleafs;
+    char dummy_str[20];
+    sprintf(dummy_str, "%ld", 4*(num_leafs_cummulative + numleafs));
+    d_max_size = strlen(dummy_str);
+
+    local_str_size = (d_max_size * 4 + 6) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+    
+    for (long i = num_leafs_cummulative; i < num_leafs_cummulative + numleafs; i++) {
+        sprintf(local_str, "%d %ld %ld %ld %ld\n", 4, 4*i, 4*i+1, 4*i+2, 4*i+3);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+
+    ///////////////////////////////// Cell types /////////////////////////////////////////////////
+
+    // header
+    sprintf(local_str, "\nCELL_TYPES %ld\n", numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    // hardcoded buffer size
+    local_str_size = 2 * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (int i = num_leafs_cummulative; i < num_leafs_cummulative + numleafs; i++) {
+        sprintf(local_str, "7 "); //vtk cell types 7 = VTK_POLYGON // 9
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+    
+    ///////////////////////////////// Vectors /////////////////////////////////////////////////
+
+    // header
+    sprintf(local_str, "\n\nPOINT_DATA %ld\nSCALARS FracVol_pts FLOAT\nLOOKUP_TABLE default\n", 4*numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    // hardcoded buffer size
+    local_str_size = 4 * (e_max_size + 1) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    // Saving scalar properties at points
+    for(it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        Point ccenter;
+        hig_get_center(c,ccenter);
+        // Pontos onde será interpolada a velocidade
+        Point p0, p1, p2, p3;
+        p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+        p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+        real f0 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        real f1 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        real f2 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        real f3 = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        
+        sprintf(local_str, "%e\n%e\n%e\n%e\n", f0, f1, f2, f3);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    higcit_destroy(it);
+
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
+    free(write_buff);
+    
+
+    /////////////////////////// Scalars ///////////////////////////
+
+    sprintf(local_str, "\nCELL_DATA %ld\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n", numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    // hardcoded buffer size
+    local_str_size = (e_max_size + 1) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    Point ccenter;
+
+    mp_mapper *mp = sd_get_domain_mapper(sdm);
+
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        hig_get_center(c, ccenter);
+        real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        
+        sprintf(local_str, "%e\n", value);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    higcit_destroy(it);
+
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
+    sprintf(local_str, "\nSCALARS \u03BA FLOAT\nLOOKUP_TABLE default\n");
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    // hardcoded buffer size
+    local_str_size = (e_max_size + 1) * sizeof(char);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        hig_get_center(c, ccenter);
+        real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+        
+        sprintf(local_str, "%e\n", value);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    higcit_destroy(it);
+
+    curr_file_ptr_pos += get_offset_sum(proc_block_size); 
+  
     free(write_buff);
     MPI_File_close(&f);
 }
@@ -1850,7 +2195,7 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
                Point cdelta, ccenter, p0, p1;
                hig_get_delta(c, cdelta);
                hig_get_center(c, ccenter);
-               real value = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+               real value = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                fprintf(f, "%e\n", value);
             }
             higcit_destroy(it);
@@ -2504,7 +2849,7 @@ void higflow_load_controllers_and_parameters_yaml(higflow_solver* ns, int myrank
             exit(1);
         }
 
-        // Model Flow Type
+        // Electroosmotic Flow
         ifd += fy_document_scanf(fyd, "/simulation_contr/eoflow %s", auxchar);
         if (strcmp(auxchar, "none") == 0) {
             ns->contr.eoflow = false;
@@ -2824,17 +3169,17 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
         case MULTIPHASE:
             // Volume Fraction file name
             snprintf(namefile, sizeof namefile, "%s._dpfracvol", ns->par.namesave);
-            load_dp_scalar(ns->ed.psdED, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
+            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
 
             // Multiphase Viscosity file name
             snprintf(namefile, sizeof namefile, "%s._dpvisc_mult", ns->par.namesave);
-            load_dp_scalar(ns->ed.psdED, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
+            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
 
             // Multiphase Density file name
             snprintf(namefile, sizeof namefile, "%s._dpdens", ns->par.namesave);
-            load_dp_scalar(ns->ed.psdED, ns->ed.mult.dpdens, namefile, myrank, ntasks);
+            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpdens, namefile, myrank, ntasks);
 
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
                 // Multiphase Kernel Tensor file name base
                 snprintf(namefile, sizeof namefile, "%s._dpKernel_mult", ns->par.namesave);
                 load_dp_tensor(ns->ed.psdED, ns->ed.mult.ve.dpKernel, namefile, myrank, ntasks);
@@ -2914,17 +3259,17 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
         case MULTIPHASE:
             // Volume Fraction file name
             snprintf(namefile, sizeof namefile, "%s._dpfracvol", ns->par.namesave);
-            save_dp_scalar(ns->ed.psdED, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
+            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
 
             // Multiphase Viscosity file name
             snprintf(namefile, sizeof namefile, "%s._dpvisc_mult", ns->par.namesave);
-            save_dp_scalar(ns->ed.psdED, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
+            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
 
             // Multiphase Density file name
             snprintf(namefile, sizeof namefile, "%s._dpdens", ns->par.namesave);
-            save_dp_scalar(ns->ed.psdED, ns->ed.mult.dpdens, namefile, myrank, ntasks);
+            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpdens, namefile, myrank, ntasks);
 
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
                 // Multiphase Kernel Tensor file name base
                 snprintf(namefile, sizeof namefile, "%s._dpKernel_mult", ns->par.namesave);
                 save_dp_tensor(ns->ed.psdED, ns->ed.mult.ve.dpKernel, namefile, myrank, ntasks);
@@ -3430,10 +3775,10 @@ void higflow_load_multiphase_controllers(higflow_solver *ns, int myrank) {
     }
 
     if (ns->ed.mult.contr.flowtype0 == VISCOELASTIC || ns->ed.mult.contr.flowtype1 == VISCOELASTIC) {
-        ns->ed.mult.contr.flowtype_either = VISCOELASTIC;
+        ns->ed.mult.contr.viscoelastic_either = true;
     }
     else {
-        ns->ed.mult.contr.flowtype_either = NEWTONIAN;
+        ns->ed.mult.contr.viscoelastic_either = false;
     }
 
     if (ns->ed.mult.contr.eoflow0 == true || ns->ed.mult.contr.eoflow1 == true) {

@@ -38,8 +38,6 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
     for(int h = 0; h < numbcs; h++) {
         // Get the local domain for cell center
         sim_domain *sd = psd_get_local_domain(ns->psdp);
-        // Set the type bondary condition
-        bc_type bc_t = ((pbctypes[h]==0)?DIRICHLET:NEUMANN);
         // Create the bounary condition
         sim_boundary *bc = higflow_make_bc(bcg[h], pbctypes[h], id[h], pbcvaluetype[h]);
         // Adding the boundary condition 
@@ -83,8 +81,6 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbc
         for(int h = 0; h < numbcs; h++) {
             // Get the local domain for the facet
             sfd = psfd_get_local_domain(ns->psfdu[dim]);
-            // Set the type bondary condition
-            bc_type bc_t = ((bctypes[dim][h]==0)?DIRICHLET:NEUMANN);
             // Create the bounary condition
             sim_boundary *bc = higflow_make_bc(bcg[h], bctypes[dim][h], id[h], bcvaluetype[dim][h]);
             // Adding the boundary condition 
@@ -134,8 +130,6 @@ void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solve
         for(int h = 0; h < numbcs; h++) {
             // Get the local domain for the facet
             sfd = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[dim]);
-            // Set the type bondary condition
-            //bc_type bc_t = DIRICHLET;
             // Create the bounary condition
             sim_boundary *bc = higflow_make_bc(bcg[h], DIRICHLET, id[h], timedependent);
             // Adding the boundary condition 
@@ -182,8 +176,6 @@ void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, i
     for(int h = 0; h < numbcs; h++) {
         // Get the local domain for cell center
         sim_domain *sd = psd_get_local_domain(ns->ed.eo.psdEOphi);
-        // Set the type bondary condition
-        bc_type bc_t = ((phibctypes[h]==0)?DIRICHLET:NEUMANN);
         // Create the bounary condition
         sim_boundary *bc = higflow_make_bc(bcg[h], phibctypes[h], id[h], phibcvaluetype[h]);
         // Adding the boundary condition 
@@ -232,8 +224,6 @@ void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, i
     for(int h = 0; h < numbcs; h++) {
         // Get the local domain for cell center
         sim_domain *sd = psd_get_local_domain(ns->ed.eo.psdEOpsi);
-        // Set the type bondary condition
-        bc_type bc_t = ((psibctypes[h]==0)?DIRICHLET:NEUMANN);
         // Create the bounary condition
         sim_boundary *bc = higflow_make_bc(bcg[h], psibctypes[h], id[h], psibcvaluetype[h]);
         // Adding the boundary condition 
@@ -282,8 +272,6 @@ void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns,
     for(int h = 0; h < numbcs; h++) {
         // Get the local domain for cell center
         sim_domain *sd = psd_get_local_domain(ns->ed.eo.psdEOnplus);
-        // Set the type bondary condition
-        bc_type bc_t = ((nplusbctypes[h]==0)?DIRICHLET:NEUMANN);
         // Create the bounary condition
         sim_boundary *bc = higflow_make_bc(bcg[h], nplusbctypes[h], id[h], nplusbcvaluetype[h]);
         // Adding the boundary condition 
@@ -332,8 +320,6 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
     for(int h = 0; h < numbcs; h++) {
         // Get the local domain for cell center
         sim_domain *sd = psd_get_local_domain(ns->ed.eo.psdEOnminus);
-        // Set the type bondary condition
-        bc_type bc_t = ((nminusbctypes[h]==0)?DIRICHLET:NEUMANN);
         // Create the bounary condition
         sim_boundary *bc = higflow_make_bc(bcg[h], nminusbctypes[h], id[h], nminusbcvaluetype[h]);
         // Adding the boundary condition 
@@ -382,11 +368,8 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
     for(int h = 0; h < numbcs; h++) {
         // Get the local domain for cell center
         sim_domain *sd = psd_get_local_domain(ns->psdF);
-        // Set the type bondary condition
-        pbctypes[h] = DIRICHLET;
-        pbcvaluetype[h] = timedependent;
         // Create the bounary condition
-        sim_boundary *bc = higflow_make_bc(bcg[h], pbctypes[h], id[h], pbcvaluetype[h]);
+        sim_boundary *bc = higflow_make_bc(bcg[h], DIRICHLET, id[h], timedependent);
         // Adding the boundary condition 
         sd_add_boundary(sd, bc);
         // Get the mapper for the boundary condition
@@ -427,10 +410,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
         for(int h = 0; h < numbcs; h++) {
             // Get the local domain for the facet
             sfdF = psfd_get_local_domain(ns->psfdF[dim]);
-            // Set the type bondary condition
-            //bc_type bc_t = ((bctypes[dim][h]==0)?DIRICHLET:NEUMANN);
             // Create the bounary condition
-            //sim_boundary *bc = higflow_make_bc(bcg[h], bctypes[dim][h], id[h], bcvaluetype[dim][h]);
             sim_boundary *bc = higflow_make_bc(bcg[h], DIRICHLET, id[h], timedependent);
             // Adding the boundary condition 
             sfd_add_boundary(sfdF, bc);

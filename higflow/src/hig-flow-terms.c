@@ -60,7 +60,7 @@ real higflow_tensor_term(higflow_solver *ns) {
     real value = 0.0;
     // Two-phase contribution
     if (ns->contr.flowtype == MULTIPHASE) {
-        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+        if(ns->ed.mult.contr.viscoelastic_either == true) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {
                 value += ns->cc.dSdx[dim2];
             }

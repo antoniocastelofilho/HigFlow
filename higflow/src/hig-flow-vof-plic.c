@@ -324,12 +324,12 @@ int sign(real value) {
 void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
     real IF[DIM];
     // Get the local sub-domain for the cells
-    sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     // Get the map for the domain properties
-    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    mp_mapper *mp = sd_get_domain_mapper(sdm);
     // Loop for each cell
     higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
        // Get the cell
        hig_cell *c = higcit_getcell(it);
        // Get the cell identifier
@@ -342,13 +342,13 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
        hig_get_delta(c, delta);
        // Case bi-dimensional
        Point Normal;
-       Normal[0] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-       Normal[1] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+       Normal[0] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
+       Normal[1] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
        // If the cell is not interfacial, the distance is not calculated 
        if (fabs(Normal[0]) < 1.0e-14 && fabs(Normal[1]) < 1.0e-14) {
           continue;
        }
-       real fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+       real fracvol = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
        real area = fracvol*delta[0]*delta[1];
        // Calculate distance from center
        real distance = distance_from_center(Normal,delta,area);
@@ -364,15 +364,15 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
 void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
       real IF[DIM];
       // Get the local sub-domain for the cells
-      sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+      sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
 
       // Get the map for the domain properties
-      mp_mapper *mp = sd_get_domain_mapper(sdp);
+      mp_mapper *mp = sd_get_domain_mapper(sdm);
 
       // Loop for each cell
       higcit_celliterator *it;
 
-      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+      for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
          // Get the cell
          hig_cell *c = higcit_getcell(it);
 
@@ -389,14 +389,14 @@ void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
 
          // Case bi-dimensional
          Point Normal;
-         Normal[0] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-         Normal[1] = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+         Normal[0] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
+         Normal[1] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
 
          if (fabs(Normal[0]) < 1.0e-14 && fabs(Normal[1]) < 1.0e-14){
             continue;
          }
 
-         real d_from_center = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+         real d_from_center = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
          real area = area_left_line_origin_center(Normal, delta, d_from_center);
          real frac = area/(delta[0]*delta[1]);
 

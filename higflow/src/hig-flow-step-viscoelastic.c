@@ -1491,29 +1491,25 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_viscoelastic(higflow_solver *ns) {
 
-    if(ns->ed.ve.par.beta<0.999999) { //otherwise newtonian
-         // Calculate the velocity derivative tensor
-        higflow_compute_velocity_derivative_tensor(ns);
+    // Calculate the velocity derivative tensor
+    higflow_compute_velocity_derivative_tensor(ns);
+    // Computing the Kernel Tensor
+    //higflow_compute_initial_kernel_tensor(ns);
+    //higflow_compute_kernel_tensor(ns);
 
-        // Computing the Kernel Tensor
-        //higflow_compute_initial_kernel_tensor(ns);
-        //higflow_compute_kernel_tensor(ns);
-
-        // Constitutive Equation Step for the Explicit Euler Method
-        switch (ns->ed.ve.contr.discrtype) {
-            case EXPLICIT:
-            // Explicit method
-            higflow_explicit_euler_constitutive_equation(ns);
-            break;
-            case IMPLICIT: 
-            // Implicit method
-            higflow_implicit_euler_constitutive_equation(ns);
-            break;
-        }
-
-        // Computing the Polymeric Tensor
-        higflow_compute_polymeric_tensor(ns);
+    // Constitutive Equation Step for the Explicit Euler Method
+    switch (ns->ed.ve.contr.discrtype) {
+        case EXPLICIT:
+        // Explicit method
+        higflow_explicit_euler_constitutive_equation(ns);
+        break;
+        case IMPLICIT: 
+        // Implicit method
+        higflow_implicit_euler_constitutive_equation(ns);
+        break;
     }
+    // Computing the Polymeric Tensor
+    higflow_compute_polymeric_tensor(ns);
 
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
@@ -1557,14 +1553,10 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns) {
     }
     // Set outflow for ustar velocity 
     //higflow_outflow_ustar_step(ns);
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
     higflow_pressure(ns);
     // Calculate the final velocity
     higflow_final_velocity(ns);
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
     // Set outflow for velocity
     //higflow_outflow_u_step(ns);
     // Calculate the final pressure

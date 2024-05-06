@@ -81,7 +81,7 @@ sim_residuals *create_sim_residuals(higflow_controllers hig_contr, mult_controll
                     sim_res->fracvol_adv[dim] = create_dp_residuals();
                 }
 
-                if(mult_contr.flowtype_either == VISCOELASTIC) {
+                if(mult_contr.viscoelastic_either == true) {
                     for(int dim=0; dim<DIM; dim++){
                         for(int dim2=dim; dim2<DIM; dim2++){
                             sim_res->Kernel[dim][dim2] = create_dp_residuals();

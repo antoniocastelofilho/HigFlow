@@ -10,13 +10,13 @@ real area_correction_at_get(Point delta, real area){
    return area;
 }
 
-void _elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux){
+void _elvira_vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppt, ppb;
    *aux  = 0;
    // Vertical Up
-   status = get_frac_vol(sdp, ns, 1, center, p, delta, &fracvol);
+   status = get_frac_vol(sdm, ns, 1, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Up - Vertical cells with different sizes \n");
@@ -30,7 +30,7 @@ void _elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center,
    int i = 0;
    do { i++;
       pp[1] = center[1] + i * delta[1];
-      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
@@ -49,7 +49,7 @@ void _elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center,
    i = 0;
    do { i++;
       pp[1] = p[1] - i * delta[1];
-      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
@@ -71,13 +71,13 @@ void _elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center,
    }
 }
 
-void elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux){
+void elvira_vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppt, ppb;
    *aux  = 0;
    // Vertical Up
-   status = get_frac_vol(sdp, ns, 1, center, p, delta, &fracvol);
+   status = get_frac_vol(sdm, ns, 1, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Up - Vertical cells with different sizes \n");
@@ -91,7 +91,7 @@ void elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, 
    int i = 0;
    do { i++;
       pp[1] = center[1] + i * delta[1];
-      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
@@ -110,7 +110,7 @@ void elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, 
    i = 0;
    do { i++;
       pp[1] = p[1] - i * delta[1];
-      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
@@ -132,13 +132,13 @@ void elvira_vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, 
    }
 }
 
-void _elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux){
+void _elvira_horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppr, ppl;
    *aux=0;
    // Horizontal Right
-   status = get_frac_vol(sdp, ns, 0, center, p, delta, &fracvol);
+   status = get_frac_vol(sdm, ns, 0, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Right - Horizontal cells with different sizes \n");
@@ -152,7 +152,7 @@ void _elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, P
    int i = 0;
    do { i++;
       pp[0] = center[0] + i*delta[0];
-      status = get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
@@ -172,7 +172,7 @@ void _elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, P
    // fracvol_aux = 0;
    do { i++;
       pp[0] = p[0] - i*delta[0];
-      status = get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
@@ -194,13 +194,13 @@ void _elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, P
    }
 }
 
-void elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux){
+void elvira_horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppr, ppl;
    *aux=0;
    // Horizontal Right
-   status = get_frac_vol(sdp, ns, 0, center, p, delta, &fracvol);
+   status = get_frac_vol(sdm, ns, 0, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Right - Horizontal cells with different sizes \n");
@@ -214,7 +214,7 @@ void elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Po
    int i = 0;
    do { i++;
       pp[0] = center[0] + i*delta[0];
-      status = get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
@@ -234,7 +234,7 @@ void elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Po
    // fracvol_aux = 0;
    do { i++;
       pp[0] = p[0] - i*delta[0];
-      status = get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
@@ -256,14 +256,14 @@ void elvira_horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Po
    }
 }
 
-void elvira_vertical_collumn_adap(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux, real *orig){
+void elvira_vertical_collumn_adap(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux, real *orig){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppt, ppb;
    *aux  = 0;
    *orig = 0.0;
    // Vertical Up
-   status = get_frac_vol(sdp, ns, 1, center, p, delta, &fracvol);
+   status = get_frac_vol(sdm, ns, 1, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Up - Vertical cells with different sizes \n");
@@ -277,7 +277,7 @@ void elvira_vertical_collumn_adap(sim_domain *sdp, higflow_solver *ns, Point cen
    int i = 0;
    do { i++;
       pp[1] = center[1] + i * delta[1];
-      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
@@ -295,7 +295,7 @@ void elvira_vertical_collumn_adap(sim_domain *sdp, higflow_solver *ns, Point cen
    i = 0;
    do { i++;
       pp[1] = p[1] - i * delta[1];
-      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
@@ -322,14 +322,14 @@ void elvira_vertical_collumn_adap(sim_domain *sdp, higflow_solver *ns, Point cen
    }
 }
 
-void elvira_horizontal_row_adap(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux, real *orig){
+void elvira_horizontal_row_adap(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux, real *orig){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppr, ppl;
    *aux=0;
    *orig=0.0;
    // Horizontal Right
-   status = get_frac_vol(sdp, ns, 0, center, p, delta, &fracvol);
+   status = get_frac_vol(sdm, ns, 0, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Right - Horizontal cells with different sizes \n");
@@ -343,7 +343,7 @@ void elvira_horizontal_row_adap(sim_domain *sdp, higflow_solver *ns, Point cente
    int i = 0;
    do { i++;
       pp[0] = center[0] + i*delta[0];
-      status=get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
+      status=get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
@@ -363,7 +363,7 @@ void elvira_horizontal_row_adap(sim_domain *sdp, higflow_solver *ns, Point cente
    //fracvol_aux=0;
    do { i++;
       pp[0] = p[0] - i*delta[0];
-      status = get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
@@ -478,14 +478,14 @@ real elvira_interface_error(real area[6], real areaE[6][9], int s) {
   return sqrt(error);
 }
 
-void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain *sdp, mp_mapper *mp, higcit_celliterator *it, hig_cell *c,int clid, Point center, Point delta, Point p) {
+void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain *sdm, mp_mapper *mp, higcit_celliterator *it, hig_cell *c,int clid, Point center, Point delta, Point p) {
    // Case bi-dimensional
    real IF[DIM];
    Point pp;
    real area[9]; real fracvol[9];
    pp[0]      = p[0];
    pp[1]      = p[1];
-   fracvol[4] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[4] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[4]    = fracvol[4]*delta[0]*delta[1];
    // y
    // ^
@@ -506,42 +506,42 @@ void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain 
    // +-------+-------+-------+--+--> 
    pp[0]      = p[0] - delta[0]; 
    pp[1]      = p[1] - delta[1];
-   fracvol[0] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[0] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[0]    = fracvol[0]*delta[0]*delta[1];
    
    pp[0]      = p[0]; 
    pp[1]      = p[1] - delta[1];
-   fracvol[1] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[1] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[1]    = fracvol[1]*delta[0]*delta[1];
    
    pp[0]      = p[0] + delta[0]; 
    pp[1]      = p[1] - delta[1];
-   fracvol[2] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[2] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[2]    = fracvol[2]*delta[0]*delta[1];
    
    pp[0]      = p[0] - delta[0]; 
    pp[1]      = p[1];
-   fracvol[3] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[3] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[3]    = fracvol[3]*delta[0]*delta[1];
    
    pp[0]      = p[0] + delta[0]; 
    pp[1]      = p[1];
-   fracvol[5] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[5] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[5]    = fracvol[5]*delta[0]*delta[1];
    
    pp[0]      = p[0] - delta[0];
    pp[1]      = p[1] + delta[1];
-   fracvol[6] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[6] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[6]    = fracvol[6]*delta[0]*delta[1];
    
    pp[0]      = p[0];
    pp[1]      = p[1] + delta[1];
-   fracvol[7] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[7] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[7]    = fracvol[7]*delta[0]*delta[1];
    
    pp[0]      = p[0] + delta[0];
    pp[1]      = p[1] + delta[1];
-   fracvol[8] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+   fracvol[8] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
    area[8]    = fracvol[8]*delta[0]*delta[1];
    
    //Height functions
@@ -552,15 +552,15 @@ void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain 
    pp[0]      = p[0];
    pp[1]      = p[1];
    // Middle
-   elvira_horizontal_row(sdp, ns, center, pp, delta, &hm, &aux_mh);
+   elvira_horizontal_row(sdm, ns, center, pp, delta, &hm, &aux_mh);
    ////===========================================================
    // Top
    pp[1]      = p[1]+delta[1];
-   elvira_horizontal_row(sdp, ns, center, pp, delta, &ht, &aux_t);
+   elvira_horizontal_row(sdm, ns, center, pp, delta, &ht, &aux_t);
    ////===========================================================
    //Bottom
    pp[1]      = p[1]-delta[1];
-   elvira_horizontal_row(sdp, ns, center, pp, delta, &hb, &aux_b);
+   elvira_horizontal_row(sdm, ns, center, pp, delta, &hb, &aux_b);
    ////===========================================================
    real H[3];
    H[0]       = hb;
@@ -571,15 +571,15 @@ void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain 
    pp[0]      = p[0]; 
    pp[1]      = p[1];
    // Middle
-   elvira_vertical_collumn(sdp, ns, center, pp, delta, &vm, &aux_mv);
+   elvira_vertical_collumn(sdm, ns, center, pp, delta, &vm, &aux_mv);
    ////===========================================================
    //Right
    pp[0]      = p[0]+delta[0];
-   elvira_vertical_collumn(sdp, ns, center, pp, delta, &vr, &aux_r);
+   elvira_vertical_collumn(sdm, ns, center, pp, delta, &vr, &aux_r);
    ////===========================================================
    //Left
    pp[0]      = p[0]-delta[0];
-   elvira_vertical_collumn(sdp, ns, center, pp, delta, &vl, &aux_l);
+   elvira_vertical_collumn(sdm, ns, center, pp, delta, &vl, &aux_l);
    ////===========================================================
    real V[3];
    V[0]       = vl; 
@@ -689,14 +689,14 @@ void higflow_compute_normal_multiphase_2D_elvira(higflow_solver *ns, sim_domain 
 }
 
 
-void higflow_compute_normal_multiphase_2D_elvira_adap(higflow_solver *ns, sim_domain *sdp, mp_mapper *mp, higcit_celliterator *it, hig_cell *c, int clid, Point center, Point delta, Point p) {
+void higflow_compute_normal_multiphase_2D_elvira_adap(higflow_solver *ns, sim_domain *sdm, mp_mapper *mp, higcit_celliterator *it, hig_cell *c, int clid, Point center, Point delta, Point p) {
     // Case bi-dimensional
     real IF[DIM];
     Point pp;
     real area[9]; real fracvol[9];
     pp[0]      = p[0];
     pp[1]      = p[1];
-    fracvol[4] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[4] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[4]    = fracvol[4]*delta[0]*delta[1];
     // y
     // ^
@@ -717,42 +717,42 @@ void higflow_compute_normal_multiphase_2D_elvira_adap(higflow_solver *ns, sim_do
     // +-------+-------+-------+--+--> 
     pp[0]      = p[0] - delta[0]; 
     pp[1]      = p[1] - delta[1];
-    fracvol[0] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[0] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[0]    = fracvol[0]*delta[0]*delta[1];
     
     pp[0]      = p[0]; 
     pp[1]      = p[1] - delta[1];
-    fracvol[1] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[1] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[1]    = fracvol[1]*delta[0]*delta[1];
     
     pp[0]      = p[0] + delta[0]; 
     pp[1]      = p[1] - delta[1];
-    fracvol[2] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[2] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[2]    = fracvol[2]*delta[0]*delta[1];
     
     pp[0]      = p[0] - delta[0]; 
     pp[1]      = p[1];
-    fracvol[3] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[3] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[3]    = fracvol[3]*delta[0]*delta[1];
     
     pp[0]      = p[0] + delta[0]; 
     pp[1]      = p[1];
-    fracvol[5] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[5] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[5]    = fracvol[5]*delta[0]*delta[1];
     
     pp[0]      = p[0] - delta[0];
     pp[1]      = p[1] + delta[1];
-    fracvol[6] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[6] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[6]    = fracvol[6]*delta[0]*delta[1];
     
     pp[0]      = p[0];
     pp[1]      = p[1] + delta[1];
-    fracvol[7] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[7] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[7]    = fracvol[7]*delta[0]*delta[1];
     
     pp[0]      = p[0] + delta[0];
     pp[1]      = p[1] + delta[1];
-    fracvol[8] = compute_value_at_point(sdp, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+    fracvol[8] = compute_value_at_point(sdm, center, pp, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
     area[8]    = fracvol[8]*delta[0]*delta[1];
     
     //Height functions
@@ -767,19 +767,19 @@ void higflow_compute_normal_multiphase_2D_elvira_adap(higflow_solver *ns, sim_do
     pp[1] = p[1];
     // Middle
     //printf("Antes  HM: aux_mh = %d\n",aux_mh);
-    elvira_horizontal_row_adap(sdp, ns, center, pp, delta, &hm, &aux_mh, &orig_mh);
+    elvira_horizontal_row_adap(sdm, ns, center, pp, delta, &hm, &aux_mh, &orig_mh);
     //printf("Depois HM: aux_mh = %d\n",aux_mh);
     ////===========================================================
     // Top
     pp[1] = p[1]+delta[1];
     //printf("Antes  HT: aux_t = %d\n",aux_t);
-    elvira_horizontal_row_adap(sdp, ns, center, pp, delta, &ht, &aux_t, &orig_t);
+    elvira_horizontal_row_adap(sdm, ns, center, pp, delta, &ht, &aux_t, &orig_t);
     //printf("Depois HT: aux_t = %d\n",aux_t);
     ////===========================================================
     //Bottom
     pp[1] = p[1]-delta[1];
     //printf("Antes  HB: aux_b = %d\n",aux_b);
-    elvira_horizontal_row_adap(sdp, ns, center, pp, delta, &hb, &aux_b, &orig_b);
+    elvira_horizontal_row_adap(sdm, ns, center, pp, delta, &hb, &aux_b, &orig_b);
     //printf("Depois HB: aux_b = %d\n",aux_b);
     ////===========================================================
     real H[3], origh[3];
@@ -797,15 +797,15 @@ void higflow_compute_normal_multiphase_2D_elvira_adap(higflow_solver *ns, sim_do
     pp[0] = p[0]; 
     pp[1] = p[1];
     // Middle
-    elvira_vertical_collumn_adap(sdp, ns, center, pp, delta, &vm, &aux_mv, &orig_mv);
+    elvira_vertical_collumn_adap(sdm, ns, center, pp, delta, &vm, &aux_mv, &orig_mv);
     ////===========================================================
     //Right
     pp[0]    = p[0]+delta[0];
-    elvira_vertical_collumn_adap(sdp, ns, center, pp, delta, &vr, &aux_r, &orig_r);
+    elvira_vertical_collumn_adap(sdm, ns, center, pp, delta, &vr, &aux_r, &orig_r);
     ////===========================================================
     //Left
     pp[0]    = p[0]-delta[0];
-    elvira_vertical_collumn_adap(sdp, ns, center, pp, delta, &vl, &aux_l, &orig_l);
+    elvira_vertical_collumn_adap(sdm, ns, center, pp, delta, &vl, &aux_l, &orig_l);
     ////===========================================================
     real V[3], origv[3];
     V[0] = vl; 

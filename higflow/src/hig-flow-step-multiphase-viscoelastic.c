@@ -62,17 +62,17 @@ void arquivo_N(char* nome, real nx, real ny) {
 
 void save_cell_values_visc(higflow_solver* ns, int aux) {
     // Get the local sub-domain for the cells
-    sim_domain* sdp = psd_get_local_domain(ns->psdp);
+    sim_domain* sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     // Get the local sub-domain for the facets
     sim_facet_domain* sfdu[DIM];
     for (int i = 0; i < DIM; i++) {
         sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
     }
     // Get the map for the domain properties
-    mp_mapper* mp = sd_get_domain_mapper(sdp);
+    mp_mapper* mp = sd_get_domain_mapper(sdm);
     // Loop for each cell
     higcit_celliterator* it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
         // Get the cell
         hig_cell* c = higcit_getcell(it);
         // Get the cell identifier
@@ -86,15 +86,15 @@ void save_cell_values_visc(higflow_solver* ns, int aux) {
         int infacet;
         if (aux == 1) {
             //saving volume fraction
-            real fracvol = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+            real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             arquivo_Frac_Visc(nome_Frac_Visc, ccenter[0], ccenter[1], fracvol);
 
-            real d = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
+            real d = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
             arquivo_d(nome_d, d);
 
             Point Normal;
-            Normal[0] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
-            Normal[1] = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+            Normal[0] = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
+            Normal[1] = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
             arquivo_N(nome_N, Normal[0], Normal[1]);
 
             //saving Tensor
@@ -184,7 +184,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         hig_get_delta(c, cdelta);
 
         // Get Volume fraction
-        real fracvol = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
         phase_location phase_loc;
         if (fracvol < small) phase_loc = PHASE0;
         else if (fracvol > 1.0 - small) phase_loc = PHASE1;
@@ -445,7 +445,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         hig_get_delta(c, cdelta);
 
         // Get Volume fraction
-        real fracvol = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+        real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
         phase_location phase_loc;
         if (fracvol < small) phase_loc = PHASE0;
         else if (fracvol > 1.0 - small) phase_loc = PHASE1;
@@ -719,7 +719,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
             hig_get_delta(c, cdelta);
 
             // Get Volume fraction
-            real fracvol = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
+            real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             phase_location phase_loc;
             if (fracvol < small) phase_loc = PHASE0;
             else if (fracvol > 1.0 - small) phase_loc = PHASE1;
@@ -941,6 +941,8 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
     // Calculate the viscosity
     higflow_compute_viscosity_multiphase(ns);
     // Calculate the viscosity
@@ -974,14 +976,10 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
             higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns, ns->dpu, ns->dpustar);
             break;
     }
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
     higflow_pressure_multiphase(ns);
     // Calculate the final velocity
     higflow_final_velocity_multiphase(ns);
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
     // if (ns->par.stepaux % 20000 == 0) {

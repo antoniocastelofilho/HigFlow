@@ -51,10 +51,22 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     } else if (ns->contr.flowtype == MULTIPHASE) {
+        higio_amr_info *mi_mult[numhigs];
+        for(int h = 0; h < numhigs; h++) {
+            mi_mult[h] = higflow_create_amr_info_mult(mi[h]);
+        }
+        // Initializing partition table multiphase
+        higflow_partition_domain_multiphase(ns, pg, numhigs, mi_mult, ntasks, myrank);
         // Initialize multiphase domain
         higflow_create_partitioned_domain_multiphase(ns, pg, order);
+        if(ns->ed.mult.contr.viscoelastic_either == true) {
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+        }
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_multiphase(ns);
     } else if (ns->contr.flowtype == VISCOELASTIC) {
         // Initialize visoelastic tensor domain
         higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
@@ -122,10 +134,14 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     } else if (ns->contr.flowtype == MULTIPHASE) {
+        // Initializing partition table multiphase
+        higflow_partition_domain_multiphase(ns, pg, numhigs, mi, ntasks, myrank);
         // Initialize multiphase domain
         higflow_create_partitioned_domain_multiphase(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
+        // Creating the stencil for properties interpolation
+        higflow_create_stencil_multiphase(ns);
     } else if (ns->contr.flowtype == VISCOELASTIC) {
         // Initialize visoelastic tensor domain
         higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
@@ -206,7 +222,7 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
     // Setting the cell iterator
     higcit_celliterator *it;
     // Getting the local domain 
-    sim_domain *sdvisc = psd_get_local_domain(ns->ed.psdED);
+    sim_domain *sdvisc = psd_get_local_domain(ns->ed.mult.psdmult);
     // Getting the Mapper for the local domain 
     mp_mapper *m = sd_get_domain_mapper(sdvisc);
     // Traversing the cells of local domain
@@ -237,7 +253,7 @@ void higflow_initialize_fracvol(higflow_solver *ns) {
     // Setting the cell iterator
     higcit_celliterator *it;
     // Getting the local domain 
-    sim_domain *sdfracvol = psd_get_local_domain(ns->ed.psdED);
+    sim_domain *sdfracvol = psd_get_local_domain(ns->ed.mult.psdmult);
     // Getting the Mapper for the local domain 
     mp_mapper *m = sd_get_domain_mapper(sdfracvol);
     // Traversing the cells of local domain
@@ -266,7 +282,7 @@ void higflow_initialize_density(higflow_solver *ns) {
     // Setting the cell iterator
     higcit_celliterator *it;
     // Getting the local domain
-    sim_domain *sddens = psd_get_local_domain(ns->ed.psdED);
+    sim_domain *sddens = psd_get_local_domain(ns->ed.mult.psdmult);
     // Getting the Mapper for the local domain
     mp_mapper *m = sd_get_domain_mapper(sddens);
     // Traversing the cells of local domain
@@ -295,7 +311,7 @@ void higflow_initialize_density(higflow_solver *ns) {
 
 void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
     if (ns->contr.flowtype == MULTIPHASE) {
-        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+        if(ns->ed.mult.contr.viscoelastic_either == true) {
             // Setting the cell iterator
             higcit_celliterator *it;
             // Getting the local domain
@@ -770,7 +786,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
             higflow_initialize_density(ns);
             // // Initialize Tensor distributed property
             // higflow_initialize_viscoelastic_mult_tensor(ns);
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
                 // Initialize Tensor distributed property
                 higflow_initialize_viscoelastic_mult_tensor(ns);
             }

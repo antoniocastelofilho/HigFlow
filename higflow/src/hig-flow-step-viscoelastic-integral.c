@@ -2288,19 +2288,20 @@ void higflow_print_polymeric_tensor_integral(higflow_solver *ns) {
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
-    if(ns->ed.im.par.beta<0.999999) { //otherwise newtonian
-        // Calculate the velocity derivative tensor
-        higflow_compute_velocity_derivative_tensor(ns);
-        // Constitutive Equation Step for the Explicit Euler Method
-        higflow_explicit_euler_constitutive_equation_integral(ns);
-        // Computing the Polymeric and Extra-Stress Tensors
-        hig_flow_integral_equation(ns);
-    }
+    // Calculate the velocity derivative tensor
+    higflow_compute_velocity_derivative_tensor(ns);
+    // Constitutive Equation Step for the Explicit Euler Method
+    higflow_explicit_euler_constitutive_equation_integral(ns);
+    // Computing the Polymeric and Extra-Stress Tensors
+    hig_flow_integral_equation(ns);
+    
     // Boundary condition for velocity
     higflow_boundary_condition_for_velocity(ns);
     // Boundary conditions for source term
     higflow_boundary_condition_for_cell_source_term(ns);
     higflow_boundary_condition_for_facet_source_term(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
@@ -2333,17 +2334,13 @@ void higflow_solver_step_viscoelastic_integral(higflow_solver *ns) {
            break;
     }
     // Set outflow for ustar velocity 
-    higflow_outflow_ustar_step(ns);
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
+    //higflow_outflow_ustar_step(ns);
     // Calculate the pressure
     higflow_pressure(ns);
     // Calculate the final velocity
     higflow_final_velocity(ns);
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
     // Set outflow for velocity
-    higflow_outflow_u_step(ns);
+    //higflow_outflow_u_step(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
 

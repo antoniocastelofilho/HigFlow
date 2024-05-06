@@ -71,7 +71,7 @@ void higflow_destroy (higflow_solver *ns) {
                 //     // dp_destroy(ns->ed.mult.dpKernel1[i][j]);
                 // }
             }
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
                 // Viscoelastic
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
@@ -84,6 +84,8 @@ void higflow_destroy (higflow_solver *ns) {
             }
             // Destroy the stencil for extra domains
             stn_destroy(ns->ed.stn);
+            // Destroy the stencil for multiphase
+            stn_destroy(ns->ed.mult.stn);
             break;
         case VISCOELASTIC:
             // Viscoelastic
@@ -312,11 +314,21 @@ real (*get_density1)(Point center, real t),
 real (*get_fracvol)(Point center, Point delta, real t)) {
     if (ns->contr.flowtype == MULTIPHASE) {
        // simulation domain (SD) extra domain
-       ns->ed.sdED = sd_create(NULL);
+       ns->ed.mult.sdmult = sd_create(NULL);
        //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.sdED, cache);      
+       sd_use_cache(ns->ed.mult.sdmult, cache);      
        //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.sdED, order);
+       sd_set_interpolator_order(ns->ed.mult.sdmult, order);
+
+       if(ns->ed.mult.contr.viscoelastic_either == true){
+            // simulation domain (SD) extra domain
+            ns->ed.sdED = sd_create(NULL);
+            //reuse interpolation, 0 on, 1 off
+            sd_use_cache(ns->ed.sdED, cache);      
+            //Sets the order of the interpolation to bhe used for the SD. 
+            sd_set_interpolator_order(ns->ed.sdED, order);
+       }
+
        // function for the domain
        ns->ed.mult.get_viscosity0      = get_viscosity0;
        // function for the domain
@@ -336,7 +348,7 @@ real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
     if (ns->contr.flowtype == MULTIPHASE) {
-        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+        if(ns->ed.mult.contr.viscoelastic_either == true) {
             // function for the domain
             ns->ed.mult.ve.get_tensor_multiphase          = get_tensor_multiphase;
             // function for the kernel transformation
@@ -523,9 +535,16 @@ void higflow_create_partitioned_domain_generalized_newtonian (higflow_solver *ns
 void higflow_create_partitioned_domain_multiphase (higflow_solver *ns, partition_graph *pg, int order) {
     if (ns->contr.flowtype == MULTIPHASE) {
         // Creating the partitioned sub-domain to simulation
-        ns->ed.psdED = psd_create(ns->ed.sdED, pg);
+        ns->ed.mult.psdmult = psd_create(ns->ed.mult.sdmult, pg);
         // Synced mapper
-        psd_synced_mapper(ns->ed.psdED);
+        psd_synced_mapper(ns->ed.mult.psdmult);
+
+        if(ns->ed.mult.contr.viscoelastic_either == true) {
+            // Creating the partitioned sub-domain to simulation
+            ns->ed.psdED = psd_create(ns->ed.sdED, pg);
+            // Synced mapper
+            psd_synced_mapper(ns->ed.psdED);
+        }
     }
 }
 
@@ -609,23 +628,23 @@ void higflow_create_distributed_properties_multiphase(higflow_solver *ns) {
     // Non Newtonian tensor
     if (ns->contr.flowtype == MULTIPHASE) {
       // Distributed property for viscosity
-      ns->ed.mult.dpvisc = psd_create_property(ns->ed.psdED);
+      ns->ed.mult.dpvisc = psd_create_property(ns->ed.mult.psdmult);
       // Distributed property for density
-      ns->ed.mult.dpdens = psd_create_property(ns->ed.psdED);
+      ns->ed.mult.dpdens = psd_create_property(ns->ed.mult.psdmult);
       // Distributed property for volume fraction
-      ns->ed.mult.dpfracvol = psd_create_property(ns->ed.psdED);
+      ns->ed.mult.dpfracvol = psd_create_property(ns->ed.mult.psdmult);
       // Distributed property for auxiliary volume fraction
-      ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.psdED);
+      ns->ed.mult.dpfracvolaux = psd_create_property(ns->ed.mult.psdmult);
       // Distributed property for curvature
-      ns->ed.mult.dpcurvature = psd_create_property(ns->ed.psdED);
+      ns->ed.mult.dpcurvature = psd_create_property(ns->ed.mult.psdmult);
       // Distributed property for curvature
-      ns->ed.mult.dpdistance = psd_create_property(ns->ed.psdED);
+      ns->ed.mult.dpdistance = psd_create_property(ns->ed.mult.psdmult);
       // // Distributed property for beta
-      // ns->ed.mult.dpbeta = psd_create_property(ns->ed.psdED);
+      // ns->ed.mult.dpbeta = psd_create_property(ns->ed.mult.psdmult);
       // Distributed property for interfacial force and Normal
       for (int i = 0; i < DIM; i++) {
-         ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.psdED);
-            ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.psdED);
+         ns->ed.mult.dpIF[i]     = psd_create_property(ns->ed.mult.psdmult);
+            ns->ed.mult.dpnormal[i] = psd_create_property(ns->ed.mult.psdmult);
         }
         // for (int i = 0; i < DIM; i++) {
         //     for (int j = 0; j < DIM; j++) {
@@ -643,7 +662,7 @@ void higflow_create_distributed_properties_multiphase(higflow_solver *ns) {
 // Create the distributed properties for multiphase viscoelastic simulation
 void higflow_create_distributed_properties_multiphase_viscoelastic(higflow_solver *ns) {
     if (ns->contr.flowtype == MULTIPHASE) {
-        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+        if(ns->ed.mult.contr.viscoelastic_either == true) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     ns->ed.mult.ve.dpD[i][j]       = psd_create_property(ns->ed.psdED);
@@ -727,7 +746,7 @@ void higflow_create_distributed_properties(higflow_solver *ns) {
             break;
         case MULTIPHASE:
             higflow_create_distributed_properties_multiphase(ns);
-            if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) 
+            if(ns->ed.mult.contr.viscoelastic_either == true) 
                 higflow_create_distributed_properties_multiphase_viscoelastic(ns);
             break;
         case VISCOELASTIC:
@@ -757,6 +776,12 @@ void higflow_create_stencil_for_extra_domain(higflow_solver *ns) {
     ns->ed.stn = stn_create();
 }
 
+// Create the stencil for multiphase
+void higflow_create_stencil_multiphase(higflow_solver *ns) {
+    // Create the stencil for properties interpolation 
+    ns->ed.mult.stn = stn_create();
+}
+
 // Partition table initialize
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank) {
     // Setting the fringe size of the sub-domain
@@ -775,8 +800,13 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
         // Add higtree for SDs
         sd_add_higtree(ns->sdp, root);
         sd_add_higtree(ns->sdF, root);
-        if (ns->contr.flowtype != NEWTONIAN) {
+        if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
             sd_add_higtree(ns->ed.sdED, root);
+        }
+        if (ns->contr.flowtype == MULTIPHASE) {
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
+                sd_add_higtree(ns->ed.sdED, root);
+            }
         }
         if (ns->contr.eoflow == true) {
             sd_add_higtree(ns->ed.eo.sdEOphi, root);
@@ -786,6 +816,54 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
         }
     }
     lb_destroy(lb);
+}
+
+// Partition table multiphase initialize
+void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank) {
+    if(ns->contr.flowtype == MULTIPHASE) {
+        // The fringe is a buffer around the cells of a given node
+        pg_set_fringe_size(pg, 5);
+        /* Partitioning the grid from AMR information */
+        load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
+        for(unsigned i = myrank; i < numhigs; i += ntasks) {
+            lb_add_input_tree(lb, higio_read_from_amr_info(mi[i]), true, 0);
+        }
+        lb_calc_partition(lb, pg);
+        numhigs = lb_get_num_local_trees(lb);
+        for(int h = 0; h < numhigs; h++) {
+            /* Creating the distributed HigTree data structure */
+            hig_cell *root = lb_get_local_tree(lb, h, NULL);
+            // Add higtree for SDs
+            sd_add_higtree(ns->ed.mult.sdmult, root);
+        }
+        lb_destroy(lb);
+    }
+}
+
+// Use the given mesh information to create to create amr info about the multiphase domain
+// Corresponds to a uniform higtree with the cell sizes of the last given level
+higio_amr_info *higflow_create_amr_info_mult(higio_amr_info *mi) {
+    DECL_AND_ALLOC(higio_amr_info, mi_mult, 1);
+    for(int dim = 0; dim < DIM; dim++) {
+		mi_mult->l[dim] = mi->l[dim];
+		mi_mult->h[dim] = mi->h[dim];
+	}
+    mi_mult->numlevels = 1;
+    ALLOC(__higio_level_info, mi_mult->levels, mi_mult->numlevels);
+    for(int dim = 0; dim < DIM; dim++) {
+        // this uniform mesh has the same size as the last level of the original mesh
+        mi_mult->levels[0].delta[dim] = mi->levels[mi->numlevels - 1].delta[dim];
+	}
+    mi_mult->levels[0].numpatches = 1;
+    ALLOC(__higio_patch_info, mi_mult->levels[0].patches, mi_mult->levels[0].numpatches);
+    for(int dim = 0; dim < DIM; dim++) {
+        mi_mult->levels[0].patches[0].initcell[dim] = 1;
+        // calculate the number of cells in each direction
+        int nc = (int)round((mi_mult->h[dim] - mi_mult->l[dim])/mi_mult->levels[0].delta[dim]);
+        mi_mult->levels[0].patches[0].patchsize[dim] = nc;
+	}
+
+    return mi_mult;
 }
 
 // Set the external functions in the NS solver

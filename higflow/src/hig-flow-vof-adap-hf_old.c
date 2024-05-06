@@ -14,33 +14,32 @@ void fraction_correction_at_get(real *fracvol){
    }
 }
 
-int get_frac_vol(sim_domain *sdm, higflow_solver *ns, int dim, Point Center, Point P,Point Delta,real *fracvol){
-   hig_cell *c = sd_get_cell_with_point(sdm, P);
+int get_frac_vol(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Point P,Point Delta,real *fracvol){
+   hig_cell *c = sd_get_cell_with_point(sd,P);
    if (c == NULL) {
       return 0;
    } else {
-      // TODO
       Point Delta2;
       hig_get_delta(c, Delta2);
       if (fabs(Delta[dim] - Delta2[dim])>1.0e-12){
          printf("Different sizes dc=[%.18lf %.18lf] dp= [%.18lf %.18lf] \t ",Delta[0],Delta[1],Delta2[0],Delta2[1]);
          return -1;
       } else {
-         *fracvol = compute_value_at_point(sdm, Center, P, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+         *fracvol = compute_value_at_point(sd, Center, P, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          fraction_correction_at_get(fracvol);
          return 1;
       }
    }
 }
 
-void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux, real *orig){
+void vertical_collumn(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux, real *orig){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppt, ppb;
    *aux=0;
    *orig=0.0;
    // Vertical Up
-   status = get_frac_vol(sdm, ns, 1, center, p, delta, &fracvol);
+   status = get_frac_vol(sdp, ns, 1, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Up - Vertical cells with different sizes \n");
@@ -54,13 +53,12 @@ void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p
    int i = 0;
    do { i++;
       pp[1] = center[1] + i * delta[1];
-      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
-         // //printf("Up - Vertical cell out of domain \n");
-         // return;
-         break;
+         //printf("Up - Vertical cell out of domain \n");
+         return;
       } else {
          //printf("Up - Vertical cells with different sizes \n");
          return;
@@ -73,13 +71,12 @@ void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p
    i = 0;
    do { i++;
       pp[1] = p[1] - i * delta[1];
-      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdp, ns, 1, center, pp, delta, &fracvol);
       if (status == 1) {
          *vertical += fracvol;
       } else if (status == 0) {
-         // //printf("Down - Vertical cell out of domain \n");
-         // return;
-         break;
+         //printf("Down - Vertical cell out of domain \n");
+         return;
       } else {
          //printf("Down - Vertical cells with different sizes \n");
          return;
@@ -101,14 +98,14 @@ void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p
    }
 }
 
-void horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux, real *orig){
+void horizontal_row(sim_domain *sdp, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux, real *orig){
    int status;
    real fracvol, fracvol_aux;
    Point pp, ppr, ppl;
    *aux=0;
    *orig=0.0;
    // Horizontal Right
-   status = get_frac_vol(sdm, ns, 0, center, p, delta, &fracvol);
+   status = get_frac_vol(sdp, ns, 0, center, p, delta, &fracvol);
    if (status != 1) {
       if (status == -1) {
          //printf("Right - Horizontal cells with different sizes \n");
@@ -122,13 +119,12 @@ void horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, 
    int i = 0;
    do { i++;
       pp[0] = center[0] + i*delta[0];
-      status=get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
+      status=get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
-         // //printf("Right - Horizontal cell out of domain \n");
-         // return;
-         break;
+         //printf("Right - Horizontal cell out of domain \n");
+         return;
       } else {
          //printf("Right - Horizontal cells with different sizes \n");
          return;
@@ -143,13 +139,12 @@ void horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, 
    //fracvol_aux=0;
    do { i++;
       pp[0] = p[0] - i*delta[0];
-      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
+      status = get_frac_vol(sdp, ns, 0, center, pp, delta, &fracvol);
       if (status == 1) {
          *horizontal += fracvol;
       } else if (status == 0) {
-         // //printf("Left - Horizontal cell out of domain \n");
-         // return;
-         break;
+         //printf("Left - Horizontal cell out of domain \n");
+         return;
       } else {
          //printf("Left - Horizontal cells with different sizes \n");
          return;
@@ -252,11 +247,11 @@ void set_common_orig_horizontal(real *H,int auxh,real *origh,int n,real dx){
    }
 }
 
-void calculate_interfacial_force(sim_domain *sdm, higflow_solver *ns, int clid, Point center, Point IF){
+void calculate_interfacial_force(sim_domain *sdp, higflow_solver *ns, int clid, Point center, Point IF){
    // Set the curvature in the distributed curvature property
-   real curvature = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
-   real Normalx = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-   real Normaly = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
+   real curvature = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
+   real Normalx = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+   real Normaly = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
    IF[0] = curvature * Normalx;
    IF[1] = curvature * Normaly;
    //   arquivoCurv(NULL,center[0],center[1],curvature);
@@ -269,12 +264,12 @@ void calculate_interfacial_force(sim_domain *sdm, higflow_solver *ns, int clid, 
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_solver *ns) {
       real IF[DIM];
       // Get the local sub-domain for the cells
-      sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+      sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
       // Get the map for the domain properties
-      mp_mapper *mp = sd_get_domain_mapper(sdm);
+      mp_mapper *mp = sd_get_domain_mapper(sdp);
       // Loop for each cell
       higcit_celliterator *it;
-      for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
          // Get the cell
          hig_cell *c = higcit_getcell(it);
          // Get the cell identifier
@@ -289,7 +284,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
          Point p;
          p[0] = center[0];
          p[1] = center[1];
-         real fracvol = compute_value_at_point(sdm, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+         real fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          fraction_correction_at_get(&fracvol);
          // As funçoes foram alteradas de lugar
          if (fracvol == 0.0 || fracvol == 1.0){
@@ -305,13 +300,13 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
          int aux_mh, aux_b, aux_t;
          real orig_mh, orig_b, orig_t;
          // Middle
-         horizontal_row(sdm, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
+         horizontal_row(sdp, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
          // Top
          p[1] = center[1] + delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &ht, &aux_t, &orig_t);
+         horizontal_row(sdp, ns, center, p, delta, &ht, &aux_t, &orig_t);
          // Bottom
          p[1] = center[1] - delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &hb, &aux_b, &orig_b);
+         horizontal_row(sdp, ns, center, p, delta, &hb, &aux_b, &orig_b);
          if (abs(aux_mh + aux_t + aux_b) == 3) {
             real H[3];
             H[0] = hb;
@@ -333,13 +328,13 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
          int aux_mv, aux_l, aux_r;
          real orig_mv, orig_l, orig_r;
          // Middle
-         vertical_collumn(sdm, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
+         vertical_collumn(sdp, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
          // Right
          p[0] = center[0] + delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vr, &aux_r, &orig_r);
+         vertical_collumn(sdp, ns, center, p, delta, &vr, &aux_r, &orig_r);
          // Left
          p[0] = center[0] - delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vl, &aux_l, &orig_l);
+         vertical_collumn(sdp, ns, center, p, delta, &vl, &aux_l, &orig_l);
          if (abs(aux_mv + aux_r + aux_l) == 3){
             real V[3], origv[3];
             V[0] = vl;
@@ -362,7 +357,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
             real orig_tt;
             //top-top
             p[1] = center[1] + 2*delta[1];
-            horizontal_row(sdm, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
+            horizontal_row(sdp, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
             if(abs(aux_mh+aux_t+aux_tt)==3){
                real H[3];
                H[0] = hm;
@@ -387,7 +382,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
             real orig_bb;
             //bottom-bottom
             p[1] = center[1] - 2*delta[1];
-            horizontal_row(sdm, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
+            horizontal_row(sdp, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
             if(abs(aux_mh+aux_b+aux_bb)==3){
                real H[3];
                H[0] = hbb;
@@ -412,7 +407,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
             real orig_rr;
             //right-right
             p[0] = center[0] + 2*delta[0];
-            vertical_collumn(sdm, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
+            vertical_collumn(sdp, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
             if(abs(aux_mv+aux_r+aux_rr)==3){
                real V[3], origv[3];
                V[0] = vm;
@@ -437,7 +432,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 
             //left-left
             p[0] = center[0] - 2 * delta[0];
-            vertical_collumn(sdm, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
+            vertical_collumn(sdp, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
 
             if (abs(aux_mv + aux_l + aux_ll) == 3) {
                real V[3];
@@ -469,12 +464,12 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D(higflow_so
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(higflow_solver *ns) {
       real IF[DIM];
       // Get the local sub-domain for the cells
-      sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+      sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
       // Get the map for the domain properties
-      mp_mapper *mp = sd_get_domain_mapper(sdm);
+      mp_mapper *mp = sd_get_domain_mapper(sdp);
       // Loop for each cell
       higcit_celliterator *it;
-      for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
          // Get the cell
          hig_cell *c = higcit_getcell(it);
          // Get the cell identifier
@@ -489,7 +484,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
          Point p;
          p[0] = center[0];
          p[1] = center[1];
-         real fracvol = compute_value_at_point(sdm, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+         real fracvol = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          fraction_correction_at_get(&fracvol);
          // As funçoes foram alteradas de lugar
          if (fracvol == 0.0 || fracvol == 1.0){
@@ -501,18 +496,18 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             continue;
          }
          // Calculate Normal
-         higflow_compute_normal_multiphase_2D_elvira(ns, sdm, mp, it, c, clid, center, delta, p);
+         higflow_compute_normal_multiphase_2D_elvira(ns, sdp, mp, it, c, clid, center, delta, p);
          real hm, hb, ht;
          int aux_mh, aux_b, aux_t;
          real orig_mh, orig_b, orig_t;
          // Middle
-         horizontal_row(sdm, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
+         horizontal_row(sdp, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
          // Top
          p[1] = center[1] + delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &ht, &aux_t, &orig_t);
+         horizontal_row(sdp, ns, center, p, delta, &ht, &aux_t, &orig_t);
          // Bottom
          p[1] = center[1] - delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &hb, &aux_b, &orig_b);
+         horizontal_row(sdp, ns, center, p, delta, &hb, &aux_b, &orig_b);
          if (abs(aux_mh + aux_t + aux_b) == 3) {
             real H[3], origh[3];
             H[0] = hb;
@@ -523,7 +518,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             origh[2] = orig_t;
             set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
             calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
+            //calculate_interfacial_force(sdp, ns, clid, center, IF);
             continue;
          }
          // Set p cell
@@ -533,13 +528,13 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
          int aux_mv, aux_l, aux_r;
          real orig_mv, orig_l, orig_r;
          // Middle
-         vertical_collumn(sdm, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
+         vertical_collumn(sdp, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
          // Right
          p[0] = center[0] + delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vr, &aux_r, &orig_r);
+         vertical_collumn(sdp, ns, center, p, delta, &vr, &aux_r, &orig_r);
          // Left
          p[0] = center[0] - delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vl, &aux_l, &orig_l);
+         vertical_collumn(sdp, ns, center, p, delta, &vl, &aux_l, &orig_l);
          if (abs(aux_mv + aux_r + aux_l) == 3){
             real V[3];
             V[0] = vl;
@@ -551,7 +546,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             origv[2] = orig_r;
             set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
             calculate_curvature_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
+            //calculate_interfacial_force(sdp, ns, clid, center, IF);
             continue;
          }
          if(abs(aux_mh+aux_t)==2){
@@ -563,7 +558,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             real orig_tt;
             //top-top
             p[1] = center[1] + 2*delta[1];
-            horizontal_row(sdm, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
+            horizontal_row(sdp, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
             if(abs(aux_mh+aux_t+aux_tt)==3){
                real H[3], origh[3];
                H[0] = hm;
@@ -574,7 +569,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
                origh[2] = orig_tt;
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
                calculate_curvature_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -587,7 +582,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             real orig_bb;
             //bottom-bottom
             p[1] = center[1] - 2*delta[1];
-            horizontal_row(sdm, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
+            horizontal_row(sdp, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
             if(abs(aux_mh+aux_b+aux_bb)==3){
                real H[3], origh[3];
                H[0] = hbb;
@@ -598,7 +593,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
                origh[2] = orig_mh;
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
                calculate_curvature_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -610,7 +605,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             int aux_rr;
             //right-right
             p[0] = center[0] + 2*delta[0];
-            vertical_collumn(sdm, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
+            vertical_collumn(sdp, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
             if(abs(aux_mv+aux_r+aux_rr)==3){
                real V[3];
                V[0] = vm;
@@ -622,7 +617,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
                origv[2] = orig_rr;
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
                calculate_curvature_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -635,7 +630,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
             real orig_ll;
             //left-left
             p[0] = center[0] - 2 * delta[0];
-            vertical_collumn(sdm, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
+            vertical_collumn(sdp, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
             if (abs(aux_mv + aux_l + aux_ll) == 3) {
                real V[3];
                V[0] = vll;
@@ -647,7 +642,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
                origv[2] = orig_mv;
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
                calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -665,12 +660,12 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_adap(higflow_solver *ns) {
       real IF[DIM];
       // Get the local sub-domain for the cells
-      sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+      sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
       // Get the map for the domain properties
-      mp_mapper *mp = sd_get_domain_mapper(sdm);
+      mp_mapper *mp = sd_get_domain_mapper(sdp);
       // Loop for each cell
       higcit_celliterator *it;
-      for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
          // Get the cell
          hig_cell *c = higcit_getcell(it);
          // Get the cell identifier
@@ -685,7 +680,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
          Point p;
          p[0] = center[0];
          p[1] = center[1];
-         real frac = compute_value_at_point(sdm, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+         real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          // As funçoes foram alteradas de lugar
          if (frac == 0.0 || frac == 1.0){
             dp_set_value(ns->ed.mult.dpcurvature, clid, 0.0);/* Set the curvature in the distributed curvature property*/
@@ -696,19 +691,19 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             continue;
          }
           
-         higflow_compute_normal_multiphase_2D_elvira_adap(ns, sdm, mp, it, c, clid, center, delta, p);
+         higflow_compute_normal_multiphase_2D_elvira_adap(ns, sdp, mp, it, c, clid, center, delta, p);
           
          real hm, hb, ht;
          int aux_mh, aux_b, aux_t;
          real orig_mh, orig_b, orig_t;
          // Middle
-         horizontal_row(sdm, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
+         horizontal_row(sdp, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
          // Top
          p[1] = center[1] + delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &ht, &aux_t, &orig_t);
+         horizontal_row(sdp, ns, center, p, delta, &ht, &aux_t, &orig_t);
          // Bottom
          p[1] = center[1] - delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &hb, &aux_b, &orig_b);
+         horizontal_row(sdp, ns, center, p, delta, &hb, &aux_b, &orig_b);
          if (abs(aux_mh + aux_t + aux_b) == 3) {
             real H[3], origh[3];
             H[0] = hb;
@@ -719,7 +714,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             origh[2] = orig_t;
             set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
             calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
+            //calculate_interfacial_force(sdp, ns, clid, center, IF);
             continue;
          }
          // Set p cell
@@ -729,13 +724,13 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
          int aux_mv, aux_l, aux_r;
          real orig_mv, orig_l, orig_r;
          // Middle
-         vertical_collumn(sdm, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
+         vertical_collumn(sdp, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
          // Right
          p[0] = center[0] + delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vr, &aux_r, &orig_r);
+         vertical_collumn(sdp, ns, center, p, delta, &vr, &aux_r, &orig_r);
          // Left
          p[0] = center[0] - delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vl, &aux_l, &orig_l);
+         vertical_collumn(sdp, ns, center, p, delta, &vl, &aux_l, &orig_l);
          if (abs(aux_mv + aux_r + aux_l) == 3){
             real V[3];
             V[0] = vl;
@@ -747,7 +742,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             origv[2] = orig_r;
             set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
             calculate_curvature_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
+            //calculate_interfacial_force(sdp, ns, clid, center, IF);
             continue;
          }
          if(abs(aux_mh+aux_t)==2){
@@ -759,7 +754,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             real orig_tt;
             //top-top
             p[1] = center[1] + 2*delta[1];
-            horizontal_row(sdm, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
+            horizontal_row(sdp, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
             if(abs(aux_mh+aux_t+aux_tt)==3){
                real H[3], origh[3];
                H[0] = hm;
@@ -770,7 +765,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
                origh[2] = orig_tt;
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
                calculate_curvature_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -783,7 +778,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             real orig_bb;
             //bottom-bottom
             p[1] = center[1] - 2*delta[1];
-            horizontal_row(sdm, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
+            horizontal_row(sdp, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
             if(abs(aux_mh+aux_b+aux_bb)==3){
                real H[3], origh[3];
                H[0] = hbb;
@@ -794,7 +789,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
                origh[2] = orig_mh;
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
                calculate_curvature_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -806,7 +801,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             int aux_rr;
             //right-right
             p[0] = center[0] + 2*delta[0];
-            vertical_collumn(sdm, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
+            vertical_collumn(sdp, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
             if(abs(aux_mv+aux_r+aux_rr)==3){
                real V[3];
                V[0] = vm;
@@ -818,7 +813,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
                origv[2] = orig_rr;
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
                calculate_curvature_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -831,7 +826,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
             real orig_ll;
             //left-left
             p[0] = center[0] - 2 * delta[0];
-            vertical_collumn(sdm, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
+            vertical_collumn(sdp, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
             if (abs(aux_mv + aux_l + aux_ll) == 3) {
                real V[3];
                V[0] = vll;
@@ -843,7 +838,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
                origv[2] = orig_mv;
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
                calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -861,12 +856,12 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_
 void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(higflow_solver *ns) {
       real IF[DIM];
       // Get the local sub-domain for the cells
-      sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+      sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
       // Get the map for the domain properties
-      mp_mapper *mp = sd_get_domain_mapper(sdm);
+      mp_mapper *mp = sd_get_domain_mapper(sdp);
       // Loop for each cell
       higcit_celliterator *it;
-      for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
          // Get the cell
          hig_cell *c = higcit_getcell(it);
          // Get the cell identifier
@@ -881,8 +876,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
          Point p;
          p[0] = center[0];
          p[1] = center[1];
-         real frac = compute_value_at_point(sdm, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-         fraction_correction_at_get(&frac);
+         real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
          // As funçoes foram alteradas de lugar
          if (frac == 0.0 || frac == 1.0){
             dp_set_value(ns->ed.mult.dpcurvature, clid, 0.0);/* Set the curvature in the distributed curvature property*/
@@ -893,19 +887,19 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             continue;
          }
           
-         higflow_compute_normal_multiphase_2D_shirani_9_cells(ns, sdm, clid, center, p, delta);
+         higflow_compute_normal_multiphase_2D_shirani_9_cells(ns, sdp, clid, center, p, delta);
          
          real hm, hb, ht;
          int aux_mh, aux_b, aux_t;
          real orig_mh, orig_b, orig_t;
          // Middle
-         horizontal_row(sdm, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
+         horizontal_row(sdp, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
          // Top
          p[1] = center[1] + delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &ht, &aux_t, &orig_t);
+         horizontal_row(sdp, ns, center, p, delta, &ht, &aux_t, &orig_t);
          // Bottom
          p[1] = center[1] - delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &hb, &aux_b, &orig_b);
+         horizontal_row(sdp, ns, center, p, delta, &hb, &aux_b, &orig_b);
 
          if (abs(aux_mh + aux_t + aux_b) == 3){
             real H[3];
@@ -919,8 +913,8 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
             //calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
             calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//            real curvaturech = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+            //calculate_interfacial_force(sdp, ns, clid, center, IF);
+//            real curvaturech = compute_value_at_point(sdp, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
             continue;
          }
 //         getchar();
@@ -932,13 +926,13 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
          int aux_mv, aux_l, aux_r;
          real orig_mv, orig_l, orig_r;
          // Middle
-         vertical_collumn(sdm, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
+         vertical_collumn(sdp, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
          // Right
          p[0] = center[0] + delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vr, &aux_r, &orig_r);
+         vertical_collumn(sdp, ns, center, p, delta, &vr, &aux_r, &orig_r);
          // Left
          p[0] = center[0] - delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vl, &aux_l, &orig_l);
+         vertical_collumn(sdp, ns, center, p, delta, &vl, &aux_l, &orig_l);
          if (abs(aux_mv + aux_r + aux_l) == 3){
             real V[3];
             V[0] = vl;
@@ -951,8 +945,8 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
             //calculate_normal_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
             calculate_curvature_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//            real curvaturecv = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+            //calculate_interfacial_force(sdp, ns, clid, center, IF);
+//            real curvaturecv = compute_value_at_point(sdp, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
             continue;
          }
 
@@ -968,7 +962,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             //top-top
             p[1] = center[1] + 2*delta[1];
 //            printf("Horizontal: going top top\n");
-            horizontal_row(sdm, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
+            horizontal_row(sdp, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
 //            printf("Horizontal: TOP TOP: htt=%lf auxtt=%d origtt=%lf\n",htt,aux_tt,orig_tt);
             
             if(abs(aux_mh+aux_t+aux_tt)==3){
@@ -985,8 +979,8 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
                //calculate_normal_cell_progressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
                calculate_curvature_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//               real curvaturecp = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
+//               real curvaturecp = compute_value_at_point(sdp, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
                continue;
             }
          }
@@ -1003,7 +997,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             //bottom-bottom
             p[1] = center[1] - 2*delta[1];
 //            printf("Horizontal: going botton botton\n");
-            horizontal_row(sdm, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
+            horizontal_row(sdp, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
 //            printf("Horizontal: BOTTON BOTTON: hbb=%lf auxbb=%d origbb=%lf\n",hbb,aux_bb,orig_bb);
             
             if(abs(aux_mh+aux_b+aux_bb)==3){
@@ -1020,8 +1014,8 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
                //calculate_normal_cell_regressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
                calculate_curvature_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//               real curvaturerh = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
+//               real curvaturerh = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.stn);
                continue;
             }
          }
@@ -1038,7 +1032,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             //right-right
             p[0] = center[0] + 2*delta[0];
 //            printf("Vertical: going right right\n");
-            vertical_collumn(sdm, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
+            vertical_collumn(sdp, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
 //            printf("Vertical: RIGHT RIGHT: vrr=%lf auxrr=%d origrr=%lf\n",vrr,aux_rr,orig_rr);
             
             if(abs(aux_mv+aux_r+aux_rr)==3){
@@ -1055,7 +1049,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
                //calculate_normal_cell_progressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
                calculate_curvature_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }
@@ -1072,7 +1066,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
             //left-left
             p[0] = center[0] - 2 * delta[0];
 //            printf("Vertical: going left left\n");
-            vertical_collumn(sdm, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
+            vertical_collumn(sdp, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
 //            printf("Vertical: LEFT LEFT: vll=%lf auxll=%d origll=%lf\n",vll,aux_ll,orig_ll);
 
             if (abs(aux_mv + aux_l + aux_ll) == 3) {
@@ -1089,7 +1083,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
                //calculate_normal_cell_regressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
                calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //calculate_interfacial_force(sdp, ns, clid, center, IF);
                continue;
             }
          }

@@ -1185,10 +1185,8 @@ void higflow_solver_step(higflow_solver *ns) {
     // Boundary conditions for source term
     higflow_boundary_condition_for_cell_source_term(ns);
     higflow_boundary_condition_for_facet_source_term(ns);
-    // Set outflow for velocity
     // Boundary condition for pressure
     higflow_boundary_condition_for_pressure(ns);
-    //higflow_outflow_u_step(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
@@ -1221,17 +1219,12 @@ void higflow_solver_step(higflow_solver *ns) {
            higflow_semi_implicit_bdf2_intermediate_velocity(ns, ns->dpu, ns->dpustar);
            break;
     }
-
     // Set outflow for ustar velocity 
     //higflow_outflow_ustar_step(ns);
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
     higflow_pressure(ns);
     // Calculate the final velocity
     higflow_final_velocity(ns);
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
     // Set outflow for u velocity 
     //higflow_outflow_u_step(ns);
     // Calculate the final pressure

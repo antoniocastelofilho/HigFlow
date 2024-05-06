@@ -1919,12 +1919,12 @@ void higflow_solver_step_electroosmotic(higflow_solver *ns) {
     higflow_boundary_condition_for_electroosmotic_nplus(ns);
     // Boundary condition for n- 
     higflow_boundary_condition_for_electroosmotic_nminus(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
-    // Set outflow for velocity
-    // higflow_outflow_u_step(ns);
     // Calculate the electro-osmotic source term
     switch (ns->ed.eo.contr.eo_model) {
     case PNP:
@@ -2014,14 +2014,10 @@ void higflow_solver_step_electroosmotic(higflow_solver *ns) {
     }
     // Set outflow for ustar velocity 
     // higflow_outflow_ustar_step(ns);
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
     higflow_pressure(ns);
     // Calculate the final velocity
     higflow_final_velocity(ns);
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
     // Set outflow for u velocity 
     // higflow_outflow_u_step(ns);
     // Calculate the final pressure

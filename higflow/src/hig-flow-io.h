@@ -32,8 +32,12 @@ void higflow_kinetic_energy(higflow_solver *ns, FILE *data);
 // Print the VTK 2D file for vilusalize
 void higflow_print_vtk2D(higflow_solver *ns, int rank); 
 
+void higflow_print_vtk2D_multiphase(higflow_solver *ns, int rank);
+
 // Print a single vtk file for vilusalize 2d
 void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nprocs);
+
+void higflow_print_vtk2D_multiphase_parallel_single(higflow_solver *ns, int rank, int nprocs);
 
 // Print the VTK 3D file for vilusalize
 void higflow_print_vtk3D(higflow_solver *ns, int rank); 

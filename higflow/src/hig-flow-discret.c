@@ -319,20 +319,20 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
    // Second order
    case ORDER2:
       // Get the cell curvature in the left cell
-      curvl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpcurvature, ns->ed.stn);
+      curvl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
       // Get the cell curvature in the right cell
-      curvr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpcurvature, ns->ed.stn);
+      curvr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
       //ns->cc.curv = compute_value_at_mid_point(curvl, curvr);
       // Get the cell density in the left cell
-      rhol          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpdens, ns->ed.stn);
+      rhol          = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpdens, ns->ed.mult.stn);
       // Get the cell density in the right cell
-      rhor          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpdens, ns->ed.stn);
+      rhor          = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpdens, ns->ed.mult.stn);
       // Compute the density at the mid point
       ns->cc.dens   = compute_value_at_mid_point(rhol, rhor);
       // Get the cell fraction in the left cell
-      real fracl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.stn);
+      real fracl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
       // Get the cell fraction in the right cell
-      real fracr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.stn);
+      real fracr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
       real curvaux = 0.0;
       //if (((0.0 < fracr)&&(fracr < 1.0)) || ((0.0 < fracl)&&(fracl < 1.0))){
       real wwi   = fracr*(1.0 - fracr);
@@ -345,18 +345,18 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
       //ns->cc.IF= (fracr - fracl)*ns->cc.curv/(fdelta[dim]);
       ns->cc.IF= (fracr - fracl)*curvaux/(fdelta[dim]);
 
-      //real IFl          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpIF[dim], ns->ed.stn);
+      //real IFl          = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpIF[dim], ns->ed.mult.stn);
       //// Get the cell interfacial force in the right cell
-      //real IFr          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpIF[dim], ns->ed.stn);
+      //real IFr          = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpIF[dim], ns->ed.mult.stn);
       //// Compute the interfacial force at the mid point
       //ns->cc.IF   = compute_value_at_mid_point(IFl, IFr);
 
       for (int dim2 = 0; dim2 < DIM; dim2++) {
          if(dim2==dim){
             // Get the cell viscosity in the left cell
-            ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
+            ns->cc.viscl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
             // Get the cell viscosity in the right cell
-            ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.stn);
+            ns->cc.viscr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
          } else {
             Point p1,p2,p3,p4,p3_,p4_;
             
@@ -370,14 +370,14 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
             p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
             p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
             
-            real v1=compute_value_at_point(ns->ed.sdED,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-            real v2=compute_value_at_point(ns->ed.sdED,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+            real v1=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            real v2=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
             
-            real v3=compute_value_at_point(ns->ed.sdED,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-            real v4=compute_value_at_point(ns->ed.sdED,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+            real v3=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            real v4=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
             
-            real v3_=compute_value_at_point(ns->ed.sdED,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
-            real v4_=compute_value_at_point(ns->ed.sdED,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.stn);
+            real v3_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            real v4_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
             
             ns->cc.viscl=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3_ + 1.0/v4_);
             ns->cc.viscr=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3  + 1.0/v4);
@@ -411,7 +411,7 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
          ns->cc.du2dx2[dim2] += (ns->cc.viscr*duidxjr - ns->cc.viscl*duidxjl)/fdelta[dim2];
          ns->cc.du2dx2[dim2] += (ns->cc.viscr*dujdxir - ns->cc.viscl*dujdxil)/fdelta[dim2];
          
-         if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) {
+         if(ns->ed.mult.contr.viscoelastic_either == true) {
             // Compute the viscoelastic contribution
             if (dim2 == dim) {
                // Get the tensor in the left cell

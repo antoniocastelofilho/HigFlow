@@ -55,7 +55,7 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                     if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
                   dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == MULTIPHASE) {
-                        if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC)
+                        if(ns->ed.mult.contr.viscoelastic_either == true)
                             dp_set_value(ns->ed.mult.ve.dpD[dim][dim2], clid, dudx);
                } else if (ns->contr.flowtype == VISCOELASTIC) {
                   dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
@@ -73,7 +73,7 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                 if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == MULTIPHASE) {
-                    if(ns->ed.mult.contr.flowtype_either == VISCOELASTIC) 
+                    if(ns->ed.mult.contr.viscoelastic_either == true) 
                         dp_sync(ns->ed.mult.ve.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == VISCOELASTIC) {
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
@@ -755,6 +755,8 @@ void higflow_solver_step_gen_newt(higflow_solver *ns) {
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
     // Calculate the velocity derivative tensor
     higflow_compute_velocity_derivative_tensor(ns);
     // Calculate the viscosity
@@ -786,14 +788,10 @@ void higflow_solver_step_gen_newt(higflow_solver *ns) {
            higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(ns, ns->dpu, ns->dpustar);
            break;
     }
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
     // Calculate the pressure
     higflow_pressure(ns);
     // Calculate the final velocity
     higflow_final_velocity(ns);
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
 }
