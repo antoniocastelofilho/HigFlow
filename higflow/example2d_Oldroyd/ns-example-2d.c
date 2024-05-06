@@ -117,7 +117,7 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
                     //value = 3.2e-3*(-center[1]*center[1] + center[1]);
                     //value = 4.0*(-center[1]*center[1] + 0.25);
                     //set max velocity = 1.5 
-                    value = -4.0*center[1]*(center[1] - 1.0);
+                    value = 1.5*(1.0 - center[1]*center[1]);
                     //value = 1.0;
 		    break;
                 case 1:
@@ -179,7 +179,7 @@ real get_boundary_viscosity(int id, Point center, real q, real t) {
 
 // Define the user function for viscoelastic flow
 void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol) {
-    // Calculate the matrix MM and BB for Oldroyd model
+    // Calculate the matrix MM and BB for Oldroyd-B model
     for (int i = 0; i < DIM; i++) {
         for (int j = i+1; j < DIM; j++) {
             M_aux[i][j] = 0.0;
@@ -427,124 +427,38 @@ int main (int argc, char *argv[]) {
     // Initialize the boundaries
     higflow_initialize_boundaries(ns); 
     // Creating distributed property  
-    higflow_create_ditributed_properties(ns);
-    // Creating distributed property for generalized newtonian simulation
-    //higflow_create_ditributed_properties_generalized_newtonian(ns);
-    higflow_create_ditributed_properties_viscoelastic(ns);
-    //higflow_create_ditributed_properties_viscoelastic_integral(ns);
+    higflow_create_distributed_properties(ns);
+
     // Initialize distributed properties
-    higflow_initialize_distributed_properties(ns);
+    if (ns->par.step == 0) higflow_initialize_distributed_properties(ns);
     // Create the linear system solvers
     higflow_create_solver(ns);
+
     // Load the properties form 
     if (ns->par.step > 0) {
         // Loading the velocities 
-        printf("===> Loading t = %f <===\n",ns->par.t);
-        //higflow_load_properties(ns);
+        print0f("===> Loading t = %f <===\n",ns->par.t);
+        higflow_load_properties(ns, myrank, ntasks);
     }
     // Printing the properties to visualize: first step
     if (ns->par.step == 0) {
-        if (myrank == 0) 
-            printf("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+        print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
         higflow_print_vtk(ns, myrank);
         // frame update
         ns->par.frame++;
     }
+    
     // ********************************************************
     // Begin Loop for the Navier-Stokes equations integration
     // ********************************************************
-    int step0 = ns->par.step;
-    for (int step = ns->par.step; step < ns->par.finalstep; step++) {
+
+    for (int step0 = ns->par.initstep; ns->par.step < ns->par.finalstep; ns->par.step++) {
         // Print the step
-        if (myrank == 0) 
-            printf("===> Step:        %7d <====> t     = %15.10lf <===\n", step, ns->par.t);
-            //printf("===> Step:        %7d <====> tdim  = %15.10lf seg <===\n", step, (ns->par.t)*0.06);
+        print0f("===> Step:        %7d <====> t  = %15.10lf <===\n", ns->par.step, ns->par.t);
         // Start the first step time
-        if (step == step0)  START_CLOCK(firstiter); 
-        
-         ////////////////////////////////////////////////////////////////////////////////
-         /*real Celc1_uold=calc_u(ns, myrank, 0, 1.0, 0.8);
-         real Celc2_uold=calc_u(ns, myrank, 0, 9.5, 0.5);
-         real Celc3_uold=calc_u(ns, myrank, 0, 9.0, 0.2);
-
-         real Celc1_Txxold=calc_tau(ns, myrank, 0, 0, 1.0, 0.8);
-         real Celc2_Txxold=calc_tau(ns, myrank, 0, 0, 9.5, 0.5);
-         real Celc3_Txxold=calc_tau(ns, myrank, 0, 0, 9.0, 0.2);
-         
-         real Celc1_Txyold=calc_tau(ns, myrank, 1, 0, 1.0, 0.8);
-         real Celc2_Txyold=calc_tau(ns, myrank, 1, 0, 9.5, 0.5);
-         real Celc3_Txyold=calc_tau(ns, myrank, 1, 0, 9.0, 0.2);
-         
-         real Celc1_Tyyold=calc_tau(ns, myrank, 1, 1, 1.0, 0.8);
-         real Celc2_Tyyold=calc_tau(ns, myrank, 1, 1, 9.5, 0.5);
-         real Celc3_Tyyold=calc_tau(ns, myrank, 1, 1, 9.0, 0.2); */
-        /* sim_facet_domain *sfdu[DIM];
-         int dim=0;
-         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-         P1[0]=1.0; P2[0]=5.0;  P3[0]=9.0;
-         P1[1]=0.8; P2[1]=0.5;  P3[1]=0.2;
-         Celc1_uold = compute_facet_value_at_point(sfdu[dim],P1,P1,1.0,ns->dpu[dim],ns->stn);
-         Celc2_uold = compute_facet_value_at_point(sfdu[dim],P2,P2,1.0,ns->dpu[dim],ns->stn);
-         Celc3_uold = compute_facet_value_at_point(sfdu[dim],P3,P3,1.0,ns->dpu[dim],ns->stn);
-         */
-     ///////////////////////////////////////////////////////////////////////////////////////
-        
+        if (ns->par.step == step0)  START_CLOCK(firstiter); 
         // Update velocities and pressure using the projection method 
-        //higflow_solver_step(ns);
-        //higflow_solver_step_gen_newt(ns);
         higflow_solver_step_viscoelastic(ns);
-        //higflow_solver_step_viscoelastic_integral(ns);
-        
-        
-        ////////////////////////////////////////////////////////////////////////////////
-        /* real Celc1_u=calc_u(ns, myrank, 0, 1.0, 0.8);
-         real Celc2_u=calc_u(ns, myrank, 0, 9.5, 0.5);
-         real Celc3_u=calc_u(ns, myrank, 0, 9.0, 0.2);
-         
-         real Celc1_Txx=calc_tau(ns, myrank, 0, 0, 1.0, 0.8);
-         real Celc2_Txx=calc_tau(ns, myrank, 0, 0, 9.5, 0.5);
-         real Celc3_Txx=calc_tau(ns, myrank, 0, 0, 9.0, 0.2);
-         
-         real Celc1_Txy=calc_tau(ns, myrank, 1, 0, 1.0, 0.8);
-         real Celc2_Txy=calc_tau(ns, myrank, 1, 0, 9.5, 0.5);
-         real Celc3_Txy=calc_tau(ns, myrank, 1, 0, 9.0, 0.2);
-         
-         real Celc1_Tyy=calc_tau(ns, myrank, 1, 1, 1.0, 0.8);
-         real Celc2_Tyy=calc_tau(ns, myrank, 1, 1, 9.5, 0.5);
-         real Celc3_Tyy=calc_tau(ns, myrank, 1, 1, 9.0, 0.2);
-         
-
-        //////////////////////////////////////////////////////
-         real erro_Celc1_u= Calculaerro(ns, myrank, Celc1_u, Celc1_uold);
-         real erro_Celc2_u= Calculaerro(ns, myrank, Celc2_u, Celc2_uold);
-         real erro_Celc3_u= Calculaerro(ns, myrank, Celc3_u, Celc3_uold);
-         
-         real erro_Celc1_Txx= Calculaerro(ns, myrank, Celc1_Txx, Celc1_Txxold);
-         real erro_Celc2_Txx= Calculaerro(ns, myrank, Celc2_Txx, Celc2_Txxold);
-         real erro_Celc3_Txx= Calculaerro(ns, myrank, Celc3_Txx, Celc3_Txxold);
-         
-         real erro_Celc1_Txy= Calculaerro(ns, myrank, Celc1_Txy, Celc1_Txyold);
-         real erro_Celc2_Txy= Calculaerro(ns, myrank, Celc2_Txy, Celc2_Txyold);
-         real erro_Celc3_Txy= Calculaerro(ns, myrank, Celc3_Txy, Celc3_Txyold);
-         
-         real erro_Celc1_Tyy= Calculaerro(ns, myrank, Celc1_Tyy, Celc1_Tyyold);
-         real erro_Celc2_Tyy= Calculaerro(ns, myrank, Celc2_Tyy, Celc2_Tyyold);
-         real erro_Celc3_Tyy= Calculaerro(ns, myrank, Celc3_Tyy, Celc3_Tyyold);
-          
-        // erro_Celc2=fabs((Celc2_uold-Celc2_u)/Celc2_u)*100.0;
-        // erro_Celc3=fabs((Celc3_uold-Celc3_u)/Celc3_u)*100.0;
-         //printf("\n ===> Celula C1 ===> vel. ux: Cel1 = %15.10lf <=> Cel1old = %15.10lf<===\n",Celc1_u, Celc1_uold);   
-         printf("===> Erros ===>   ux  : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_u, erro_Celc2_u, erro_Celc3_u);
-         printf("===> Erros ===> Tauxx : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txx, erro_Celc2_Txx, erro_Celc3_Txx);
-         printf("===> Erros ===> Tauxy : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txy, erro_Celc2_Txy, erro_Celc3_Txy);
-         printf("===> Erros ===> Tauyy : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Tyy, erro_Celc2_Tyy, erro_Celc3_Tyy);
-         */
-         /*printf("===> Erros ===>   ux  : Cel1 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_u,   erro_Celc3_u);
-         printf("===> Erros ===> Tauxx : Cel1 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txx, erro_Celc3_Txx);
-         printf("===> Erros ===> Tauxy : Cel1 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txy, erro_Celc3_Txy);
-         printf("===> Erros ===> Tauyy : Cel1 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Tyy, erro_Celc3_Tyy);*/
-        ///////////////////////////////////////////////////////////////////////////////////////
-        
         // Time update 
         ns->par.t += ns->par.dt;
         //--- compute norm ---
@@ -552,40 +466,14 @@ int main (int argc, char *argv[]) {
         //compute_and_print_error_norm_pressure(ns, myrank);
         //--- compute norm ---
         // Stop the first step time
-        if (step == step0) STOP_CLOCK(firstiter); 
+        if (ns->par.step == step0) STOP_CLOCK(firstiter); 
         // Printing
         if (ns->par.t >= ns->par.tp + ns->par.dtp) {
             // tprint update
             ns->par.tp += ns->par.dtp;
             // Printing the properties to visualize 
-            if (myrank == 0) 
-                printf("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+            print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
             higflow_print_vtk(ns, myrank);
-            
-            ///////////////////////////////////////////////////////////////////////////////////    
-            /*  real dx, dy, py;
-             // dx = 0.001;
-              dx = 0.0625;
-              py = 0.5;
-              dy = 0.05;
-            ///////////////////////////////////////////////////////////////////////////////////    
-            // Impressões em y=0.5 para todo x
-              print_velocity_2(ns, myrank, 0, py, 0.0, 10.0, dx);
-              
-              print_tensor_2(ns, myrank, 0, 0, py, 0.0, 10.0, dx);
-              print_tensor_2(ns, myrank, 0, 1, py, 0.0, 10.0, dx);
-              print_tensor_2(ns, myrank, 1, 0, py, 0.0, 10.0, dx);
-              print_tensor_2(ns, myrank, 1, 1, py, 0.0, 10.0, dx);
-          ///////////////////////////////////////////////////////////////////////////////////    
-              // Impressões em x=5 para todo y
-              print_velocity(ns, myrank, 0, 5.0, 0.0, 1.0+dy, dy);
-              
-              print_tensor(ns, myrank, 0, 0, 5.0, 0.0, 1.0+dy, dy);
-              print_tensor(ns, myrank, 0, 1, 5.0, 0.0, 1.0+dy, dy);
-              print_tensor(ns, myrank, 1, 0, 5.0, 0.0, 1.0+dy, dy);
-              print_tensor(ns, myrank, 1, 1, 5.0, 0.0, 1.0+dy, dy); */
-        ///////////////////////////////////////////////////////////////////////////////////
-            
             // frame update
             ns->par.frame++;
         }
@@ -593,32 +481,27 @@ int main (int argc, char *argv[]) {
         if (ns->par.t >= ns->par.ts + ns->par.dts) {
             // tsave update
             ns->par.ts += ns->par.dts;
-            if (myrank == 0) 
-                printf("===> Saving               <====> ts = %15.10lf <===\n",ns->par.ts);
+            print0f("===> Saving         <====> ts = %15.10lf <===\n",ns->par.ts);
             // Saving the properties
-            //higflow_save_properties(ns, myrank, ntasks);
-            // Saving the parameters
-            //higflow_save_parameters(ns, myrank);
-            // Saving the controllers
-            //higflow_save_controllers(ns, myrank);
+            higflow_save_properties(ns, myrank, ntasks);
+            higflow_save_parameters(ns, myrank);
+            higflow_save_controllers(ns, myrank);
+            higflow_save_viscoelastic_controllers(ns, myrank);
+            higflow_save_viscoelastic_parameters(ns, myrank);
         }
-        // Step update
-        ns->par.step = step;
     }
-    (ns->par.step)++;
     // ********************************************************
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
 
     // Saving
-    if (myrank == 0) 
-        printf("===> Saving               <====> t  = %15.10lf <===\n",ns->par.t);
+    print0f("===> Saving               <====> t  = %15.10lf <===\n",ns->par.t);
     // Saving the properties
-    //higflow_save_properties(ns, myrank, ntasks);
-    // Saving the parameters
-    //higflow_save_parameters(ns, myrank);
-    // Saving the controllers
-    //higflow_save_controllers(ns, myrank);
+    higflow_save_properties(ns, myrank, ntasks);
+    higflow_save_parameters(ns, myrank);
+    higflow_save_controllers(ns, myrank);
+    higflow_save_viscoelastic_controllers(ns, myrank);
+    higflow_save_viscoelastic_parameters(ns, myrank);
     // Destroy the Navier-Stokes object
     higflow_destroy(ns);
     // Stop the total time
