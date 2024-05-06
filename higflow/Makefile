@@ -8,13 +8,25 @@ include Makefile.higflow.common
 DEFINES=-DDIM=$(DIM)
 TARGET=libhigflow$(DIM)d.a
 
-OPTSOPT = -Ofast -march=native -mtune=native -flto=8 -fno-fat-lto-objects
-#OPTSOPT = -g
 STANDARDS = -std=gnu99
 
-CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml) -Werror
+ifdef DEBUG
+	CFLAGS+= -g -ggdb -Og
+	DEBUG_DESC = "gdb debug"
+else
+	OPTSOPT = -flto=8 -fno-fat-lto-objects
+	CFLAGS+= -march=native -mtune=native -Ofast
+	DEBUG_DESC = "No Debugging/Optimized"	
+endif
+
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
+
+ifdef RES 
+	CFLAGS+= -DCOMPUTE_RESIDUALS
+endif
+
 CFLAGS+= -I$(INCPATH) 
 CFLAGS+= -I$(HIGFLOW_SRCPATH) 
 
@@ -48,15 +60,18 @@ MODULES = \
 	eval \
 	discret \
 	terms \
+	res \
 	step \
 	step-generalized-newtonian \
 	step-multiphase \
+		step-multiphase-viscoelastic \
 	vof-plic \
 	vof-adap-hf \
 	vof-finite-difference-normal-curvature \
 	step-viscoelastic \
         step-viscoelastic-integral \
 	step-electroosmotic \
+		step-electroosmotic-viscoelastic \
 
 OBJS = $(MODULES:%=$(HIGFLOW_OBJPATH)/hig-flow-%.o)
 
