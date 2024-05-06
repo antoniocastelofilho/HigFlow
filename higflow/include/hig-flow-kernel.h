@@ -586,7 +586,7 @@ typedef struct mult_controllers{
 
     // Controllers - set whenever either phase is
     // viscoelastic
-    flow_type flowtype_either;
+    int viscoelastic_either;
     // Controllers - set whenever either phase is
     // electro-osmotic
     int eoflow_either;
@@ -594,6 +594,12 @@ typedef struct mult_controllers{
 
 // Domains and distributed properties for multiphase flows 
 typedef struct higflow_multiphase{
+    // Sub-domain to simulation for multiphase
+    sim_domain                     *sdmult;
+    // Partitioned sub-domain to simulation for multiphase
+    psim_domain                    *psdmult;
+    // Stencil for properties interpolation for multiphase
+    sim_stencil           *stn;
     // Multiphase viscoelastic
     higflow_multiphase_viscoelastic ve;
     // Mult controllers
@@ -842,8 +848,18 @@ void higflow_create_stencil(higflow_solver *ns);
 // Create the stencil for the extra domain
 void higflow_create_stencil_for_extra_domain(higflow_solver *ns); 
 
+// Create the stencil for multiphase
+void higflow_create_stencil_multiphase(higflow_solver *ns);
+
 // Partition table initialize
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank);
+
+// Partition table multiphase initialize
+void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank);
+
+// Use the given mesh information to create to create amr info about the multiphase domain
+// Corresponds to a uniform higtree with the cell sizes of the last given level
+higio_amr_info *higflow_create_amr_info_mult(higio_amr_info *mi);
 
 // Set the external functions in the NS solver
 void higflow_set_external_functions(higflow_solver *ns,
