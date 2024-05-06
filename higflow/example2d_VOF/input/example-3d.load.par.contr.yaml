@@ -1,29 +1,31 @@
 simulation_par:                       #***   ***
-   numsteps: 100                      #*** The Maximum Number of Steps ***
-   dt: 0.0005                         #*** The Time spacing ***
-   dts: 0.001                         #*** The Time spacing for saving data (outpu) ***
-   dtp: 0.001                         #*** The Time spacing for saving in VTKs ***
+   numsteps: 1001                      #*** The Maximum Number of Steps ***
+   dt: 0.006283185                       #*** The Time spacing ***
+   dts: 0.6283185                         #*** The Time spacing for saving data (output) ***
+   dtp: 0.6283185                         #*** The Time spacing for saving VTKs ***
 
-nondimensional_par:                   #***   ***
-   Re: 0.3                            #*** The Reynolds's Number ***
+adimensional_par:                   #***   ***
+   Re: 0.01                            #*** The Reynolds's Number ***
 
 simulation_contr:                     #***   ***
    projtype: incremental              # incremental or non_incremental
    tempdiscrtype: semi_implicit_euler # explicit_euler, explicit_rk2, explicit_rk3, semi_implicit_euler, semi_implicit_crank_nicolson or semi_implicit_bdf2
-   spatialdiscrtype: second_order     # second_order or fourth_order
-   convecdiscrtype: central           # central, upwind_first_order or upwind_second_order
-   secondconvecdiscrtype: cubist      # modified_coefficient_upwind, cubist or quick
-   modelflowtype: not_used            # non_newtonian or not_used
-   flowtype: twophase                 # singlephase or twophase
-   flowtype_0: viscoelastic           # newtonian, generalized_newtonian or viscoelastic
-   par_phase0:                        #***   ***
+   spatialdiscrtype: second_order     # second_order or forth_order
+   convecdiscrtype: second_order           # central, first_order or second_order
+   secondconvecdiscrtype: cubista      # modified_coefficient_upwind, cubista or quick
+   eoflow: none            # electroosmotic or none
+   phasetype: twophase                 # singlephase or twophase
+   flowtype0: newtonian           # newtonian, generalized_newtonian or viscoelastic
+   multiphase_par:		      #***   ***
+      Ca: 1.0                         # Capillary number
+   phase0:                        #***   ***
       visc: 1.0                       #*** The Viscosity of Phase 0 ***
       dens: 1.0                       #*** The Density of Phase 0 ***
       visc_contr:                     #*** The Viscoelastic Controllers of Phase_0 ***
           model: oldroyd_b            # user_set, oldroyd_b, giesekus, lptt, gptt or integral
           discrtype: explicit         # explicit or implicit
-          convecdiscrtype: upwind     # upwind or cubist
-      nondimensional:                 #***   ***
+          convecdiscrtype: upwind     # upwind or cubista
+      adimensional:                 #***   ***
           De: 1.0                     #*** Deborah's Number ***
           beta: 0.5                   #*** The Beta Parameter for the Model of Phase_0 ***
           kernel_tol: 1.0e-2          #***   ***
@@ -71,15 +73,15 @@ simulation_contr:                     #***   ***
          phi1: 0.5                #***   ***
          phi2: 0.5                #***   ***
          lambda: 0                #***   ***
-   flowtype_1: newtonian              # newtonian, generalized_newtonian or viscoelastic
-   par_phase1:                        #***   ***
+   flowtype1: newtonian              # newtonian, generalized_newtonian or viscoelastic
+   phase1:                        #***   ***
       visc: 1.0                       #*** The Viscosity of Phase 1 ***
       dens: 1.0                       #*** The Density of Phase 1 ***
       visc_contr:                     #*** The Viscoelastic controllers of phase_1 ***
-          model: oldroyd_b            # use_set, oldroyd_b, giesekus, lptt or gptt
+          model: oldroyd_b            # user_set, oldroyd_b, giesekus, lptt or gptt
           discrtype: explicit         # explicit or implicit
-          convecdiscrtype: upwind     # upwind or cubist
-      nondimensional:                 #***   ***
+          convecdiscrtype: upwind     # upwind or cubista
+      adimensional:                 #***   ***
           De: 1.0                     #*** Deborah's Number ***
           beta: 0.5                   #*** The Beta Parameter for the Model of Phase_1 ***
           kernel_tol: 1.0e-2          #***   ***
