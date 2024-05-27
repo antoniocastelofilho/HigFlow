@@ -1,0 +1,168 @@
+simulation_par:
+  numsteps: 100001                         # The Maximum Number of Steps 
+  dt: 0.0002                       # The Time spacing 
+  dts: 1.0                         # The Time spacing for saving data (output) 
+  dtp: 1.0                         # The Time spacing for saving VTKs
+
+adimensional:
+  Re: 0.005                             # The Reynolds Number  Re = ρUH/μ
+  Fr: 0.1                              # The Froude Number (not used yet)    Fr = U/√(gL) 
+
+simulation_contr:
+  projtype: incremental                   # incremental or non_incremental
+  tempdiscrtype: semi_implicit_euler      # explicit_euler, explicit_rk2, explicit_rk3, semi_implicit_euler, semi_implicit_crank_nicolson or semi_implicit_bdf2
+  spatialdiscrtype: second_order           # second_order or forth_order (forth order is not implemented yet)
+  convecdiscrtype: second_order            # central, first_order or second_order
+  secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick
+
+flowphase: multiphase                    # singlephase or multiphase
+
+###########################################################################################################################   
+
+singlephase:
+  contr:
+    flowtype: viscoelastic          # newtonian, generalized_newtonian, viscoelastic or viscoelastic_integral
+    eoflow: false              # for electrosmotic flow - true or false 
+  viscoelastic:
+    contr:
+      model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
+      discrtype: explicit            # explicit or implicit
+      convecdiscrtype: cubista       # central or cubista
+    adimensional:
+      De: 1.0                        # Deborah Number         De = λU/H
+      beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
+      kernel_tol: 1.0e-2             # kernel function interpolation tolerance
+    model_lptt:
+      epsilon: 0.25                  # extensional fluid response parameter
+      xi: 0.0                        # continuum slip parameter
+    model_gptt:
+      epsilon: 0.05                  # extensional fluid response parameter
+      xi: 0.0                        # continuum slip parameter
+      alpha_gptt: 1.0                 # mittag-leffler parameter
+      beta_gptt: 1.0                  # mittag-leffler parameter
+    model_giesekus:
+      alpha: 0.2                     # mobility factor
+    model_fene_p:
+      L2: 1000.0                     # spring extensibility parameter              L^2 = HQ_0^2/k_bT
+    model_e_fene:
+      L2: 1000.0                     # spring extensibility parameter              L^2 = HQ_0^2/k_bT
+      lambda: 100.0                  # Debbye length parameter of charged dumbell  ^λ  = √(𝜀k_bT/∑n_iq_i)/l_0
+      E: 1.0                         # adimensional charge density parameter       E = q^2∕4𝜋𝜀k_bTQ_0
+
+  viscoelastic_integral:
+    contr:
+      model: kbkz            # kbkz or kbkz_fractional
+      discrtype: explicit               # explicit (only)
+      convecdiscrtype: cubista          # central or cubista
+    adimensional:
+      De: 0.2                           # Deborah Number
+    damping:
+      model: psm          # psm or ucm (H=1) (model for K-BKZ damping function H(I1,I2))
+      alpha_psm: 10.0         # shear fitting-parameter
+      beta_psm: 0.7           # elongational fitting-parameter
+    model_kbkz:
+      s_c: 0.1             # time interval parameter for s-approach
+         # NRP in the #define statement in code determines the length of the a and lambda arrays bellow (the number of relaxation modes)
+      a: [0.058352, 1.664756, 14.560411, 99.152542, 0.0, 0.0, 0.0, 0.0]               # relaxation moduli
+      lambda: [0.6855, 0.1396, 0.0389, 0.0059, 1.0, 1.0, 1.0, 1.0]          # relaxation times
+      rho: 801.5                                # used to adimensionalize the parameters a
+      v_ref: 0.1                                 # used to adimensionalize the parameters a
+      lambda_ref: 0.006                                # used to adimensionalize the parameters lambda
+    model_kbkz_fractional:
+      alpha_frac: 0.878                           # fractional exponent
+      beta_frac: 0.175                            # fractional exponent
+      V_fmm: 8.02e-4                              # fractional maxwell model parameter
+      G_fmm: 1.03e-5                              # fractional maxwell model parameter
+
+  electroosmotic:
+    contr:
+      model: pnp             # pnp, pb (not working yet), pbdh or pbdh_anal
+    adimensional:
+      alpha: 2.35            # ratio of electric energy to thermal energy  α = ezζ_0/k_bT
+      delta: 85.106383       # ratio of charge amount to permittivity      δ = n_0ezH^2/ε_eζ
+      Ex: 20.0               # dϕ/dx - adimensionalized applied field differential per unit distance
+    model_pnp:
+      tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
+      convecdiscrtype: cubista                      # central or cubista
+      Pe: 12.5                                      # Péclet number  Pe = UH/D
+
+###############################################################################################################      
+
+multiphase:
+  contr:
+    flowtype0: newtonian             # newtonian or viscoelastic
+    flowtype1: viscoelastic             # newtonian or viscoelastic
+    eoflow0: false              # true or false
+    eoflow1: false              # true or false
+  adimensional:
+    Ca: 1.0                           # Capillary number (not used unless you enable the interfacial force term in code)   Ca = We/Re = μU/σ
+
+  viscoelastic:
+    contr:
+      model0: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
+      model1: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
+      discrtype: explicit               # explicit or implicit
+      convecdiscrtype: cubista          # central or cubista
+    phase0:      # (all ignored if newtonian)
+      adimensional:
+        De: 1.0                         # Deborah Number         De = λU/H
+        beta: 0.5                       # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
+        kernel_tol: 1.0e-2              # kernel function interpolation tolerance (minimum of both phases is chosen)
+      model_lptt:
+        epsilon: 0.25                   # extensional fluid response parameter
+        xi: 0.0                         # continuum slip parameter
+      model_gptt:
+        epsilon: 0.05                   # extensional fluid response parameter
+        xi: 0.0                         # continuum slip parameter
+        alpha_gptt: 1.0                  # mittag-leffler parameter
+        beta_gptt: 1.0                   # mittag-leffler parameter
+      model_giesekus:
+        alpha: 0.2                      # mobility factor
+      model_fene_p:
+        L2: 1000.0                      # spring extensibility parameter              L^2 = HQ_0^2/k_bT
+      model_e_fene:
+        L2: 1000.0                      # spring extensibility parameter              L^2 = HQ_0^2/k_bT
+        lambda: 100.0                   # Debbye length parameter of charged dumbell  ^λ  = √(𝜀k_bT/∑n_iq_i)/l_0
+        E: 1.0                          # adimensional charge density parameter       E = q^2∕4𝜋𝜀k_bTQ_0
+    phase1:      # (ignored if newtonian)
+      adimensional:
+        De: 0.5                         # Deborah Number         De = λU/H
+        beta: 0.5                       # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
+        kernel_tol: 1.0e-2              # kernel function interpolation tolerance  (minimum of both phases is chosen)
+      model_lptt:
+        epsilon: 0.125                   # extensional fluid response parameter
+        xi: 0.0                         # continuum slip parameter
+      model_gptt:
+        epsilon: 0.025                   # extensional fluid response parameter
+        xi: 0.0                         # continuum slip parameter
+        alpha_gptt: 1.0                  # mittag-leffler parameter
+        beta_gptt: 1.0                   # mittag-leffler parameter
+      model_giesekus:
+        alpha: 0.1                      # mobility factor
+      model_fene_p:
+        L2: 500.0                      # spring extensibility parameter              L^2 = HQ_0^2/k_bT
+      model_e_fene:
+        L2: 500.0                      # spring extensibility parameter              L^2 = HQ_0^2/k_bT
+        lambda: 50.0                   # Debbye length parameter of charged dumbell  ^λ  = √(𝜀k_bT/∑n_iq_i)/l_0
+        E: 0.5                          # adimensional charge density parameter       E = q^2∕4𝜋𝜀k_bTQ_0
+
+  electroosmotic:
+    contr:
+      model: pnp    # (for all phases) pnp, pb (not working yet), pbdh  
+    model_pnp:
+      tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
+      convecdiscrtype: cubista                      # central or cubista
+    phase0:      # (all ignored if not electroosmotic)
+      adimensional:
+        alpha: 2.35                                 # ratio of electric energy to thermal energy  α = ezζ_0/k_bT
+        delta: 85.106383                            # ratio of charge amount to permittivity      δ = n_0ezH^2/ε_eζ
+        Ex: 20.0                                    # dϕ/dx - adimensionalized applied field differential per unit distance
+      model_pnp:
+        Pe: 12.5                                    # Péclet number  Pe = UH/D
+    phase1:      # (all ignored if not electroosmotic)
+      adimensional:
+        alpha: 2.35                                 # ratio of electric energy to thermal energy  α = ezζ_0/k_bT
+        delta: 85.106383                            # ratio of charge amount to permittivity      δ = n_0ezH^2/ε_eζ
+        Ex: 20.0                                    # dϕ/dx - adimensionalized applied field differential per unit distance
+      model_pnp:
+        Pe: 12.5                                    # Péclet number  Pe = UH/D
