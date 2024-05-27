@@ -8,6 +8,7 @@
 #define HIG_FLOW_BC
 
 #include "hig-flow-kernel.h"
+#include "hig-flow-eval.h"
 
 // Make the boundary condition
 sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype valuetype); 
@@ -37,6 +38,6 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
 void higflow_initialize_boundaries(higflow_solver *ns); 
 
 // Navier-Stokes initialize the domain and boudaries
-void higflow_initialize_boundary_conditions_yaml(higflow_solver *ns);
+void higflow_initialize_boundaries_yaml(higflow_solver *ns);
 
 #endif

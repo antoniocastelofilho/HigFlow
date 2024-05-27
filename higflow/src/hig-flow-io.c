@@ -3,8 +3,6 @@
 // *******************************************************************
 
 #include "hig-flow-io.h"
-#include <string.h>
-#include <libfyaml.h>
 
 // *******************************************************************
 // Navier-Stokes Print for Visualize
@@ -14,7 +12,6 @@
 void higflow_print_electroosmotic_properties(higflow_solver *ns, FILE *data, int dimprint, real pprint) {
     if (ns->contr.eoflow == true) {
         // Get the cosntants
-        real epsprint = 1.0e-8;
         real deltaeo = ns->ed.eo.par.delta;
         // Necessary properties
         real phi, psi, np, nm, rhoe;
@@ -39,13 +36,13 @@ void higflow_print_electroosmotic_properties(higflow_solver *ns, FILE *data, int
             Point cdelta;
             hig_get_delta(c, cdelta);
             // Get the electro-osmotic properties 
-            phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.stn);
-            psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.stn);
-            np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.stn);
-            nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.stn);
+            phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
+            psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
+            np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
+            nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
             rhoe = deltaeo*(np - nm);
             //Print data file
-            if ((ccenter[dimprint] < pprint + epsprint) && (ccenter[dimprint] > pprint - epsprint)){
+            if (POS_EQ(ccenter[dimprint], pprint)){
                    fprintf(data, "%15.10lf  %15.10lf  %15.12lf  %15.12lf  %15.12lf  %15.12lf  %15.12lf\n", ccenter[0], ccenter[1], phi, psi, np, nm, rhoe);
             }
         }
@@ -135,20 +132,6 @@ void higflow_print_velocity(higflow_solver *ns, FILE *data, int dimprint, real p
     }
 }
 
-// Print the VTK file for visualize
-void higflow_print_vtk(higflow_solver *ns, int rank) {
-    switch (DIM) {
-        case 2:
-            // 2D case
-            higflow_print_vtk2D(ns, rank);
-            break;
-        case 3:
-            // 3D case
-             higflow_print_vtk3D(ns, rank);
-        break;
-    }
-}
-
 // Print the kinetic energy
 void higflow_kinetic_energy(higflow_solver *ns, FILE *data) {
     // Get the local sub-domain for the cells
@@ -197,6 +180,20 @@ void higflow_kinetic_energy(higflow_solver *ns, FILE *data) {
     // Printing the min and max velocity
     printf("<===> t = %.12lf <===> kinetic = %.12lf <===\n",ns->par.t,kinetic);
     fprintf(data,"%.12lf  %.12lf \n",ns->par.t,kinetic);
+}
+
+// Print the VTK file for visualize
+void higflow_print_vtk(higflow_solver *ns, int rank) {
+    switch (DIM) {
+        case 2:
+            // 2D case
+            higflow_print_vtk2D(ns, rank);
+            break;
+        case 3:
+            // 3D case
+             higflow_print_vtk3D(ns, rank);
+        break;
+    }
 }
 
 // Print the VTK file for visualize 2D
@@ -286,42 +283,42 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     higcit_destroy(it);
 
     /*
-    switch (ns->contr.eoflow) {
-        case false:
-        break;
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        if (ns->contr.eoflow == true) eo = &(ns->ed.eo);
+        else eo = &(ns->ed.mult.eo);
 
-        case true:
-            sim_facet_domain *sfdEOFeo2[DIM];
-            sfdEOFeo2[0] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[0]); sfdEOFeo2[1] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[1]);
-            distributed_property *dpEOFeo2[DIM];
-            dpEOFeo2[0] = ns->ed.eo.dpFeo[0]; dpEOFeo2[1] = ns->ed.eo.dpFeo[1];
-            Point p0, p1, p2, p3;
-            fprintf(f, "VECTORS F\u2091\u2092 FLOAT\n");
-            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                hig_cell *c = higcit_getcell(it);
-                Point ccenter;
-                hig_get_center(c,ccenter);
-                // Pontos onde será interpolada a força eletrica
-                p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-                p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-                p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-                p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
-                Point Feo0, Feo1, Feo2, Feo3;
+        sim_facet_domain *sfdEOFeo2[DIM];
+        sfdEOFeo2[0] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[0]); sfdEOFeo2[1] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[1]);
+        distributed_property *dpEOFeo2[DIM];
+        dpEOFeo2[0] = ns->ed.eo.dpFeo[0]; dpEOFeo2[1] = ns->ed.eo.dpFeo[1];
+        Point p0, p1, p2, p3;
+        fprintf(f, "VECTORS F\u2091\u2092 FLOAT\n");
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *c = higcit_getcell(it);
+            Point ccenter;
+            hig_get_center(c,ccenter);
+            // Pontos onde será interpolada a força eletrica
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            Point Feo0, Feo1, Feo2, Feo3;
 
-                for(int dim = 0; dim < DIM; dim++) {
-                    Feo0[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p0, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                    Feo1[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p1, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                    Feo2[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p2, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                    Feo3[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p3, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                }
-
-                fprintf(f, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n", 
-                Feo0[0], Feo0[1], Feo1[0], Feo1[1], Feo2[0], Feo2[1], Feo3[0], Feo3[1]);
+            for(int dim = 0; dim < DIM; dim++) {
+                Feo0[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p0, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+                Feo1[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p1, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+                Feo2[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p2, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+                Feo3[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p3, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
             }
-            higcit_destroy(it);
-        break;
+
+            fprintf(f, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n", 
+            Feo0[0], Feo0[1], Feo1[0], Feo1[1], Feo2[0], Feo2[1], Feo3[0], Feo3[1]);
+        }
+        higcit_destroy(it);
+
     }
     */
+    
 
     // Saving tensorial properties 
     switch (ns->contr.flowtype) {
@@ -356,10 +353,10 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     for (int i = 0; i < DIM; i++) {
                         for (int j = 0; j < DIM; j++) {
                             // Get Du
-                            Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
-                            Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
-                            Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
-                            Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
+                            Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                            Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                            Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                            Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
                         }
                     }
                         
@@ -367,36 +364,36 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                         for (int j = 0; j < DIM; j++) {
                             
                             fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p0, t);
-                            visc1 = ns->ed.mult.get_density1(p0, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p0, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p0, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup0[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                            taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup0[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
 
                             fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p1, t);
-                            visc1 = ns->ed.mult.get_density1(p1, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p1, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p1, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup1[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                            taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup1[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
 
                             fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p2, t);
-                            visc1 = ns->ed.mult.get_density1(p2, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p2, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p2, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup2[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                            taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup2[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
                             
                             fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p3, t);
-                            visc1 = ns->ed.mult.get_density1(p3, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p3, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p3, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup3[i][j]+= 2.0*(1-beta_interp)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                            taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup3[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
                         } 
                     }  
 
@@ -543,62 +540,73 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         break;
     }
 
-    switch (ns->contr.eoflow) {
-        case false:
-        break;
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        
+        // Get the constant
+        real deltaeo;
+        real deltaeo0, deltaeo1, fracvol;
+        if (ns->contr.eoflow == true) deltaeo = ns->ed.eo.par.delta;
+        else if(ns->contr.flowtype == MULTIPHASE) {
+            fracvol;
+            deltaeo0 = ns->ed.mult.eo.par0.delta;
+            deltaeo1 = ns->ed.mult.eo.par1.delta;
+        }
+        
+        // Necessary properties
+        real phi, psi, np, nm, rhoe;
+        // loop variables
+        Point ccenter;
+        hig_cell *c;
+        fprintf(f, "\nSCALARS \u03D5 FLOAT\nLOOKUP_TABLE default\n");
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
+            fprintf(f, "%e\n", phi);
+        }
+        higcit_destroy(it);
+        fprintf(f, "\nSCALARS \u03C8 FLOAT\nLOOKUP_TABLE default\n");
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
+            fprintf(f, "%e\n", psi);
+        }
+        higcit_destroy(it);
+        fprintf(f, "\nSCALARS n\u207A FLOAT\nLOOKUP_TABLE default\n");
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
+            fprintf(f, "%e\n", np);
+        }
+        higcit_destroy(it);
+        fprintf(f, "\nSCALARS n\u207B FLOAT\nLOOKUP_TABLE default\n");
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
+            fprintf(f, "%e\n", nm);
+        }
+        higcit_destroy(it);
+        fprintf(f, "\nSCALARS \u03C1\u2091 FLOAT\nLOOKUP_TABLE default\n");
 
-        case true: ;
-            // Get the constant
-            real deltaeo = ns->ed.eo.par.delta;
-            // Necessary properties
-            real phi, psi, np, nm, rhoe;
-            // loop variables
-            Point ccenter;
-            hig_cell *c;
-            fprintf(f, "\nSCALARS \u03D5 FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.stn);
-                fprintf(f, "%e\n", phi);
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
+            nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
+            if(ns->contr.flowtype == MULTIPHASE) {
+                fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                deltaeo = (1.0 - fracvol) * deltaeo0 + fracvol * deltaeo1;
             }
-            higcit_destroy(it);
-            fprintf(f, "\nSCALARS \u03C8 FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.stn);
-                fprintf(f, "%e\n", psi);
-            }
-            higcit_destroy(it);
-            fprintf(f, "\nSCALARS n\u207A FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.stn);
-                fprintf(f, "%e\n", np);
-            }
-            higcit_destroy(it);
-            fprintf(f, "\nSCALARS n\u207B FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.stn);
-                fprintf(f, "%e\n", nm);
-            }
-            higcit_destroy(it);
-            fprintf(f, "\nSCALARS \u03C1\u2091 FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.stn);
-                nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.stn);
-                rhoe = deltaeo*(np - nm);
-                fprintf(f, "%e\n", rhoe);
-            }
-            higcit_destroy(it);
-        break;
+            rhoe = deltaeo*(np - nm);
+            fprintf(f, "%e\n", rhoe);
+        }
+        higcit_destroy(it);
+
     }
+
     fclose(f);
 }
 
@@ -911,58 +919,53 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
 
     curr_file_ptr_pos += get_offset_sum(proc_block_size);
 
-    
-    switch (ns->contr.eoflow) {
-        case false:
-        break;
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
 
-        case true:
+        sprintf(local_str, "\nVECTORS F\u2091\u2092 FLOAT\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
 
-            sprintf(local_str, "\nVECTORS F\u2091\u2092 FLOAT\n");
-            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
-            curr_file_ptr_pos += strlen(local_str);
+        // hardcoded buffer size
+        local_str_size = 4 * (2 * e_max_size + 4) * sizeof(char);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
 
-            // hardcoded buffer size
-            local_str_size = 4 * (2 * e_max_size + 4) * sizeof(char);
-            proc_block_size = local_str_size * numleafs;
-            proc_offset = get_offset_cummulative(proc_block_size);
-            it_count = 0;
+        sim_facet_domain *sfdEOFeo2[DIM];
+        sfdEOFeo2[0] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[0]); sfdEOFeo2[1] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[1]);
+        distributed_property *dpEOFeo2[DIM];
+        dpEOFeo2[0] = ns->ed.eo.dpFeo[0]; dpEOFeo2[1] = ns->ed.eo.dpFeo[1];
+        Point p0, p1, p2, p3;
+        
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *c = higcit_getcell(it);
+            Point ccenter;
+            hig_get_center(c,ccenter);
+            // Pontos onde será interpolada a força eletrica
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            Point Feo0, Feo1, Feo2, Feo3;
 
-            sim_facet_domain *sfdEOFeo2[DIM];
-            sfdEOFeo2[0] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[0]); sfdEOFeo2[1] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[1]);
-            distributed_property *dpEOFeo2[DIM];
-            dpEOFeo2[0] = ns->ed.eo.dpFeo[0]; dpEOFeo2[1] = ns->ed.eo.dpFeo[1];
-            Point p0, p1, p2, p3;
-            
-            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                hig_cell *c = higcit_getcell(it);
-                Point ccenter;
-                hig_get_center(c,ccenter);
-                // Pontos onde será interpolada a força eletrica
-                p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-                p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-                p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-                p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
-                Point Feo0, Feo1, Feo2, Feo3;
-
-                for(int dim = 0; dim < DIM; dim++) {
-                    Feo0[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p0, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                    Feo1[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p1, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                    Feo2[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p2, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                    Feo3[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p3, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
-                }
-
-                sprintf(local_str, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n",
-                Feo0[0], Feo0[1], Feo1[0], Feo1[1], Feo2[0], Feo2[1], Feo3[0], Feo3[1]);
-                paddn_before_last(local_str, local_str_size);
-                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
-                it_count++;
+            for(int dim = 0; dim < DIM; dim++) {
+                Feo0[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p0, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+                Feo1[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p1, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+                Feo2[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p2, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+                Feo3[dim] = compute_facet_value_at_point(sfdEOFeo2[dim], ccenter, p3, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
             }
-            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
-            higcit_destroy(it);
 
-            curr_file_ptr_pos += get_offset_sum(proc_block_size);
-        break;
+            sprintf(local_str, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n",
+            Feo0[0], Feo0[1], Feo1[0], Feo1[1], Feo2[0], Feo2[1], Feo3[0], Feo3[1]);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+        higcit_destroy(it);
+
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
     }
 
     free(write_buff);
@@ -1013,10 +1016,10 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                     for (int i = 0; i < DIM; i++) {
                         for (int j = 0; j < DIM; j++) {
                             // Get Du
-                            Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
-                            Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
-                            Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
-                            Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
+                            Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                            Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                            Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                            Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
                         }
                     }
                         
@@ -1024,36 +1027,36 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                         for (int j = 0; j < DIM; j++) {
                             
                             fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p0, t);
-                            visc1 = ns->ed.mult.get_density1(p0, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p0, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p0, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup0[i][j] += 2.0*(1-beta_interp)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                            taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup0[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
 
                             fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p1, t);
-                            visc1 = ns->ed.mult.get_density1(p1, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p1, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p1, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup1[i][j] += 2.0*(1-beta_interp)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                            taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup1[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
 
                             fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p2, t);
-                            visc1 = ns->ed.mult.get_density1(p2, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p2, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p2, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup2[i][j] += 2.0*(1-beta_interp)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                            taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup2[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
 
                             fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            visc0 = ns->ed.mult.get_density0(p3, t);
-                            visc1 = ns->ed.mult.get_density1(p3, t);
+                            visc0 = ns->ed.mult.get_viscosity0(p3, t);
+                            visc1 = ns->ed.mult.get_viscosity1(p3, t);
                             visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
                             beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
-                            taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
-                            taup3[i][j] += 2.0*(1-beta_interp)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                            taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                            taup3[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
                         } 
                     }
 
@@ -1316,157 +1319,162 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
         break;
     }
 
-    switch (ns->contr.eoflow) {
-        case false:
-        break;
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        // Get the constant
+        real deltaeo;
+        real deltaeo0, deltaeo1, fracvol;
+        if (ns->contr.eoflow == true) deltaeo = ns->ed.eo.par.delta;
+        else if(ns->contr.flowtype == MULTIPHASE) {
+            fracvol;
+            deltaeo0 = ns->ed.mult.eo.par0.delta;
+            deltaeo1 = ns->ed.mult.eo.par1.delta;
+        }
+        // Necessary properties
+        real phi, psi, np, nm, rhoe;
+        // loop variables
+        Point ccenter;
+        hig_cell *c;
 
-        case true: ;
-            // Get the constant
-            real deltaeo = ns->ed.eo.par.delta;
-            // Necessary properties
-            real phi, psi, np, nm, rhoe;
-            // loop variables
-            Point ccenter;
-            hig_cell *c;
+        ////////////// phi //////////////
 
-            ////////////// phi //////////////
-
-            sprintf(local_str, "\nSCALARS \u03D5 FLOAT\nLOOKUP_TABLE default\n");
-            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
-            curr_file_ptr_pos += strlen(local_str);
+        sprintf(local_str, "\nSCALARS \u03D5 FLOAT\nLOOKUP_TABLE default\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
+        
+        // hardcoded buffer size
+        local_str_size = (e_max_size + 1) * sizeof(char);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
+        
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
             
-            // hardcoded buffer size
-            local_str_size = (e_max_size + 1) * sizeof(char);
-            proc_block_size = local_str_size * numleafs;
-            proc_offset = get_offset_cummulative(proc_block_size);
-            it_count = 0;
-            
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.stn);
+            sprintf(local_str, "%e\n", phi);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+        higcit_destroy(it);
+
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
+        ////////////// psi //////////////
+
+        sprintf(local_str, "\nSCALARS \u03C8 FLOAT\nLOOKUP_TABLE default\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
+        
+        // hardcoded buffer size
+        local_str_size = (e_max_size + 1) * sizeof(char);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
                 
-                sprintf(local_str, "%e\n", phi);
-                paddn_before_last(local_str, local_str_size);
-                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
-                it_count++;
-            }
-            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
-            higcit_destroy(it);
-
-            curr_file_ptr_pos += get_offset_sum(proc_block_size);
-
-            ////////////// psi //////////////
-
-            sprintf(local_str, "\nSCALARS \u03C8 FLOAT\nLOOKUP_TABLE default\n");
-            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
-            curr_file_ptr_pos += strlen(local_str);
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
             
-            // hardcoded buffer size
-            local_str_size = (e_max_size + 1) * sizeof(char);
-            proc_block_size = local_str_size * numleafs;
-            proc_offset = get_offset_cummulative(proc_block_size);
-            it_count = 0;
-                    
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.stn);
-                
-                sprintf(local_str, "%e\n", psi);
-                paddn_before_last(local_str, local_str_size);
-                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
-                it_count++;
-            }
-            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
-            higcit_destroy(it);
+            sprintf(local_str, "%e\n", psi);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+        higcit_destroy(it);
 
-            curr_file_ptr_pos += get_offset_sum(proc_block_size);
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
 
-            /////////////// nplus ///////////////
+        /////////////// nplus ///////////////
 
-            sprintf(local_str, "\nSCALARS n\u207A FLOAT\nLOOKUP_TABLE default\n");
-            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
-            curr_file_ptr_pos += strlen(local_str);
+        sprintf(local_str, "\nSCALARS n\u207A FLOAT\nLOOKUP_TABLE default\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
+        
+        // hardcoded buffer size
+        local_str_size = (e_max_size + 1) * sizeof(char);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
+
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
             
-            // hardcoded buffer size
-            local_str_size = (e_max_size + 1) * sizeof(char);
-            proc_block_size = local_str_size * numleafs;
-            proc_offset = get_offset_cummulative(proc_block_size);
-            it_count = 0;
+            sprintf(local_str, "%e\n", np);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+        higcit_destroy(it);
 
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.stn);
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
+        /////////////// nminus ///////////////
+
+        sprintf(local_str, "\nSCALARS n\u207B FLOAT\nLOOKUP_TABLE default\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
+        
+        // hardcoded buffer size
+        local_str_size = (e_max_size + 1) * sizeof(char);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
                 
-                sprintf(local_str, "%e\n", np);
-                paddn_before_last(local_str, local_str_size);
-                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
-                it_count++;
-            }
-            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
-            higcit_destroy(it);
-
-            curr_file_ptr_pos += get_offset_sum(proc_block_size);
-
-            /////////////// nminus ///////////////
-
-            sprintf(local_str, "\nSCALARS n\u207B FLOAT\nLOOKUP_TABLE default\n");
-            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
-            curr_file_ptr_pos += strlen(local_str);
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
             
-            // hardcoded buffer size
-            local_str_size = (e_max_size + 1) * sizeof(char);
-            proc_block_size = local_str_size * numleafs;
-            proc_offset = get_offset_cummulative(proc_block_size);
-            it_count = 0;
-                    
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.stn);
-                
-                sprintf(local_str, "%e\n", nm);
-                paddn_before_last(local_str, local_str_size);
-                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
-                it_count++;
+            sprintf(local_str, "%e\n", nm);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+        higcit_destroy(it);
+
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
+
+        /////////////// rhoe ///////////////
+
+        sprintf(local_str, "\nSCALARS \u03C1\u2091 FLOAT\nLOOKUP_TABLE default\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
+        
+        // hardcoded buffer size
+        local_str_size = (e_max_size + 1) * sizeof(char);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
+
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            c = higcit_getcell(it);
+            hig_get_center(c, ccenter);
+            np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
+            nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
+            if(ns->contr.flowtype == MULTIPHASE) {
+                fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                deltaeo = (1.0 - fracvol) * deltaeo0 + fracvol * deltaeo1;
             }
-            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
-            higcit_destroy(it);
-
-            curr_file_ptr_pos += get_offset_sum(proc_block_size);
-
-            /////////////// rhoe ///////////////
-
-            sprintf(local_str, "\nSCALARS \u03C1\u2091 FLOAT\nLOOKUP_TABLE default\n");
-            if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
-            curr_file_ptr_pos += strlen(local_str);
+            rhoe = deltaeo*(np - nm);
             
-            // hardcoded buffer size
-            local_str_size = (e_max_size + 1) * sizeof(char);
-            proc_block_size = local_str_size * numleafs;
-            proc_offset = get_offset_cummulative(proc_block_size);
-            it_count = 0;
-                    
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
-                np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.stn);
-                nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.stn);
-                rhoe = deltaeo*(np - nm);
-                
-                sprintf(local_str, "%e\n", rhoe);
-                paddn_before_last(local_str, local_str_size);
-                update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
-                it_count++;
-            }
-            write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
-            higcit_destroy(it);
+            sprintf(local_str, "%e\n", rhoe);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+        higcit_destroy(it);
 
-            curr_file_ptr_pos += get_offset_sum(proc_block_size);
-      
-        break;
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
     }
 
     free(write_buff);
@@ -2488,7 +2496,7 @@ void get_nameres(char **source, char *destination) {
 }
 
 // Loading the data files
-void higflow_load_data_files(int argc, char *argv[], higflow_solver *ns) {
+void higflow_load_data_file_names(int argc, char *argv[], higflow_solver *ns) {
     // Name of load file
     ns->par.nameload = argv[1];
     argv++;
@@ -2502,827 +2510,9 @@ void higflow_load_data_files(int argc, char *argv[], higflow_solver *ns) {
     get_nameres(&ns->par.namesave, ns->par.nameres);
 }
 
-// Loading the controllers and parameters
-void higflow_load_controllers_and_parameters_yaml(higflow_solver* ns, int myrank) {
-    // Parameters file name
-    char ParContr[1024], InitRestart[1024];
-
-    snprintf(InitRestart, sizeof InitRestart, "%s.init.restart.yaml", ns->par.nameload);
-    struct fy_document* fydini = NULL;
-
-    snprintf(ParContr, sizeof ParContr, "%s.par.contr.yaml", ns->par.nameload);
-    struct fy_document* fyd = NULL;
-
-    fyd = fy_document_build_from_file(NULL, ParContr);
-    fydini = fy_document_build_from_file(NULL, InitRestart);
-
-    if (fyd != NULL && fydini != NULL) {
-        // Loading the controllers
-        int ifd = 0;
-        // Load Step, Initial Frame, Initial Time of the Simulation
-        ifd += fy_document_scanf(fydini, "/init_par/step %d", &(ns->par.step));
-        ns->par.initstep = ns->par.step;
-        ifd += fy_document_scanf(fydini, "/init_par/t %lf", &(ns->par.t));
-        ifd += fy_document_scanf(fydini, "/init_par/frame %d", &(ns->par.frame));
-        ifd += fy_document_scanf(fydini, "/init_par/ts %lf", &(ns->par.ts));
-        ifd += fy_document_scanf(fydini, "/init_par/tp %lf", &(ns->par.tp));
-        if (ifd != 5) {
-            print0f("=+=+=+= Initial Parameters are Missing!!! =+=+=+=\n");
-            exit(1);
-        }
-        char auxchar[1024];
-        // Projtype
-        ifd += fy_document_scanf(fyd, "/simulation_contr/projtype %s", auxchar);
-        if (strcmp(auxchar, "non_incremental") == 0) {
-            ns->contr.projtype = NON_INCREMENTAL;
-            print0f("=+=+=+= Projection Method: Non Incremental =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "incremental") == 0) {
-            ns->contr.projtype = INCREMENTAL;
-            print0f("=+=+=+= Projection Method: Incremental =+=+=+=\n");
-        }
-        else {
-            print0f("=+=+=+= Projection Method: Invalid =+=+=+=\n");
-            exit(1);
-        }
-        // Flowtype
-        ifd += fy_document_scanf(fyd, "/simulation_contr/phasetype %s", auxchar);
-        if (strcmp(auxchar, "singlephase") == 0) {
-            // Flowtype for Phase 0 (Case singlephase)
-            ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype0 %s", auxchar);
-            if (strcmp(auxchar, "newtonian") == 0) {
-                ns->contr.flowtype = NEWTONIAN;
-                print0f("=+=+=+= Flow Type: Newtonian =+=+=+=\n");
-            }
-            else if (strcmp(auxchar, "generalized_newtonian") == 0) {
-                ns->contr.flowtype = GENERALIZED_NEWTONIAN;
-                print0f("=+=+=+= Flow Type: Generalized Newtonian =+=+=+=\n");
-            }
-            else if (strcmp(auxchar, "viscoelastic") == 0) {
-                ns->contr.flowtype = VISCOELASTIC;
-                print0f("=+=+=+= Flow Type: Viscoelastic =+=+=+=\n");
-                
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/visc_contr/model %s", auxchar);
-                if (strcmp(auxchar, "oldroyd_b") == 0) {
-                    ns->ed.ve.contr.model = 0;
-                    print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "giesekus") == 0) {
-                    ns->ed.ve.contr.model = 1;
-                    print0f("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
-                    print0f("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.ve.par.alpha);
-                }
-                else if (strcmp(auxchar, "lptt") == 0) {
-                    ns->ed.ve.contr.model = 2;
-                    print0f("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_lptt/psi %lf", &(ns->ed.ve.par.psi));
-                    print0f("=+=+=+= Epsilon: %f =+=+=+=\n", ns->ed.ve.par.epsilon);
-                    print0f("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.ve.par.psi);
-                }
-                else if (strcmp(auxchar, "gptt") == 0) {
-                    ns->ed.ve.contr.model = 3;
-                    print0f("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_lptt/alpha_gptt %lf", &(ns->ed.ve.par.alpha_gptt));
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_lptt/beta_gptt %lf", &(ns->ed.ve.par.beta_gptt));
-                    print0f("=+=+=+= Alpha GPTT: %f =+=+=+=\n", ns->ed.ve.par.alpha_gptt);
-                    print0f("=+=+=+= Beta GPTT: %f =+=+=+=\n", ns->ed.ve.par.beta_gptt);
-                    //    } else if (strcmp(auxchar,"integral") == 0) {
-                    //       ns->ed.ve.contr.model = 4;
-                    //       print0f("=+=+=+= Constitutive Equation Model: Integral =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "user_set") == 0) {
-                    ns->ed.ve.contr.model = -1;
-                    print0f("=+=+=+= Constitutive Equation Model: User Set Model =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Model Invalid =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Discret Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/visc_contr/discrtype %s", auxchar);
-                if (strcmp(auxchar, "explicit") == 0) {
-                    ns->ed.ve.contr.discrtype = EXPLICIT;
-                    print0f("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "implicit") == 0) {
-                    ns->ed.ve.contr.discrtype = IMPLICIT;
-                    print0f("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Discretization Invalid =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Convective Discret Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/visc_contr/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "central") == 0) {
-                    ns->ed.ve.contr.convecdiscrtype = CELL_CENTRAL;
-                    print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "cubista") == 0) {
-                    ns->ed.ve.contr.convecdiscrtype = CELL_CUBISTA;
-                    print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Convective Term Invalid =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Common Viscoelastic Parameters
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/adimensional/De %lf", &(ns->ed.ve.par.De));
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/adimensional/beta %lf", &(ns->ed.ve.par.beta));
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/adimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
-
-                print0f("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.ve.par.De);
-                print0f("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.ve.par.beta);
-            }
-            //    else {
-            //        print0f("=+=+=+= Flow Model Invalid =+=+=+=\n");
-            //        exit(1);
-            //    }
-        }
-        else if (strcmp(auxchar, "twophase") == 0) {
-            // Flowtype for Phase 0
-            ns->contr.flowtype = MULTIPHASE;
-            ifd += fy_document_scanf(fyd, "/multiphase_par/Ca %lf", &(ns->ed.mult.par.Ca));
-            printf("=+=+=+= Capillary Number: %f =+=+=+=\n", ns->ed.mult.par.Ca);
-            ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype0 %s", auxchar);
-            printf("------------------------------------------------------ \n");
-            printf("=*+=*+=*+=*+=*+=*+=*+= Phase 0 =*+=*+=*+=*+=*+=*+=*+= \n");
-            printf("------------------------------------------------------ \n");
-            if (strcmp(auxchar, "newtonian") == 0) {
-                //ns->contr.flowtype = NEWTONIAN;
-                print0f("=+=+=+= Flow Type in Phase 0: Newtonian =+=+=+=\n");
-            }
-            else if (strcmp(auxchar, "generalized_newtonian") == 0) {
-                //ns->contr.flowtype = GENERALIZED_NEWTONIAN;
-                print0f("=+=+=+= Flow Type in Phase 0: Generalized Newtonian =+=+=+=\n");
-            }
-            else if (strcmp(auxchar, "viscoelastic") == 0) {
-                //ns->contr.flowtype = VISCOELASTIC;
-                print0f("=+=+=+= Flow Type in Phase 0: Viscoelastic =+=+=+=\n");
-                // Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/visc_contr/model %s", auxchar);
-                if (strcmp(auxchar, "oldroyd_b") == 0) {
-                    ns->ed.ve.contr.model = 0;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 0: Oldroyd-B =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "giesekus") == 0) {
-                    ns->ed.ve.contr.model = 1;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 0: Giesekus =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
-                    print0f("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.ve.par.alpha);
-                }
-                else if (strcmp(auxchar, "lptt") == 0) {
-                    ns->ed.ve.contr.model = 2;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 0: LPTT =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/model_lptt/psi %lf", &(ns->ed.ve.par.psi));
-                    print0f("=+=+=+= Epsilon in Phase 0: %f =+=+=+=\n", ns->ed.ve.par.epsilon);
-                    print0f("=+=+=+= Psi in Phase 0: %f =+=+=+=\n", ns->ed.ve.par.psi);
-                }
-                else if (strcmp(auxchar, "gptt") == 0) {
-                    ns->ed.ve.contr.model = 3;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 0: GPTT =+=+=+=\n");
-                    // } else if (strcmp(auxchar,"integral") == 0) {
-                    //   ns->ed.ve.contr.model = 4;
-                    //   print0f("=+=+=+= Constitutive Equation Model in Phase 0: Integral =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "user_set") == 0) {
-                    ns->ed.ve.contr.model = -1;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 0: User Set Model =+=+=+=\n");
-                }
-                // else {
-                //   print0f("=+=+=+= Constitutive Equation Model Invalid in Phase 0 =+=+=+=\n");
-                //   exit(1);
-                // }
-
-               // Discret Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/visc_contr/discrtype %s", auxchar);
-                if (strcmp(auxchar, "explicit") == 0) {
-                    ns->ed.ve.contr.discrtype = EXPLICIT;
-                    print0f("=+=+=+= Constitutive Equation Discretization in Phase 0: Explicit =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "giesekus") == 0) {
-                    ns->ed.ve.contr.discrtype = IMPLICIT;
-                    print0f("=+=+=+= Constitutive Equation Discretization in Phase 0: Implicit =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Discretization Invalid in Phase 0 =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Convective Discret Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/visc_contr/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "central") == 0) {
-                    ns->ed.ve.contr.convecdiscrtype = CELL_CENTRAL;
-                    print0f("=+=+=+= Constitutive Equation Convective Term in Phase 0: Central  =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "cubista") == 0) {
-                    ns->ed.ve.contr.convecdiscrtype = CELL_CUBISTA;
-                    print0f("=+=+=+= Constitutive Equation Convective Term in Phase 0: CUBISTA =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Convective Term Invalid in Phase 0 =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Common Viscoelastic Parameters
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/adimensional/De %lf", &(ns->ed.ve.par.De));
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/adimensional/beta %lf", &(ns->ed.ve.par.beta));
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase0/adimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
-
-                print0f("=+=+=+= Deborah Number in Phase 0: %f =+=+=+=\n", ns->ed.ve.par.De);
-                print0f("=+=+=+= Beta in Phase 0: %f =+=+=+=\n", ns->ed.ve.par.beta);
-                print0f("=+=+=+= Kernel_tol in Phase 0: %f =+=+=+=\n", ns->ed.ve.par.kernel_tol);
-
-            }
-            else {
-                if (myrank == 0) {
-                    printf("=+=+=+= Flow Type Invalid in Phase 0 =+=+=+=\n");
-                }
-                exit(1);
-            }
-
-            // Flowtype for Phase 1
-            printf("------------------------------------------------------ \n");
-            printf("=*+=*+=*+=*+=*+=*+=*+= Phase 1 =*+=*+=*+=*+=*+=*+=*+= \n");
-            printf("------------------------------------------------------ \n");
-            ifd += fy_document_scanf(fyd, "/simulation_contr/flowtype1 %s", auxchar);
-            if (strcmp(auxchar, "newtonian") == 0) {
-                //ns->contr.flowtype = NEWTONIAN;
-                print0f("=+=+=+= Flow Type in Phase 1: Newtonian =+=+=+=\n");
-            }
-            else if (strcmp(auxchar, "generalized_newtonian") == 0) {
-                //ns->contr.flowtype = GENERALIZED_NEWTONIAN;
-                print0f("=+=+=+= Flow Type in Phase 1: Generalized Newtonian =+=+=+=\n");
-            }
-            else if (strcmp(auxchar, "viscoelastic") == 0) {
-                //ns->contr.flowtype = VISCOELASTIC;
-                print0f("=+=+=+= Flow Type in Phase 1: Viscoelastic =+=+=+=\n");
-                // Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/visc_contr/model %s", auxchar);
-                if (strcmp(auxchar, "oldroyd_b") == 0) {
-                    ns->ed.ve.contr.model = 0;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 1: Oldroyd-B =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "giesekus") == 0) {
-                    ns->ed.ve.contr.model = 1;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 1: Giesekus =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
-                    print0f("=+=+=+= Alpha: %f =+=+=+=\n", ns->ed.ve.par.alpha);
-                }
-                else if (strcmp(auxchar, "lptt") == 0) {
-                    ns->ed.ve.contr.model = 2;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 1: LPTT =+=+=+=\n");
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
-                    ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/model_lptt/psi %lf", &(ns->ed.ve.par.psi));
-                    print0f("=+=+=+= Epsilon in Phase 1: %f =+=+=+=\n", ns->ed.ve.par.epsilon);
-                    print0f("=+=+=+= Psi in Phase 1: %f =+=+=+=\n", ns->ed.ve.par.psi);
-                }
-                else if (strcmp(auxchar, "gptt") == 0) {
-                    ns->ed.ve.contr.model = 3;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 1: GPTT =+=+=+=\n");
-                    //    } else if (strcmp(auxchar,"integral") == 0) {
-                    //       ns->ed.ve.contr.model = 4;
-                    //       print0f("=+=+=+= Constitutive Equation Model in Phase 1: Integral =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "user_set") == 0) {
-                    ns->ed.ve.contr.model = -1;
-                    print0f("=+=+=+= Constitutive Equation Model in Phase 1: User Set Model =+=+=+=\n");
-                }
-                //    else {
-                //       print0f("=+=+=+= Constitutive Equation Model Invalid in Phase 1 =+=+=+=\n");
-                //       exit(1);
-                //    }
-
-                   // Discret Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/visc_contr/discrtype %s", auxchar);
-                if (strcmp(auxchar, "explicit") == 0) {
-                    ns->ed.ve.contr.discrtype = EXPLICIT;
-                    print0f("=+=+=+= Constitutive Equation Discretization in Phase 1: Explicit =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "giesekus") == 0) {
-                    ns->ed.ve.contr.discrtype = IMPLICIT;
-                    print0f("=+=+=+= Constitutive Equation Discretization in Phase 1: Implicit =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Discretization Invalid in Phase 1 =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Convective Discret Model Flow Type Viscoelastic
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/visc_contr/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "central") == 0) {
-                    ns->ed.ve.contr.convecdiscrtype = CELL_CENTRAL;
-                    print0f("=+=+=+= Constitutive Equation Convective Term in Phase 1: Central  =+=+=+=\n");
-                }
-                else if (strcmp(auxchar, "cubista") == 0) {
-                    ns->ed.ve.contr.convecdiscrtype = CELL_CUBISTA;
-                    print0f("=+=+=+= Constitutive Equation Convective Term in Phase 1: CUBISTA =+=+=+=\n");
-                }
-                else {
-                    print0f("=+=+=+= Constitutive Equation Convective Term Invalid in Phase 1 =+=+=+=\n");
-                    exit(1);
-                }
-
-                // Common Viscoelastic Parameters
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/adimensional/De %lf", &(ns->ed.ve.par.De));
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/adimensional/beta %lf", &(ns->ed.ve.par.beta));
-                ifd += fy_document_scanf(fyd, "/simulation_contr/phase1/adimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
-
-                print0f("=+=+=+= Deborah Number in Phase 1: %f =+=+=+=\n", ns->ed.ve.par.De);
-                print0f("=+=+=+= Beta in Phase 1: %f =+=+=+=\n", ns->ed.ve.par.beta);
-                print0f("=+=+=+= Kernel_tol in Phase 1: %f =+=+=+=\n", ns->ed.ve.par.kernel_tol);
-                printf("------------------------------------------------------ \n");
-            }
-            else {
-                print0f("=+=+=+= Flow Type Invalid in Phase 1 =+=+=+=\n");
-                exit(1);
-            }
-        }
-        else {
-            print0f("=+=+=+= Flow Type Invalid =+=+=+=\n");
-            exit(1);
-        }
-
-        // Electroosmotic Flow
-        ifd += fy_document_scanf(fyd, "/simulation_contr/eoflow %s", auxchar);
-        if (strcmp(auxchar, "none") == 0) {
-            ns->contr.eoflow = false;
-            print0f("    =+= Flow Model Type: ---------------- =+=\n");
-        }
-        else if (strcmp(auxchar, "electroosmotic") == 0) {
-            ns->contr.eoflow = true;
-            print0f("=+= Flow Model Type: Electroosmotic =+=\n");
-        }
-        // Time Discret Type
-        ifd += fy_document_scanf(fyd, "/simulation_contr/tempdiscrtype %s", auxchar);
-
-        if (strcmp(auxchar, "explicit_euler") == 0) {
-            ns->contr.tempdiscrtype = EXPLICIT_EULER;
-            print0f("=+=+=+= Temporal Discretization: Explicit Euler =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "explicit_rk2") == 0) {
-            ns->contr.tempdiscrtype = EXPLICIT_RK2;
-            print0f("=+=+=+= Temporal Discretization: Runge-Kutta 2 =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "explicit_rk3") == 0) {
-            ns->contr.tempdiscrtype = EXPLICIT_RK3;
-            print0f("=+=+=+= Temporal Discretization: Runge-Kutta 3 =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "semi_implicit_euler") == 0) {
-            ns->contr.tempdiscrtype = SEMI_IMPLICIT_EULER;
-            print0f("=+=+=+= Temporal Discretization: Semi-Implicit Euler =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "semi_implicit_crank_nicolson") == 0) {
-            ns->contr.tempdiscrtype = SEMI_IMPLICIT_CN;
-            print0f("=+=+=+= Temporal Discretization: Semi-Implicit Crank-Nicolson =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "semi_implicit_bdf2") == 0) {
-            ns->contr.tempdiscrtype = SEMI_IMPLICIT_BDF2;
-            print0f("=+=+=+= Temporal Discretization: Semi-Implicit BDF2 =+=+=+=\n");
-        }
-        // Spatial Discret Type
-        ifd += fy_document_scanf(fyd, "/simulation_contr/spatialdiscrtype %s", auxchar);
-        if (strcmp(auxchar, "second_order") == 0) {
-            ns->contr.spatialdiscrtype = ORDER2;
-            print0f("=+=+=+= Spatial Discretization: Second Order =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "forth_order") == 0) {
-            ns->contr.spatialdiscrtype = ORDER4;
-            print0f("=+=+=+= Spatial Discretization: Forth Order =+=+=+=\n");
-        }
-        // Convective Discret Type
-        ifd += fy_document_scanf(fyd, "/simulation_contr/convecdiscrtype %s", auxchar);
-        if (strcmp(auxchar, "central") == 0) {
-            ns->contr.convecdiscrtype = CENTRAL;
-            print0f("=+=+=+= Convective Scheme: Central =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "first_order") == 0) {
-            ns->contr.convecdiscrtype = FIRST_ORDER;
-            print0f("=+=+=+= Convective Scheme: First Order Upwind =+=+=+=\n");
-        }
-        else if (strcmp(auxchar, "second_order") == 0) {
-            ns->contr.convecdiscrtype = ORDER2;
-            print0f("=+=+=+= Convective Scheme: Second Order Upwind =+=+=+=\n");
-            ifd += fy_document_scanf(fyd, "/simulation_contr/secondconvecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "modified_coefficient_upwind") == 0) {
-                ns->contr.secondconvecdiscrtype = 0;
-                printf("    =+= Convective Scheme Type : Modified Coefficient Upwind =+=\n");
-            }
-            else if (strcmp(auxchar, "cubista") == 0) {
-                ns->contr.secondconvecdiscrtype = 1;
-                printf("    =+= Convective Scheme Type : Cubista =+=\n");
-            }
-            else if (strcmp(auxchar, "quick") == 0) {
-                ns->contr.secondconvecdiscrtype = 2;
-                printf("    =+= Convective Scheme Type : Quick =+=\n");
-            }
-        }
-        // Reynold's Number
-        ifd += fy_document_scanf(fyd, "/adimensional_par/Re %lf", &(ns->par.Re));
-        print0f("=+=+=+= Reynolds Number: %f =+=+=+=\n", ns->par.Re);
-        // The Parameters of the Simulation
-        ifd += fy_document_scanf(fyd, "/simulation_par/numsteps %d", &(ns->par.finalstep));
-        ifd += fy_document_scanf(fyd, "/simulation_par/dt %lf", &(ns->par.dt));
-        ifd += fy_document_scanf(fyd, "/simulation_par/dts %lf", &(ns->par.dts));
-        ifd += fy_document_scanf(fyd, "/simulation_par/dtp %lf", &(ns->par.dtp));
-    }
-    else {
-        // Error in open the file
-        print0f("=+=+=+= Error loading file %s or %s =+=+=+=\n", ParContr, InitRestart);
-        exit(1);
-    }
-    fy_document_destroy(fyd);
-    fy_document_destroy(fydini);
-}
-
-// Loading the controllers
-void higflow_load_controllers(higflow_solver *ns, int myrank) {
-    // Controllers file name
-    char namefile[1024];
-    snprintf(namefile, sizeof namefile, "%s.contr", ns->par.nameload);
-    FILE *fd = fopen(namefile, "r");
-    if (fd != NULL) {
-        // Loading the controllers
-        int ifd;
-        ifd = fscanf(fd, "%d", (int *)&(ns->contr.projtype));
-        ifd = fscanf(fd, "%d", (int *)&(ns->contr.flowtype));
-        ifd = fscanf(fd, "%d", &(ns->contr.eoflow));
-        ifd = fscanf(fd, "%d", (int *)&(ns->contr.tempdiscrtype));
-        ifd = fscanf(fd, "%d", (int *)&(ns->contr.spatialdiscrtype));
-        ifd = fscanf(fd, "%d", (int *)&(ns->contr.convecdiscrtype));
-        ifd = fscanf(fd, "%d", (int *)&(ns->contr.secondconvecdiscrtype));
-        fclose(fd);
-
-        // Printing the controllers
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (myrank == 0) {
-           printf("=+=+=+= Controllers =+=+=+=\n");
-           switch (ns->contr.projtype) {
-               case NON_INCREMENTAL:
-                    printf("=+=+=+= Projection Method: Non Incremental =+=+=+=\n");
-                    break;
-                case INCREMENTAL:
-                    printf("=+=+=+= Projection Method: Incremental =+=+=+=\n");
-                    break;
-            }
-            switch (ns->contr.flowtype) {
-                case NEWTONIAN:
-                    printf("=+=+=+= Flow Model: Newtonian =+=+=+=\n");
-                    break;
-                case GENERALIZED_NEWTONIAN:
-                    printf("=+= Flow Model: Generalized Newtonian =+=\n");
-                    break;
-                case MULTIPHASE:
-                    printf("=+=+=+= Flow Model: Multifase =+=+=+=\n");
-                    break;
-                case VISCOELASTIC:
-                    printf("=+=+=+= Flow Model: Viscoelastic =+=+=+=\n");
-                    break;
-            }
-            switch (ns->contr.eoflow) {
-                case true:
-                    printf("=+= Flow Model Type: Eletroosmotic =+=\n");
-                    break;
-                case false:
-                    break;
-                default:
-                    printf("=+=+=+= Unsupported eoflow!! =+=+=+=\n");
-                    exit(1);
-                    break;
-            }
-            switch (ns->contr.tempdiscrtype) {
-                case EXPLICIT_EULER:
-                    printf("=+=+=+= Temporal Discretization: Explicit Euler =+=+=+=\n");
-                    break;
-                case EXPLICIT_RK2:
-                    printf("=+=+=+= Temporal Discretization: Runge-Kutta 2 =+=+=+=\n");
-                    break;
-                case EXPLICIT_RK3:
-                    printf("=+=+=+= Temporal Discretization: Runge-Kutta 3 =+=+=+=\n");
-                    break;
-                case SEMI_IMPLICIT_EULER:
-                    printf("=+=+=+= Temporal Discretization: Semi-Implicit Euler =+=+=+=\n");
-                    break;
-                case SEMI_IMPLICIT_CN:
-                    printf("=+=+=+= Temporal Discretization: Semi-Implicit Crank-Nicolson =+=+=+=\n");
-                    break;
-                case SEMI_IMPLICIT_BDF2:
-                    printf("=+=+=+= Temporal Discretization: Semi-Implicit BDF2 =+=+=+=\n");
-                    break;
-            }
-            switch (ns->contr.spatialdiscrtype) {
-                case ORDER2:
-                    printf("=+=+=+= Spatial Discretization: Second Order =+=+=+=\n");
-                    break;
-                case ORDER4:
-                    printf("=+=+=+= Spatial Discretization: Forth Order =+=+=+=\n");
-                    break;
-            }
-            switch (ns->contr.convecdiscrtype) {
-                case CENTRAL:
-                    printf("=+=+=+= Convective Scheme: Central =+=+=+=\n");
-                    break;
-                case FIRST_ORDER:
-                    printf("=+=+=+= Convective Scheme: First Order Upwind =+=+=+=\n");
-                    break;
-                case SECOND_ORDER:
-                    printf("=+=+=+= Convective Scheme: Second Order Upwind =+=+=+=\n");
-                    switch (ns->contr.secondconvecdiscrtype) {
-                        case MCU:
-                            printf("=+= Convective Scheme Type : Modified Coefficient Upwind =+=\n");
-                            break;
-                        case CUBISTA:
-                            printf("=+= Convective Scheme Type : Cubista =+=\n");
-                            break;
-                        case QUICK:
-                            printf("=+= Convective Scheme Type : Quick =+=\n");
-                            break;
-                    }
-                    break;
-            }
-        }
-    } else {
-        // Error in open the file
-        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
-        exit(1);
-    }
-}
-
-// Saving the controllers
-void higflow_save_controllers(higflow_solver *ns, int myrank) {
-    // Controllers file name
-    if (myrank == 0) {
-        char namefile[1024];
-        snprintf(namefile, sizeof namefile, "%s.contr", ns->par.namesave);
-        FILE *fd = fopen(namefile, "w");
-        if (fd != NULL) {
-            // Saving the controllers
-            fprintf(fd, "%d\n", (int)(ns->contr.projtype));
-            fprintf(fd, "%d\n", (int)(ns->contr.flowtype));
-            fprintf(fd, "%d\n", (ns->contr.eoflow));
-            fprintf(fd, "%d\n", (int)(ns->contr.tempdiscrtype));
-            fprintf(fd, "%d\n", (int)(ns->contr.spatialdiscrtype));
-            fprintf(fd, "%d\n", (int)(ns->contr.convecdiscrtype));
-            fprintf(fd, "%d\n", (int)(ns->contr.secondconvecdiscrtype));
-            fclose(fd);
-        } else {
-            // Error in open the file
-            printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
-            exit(1);
-        }
-    }
-}
-
-// Loading the parameters
-void higflow_load_parameters(higflow_solver *ns, int myrank) {
-    // Parameters file name
-    char namefile[1024];
-    snprintf(namefile, sizeof namefile, "%s.par", ns->par.nameload);
-    FILE *fd = fopen(namefile, "r");
-    if (fd != NULL) {
-        // Loading the parameters
-        int ifd;
-        ifd = fscanf(fd, "%d", &(ns->par.step));
-        ns->par.initstep = ns->par.step;
-        ifd = fscanf(fd, "%d", &(ns->par.finalstep));
-        ifd = fscanf(fd, "%lf", &(ns->par.t));
-        ifd = fscanf(fd, "%lf", &(ns->par.dt));
-        ifd = fscanf(fd, "%lf", &(ns->par.Re));
-        ifd = fscanf(fd, "%lf", &(ns->par.dts));
-        ifd = fscanf(fd, "%lf", &(ns->par.dtp));
-        ifd = fscanf(fd, "%d", &(ns->par.frame));
-        ifd = fscanf(fd, "%lf", &(ns->par.ts));
-        ifd = fscanf(fd, "%lf", &(ns->par.tp));
-        fclose(fd);
-        if (myrank == 0) {
-            printf("=+=+=+= Reynolds Number: %f =+=+=+=\n", ns->par.Re);
-        }
-    } else {
-        // Error in open the file
-        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
-        exit(1);
-    }
-}
-
-// Saving the parameters
-void higflow_save_parameters(higflow_solver *ns, int myrank) {
-    if (myrank == 0) {
-        // Parameters file name
-        char namefile[1024];
-        snprintf(namefile, sizeof namefile, "%s.par", ns->par.namesave);
-        FILE *fd = fopen(namefile, "w");
-        if (fd != NULL) {
-            // Saving the parameters
-            fprintf(fd, "%d\n", (ns->par.step));
-            fprintf(fd, "%d\n", (ns->par.finalstep));
-            fprintf(fd, "%lf\n", (ns->par.t));
-            fprintf(fd, "%lf\n", (ns->par.dt));
-            fprintf(fd, "%lf\n", (ns->par.Re));
-            fprintf(fd, "%lf\n", (ns->par.dts));
-            fprintf(fd, "%lf\n", (ns->par.dtp));
-            fprintf(fd, "%d\n", (ns->par.frame));
-            fprintf(fd, "%lf\n", (ns->par.ts));
-            fprintf(fd, "%lf\n", (ns->par.tp));
-            fclose(fd);
-        } else {
-            // Error in open the file
-            printf("=+=+=+= Error saving file %s =+=+=+=\n", namefile);
-            exit(1);
-        }
-    }
-}
-
-// Loading the properties
-void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
-
-    char namefile[1024];
-    
-    // Velocity filename base
-    snprintf(namefile, sizeof namefile, "%s._dpu", ns->par.namesave);
-    load_fdp_vec(ns->psfdu, ns->dpu, namefile, myrank, ntasks);
-
-    // Pressure file name
-    snprintf(namefile, sizeof namefile, "%s._dpp", ns->par.namesave);
-    load_dp_scalar(ns->psdp, ns->dpp, namefile, myrank, ntasks);
-
-    // Cell source term file name
-    snprintf(namefile, sizeof namefile, "%s._dpF", ns->par.namesave);
-    load_dp_scalar(ns->psdF, ns->dpF, namefile, myrank, ntasks);
-
-    // Facet source term file name base
-    snprintf(namefile, sizeof namefile, "%s._dpFU", ns->par.namesave);
-    load_fdp_vec(ns->psfdF, ns->dpFU, namefile, myrank, ntasks);
-
-    switch (ns->contr.flowtype) {
-        case GENERALIZED_NEWTONIAN:
-            // Generalized Newtonian Viscosity file name
-            snprintf(namefile, sizeof namefile, "%s._dpvisc_gn", ns->par.namesave);
-            load_dp_scalar(ns->ed.psdED, ns->ed.gn.dpvisc, namefile, myrank, ntasks);
-        break;
-        case MULTIPHASE:
-            // Volume Fraction file name
-            snprintf(namefile, sizeof namefile, "%s._dpfracvol", ns->par.namesave);
-            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
-
-            // Multiphase Viscosity file name
-            snprintf(namefile, sizeof namefile, "%s._dpvisc_mult", ns->par.namesave);
-            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
-
-            // Multiphase Density file name
-            snprintf(namefile, sizeof namefile, "%s._dpdens", ns->par.namesave);
-            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpdens, namefile, myrank, ntasks);
-
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                // Multiphase Kernel Tensor file name base
-                snprintf(namefile, sizeof namefile, "%s._dpKernel_mult", ns->par.namesave);
-                load_dp_tensor(ns->ed.psdED, ns->ed.mult.ve.dpKernel, namefile, myrank, ntasks);
-            }
-        break;
-        case VISCOELASTIC:
-            // Viscoelastic Kernel Tensor file name
-            snprintf(namefile, sizeof namefile, "%s._dpKernel", ns->par.namesave);
-            load_dp_tensor(ns->ed.psdED, ns->ed.ve.dpKernel, namefile, myrank, ntasks);
-        break;
-        case VISCOELASTIC_INTEGRAL:
-            // Viscoelastic Integral Elastic (S) Tensor file name
-            snprintf(namefile, sizeof namefile, "%s._dpS_im", ns->par.namesave);
-            load_dp_tensor(ns->ed.psdED, ns->ed.im.dpS, namefile, myrank, ntasks);
-
-            for(int k=0; k <= NDT; k++){
-                // Viscoelastic Integral Finger Tensor (B) file name base at a certain time frame k
-                snprintf(namefile, sizeof namefile, "%s._dpB%d", ns->par.namesave, k);
-                load_dp_tensor(ns->ed.psdED, ns->ed.im.dpB[k], namefile, myrank, ntasks);
-            }
-        break;
-    }
-
-    if (ns->contr.eoflow == true) {
-
-        // Electroosmotic Applied Potential Phi file name
-        snprintf(namefile, sizeof namefile, "%s._dpphi", ns->par.namesave);
-        load_dp_scalar(ns->ed.eo.psdEOphi, ns->ed.eo.dpphi, namefile, myrank, ntasks);
-
-        // Electroosmotic Induced Potential (zeta potential) Psi file name
-        snprintf(namefile, sizeof namefile, "%s._dppsi", ns->par.namesave);
-        load_dp_scalar(ns->ed.eo.psdEOpsi, ns->ed.eo.dppsi, namefile, myrank, ntasks);
-
-        // Electroosmotic Positive charge concentration Nplus file name
-        snprintf(namefile, sizeof namefile, "%s._dpnplus", ns->par.namesave);
-        load_dp_scalar(ns->ed.eo.psdEOnplus, ns->ed.eo.dpnplus, namefile, myrank, ntasks);
-
-        // Electroosmotic Negative charge concentration Nminus file name
-        snprintf(namefile, sizeof namefile, "%s._dpnminus", ns->par.namesave);
-        load_dp_scalar(ns->ed.eo.psdEOnminus, ns->ed.eo.dpnminus, namefile, myrank, ntasks);
-
-        // Electroosmotic source term file name
-        snprintf(namefile, sizeof namefile, "%s._dpFeo", ns->par.namesave);
-        load_fdp_vec(ns->ed.eo.psfdEOFeo, ns->ed.eo.dpFeo, namefile, myrank, ntasks);
-
-    }
-
-}
-
-// Saving the properties
-void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
-    
-    char namefile[1024];
-
-    // Velocity filename base
-    snprintf(namefile, sizeof namefile, "%s._dpu", ns->par.namesave);
-    save_fdp_vec(ns->psfdu, ns->dpu, namefile, myrank, ntasks);
-
-    // Pressure file name
-    snprintf(namefile, sizeof namefile, "%s._dpp", ns->par.namesave);
-    save_dp_scalar(ns->psdp, ns->dpp, namefile, myrank, ntasks);
-
-    // Cell source term file name
-    snprintf(namefile, sizeof namefile, "%s._dpF", ns->par.namesave);
-    save_dp_scalar(ns->psdF, ns->dpF, namefile, myrank, ntasks);
-
-    // Facet source term file name base
-    snprintf(namefile, sizeof namefile, "%s._dpFU", ns->par.namesave);
-    save_fdp_vec(ns->psfdF, ns->dpFU, namefile, myrank, ntasks);
-
-    switch (ns->contr.flowtype) {
-        case GENERALIZED_NEWTONIAN:
-            // Generalized Newtonian Viscosity file name
-            snprintf(namefile, sizeof namefile, "%s._dpvisc_gn", ns->par.namesave);
-            save_dp_scalar(ns->ed.psdED, ns->ed.gn.dpvisc, namefile, myrank, ntasks);
-        break;
-        case MULTIPHASE:
-            // Volume Fraction file name
-            snprintf(namefile, sizeof namefile, "%s._dpfracvol", ns->par.namesave);
-            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
-
-            // Multiphase Viscosity file name
-            snprintf(namefile, sizeof namefile, "%s._dpvisc_mult", ns->par.namesave);
-            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
-
-            // Multiphase Density file name
-            snprintf(namefile, sizeof namefile, "%s._dpdens", ns->par.namesave);
-            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpdens, namefile, myrank, ntasks);
-
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                // Multiphase Kernel Tensor file name base
-                snprintf(namefile, sizeof namefile, "%s._dpKernel_mult", ns->par.namesave);
-                save_dp_tensor(ns->ed.psdED, ns->ed.mult.ve.dpKernel, namefile, myrank, ntasks);
-            }
-        break;
-        case VISCOELASTIC:
-            // Viscoelastic Kernel Tensor file name
-            snprintf(namefile, sizeof namefile, "%s._dpKernel", ns->par.namesave);
-            save_dp_tensor(ns->ed.psdED, ns->ed.ve.dpKernel, namefile, myrank, ntasks);
-        break;
-        case VISCOELASTIC_INTEGRAL:
-            // Viscoelastic Integral Elastic (S) Tensor file name
-            snprintf(namefile, sizeof namefile, "%s._dpS_im", ns->par.namesave);
-            save_dp_tensor(ns->ed.psdED, ns->ed.im.dpS, namefile, myrank, ntasks);
-
-            for(int k=0; k <= NDT; k++){
-                // Viscoelastic Integral Finger Tensor (B) file name base at a certain time frame k
-                snprintf(namefile, sizeof namefile, "%s._dpB%d", ns->par.namesave, k);
-                save_dp_tensor(ns->ed.psdED, ns->ed.im.dpB[k], namefile, myrank, ntasks);
-            }
-        break;
-    }
-
-    if (ns->contr.eoflow == true) {
-
-        // Electroosmotic Applied Potential Phi file name
-        snprintf(namefile, sizeof namefile, "%s._dpphi", ns->par.namesave);
-        save_dp_scalar(ns->ed.eo.psdEOphi, ns->ed.eo.dpphi, namefile, myrank, ntasks);
-
-        // Electroosmotic Induced Potential (zeta potential) Psi file name
-        snprintf(namefile, sizeof namefile, "%s._dppsi", ns->par.namesave);
-        save_dp_scalar(ns->ed.eo.psdEOpsi, ns->ed.eo.dppsi, namefile, myrank, ntasks);
-
-        // Electroosmotic Positive charge concentration Nplus file name
-        snprintf(namefile, sizeof namefile, "%s._dpnplus", ns->par.namesave);
-        save_dp_scalar(ns->ed.eo.psdEOnplus, ns->ed.eo.dpnplus, namefile, myrank, ntasks);
-
-        // Electroosmotic Negative charge concentration Nminus file name
-        snprintf(namefile, sizeof namefile, "%s._dpnminus", ns->par.namesave);
-        save_dp_scalar(ns->ed.eo.psdEOnminus, ns->ed.eo.dpnminus, namefile, myrank, ntasks);
-
-        // Electroosmotic source term file name
-        snprintf(namefile, sizeof namefile, "%s._dpFeo", ns->par.namesave);
-        save_fdp_vec(ns->ed.eo.psfdEOFeo, ns->ed.eo.dpFeo, namefile, myrank, ntasks);
-
-    }
-
-}
-
-
 // create the destination name by concatenating the save name up to the last slash 
 // with the load name after the last slash
-void get_amrfilename_save(char (*load)[1024], char (*save)[1024], char *destination) {
+static void get_filename_save(char (*load)[1024], char (*save)[1024], char *destination) {
     char *lastslash_save = strrchr(*save, '/');
 
     char *lastslash_load = strrchr(*load, '/');
@@ -3346,11 +2536,10 @@ void get_amrfilename_save(char (*load)[1024], char (*save)[1024], char *destinat
         destination[len] = '\0';
         strcat(destination, lastslash_load);
     } else {
-        printf("=+=+=+= Error in get_amrfilename_save =+=+=+=\n");
+        printf("=+=+=+= Error in get_filename_save =+=+=+=\n");
         exit(1);
     }
 }
-
 
 void higflow_save_domain(higflow_solver *ns, int myrank, int ntasks) {
     if(myrank == 0) { 
@@ -3406,7 +2595,7 @@ void higflow_save_domain(higflow_solver *ns, int myrank, int ntasks) {
             
             char ch;
             char amrfilename_save[1024];
-            get_amrfilename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+            get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
 
             int samefile_amr = 0;
             if(strcmp(amrfilename_load, amrfilename_save) == 0) {
@@ -3503,7 +2692,7 @@ void higflow_save_boundaries(higflow_solver *ns, int myrank, int ntasks) {
             
             char ch;
             char amrfilename_save[1024];
-            get_amrfilename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+            get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
 
             int samefile_amr = 0;
             if(strcmp(amrfilename_load, amrfilename_save) == 0) {
@@ -3610,7 +2799,7 @@ void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int 
             
             char ch;
             char amrfilename_save[1024];
-            get_amrfilename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+            get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
 
             int samefile_amr = 0;
             if(strcmp(amrfilename_load, amrfilename_save) == 0) {
@@ -3659,6 +2848,1999 @@ void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int 
     }
 }
 
+void higflow_save_all_boundaries(higflow_solver *ns, int myrank, int ntasks) {
+    higflow_save_boundaries(ns, myrank, ntasks);
+
+    if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true))
+        higflow_save_boundaries_electroosmotic(ns, myrank, ntasks);
+}
+
+
+void higflow_save_domain_yaml(higflow_solver *ns, int myrank, int ntasks) {
+    // copies the yaml file, therefore can only be executed in the first step
+    // otherwise user could have changed the files during the simulation execution
+    if(ns->par.step != ns->par.initstep) { 
+        print0f("=+=+=+= Warning: higflow_save_domain_yaml can only be executed in the first step, because it copies the yaml file =+=+=+=\n");
+        print0f("=+=+=+= Otherwise user could have changed the files during the simulation execution =+=+=+=\n");
+        return;
+    }
+    if(myrank == 0) { 
+        // Loading the domain data
+        char namefile_load[1024];
+        sprintf(namefile_load,"%s.domain.yaml",ns->par.nameload);
+        char namefile_save[1024];
+        sprintf(namefile_save, "%s.domain.yaml", ns->par.namesave);
+
+        int samefile = 0;
+        if(strcmp(namefile_load, namefile_save) == 0) {
+            printf("=+=+=+= Load and Save names are the same - not changing the domain file =+=+=+=\n");
+            samefile = 1;
+        }
+
+
+        FILE *fdomain_load = fopen(namefile_load, "r");
+        if (fdomain_load == NULL) {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile_load);
+            exit(1);
+        }
+        struct fy_document *fyd_load = fy_document_build_from_file(NULL, namefile_load);
+
+        FILE *fdomain_save;
+        struct fy_document *fyd_save;
+        if(samefile == 0) {
+            fdomain_save = fopen(namefile_save, "w");
+            if (fdomain_save == NULL) {
+                // Error in open the file
+                printf("=+=+=+= Error saving file %s =+=+=+=\n",namefile_save);
+                exit(1);
+            }
+
+            char ch;
+            while ((ch = fgetc(fdomain_load)) != EOF) fputc(ch, fdomain_save);
+            fclose(fdomain_save);
+
+            fyd_save = fy_document_build_from_file(NULL, namefile_save);
+        }
+        fclose(fdomain_load);
+
+        // Number of HigTrees
+        int numhigs;
+        fy_document_scanf(fyd_load, "/domain/number_domains %d", &numhigs);
+
+        for(int h = 0; h < numhigs; h++) {
+            // Name of the HigTree file
+            char amrfilename_load[1024];
+            char path_path[1024];
+            sprintf(path_path, "/domain/domain%d/path", h);
+            strcat(path_path, " %s");
+            fy_document_scanf(fyd_load, path_path, amrfilename_load);
+
+            // Open the AMR format file
+            FILE *fd_load = fopen(amrfilename_load, "r");
+            if (fd_load == NULL) {
+                // Error in open the file
+                printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename_load);
+                exit(1);
+            }
+            
+            char ch;
+            char amrfilename_save[1024];
+            get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+
+            int samefile_amr = 0;
+            if(strcmp(amrfilename_load, amrfilename_save) == 0) {
+                printf("=+=+=+= Load and Save names are the same - not changing the domain %d amr file =+=+=+=\n", h);
+                samefile_amr = 1;
+            }
+
+            // copy the corresponding filename of the hig
+            if(samefile == 0) {
+                sprintf(path_path, "/domain/domain%d/path", h);
+                fy_document_insert_at(fyd_save, path_path, FY_NT,
+                                    fy_node_buildf(fyd_save, "%s", amrfilename_save));
+            }
+
+            // Copying the higtree information to the file 
+            if(samefile_amr == 0) {
+                printf("=+=+=+= Saving domain %d to %s =+=+=+=\n", h, amrfilename_save);
+
+                FILE *fd_save = fopen(amrfilename_save, "w");
+                if (fd_save == NULL) {
+                    // Error in open the file
+                    printf("=+=+=+= Error saving file %s =+=+=+=\n",amrfilename_save);
+                    exit(1);
+                }
+
+                while ((ch = fgetc(fd_load)) != EOF) {
+                    fputc(ch, fd_save);
+                }
+
+                fclose(fd_save);
+            }
+            
+            // Close the AMR format files
+            fclose(fd_load);
+            
+        }
+
+        fy_document_destroy(fyd_load);
+        if(samefile == 0){
+            char *text = fy_emit_document_to_string(fyd_save, FYECF_DEFAULT);
+            fdomain_save = fopen(namefile_save, "w");
+            fprintf(fdomain_save, "%s", text);
+            fclose(fdomain_save);
+            fy_document_destroy(fyd_save);  
+            free(text);
+        }          
+    }
+
+}
+
+void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks) {
+    // copies the yaml file, therefore can only be executed in the first step
+    // otherwise user could have changed the files during the simulation execution
+    if(ns->par.step != ns->par.initstep) { 
+        print0f("=+=+=+= Warning: higflow_save_all_boundaries_yaml can only be executed in the first step, because it copies the yaml file =+=+=+=\n");
+        print0f("=+=+=+= Otherwise user could have changed the files during the simulation execution =+=+=+=\n");
+        return;
+    }
+    if(myrank == 0) { 
+        // Loading the boundary data
+        char namefile_load[1024];
+        sprintf(namefile_load,"%s.bc.yaml",ns->par.nameload);
+        char namefile_save[1024];
+        sprintf(namefile_save, "%s.bc.yaml", ns->par.namesave);
+
+        int samefile = 0;
+        if(strcmp(namefile_load, namefile_save) == 0) {
+            printf("=+=+=+= Load and Save names are the same - not changing the bc file =+=+=+=\n");
+            samefile = 1;
+        }
+
+        FILE *fboundary_load = fopen(namefile_load, "r");
+        if (fboundary_load == NULL) {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile_load);
+            exit(1);
+        }
+        struct fy_document *fyd_load = fy_document_build_from_file(NULL, namefile_load);
+
+        FILE *fboundary_save;
+        struct fy_document *fyd_save;
+        if(samefile == 0) {
+            fboundary_save = fopen(namefile_save, "w");
+            if (fboundary_save == NULL) {
+                // Error in open the file
+                printf("=+=+=+= Error saving file %s =+=+=+=\n",namefile_save);
+                exit(1);
+            }
+
+            char ch;
+            while ((ch = fgetc(fboundary_load)) != EOF) fputc(ch, fboundary_save);
+            fclose(fboundary_save);
+
+            fyd_save = fy_document_build_from_file(NULL, namefile_save);
+        }
+        fclose(fboundary_load);
+
+        // Number of HigTrees
+        int numbcs;
+        fy_document_scanf(fyd_load, "/bc/number_bc %d", &numbcs);
+
+        for(int h = 0; h < numbcs; h++) {
+            // Name of the HigTree file
+            char amrfilename_load[1024];
+            char path_path[1024];
+            sprintf(path_path, "/bc/bc%d/path", h);
+            strcat(path_path, " %s");
+            fy_document_scanf(fyd_load, path_path, amrfilename_load);
+
+            // Open the AMR format file
+            FILE *fd_load = fopen(amrfilename_load, "r");
+            if (fd_load == NULL) {
+                // Error in open the file
+                printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename_load);
+                exit(1);
+            }
+            
+            char ch;
+            char amrfilename_save[1024];
+            get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+
+            int samefile_amr = 0;
+            if(strcmp(amrfilename_load, amrfilename_save) == 0) {
+                printf("=+=+=+= Load and Save names are the same - not changing the boundary %d amr file =+=+=+=\n", h);
+                samefile_amr = 1;
+            }
+
+            // copy the corresponding filename of the hig
+            if(samefile == 0) {
+                sprintf(path_path, "/bc/bc%d/path", h);
+                fy_document_insert_at(fyd_save, path_path, FY_NT,
+                                    fy_node_buildf(fyd_save, "%s", amrfilename_save));
+            }
+
+            if(samefile_amr == 0) {
+                printf("=+=+=+= Saving boundary %d to %s =+=+=+=\n", h, amrfilename_save);
+
+                // Copy
+                FILE *fd_save = fopen(amrfilename_save, "w");
+                if (fd_save == NULL) {
+                    // Error in open the file
+                    printf("=+=+=+= Error saving file %s =+=+=+=\n",amrfilename_save);
+                    exit(1);
+                }
+
+                while ((ch = fgetc(fd_load)) != EOF) {
+                    fputc(ch, fd_save);
+                }
+
+                fclose(fd_save);
+            }
+            
+            // Close the AMR format files
+            fclose(fd_load);
+        }
+
+        /////////// Electroosmotic //////////////
+        int err = fy_document_scanf(fyd_load, "/bc_electroosmotic/number_bc %d", &numbcs);
+        if(err != -1) {
+
+            for(int h = 0; h < numbcs; h++) {
+                // Name of the HigTree file
+                char amrfilename_load[1024];
+                char path_path[1024];
+                sprintf(path_path, "/bc_electroosmotic/bc%d/path", h);
+                strcat(path_path, " %s");
+                fy_document_scanf(fyd_load, path_path, amrfilename_load);
+
+                // Open the AMR format file
+                FILE *fd_load = fopen(amrfilename_load, "r");
+                if (fd_load == NULL) {
+                    // Error in open the file
+                    printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename_load);
+                    exit(1);
+                }
+                
+                char ch;
+                char amrfilename_save[1024];
+                get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+
+                int samefile_amr = 0;
+                if(strcmp(amrfilename_load, amrfilename_save) == 0) {
+                    printf("=+=+=+= Load and Save names are the same - not changing the boundary %d amr file =+=+=+=\n", h);
+                    samefile_amr = 1;
+                }
+
+                // copy the corresponding filename of the hig
+                if(samefile == 0) {
+                    sprintf(path_path, "/bc_electroosmotic/bc%d/path", h);
+                    fy_document_insert_at(fyd_save, path_path, FY_NT,
+                                        fy_node_buildf(fyd_save, "%s", amrfilename_save));
+                }
+
+                if(samefile_amr == 0) {
+                    printf("=+=+=+= Saving electroosmotic boundary %d to %s =+=+=+=\n", h, amrfilename_save);
+
+                    // Copy
+                    FILE *fd_save = fopen(amrfilename_save, "w");
+                    if (fd_save == NULL) {
+                        // Error in open the file
+                        printf("=+=+=+= Error saving file %s =+=+=+=\n",amrfilename_save);
+                        exit(1);
+                    }
+
+                    while ((ch = fgetc(fd_load)) != EOF) {
+                        fputc(ch, fd_save);
+                    }
+
+                    fclose(fd_save);
+                }
+                
+                // Close the AMR format files
+                fclose(fd_load);
+            }
+        }
+        else {
+            if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)){
+                printf("=+=+=+= Warning: could not save the electroosmotic boundaries =+=+=+=\n");
+            }
+        }
+
+        fy_document_destroy(fyd_load);
+        if(samefile == 0){
+            char *text = fy_emit_document_to_string(fyd_save, FYECF_DEFAULT);
+            fboundary_save = fopen(namefile_save, "w");
+            fprintf(fboundary_save, "%s", text);
+            fclose(fboundary_save);
+            //fy_document_destroy(fyd_save);  for some reason gives a segfault in the cluster - luckily, the memleak only happens once per simulation
+            free(text);
+        }          
+    }
+
+}
+
+
+// Loading the properties
+void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
+
+    char namefile[1024];
+    
+    // Velocity filename base
+    snprintf(namefile, sizeof namefile, "%s._dpu", ns->par.namesave);
+    load_fdp_vec(ns->psfdu, ns->dpu, namefile, myrank, ntasks);
+
+    // Pressure file name
+    snprintf(namefile, sizeof namefile, "%s._dpp", ns->par.namesave);
+    load_dp_scalar(ns->psdp, ns->dpp, namefile, myrank, ntasks);
+
+    // Cell source term file name
+    snprintf(namefile, sizeof namefile, "%s._dpF", ns->par.namesave);
+    load_dp_scalar(ns->psdF, ns->dpF, namefile, myrank, ntasks);
+
+    // Facet source term file name base
+    snprintf(namefile, sizeof namefile, "%s._dpFU", ns->par.namesave);
+    load_fdp_vec(ns->psfdF, ns->dpFU, namefile, myrank, ntasks);
+
+    switch (ns->contr.flowtype) {
+        case GENERALIZED_NEWTONIAN:
+            // Generalized Newtonian Viscosity file name
+            snprintf(namefile, sizeof namefile, "%s._dpvisc_gn", ns->par.namesave);
+            load_dp_scalar(ns->ed.psdED, ns->ed.gn.dpvisc, namefile, myrank, ntasks);
+        break;
+        case MULTIPHASE:
+            // Volume Fraction file name
+            snprintf(namefile, sizeof namefile, "%s._dpfracvol", ns->par.namesave);
+            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
+
+            // Multiphase Viscosity file name
+            snprintf(namefile, sizeof namefile, "%s._dpvisc_mult", ns->par.namesave);
+            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
+
+            // Multiphase Density file name
+            snprintf(namefile, sizeof namefile, "%s._dpdens", ns->par.namesave);
+            load_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpdens, namefile, myrank, ntasks);
+
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
+                // Multiphase Kernel Tensor file name base
+                snprintf(namefile, sizeof namefile, "%s._dpKernel_mult", ns->par.namesave);
+                load_dp_tensor(ns->ed.psdED, ns->ed.ve.dpKernel, namefile, myrank, ntasks);
+            }
+        break;
+        case VISCOELASTIC:
+            // Viscoelastic Kernel Tensor file name
+            snprintf(namefile, sizeof namefile, "%s._dpKernel", ns->par.namesave);
+            load_dp_tensor(ns->ed.psdED, ns->ed.ve.dpKernel, namefile, myrank, ntasks);
+        break;
+        case VISCOELASTIC_INTEGRAL:
+            // Viscoelastic Integral Elastic (S) Tensor file name
+            snprintf(namefile, sizeof namefile, "%s._dpS_im", ns->par.namesave);
+            load_dp_tensor(ns->ed.psdED, ns->ed.im.dpS, namefile, myrank, ntasks);
+
+            for(int k=0; k <= NDT; k++){
+                // Viscoelastic Integral Finger Tensor (B) file name base at a certain time frame k
+                snprintf(namefile, sizeof namefile, "%s._dpB%d", ns->par.namesave, k);
+                load_dp_tensor(ns->ed.psdED, ns->ed.im.dpB[k], namefile, myrank, ntasks);
+            }
+        break;
+    }
+
+    if (ns->contr.eoflow == true) {
+
+        // Electroosmotic Applied Potential Phi file name
+        snprintf(namefile, sizeof namefile, "%s._dpphi", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOphi, ns->ed.eo.dpphi, namefile, myrank, ntasks);
+
+        // Electroosmotic Induced Potential (zeta potential) Psi file name
+        snprintf(namefile, sizeof namefile, "%s._dppsi", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOpsi, ns->ed.eo.dppsi, namefile, myrank, ntasks);
+
+        // Electroosmotic Positive charge concentration Nplus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnplus", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOnplus, ns->ed.eo.dpnplus, namefile, myrank, ntasks);
+
+        // Electroosmotic Negative charge concentration Nminus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnminus", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOnminus, ns->ed.eo.dpnminus, namefile, myrank, ntasks);
+
+        // Electroosmotic source term file name
+        snprintf(namefile, sizeof namefile, "%s._dpFeo", ns->par.namesave);
+        load_fdp_vec(ns->ed.eo.psfdEOFeo, ns->ed.eo.dpFeo, namefile, myrank, ntasks);
+
+    }
+
+    if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+
+        // Electroosmotic Applied Potential Phi file name
+        snprintf(namefile, sizeof namefile, "%s._dpphi_mult", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOphi, ns->ed.eo.dpphi, namefile, myrank, ntasks);
+
+        // Electroosmotic Induced Potential (zeta potential) Psi file name
+        snprintf(namefile, sizeof namefile, "%s._dppsi_mult", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOpsi, ns->ed.eo.dppsi, namefile, myrank, ntasks);
+
+        // Electroosmotic Positive charge concentration Nplus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnplus_mult", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOnplus, ns->ed.eo.dpnplus, namefile, myrank, ntasks);
+
+        // Electroosmotic Negative charge concentration Nminus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnminus_mult", ns->par.namesave);
+        load_dp_scalar(ns->ed.eo.psdEOnminus, ns->ed.eo.dpnminus, namefile, myrank, ntasks);
+
+        // Electroosmotic source term file name
+        snprintf(namefile, sizeof namefile, "%s._dpFeo_mult", ns->par.namesave);
+        load_fdp_vec(ns->ed.eo.psfdEOFeo, ns->ed.eo.dpFeo, namefile, myrank, ntasks);
+    }
+
+}
+
+// Saving the properties
+void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
+    
+    char namefile[1024];
+
+    // Velocity filename base
+    snprintf(namefile, sizeof namefile, "%s._dpu", ns->par.namesave);
+    save_fdp_vec(ns->psfdu, ns->dpu, namefile, myrank, ntasks);
+
+    // Pressure file name
+    snprintf(namefile, sizeof namefile, "%s._dpp", ns->par.namesave);
+    save_dp_scalar(ns->psdp, ns->dpp, namefile, myrank, ntasks);
+
+    // Cell source term file name
+    snprintf(namefile, sizeof namefile, "%s._dpF", ns->par.namesave);
+    save_dp_scalar(ns->psdF, ns->dpF, namefile, myrank, ntasks);
+
+    // Facet source term file name base
+    snprintf(namefile, sizeof namefile, "%s._dpFU", ns->par.namesave);
+    save_fdp_vec(ns->psfdF, ns->dpFU, namefile, myrank, ntasks);
+
+    switch (ns->contr.flowtype) {
+        case GENERALIZED_NEWTONIAN:
+            // Generalized Newtonian Viscosity file name
+            snprintf(namefile, sizeof namefile, "%s._dpvisc_gn", ns->par.namesave);
+            save_dp_scalar(ns->ed.psdED, ns->ed.gn.dpvisc, namefile, myrank, ntasks);
+        break;
+        case MULTIPHASE:
+            // Volume Fraction file name
+            snprintf(namefile, sizeof namefile, "%s._dpfracvol", ns->par.namesave);
+            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpfracvol, namefile, myrank, ntasks);
+
+            // Multiphase Viscosity file name
+            snprintf(namefile, sizeof namefile, "%s._dpvisc_mult", ns->par.namesave);
+            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpvisc, namefile, myrank, ntasks);
+
+            // Multiphase Density file name
+            snprintf(namefile, sizeof namefile, "%s._dpdens", ns->par.namesave);
+            save_dp_scalar(ns->ed.mult.psdmult, ns->ed.mult.dpdens, namefile, myrank, ntasks);
+
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
+                // Multiphase Kernel Tensor file name base
+                snprintf(namefile, sizeof namefile, "%s._dpKernel_mult", ns->par.namesave);
+                save_dp_tensor(ns->ed.psdED, ns->ed.ve.dpKernel, namefile, myrank, ntasks);
+            }
+        break;
+        case VISCOELASTIC:
+            // Viscoelastic Kernel Tensor file name
+            snprintf(namefile, sizeof namefile, "%s._dpKernel", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.ve.dpKernel, namefile, myrank, ntasks);
+        break;
+        case VISCOELASTIC_INTEGRAL:
+            // Viscoelastic Integral Elastic (S) Tensor file name
+            snprintf(namefile, sizeof namefile, "%s._dpS_im", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.im.dpS, namefile, myrank, ntasks);
+
+            for(int k=0; k <= NDT; k++){
+                // Viscoelastic Integral Finger Tensor (B) file name base at a certain time frame k
+                snprintf(namefile, sizeof namefile, "%s._dpB%d", ns->par.namesave, k);
+                save_dp_tensor(ns->ed.psdED, ns->ed.im.dpB[k], namefile, myrank, ntasks);
+            }
+        break;
+    }
+
+    if (ns->contr.eoflow == true) {
+
+        // Electroosmotic Applied Potential Phi file name
+        snprintf(namefile, sizeof namefile, "%s._dpphi", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOphi, ns->ed.eo.dpphi, namefile, myrank, ntasks);
+
+        // Electroosmotic Induced Potential (zeta potential) Psi file name
+        snprintf(namefile, sizeof namefile, "%s._dppsi", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOpsi, ns->ed.eo.dppsi, namefile, myrank, ntasks);
+
+        // Electroosmotic Positive charge concentration Nplus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnplus", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOnplus, ns->ed.eo.dpnplus, namefile, myrank, ntasks);
+
+        // Electroosmotic Negative charge concentration Nminus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnminus", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOnminus, ns->ed.eo.dpnminus, namefile, myrank, ntasks);
+
+        // Electroosmotic source term file name
+        snprintf(namefile, sizeof namefile, "%s._dpFeo", ns->par.namesave);
+        save_fdp_vec(ns->ed.eo.psfdEOFeo, ns->ed.eo.dpFeo, namefile, myrank, ntasks);
+
+    }
+
+    if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+
+        // Electroosmotic Applied Potential Phi file name
+        snprintf(namefile, sizeof namefile, "%s._dpphi_mult", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOphi, ns->ed.eo.dpphi, namefile, myrank, ntasks);
+
+        // Electroosmotic Induced Potential (zeta potential) Psi file name
+        snprintf(namefile, sizeof namefile, "%s._dppsi_mult", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOpsi, ns->ed.eo.dppsi, namefile, myrank, ntasks);
+
+        // Electroosmotic Positive charge concentration Nplus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnplus_mult", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOnplus, ns->ed.eo.dpnplus, namefile, myrank, ntasks);
+
+        // Electroosmotic Negative charge concentration Nminus file name
+        snprintf(namefile, sizeof namefile, "%s._dpnminus_mult", ns->par.namesave);
+        save_dp_scalar(ns->ed.eo.psdEOnminus, ns->ed.eo.dpnminus, namefile, myrank, ntasks);
+
+        // Electroosmotic source term file name
+        snprintf(namefile, sizeof namefile, "%s._dpFeo_mult", ns->par.namesave);
+        save_fdp_vec(ns->ed.eo.psfdEOFeo, ns->ed.eo.dpFeo, namefile, myrank, ntasks);
+
+    }
+
+}
+
+
+static void parse_yaml_sequence(struct fy_document *fyd, char *path, real *arr, int arr_len, char *name) {
+    struct fy_node *flow_seq = fy_node_by_path(fy_document_root(fyd), path,-1, FYNWF_PTR_DEFAULT);
+    int seq_len = fy_node_sequence_item_count(flow_seq);
+    if(seq_len != arr_len) {
+        print0f("=+=+=+= Number of %s parameters invalid =+=+=+=\n", name);
+        exit(1);
+    }
+    for(int i = 0; i < arr_len; i++) {
+        struct fy_node *elem = fy_node_sequence_get_by_index(flow_seq, i);
+        const char *text = fy_node_get_scalar0(elem);
+        arr[i] = atof(text);
+        print0f( "%s[%d]: %lf ", name, i, arr[i]);
+    }
+    print0f("\n");
+}
+
+static int parse_boolean(char *text, char *name) {
+    if (strcasecmp(text, "true") == 0 || strcasecmp(text, "yes") == 0 || strcasecmp(text, "on") == 0 || 
+        strcasecmp(text, "y") == 0 || strcmp(text, "1") == 0)
+        return 1;
+    else if (strcasecmp(text, "false") == 0 || strcasecmp(text, "no") == 0 || strcasecmp(text, "n") == 0 ||
+             strcasecmp(text, "off") == 0 || strcmp(text, "0") == 0)
+        return 0;
+    else {
+        print0f("=+=+=+= Invalid boolean value for %s =+=+=+=\n", name);
+        exit(1);
+    }
+}
+
+// Loading the controllers and parameters
+void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int myrank) {
+    // Parameters file name
+    char ParContr[1024], Init[1024];
+
+    snprintf(Init, sizeof Init, "%s.init.yaml", ns->par.nameload);
+    struct fy_document* fydini = NULL;
+
+    snprintf(ParContr, sizeof ParContr, "%s.par.contr.yaml", ns->par.nameload);
+    struct fy_document* fyd = NULL;
+
+    fyd = fy_document_build_from_file(NULL, ParContr);
+    fydini = fy_document_build_from_file(NULL, Init);
+
+    if (fyd == NULL || fydini == NULL) {
+        // Error in open the file
+        print0f("=+=+=+= Error loading file %s or %s =+=+=+=\n", ParContr, Init);
+        exit(1);
+    }
+
+    ///////////////////////////////// Initial Parameters /////////////////////////////////
+
+    // Loading the controllers
+    int ifd = 0;
+    // Load Step, Initial Frame, Initial Time of the Simulation
+    ifd += fy_document_scanf(fydini, "/init_par/step %d", &(ns->par.step));
+    ns->par.initstep = ns->par.step;
+    ifd += fy_document_scanf(fydini, "/init_par/t %lf", &(ns->par.t));
+    ifd += fy_document_scanf(fydini, "/init_par/frame %d", &(ns->par.frame));
+    ifd += fy_document_scanf(fydini, "/init_par/ts %lf", &(ns->par.ts));
+    ifd += fy_document_scanf(fydini, "/init_par/tp %lf", &(ns->par.tp));
+    if (ifd != 5) {
+        print0f("=+=+=+= Initial Parameters are Missing!!! =+=+=+=\n");
+        exit(1);
+    }
+
+
+    char auxchar[1024];
+
+
+    ///////////////////////////////////// Parameters /////////////////////////////////
+    
+    // The Parameters of the Simulation
+    ifd = 0;
+    ifd += fy_document_scanf(fyd, "/simulation_par/numsteps %d", &(ns->par.numsteps));
+    ns->par.finalstep = ns->par.step + ns->par.numsteps - 1;
+    ifd += fy_document_scanf(fyd, "/simulation_par/dt %lf", &(ns->par.dt));
+    ifd += fy_document_scanf(fyd, "/simulation_par/dts %lf", &(ns->par.dts));
+    ifd += fy_document_scanf(fyd, "/simulation_par/dtp %lf", &(ns->par.dtp));
+    if(ifd != 4) {
+        print0f("=+=+=+= Simulation Parameters are Missing!!! =+=+=+=\n");
+        exit(1);
+    }
+
+    // Adimensional parameters
+    ifd += fy_document_scanf(fyd, "/adimensional/Re %lf", &(ns->par.Re));
+    print0f("=+=+=+= Reynolds Number: %lf =+=+=+=\n", ns->par.Re);
+    ifd += fy_document_scanf(fyd, "/adimensional/Fr %lf", &(ns->par.Fr));
+    print0f("=+=+=+= Froude Number: %lf =+=+=+=\n", ns->par.Fr);
+
+    ///////////////////////////////////// Controllers /////////////////////////////////
+
+    // Projection Method
+    ifd += fy_document_scanf(fyd, "/simulation_contr/projtype %s", auxchar);
+    if (strcmp(auxchar, "non_incremental") == 0) {
+        ns->contr.projtype = NON_INCREMENTAL;
+        print0f("=+=+=+= Projection Method: Non Incremental =+=+=+=\n");
+    } 
+    else if (strcmp(auxchar, "incremental") == 0) {
+        ns->contr.projtype = INCREMENTAL;
+        print0f("=+=+=+= Projection Method: Incremental =+=+=+=\n");
+    } 
+    else {
+        print0f("=+=+=+= Projection Method %s: Invalid =+=+=+=\n", auxchar);
+        exit(1);
+    }
+
+    // Temporal Discretization
+    ifd += fy_document_scanf(fyd, "/simulation_contr/tempdiscrtype %s", auxchar);
+    if (strcmp(auxchar, "explicit_euler") == 0) {
+        ns->contr.tempdiscrtype = EXPLICIT_EULER;
+        print0f("=+=+=+= Temporal Discretization: Explicit Euler =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "explicit_rk2") == 0) {
+        ns->contr.tempdiscrtype = EXPLICIT_RK2;
+        print0f("=+=+=+= Temporal Discretization: Runge-Kutta 2 =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "explicit_rk3") == 0) {
+        ns->contr.tempdiscrtype = EXPLICIT_RK3;
+        print0f("=+=+=+= Temporal Discretization: Runge-Kutta 3 =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "semi_implicit_euler") == 0) {
+        ns->contr.tempdiscrtype = SEMI_IMPLICIT_EULER;
+        print0f("=+=+=+= Temporal Discretization: Semi-Implicit Euler =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "semi_implicit_crank_nicolson") == 0) {
+        ns->contr.tempdiscrtype = SEMI_IMPLICIT_CN;
+        print0f("=+=+=+= Temporal Discretization: Semi-Implicit Crank-Nicolson =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "semi_implicit_bdf2") == 0) {
+        ns->contr.tempdiscrtype = SEMI_IMPLICIT_BDF2;
+        print0f("=+=+=+= Temporal Discretization: Semi-Implicit BDF2 =+=+=+=\n");
+    }
+    else {
+        print0f("=+=+=+= Temporal Discretization %s: Invalid =+=+=+=\n", auxchar);
+        exit(1);
+    }
+
+    // Spatial Discretization Order
+    ifd += fy_document_scanf(fyd, "/simulation_contr/spatialdiscrtype %s", auxchar);
+    if (strcmp(auxchar, "second_order") == 0) {
+        ns->contr.spatialdiscrtype = ORDER2;
+        print0f("=+=+=+= Spatial Discretization: Second Order =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "forth_order") == 0) {
+        ns->contr.spatialdiscrtype = ORDER4;
+        print0f("=+=+=+= Spatial Discretization: Forth Order is NOT implemented yet =+=+=+=\n");
+        exit(1);
+    }
+    else {
+        print0f("=+=+=+= Spatial Discretization %s: Invalid =+=+=+=\n", auxchar);
+        exit(1);
+    }
+
+    // Convective Discretization Type
+    ifd += fy_document_scanf(fyd, "/simulation_contr/convecdiscrtype %s", auxchar);
+    if (strcmp(auxchar, "central") == 0) {
+        ns->contr.convecdiscrtype = CENTRAL;
+        print0f("=+=+=+= Convective Scheme: Central =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "first_order") == 0) {
+        ns->contr.convecdiscrtype = FIRST_ORDER;
+        print0f("=+=+=+= Convective Scheme: First Order Upwind =+=+=+=\n");
+    }
+    else if (strcmp(auxchar, "second_order") == 0) {
+        // Second Convective Discretization Type
+        ns->contr.convecdiscrtype = SECOND_ORDER;
+        print0f("=+=+=+= Convective Scheme: Second Order Upwind =+=+=+=\n");
+
+        ifd += fy_document_scanf(fyd, "/simulation_contr/secondconvecdiscrtype %s", auxchar);
+        if (strcmp(auxchar, "modified_coefficient_upwind") == 0) {
+            ns->contr.secondconvecdiscrtype = MCU;
+            print0f("    =+= Convective Scheme Type : Modified Coefficient Upwind =+=\n");
+        }
+        else if (strcmp(auxchar, "cubista") == 0) {
+            ns->contr.secondconvecdiscrtype = CUBISTA;
+            print0f("    =+= Convective Scheme Type : CUBISTA =+=\n");
+        }
+        else if (strcmp(auxchar, "quick") == 0) {
+            ns->contr.secondconvecdiscrtype = QUICK;
+            print0f("    =+= Convective Scheme Type : Quick =+=\n");
+        }
+        else {
+            print0f("=+=+=+= Convective Scheme Type %s: Invalid =+=+=+=\n", auxchar);
+            exit(1);
+        }
+    }
+    else {
+        print0f("=+=+=+= Convective Scheme %s: Invalid =+=+=+=\n", auxchar);
+        exit(1);
+    }
+
+    // Flowphase 
+    ifd += fy_document_scanf(fyd, "flowphase %s", auxchar);
+    if (strcmp(auxchar, "singlephase") == 0) {
+        /////////////////////////////////////  Single-phase Flow /////////////////////////////////
+        
+        // Flowtype
+        ifd += fy_document_scanf(fyd, "/singlephase/contr/flowtype %s", auxchar);
+        if (strcmp(auxchar, "newtonian") == 0) {
+            ns->contr.flowtype = NEWTONIAN;
+            print0f("=+=+=+= Flow Type: Newtonian =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "generalized_newtonian") == 0) {
+            ns->contr.flowtype = GENERALIZED_NEWTONIAN;
+            print0f("=+=+=+= Flow Type: Generalized Newtonian =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "viscoelastic") == 0) {
+            /////////////////////////////  Single-phase Viscoelastic Flow /////////////////////////////////
+            
+            ns->contr.flowtype = VISCOELASTIC;
+            print0f("=+=+=+= Flow Type: Viscoelastic =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/adimensional/De %lf", &(ns->ed.ve.par.De));
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/adimensional/beta %lf", &(ns->ed.ve.par.beta));
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/adimensional/kernel_tol %lf", &(ns->ed.ve.par.kernel_tol));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.ve.par.De);
+            print0f("=+=+=+= Beta ratio: %lf =+=+=+=\n", ns->ed.ve.par.beta);
+            print0f("=+=+=+= Kernel Tolerance: %lf =+=+=+=\n", ns->ed.ve.par.kernel_tol);
+
+            //////////////// Viscoelastic Models ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/contr/model %s", auxchar);
+            if (strcmp(auxchar, "oldroyd_b") == 0) {
+                ns->ed.ve.contr.model = OLDROYD_B;
+                print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "giesekus") == 0) {
+                ns->ed.ve.contr.model = GIESEKUS;
+                print0f("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.ve.par.alpha);
+            }
+            else if (strcmp(auxchar, "lptt") == 0) {
+                ns->ed.ve.contr.model = LPTT;
+                print0f("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_lptt/xi %lf", &(ns->ed.ve.par.xi));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.ve.par.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.ve.par.xi);
+            }
+            else if (strcmp(auxchar, "gptt") == 0) {
+                ns->ed.ve.contr.model = GPTT;
+                print0f("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/xi %lf", &(ns->ed.ve.par.xi));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/alpha_gptt %lf", &(ns->ed.ve.par.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/beta_gptt %lf", &(ns->ed.ve.par.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.ve.par.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.ve.par.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.ve.par.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.ve.par.beta_gptt);
+                ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
+            }
+            else if (strcmp(auxchar, "fene_p") == 0) {
+                ns->ed.ve.contr.model = FENE_P;
+                print0f("=+=+=+= Constitutive Equation Model: FENE-P =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_fene_p/L2 %lf", &(ns->ed.ve.par.L2_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.ve.par.L2_fene);
+            }
+            else if (strcmp(auxchar, "e_fene") == 0) {
+                ns->ed.ve.contr.model = E_FENE;
+                print0f("=+=+=+= Constitutive Equation Model: e-FENE =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_e_fene/L2 %lf", &(ns->ed.ve.par.L2_fene));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_e_fene/lambda %lf", &(ns->ed.ve.par.lambda_fene));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_e_fene/E %lf", &(ns->ed.ve.par.E_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.ve.par.L2_fene);
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.ve.par.lambda_fene);
+                print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.ve.par.E_fene);
+            }
+            else if (strcmp(auxchar, "user_set") == 0) {
+                ns->ed.ve.contr.model = USERSET;
+                print0f("=+=+=+= Constitutive Equation Model: User Set Model =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_giesekus/alpha %lf", &(ns->ed.ve.par.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.ve.par.alpha);
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_lptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_lptt/xi %lf", &(ns->ed.ve.par.xi));
+                print0f("=+=+=+= Epsilon (LPTT): %lf =+=+=+=\n", ns->ed.ve.par.epsilon);
+                print0f("=+=+=+= Xi (LPTT): %lf =+=+=+=\n", ns->ed.ve.par.xi);
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/epsilon %lf", &(ns->ed.ve.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/xi %lf", &(ns->ed.ve.par.xi));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/alpha_gptt %lf", &(ns->ed.ve.par.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_gptt/beta_gptt %lf", &(ns->ed.ve.par.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.ve.par.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.ve.par.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.ve.par.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.ve.par.beta_gptt);
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_fene_p/L2 %lf", &(ns->ed.ve.par.L2_fene));
+                print0f("=+=+=+= L2 (FENE-P): %lf =+=+=+=\n", ns->ed.ve.par.L2_fene);
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_e_fene/L2 %lf", &(ns->ed.ve.par.L2_fene));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_e_fene/lambda %lf", &(ns->ed.ve.par.lambda_fene));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/model_e_fene/E %lf", &(ns->ed.ve.par.E_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.ve.par.L2_fene);
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.ve.par.lambda_fene);
+                print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.ve.par.E_fene);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Model %s: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Viscoelastic Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.ve.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.ve.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.ve.contr.convecdiscrtype = CELL_CENTRAL;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.ve.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "viscoelastic_integral") == 0) {
+            //////////////////////////  Single-phase Viscoelastic-Integral Flow ////////////////////////////
+
+            ns->contr.flowtype = VISCOELASTIC_INTEGRAL;
+            print0f("=+=+=+= Flow Type: Viscoelastic Integral =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/adimensional/De %lf", &(ns->ed.im.par.De));
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/damping/alpha_psm %lf", &(ns->ed.im.par.alpha));
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/damping/beta_psm %lf", &(ns->ed.im.par.beta));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.im.par.De);
+            print0f("=+=+=+= Alpha Damping Parameter: %lf =+=+=+=\n", ns->ed.im.par.alpha);
+            print0f("=+=+=+= Beta Damping Parameter: %lf =+=+=+=\n", ns->ed.im.par.beta);
+
+            //////////// Viscoelastic-Integral Models ////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/contr/model %s", auxchar);
+            if (strcmp(auxchar, "kbkz") == 0) {
+                ns->ed.im.contr.model = KBKZ;
+                print0f("=+=+=+= Constitutive Equation Integral Model: K-BKZ =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz/s_c %lf", &(ns->ed.im.par.scorte));
+                print0f("=+=+=+= Cut Time: %lf =+=+=+=\n", ns->ed.im.par.scorte);
+                print0f("=+=+=+= Adimensional relaxation moduli: =+=+=+=\n");
+                parse_yaml_sequence(fyd, "/singlephase/viscoelastic_integral/model_kbkz/a", ns->ed.im.par.lambda, NRP, "a");
+                print0f("=+=+=+= Adimensional relaxation times: =+=+=+=\n");
+                parse_yaml_sequence(fyd, "/singlephase/viscoelastic_integral/model_kbkz/lambda", ns->ed.im.par.lambda, NRP, "lambda");
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz/rho %lf", &(ns->ed.im.par.rho));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz/v_ref %lf", &(ns->ed.im.par.v_ref));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz/lambda_ref %lf", &(ns->ed.im.par.l_ref));
+                print0f("=+=+=+= Density for Viscoelastic-Integral parameters: %lf =+=+=+=\n", ns->ed.im.par.rho);
+                print0f("=+=+=+= Reference velocity for Viscoelastic-Integral parameters: %lf =+=+=+=\n", ns->ed.im.par.v_ref);
+                print0f("=+=+=+= Reference lambda (relaxation time) for Viscoelastic-Integral parameters: %lf =+=+=+=\n", ns->ed.im.par.l_ref);
+            }
+            else if (strcmp(auxchar, "kbkz_fractional") == 0) {
+                ns->ed.im.contr.model = KBKZ_FRACTIONAL;
+                print0f("=+=+=+= Constitutive Equation Integral Model: K-BKZ Fractional =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz_fractional/alpha_frac %lf", &(ns->ed.im.par.alpha_frac));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz_fractional/beta_frac %lf", &(ns->ed.im.par.beta_frac));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz_fractional/V_fmm %lf", &(ns->ed.im.par.Phi1));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/model_kbkz_fractional/G_fmm %lf", &(ns->ed.im.par.Phi2));
+                print0f("=+=+=+= Alpha Fractional Exponent: %lf =+=+=+=\n", ns->ed.im.par.alpha_frac);
+                print0f("=+=+=+= Beta Fractional Exponent: %lf =+=+=+=\n", ns->ed.im.par.beta_frac);
+                print0f("=+=+=+= V fractional Maxwell Model: %lf =+=+=+=\n", ns->ed.im.par.Phi1);
+                print0f("=+=+=+= G fractional Maxwell Model: %lf =+=+=+=\n", ns->ed.im.par.Phi2);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Integral Model %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Viscoelastic Integral Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/damping/model %s", auxchar);
+            if (strcmp(auxchar, "psm") == 0) {
+                ns->ed.im.contr.model_H = PSM;
+                print0f("=+=+=+= Relaxation Model: PSM =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "ucm") == 0) {
+                ns->ed.im.contr.model_H = UCM;
+                print0f("=+=+=+= Relaxation Model: UCM =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Relaxation Model %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.im.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Integral Omega Terms Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.im.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Integral Omega Terms Discretization: Implicit is NOT implemented yet =+=+=+=\n");
+                exit(1);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Integral Omega Terms Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.im.contr.convecdiscrtype = CELL_CENTRAL;
+                print0f("=+=+=+= Constitutive Equation Integral Convective Term: Central  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.im.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Integral Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Integral Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else {
+            print0f("=+=+=+= Flow Type %s: Invalid =+=+=+=\n", auxchar);
+            exit(1);
+        }
+
+     
+        ifd += fy_document_scanf(fyd, "/singlephase/contr/eoflow %s", auxchar);
+        ns->contr.eoflow = parse_boolean(auxchar, "eoflow");
+        if(ns->contr.eoflow == true){
+            if(ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
+                print0f("=+=+=+= Electroosmotic flow is NOT yet implemented for generalized newtonian models  =+=+=+=\n");
+                exit(1);
+            }
+            if(ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
+                print0f("=+=+=+= Electroosmotic flow is NOT yet implemented for viscoelastic integral models  =+=+=+=\n");
+                exit(1);
+            }
+
+            //////////////////////////  Single-phase Electroosmotic Flow ////////////////////////////
+            print0f("=+=+=+= Electroosmotic Flow =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/adimensional/alpha %lf", &(ns->ed.eo.par.alpha));
+            ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/adimensional/delta %lf", &(ns->ed.eo.par.delta));
+            ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/adimensional/Ex %lf", &(ns->ed.eo.par.Ex));
+            print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.eo.par.alpha);
+            print0f("=+=+=+= Delta: %lf =+=+=+=\n", ns->ed.eo.par.delta);
+            print0f("=+=+=+= Ex (dphidx - applied field differential per unit distance): %lf =+=+=+=\n", ns->ed.eo.par.Ex);
+
+            //////////// Electroosmotic Models ////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/contr/model %s", auxchar);
+            if (strcmp(auxchar, "pnp") == 0) {
+                ns->ed.eo.contr.eo_model = PNP;
+                print0f("=+=+=+= Electroosmotic Model: PNP (Poisson-Nernst-Planck) =+=+=+=\n");
+
+                //////////////// PNP Electroosmotic Controllers ///////////////
+                ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/model_pnp/tempdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "explicit_euler") == 0) {
+                    ns->ed.eo.contr.tempdiscrtype = EXPLICIT_EULER;
+                    print0f("=+=+=+= Ionic Equation Discretization: Explicit Euler =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "semi_implicit_euler") == 0) {
+                    ns->ed.eo.contr.tempdiscrtype = SEMI_IMPLICIT_EULER;
+                    print0f("=+=+=+= Ionic Equation Discretization: Semi-Implicit Euler =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Ionic Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.eo.contr.convecdiscrtype = CELL_CENTRAL;
+                    print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "cubista") == 0) {
+                    ns->ed.eo.contr.convecdiscrtype = CELL_CUBISTA;
+                    print0f("=+=+=+= Ionic Equation Convective Term: CUBISTA =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Ionic Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                //////////////// PNP Electroosmotic Parameters ///////////////
+                ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/model_pnp/Pe %lf", &(ns->ed.eo.par.Pe));
+                print0f("=+=+=+= Péclet Number: %lf =+=+=+=\n", ns->ed.eo.par.Pe);
+            }
+            else if (strcmp(auxchar, "pb") == 0) {
+                ns->ed.eo.contr.eo_model = PB;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann (not working yet) =+=+=+=\n");
+                exit(1);
+            }
+            else if (strcmp(auxchar, "pbdh") == 0) {
+                ns->ed.eo.contr.eo_model = PBDH;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann-Debbye-Hückel (Linearized PB) =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "pbdh_anal") == 0) {
+                ns->ed.eo.contr.eo_model = PBDH_ANALYTIC;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann-Debbye-Hückel Analytic =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Electroosmotic Model %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+            
+        }
+        else {
+            print0f("=+=+=+= Non-Electroosmotic Flow =+=+=+=\n");
+        }
+        
+    }
+    else if (strcmp(auxchar, "multiphase") == 0) {
+        if(ns->ed.mult.contr.flowtype0 == GENERALIZED_NEWTONIAN || ns->ed.mult.contr.flowtype1 == GENERALIZED_NEWTONIAN) {
+                print0f("=+=+=+= Multiphase flow is NOT yet implemented for generalized newtonian models  =+=+=+=\n");
+                exit(1);
+        }
+        print0f("=+=+=+= Multiphase Flow =+=+=+=\n");
+        // Flowtype for Phase 0
+        ns->contr.flowtype = MULTIPHASE;
+        ns->ed.mult.contr.viscoelastic_either = false;
+        ns->ed.mult.contr.eoflow_either = false;
+        ns->contr.eoflow = false; // to avoid redundancy
+        
+        ifd += fy_document_scanf(fyd, "/multiphase/adimensional/Ca %lf", &(ns->ed.mult.par.Ca));
+        print0f("=+=+=+= Capillary Number: %lf =+=+=+=\n", ns->ed.mult.par.Ca);
+
+        /*************************************************************************************************/
+        /*****************************   Phase 0   *******************************************************/
+        /*************************************************************************************************/
+        print0f("------------------------------------------------------ \n");
+        print0f("=*+=*+=*+=*+=*+=*+=*+= Phase 0 =*+=*+=*+=*+=*+=*+=*+= \n");
+        print0f("------------------------------------------------------ \n");
+
+        ifd += fy_document_scanf(fyd, "/multiphase/contr/flowtype0 %s", auxchar);
+        if (strcmp(auxchar, "newtonian") == 0) {
+            ns->ed.mult.contr.flowtype0 = NEWTONIAN;
+            print0f("=+=+=+= Flow Type in Phase 0: Newtonian =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "generalized_newtonian") == 0) {
+            ns->ed.mult.contr.flowtype0 = GENERALIZED_NEWTONIAN;
+            print0f("=+=+=+= Flow Type in Phase 0: Generalized Newtonian =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "viscoelastic") == 0) {
+            /////////////////////////////  Multiphase Viscoelastic Flow /////////////////////////////////
+            ns->ed.mult.contr.flowtype0 = VISCOELASTIC;
+            ns->ed.mult.contr.viscoelastic_either = true;
+            print0f("=+=+=+= Flow Type in Phase 0: Viscoelastic =+=+=+=\n");
+            
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/adimensional/De %lf", &(ns->ed.mult.ve.par0.De));
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/adimensional/beta %lf", &(ns->ed.mult.ve.par0.beta));
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/adimensional/kernel_tol %lf", &(ns->ed.mult.ve.par0.kernel_tol));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.mult.ve.par0.De);
+            print0f("=+=+=+= Beta ratio: %lf =+=+=+=\n", ns->ed.mult.ve.par0.beta);
+            print0f("=+=+=+= Kernel Tolerance (is actually set to be the minimum of both kernel tolerances given - set to 1 in the non-viscoelastic case): %lf =+=+=+=\n", ns->ed.mult.ve.par0.kernel_tol);
+
+            //////////////// Viscoelastic Models ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/model0 %s", auxchar);
+            if (strcmp(auxchar, "oldroyd_b") == 0) {
+                ns->ed.mult.ve.contr.model0 = OLDROYD_B;
+                print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "giesekus") == 0) {
+                ns->ed.mult.ve.contr.model0 = GIESEKUS;
+                print0f("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_giesekus/alpha %lf", &(ns->ed.mult.ve.par0.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.mult.ve.par0.alpha);
+            }
+            else if (strcmp(auxchar, "lptt") == 0) {
+                ns->ed.mult.ve.contr.model0 = LPTT;
+                print0f("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_lptt/epsilon %lf", &(ns->ed.mult.ve.par0.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_lptt/xi %lf", &(ns->ed.mult.ve.par0.xi));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.mult.ve.par0.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.mult.ve.par0.xi);
+            }
+            else if (strcmp(auxchar, "gptt") == 0) {
+                ns->ed.mult.ve.contr.model0 = GPTT;
+                print0f("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/epsilon %lf", &(ns->ed.mult.ve.par0.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/xi %lf", &(ns->ed.mult.ve.par0.xi));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/alpha_gptt %lf", &(ns->ed.mult.ve.par0.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/beta_gptt %lf", &(ns->ed.mult.ve.par0.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.mult.ve.par0.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.mult.ve.par0.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par0.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par0.beta_gptt);
+                ns->ed.mult.ve.par0.gamma_gptt = tgamma(ns->ed.mult.ve.par0.beta_gptt);
+            }
+            else if (strcmp(auxchar, "fene_p") == 0) {
+                ns->ed.mult.ve.contr.model0 = FENE_P;
+                print0f("=+=+=+= Constitutive Equation Model: FENE-P =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_fene_p/L2 %lf", &(ns->ed.mult.ve.par0.L2_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.mult.ve.par0.L2_fene);
+            }
+            else if (strcmp(auxchar, "e_fene") == 0) {
+                ns->ed.mult.ve.contr.model0 = E_FENE;
+                print0f("=+=+=+= Constitutive Equation Model: e-FENE =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_e_fene/L2 %lf", &(ns->ed.mult.ve.par0.L2_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_e_fene/lambda %lf", &(ns->ed.mult.ve.par0.lambda_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_e_fene/E %lf", &(ns->ed.mult.ve.par0.E_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.mult.ve.par0.L2_fene);
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.mult.ve.par0.lambda_fene);
+                print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.mult.ve.par0.E_fene);
+            }
+            else if (strcmp(auxchar, "user_set") == 0) {
+                ns->ed.mult.ve.contr.model0 = USERSET;
+                print0f("=+=+=+= Constitutive Equation Model: User Set Model =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_giesekus/alpha %lf", &(ns->ed.mult.ve.par0.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.mult.ve.par0.alpha);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_lptt/epsilon %lf", &(ns->ed.mult.ve.par0.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_lptt/xi %lf", &(ns->ed.mult.ve.par0.xi));
+                print0f("=+=+=+= Epsilon (LPTT): %lf =+=+=+=\n", ns->ed.mult.ve.par0.epsilon);
+                print0f("=+=+=+= Xi (LPTT): %lf =+=+=+=\n", ns->ed.mult.ve.par0.xi);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/epsilon %lf", &(ns->ed.mult.ve.par0.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/xi %lf", &(ns->ed.mult.ve.par0.xi));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/alpha_gptt %lf", &(ns->ed.mult.ve.par0.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_gptt/beta_gptt %lf", &(ns->ed.mult.ve.par0.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.mult.ve.par0.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.mult.ve.par0.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par0.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par0.beta_gptt);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_fene_p/L2 %lf", &(ns->ed.mult.ve.par0.L2_fene));
+                print0f("=+=+=+= L2 (FENE-P): %lf =+=+=+=\n", ns->ed.mult.ve.par0.L2_fene);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_e_fene/L2 %lf", &(ns->ed.mult.ve.par0.L2_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_e_fene/lambda %lf", &(ns->ed.mult.ve.par0.lambda_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase0/model_e_fene/E %lf", &(ns->ed.mult.ve.par0.E_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.mult.ve.par0.L2_fene);
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.mult.ve.par0.lambda_fene);
+                print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.mult.ve.par0.E_fene);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Model %s: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Viscoelastic Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.mult.ve.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.mult.ve.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CENTRAL;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "viscoelastic_integral") == 0) {
+            ns->ed.mult.contr.flowtype0 = VISCOELASTIC_INTEGRAL;
+            print0f("=+=+=+= Flow Type: Viscoelastic Integral for multiphase is NOT implemented yet =+=+=+=\n");
+            exit(1);
+        }
+        else {
+            print0f("=+=+=+= Flow Type %s: Invalid =+=+=+=\n", auxchar);
+            exit(1);
+        }
+
+        /////////////////////////////// Undefined Viscoelastic parameter treatment ///////////////////////////////
+        if(ns->ed.mult.contr.flowtype0 != VISCOELASTIC) {
+            ifd += fy_document_scanf(fyd, "/multiphase/contr/flowtype1 %s", auxchar);
+            if(strcmp(auxchar, "viscoelastic") == 0) {
+                ns->ed.mult.ve.par0.De = 0.0;
+                ns->ed.mult.ve.par0.beta = 1.0;
+                ns->ed.mult.ve.par0.epsilon = 0.0;
+                ns->ed.mult.ve.par0.xi = 0.0;
+                ns->ed.mult.ve.par0.alpha = 0.0;
+                ns->ed.mult.ve.par0.kernel_tol = 1.0;
+                ns->ed.mult.ve.par0.alpha_gptt = 0.0;
+                ns->ed.mult.ve.par0.beta_gptt = 0.0;
+                ns->ed.mult.ve.par0.L2_fene = 0.0;
+                ns->ed.mult.ve.par0.lambda_fene = 0.0;
+                ns->ed.mult.ve.par0.E_fene = 0.0;
+                print0f("\n=+=+=+= Phase 0 is not viscoelastic (but Phase 1 happens to be) \n All viscoelastic parameters in phase 0 set to 0, except for beta = 1: =+=+=+=\n");
+            }
+        }
+
+        ifd += fy_document_scanf(fyd, "/multiphase/contr/eoflow0 %s", auxchar);
+        ns->ed.mult.contr.eoflow0 = parse_boolean(auxchar, "eoflow0");
+        if(ns->ed.mult.contr.eoflow0 == true) {
+            //////////////////////////  Multiphase Electroosmotic Flow ////////////////////////////
+            ns->ed.mult.contr.eoflow_either = true;
+            print0f("=+=+=+= Electrooosmotic Flow in Phase 0 =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase0/adimensional/alpha %lf", &(ns->ed.mult.eo.par0.alpha));
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase0/adimensional/delta %lf", &(ns->ed.mult.eo.par0.delta));
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase0/adimensional/Ex %lf", &(ns->ed.mult.eo.par0.Ex));
+            print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.mult.eo.par0.alpha);
+            print0f("=+=+=+= Delta: %lf =+=+=+=\n", ns->ed.mult.eo.par0.delta);
+            print0f("=+=+=+= Ex (dphidx - adimensionalized applied field differential per unit distance): %lf =+=+=+=\n", ns->ed.mult.eo.par0.Ex);
+
+            //////////// Electroosmotic Models ////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/contr/model %s", auxchar);
+            if (strcmp(auxchar, "pnp") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PNP;
+                print0f("=+=+=+= Electroosmotic Model: PNP (Poisson-Nernst-Planck) =+=+=+=\n");
+
+                //////////////// PNP Electroosmotic Controllers ///////////////
+                ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/tempdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "explicit_euler") == 0) {
+                    ns->ed.mult.eo.contr.tempdiscrtype = EXPLICIT_EULER;
+                    print0f("=+=+=+= Ionic Equation Discretization: Explicit Euler =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "semi_implicit_euler") == 0) {
+                    ns->ed.mult.eo.contr.tempdiscrtype = SEMI_IMPLICIT_EULER;
+                    print0f("=+=+=+= Ionic Equation Discretization: Semi-Implicit Euler =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Ionic Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CENTRAL;
+                    print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "cubista") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CUBISTA;
+                    print0f("=+=+=+= Ionic Equation Convective Term: CUBISTA =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Ionic Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                //////////////// PNP Electroosmotic Parameters ///////////////
+                ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase0/model_pnp/Pe %lf", &(ns->ed.mult.eo.par0.Pe));
+                print0f("=+=+=+= Péclet Number: %lf =+=+=+=\n", ns->ed.mult.eo.par0.Pe);
+            }
+            else if (strcmp(auxchar, "pb") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PB;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann (not working yet) =+=+=+=\n");
+                exit(1);
+            }
+            else if (strcmp(auxchar, "pbdh") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PBDH;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann-Debbye-Hückel (Linearized PB) =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "pbdh_anal") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PNP;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann-Debbye-Hückel Analytic for multiphase is NOT implemented yet =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Electroosmotic Model %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+            
+        }
+        else {
+            /////////////////////////////// Undefined Electroosmotic parameter treatment ///////////////////////////////
+            print0f("=+=+=+= Non-Electroosmotic Flow in Phase 0 =+=+=+=\n");
+            ifd += fy_document_scanf(fyd, "/multiphase/contr/eoflow1 %d", &(ns->ed.mult.contr.eoflow1));
+            if(ns->ed.mult.contr.eoflow1 == true) {
+                ns->ed.mult.eo.par0.alpha = 0.0;
+                ns->ed.mult.eo.par0.delta = 0.0;
+                ns->ed.mult.eo.par0.Pe = 1.0/EPSMACH; // newtonian charges should presumably get almost no diffusion in the interface
+                ns->ed.mult.eo.par0.Ex = 0.0;
+                print0f("\n=+=+=+= Phase 0 is not electroosmotic (but Phase 1 happens to be) \n All electroosmotic parameters in phase 0, except for Pe = %lf: =+=+=+=\n", ns->ed.mult.eo.par0.Pe);
+            }
+        }
+
+
+        /*************************************************************************************************/
+        /*****************************   Phase 1   *******************************************************/
+        /*************************************************************************************************/
+        print0f("------------------------------------------------------ \n");
+        print0f("=*+=*+=*+=*+=*+=*+=*+= Phase 1 =*+=*+=*+=*+=*+=*+=*+= \n");
+        print0f("------------------------------------------------------ \n");
+
+        ifd += fy_document_scanf(fyd, "/multiphase/contr/flowtype1 %s", auxchar);
+        if (strcmp(auxchar, "newtonian") == 0) {
+            ns->ed.mult.contr.flowtype1 = NEWTONIAN;
+            print0f("=+=+=+= Flow Type in Phase 1: Newtonian =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "generalized_newtonian") == 0) {
+            ns->ed.mult.contr.flowtype1 = GENERALIZED_NEWTONIAN;
+            print0f("=+=+=+= Flow Type in Phase 1: Generalized Newtonian =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "viscoelastic") == 0) {
+            /////////////////////////////  Multiphase Viscoelastic Flow /////////////////////////////////
+            ns->ed.mult.contr.flowtype1 = VISCOELASTIC;
+            ns->ed.mult.contr.viscoelastic_either = true;
+            print0f("=+=+=+= Flow Type in Phase 1: Viscoelastic =+=+=+=\n");
+            
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/adimensional/De %lf", &(ns->ed.mult.ve.par1.De));
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/adimensional/beta %lf", &(ns->ed.mult.ve.par1.beta));
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/adimensional/kernel_tol %lf", &(ns->ed.mult.ve.par1.kernel_tol));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.mult.ve.par1.De);
+            print0f("=+=+=+= Beta ratio: %lf =+=+=+=\n", ns->ed.mult.ve.par1.beta);
+            print0f("=+=+=+= Kernel Tolerance (is actually set to be the minimum of both kernel tolerances given - set to 1 in the non-viscoelastic case): %lf =+=+=+=\n", ns->ed.mult.ve.par1.kernel_tol);
+
+            //////////////// Viscoelastic Models ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/model1 %s", auxchar);
+            if (strcmp(auxchar, "oldroyd_b") == 0) {
+                ns->ed.mult.ve.contr.model1 = OLDROYD_B;
+                print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "giesekus") == 0) {
+                ns->ed.mult.ve.contr.model1 = GIESEKUS;
+                print0f("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_giesekus/alpha %lf", &(ns->ed.mult.ve.par1.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.mult.ve.par1.alpha);
+            }
+            else if (strcmp(auxchar, "lptt") == 0) {
+                ns->ed.mult.ve.contr.model1 = LPTT;
+                print0f("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_lptt/epsilon %lf", &(ns->ed.mult.ve.par1.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_lptt/xi %lf", &(ns->ed.mult.ve.par1.xi));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.mult.ve.par1.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.mult.ve.par1.xi);
+            }
+            else if (strcmp(auxchar, "gptt") == 0) {
+                ns->ed.mult.ve.contr.model1 = GPTT;
+                print0f("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/epsilon %lf", &(ns->ed.mult.ve.par1.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/xi %lf", &(ns->ed.mult.ve.par1.xi));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/alpha_gptt %lf", &(ns->ed.mult.ve.par1.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/beta_gptt %lf", &(ns->ed.mult.ve.par1.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.mult.ve.par1.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.mult.ve.par1.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par1.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par1.beta_gptt);
+                ns->ed.mult.ve.par1.gamma_gptt = tgamma(ns->ed.mult.ve.par1.beta_gptt);
+            }
+            else if (strcmp(auxchar, "fene_p") == 0) {
+                ns->ed.mult.ve.contr.model1 = FENE_P;
+                print0f("=+=+=+= Constitutive Equation Model: FENE-P =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_fene_p/L2 %lf", &(ns->ed.mult.ve.par1.L2_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.mult.ve.par1.L2_fene);
+            }
+            else if (strcmp(auxchar, "e_fene") == 0) {
+                ns->ed.mult.ve.contr.model1 = E_FENE;
+                print0f("=+=+=+= Constitutive Equation Model: e-FENE =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_e_fene/L2 %lf", &(ns->ed.mult.ve.par1.L2_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_e_fene/lambda %lf", &(ns->ed.mult.ve.par1.lambda_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_e_fene/E %lf", &(ns->ed.mult.ve.par1.E_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.mult.ve.par1.L2_fene);
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.mult.ve.par1.lambda_fene);
+                print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.mult.ve.par1.E_fene);
+            }
+            else if (strcmp(auxchar, "user_set") == 0) {
+                ns->ed.mult.ve.contr.model1 = USERSET;
+                print0f("=+=+=+= Constitutive Equation Model: User Set Model =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_giesekus/alpha %lf", &(ns->ed.mult.ve.par1.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.mult.ve.par1.alpha);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_lptt/epsilon %lf", &(ns->ed.mult.ve.par1.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_lptt/xi %lf", &(ns->ed.mult.ve.par1.xi));
+                print0f("=+=+=+= Epsilon (LPTT): %lf =+=+=+=\n", ns->ed.mult.ve.par1.epsilon);
+                print0f("=+=+=+= Xi (LPTT): %lf =+=+=+=\n", ns->ed.mult.ve.par1.xi);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/epsilon %lf", &(ns->ed.mult.ve.par1.epsilon));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/xi %lf", &(ns->ed.mult.ve.par1.xi));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/alpha_gptt %lf", &(ns->ed.mult.ve.par1.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_gptt/beta_gptt %lf", &(ns->ed.mult.ve.par1.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.mult.ve.par1.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.mult.ve.par1.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par1.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.mult.ve.par1.beta_gptt);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_fene_p/L2 %lf", &(ns->ed.mult.ve.par1.L2_fene));
+                print0f("=+=+=+= L2 (FENE-P): %lf =+=+=+=\n", ns->ed.mult.ve.par1.L2_fene);
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_e_fene/L2 %lf", &(ns->ed.mult.ve.par1.L2_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_e_fene/lambda %lf", &(ns->ed.mult.ve.par1.lambda_fene));
+                ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/phase1/model_e_fene/E %lf", &(ns->ed.mult.ve.par1.E_fene));
+                print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.mult.ve.par1.L2_fene);
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.mult.ve.par1.lambda_fene);
+                print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.mult.ve.par1.E_fene);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Model %s: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Viscoelastic Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.mult.ve.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.mult.ve.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CENTRAL;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "viscoelastic_integral") == 0) {
+            ns->ed.mult.contr.flowtype1 = VISCOELASTIC_INTEGRAL;
+            print0f("=+=+=+= Flow Type: Viscoelastic Integral for multiphase is NOT implemented yet =+=+=+=\n");
+            exit(1);
+        }
+        else {
+            print0f("=+=+=+= Flow Type %s: Invalid =+=+=+=\n", auxchar);
+            exit(1);
+        }
+
+        /////////////////////////////// Undefined Viscoelastic parameter treatment ///////////////////////////////
+        if(ns->ed.mult.contr.flowtype1 != VISCOELASTIC) {
+            ifd += fy_document_scanf(fyd, "/multiphase/contr/flowtype0 %s", auxchar);
+            if(strcmp(auxchar, "viscoelastic") == 0) {
+                ns->ed.mult.ve.par1.De = 0.0;
+                ns->ed.mult.ve.par1.beta = 1.0;
+                ns->ed.mult.ve.par1.epsilon = 0.0;
+                ns->ed.mult.ve.par1.xi = 0.0;
+                ns->ed.mult.ve.par1.alpha = 0.0;
+                ns->ed.mult.ve.par1.kernel_tol = 1.0;
+                ns->ed.mult.ve.par1.alpha_gptt = 0.0;
+                ns->ed.mult.ve.par1.beta_gptt = 0.0;
+                ns->ed.mult.ve.par1.L2_fene = 0.0;
+                ns->ed.mult.ve.par1.lambda_fene = 0.0;
+                ns->ed.mult.ve.par1.E_fene = 0.0;
+                print0f("\n=+=+=+= Phase 1 is not viscoelastic (but Phase 0 happens to be) \n All viscoelastic parameters in phase 1 set to 0, except for beta = 1: =+=+=+=\n");
+            }
+        }
+        ns->ed.mult.ve.par0.kernel_tol = min(ns->ed.mult.ve.par0.kernel_tol,ns->ed.mult.ve.par1.kernel_tol);
+        ns->ed.mult.ve.par1.kernel_tol = min(ns->ed.mult.ve.par0.kernel_tol,ns->ed.mult.ve.par1.kernel_tol);
+
+        ifd += fy_document_scanf(fyd, "/multiphase/contr/eoflow1 %s", auxchar);
+        ns->ed.mult.contr.eoflow1 = parse_boolean(auxchar, "eoflow1");
+        if(ns->ed.mult.contr.eoflow1 == true) {
+            //////////////////////////  Multiphase Electroosmotic Flow ////////////////////////////
+            ns->ed.mult.contr.eoflow_either = true;
+            print0f("=+=+=+= Electrooosmotic Flow in Phase 1 =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase1/adimensional/alpha %lf", &(ns->ed.mult.eo.par1.alpha));
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase1/adimensional/delta %lf", &(ns->ed.mult.eo.par1.delta));
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase1/adimensional/Ex %lf", &(ns->ed.mult.eo.par1.Ex));
+            print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.mult.eo.par1.alpha);
+            print0f("=+=+=+= Delta: %lf =+=+=+=\n", ns->ed.mult.eo.par1.delta);
+            print0f("=+=+=+= Ex (dphidx - adimensionalized applied field differential per unit distance): %lf =+=+=+=\n", ns->ed.mult.eo.par1.Ex);
+
+            //////////// Electroosmotic Models ////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/contr/model %s", auxchar);
+            if (strcmp(auxchar, "pnp") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PNP;
+                print0f("=+=+=+= Electroosmotic Model: PNP (Poisson-Nernst-Planck) =+=+=+=\n");
+
+                //////////////// PNP Electroosmotic Controllers ///////////////
+                ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/tempdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "explicit_euler") == 0) {
+                    ns->ed.mult.eo.contr.tempdiscrtype = EXPLICIT_EULER;
+                    print0f("=+=+=+= Ionic Equation Discretization: Explicit Euler =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "semi_implicit_euler") == 0) {
+                    ns->ed.mult.eo.contr.tempdiscrtype = SEMI_IMPLICIT_EULER;
+                    print0f("=+=+=+= Ionic Equation Discretization: Semi-Implicit Euler =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Ionic Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CENTRAL;
+                    print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "cubista") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CUBISTA;
+                    print0f("=+=+=+= Ionic Equation Convective Term: CUBISTA =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Ionic Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                //////////////// PNP Electroosmotic Parameters ///////////////
+                ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/phase1/model_pnp/Pe %lf", &(ns->ed.mult.eo.par1.Pe));
+                print0f("=+=+=+= Péclet Number: %lf =+=+=+=\n", ns->ed.mult.eo.par1.Pe);
+            }
+            else if (strcmp(auxchar, "pb") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PB;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann (not working yet) =+=+=+=\n");
+                exit(1);
+            }
+            else if (strcmp(auxchar, "pbdh") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PBDH;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann-Debbye-Hückel (Linearized PB) =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "pbdh_anal") == 0) {
+                ns->ed.mult.eo.contr.eo_model = PNP;
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann-Debbye-Hückel Analytic for multiphase is NOT implemented yet =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Electroosmotic Model %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+            
+        }
+        else {
+            /////////////////////////////// Undefined Electroosmotic parameter treatment ///////////////////////////////
+            ifd += fy_document_scanf(fyd, "/multiphase/contr/eoflow0 %d", &(ns->ed.mult.contr.eoflow0));
+            if(ns->ed.mult.contr.eoflow0 == true) {
+                ns->ed.mult.eo.par1.alpha = 0.0;
+                ns->ed.mult.eo.par1.delta = 0.0;
+                ns->ed.mult.eo.par1.Pe = 1.0/EPSMACH; // newtonian charges should presumably get almost no diffusion in the interface
+                ns->ed.mult.eo.par1.Ex = 0.0;
+                print0f("\n=+=+=+= Phase 1 is not electroosmotic (but Phase 0 happens to be) \n All electroosmotic parameters set to 0 in phase 1, except for Pe = %lf: =+=+=+=\n", ns->ed.mult.eo.par1.Pe);
+            }
+            print0f("=+=+=+= Non-Electroosmotic Flow in Phase 1 =+=+=+=\n");
+        }
+
+    }
+    else {
+        print0f("=+=+=+= Flow Phase %s: Invalid =+=+=+=\n", auxchar);
+        exit(1);
+    }
+  
+
+    fy_document_destroy(fyd);
+    fy_document_destroy(fydini);
+}
+
+
+
+bool saved_controllers_and_parameters_yaml = false;
+
+void higflow_save_all_controllers_and_parameters_yaml(higflow_solver* ns, int myrank) {
+
+    if(myrank == 0) {
+        char Init_load[1024], Init_save[1024];
+        snprintf(Init_load, sizeof Init_load, "%s.init.yaml", ns->par.nameload);
+        snprintf(Init_save, sizeof Init_save, "%s.init.yaml", ns->par.namesave);
+
+        int samefile = 0;
+        if(strcmp(Init_load, Init_save) == 0) {
+            printf("=+=+=+= Load and Save names are the same - not changing par.contr file =+=+=+=\n");
+            samefile = 1;
+        }
+
+        // copies the par.contr yaml file, therefore can only be executed in the first step
+        // otherwise user could have changed the files during the simulation execution
+        if(ns->par.step != ns->par.initstep) { 
+            if(saved_controllers_and_parameters_yaml == false) {
+                print0f("=+=+=+= Warning: controllers and parameters should have been saved the FIRST TIME in the first step, because it copies the yaml file =+=+=+=\n");
+                print0f("=+=+=+= Otherwise user could have changed the files during the simulation execution =+=+=+=\n");
+                print0f("=+=+=+= If you want to save the controllers and parameters, please restart the simulation =+=+=+=\n");
+                print0f("=+=+=+= After it is executed the first time, the changing parameters in INIT are resaved, so the initial copy needs to exist =+=+=+=\n");
+                return;
+            }
+        } 
+        else {
+            if(samefile == 0) {
+                // copy par contr
+                char ParContr_load[1024], ParContr_save[1024];
+                snprintf(ParContr_load, sizeof ParContr_load, "%s.par.contr.yaml", ns->par.nameload);
+                snprintf(ParContr_save, sizeof ParContr_save, "%s.par.contr.yaml", ns->par.namesave);
+                
+                FILE *fparcontr_load = fopen(ParContr_load, "r");
+                if (fparcontr_load == NULL) {
+                    print0f("=+=+=+= Error loading file %s =+=+=+=\n", ParContr_load);
+                    exit(1);
+                }
+                FILE *fparcontr_save = fopen(ParContr_save, "w");
+                if (fparcontr_save == NULL) {
+                    print0f("=+=+=+= Error saving file %s =+=+=+=\n", ParContr_save);
+                    exit(1);
+                }
+                
+                char ch;
+                while ((ch = fgetc(fparcontr_load)) != EOF) fputc(ch, fparcontr_save);
+                fclose(fparcontr_load);
+                fclose(fparcontr_save);
+
+                // copy init
+                FILE *finit_load = fopen(Init_load, "r");
+                if (finit_load == NULL) {
+                    print0f("=+=+=+= Error loading file %s =+=+=+=\n", Init_load);
+                    exit(1);
+                }
+                FILE *finit_save = fopen(Init_save, "w");
+                if (finit_save == NULL) {
+                    print0f("=+=+=+= Error saving file %s =+=+=+=\n", Init_save);
+                    exit(1);
+                }
+                
+                while ((ch = fgetc(finit_load)) != EOF) fputc(ch, finit_save);
+                fclose(finit_load);
+                fclose(finit_save);
+            }
+        }
+
+        struct fy_document* fyd_init_save = fy_document_build_from_file(NULL, Init_save);
+        if (fyd_init_save == NULL) {
+            print0f("=+=+=+= Error loading file %s - cannot save dynamic simulation parameters =+=+=+=\n", Init_save);
+            return;
+        }
+
+        fy_document_insert_at(fyd_init_save, "/init_par/step", FY_NT,
+                            fy_node_buildf(fyd_init_save, "%d", ns->par.step + 1));
+        fy_document_insert_at(fyd_init_save, "/init_par/t", FY_NT,
+                            fy_node_buildf(fyd_init_save, "%lf", ns->par.t));
+        fy_document_insert_at(fyd_init_save, "/init_par/frame", FY_NT,
+                            fy_node_buildf(fyd_init_save, "%d", ns->par.frame));                      
+        fy_document_insert_at(fyd_init_save, "/init_par/ts", FY_NT,
+                            fy_node_buildf(fyd_init_save, "%lf", ns->par.ts));
+        fy_document_insert_at(fyd_init_save, "/init_par/tp", FY_NT,
+                            fy_node_buildf(fyd_init_save, "%lf", ns->par.tp));
+
+        char *text = fy_emit_document_to_string(fyd_init_save, FYECF_DEFAULT);
+        FILE *finit_save = fopen(Init_save, "w");
+        fprintf(finit_save, "%s", text);
+        fclose(finit_save);
+        fy_document_destroy(fyd_init_save);
+        free(text);
+
+        saved_controllers_and_parameters_yaml = true;
+    }
+}
+
+
+// Loading all the controllers
+void higflow_load_all_controllers(higflow_solver *ns, int myrank) {
+    higflow_load_controllers(ns, myrank);
+    switch (ns->contr.flowtype) {
+        case MULTIPHASE:
+            higflow_load_multiphase_controllers(ns, myrank);
+            if(ns->ed.mult.contr.viscoelastic_either == true) 
+                higflow_load_multiphase_viscoelastic_controllers(ns, myrank);
+            if(ns->ed.mult.contr.eoflow_either == true) 
+                higflow_load_multiphase_electroosmotic_controllers(ns, myrank);
+            break;
+        case VISCOELASTIC:
+            higflow_load_viscoelastic_controllers(ns, myrank);
+            break;
+        case VISCOELASTIC_INTEGRAL:
+            higflow_load_viscoelastic_integral_controllers(ns, myrank);
+            break;
+    }
+    if (ns->contr.eoflow == true)   higflow_load_electroosmotic_controllers(ns, myrank);
+}
+
+// Saving all the controllers
+void higflow_save_all_controllers(higflow_solver *ns, int myrank) {
+    higflow_save_controllers(ns, myrank);
+    switch (ns->contr.flowtype) {
+        case MULTIPHASE:
+            higflow_save_multiphase_controllers(ns, myrank);
+            if(ns->ed.mult.contr.viscoelastic_either == true) 
+                higflow_save_multiphase_viscoelastic_controllers(ns, myrank);
+            if(ns->ed.mult.contr.eoflow_either == true) 
+                higflow_save_multiphase_electroosmotic_controllers(ns, myrank);
+            break;
+        case VISCOELASTIC:
+            higflow_save_viscoelastic_controllers(ns, myrank);
+            break;
+        case VISCOELASTIC_INTEGRAL:
+            higflow_save_viscoelastic_integral_controllers(ns, myrank);
+            break;
+    }
+    if (ns->contr.eoflow == true)   higflow_save_electroosmotic_controllers(ns, myrank);
+}
+
+// Loading all the parameters
+void higflow_load_all_parameters(higflow_solver *ns, int myrank) {
+    higflow_load_parameters(ns, myrank);
+    switch (ns->contr.flowtype) {
+        case MULTIPHASE:
+            higflow_load_multiphase_parameters(ns, myrank);
+            if(ns->ed.mult.contr.viscoelastic_either == true) 
+                higflow_load_multiphase_viscoelastic_parameters(ns, myrank);
+            if(ns->ed.mult.contr.eoflow_either == true) 
+                higflow_load_multiphase_electroosmotic_parameters(ns, myrank);
+            break;
+        case VISCOELASTIC:
+            higflow_load_viscoelastic_parameters(ns, myrank);
+            break;
+        case VISCOELASTIC_INTEGRAL:
+            higflow_load_viscoelastic_integral_parameters(ns, myrank);
+            break;
+    }
+    if (ns->contr.eoflow == true)   higflow_load_electroosmotic_parameters(ns, myrank);
+}
+
+// Saving all the parameters
+void higflow_save_all_parameters(higflow_solver *ns, int myrank) {
+    higflow_save_parameters(ns, myrank);
+    switch (ns->contr.flowtype) {
+        case MULTIPHASE:
+            higflow_save_multiphase_parameters(ns, myrank);
+            if(ns->ed.mult.contr.viscoelastic_either == true) 
+                higflow_save_multiphase_viscoelastic_parameters(ns, myrank);
+            if(ns->ed.mult.contr.eoflow_either == true) 
+                higflow_save_multiphase_electroosmotic_parameters(ns, myrank);
+            break;
+        case VISCOELASTIC:
+            higflow_save_viscoelastic_parameters(ns, myrank);
+            break;
+        case VISCOELASTIC_INTEGRAL:
+            higflow_save_viscoelastic_integral_parameters(ns, myrank);
+            break;
+    }
+    if (ns->contr.eoflow == true)   higflow_save_electroosmotic_parameters(ns, myrank);
+}
+
+// Loading the controllers
+void higflow_load_controllers(higflow_solver *ns, int myrank) {
+    // Controllers file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.contr", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL) {
+        // Loading the controllers
+        int ifd;
+        ifd = fscanf(fd, "%d", (int *)&(ns->contr.projtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->contr.flowtype));
+        ifd = fscanf(fd, "%d", &(ns->contr.eoflow));
+        ifd = fscanf(fd, "%d", (int *)&(ns->contr.tempdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->contr.spatialdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->contr.convecdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->contr.secondconvecdiscrtype));
+        fclose(fd);
+
+        // Printing the controllers
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        if (myrank == 0) {
+           printf("=+=+=+= Controllers =+=+=+=\n");
+           switch (ns->contr.projtype) {
+               case NON_INCREMENTAL:
+                    printf("=+=+=+= Projection Method: Non Incremental =+=+=+=\n");
+                    break;
+                case INCREMENTAL:
+                    printf("=+=+=+= Projection Method: Incremental =+=+=+=\n");
+                    break;
+            }
+            switch (ns->contr.flowtype) {
+                case NEWTONIAN:
+                    printf("=+=+=+= Flow Model: Newtonian =+=+=+=\n");
+                    break;
+                case GENERALIZED_NEWTONIAN:
+                    printf("=+= Flow Model: Generalized Newtonian =+=\n");
+                    break;
+                case MULTIPHASE:
+                    printf("=+=+=+= Flow Model: Multifase =+=+=+=\n");
+                    break;
+                case VISCOELASTIC:
+                    printf("=+=+=+= Flow Model: Viscoelastic =+=+=+=\n");
+                    break;
+            }
+            switch (ns->contr.eoflow) {
+                case true:
+                    printf("=+= Flow Model Type: Eletroosmotic =+=\n");
+                    break;
+                case false:
+                    break;
+                default:
+                    printf("=+=+=+= Unsupported eoflow!! =+=+=+=\n");
+                    exit(1);
+                    break;
+            }
+            switch (ns->contr.tempdiscrtype) {
+                case EXPLICIT_EULER:
+                    printf("=+=+=+= Temporal Discretization: Explicit Euler =+=+=+=\n");
+                    break;
+                case EXPLICIT_RK2:
+                    printf("=+=+=+= Temporal Discretization: Runge-Kutta 2 =+=+=+=\n");
+                    break;
+                case EXPLICIT_RK3:
+                    printf("=+=+=+= Temporal Discretization: Runge-Kutta 3 =+=+=+=\n");
+                    break;
+                case SEMI_IMPLICIT_EULER:
+                    printf("=+=+=+= Temporal Discretization: Semi-Implicit Euler =+=+=+=\n");
+                    break;
+                case SEMI_IMPLICIT_CN:
+                    printf("=+=+=+= Temporal Discretization: Semi-Implicit Crank-Nicolson =+=+=+=\n");
+                    break;
+                case SEMI_IMPLICIT_BDF2:
+                    printf("=+=+=+= Temporal Discretization: Semi-Implicit BDF2 =+=+=+=\n");
+                    break;
+            }
+            switch (ns->contr.spatialdiscrtype) {
+                case ORDER2:
+                    printf("=+=+=+= Spatial Discretization: Second Order =+=+=+=\n");
+                    break;
+                case ORDER4:
+                    printf("=+=+=+= Spatial Discretization: Forth Order =+=+=+=\n");
+                    break;
+            }
+            switch (ns->contr.convecdiscrtype) {
+                case CENTRAL:
+                    printf("=+=+=+= Convective Scheme: Central =+=+=+=\n");
+                    break;
+                case FIRST_ORDER:
+                    printf("=+=+=+= Convective Scheme: First Order Upwind =+=+=+=\n");
+                    break;
+                case SECOND_ORDER:
+                    printf("=+=+=+= Convective Scheme: Second Order Upwind =+=+=+=\n");
+                    switch (ns->contr.secondconvecdiscrtype) {
+                        case MCU:
+                            printf("=+= Convective Scheme Type : Modified Coefficient Upwind =+=\n");
+                            break;
+                        case CUBISTA:
+                            printf("=+= Convective Scheme Type : CUBISTA =+=\n");
+                            break;
+                        case QUICK:
+                            printf("=+= Convective Scheme Type : Quick =+=\n");
+                            break;
+                    }
+                    break;
+            }
+        }
+    } else {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Saving the controllers
+void higflow_save_controllers(higflow_solver *ns, int myrank) {
+    // Controllers file name
+    if (myrank == 0) {
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.contr", ns->par.namesave);
+        FILE *fd = fopen(namefile, "w");
+        if (fd != NULL) {
+            // Saving the controllers
+            fprintf(fd, "%d\n", (int)(ns->contr.projtype));
+            fprintf(fd, "%d\n", (int)(ns->contr.flowtype));
+            fprintf(fd, "%d\n", (ns->contr.eoflow));
+            fprintf(fd, "%d\n", (int)(ns->contr.tempdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->contr.spatialdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->contr.convecdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->contr.secondconvecdiscrtype));
+            fclose(fd);
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+}
+
+// Loading the parameters
+void higflow_load_parameters(higflow_solver *ns, int myrank) {
+    // Parameters file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.par", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL) {
+        // Loading the parameters
+        int ifd;
+        ifd = fscanf(fd, "%d", &(ns->par.step));
+        ns->par.initstep = ns->par.step;
+        ifd = fscanf(fd, "%d", &(ns->par.numsteps));
+        ns->par.finalstep = ns->par.initstep + ns->par.numsteps - 1;
+        ifd = fscanf(fd, "%lf", &(ns->par.t));
+        ifd = fscanf(fd, "%lf", &(ns->par.dt));
+        ifd = fscanf(fd, "%lf", &(ns->par.Re));
+        ifd = fscanf(fd, "%lf", &(ns->par.dts));
+        ifd = fscanf(fd, "%lf", &(ns->par.dtp));
+        ifd = fscanf(fd, "%d", &(ns->par.frame));
+        ifd = fscanf(fd, "%lf", &(ns->par.ts));
+        ifd = fscanf(fd, "%lf", &(ns->par.tp));
+        fclose(fd);
+        if (myrank == 0) {
+            printf("=+=+=+= Reynolds Number: %f =+=+=+=\n", ns->par.Re);
+        }
+    } else {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Saving the parameters
+void higflow_save_parameters(higflow_solver *ns, int myrank) {
+    if (myrank == 0) {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.par", ns->par.namesave);
+        FILE *fd = fopen(namefile, "w");
+        if (fd != NULL) {
+            // Saving the parameters
+            fprintf(fd, "%d\n", (ns->par.step));
+            fprintf(fd, "%d\n", (ns->par.numsteps));
+            fprintf(fd, "%lf\n", (ns->par.t));
+            fprintf(fd, "%lf\n", (ns->par.dt));
+            fprintf(fd, "%lf\n", (ns->par.Re));
+            fprintf(fd, "%lf\n", (ns->par.dts));
+            fprintf(fd, "%lf\n", (ns->par.dtp));
+            fprintf(fd, "%d\n", (ns->par.frame));
+            fprintf(fd, "%lf\n", (ns->par.ts));
+            fprintf(fd, "%lf\n", (ns->par.tp));
+            fclose(fd);
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error saving file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+}
 
 // Loading the multiphase parameters
 void higflow_load_multiphase_parameters(higflow_solver *ns, int myrank) {
@@ -3783,6 +4965,7 @@ void higflow_load_multiphase_controllers(higflow_solver *ns, int myrank) {
 
     if (ns->ed.mult.contr.eoflow0 == true || ns->ed.mult.contr.eoflow1 == true) {
         ns->ed.mult.contr.eoflow_either = true;
+        ns->contr.eoflow = false; // Prevents the redundant electroosmotic settings
     }
     else {
         ns->ed.mult.contr.eoflow_either = false;
@@ -3825,7 +5008,7 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.De));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.beta));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.epsilon));
-            ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.psi));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.xi));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.alpha));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.kernel_tol));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par0.alpha_gptt));
@@ -3839,7 +5022,7 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
                 printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.ve.par0.De);
                 printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.ve.par0.beta);
                 printf("=+=+=+= Epsilon: %f =+=+=+=\n", ns->ed.mult.ve.par0.epsilon);
-                printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par0.psi);
+                printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par0.xi);
                 printf("=+=+=+= Alpha Giesekus: %f =+=+=+=\n", ns->ed.mult.ve.par0.alpha);
                 printf("=+=+=+= Kernel Tolerance: %f =+=+=+=\n", ns->ed.mult.ve.par0.kernel_tol);
                 printf("=+=+=+= Alpha GPTT: %f =+=+=+=\n", ns->ed.mult.ve.par0.alpha_gptt);
@@ -3858,7 +5041,7 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
         ns->ed.mult.ve.par0.De = 0.0;
         ns->ed.mult.ve.par0.beta = 1.0;
         ns->ed.mult.ve.par0.epsilon = 0.0;
-        ns->ed.mult.ve.par0.psi = 0.0;
+        ns->ed.mult.ve.par0.xi = 0.0;
         ns->ed.mult.ve.par0.alpha = 0.0;
         ns->ed.mult.ve.par0.kernel_tol = 1.0;
         ns->ed.mult.ve.par0.alpha_gptt = 0.0;
@@ -3867,11 +5050,11 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
         ns->ed.mult.ve.par0.lambda_fene = 0.0;
         ns->ed.mult.ve.par0.E_fene = 0.0;
         if (myrank == 0) {
-            printf("=+=+=+= Phase 0 is NEWTONIAN - considering parameters below: =+=+=+=\n");
+            printf("=+=+=+= Phase 0 is NOT viscoelastic - considering parameters below: =+=+=+=\n");
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.ve.par0.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.ve.par0.beta);
             printf("=+=+=+= Epsilon: %f =+=+=+=\n", ns->ed.mult.ve.par0.epsilon);
-            printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par0.psi);
+            printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par0.xi);
             printf("=+=+=+= Alpha Giesekus: %f =+=+=+=\n", ns->ed.mult.ve.par0.alpha);
             printf("=+=+=+= Kernel Tolerance: %f =+=+=+=\n", ns->ed.mult.ve.par0.kernel_tol);
             printf("=+=+=+= Alpha GPTT: %f =+=+=+=\n", ns->ed.mult.ve.par0.alpha_gptt);
@@ -3894,7 +5077,7 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.De));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.beta));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.epsilon));
-            ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.psi));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.xi));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.alpha));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.kernel_tol));
             ifd = fscanf(fd, "%lf", &(ns->ed.mult.ve.par1.alpha_gptt));
@@ -3908,7 +5091,7 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
                 printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.ve.par1.De);
                 printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.ve.par1.beta);
                 printf("=+=+=+= Epsilon: %f =+=+=+=\n", ns->ed.mult.ve.par1.epsilon);
-                printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par1.psi);
+                printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par1.xi);
                 printf("=+=+=+= Alpha Giesekus: %f =+=+=+=\n", ns->ed.mult.ve.par1.alpha);
                 printf("=+=+=+= Kernel Tolerance: %f =+=+=+=\n", ns->ed.mult.ve.par1.kernel_tol);
                 printf("=+=+=+= Alpha GPTT: %f =+=+=+=\n", ns->ed.mult.ve.par1.alpha_gptt);
@@ -3927,7 +5110,7 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
         ns->ed.mult.ve.par1.De = 0.0;
         ns->ed.mult.ve.par1.beta = 1.0;
         ns->ed.mult.ve.par1.epsilon = 0.0;
-        ns->ed.mult.ve.par1.psi = 0.0;
+        ns->ed.mult.ve.par1.xi = 0.0;
         ns->ed.mult.ve.par1.alpha = 0.0;
         ns->ed.mult.ve.par1.kernel_tol = 1.0;
         ns->ed.mult.ve.par1.alpha_gptt = 0.0;
@@ -3936,11 +5119,11 @@ void higflow_load_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
         ns->ed.mult.ve.par1.lambda_fene = 0.0;
         ns->ed.mult.ve.par1.E_fene = 0.0;
         if (myrank == 0) {
-            printf("=+=+=+= Phase 1 is NEWTONIAN - considering parameters below: =+=+=+=\n");
+            printf("=+=+=+= Phase 1 is NOT viscoelastic - considering parameters below: =+=+=+=\n");
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.mult.ve.par1.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.mult.ve.par1.beta);
             printf("=+=+=+= Epsilon: %f =+=+=+=\n", ns->ed.mult.ve.par1.epsilon);
-            printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par1.psi);
+            printf("=+=+=+= Psi: %f =+=+=+=\n", ns->ed.mult.ve.par1.xi);
             printf("=+=+=+= Alpha Giesekus: %f =+=+=+=\n", ns->ed.mult.ve.par1.alpha);
             printf("=+=+=+= Kernel Tolerance: %f =+=+=+=\n", ns->ed.mult.ve.par1.kernel_tol);
             printf("=+=+=+= Alpha GPTT: %f =+=+=+=\n", ns->ed.mult.ve.par1.alpha_gptt);
@@ -3968,7 +5151,7 @@ void higflow_save_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.De));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.beta));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.epsilon));
-            fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.psi));
+            fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.xi));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.alpha));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.kernel_tol));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par0.alpha_gptt));
@@ -3990,7 +5173,7 @@ void higflow_save_multiphase_viscoelastic_parameters(higflow_solver *ns, int myr
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.De));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.beta));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.epsilon));
-            fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.psi));
+            fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.xi));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.alpha));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.kernel_tol));
             fprintf(fd, "%lf\n", (ns->ed.mult.ve.par1.alpha_gptt));
@@ -4135,7 +5318,7 @@ void higflow_load_viscoelastic_parameters(higflow_solver *ns, int myrank) {
         ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.De));
         ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.beta));
         ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.epsilon));
-        ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.psi));
+        ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.xi));
         ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.alpha));
         ifd = fscanf(fd, "%lf", &(ns->ed.ve.par.kernel_tol));
         ifd = fscanf(fd,"%lf",&(ns->ed.ve.par.alpha_gptt));
@@ -4169,7 +5352,7 @@ void higflow_save_viscoelastic_parameters(higflow_solver *ns, int myrank) {
             fprintf(fd, "%lf\n", (ns->ed.ve.par.De));
             fprintf(fd, "%lf\n", (ns->ed.ve.par.beta));
             fprintf(fd, "%lf\n", (ns->ed.ve.par.epsilon));
-            fprintf(fd, "%lf\n", (ns->ed.ve.par.psi));
+            fprintf(fd, "%lf\n", (ns->ed.ve.par.xi));
             fprintf(fd, "%lf\n", (ns->ed.ve.par.alpha));
             fprintf(fd, "%lf\n", (ns->ed.ve.par.kernel_tol));
             fprintf(fd,"%lf\n",(ns->ed.ve.par.alpha_gptt));
@@ -4268,6 +5451,207 @@ void higflow_save_viscoelastic_controllers(higflow_solver *ns, int myrank) {
     }
 }
 
+// Loading the multiphase electroosmotic parameters
+void higflow_load_multiphase_electroosmotic_parameters(higflow_solver *ns, int myrank) {
+    if (ns->ed.mult.contr.eoflow0 == true) {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.mult.eopar0", ns->par.nameload);
+        FILE *fd = fopen(namefile, "r");
+        if (fd != NULL) {
+            // Loading the parameters
+            int ifd;
+            // Phase 0
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par0.alpha));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par0.delta));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par0.Pe));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par0.Ex));
+            fclose(fd);
+            if (myrank == 0) {
+                printf("=+=+=+= Phase 0: =+=+=+=\n");
+                printf("=+=+=+= alpha: %e =+=+=+=\n", ns->ed.mult.eo.par0.alpha);
+                printf("=+=+=+= delta: %e =+=+=+=\n", ns->ed.mult.eo.par0.delta);
+                printf("=+=+=+= Péclet number: %f =+=+=+=\n", ns->ed.mult.eo.par0.Pe);
+                printf("=+=+=+= Externel field Ex : %e =+=+=+=\n", ns->ed.mult.eo.par0.Ex);
+            }
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+    else{
+        ns->ed.mult.eo.par0.alpha = 0.0;
+        ns->ed.mult.eo.par0.delta = 0.0;
+        ns->ed.mult.eo.par0.Pe = 1.0/EPSMACH; // newtonian charges should presumably get almost no diffusion in the interface
+        ns->ed.mult.eo.par0.Ex = 0.0;
+        if (myrank == 0) {
+            printf("=+=+=+= Phase 0 is NOT electroosmotic - considering parameters below: =+=+=+=\n");
+            printf("=+=+=+= alpha: %e =+=+=+=\n", ns->ed.mult.eo.par0.alpha);
+            printf("=+=+=+= delta: %e =+=+=+=\n", ns->ed.mult.eo.par0.delta);
+            printf("=+=+=+= Péclet number: %f =+=+=+=\n", ns->ed.mult.eo.par0.Pe);
+            printf("=+=+=+= Externel field Ex : %e =+=+=+=\n", ns->ed.mult.eo.par0.Ex);
+        }
+    }
+
+    if (ns->ed.mult.contr.eoflow1 == true) {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.mult.eopar1", ns->par.nameload);
+        FILE *fd = fopen(namefile, "r");
+        if (fd != NULL) {
+            // Loading the parameters
+            int ifd;
+            // Phase 1
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par1.alpha));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par1.delta));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par1.Pe));
+            ifd = fscanf(fd, "%lf", &(ns->ed.mult.eo.par1.Ex));
+            fclose(fd);
+            if (myrank == 0) {
+                printf("=+=+=+= Phase 1: =+=+=+=\n");
+                printf("=+=+=+= alpha: %e =+=+=+=\n", ns->ed.mult.eo.par1.alpha);
+                printf("=+=+=+= delta: %e =+=+=+=\n", ns->ed.mult.eo.par1.delta);
+                printf("=+=+=+= Péclet number: %f =+=+=+=\n", ns->ed.mult.eo.par1.Pe);
+                printf("=+=+=+= Externel field Ex : %e =+=+=+=\n", ns->ed.mult.eo.par1.Ex);
+            }
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+    else{
+        ns->ed.mult.eo.par1.alpha = 0.0;
+        ns->ed.mult.eo.par1.delta = 0.0;
+        ns->ed.mult.eo.par1.Pe = 1.0/EPSMACH; // newtonian charges should presumably get almost no diffusion in the interface
+        ns->ed.mult.eo.par1.Ex = 0.0;
+        if (myrank == 0) {
+            printf("=+=+=+= Phase 1 is NOT electroosmotic - considering parameters below: =+=+=+=\n");
+            printf("=+=+=+= alpha: %e =+=+=+=\n", ns->ed.mult.eo.par1.alpha);
+            printf("=+=+=+= delta: %e =+=+=+=\n", ns->ed.mult.eo.par1.delta);
+            printf("=+=+=+= Péclet number: %f =+=+=+=\n", ns->ed.mult.eo.par1.Pe);
+            printf("=+=+=+= Externel field Ex : %e =+=+=+=\n", ns->ed.mult.eo.par1.Ex);
+        }
+    }
+
+}
+
+// Saving the multiphase electroosmotic parameters
+void higflow_save_multiphase_electroosmotic_parameters(higflow_solver *ns, int myrank) {
+    if (myrank == 0) {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.mult.eopar0", ns->par.namesave);
+        FILE *fd = fopen(namefile, "w");
+        if (fd != NULL) {
+            // Saving the parameters
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par0.alpha));
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par0.delta));
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par0.Pe));
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par0.Ex));
+            fclose(fd);
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error saving file %s =+=+=+=\n", ns->par.namesave);
+            exit(1);
+        }
+        // Parameters file name
+        snprintf(namefile, sizeof namefile, "%s.mult.eopar1", ns->par.namesave);
+        fd = fopen(namefile, "w");
+        if (fd != NULL) {
+            // Saving the parameters
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par1.alpha));
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par1.delta));
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par1.Pe));
+            fprintf(fd, "%lf\n", (ns->ed.mult.eo.par1.Ex));
+            fclose(fd);
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error saving file %s =+=+=+=\n", ns->par.namesave);
+            exit(1);
+        }
+    }
+}
+
+// Loading the multiphase electroosmotic controllers
+void higflow_load_multiphase_electroosmotic_controllers(higflow_solver *ns, int myrank) {
+    // Parameters file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.mult.eocontr", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL) {
+        // Loading the parameters
+        int ifd;
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.mult.eo.contr.eo_model));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.mult.eo.contr.tempdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.mult.eo.contr.convecdiscrtype));
+        fclose(fd);
+        if (myrank == 0) {
+            switch (ns->ed.mult.eo.contr.eo_model) {
+                case PNP:
+                    printf("=+=+=+= Electroosmotic Model: PNP =+=+=+=\n");
+                    break;
+                case PB:
+                    printf("=+=+=+= Electroosmotic Model: PB =+=+=+=\n");
+                    break;
+                case PBDH:
+                    printf("=+=+=+= Electroosmotic Model: PBDH =+=+=+=\n");
+                    break;
+                case PBDH_ANALYTIC:
+                    printf("=+=+=+= Electroosmotic Model: analytic PBDH =+=+=+=\n");
+                    break;
+            }
+            switch (ns->ed.mult.eo.contr.tempdiscrtype) {
+                case EXPLICIT_EULER:
+                    printf("=+=+=+= Ionic concentration temporal discretization: Euler Explicit =+=+=+=\n");
+                    break;
+                case SEMI_IMPLICIT_EULER:
+                    printf("=+=+=+= Ionic concentration temporal discretization: Euler Semi-Implicit =+=+=+=\n");
+                    break;
+                default:
+                    printf("=+=+=+= Unsupported Temporal Discretization!! =+=+=+=\n");
+                    exit(1);
+                    break;
+            }
+            switch (ns->ed.mult.eo.contr.convecdiscrtype) {
+                case CELL_CENTRAL:
+                    printf("=+=+=+= Ionic concentration convective term: Central =+=+=+=\n");
+                    printf("=+=+=+= Electric Field terms will be source          =+=+=+=\n");
+                    break;
+                case CELL_CUBISTA:
+                    printf("=+=+=+= Ionic concentration convective term: CUBISTA =+=+=+=\n");
+                    break;
+            }
+        }
+    } else {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Saving the multiphase electroosmotic controllers
+void higflow_save_multiphase_electroosmotic_controllers(higflow_solver *ns, int myrank) {
+    if (myrank == 0) {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.mult.eocontr", ns->par.namesave);
+        FILE *fd = fopen(namefile, "w");
+        if (fd != NULL) {
+            // Saving the parameters
+            fprintf(fd, "%d\n", (int)(ns->ed.mult.eo.contr.eo_model));
+            fprintf(fd, "%d\n", (int)(ns->ed.mult.eo.contr.tempdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.mult.eo.contr.convecdiscrtype));
+            fclose(fd);
+        } else {
+            // Error in open the file
+            printf("=+=+=+= Error saving file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+}
+
 // Loading the electroosmotic parameters
 void higflow_load_electroosmotic_parameters(higflow_solver *ns, int myrank) {
     // Parameters file name
@@ -4285,7 +5669,7 @@ void higflow_load_electroosmotic_parameters(higflow_solver *ns, int myrank) {
         if (myrank == 0) {
             printf("=+=+=+= alpha: %e =+=+=+=\n", ns->ed.eo.par.alpha);
             printf("=+=+=+= delta: %e =+=+=+=\n", ns->ed.eo.par.delta);
-            printf("=+=+=+= Peclet number: %f =+=+=+=\n", ns->ed.eo.par.Pe);
+            printf("=+=+=+= Péclet number: %f =+=+=+=\n", ns->ed.eo.par.Pe);
             printf("=+=+=+= Externel field Ex : %e =+=+=+=\n", ns->ed.eo.par.Ex);
         }
     } else {
@@ -4365,7 +5749,7 @@ void higflow_load_electroosmotic_controllers(higflow_solver *ns, int myrank) {
                     printf("=+=+=+= Electric Field terms will be source          =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
-                    printf("=+=+=+= Ionic concentration convective term: Cubista =+=+=+=\n");
+                    printf("=+=+=+= Ionic concentration convective term: CUBISTA =+=+=+=\n");
                     break;
             }
         }
@@ -4417,10 +5801,10 @@ void higflow_load_viscoelastic_integral_parameters(higflow_solver *ns, int myran
         ifd = fscanf(fd,"%lf",&(ns->ed.im.par.l_ref));
        if (ns->ed.im.contr.model == KBKZ) {
             ifd = fscanf(fd,"%d",&(ns->ed.im.par.M));
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < NRP; i++) {
                 ifd = fscanf(fd,"%lf",&(ns->ed.im.par.a[i]));
             }
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < NRP; i++) {
                 ifd = fscanf(fd,"%lf",&(ns->ed.im.par.lambda[i]));
             }
    } else if (ns->ed.im.contr.model == KBKZ_FRACTIONAL) {
@@ -4436,10 +5820,10 @@ void higflow_load_viscoelastic_integral_parameters(higflow_solver *ns, int myran
        printf("=+=+=+= Beta: %f =+=+=+=\n",ns->ed.im.par.beta);
        if (ns->ed.im.contr.model == KBKZ) {
            printf("=+=+=+= M: %d =+=+=+=\n",ns->ed.im.par.M);
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < NRP; i++) {
                printf("=+=+=+= a(%d): %f =+=+=+=\n",i,ns->ed.im.par.a[i]);
                 }
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < NRP; i++) {
                printf("=+=+=+= Lambda(%d): %f =+=+=+=\n",i,ns->ed.im.par.lambda[i]);
                 }
        } else if (ns->ed.im.contr.model == KBKZ_FRACTIONAL) {
@@ -4474,10 +5858,10 @@ void higflow_save_viscoelastic_integral_parameters(higflow_solver *ns, int myran
             fprintf(fd,"%lf\n",(ns->ed.im.par.l_ref));
             if (ns->ed.im.contr.model == KBKZ) {
                 fprintf(fd, "%d\n", (ns->ed.im.par.M));
-                for (int k = 0; k < 8; k++) {
+                for (int k = 0; k < NRP; k++) {
                     fprintf(fd, "%lf\n", (ns->ed.im.par.a[k]));
                 }
-                for (int k = 0; k < 8; k++) {
+                for (int k = 0; k < NRP; k++) {
                     fprintf(fd, "%lf\n", (ns->ed.im.par.lambda[k]));
                 }
             } else if (ns->ed.im.contr.model == KBKZ_FRACTIONAL) {
@@ -4512,7 +5896,7 @@ void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myra
         if (myrank == 0) {
             switch (ns->ed.im.contr.model) {
                 case KBKZ:
-                    printf("=+=+=+= Constitutive Equation Model: KBKZ-PSM =+=+=+=\n");
+                    printf("=+=+=+= Constitutive Equation Model: KBKZ =+=+=+=\n");
                     break;
                 case KBKZ_FRACTIONAL:
                     printf("=+=+=+= Constitutive Equation Model: Fractional =+=+=+=\n");

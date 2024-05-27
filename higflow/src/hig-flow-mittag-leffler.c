@@ -4,12 +4,7 @@
 
 #include <math.h>
 #include <stdio.h>
-
-#define pi 3.1415926535897932384626434
-typedef struct{
-  double real;
-  double imag;
-} numc;
+#include "hig-flow-mittag-leffler.h"
 
 numc kk(double r, double alfa, double beta1, numc z){
  double two = 2, um = 1;

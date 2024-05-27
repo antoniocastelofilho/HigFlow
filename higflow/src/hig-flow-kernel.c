@@ -76,14 +76,14 @@ void higflow_destroy (higflow_solver *ns) {
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         // Tensor terms destroy
-                        dp_destroy(ns->ed.mult.ve.dpD[i][j]);
-                        dp_destroy(ns->ed.mult.ve.dpS[i][j]);
-                        dp_destroy(ns->ed.mult.ve.dpKernel[i][j]);
+                        dp_destroy(ns->ed.ve.dpD[i][j]);
+                        dp_destroy(ns->ed.ve.dpS[i][j]);
+                        dp_destroy(ns->ed.ve.dpKernel[i][j]);
                     }
                 }
+                // Destroy the stencil for extra domains
+                stn_destroy(ns->ed.stn);
             }
-            // Destroy the stencil for extra domains
-            stn_destroy(ns->ed.stn);
             // Destroy the stencil for multiphase
             stn_destroy(ns->ed.mult.stn);
             break;
@@ -117,7 +117,7 @@ void higflow_destroy (higflow_solver *ns) {
            stn_destroy(ns->ed.stn);
            break;   
     }
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Destroy the distributed properties for Electro-osmotic model
         for(int dim = 0; dim < DIM; dim++) {
             dp_destroy(ns->ed.eo.dpFeo[dim]);
@@ -126,13 +126,16 @@ void higflow_destroy (higflow_solver *ns) {
         dp_destroy(ns->ed.eo.dppsi);
         dp_destroy(ns->ed.eo.dpnplus);
         dp_destroy(ns->ed.eo.dpnminus);
-        // Destroy the stencil for extra domains
-        if(ns->contr.flowtype == NEWTONIAN) stn_destroy(ns->ed.stn);
         // Destroy the solver for potential psi 
         slv_destroy(ns->ed.eo.slvpsi);
         slv_destroy(ns->ed.eo.slvphi);
         slv_destroy(ns->ed.eo.slvnplus);
         slv_destroy(ns->ed.eo.slvnminus);
+        // Destroy the stencils
+        stn_destroy(ns->ed.eo.stnphi);
+        stn_destroy(ns->ed.eo.stnpsi);
+        stn_destroy(ns->ed.eo.stnnplus);
+        stn_destroy(ns->ed.eo.stnnminus);
     }
     // Destroy the stencil for pressure and velocities
     stn_destroy(ns->stn);
@@ -184,7 +187,8 @@ void higflow_create_solver(higflow_solver *ns) {
             slv_set_maxnonzeros(ns->slvu[dim], 800);
         }
     }
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+
         // Get the localdomainsize for cell center
         int localdomainsizepsi = psd_get_local_domain_size(ns->ed.eo.psdEOpsi);
         // Creates a solver for pressure
@@ -235,7 +239,8 @@ void higflow_realloc_solver(higflow_solver *ns) {
             slv_set_maxnonzeros(ns->slvu[dim], 800);
         }
     }
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+    
         // Destroy the solver for pressure
         slv_destroy(ns->ed.eo.slvpsi);
         // Get the localdomainsize for cell center
@@ -418,6 +423,66 @@ real (*get_tensor)(Point center, int i, int j, real t)) {
     }
 }
 
+// Create the simulation domain for multiphase electroosmotic flow
+void higflow_create_domain_multiphase_electroosmotic (higflow_solver *ns, int cache, int order,
+real (*get_multiphase_electroosmotic_source_term)(real fracvol, Point center, int dim, real t),
+real (*get_multiphase_electroosmotic_phi)(real fracvol, Point center, real t),
+real (*get_multiphase_electroosmotic_psi)(real fracvol, Point center, real t),
+real (*get_multiphase_electroosmotic_nplus)(real fracvol, Point center, real t),
+real (*get_multiphase_electroosmotic_nminus)(real fracvol, Point center, real t),
+real (*get_boundary_multiphase_electroosmotic_source_term)(real fracvol, int id, Point center, int dim, real t),
+real (*get_boundary_multiphase_electroosmotic_phi)(real fracvol, int id, Point center, real t),
+real (*get_boundary_multiphase_electroosmotic_psi)(real fracvol, int id, Point center, real t),
+real (*get_boundary_multiphase_electroosmotic_nplus)(real fracvol, int id, Point center, real t),
+real (*get_boundary_multiphase_electroosmotic_nminus)(real fracvol, int id, Point center, real t)) {
+    if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+       // simulation domain (EO) for phi
+       ns->ed.eo.sdEOphi = sd_create(NULL);
+       //reuse interpolation, 0 on, 1 off
+       sd_use_cache(ns->ed.eo.sdEOphi, cache);      
+       //Sets the order of the interpolation to bhe used for the SD. 
+       sd_set_interpolator_order(ns->ed.eo.sdEOphi, order);
+       // simulation domain (EO) for psi
+       ns->ed.eo.sdEOpsi = sd_create(NULL);
+       //reuse interpolation, 0 on, 1 off
+       sd_use_cache(ns->ed.eo.sdEOpsi, cache);      
+       //Sets the order of the interpolation to bhe used for the SD. 
+       sd_set_interpolator_order(ns->ed.eo.sdEOpsi, order);
+       // simulation domain (EO) for nplus
+       ns->ed.eo.sdEOnplus = sd_create(NULL);
+       //reuse interpolation, 0 on, 1 off
+       sd_use_cache(ns->ed.eo.sdEOnplus, cache);      
+       //Sets the order of the interpolation to bhe used for the SD. 
+       sd_set_interpolator_order(ns->ed.eo.sdEOnplus, order);
+       // simulation domain (EO) for nminus
+       ns->ed.eo.sdEOnminus = sd_create(NULL);
+       //reuse interpolation, 0 on, 1 off
+       sd_use_cache(ns->ed.eo.sdEOnminus, cache);      
+       //Sets the order of the interpolation to bhe used for the SD. 
+       sd_set_interpolator_order(ns->ed.eo.sdEOnminus, order);
+       // function for the eo source term 
+       ns->ed.mult.eo.get_multiphase_electroosmotic_source_term = get_multiphase_electroosmotic_source_term;
+       // function for the eo phi
+       ns->ed.mult.eo.get_multiphase_electroosmotic_phi         = get_multiphase_electroosmotic_phi;
+       // function for the eo psi
+       ns->ed.mult.eo.get_multiphase_electroosmotic_psi         = get_multiphase_electroosmotic_psi ;
+       // function for the eo positive ion concentration 
+       ns->ed.mult.eo.get_multiphase_electroosmotic_nplus       = get_multiphase_electroosmotic_nplus;
+       // function for the eo negative ion concentration 
+       ns->ed.mult.eo.get_multiphase_electroosmotic_nminus      = get_multiphase_electroosmotic_nminus;
+       // function for the boundary source term
+       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term = get_boundary_multiphase_electroosmotic_source_term;
+       // function for the boundary potential phi
+       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi         = get_boundary_multiphase_electroosmotic_phi;
+       // function for the boundary potential psi
+       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi         = get_boundary_multiphase_electroosmotic_psi ;
+       // function for the boundary concentration of positive ion
+       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus       = get_boundary_multiphase_electroosmotic_nplus;
+       // function for the boundary concentration of negative ion
+       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus      = get_boundary_multiphase_electroosmotic_nminus;
+    }
+}
+
 // Create the simulation domain for electroosmotic flow
 void higflow_create_domain_electroosmotic (higflow_solver *ns, int cache, int order,
 real (*get_electroosmotic_source_term)(Point center, int dim, real t),
@@ -570,7 +635,8 @@ void higflow_create_partitioned_domain_viscoelastic_integral (higflow_solver *ns
 
 // Create the partitioned simulation sub-domain for electroosmotic simulation
 void higflow_create_partitioned_domain_electroosmotic (higflow_solver *ns, partition_graph *pg, int order) {
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+    
         // Creating the partitioned sub-domain to simulation EO phi
         ns->ed.eo.psdEOphi = psd_create(ns->ed.eo.sdEOphi, pg);
         // Synced mapper
@@ -665,9 +731,9 @@ void higflow_create_distributed_properties_multiphase_viscoelastic(higflow_solve
         if(ns->ed.mult.contr.viscoelastic_either == true) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
-                    ns->ed.mult.ve.dpD[i][j]       = psd_create_property(ns->ed.psdED);
-                    ns->ed.mult.ve.dpS[i][j]       = psd_create_property(ns->ed.psdED);
-                    ns->ed.mult.ve.dpKernel[i][j] = psd_create_property(ns->ed.psdED);
+                    ns->ed.ve.dpD[i][j]       = psd_create_property(ns->ed.psdED);
+                    ns->ed.ve.dpS[i][j]       = psd_create_property(ns->ed.psdED);
+                    ns->ed.ve.dpKernel[i][j] = psd_create_property(ns->ed.psdED);
                 }
             }
         }
@@ -709,7 +775,8 @@ void higflow_create_distributed_properties_viscoelastic_integral(higflow_solver 
 
 // Create the distributed properties for electroosmotic simulation
 void higflow_create_distributed_properties_electroosmotic(higflow_solver *ns) {
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+
         for(int dim = 0; dim < DIM; dim++) {
             ns->ed.eo.dpFeo[dim]      = psfd_create_property(ns->ed.eo.psfdEOFeo[dim]);
         }
@@ -757,7 +824,7 @@ void higflow_create_distributed_properties(higflow_solver *ns) {
             break;
     }
 
-    if(ns->contr.eoflow == true)
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true))
         higflow_create_distributed_properties_electroosmotic(ns);
 }
 
@@ -780,6 +847,18 @@ void higflow_create_stencil_for_extra_domain(higflow_solver *ns) {
 void higflow_create_stencil_multiphase(higflow_solver *ns) {
     // Create the stencil for properties interpolation 
     ns->ed.mult.stn = stn_create();
+}
+
+// Create the stencils for electroosmotic flow
+void higflow_create_stencils_electroosmotic(higflow_solver *ns) {
+    // Create the stencils for properties interpolation 
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+
+        ns->ed.eo.stnphi = stn_create();
+        ns->ed.eo.stnpsi = stn_create();
+        ns->ed.eo.stnnplus = stn_create();
+        ns->ed.eo.stnnminus = stn_create();
+    }
 }
 
 // Partition table initialize
@@ -808,7 +887,7 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
                 sd_add_higtree(ns->ed.sdED, root);
             }
         }
-        if (ns->contr.eoflow == true) {
+        if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
             sd_add_higtree(ns->ed.eo.sdEOphi, root);
             sd_add_higtree(ns->ed.eo.sdEOpsi, root);
             sd_add_higtree(ns->ed.eo.sdEOnplus, root);
@@ -819,20 +898,45 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
 }
 
 // Partition table multiphase initialize
-void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank) {
+void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], higio_amr_info *mi_mult[numhigs], int ntasks, int myrank) {
     if(ns->contr.flowtype == MULTIPHASE) {
         // The fringe is a buffer around the cells of a given node
         pg_set_fringe_size(pg, 5);
         /* Partitioning the grid from AMR information */
-        load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
+        load_balancer *lb = lb_create(MPI_COMM_WORLD, 2);
         for(unsigned i = myrank; i < numhigs; i += ntasks) {
             lb_add_input_tree(lb, higio_read_from_amr_info(mi[i]), true, 0);
         }
+        for(unsigned i = myrank; i < numhigs; i += ntasks) {
+            lb_add_input_tree(lb, higio_read_from_amr_info(mi_mult[i]), true, 1);
+        }
         lb_calc_partition(lb, pg);
-        numhigs = lb_get_num_local_trees(lb);
-        for(int h = 0; h < numhigs; h++) {
+        int numhigs0 = lb_get_num_local_trees_in_group(lb, 0);
+        for(int h = 0; h < numhigs0; h++) {
             /* Creating the distributed HigTree data structure */
-            hig_cell *root = lb_get_local_tree(lb, h, NULL);
+            hig_cell *root = lb_get_local_tree_in_group(lb, h, 0);
+            // Add higtree for SDs
+            sd_add_higtree(ns->sdp, root);
+            sd_add_higtree(ns->sdF, root);
+            if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
+                sd_add_higtree(ns->ed.sdED, root);
+            }
+            if (ns->contr.flowtype == MULTIPHASE) {
+                if(ns->ed.mult.contr.viscoelastic_either == true) {
+                    sd_add_higtree(ns->ed.sdED, root);
+                }
+            }
+            if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+                sd_add_higtree(ns->ed.eo.sdEOphi, root);
+                sd_add_higtree(ns->ed.eo.sdEOpsi, root);
+                sd_add_higtree(ns->ed.eo.sdEOnplus, root);
+                sd_add_higtree(ns->ed.eo.sdEOnminus, root);
+            }
+        }
+        int numhigs1 = lb_get_num_local_trees_in_group(lb, 1);
+        for(int h = 0; h < numhigs1; h++) {
+            /* Creating the distributed HigTree data structure */
+            hig_cell *root = lb_get_local_tree_in_group(lb, h, 1);
             // Add higtree for SDs
             sd_add_higtree(ns->ed.mult.sdmult, root);
         }

@@ -98,6 +98,8 @@ typedef struct higflow_parameters{
     // real   nu;
     // Reynolds number
     real   Re;
+    // Froude number
+    real   Fr;
     // Time
     real   t;
     // Difference time
@@ -107,7 +109,9 @@ typedef struct higflow_parameters{
     // Current step number
     int    step;
     int    stepaux;
-    // Maximal step number
+    // number of steps
+    int    numsteps;
+    // Last step number
     int    finalstep;
     // Save time
     real   ts;
@@ -126,7 +130,7 @@ typedef struct higflow_parameters{
     // File name for save
     char   *namesave;
     // Folder name for residual
-    char   nameres[512];
+    char   nameres[1024];
 } higflow_parameters;
 
 typedef enum projection_type{
@@ -349,6 +353,14 @@ typedef struct higflow_electroosmotic{
     distributed_property *dpnplus;
     // Distributed property for negative charge concentration 
     distributed_property *dpnminus;
+    // stencil for phi
+    sim_stencil *stnphi;
+    // stencil for psi and Feo
+    sim_stencil *stnpsi;
+    // stencil for nplus
+    sim_stencil *stnnplus;
+    // stencil for nminus
+    sim_stencil *stnnminus;
     // Function to get source term
     real (*get_electroosmotic_source_term)(Point center, int dim, real t);
     // Function to get phi
@@ -385,7 +397,7 @@ typedef struct ve_parameters{
     // LPTT parameter
     real   epsilon;
     // LPTT parameter
-    real   psi;
+    real   xi;
     // Giesekus parameter
     real   alpha;
     // Kernel tolerance parameter
@@ -512,6 +524,83 @@ typedef struct higflow_viscoelastic_integral{
     real (*get_tensor)(Point center, int i, int j, real t);
 } higflow_viscoelastic_integral;
 
+
+typedef struct higflow_multiphase_electroosmotic{
+     // Mult electroosmotic controllers
+    eo_controllers   contr;
+    // Mult viscoelastic parameters
+    eo_parameters    par0;
+    eo_parameters    par1;
+    // // Sub-domain to simulation for facets (EO source force)
+    // sim_facet_domain     *sfdEOFeo[DIM];
+    // // Partitioned sub-domain to simulation for facets (EO source force)
+    // psim_facet_domain    *psfdEOFeo[DIM];
+    // // Sub-domain to simulation for electro-osmotic phi
+    // sim_domain           *sdEOphi;
+    // // Partitioned sub-domain to simulation for electro-osmotic phi
+    // psim_domain          *psdEOphi;
+    // // Sub-domain to simulation for electro-osmotic psi
+    // sim_domain           *sdEOpsi;
+    // // Partitioned sub-domain to simulation for electro-osmotic psi
+    // psim_domain          *psdEOpsi;
+    // // Sub-domain to simulation for electrocosmotic nplus
+    // sim_domain           *sdEOnplus;
+    // // Partitioned sub-domain to simulation for electrocosmotic nminus
+    // psim_domain          *psdEOnplus;
+    // // Sub-domain to simulation for electro-osmotic nminus
+    // sim_domain           *sdEOnminus;
+    // // Partitioned sub-domain to simulation for electro-osmotic nminus
+    // psim_domain          *psdEOnminus;
+    // // Distributed property for source term 
+    // distributed_property *dpFeo[DIM];
+    // // Distributed property for applied potential 
+    // distributed_property *dpphi;
+    // // Distributed property for induced potential 
+    // distributed_property *dppsi;
+    // // Distributed property for positive charge concentration 
+    // distributed_property *dpnplus;
+    // // Distributed property for negative charge concentration 
+    // distributed_property *dpnminus;
+    // // Distributed property for reference charge concentration in phases
+    // distributed_property *dpnref;
+    // // stencil for phi
+    // sim_stencil *stnphi;
+    // // stencil for psi, Feo and nref
+    // sim_stencil *stnpsi;
+    // // stencil for nplus
+    // sim_stencil *stnnplus;
+    // // stencil for nminus
+    // sim_stencil *stnnminus;
+    // // Function to get reference charge concentration in phases
+    // real (*get_electroosmotic_nref)(real fracvol, Point center, real t);
+    // Function to get source term
+    real (*get_multiphase_electroosmotic_source_term)(real fracvol, Point center, int dim, real t);
+    // Function to get phi
+    real (*get_multiphase_electroosmotic_phi)(real fracvol, Point center, real t);
+    // Function to get psi
+    real (*get_multiphase_electroosmotic_psi)(real fracvol, Point center, real t);
+    // Function to get nplus
+    real (*get_multiphase_electroosmotic_nplus)(real fracvol, Point center, real t);
+    // Function to get nminus
+    real (*get_multiphase_electroosmotic_nminus)(real fracvol, Point center, real t);
+    // Function to get the source term at boundary
+    real (*get_boundary_multiphase_electroosmotic_source_term)(real fracvol, int id, Point center, int dim, real t);
+    // Function to get phi at boundary
+    real (*get_boundary_multiphase_electroosmotic_phi)(real fracvol, int id, Point center, real t);
+    // Function to get psi at boundary
+    real (*get_boundary_multiphase_electroosmotic_psi)(real fracvol, int id, Point center, real t);
+    // Function to get nplus at boundary
+    real (*get_boundary_multiphase_electroosmotic_nplus)(real fracvol, int id, Point center, real t);
+    // Function to get nminus at boundary
+    real (*get_boundary_multiphase_electroosmotic_nminus)(real fracvol, int id, Point center, real t);
+    // // Linear system solver for potential psi
+    // solver                     *slvpsi;
+    // solver                     *slvphi;
+    // solver                     *slvnplus;
+    // solver                     *slvnminus;
+} higflow_multiphase_electroosmotic;
+
+
 // Controllers for multiphase viscoelastic simulation
 typedef struct mult_ve_controllers{
     // Controlers - phase 0
@@ -535,11 +624,11 @@ typedef struct higflow_multiphase_viscoelastic{
     ve_parameters    par0;
     ve_parameters    par1;
     // Distributed property for velocity derivative tensor 
-    distributed_property *dpD[DIM][DIM];
+    // distributed_property *dpD[DIM][DIM];
     // // Distributed property for beta viscoelastic
     // distributed_property *dpbeta;
     // Distributed property for S viscoelastic - Momento
-    distributed_property *dpS[DIM][DIM];
+    // distributed_property *dpS[DIM][DIM];
     // // Distributed property for S viscoelastic - phase 0
     // distributed_property *dpS0[DIM][DIM];
     // // Distributed property for S viscoelastic - phase 1
@@ -549,7 +638,7 @@ typedef struct higflow_multiphase_viscoelastic{
     // // Distributed property for kernel tensor - phase 1
     // distributed_property *dpKernel1[DIM][DIM];
     // Distributed property for kernel tensor
-    distributed_property *dpKernel[DIM][DIM];
+    // distributed_property *dpKernel[DIM][DIM];
 
     // Function to get the tensor - phase 0
     // real (*get_tensor0)(Point center, int i, int j, real t);
@@ -602,6 +691,8 @@ typedef struct higflow_multiphase{
     sim_stencil           *stn;
     // Multiphase viscoelastic
     higflow_multiphase_viscoelastic ve;
+    // Multiphase electroosmotic
+    higflow_multiphase_electroosmotic eo;
     // Mult controllers
     mult_controllers      contr;
     // Mult parameters
@@ -787,6 +878,19 @@ void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM],
 void higflow_create_domain_viscoelastic_integral (higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t));
 
+// Create the simulation domain for multiphase electroosmotic flow
+void higflow_create_domain_multiphase_electroosmotic (higflow_solver *ns, int cache, int order,
+real (*get_multiphase_electroosmotic_source_term)(real fracvol, Point center, int dim, real t),
+real (*get_multiphase_electroosmotic_phi)(real fracvol, Point center, real t),
+real (*get_multiphase_electroosmotic_psi)(real fracvol, Point center, real t),
+real (*get_multiphase_electroosmotic_nplus)(real fracvol, Point center, real t),
+real (*get_multiphase_electroosmotic_nminus)(real fracvol, Point center, real t),
+real (*get_multiphase_boundary_electroosmotic_source_term)(real fracvol, int id, Point center, int dim, real t),
+real (*get_multiphase_boundary_electroosmotic_phi)(real fracvol, int id, Point center, real t),
+real (*get_multiphase_boundary_electroosmotic_psi)(real fracvol, int id, Point center, real t),
+real (*get_multiphase_boundary_electroosmotic_nplus)(real fracvol, int id, Point center, real t),
+real (*get_multiphase_boundary_electroosmotic_nminus)(real fracvol, int id, Point center, real t));
+
 // Create the simulation domain for electro-osmotic flow
 void higflow_create_domain_electroosmotic (higflow_solver *ns, int cache, int order,
 real (*get_electroosmotic_source_term)(Point center, int dim, real t),
@@ -851,11 +955,14 @@ void higflow_create_stencil_for_extra_domain(higflow_solver *ns);
 // Create the stencil for multiphase
 void higflow_create_stencil_multiphase(higflow_solver *ns);
 
+// Create the stencils for electroosmotic flow
+void higflow_create_stencils_electroosmotic(higflow_solver *ns);
+
 // Partition table initialize
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank);
 
 // Partition table multiphase initialize
-void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank);
+void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], higio_amr_info *mi_mult[numhigs], int ntasks, int myrank);
 
 // Use the given mesh information to create to create amr info about the multiphase domain
 // Corresponds to a uniform higtree with the cell sizes of the last given level

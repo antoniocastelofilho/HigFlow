@@ -56,7 +56,7 @@ void free_dp_residuals(dp_residuals *dp_res) {
 
 sim_residuals *create_sim_residuals(higflow_controllers hig_contr, mult_controllers mult_contr, int myrank) {
     sim_residuals *sim_res = (sim_residuals *)malloc(sizeof(sim_residuals));
-    if(myrank==0) {
+    if(myrank == 0) {
         ////////////////// Make dps NULL by default //////////////////
         for(int dim=0; dim<DIM; dim++){
             for(int dim2=dim; dim2<DIM; dim2++){
@@ -88,6 +88,7 @@ sim_residuals *create_sim_residuals(higflow_controllers hig_contr, mult_controll
                         }
                     }
                 }
+                
                 break;
             case VISCOELASTIC:
                 for(int dim=0; dim<DIM; dim++){
@@ -98,7 +99,7 @@ sim_residuals *create_sim_residuals(higflow_controllers hig_contr, mult_controll
                 break;
         }
 
-        if(hig_contr.eoflow == true) {
+        if (hig_contr.eoflow == true || (hig_contr.flowtype == MULTIPHASE && mult_contr.eoflow_either == true)) {
             sim_res->psi = create_dp_residuals();
         }
 
@@ -112,7 +113,7 @@ void free_sim_residuals(sim_residuals *sim_res) {
 
     int myrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-    if(myrank==0) {
+    if(myrank == 0) {
         for(int dim=0; dim<DIM; dim++){
             free_dp_residuals(sim_res->u[dim]);
         }
@@ -140,7 +141,47 @@ void free_sim_residuals(sim_residuals *sim_res) {
     sim_res = NULL;
 }
 
-void get_channel_lengths(Point center, Point L, char *nameload) {
+static void get_channel_lengths_yaml(Point center, Point L, char *nameload) {
+    char namefile[1024];
+    sprintf(namefile,"%s.domain.yaml", nameload);
+
+    struct fy_document *fyd = fy_document_build_from_file(NULL, namefile);
+    if (fyd == NULL) {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
+        exit(1);
+    }
+    // Number of HigTrees
+    int numhigs;
+    int ifd = fy_document_scanf(fyd,"domain/number_domains %d",&numhigs);
+    if(numhigs!=1) printf("Number of HigTrees: %d ==============> EXPECTED TO BE 1 - domain may not be cuboid\n", numhigs);
+    
+    
+    char amrfilename[1024];
+    ifd = fy_document_scanf(fyd,"domain/domain0/path %s",amrfilename);
+    fy_document_destroy(fyd);
+
+    // Open the AMR format file
+    FILE *fd = fopen(amrfilename, "r");
+    if (fd == NULL) {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename);
+        exit(1);
+    }
+    // low and high points of the domain
+    real l[DIM], h[DIM];
+    // Reading the higtree information from the file 
+    for(int dim = 0; dim < DIM; dim++) {
+		int status = fscanf(fd, "%lf", &l[dim]);
+		status = fscanf(fd, "%lf", &h[dim]);
+        center[dim] = (h[dim] + l[dim])/2.0;
+        L[dim] = h[dim] - l[dim];
+	}
+    // Close the AMR format file
+    fclose(fd);
+}
+
+static void get_channel_lengths(Point center, Point L, char *nameload) {
     char namefile[1024];
     sprintf(namefile,"%s.domain", nameload);
     FILE *fdomain = fopen(namefile, "r");
@@ -152,7 +193,7 @@ void get_channel_lengths(Point center, Point L, char *nameload) {
     // Number of HigTrees
     int numhigs;
     int ifd = fscanf(fdomain,"%d\n",&numhigs);
-    if(numhigs!=1) printf("Number of HigTrees: %d ==============> EXPECTED TO BE 1\n", numhigs);
+    if(numhigs!=1) printf("Number of HigTrees: %d ==============> EXPECTED TO BE 1 - domain may not be cuboid\n", numhigs);
     char amrfilename[1024];
     __higflow_readstring(amrfilename,1024,fdomain);
     // Open the AMR format file
@@ -192,7 +233,7 @@ sim_residuals *create_initialize_sim_residuals(higflow_solver *ns) {
         /////////////////// get channel dimensions if needed ///////////////
         #if defined(COMPUTE_MIDRANGE) || defined(COMPUTE_MIDLINE)
             Point center; Point L;
-            get_channel_lengths(center, L, ns->par.nameload);
+            get_channel_lengths_yaml(center, L, ns->par.nameload);
             #ifdef COMPUTE_MIDRANGE
                 real leftx = center[0] - 0.25*L[0];
                 real rightx = center[0] + 0.25*L[0];
@@ -216,7 +257,7 @@ void update_residual_timeinfo(residual_timeinfo *res, real r, int step, int init
 
     int rstep = step - initstep;
 
-    if(rstep==0){
+    if(rstep == 0){
         for(int i=0; i<RES_STORE_NUM_POW; i++){
             res->avg[i] = r;
             res->geoavg[i] = r;

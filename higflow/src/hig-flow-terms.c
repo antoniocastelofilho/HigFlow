@@ -33,13 +33,13 @@ real higflow_interfacial_tension_term(higflow_solver *ns) {
     real We, Bo, value;
     /*Bo = 10.0;
     value = ns->cc.IF;
-    value = value/(Bo*ns->cc.dens);*/
+    value /= (Bo*ns->cc.dens);*/
     value = 0.0;
     /*Re = ns->par.Re;
     Ca = ns->ed.mult.par.Ca;
-    We = Ca*Re;
+    We = Ca*Re; // multiphase viscosity is already accounted for in discret
     value = ns->cc.IF;
-    value = ns->cc.IF/(We*ns->cc.dens);*/
+    value /= (We*ns->cc.dens);*/
     return value;
 }
 
@@ -50,7 +50,10 @@ real higflow_gravity_term(higflow_solver *ns) {
     //real value = 1.0/pow(Fr,2.0);
     //real value = 0.98;
     real value = 0.0;
-    //real value = 1.0/(ns->par.Fr*ns->par.Fr);
+    // real value = 1.0/(ns->par.Fr*ns->par.Fr);
+    // if (ns->contr.flowtype == MULTIPHASE) {
+    //     value /= ns->cc.dens;
+    // }
     return value;
 }
 
@@ -79,6 +82,7 @@ real higflow_tensor_term(higflow_solver *ns) {
             value += ns->cc.dSdx[dim2];
         }
     }
+
     return value;
 }
 
@@ -191,7 +195,7 @@ real higflow_convective_term(higflow_solver *ns, Point delta, int dim) {
 }
 
 // Difusive term contribution for the Navier-Stokes equation
-real higflow_difusive_term(higflow_solver *ns, Point delta) {
+real higflow_diffusive_term(higflow_solver *ns, Point delta) {
     real value = 0.0;
     switch (ns->contr.flowtype) {
         // Newtonian
@@ -211,7 +215,7 @@ real higflow_difusive_term(higflow_solver *ns, Point delta) {
         // Multiphase
         case MULTIPHASE:
            for (int dim2 = 0; dim2 < DIM; dim2++) {
-               value += ns->cc.du2dx2[dim2];
+               value += ns->cc.du2dx2[dim2]; // multiphase viscosity is already accounted for in discret
            }
            value /= ns->par.Re;
            value /= ns->cc.dens;
@@ -235,45 +239,45 @@ real higflow_difusive_term(higflow_solver *ns, Point delta) {
 }
 
 // Cell electroosmotic source term contribution for the Navier-Stokes equation
-real higflow_electroosmotic_source_term(higflow_solver *ns) {
+real higflow_electroosmotic_source_term(higflow_solver *ns, real Ex) {
     // conversion factor
-    real G_x = 1.0/(ns->par.Re*ns->ed.eo.par.Ex);
+    real G_x = 1.0/(ns->par.Re*Ex);
     // Set the source term
     real value = G_x*ns->cc.Feo;
     if(ns->contr.flowtype == MULTIPHASE) {
-        value /= ns->cc.dens;
+        value /= ns->cc.dens; // multiphase viscosity is already accounted for in discret
     }
     return value;
 }
 
 // Cell electroosmotic diffusive ionic term contribution for the Navier-Stokes equation
-real higflow_diffusive_ionic_term(higflow_solver *ns) {
+real higflow_diffusive_ionic_term(higflow_solver *ns, real Pe) {
     // Set the diffusive ionic term
-    real value = ns->cc.d2ndx2/ns->ed.eo.par.Pe;
+    real value = ns->cc.d2ndx2/Pe;
     return value;
 }
 
 // Cell electroosmotic potential ionic term contribution for the Navier-Stokes equation
-real higflow_potential_ionic_term(higflow_solver *ns) { // not used anymore
+real higflow_potential_ionic_term(higflow_solver *ns, real alphaeo, real Pe) { // not used anymore
     // Set the potential ionic term
     real value;
     value   = ns->cc.dndx*(ns->cc.dphidx + ns->cc.dpsidx) + ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2);
-    value   *= ns->ed.eo.par.alpha/ns->ed.eo.par.Pe;
+    value   *= alphaeo/Pe;
     return value;
 }
 
 // Cell electroosmotic convective electric term contribution for the Navier-Stokes equation
 // grad (phi + psi) dot grad n
-real higflow_electric_convective_ionic_term_central(higflow_solver *ns) { 
+real higflow_electric_convective_ionic_term_central(higflow_solver *ns, real alphaeo, real Pe) { 
     real value;
-    value   = ns->cc.dndx*(ns->cc.dphidx + ns->cc.dpsidx)*ns->ed.eo.par.alpha/ns->ed.eo.par.Pe;
+    value   = ns->cc.dndx*(ns->cc.dphidx + ns->cc.dpsidx)*alphaeo/Pe;
     return value;
 }
 
 // Cell electroosmotic divergence electric term contribution for the Navier-Stokes equation
 // n * lapl (phi + psi)
-real higflow_electric_divergence_ionic_term(higflow_solver *ns) { 
+real higflow_electric_divergence_ionic_term(higflow_solver *ns, real alphaeo, real Pe) { 
     real value;
-    value   = ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2)*ns->ed.eo.par.alpha/ns->ed.eo.par.Pe;
+    value   = ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2)*alphaeo/Pe;
     return value;
 }

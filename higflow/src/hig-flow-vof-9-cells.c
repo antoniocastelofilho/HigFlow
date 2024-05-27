@@ -2,6 +2,8 @@
 #include "hig-flow-vof-9-cells.h"
 #include "hig-flow-discret.h"
 
+static real small = EPSMACH;
+
 void higflow_compute_normal_multiphase_2D_shirani_9_cells(higflow_solver *ns, sim_domain *sdm, int clid, Point center, Point p, Point delta) {
    Point pp, Normal;
    real fracvol, gradFij1, gradFij2, gradFij3, gradFij, gradFik1, gradFik2;
@@ -56,8 +58,8 @@ void higflow_compute_normal_multiphase_2D_shirani_9_cells(higflow_solver *ns, si
    //Normal
    //=================================================================
    real norm_grad = sqrt(pow(gradFi,2)+pow(gradFj,2));
-    Normal[0] = gradFi/(norm_grad+1.0e-16);
-    Normal[1] = gradFj/(norm_grad+1.0e-16);
+    Normal[0] = gradFi/(norm_grad+small);
+    Normal[1] = gradFj/(norm_grad+small);
    for (int i=0; i<DIM; i++){
       dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
    }

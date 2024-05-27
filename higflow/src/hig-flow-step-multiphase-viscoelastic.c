@@ -1,122 +1,15 @@
 // *******************************************************************
-//  HiG-Flow Solver Step Multiphase - version 20/01/2022
+//  HiG-Flow Solver Step Multiphase Viscoelastic - version 28/03/2024
 // *******************************************************************
 
 #include "hig-flow-step-multiphase-viscoelastic.h"
 
-
-char nome_Frac_Visc[100];
-char nome_Txx[100];
-char nome_Txy[100];
-char nome_Tyx[100];
-char nome_Tyy[100];
-char nome_d[100];     char nome_N[100];
-
-void arquivoTempo_visc(int step) {
-    sprintf(nome_Frac_Visc, "DATA/%d_frac_visc.txt", step);
-    sprintf(nome_Txx, "DATA/%d_Txx.txt", step);
-    sprintf(nome_Txy, "DATA/%d_Txy.txt", step);
-    sprintf(nome_Tyx, "DATA/%d_Tyx.txt", step);
-    sprintf(nome_Tyy, "DATA/%d_Tyy.txt", step);
-    sprintf(nome_d, "DATA/%d_d.txt", step);
-    sprintf(nome_N, "DATA/%d_norm.txt", step);
-
-    FILE* fp = fopen(nome_Frac_Visc, "a"); fclose(fp);
-
-    fp = fopen(nome_Txx, "a"); fclose(fp);
-
-    fp = fopen(nome_Txy, "a"); fclose(fp);
-
-    fp = fopen(nome_Tyx, "a"); fclose(fp);
-
-    fp = fopen(nome_Tyy, "a"); fclose(fp);
-
-    fp = fopen(nome_d, "a"); fclose(fp);
-
-    fp = fopen(nome_N, "a"); fclose(fp);
-}
-
-void arquivo_Frac_Visc(char* nome, real x, real y, real frac) {
-    FILE* fp = fopen(nome, "a");
-    fprintf(fp, "%lf %lf %lf\n", x, y, frac);
-    fclose(fp);
-}
-
-void arquivo_Frac_Ten(char* nome, real x, real y, real Ten) {
-    FILE* fp = fopen(nome, "a");
-    fprintf(fp, "%lf %lf %lf\n", x, y, Ten);
-    fclose(fp);
-}
-
-void arquivo_d(char* nome, real d) {
-    FILE* fp = fopen(nome, "a");
-    fprintf(fp, "%lf\n", d);
-    fclose(fp);
-}
-
-void arquivo_N(char* nome, real nx, real ny) {
-    FILE* fp = fopen(nome, "a");
-    fprintf(fp, "%lf %lf\n", nx, ny);
-    fclose(fp);
-}
-
-void save_cell_values_visc(higflow_solver* ns, int aux) {
-    // Get the local sub-domain for the cells
-    sim_domain* sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    // Get the local sub-domain for the facets
-    sim_facet_domain* sfdu[DIM];
-    for (int i = 0; i < DIM; i++) {
-        sfdu[i] = psfd_get_local_domain(ns->psfdu[i]);
-    }
-    // Get the map for the domain properties
-    mp_mapper* mp = sd_get_domain_mapper(sdm);
-    // Loop for each cell
-    higcit_celliterator* it;
-    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Get the cell
-        hig_cell* c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(mp, hig_get_cid(c));
-        // Get the center of the cell
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        // Get the delta of the cell
-        Point cdelta;
-        hig_get_delta(c, cdelta);
-        int infacet;
-        if (aux == 1) {
-            //saving volume fraction
-            real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-            arquivo_Frac_Visc(nome_Frac_Visc, ccenter[0], ccenter[1], fracvol);
-
-            real d = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
-            arquivo_d(nome_d, d);
-
-            Point Normal;
-            Normal[0] = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-            Normal[1] = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-            arquivo_N(nome_N, Normal[0], Normal[1]);
-
-            //saving Tensor
-            real S[DIM][DIM];
-            // Get Kernel
-            S[0][0] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[1][1], ns->ed.stn);
-            S[0][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[1][2], ns->ed.stn);
-            S[1][0] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[2][1], ns->ed.stn);
-            S[1][1] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[2][2], ns->ed.stn);
-
-            arquivo_Frac_Ten(nome_Txx, ccenter[0], ccenter[1], S[0][0]);
-            arquivo_Frac_Ten(nome_Txy, ccenter[0], ccenter[1], S[0][1]);
-            arquivo_Frac_Ten(nome_Tyx, ccenter[0], ccenter[1], S[1][0]);
-            arquivo_Frac_Ten(nome_Tyy, ccenter[0], ccenter[1], S[1][1]);
-            //continue;
-        }
-    }
-    higcit_destroy(it);
+real higflow_interp_visc_multiphase_viscoelastic(real visc0, real visc1, real fracvol) {
+    return (1.0 - fracvol) * visc0 + fracvol * visc1;
 }
 
 real higflow_interp_beta_multiphase_viscoelastic(real beta0, real beta1, real visc0, real visc1, real fracvol) {
-    real visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+    real visc = higflow_interp_visc_multiphase_viscoelastic(visc0, visc1, fracvol);
     return ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
 }
 
@@ -129,12 +22,6 @@ void higlow_interp_MM_multiphase_viscoelastic(real MM0[DIM][DIM], real MM1[DIM][
         for (int j = 0; j < DIM; j++)
             MM[i][j] = (1.0 - fracvol) * MM0[i][j] + fracvol * MM1[i][j];
 }
-
-typedef enum phase_location {
-    PHASE0 = 0,
-    PHASE1 = 1,
-    INTERFACE = 2
-} phase_location;
 
 // Constitutive Equation Step for the Explicit Euler Method
 void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflow_solver* ns) {
@@ -159,7 +46,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
             break;
     }
     real tol         = ns->ed.mult.ve.par0.kernel_tol;
-    real small       = 1.0e-14;
+    real small = EPSMACH;
     // Get the local sub-domain for the cells
     sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
     // Get the local sub-domain for the facets
@@ -185,19 +72,15 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
 
         // Get Volume fraction
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-        phase_location phase_loc;
-        if (fracvol < small) phase_loc = PHASE0;
-        else if (fracvol > 1.0 - small) phase_loc = PHASE1;
-        else phase_loc = INTERFACE;
 
         // pure newtonian in this phase
-        if ((phase_loc == PHASE0 && flowtype0 != VISCOELASTIC) ||
-            (phase_loc == PHASE1 && flowtype1 != VISCOELASTIC)) {
+        if ((FLT_EQ(fracvol, 0.0) && flowtype0 != VISCOELASTIC) ||
+            (FLT_EQ(fracvol, 1.0) && flowtype1 != VISCOELASTIC)) {
             for (int i = 0; i < DIM; i++) {
-                dp_set_value(ns->ed.mult.ve.dpS[i][i], clid, 1.0);
+                dp_set_value(ns->ed.ve.dpS[i][i], clid, 1.0); // dpS is used to set dpKernel after the cell loop
                 for (int j = i + 1; j < DIM; j++) {
-                    dp_set_value(ns->ed.mult.ve.dpS[i][j], clid, 0.0);
-                    dp_set_value(ns->ed.mult.ve.dpS[j][i], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpS[i][j], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpS[j][i], clid, 0.0);
                 }
             }
             continue;
@@ -210,11 +93,11 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 // Get Du
-                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
+                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
                 // Get S
-                S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
+                S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                 // Get Kernel
-                Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpKernel[i][j], ns->ed.stn);
+                Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 KernelCopy[i][j] = Kernel[i][j];
             }
             trS += S[i][i];
@@ -242,7 +125,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         // Calculate the matrix MM for the model
         real MM0[DIM][DIM], MM1[DIM][DIM];
         real MM[DIM][DIM], M_aux[DIM][DIM];
-        if (phase_loc == PHASE0 || (phase_loc == INTERFACE && flowtype0 == VISCOELASTIC)) {
+        if (flowtype0 == VISCOELASTIC && FLT_LT(fracvol, 1.0)) {
             // Phase 0
             switch (model0) {
                 case USERSET: // User Model
@@ -274,7 +157,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 for (int j = 0; j < DIM; j++)
                     MM0[i][j] = 0.0;
         }
-        if (phase_loc == PHASE1 || (phase_loc == INTERFACE && flowtype1 == VISCOELASTIC)) {
+        if (flowtype1 == VISCOELASTIC && FLT_GT(fracvol, 0.0)) {
             // Phase 1
             switch (model1) {
                 case USERSET: // User Model
@@ -334,7 +217,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 case CELL_CUBISTA:
                     //Compute convective tensor term CUBISTA in rhs
                     for (int dim = 0; dim < DIM; dim++) {
-                        rhs -= hig_flow_convective_cell_term_cubista(ns->dpu[dim], ns->sfdu[dim], ns->stn, ns->ed.mult.ve.dpKernel[i][j], ns->ed.sdED, ns->ed.stn, Kernel[i][j], ccenter, cdelta, dim);
+                        rhs -= hig_flow_convective_cell_term_cubista(ns->dpu[dim], ns->sfdu[dim], ns->stn, ns->ed.ve.dpKernel[i][j], ns->ed.sdED, ns->ed.stn, Kernel[i][j], ccenter, cdelta, dim);
                     }
                     break;
                 }
@@ -347,9 +230,9 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 //     if (flowtype1 != VISCOELASTIC) kernel = (1.0 - fracvol) * kernel + fracvol * (i == j);
                 // }
                 // Store the Kernel
-                dp_set_value(ns->ed.mult.ve.dpS[i][j], clid, kernel);
+                dp_set_value(ns->ed.ve.dpS[i][j], clid, kernel);
                 if (i != j) {
-                    dp_set_value(ns->ed.mult.ve.dpS[j][i], clid, kernel);
+                    dp_set_value(ns->ed.ve.dpS[j][i], clid, kernel);
                 }
             }
         }
@@ -359,7 +242,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            dp_sync(ns->ed.mult.ve.dpS[i][j]);
+            dp_sync(ns->ed.ve.dpS[i][j]);
         }
     }
     // Store the Kernel Tensor
@@ -374,12 +257,11 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 Point ccenter;
                 hig_get_center(c, ccenter);
                 // Get the S tensor and store in Kernel
-                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
+                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
 
-                if (j>=i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.ve.dpKernel[i][j], clid), S, c, ccenter)
-
-                    // Store Kernel
-                    dp_set_value(ns->ed.mult.ve.dpKernel[i][j], clid, S);
+                if (j>=i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
+                // Store Kernel
+                dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S);
             }
             // Destroy the iterator
             higcit_destroy(it);
@@ -391,7 +273,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            dp_sync(ns->ed.mult.ve.dpKernel[i][j]);
+            dp_sync(ns->ed.ve.dpKernel[i][j]);
         }
     }
 }
@@ -420,7 +302,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
             break;
     }
     real tol         = ns->ed.mult.ve.par0.kernel_tol;
-    real small       = 1.0e-14;
+    real small       = EPSMACH;
     // Get the local sub-domain for the cells
     sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
     // Get the local sub-domain for the facets
@@ -446,19 +328,15 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
 
         // Get Volume fraction
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-        phase_location phase_loc;
-        if (fracvol < small) phase_loc = PHASE0;
-        else if (fracvol > 1.0 - small) phase_loc = PHASE1;
-        else phase_loc = INTERFACE;
 
         // pure newtonian in this phase
-        if ((phase_loc == PHASE0 && flowtype0 != VISCOELASTIC) ||
-            (phase_loc == PHASE1 && flowtype1 != VISCOELASTIC)) {
+        if ((FLT_EQ(fracvol, 0.0) && flowtype0 != VISCOELASTIC) ||
+            (FLT_EQ(fracvol, 1.0) && flowtype1 != VISCOELASTIC)) {
             for (int i = 0; i < DIM; i++) {
-                dp_set_value(ns->ed.mult.ve.dpS[i][i], clid, 1.0);
+                dp_set_value(ns->ed.ve.dpS[i][i], clid, 1.0);
                 for (int j = i + 1; j < DIM; j++) {
-                    dp_set_value(ns->ed.mult.ve.dpS[i][j], clid, 0.0);
-                    dp_set_value(ns->ed.mult.ve.dpS[j][i], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpS[i][j], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpS[j][i], clid, 0.0);
                 }
             }
             continue;
@@ -471,11 +349,11 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 // Get Du
-                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
+                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
                 // Get S
-                S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
+                S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
                 // Get Kernel
-                Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpKernel[i][j], ns->ed.stn);
+                Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 KernelCopy[i][j] = Kernel[i][j];
             }
             trS += S[i][i];
@@ -503,7 +381,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         // Calculate the matrix MM for the model
         real MM0[DIM][DIM], MM1[DIM][DIM];
         real MM[DIM][DIM], M_aux[DIM][DIM];
-        if (phase_loc == PHASE0 || (phase_loc == INTERFACE && flowtype0 == VISCOELASTIC)) {
+        if (flowtype0 == VISCOELASTIC && FLT_LT(fracvol, 1.0)) {
             // Phase 0
             switch (model0) {
                 case USERSET: // User Model
@@ -535,7 +413,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 for (int j = 0; j < DIM; j++)
                     MM0[i][j] = 0.0;
         }
-        if (phase_loc == PHASE1 || (phase_loc == INTERFACE && flowtype1 == VISCOELASTIC)) {
+        if (flowtype1 == VISCOELASTIC && FLT_GT(fracvol, 0.0)) {
             // Phase 1
             switch (model1) {
                 case USERSET: // User Model
@@ -597,7 +475,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 case CELL_CUBISTA:
                     //Compute convective tensor term CUBISTA in rhs
                     for (int dim = 0; dim < DIM; dim++) {
-                        rhs -= hig_flow_convective_cell_term_cubista(ns->dpu[dim], ns->sfdu[dim], ns->stn, ns->ed.mult.ve.dpKernel[i][j], ns->ed.sdED, ns->ed.stn, Kernel[i][j], ccenter, cdelta, dim);
+                        rhs -= hig_flow_convective_cell_term_cubista(ns->dpu[dim], ns->sfdu[dim], ns->stn, ns->ed.ve.dpKernel[i][j], ns->ed.sdED, ns->ed.stn, Kernel[i][j], ccenter, cdelta, dim);
                     }
                     break;
                 }
@@ -622,9 +500,9 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 //     if (flowtype1 != VISCOELASTIC) kernel = (1.0 - fracvol) * kernel + fracvol * (i == j);
                 // }
                 // Set the value of kernel
-                dp_set_value(ns->ed.mult.ve.dpS[i][j], clid, kernel);
+                dp_set_value(ns->ed.ve.dpS[i][j], clid, kernel);
                 if (i != j) {
-                    dp_set_value(ns->ed.mult.ve.dpS[j][i], clid, kernel);
+                    dp_set_value(ns->ed.ve.dpS[j][i], clid, kernel);
                 }
             }
         }  
@@ -634,7 +512,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            dp_sync(ns->ed.mult.ve.dpS[i][j]);
+            dp_sync(ns->ed.ve.dpS[i][j]);
         }
     }
     // Store the Kernel Tensor
@@ -649,12 +527,12 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 Point ccenter;
                 hig_get_center(c, ccenter);
                 // Get the S tensor and store in Kernel
-                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpS[i][j], ns->ed.stn);
+                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
 
-                if (j >= i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.ve.dpKernel[i][j], clid), S, c, ccenter)
+                if (j >= i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
 
-                    // Store Kernel
-                    dp_set_value(ns->ed.mult.ve.dpKernel[i][j], clid, S);
+                // Store Kernel
+                dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S);
             }
             // Destroy the iterator
             higcit_destroy(it);
@@ -666,7 +544,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            dp_sync(ns->ed.mult.ve.dpKernel[i][j]);
+            dp_sync(ns->ed.ve.dpKernel[i][j]);
         }
     }
 }
@@ -682,11 +560,15 @@ real higflow_interp_a_multiphase_viscoelastic(real a0, real a1, real fracvol) {
 
 // Computing the Polymeric Tensor
 void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns) {
-    if (ns->contr.flowtype == VISCOELASTIC) {
+    if (ns->ed.mult.contr.viscoelastic_either == true) {
         // Get the constants
-        real Re   = ns->par.Re;
-        real De, De0, De1;
-        real beta, beta0, beta1, visc0, visc1;
+        real Re    = ns->par.Re;
+        real De0   = ns->ed.mult.ve.par0.De;
+        real De1   = ns->ed.mult.ve.par1.De;
+        real beta0 = ns->ed.mult.ve.par0.beta;
+        real beta1 = ns->ed.mult.ve.par1.beta;
+        real visc0, visc1;
+        real De, beta, visc;
         real fA, fA0, fA1;
         real a, a0, a1;
         real trA;
@@ -700,7 +582,6 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                Tmin[i][j] =  1.0e16;
            }
         }
-        real small = 1.0e-14;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the map for the domain properties
@@ -720,19 +601,24 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
 
             // Get Volume fraction
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-            phase_location phase_loc;
-            if (fracvol < small) phase_loc = PHASE0;
-            else if (fracvol > 1.0 - small) phase_loc = PHASE1;
-            else phase_loc = INTERFACE;
 
+            // pure newtonian in this phase
+            if ((FLT_EQ(fracvol, 0.0) && flowtype0 != VISCOELASTIC) ||
+                (FLT_EQ(fracvol, 1.0) && flowtype1 != VISCOELASTIC)) {
+                for (int i = 0; i < DIM; i++)
+                    for (int j = 0; j < DIM; j++)
+                        dp_set_value(ns->ed.ve.dpS[i][j], clid, 0.0);
+                continue;
+            }
+            
             // Get the velocity derivative tensor Du and the Kernel tensor
             real Kernel[DIM][DIM], Du[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
                     // Get Kernel
-                    Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.mult.ve.dpKernel[i][j], ns->ed.stn);
+                    Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 }
             }
             // Eige-values and eige-vectors of Kernel
@@ -816,23 +702,24 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
             De = higflow_interp_De_multiphase_viscoelastic(De0, De1, fracvol);
             visc0 = ns->ed.mult.get_viscosity0(ccenter, ns->par.t);
             visc1 = ns->ed.mult.get_viscosity1(ccenter, ns->par.t);
+            visc = higflow_interp_visc_multiphase_viscoelastic(visc0, visc1, fracvol);
             beta = higflow_interp_beta_multiphase_viscoelastic(beta0, beta1, visc0, visc1, fracvol);
 
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     D[i][j] = 0.5*(Du[i][j]+Du[j][i]);
-                    S[i][j] = (1.0-beta)*(fA*A[i][j]-2.0*De*D[i][j])/(Re*De);
+                    S[i][j] = (1.0-beta)*visc*(fA*A[i][j]-2.0*De*D[i][j])/(Re*De);
                 }
-                S[i][i] += -a*(1.0-beta)/(Re*De);
+                S[i][i] += -a*(1.0-beta)*visc/(Re*De);
             }
 
             // Store the Polymeric Tensor
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
-                   real T = S[i][j] + 2.0*(1-beta)*D[i][j]/Re;
+                   real T = S[i][j] + 2.0*(1.0-beta)*visc*D[i][j]/Re;
                    if (T > Tmax[i][j]) Tmax[i][j] = T;
                    if (T < Tmin[i][j]) Tmin[i][j] = T;
-                   dp_set_value(ns->ed.mult.ve.dpS[i][j], clid, S[i][j]);
+                   dp_set_value(ns->ed.ve.dpS[i][j], clid, S[i][j]);
                 }
             }
         }
@@ -850,7 +737,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
         // Sync the distributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.mult.ve.dpS[i][j]);
+                dp_sync(ns->ed.ve.dpS[i][j]);
             }
         }
     }
@@ -928,7 +815,7 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
             // Implicit method
             higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(ns);
             break;
-        }
+    }
     // Computing the Polymeric Tensor
     higflow_compute_polymeric_tensor_multiphase_viscoelastic(ns);
 
@@ -945,10 +832,11 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
     higflow_boundary_condition_for_pressure(ns);
     // Calculate the viscosity
     higflow_compute_viscosity_multiphase(ns);
-    // Calculate the viscosity
+    // Calculate the density
     higflow_compute_density_multiphase(ns);
-    // Calculate the curvature
-    higflow_compute_curvature_multiphase(ns);
+    // Calculate the curvature, interfacial force and normal
+    higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
+    higflow_compute_distance_multiphase_2D(ns);
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
         case EXPLICIT_EULER:
@@ -973,7 +861,7 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
             break;
         case SEMI_IMPLICIT_BDF2:
             // Semi-Implicit Crank-Nicolson Method
-            higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns, ns->dpu, ns->dpustar);
+            higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns);
             break;
     }
     // Calculate the pressure
@@ -982,12 +870,6 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
     higflow_final_velocity_multiphase(ns);
     // Calculate the final pressure
     higflow_final_pressure(ns);
-    // if (ns->par.stepaux % 20000 == 0) {
-    //     printf("creating archives at step: %d\n", ns->par.stepaux);
-    //     arquivoTempo_visc(ns->par.stepaux);
-    //     save_cell_values_visc(ns, 1);
-    // }
     // Calculate the volume fraction
     higflow_plic_advection_volume_fraction(ns);
-    //higflow_explicit_euler_volume_fraction(ns);
 }

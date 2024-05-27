@@ -56,7 +56,7 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                   dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == MULTIPHASE) {
                         if(ns->ed.mult.contr.viscoelastic_either == true)
-                            dp_set_value(ns->ed.mult.ve.dpD[dim][dim2], clid, dudx);
+                            dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
                } else if (ns->contr.flowtype == VISCOELASTIC) {
                   dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
                     } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL){
@@ -74,7 +74,7 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == MULTIPHASE) {
                     if(ns->ed.mult.contr.viscoelastic_either == true) 
-                        dp_sync(ns->ed.mult.ve.dpD[dim][dim2]);
+                        dp_sync(ns->ed.ve.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == VISCOELASTIC) {
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
                 } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
@@ -193,7 +193,7 @@ void higflow_explicit_euler_intermediate_velocity_gen_newt(higflow_solver *ns, d
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
             real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
@@ -369,7 +369,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution (acrescentado)
-            //rhs += higflow_difusive_term(ns, fdelta);
+            //rhs += higflow_diffusive_term(ns, fdelta);
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
@@ -472,7 +472,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5 * higflow_difusive_term(ns, fdelta);
+            rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -548,7 +548,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]) {
+void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *ns) {
     // Firt stage of Tr-BDF2 method
     // Get the facet iterator
     higfit_facetiterator *fit;
@@ -587,7 +587,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             // Total contribuition terms times delta t
             rhs *= 0.5*ns->par.dt;
             // Difusive term contribution
-            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
             rhs += ns->cc.ufacet;
             // Reset the stencil
@@ -785,7 +785,7 @@ void higflow_solver_step_gen_newt(higflow_solver *ns) {
            break;
         case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(ns, ns->dpu, ns->dpustar);
+           higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(ns);
            break;
     }
     // Calculate the pressure

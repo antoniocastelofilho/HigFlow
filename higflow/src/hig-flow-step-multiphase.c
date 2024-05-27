@@ -420,9 +420,9 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
 
 // Fraction Correction  
 void fraction_correction_at_set(real *fracvol){
-   if (fabs(*fracvol - 1.0) < 1.0e-10) {
+   if (FLT_EQ(*fracvol, 1.0)) {
       *fracvol = 1.0;
-   } else if (fabs(*fracvol) < 1.0e-10) {
+   } else if (FLT_EQ(*fracvol, 0.0)) {
       *fracvol = 0.0;
    }
    // Para os casos onde as fracoes forem muito grande
@@ -448,7 +448,6 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
    mp_mapper *mp = sd_get_domain_mapper(sdm);
    // Loop for each cell
    higcit_celliterator *it;
-   real tol_u = 1.0e-14;
    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
       // Get the cell
       hig_cell *c = higcit_getcell(it);
@@ -512,7 +511,7 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
       fracr = 0.0;
       fracl = 0.0;
       //  Right Facet
-      if(fabs(ur)>tol_u) {
+      if(FLT_NE(ur, 0.0)) {
          if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
             printf("Time step is large!!!\n");
             exit(1);
@@ -564,7 +563,7 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
          }
       }
       //  Left Facet
-      if (fabs(ul) > tol_u) {
+      if (FLT_NE(ul, 0.0)) {
          if (fabs(ul) * ns->par.dt > 0.5 * cdelta[0]) {
             printf("Time step is large!!!\n");
             exit(1);
@@ -660,7 +659,6 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
         higcit_celliterator *it;
-        real tol_u = 1.0e-14;
         for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
             // Get the cell
             hig_cell *c = higcit_getcell(it);
@@ -730,7 +728,7 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
             fracr = 0.0;
             fracl = 0.0;
             //  Right Facet (UP)
-            if(fabs(ur)>tol_u){
+            if(FLT_NE(ur, 0.0)){
                if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
                   printf("Time step is large!!!\n");
                   exit(1);
@@ -782,7 +780,7 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
                }
             }
             //  Left Facet (DWON)
-            if (fabs(ul) > tol_u) {
+            if (FLT_NE(ul, 0.0)) {
                if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
                   printf("Time step is large!!!\n");
                   exit(1);
@@ -879,7 +877,6 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
         higcit_celliterator *it;
-        real tol_u = 1.0e-14;
         for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
             // Get the cell
             hig_cell *c = higcit_getcell(it);
@@ -951,7 +948,7 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
             fracr = 0.0;
             fracl = 0.0;
             //  Right Facet
-            if(fabs(ur)>tol_u){
+            if(FLT_NE(ur, 0.0)){
                if (fabs(ur) * ns->par.dt > 0.5 * cdelta[0]) {
                   printf("Time step is large!!!\n");
                   exit(1);
@@ -1011,7 +1008,7 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
                }
             }
             //  Left Facet
-            if (fabs(ul) > tol_u) {
+            if (FLT_NE(ul, 0.0)) {
                if (fabs(ul) * ns->par.dt > 0.5 * cdelta[0]) {
                   printf("Time step is large!!!\n");
                   exit(1);
@@ -1108,7 +1105,6 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
         higcit_celliterator *it;
-        real tol_u = 1.0e-14;
         for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
             // Get the cell
             hig_cell *c = higcit_getcell(it);
@@ -1178,7 +1174,7 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
             fracr = 0.0;
             fracl = 0.0;
             //  Right Facet (UP)
-            if(fabs(ur)>tol_u){
+            if(FLT_NE(ur, 0.0)){
                if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
                   printf("Time step is large!!!\n");
                   exit(1);
@@ -1230,7 +1226,7 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
                }
             }
             //  Left Facet (DWON)
-            if (fabs(ul) > tol_u) {
+            if (FLT_NE(ul, 0.0)) {
                if (fabs(ur)*ns->par.dt > 0.5*cdelta[0]) {
                   printf("Time step is large!!!\n");
                   exit(1);
@@ -1355,9 +1351,8 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
 
 // Correction Normal
 void normal_correction_at_get(Point Normal) {
-   real tol_n = 1.0e-14;
    for(int i=0;i<DIM;i++){
-      if (fabs(Normal[i]) < tol_n) {
+      if (FLT_EQ(Normal[i], 0.0)) {
          Normal[i] = 0.0;
       }
    }
@@ -1421,11 +1416,10 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
            }
            // Compute the Kernel at next time
            fracvol  = fracvol + ns->par.dt * rhs;
-           real frac_tol   = 1.0e-14;
-           if(fracvol < frac_tol){
+           if(FLT_EQ(fracvol, 0.0)){
               fracvol = 0.0;
            }
-           if(fracvol > 1.0 - frac_tol){
+           if(FLT_EQ(fracvol, 1.0)){
               fracvol = 1.0;
            }
            // Store Kernel in S
@@ -1503,13 +1497,12 @@ void hig_flow_derivative_fracvol_at_center_cell (higflow_solver *ns, Point ccent
 // Calculate convective term CUBISTA for volume fraction
 // *******************************************************************
 real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdm, sim_stencil *stn, real fracvol, Point ccenter, Point cdelta, int dim) {
-    real  vbar[DIM], dKdx[dim], kr, krr, kl, kll, kc, a, b, c, d, e, tol, frac_tol, fi, conv1,conv2;
+    real  vbar[DIM], dKdx[dim], kr, krr, kl, kll, kc, a, b, c, d, e, frac_tol, fi, conv1,conv2;
     a     = 1.7500;
     b     = 0.3750;
     c     = 0.7500;
     d     = 0.1250;
     e     = 0.2500;
-    tol   = 1.0e-14;
     conv1 = 0.0;
     conv2 = 0.0;
     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
@@ -1523,7 +1516,7 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
     if (vbar[dim] > 0.0){
-        if (fabs(kr - kl) <= tol){
+        if (FLT_EQ(kr, kl)){
             conv1 = vbar[dim]*kc;
         }else {
             fi = (kc - kl)/(kr - kl);
@@ -1547,7 +1540,7 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
     //v1bar < 0.0
     }else {
         if ((incell_r == 1) && (incell_rr == 1)){
-            if (fabs(kc - krr) <= tol){
+            if (FLT_EQ(kc, krr)){
                 conv1 = vbar[dim]*kr;
             }else {
                 fi = (kr - krr)/(kc - krr);
@@ -1564,7 +1557,7 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
             }
         //Return upwind value at boundary
         }else if ((incell_r == 1) && (incell_rr == 0)){
-            if (fabs(kc - krr) <= tol){
+            if (FLT_EQ(kc, krr)){
                 conv1 = vbar[dim]*kr;
             }else {
                 fi = (kr- krr)/(kc - krr);
@@ -1601,7 +1594,7 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
     vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
-            if (fabs(kc-kll) <= tol) {
+            if (FLT_EQ(kc, kll)) {
            conv2 = vbar[dim]*kl;
             }else {
            fi = (kl - kll)/(kc - kll);
@@ -1617,7 +1610,7 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
            }
        }
         }else if ((incell_l == 1) && (incell_ll == 0)){
-            if (fabs(kc-kll) <= tol) {
+            if (FLT_EQ(kc, kll)) {
            conv2 = vbar[dim]*kl;
             }else {
            fi = (kl - kll)/(kc - kll);
@@ -1650,7 +1643,7 @@ real hig_flow_fracvol_term_cubista(higflow_solver *ns, distributed_property *dpu
         } 
     }else {
     //v2bar < 0.0 
-        if (fabs(kl - kr) <= tol) {
+        if (FLT_EQ(kl, kr)) {
             conv2 = vbar[dim]*kc;
         }else {
             fi = (kc - kr)/(kl - kr);
@@ -1895,7 +1888,7 @@ void higflow_explicit_euler_intermediate_velocity_multiphase(higflow_solver *ns,
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
             real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
@@ -2201,7 +2194,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(higfl
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5 * higflow_difusive_term(ns, fdelta);
+            rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -2277,7 +2270,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(higfl
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]) {
+void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver *ns) {
     // Firt stage of Tr-BDF2 method
     // Get the facet iterator
     higfit_facetiterator *fit;
@@ -2318,7 +2311,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             // Total contribuition terms times delta t
             rhs *= 0.5*ns->par.dt;
             // Difusive term contribution
-            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
             rhs += ns->cc.ufacet;
             // Reset the stencil
@@ -2522,7 +2515,7 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
            break;
         case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns, ns->dpu, ns->dpustar);
+           higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns);
            break;
     }
 

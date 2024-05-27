@@ -93,7 +93,6 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
    c     = 0.7500;
    d     = 0.1250;
    e     = 0.2500;
-   tol   = 1.0e-14;
    conv1 = 0.0;
    conv2 = 0.0;
    int   infacet, infacet_r, infacet_l, infacet_rr, infacet_ll;
@@ -176,7 +175,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                // Get the velocity v1bar(i+1/2,j+1/2) in the facet center
                ns->cc.vc[dim2]  = compute_facet_u_right(sfdu[dim2], fcenter, fdelta, dim2, 0.5, dpu[dim2], ns->stn, &infacet);
                if (ns->cc.vc[dim2] > 0.0){
-                  if (fabs(ur[dim]-ul[dim]) <= tol){
+                  if (FLT_EQ(ur[dim], ul[dim])){
                      conv1 = ns->cc.vc[dim2]*ns->cc.ufacet;
                   }else {
                      fi = (ns->cc.ufacet - ul[dim])/(ur[dim] - ul[dim]);
@@ -193,7 +192,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                   }
                   //v1bar < 0.0
                }else {
-                  if (fabs(ns->cc.ufacet - urr[dim]) <= tol){
+                  if (FLT_EQ(ns->cc.ufacet, urr[dim])){
                      conv1 = ns->cc.vc[dim2]*ur[dim];
                   } else {
                      fi = (ur[dim]-urr[dim])/(ns->cc.ufacet -urr[dim]);
@@ -214,7 +213,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                // Get the velocity  v2bar(i+1/2,j-1/2) in the facet center
                ns->cc.vc[dim2]  = compute_facet_u_left(sfdu[dim2], fcenter, fdelta, dim2, 0.5, dpu[dim2], ns->stn, &infacet);
                if (ns->cc.vc[dim2] > 0.0){
-                  if (fabs(ns->cc.ufacet-ull[dim]) <= tol) {
+                  if (FLT_EQ(ns->cc.ufacet, ull[dim])) {
                      conv2 = ns->cc.vc[dim2]*ul[dim];
                   }else {
                      fi = (ul[dim] - ull[dim])/(ns->cc.ufacet-ull[dim]);
@@ -233,7 +232,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                   }
                }else {
                   //v2bar < 0.0
-                  if (fabs(ul[dim] - ur[dim]) <= tol) {
+                  if (FLT_EQ(ul[dim], ur[dim])) {
                      conv2 = ns->cc.vc[dim2]*ns->cc.ufacet;
                   }else {
                      fi = (ns->cc.ufacet - ur[dim])/(ul[dim] - ur[dim]);
@@ -342,14 +341,25 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
          //printf("wwi + wwim1 = %.12lf  fracl= %.12lf fracr= %.12lf \n",wwi + wwim1,fracl,fracr);
          //getchar();
       }
+
+      // Get the cell viscosity in the left cell
+      ns->cc.viscl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
+      // Get the cell viscosity in the right cell
+      ns->cc.viscr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
+      
       //ns->cc.IF= (fracr - fracl)*ns->cc.curv/(fdelta[dim]);
-      ns->cc.IF= (fracr - fracl)*curvaux/(fdelta[dim]);
+      ns->cc.IF = (fracr - fracl)*curvaux/(fdelta[dim]);
 
       //real IFl          = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpIF[dim], ns->ed.mult.stn);
       //// Get the cell interfacial force in the right cell
       //real IFr          = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpIF[dim], ns->ed.mult.stn);
       //// Compute the interfacial force at the mid point
       //ns->cc.IF   = compute_value_at_mid_point(IFl, IFr);
+
+      if(ns->ed.mult.contr.eoflow_either == true) {
+         // Compute the EO source term at the mid point
+         ns->cc.Feo   = compute_facet_value_at_point(ns->ed.eo.sfdEOFeo[dim], fcenter, fcenter, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
+      }
 
       for (int dim2 = 0; dim2 < DIM; dim2++) {
          if(dim2==dim){
@@ -415,16 +425,16 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
             // Compute the viscoelastic contribution
             if (dim2 == dim) {
                // Get the tensor in the left cell
-               Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.ve.dpS[dim][dim2], ns->ed.stn);
+               Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
                // Get the tensor in the right cell
-               Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.mult.ve.dpS[dim][dim2], ns->ed.stn);
+               Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
                // Compute the tensor derivative
                ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 0.5, Sl[dim2], Sr[dim2]);
             } else {
                // Get the tensor in the left cell
-               Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.mult.ve.dpS[dim][dim2], ns->ed.stn);
+               Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
                // Get the tensor in the right cell
-               Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.mult.ve.dpS[dim][dim2], ns->ed.stn);
+               Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
                // Compute the tensor derivative
                ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
             }
@@ -478,7 +488,7 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
    // Second order
    case ORDER2:
       // Compute the EO source term at the mid point
-      ns->cc.Feo   = compute_facet_value_at_point(ns->ed.eo.sfdEOFeo[dim], fcenter, fcenter, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.stn);
+      ns->cc.Feo   = compute_facet_value_at_point(ns->ed.eo.sfdEOFeo[dim], fcenter, fcenter, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
 
       if (ns->contr.flowtype == VISCOELASTIC){
          // Compute the viscoelastic contribution
@@ -504,8 +514,8 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
    }
 }
 
-
-void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, sim_domain *sdpsi, sim_domain *sdphi, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, distributed_property *dppsi, distributed_property *dpphi){
+void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, sim_stencil *stnn) {
+   
    real psic, phic, psir,psil, phir, phil, nc, nr, nl, ul, ur;
    int  incell_l, incell_r;
    int  infacet_l, infacet_r;
@@ -516,21 +526,22 @@ void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_dom
       nc    = dp_get_value(dpn, clid);
       ns->cc.ncell = nc;
       // Get the  psi in the cell center
-      psic  = dp_get_value(dppsi, clid);
+      psic  = dp_get_value(ns->ed.eo.dppsi, clid);
       // Get the  phi in the cell center
-      phic  = dp_get_value(dpphi, clid);
+      phic  = dp_get_value(ns->ed.eo.dpphi, clid);
+
       // Get the n in the left cell
-      nl    = compute_center_p_left_22(sdn, ccenter, cdelta, dim, 1.0, dpn, ns->ed.stn, &incell_l);
+      nl    = compute_center_p_left_22(sdn, ccenter, cdelta, dim, 1.0, dpn, stnn, &incell_l);
       // Get the n in the right cell
-      nr    = compute_center_p_right_22(sdn, ccenter, cdelta, dim, 1.0, dpn, ns->ed.stn, &incell_r);
+      nr    = compute_center_p_right_22(sdn, ccenter, cdelta, dim, 1.0, dpn, stnn, &incell_r);
       // Get the potential in the left cell
-      psil  = compute_center_p_left(sdpsi, ccenter, cdelta, dim, 1.0, dppsi, ns->ed.stn);
+      psil  = compute_center_p_left(ns->ed.eo.sdEOpsi, ccenter, cdelta, dim, 1.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
       // Get the potential in the right cell
-      psir  = compute_center_p_right(sdpsi, ccenter, cdelta, dim, 1.0, dppsi, ns->ed.stn);
+      psir  = compute_center_p_right(ns->ed.eo.sdEOpsi, ccenter, cdelta, dim, 1.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
       // Get the potential in the left cell
-      phil  = compute_center_p_left(sdphi, ccenter, cdelta, dim, 1.0, dpphi, ns->ed.stn);
+      phil  = compute_center_p_left(ns->ed.eo.sdEOphi, ccenter, cdelta, dim, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
       // Get the potential in the right cell
-      phir  = compute_center_p_right(sdphi, ccenter, cdelta, dim, 1.0, dpphi, ns->ed.stn);
+      phir  = compute_center_p_right(ns->ed.eo.sdEOphi, ccenter, cdelta, dim, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
       // Compute the necessary potentials derivative
       ns->cc.dpsidx   = compute_dpdx_at_point(cdelta, dim, 1.0, psil, psir);
       ns->cc.dphidx   = compute_dpdx_at_point(cdelta, dim, 1.0, phil, phir);
@@ -538,7 +549,6 @@ void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_dom
       ns->cc.d2ndx2   = compute_facet_du2dx2(cdelta, dim, 1.0, nc, nl, nr);
       ns->cc.d2psidx2 = compute_facet_du2dx2(cdelta, dim, 1.0, psic, psil, psir);
       //            ns->cc.d2phidx2 = compute_facet_du2dx2(cdelta, dim, 1.0, phic, phil, phir);
-      //            ns->cc.d2psidx2 = ns->ed.eo.par.delta*(dp_get_value(ns->ed.eo.dpnminus, clid) - dp_get_value(ns->ed.eo.dpnplus,clid));
       ns->cc.d2phidx2 = 0.0;
       // // Get psi in the cell center
       // ns->cc.psicell = psic;

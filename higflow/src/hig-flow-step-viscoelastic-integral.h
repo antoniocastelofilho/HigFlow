@@ -8,6 +8,7 @@
 #define HIG_FLOW_STEP_VISCOELASTIC_INTEGRAL
 
 #include "hig-flow-step-generalized-newtonian.h"
+#include "hig-flow-mittag-leffler.h"
 
 // *******************************************************************
 // Constitutive Equation Step for the Explicit Euler Method
@@ -67,7 +68,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_int
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 
+void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higflow_solver *ns); 
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_viscoelastic_integral(higflow_solver *ns); 

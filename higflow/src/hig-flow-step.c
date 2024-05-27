@@ -644,7 +644,7 @@ void higflow_explicit_euler_intermediate_velocity(higflow_solver *ns, distribute
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Compute the intermediate velocity
@@ -917,7 +917,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity(higflow_solver *
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5 * higflow_difusive_term(ns, fdelta);
+            rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -989,7 +989,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity(higflow_solver *
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]) {
+void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns) {
     // Firt stage of Tr-BDF2 method
     // Get the facet iterator
     higfit_facetiterator *fit;
@@ -1028,7 +1028,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns, distri
             // Total contribuition terms times delta t
             rhs *= 0.5*ns->par.dt;
             // Difusive term contribution
-            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
             rhs += ns->cc.ufacet;
             // Reset the stencil
@@ -1216,7 +1216,7 @@ void higflow_solver_step(higflow_solver *ns) {
            break;
         case SEMI_IMPLICIT_BDF2:
            // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_bdf2_intermediate_velocity(ns, ns->dpu, ns->dpustar);
+           higflow_semi_implicit_bdf2_intermediate_velocity(ns);
            break;
     }
     // Set outflow for ustar velocity 
@@ -1235,13 +1235,12 @@ void higflow_solver_step(higflow_solver *ns) {
 // Calculate convective cell term CUBISTA
 // *******************************************************************
 real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_domain* sfdu, sim_stencil* stn, distributed_property* dpK, sim_domain* sdED, sim_stencil* stnED, real kc, Point ccenter, Point cdelta, int dim) {
-    real  vbar, vl, vr, kr, krr, kl, kll, a, b, c, d, e, tol, fi, conv1, conv2;
+    real  vbar, vl, vr, kr, krr, kl, kll, a, b, c, d, e, fi, conv1, conv2;
     a = 1.7500;
     b = 0.3750;
     c = 0.7500;
     d = 0.1250;
     e = 0.2500;
-    tol = 1.0e-14;
     conv1 = 0.0;
     conv2 = 0.0;
     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
@@ -1258,7 +1257,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar = vr;
     if (vbar > 0.0) {
-        if (fabs(kr - kl) <= tol) {
+        if (FLT_EQ(kr, kl)) {
             conv1 = vbar * kc;
         }
         else {
@@ -1286,7 +1285,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     }
     else {
         if ((incell_r == 1) && (incell_rr == 1)) {
-            if (fabs(kc - krr) <= tol) {
+            if (FLT_EQ(kc, krr)) {
                 conv1 = vbar * kr;
             }
             else {
@@ -1305,7 +1304,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
             }
         }
         else if ((incell_r == 1) && (incell_rr == 0)) { 
-            if (fabs(kc - krr) <= tol) {
+            if (FLT_EQ(kc, krr)) {
                 conv1 = vbar * kr;
             }
             else {
@@ -1336,7 +1335,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     vbar = vl;
     if (vbar > 0.0) {
         if ((incell_l == 1) && (incell_ll == 1)) {
-            if (fabs(kc - kll) <= tol) {
+            if (FLT_EQ(kc, kll)) {
                 conv2 = vbar * kl;
             }
             else {
@@ -1355,7 +1354,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
             }
         }
         else if ((incell_l == 1) && (incell_ll == 0)) {
-            if (fabs(kc - kll) <= tol) {
+            if (FLT_EQ(kc, kll)) {
                 conv2 = vbar * kl;
             }
             else {
@@ -1383,7 +1382,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     }
     else {
         //v2bar < 0.0 
-        if (fabs(kl - kr) <= tol) {
+        if (FLT_EQ(kl, kr)) {
             conv2 = vbar * kc;
         }
         else {

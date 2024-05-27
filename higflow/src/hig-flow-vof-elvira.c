@@ -1,10 +1,9 @@
 #include "hig-flow-vof-elvira.h"
 
 real area_correction_at_get(Point delta, real area){
-   real area_tol = 1.0e-16;
-   if (fabs(area - delta[0]*delta[1]) < area_tol) {
+   if (FLT_EQ(area, delta[0]*delta[1])) {
       area = delta[0]*delta[1];
-   } else if (fabs(area) < area_tol) {
+   } else if (FLT_EQ(area, 0.0)) {
       area = 0.0;
    }
    return area;
@@ -305,7 +304,7 @@ void elvira_vertical_collumn_adap(sim_domain *sdm, higflow_solver *ns, Point cen
          //printf("Down - Vertical cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && fabs(fracvol - fracvol_aux)>1.0e-14 && status == 1);
+   } while (fracvol > 0.0 && fracvol < 1.0 && FLT_NE(fracvol, fracvol_aux) && status == 1);
 
    if (fracvol == fracvol_aux) {
       //printf("The phases are not different \n");
@@ -373,7 +372,7 @@ void elvira_horizontal_row_adap(sim_domain *sdm, higflow_solver *ns, Point cente
          //printf("Left - Horizontal cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && fabs(fracvol - fracvol_aux)>1.0e-14 && status == 1);
+   } while (fracvol > 0.0 && fracvol < 1.0 && FLT_NE(fracvol, fracvol_aux) && status == 1);
 
    if (fracvol == fracvol_aux){
       //printf("The phases are not different:\n");

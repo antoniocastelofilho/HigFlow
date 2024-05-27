@@ -9,6 +9,8 @@
 
 #include "hig-flow-kernel.h"
 #include "hig-flow-eval.h"
+#include <string.h>
+#include <libfyaml.h>
 
 // *******************************************************************
 // Navier-Stokes Print for Visualize
@@ -23,11 +25,11 @@ void higflow_print_polymeric_tensor(higflow_solver *ns, FILE *data, int dimprint
 // Print the velocity
 void higflow_print_velocity(higflow_solver *ns, FILE *data, int dimprint, real pprint);
 
-// Print the VTK file for vilusalize
-void higflow_print_vtk(higflow_solver *ns, int rank); 
-
 // Print the kinetic energy
 void higflow_kinetic_energy(higflow_solver *ns, FILE *data);
+
+// Print the VTK file for vilusalize
+void higflow_print_vtk(higflow_solver *ns, int rank); 
 
 // Print the VTK 2D file for vilusalize
 void higflow_print_vtk2D(higflow_solver *ns, int rank); 
@@ -50,10 +52,51 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank);
 // *******************************************************************
 
 // Loading the data files
-void higflow_load_data_files(int argc, char *argv[], higflow_solver *ns); 
+void higflow_load_data_file_names(int argc, char *argv[], higflow_solver *ns); 
 
-// Loading the controllers and Parameters
-void higflow_load_controllers_and_parameters_yaml(higflow_solver *ns, int myrank);
+// Save the domain amr info
+void higflow_save_domain(higflow_solver *ns, int myrank, int ntasks);
+
+// save the boundary amr info
+void higflow_save_boundaries(higflow_solver *ns, int myrank, int ntasks);
+
+// Save the boundary amr info for electroosmotic
+void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int ntasks);
+
+// Save all the boundary amr info
+void higflow_save_all_boundaries(higflow_solver *ns, int myrank, int ntasks);
+
+// Save the yaml domain amr info
+void higflow_save_domain_yaml(higflow_solver *ns, int myrank, int ntasks);
+
+// Save the yaml boundary amr info
+void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks);
+
+// Loading the properties
+void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks);
+
+// Saving the properties
+void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks); 
+
+/////////////// Controllers and Parameters //////////////////////////
+
+// Loading the controllers and Parameters from yaml
+void higflow_load_all_controllers_and_parameters_yaml(higflow_solver *ns, int myrank);
+
+// Saving the controllers and Parameters to yaml
+void higflow_save_all_controllers_and_parameters_yaml(higflow_solver* ns, int myrank);
+
+// Loading all the controllers
+void higflow_load_all_controllers(higflow_solver *ns, int myrank);
+
+// Saving all the controllers
+void higflow_save_all_controllers(higflow_solver *ns, int myrank);
+
+// Loading all the parameters
+void higflow_load_all_parameters(higflow_solver *ns, int myrank);
+
+// Saving all the parameters
+void higflow_save_all_parameters(higflow_solver *ns, int myrank);
 
 // Loading the controllers
 void higflow_load_controllers(higflow_solver *ns, int myrank); 
@@ -66,21 +109,6 @@ void higflow_load_parameters(higflow_solver *ns, int myrank);
 
 // Saving the parameters
 void higflow_save_parameters(higflow_solver *ns, int myrank); 
-
-// Loading the properties
-void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks);
-
-// Saving the properties
-void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks); 
-
-// Save the domain amr info
-void higflow_save_domain(higflow_solver *ns, int myrank, int ntasks);
-
-// save the boundary amr info
-void higflow_save_boundaries(higflow_solver *ns, int myrank, int ntasks);
-
-// Save the boundary amr info for electroosmotic
-void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int ntasks);
 
 // Loading the multiphase parameters
 void higflow_load_multiphase_parameters(higflow_solver *ns, int myrank);
@@ -117,6 +145,18 @@ void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank);
 
 // Saving the viscoelastic controllers
 void higflow_save_viscoelastic_controllers(higflow_solver *ns, int myrank);
+
+// Loading the multiphase electroosmotic parameters
+void higflow_load_multiphase_electroosmotic_parameters(higflow_solver *ns, int myrank);
+
+// Saving the multiphase electroosmotic parameters
+void higflow_save_multiphase_electroosmotic_parameters(higflow_solver *ns, int myrank);
+
+// Loading the multiphase electroosmotic controllers
+void higflow_load_multiphase_electroosmotic_controllers(higflow_solver *ns, int myrank);
+
+// Saving the multiphase electroosmotic controllers
+void higflow_save_multiphase_electroosmotic_controllers(higflow_solver *ns, int myrank);
 
 // Loading the electroosmotic parameters
 void higflow_load_electroosmotic_parameters(higflow_solver *ns, int myrank); 

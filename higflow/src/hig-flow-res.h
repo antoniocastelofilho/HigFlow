@@ -8,6 +8,7 @@
 #define HIG_FLOW_RES
 
 #include "hig-flow-kernel.h"
+#include "hig-flow-io.h"
 
 #define RES_STORE_NUM_BASE 5
 #define RES_STORE_NUM_POW 3
@@ -22,7 +23,8 @@
 #ifdef COMPUTE_RESIDUALS
     #define UPDATE_RESIDUAL_BUFFER_FACET(ns, val1, val2, f, fcenter) \
         do { \
-            update_residual_buffer_facet((ns)->residuals->res_buffer, (val1), (val2), (f), (fcenter)); \
+            if((ns)->residuals != NULL) \
+                update_residual_buffer_facet((ns)->residuals->res_buffer, (val1), (val2), (f), (fcenter)); \
         } while (0);
 #else
     #define UPDATE_RESIDUAL_BUFFER_FACET(ns, val1, val2, f, fcenter) do {} while (0);
@@ -31,7 +33,8 @@
 #ifdef COMPUTE_RESIDUALS
     #define UPDATE_RESIDUAL_BUFFER_CELL(ns, val1, val2, c, ccenter) \
         do { \
-            update_residual_buffer_cell((ns)->residuals->res_buffer, (val1), (val2), (c), (ccenter)); \
+            if((ns)->residuals != NULL) \
+                update_residual_buffer_cell((ns)->residuals->res_buffer, (val1), (val2), (c), (ccenter)); \
         } while (0);
 #else
     #define UPDATE_RESIDUAL_BUFFER_CELL(ns, val1, val2, c, ccenter) do {} while (0);
@@ -40,12 +43,14 @@
 #ifdef COMPUTE_RESIDUALS
     #define UPDATE_RESIDUALS(ns, property) \
     do { \
-        int myrank; \
-        MPI_Comm_rank(MPI_COMM_WORLD, &myrank); \
-        reduce_residual_buffer((ns)->residuals->res_buffer); \
-        if (myrank == 0) \
-            update_dp_residuals(property, (ns)->residuals->res_buffer, (ns)->par.step, (ns)->par.initstep); \
-        clear_residual_buffer((ns)->residuals->res_buffer); \
+        if((ns)->residuals != NULL) { \
+            int myrank; \
+            MPI_Comm_rank(MPI_COMM_WORLD, &myrank); \
+            reduce_residual_buffer((ns)->residuals->res_buffer); \
+            if (myrank == 0) \
+                update_dp_residuals(property, (ns)->residuals->res_buffer, (ns)->par.step, (ns)->par.initstep); \
+            clear_residual_buffer((ns)->residuals->res_buffer); \
+        } \
     } while (0);
 #else
     #define UPDATE_RESIDUALS(ns, property) do {} while (0);

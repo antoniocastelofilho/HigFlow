@@ -1,5 +1,5 @@
 // *******************************************************************
-//  HiG-Flow Solver Step Electro-osmotic - version 25/01/2022
+//  HiG-Flow Solver Step Electro-osmotic - version 03/2024
 // *******************************************************************
 
 #include "hig-flow-step-electroosmotic-viscoelastic.h"
@@ -42,7 +42,7 @@ void higflow_solver_step_electroosmotic_viscoelastic(higflow_solver *ns) {
    switch (ns->ed.eo.contr.eo_model) {
     case PNP:
         // Poisson-Nernst-Planck model
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
             higflow_boundary_condition_for_phi(ns);
             higflow_electroosmotic_phi(ns);
         }
@@ -59,37 +59,32 @@ void higflow_solver_step_electroosmotic_viscoelastic(higflow_solver *ns) {
         }
         higflow_boundary_condition_for_psi(ns);
         higflow_electroosmotic_psi(ns);
-        higflow_calculate_electroosmotic_source_term_pnp(ns);
+        higflow_calculate_electroosmotic_source_term(ns);
         break;
     case PB:
         // Poisson-Boltzmann model 
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
             higflow_boundary_condition_for_phi(ns);
             higflow_electroosmotic_phi(ns);
         }
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_psibc_timedependent == true) {
-            higflow_boundary_condition_for_psi(ns);
-            higflow_electroosmotic_psi(ns);
-        }
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_phibc_timedependent == true
-                              || ns->ed.eo.contr.is_psibc_timedependent == true) {
-            higflow_calculate_electroosmotic_source_term_pb(ns);
-        }
+        higflow_boundary_condition_for_psi(ns);
+        higflow_electroosmotic_psi(ns);
+        higflow_calculate_electroosmotic_source_term(ns);
         break;
     case PBDH:
         // Debye-Hückel model (solving poisson equation for psi) 
         // Poisson-Boltzmann model 
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
             higflow_boundary_condition_for_phi(ns);
             higflow_electroosmotic_phi(ns);
         }
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_psibc_timedependent == true) {
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_psibc_timedependent == true) {
             higflow_boundary_condition_for_psi(ns);
             higflow_electroosmotic_psi(ns);
         }
-        if( (ns->par.step==0) || ns->ed.eo.contr.is_phibc_timedependent == true
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true
                               || ns->ed.eo.contr.is_psibc_timedependent == true) {
-            higflow_calculate_electroosmotic_source_term_pbdh(ns);
+            higflow_calculate_electroosmotic_source_term(ns);
         }
         break;
     case PBDH_ANALYTIC:
@@ -122,7 +117,7 @@ void higflow_solver_step_electroosmotic_viscoelastic(higflow_solver *ns) {
       break;
    case SEMI_IMPLICIT_BDF2:
       // Semi-Implicit Crank-Nicolson Method
-      higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpustar);
+      higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(ns);
       break;
    }
    // Set outflow for ustar velocity 

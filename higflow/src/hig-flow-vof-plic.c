@@ -66,8 +66,6 @@ real parallel_left_line_origin_center_distance(Point Normal,Point Delta,real are
 }
 
 real distance_from_center(Point Normal,Point Delta,real AREA){
-   real tol_area = 1e-14;
-   real tol_n    = 1e-14;
    real nx       = Normal[0];
    real ny       = Normal[1];
    real dx       = Delta[0];
@@ -76,8 +74,8 @@ real distance_from_center(Point Normal,Point Delta,real AREA){
    real area;
    real d;
 
-   if (fabs(nx) < tol_n || fabs(ny) < tol_n) {
-      d = parallel_left_line_origin_center_distance(Normal, Delta, AREA,tol_n);
+   if (FLT_EQ(nx, 0.0) || FLT_EQ(ny, 0.0)) {
+      d = parallel_left_line_origin_center_distance(Normal, Delta, AREA, EPSMACH);
       d = trans_bl_2_center(Delta, Normal, d);
       return d;
    } else if (nx * ny > 0) {
@@ -88,10 +86,10 @@ real distance_from_center(Point Normal,Point Delta,real AREA){
       real aRB = area_left_line_origin_center(Normal, Delta, dRB);
 
       area = AREA;
-      if (fabs(area - aLT) <= tol_area) {
+      if (FLT_EQ(area, aLT)) {
          d = dLT;
          return d;
-      } else if (fabs(area - aRB) <= tol_area) {
+      } else if (FLT_EQ(area, aRB)) {
          d = dRB;
          return d;
       }
@@ -138,10 +136,10 @@ real distance_from_center(Point Normal,Point Delta,real AREA){
       real aRT = area_left_line_origin_center(Normal, Delta, dRT);
 
       area = AREA;
-      if (fabs(area - aRT) <= tol_area) {
+      if (FLT_EQ(area, aRT)) {
          d = dRT;
          return d;
-      } else if (fabs(area - aLB) <= tol_area) {
+      } else if (FLT_EQ(area, aLB)) {
          d = dLB;
          return d;
       }
@@ -231,7 +229,6 @@ real area_left_line_origin_center(Point Normal,Point Delta,real d_from_center){
 
    real n_x   = fabs(Normal[0]);
    real n_y   = fabs(Normal[1]);
-   real tol_n = 1e-14;
    
    Point Prt, Prb, Plt, Plb;
    Prt[0] = 0.5*dx;Prt[1]  = 0.5*dy;
@@ -250,8 +247,8 @@ real area_left_line_origin_center(Point Normal,Point Delta,real d_from_center){
       return area = 0.0;
    }
    
-   if (n_x <= tol_n || n_y <= tol_n) {
-      return area = parallel_left_line_origin_center_area(Normal,Delta,d_from_center,tol_n);
+   if (FLT_EQ(n_x, 0.0) || FLT_EQ(n_y, 0.0)) {
+      return area = parallel_left_line_origin_center_area(Normal,Delta,d_from_center,EPSMACH);
    }
    
    if (nx*ny>0) {
@@ -345,7 +342,7 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
        Normal[0] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
        Normal[1] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
        // If the cell is not interfacial, the distance is not calculated 
-       if (fabs(Normal[0]) < 1.0e-14 && fabs(Normal[1]) < 1.0e-14) {
+       if (FLT_EQ(Normal[0], 0.0) && FLT_EQ(Normal[1], 0.0)) {
           continue;
        }
        real fracvol = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
@@ -392,7 +389,7 @@ void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
          Normal[0] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
          Normal[1] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
 
-         if (fabs(Normal[0]) < 1.0e-14 && fabs(Normal[1]) < 1.0e-14){
+         if (FLT_EQ(Normal[0], 0.0) && FLT_EQ(Normal[1], 0.0)){
             continue;
          }
 

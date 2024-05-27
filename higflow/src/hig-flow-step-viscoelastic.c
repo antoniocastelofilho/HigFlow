@@ -5,7 +5,6 @@
 // *******************************************************************
 
 #include "hig-flow-step-viscoelastic.h"
-#include "hig-flow-mittag-leffler.h"
 
 // *******************************************************************
 // Constitutive Equations
@@ -81,7 +80,7 @@
 //                     //     }
 //                     // }
 
-//                     // if(ns->par.step==0 && ns->par.t==0.0){ //initial conformation tensor
+//                     // if(ns->par.step == 0 && ns->par.t == 0.0){ //initial conformation tensor
 //                     //     real Rhs[DIM][DIM], D_prev[DIM][DIM];
 //                     //     for (int i = 0; i < DIM; i++) {
 //                     //         for (int j = 0; j < DIM; j++) {
@@ -169,7 +168,7 @@
 
 // void higflow_compute_initial_kernel_tensor(higflow_solver *ns) {
 //     if (ns->contr.flowtype == VISCOELASTIC){
-//         if(ns->par.step==0 && ns->par.t==0.0){ //initial conformation tensor
+//         if(ns->par.step == 0 && ns->par.t == 0.0){ //initial conformation tensor
 //             real tol  = ns->ed.ve.par.kernel_tol;
 //             // Get the local sub-domain for the cells
 //             sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -344,7 +343,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
         real Re          = ns->par.Re;
         real De          = ns->ed.ve.par.De;
         real tol         = ns->ed.ve.par.kernel_tol;
-        real small       = 1.0e-14;
+        real small       = EPSMACH;
         switch (ns->ed.ve.contr.model) {
             case GPTT:
                ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
@@ -525,17 +524,16 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
     }
 }
 
-// *******************************************************************
-// Calculate convective tensor term CUBISTA
-// *******************************************************************
+// // *******************************************************************
+// // Calculate convective tensor term CUBISTA
+// // *******************************************************************
 // real hig_flow_convective_cell_term_cubista(distributed_property *dpu, sim_facet_domain *sfdu, sim_stencil *stn, distributed_property *dpK, sim_domain *sdED, sim_stencil *stnED, real kc, Point ccenter, Point cdelta, int dim) {
-//     real  vbar, kr, krr, kl, kll, kc, a, b, c, d, e, tol, fi, conv1,conv2;
+//     real  vbar, kr, krr, kl, kll, kc, a, b, c, d, e, fi, conv1,conv2;
 //     a     = 1.7500;
 //     b     = 0.3750;
 //     c     = 0.7500;
 //     d     = 0.1250;
 //     e     = 0.2500;
-//     tol   = 1.0e-14;
 //     conv1 = 0.0;
 //     conv2 = 0.0;
 //     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
@@ -548,7 +546,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 //     // Get the velocity  v1bar(i+1/2,j) in the facet center
 //     vbar = compute_facet_u_right(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
 //     if (vbar > 0.0){
-//         if (fabs(kr - kl) <= tol){
+//         if (FLT_EQ(kr, kl)){
 //             conv1 = vbar*kc;
 //         }else {
 //             fi = (kc - kl)/(kr - kl);
@@ -573,7 +571,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 //     //v1bar < 0.0
 //     }else {
 //         if ((incell_r == 1) && (incell_rr == 1)){
-//             if (fabs(kc - krr) <= tol){
+//             if (FLT_EQ(kc, krr)){
 //                 conv1 = vbar*kr;
 //             }else {
 //                 fi = (kr- krr)/(kc - krr);
@@ -590,7 +588,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 //             }
 //         //Return upwind value at boundary
 //         }else if ((incell_r == 1) && (incell_rr == 0)){
-//             if (fabs(kc - krr) <= tol){
+//             if (FLT_EQ(kc, krr)){
 //                 conv1 = vbar*kr;
 //             }else {
 //                 fi = (kr- krr)/(kc - krr);
@@ -625,7 +623,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 //     vbar = compute_facet_u_left(sfdu, ccenter, cdelta, dim, 0.5, dpu, stn, &infacet);
 //     if (vbar > 0.0){
 //         if ((incell_l == 1) && (incell_ll == 1)){
-//             if (fabs(kc-kll) <= tol) {
+//             if (FLT_EQ(kc, kll)) {
 //            conv2 = vbar*kl;
 //             }else {
 //            fi = (kl - kll)/(kc - kll);
@@ -641,7 +639,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 //            }
 //        }
 //         }else if ((incell_l == 1) && (incell_ll == 0)){
-//             if (fabs(kc-kll) <= tol) {
+//             if (FLT_EQ(kc, kll)) {
 //            conv2 = vbar*kl;
 //             }else {
 //            fi = (kl - kll)/(kc - kll);
@@ -672,7 +670,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
 //         } 
 //     }else {
 //     //v2bar < 0.0 
-//         if (fabs(kl - kr) <= tol) {
+//         if (FLT_EQ(kl, kr)) {
 //             conv2 = vbar*kc;
 //         }else {
 //             fi = (kc - kr)/(kl - kr);
@@ -707,7 +705,7 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
         real Re          = ns->par.Re;
         real De          = ns->ed.ve.par.De;
         real tol         = ns->ed.ve.par.kernel_tol;
-        real small       = 1.0e-14;
+        real small       = EPSMACH;
         switch (ns->ed.ve.contr.model) {
             case GPTT:
                ns->ed.ve.par.gamma_gptt = tgamma(ns->ed.ve.par.beta_gptt);
@@ -942,7 +940,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic(higflow_solver *n
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
             real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
@@ -1218,7 +1216,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(hig
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5 * higflow_difusive_term(ns, fdelta);
+            rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -1293,7 +1291,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(hig
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]) {
+void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solver *ns) {
     // Firt stage of Tr-BDF2 method
     // Get the facet iterator
     higfit_facetiterator *fit;
@@ -1334,7 +1332,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
             // Total contribuition terms times delta t
             rhs *= 0.5*ns->par.dt;
             // Difusive term contribution
-            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
             rhs += ns->cc.ufacet;
             // Reset the stencil
@@ -1519,7 +1517,7 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns) {
     // Boundary condition for pressure
     higflow_boundary_condition_for_pressure(ns);
     // // Initial velocity derivative
-    // if(ns->par.step==0 && ns->par.t==0.0) hig_flow_compute_initial_velocity_derivative_tensor(ns);
+    // if(ns->par.step == 0 && ns->par.t == 0.0) hig_flow_compute_initial_velocity_derivative_tensor(ns);
     // Calculate the source term
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
@@ -1548,7 +1546,7 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns) {
            break;
         case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(ns, ns->dpu, ns->dpustar);
+           higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(ns);
            break;
     }
     // Set outflow for ustar velocity 
@@ -1801,7 +1799,7 @@ void hig_flow_calculate_m_lptt (real lambda[DIM], real jlambda[DIM],  real B[DIM
     real De      = par->De;
     real beta    = par->beta;
     real epsilon = par->epsilon;
-    real psi     = par->psi;
+    real xi     = par->xi;
     // Calculate the MM matrix
     for (int i = 0; i < DIM; i++) {
         for (int j = i+1; j < DIM; j++) {
@@ -1812,7 +1810,7 @@ void hig_flow_calculate_m_lptt (real lambda[DIM], real jlambda[DIM],  real B[DIM
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*De*psi*jlambda[j];
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*De*xi*jlambda[j];
         }
     }
 }
@@ -1835,7 +1833,7 @@ void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM
     real De      = par->De;
     real beta    = par->beta;
     real epsilon = par->epsilon;
-    real psi     = par->psi;
+    real xi     = par->xi;
     real alpha_gptt = par->alpha_gptt;
     real beta_gptt = par->beta_gptt;
     real gamma_gptt = par->gamma_gptt;
@@ -1852,7 +1850,7 @@ void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM
                 numc z, mitt;
         z.real = epsilon*Re*De*trS/(1.0-beta);
         z.imag = 0.0;
-        mitt   =  mlfv(alpha_gptt,beta_gptt, z, 6);
+        mitt   =  mlfv(alpha_gptt, beta_gptt, z, 6);
         // Exponêncial
         //real mittreal;
         //mittreal = exp(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr);
@@ -1866,14 +1864,14 @@ void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM
         */
         // M da exponencial
         //M_aux[i][i]  = (1.0-lambda[i])*mittreal*jlambda[i];
-        // M do GPTT
+        // M do GPTT    
         M_aux[i][i]  = (1.0-lambda[i])*gamma_gptt*mitt.real*jlambda[i];
         // M teste
          //M_aux[i][i]  = (1.0-lambda[i])*mitt.real*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*De*psi*jlambda[j];
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*De*xi*jlambda[j];
         }
     }
 }

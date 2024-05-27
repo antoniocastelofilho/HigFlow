@@ -1,5 +1,7 @@
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 
+static real small = EPSMACH;
+
 // Calculate Norm-2
 real norm_vec(real *vec, int n){
    real norm=0.0;
@@ -13,7 +15,7 @@ void elvira_calculate_normal_cell_regressive_1st_order_finite_difference_Horizon
    real Hy   = -auxh*(Hm - Hb)*dx/dy;
    Normal[0] = auxh;
    Normal[1] = -auxh*Hy;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0] = Normal[0]/norm;
    Normal[1] = Normal[1]/norm;
 }
@@ -22,7 +24,7 @@ void elvira_calculate_normal_cell_central_2nd_order_finite_difference_Horizontal
    real Hy   = -auxh*0.5*(Ht - Hb)*dx/dy;
    Normal[0] = auxh;
    Normal[1] = -auxh*Hy;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0] = Normal[0]/norm;
    Normal[1] = Normal[1]/norm;
 }
@@ -31,7 +33,7 @@ void elvira_calculate_normal_cell_progressive_1st_order_finite_difference_Horizo
    real Hy   = -auxh*(Ht - Hm)*dx/dy;
    Normal[0] = auxh;
    Normal[1] = -auxh*Hy;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0] = Normal[0]/norm;
    Normal[1] = Normal[1]/norm;
 }
@@ -40,7 +42,7 @@ void elvira_calculate_normal_cell_regressive_1st_order_finite_difference_Vertica
    real Vx   = -auxv*(Vm - Vl)*dy/dx;
    Normal[0] = -auxv*Vx;
    Normal[1] = auxv;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0] = Normal[0]/norm;
    Normal[1] = Normal[1]/norm;
 }
@@ -49,7 +51,7 @@ void elvira_calculate_normal_cell_central_2nd_order_finite_difference_Vertical(h
    real Vx   = -auxv*0.5*(Vr - Vl)*dy/dx;
    Normal[0] = -auxv*Vx;
    Normal[1] = auxv;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0] = Normal[0]/norm;
    Normal[1] = Normal[1]/norm;
 }
@@ -58,7 +60,7 @@ void elvira_calculate_normal_cell_progressive_1st_order_finite_difference_Vertic
    real Vx   = -auxv*(Vr - Vm)*dy/dx;
    Normal[0] = -auxv*Vx;
    Normal[1] = auxv;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0] = Normal[0]/norm;
    Normal[1] = Normal[1]/norm;
 }
@@ -69,7 +71,7 @@ void calculate_normal_cell_regressive_2nd_order_finite_difference_Horizontal(hig
    Point Normal;
    Normal[0]=auxh;
    Normal[1]=-auxh*Hy;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0]=Normal[0]/norm;
    Normal[1]=Normal[1]/norm;
    // Set the normal in the distributed normal property
@@ -83,7 +85,7 @@ void calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(higflo
    Point Normal;
    Normal[0]=auxh;
    Normal[1]=-auxh*Hy;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0]=Normal[0]/norm;
    Normal[1]=Normal[1]/norm;
    // Set the normal in the distributed normal property
@@ -97,7 +99,7 @@ void calculate_normal_cell_progressive_2nd_order_finite_difference_Horizontal(hi
    Point Normal;
    Normal[0]=auxh;
    Normal[1]=-auxh*Hy;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0]=Normal[0]/norm;
    Normal[1]=Normal[1]/norm;
    // Set the normal in the distributed normal property
@@ -111,7 +113,7 @@ void calculate_normal_cell_regressive_2nd_order_finite_difference_Vertical(higfl
    Point Normal;
    Normal[0]=-auxv*Vx;
    Normal[1]=auxv;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0]=Normal[0]/norm;
    Normal[1]=Normal[1]/norm;
    // Set the normal in the distributed normal property
@@ -125,7 +127,7 @@ void calculate_normal_cell_central_2nd_order_finite_difference_Vertical(higflow_
    Point Normal;
    Normal[0]=-auxv*Vx;
    Normal[1]=auxv;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0]=Normal[0]/norm;
    Normal[1]=Normal[1]/norm;
    // Set the normal in the distributed normal property
@@ -139,7 +141,7 @@ void calculate_normal_cell_progressive_2nd_order_finite_difference_Vertical(higf
    Point Normal;
    Normal[0]=-auxv*Vx;
    Normal[1]=auxv;
-   real norm = norm_vec(Normal,2) + 1.0e-14;
+   real norm = norm_vec(Normal,2) + small;
    Normal[0]=Normal[0]/norm;
    Normal[1]=Normal[1]/norm;
    // Set the normal in the distributed normal property

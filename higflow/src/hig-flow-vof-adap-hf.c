@@ -6,10 +6,9 @@
 #include "hig-flow-discret.h"
 
 void fraction_correction_at_get(real *fracvol){
-   real fracvol_tol = 1.0e-16;
-   if (fabs(*fracvol - 1.0) < fracvol_tol) {
+   if (FLT_EQ(*fracvol, 1.0)) {
       *fracvol = 1.0;
-   } else if (fabs(*fracvol) < fracvol_tol) {
+   } else if (FLT_EQ(*fracvol, 0.0)) {
       *fracvol = 0.0;
    }
 }
@@ -22,7 +21,7 @@ int get_frac_vol(sim_domain *sdm, higflow_solver *ns, int dim, Point Center, Poi
       // TODO
       Point Delta2;
       hig_get_delta(c, Delta2);
-      if (fabs(Delta[dim] - Delta2[dim])>1.0e-12){
+      if (FLT_NE(Delta[dim], Delta2[dim])){
          printf("Different sizes dc=[%.18lf %.18lf] dp= [%.18lf %.18lf] \t ",Delta[0],Delta[1],Delta2[0],Delta2[1]);
          return -1;
       } else {
@@ -84,7 +83,7 @@ void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p
          //printf("Down - Vertical cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && fabs(fracvol - fracvol_aux) > 1.0e-14 && status == 1);
+   } while (fracvol > 0.0 && fracvol < 1.0 && FLT_NE(fracvol, fracvol_aux) && status == 1);
 
    if (fracvol == fracvol_aux) {
       //printf("The phases are not different \n");
@@ -154,7 +153,7 @@ void horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, 
          //printf("Left - Horizontal cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && fabs(fracvol - fracvol_aux)>1.0e-14 && status == 1);
+   } while (fracvol > 0.0 && fracvol < 1.0 && FLT_NE(fracvol, fracvol_aux) && status == 1);
 
    if (fracvol == fracvol_aux){
       //printf("The phases are not different:\n");

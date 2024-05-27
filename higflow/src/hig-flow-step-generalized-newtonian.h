@@ -35,7 +35,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
 void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow_solver *ns);
 
 // One step of the semi-implicit BDF2 method - Intermediate Velocity
-void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 
+void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *ns); 
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_gen_newt(higflow_solver *ns); 

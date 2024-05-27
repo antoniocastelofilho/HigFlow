@@ -19,9 +19,9 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         exit(1);
     }
     // Number of HigTrees
-    int numhigs;
+    int numhigs, numhigs_mult, numhigs_total;
     int ifd = fscanf(fdomain,"%d\n",&numhigs);
-    higio_amr_info *mi[numhigs];
+    higio_amr_info *mi[numhigs_total];
     for(int h = 0; h < numhigs; h++) {
         // Name of the HigTree file
         //char *amrfilename = argv[1]; argv++;
@@ -39,56 +39,58 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
     // Creates a partition table.
     partition_graph *pg = pg_create(MPI_COMM_WORLD);
     // Initializing partition table
-    higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
+    if (ns->contr.flowtype == MULTIPHASE) {
+        higio_amr_info *mi_mult[numhigs];
+        for(int h = 0; h < numhigs; h++)
+            mi_mult[h] = higflow_create_amr_info_mult(mi[h]);
+        higflow_partition_domain_multiphase(ns, pg, numhigs, mi, mi_mult, ntasks, myrank);
+    }
+    else higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
     // Creating the partitioned sub-domain to simulation
     higflow_create_partitioned_domain(ns, pg, order);
     // Creating the stencil for properties interpolation
     higflow_create_stencil(ns);
     // Creating the partitioned sub-domain for extra properties
-    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
-        // Initialize generalized newtonian domain
-        higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == MULTIPHASE) {
-        higio_amr_info *mi_mult[numhigs];
-        for(int h = 0; h < numhigs; h++) {
-            mi_mult[h] = higflow_create_amr_info_mult(mi[h]);
-        }
-        // Initializing partition table multiphase
-        higflow_partition_domain_multiphase(ns, pg, numhigs, mi_mult, ntasks, myrank);
-        // Initialize multiphase domain
-        higflow_create_partitioned_domain_multiphase(ns, pg, order);
-        if(ns->ed.mult.contr.viscoelastic_either == true) {
+    switch (ns->contr.flowtype) {
+        case GENERALIZED_NEWTONIAN:
+            // Initialize generalized newtonian domain
+            higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
             // Creating the stencil for properties interpolation
             higflow_create_stencil_for_extra_domain(ns);
-        }
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_multiphase(ns);
-    } else if (ns->contr.flowtype == VISCOELASTIC) {
-        // Initialize visoelastic tensor domain
-        higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
-       // Initialize integral tensors domain
-        higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case MULTIPHASE:
+            // Initialize multiphase domain
+            higflow_create_partitioned_domain_multiphase(ns, pg, order);
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
+                // Creating the stencil for properties interpolation
+                higflow_create_stencil_for_extra_domain(ns);
+            }
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_multiphase(ns);
+            break;
+        case VISCOELASTIC:
+            // Initialize visoelastic tensor domain
+            higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case VISCOELASTIC_INTEGRAL:
+            // Initialize integral tensors domain
+            higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
     }
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
         // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
+        higflow_create_stencils_electroosmotic(ns);
     }
 }
 
 // Navier-Stokes initialize the domain yaml
 void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, int order) {
-    // Loading the boundary condition data
     char namefile[1024];
     sprintf(namefile,"%s.domain.yaml",ns->par.nameload);
     FILE *fdomain = fopen(namefile, "r");
@@ -101,7 +103,7 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     }
     // Number of HigTrees
     int numhigs;
-    int ifd = fy_document_scanf(fyd,"/domain/number_domain %d",&numhigs);
+    int ifd = fy_document_scanf(fyd,"/domain/number_domains %d",&numhigs);
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         char atrib[1024], amrfilename[1024];
@@ -122,42 +124,53 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     // Creates a partition table.
     partition_graph *pg = pg_create(MPI_COMM_WORLD);
     // Initializing partition table
-    higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
+    if (ns->contr.flowtype == MULTIPHASE) {
+        higio_amr_info *mi_mult[numhigs];
+        for(int h = 0; h < numhigs; h++)
+            mi_mult[h] = higflow_create_amr_info_mult(mi[h]);
+        higflow_partition_domain_multiphase(ns, pg, numhigs, mi, mi_mult, ntasks, myrank);
+    }
+    else higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
     // Creating the partitioned sub-domain to simulation
     higflow_create_partitioned_domain(ns, pg, order);
     // Creating the stencil for properties interpolation
     higflow_create_stencil(ns);
     // the partitioned sub-domain for extra properties
-    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
-        // Initialize generalized newtonian domain
-        higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == MULTIPHASE) {
-        // Initializing partition table multiphase
-        higflow_partition_domain_multiphase(ns, pg, numhigs, mi, ntasks, myrank);
-        // Initialize multiphase domain
-        higflow_create_partitioned_domain_multiphase(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_multiphase(ns);
-    } else if (ns->contr.flowtype == VISCOELASTIC) {
-        // Initialize visoelastic tensor domain
-        higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
-    } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
-       // Initialize integral tensors domain
-        higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
-        // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
+    switch (ns->contr.flowtype) {
+        case GENERALIZED_NEWTONIAN:
+            // Initialize generalized newtonian domain
+            higflow_create_partitioned_domain_generalized_newtonian(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case MULTIPHASE:
+            // Initialize multiphase domain
+            higflow_create_partitioned_domain_multiphase(ns, pg, order);
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
+                // Creating the stencil for properties interpolation
+                higflow_create_stencil_for_extra_domain(ns);
+            }
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_multiphase(ns);
+            break;
+        case VISCOELASTIC:
+            // Initialize visoelastic tensor domain
+            higflow_create_partitioned_domain_viscoelastic(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case VISCOELASTIC_INTEGRAL:
+            // Initialize integral tensors domain
+            higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
     }
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
         // Creating the stencil for properties interpolation
-        higflow_create_stencil_for_extra_domain(ns);
+        higflow_create_stencils_electroosmotic(ns);
     }
 }
 
@@ -334,7 +347,7 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
                         // Get the value for the tensor in this cell
                         real fracvol = ns->ed.mult.get_fracvol(center, delta, ns->par.t);
                         real val = ns->ed.mult.ve.get_tensor_multiphase(fracvol, center, i, j, ns->par.t);
-                        dp_set_value(ns->ed.mult.ve.dpKernel[i][j], clid, val);                 
+                        dp_set_value(ns->ed.ve.dpKernel[i][j], clid, val);                 
                     }
                 }
             }
@@ -343,7 +356,7 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
             // Sync initial values among processes
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
-                    dp_sync(ns->ed.mult.ve.dpKernel[i][j]);
+                    dp_sync(ns->ed.ve.dpKernel[i][j]);
                 }
             }     
         }
@@ -555,146 +568,181 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
 
 // Initialize the electro-osmotic source term 
 void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
-    // Setting the facet-cell iterator
-    higfit_facetiterator *fit;
-    // Setting the volocity values for the domain
-    sim_facet_domain *sfdFeo[DIM];
-    // Setting the velocity U(dim)
-    for(int dim = 0; dim < DIM; dim++) {
-        // Get the local domain property
-        sfdFeo[dim] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[dim]);
-        // Get the Mapper for the local domain
-        mp_mapper *m = sfd_get_domain_mapper(sfdFeo[dim]);
-        for(fit = sfd_get_domain_facetiterator(sfdFeo[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Getting the cell
-            hig_facet *f = higfit_getfacet(fit);
-            // Get the cell identifier
-            int flid = mp_lookup(m, hig_get_fid(f));
-            // Get the center of the facet
-            Point center;
-            hig_get_facet_center(f, center);
-            // Get the value for the velocity in this cell facet
-            real val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);
-            // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
+    if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        real val, fracvol;
+        // Setting the facet-cell iterator
+        higfit_facetiterator *fit;
+        // Setting the volocity values for the domain
+        sim_facet_domain *sfdFeo[DIM];
+        // Setting the velocity U(dim)
+        for(int dim = 0; dim < DIM; dim++) {
+            // Get the local domain property
+            sfdFeo[dim] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[dim]);
+            // Get the Mapper for the local domain
+            mp_mapper *m = sfd_get_domain_mapper(sfdFeo[dim]);
+            for(fit = sfd_get_domain_facetiterator(sfdFeo[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+                // Getting the cell
+                hig_facet *f = higfit_getfacet(fit);
+                // Get the cell identifier
+                int flid = mp_lookup(m, hig_get_fid(f));
+                // Get the center of the facet
+                Point center;
+                hig_get_facet_center(f, center);
+                // Get the value for the velocity in this cell facet
+                if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+                    fracvol = compute_value_at_point(ns->ed.mult.sdmult, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+                    val = ns->ed.mult.eo.get_multiphase_electroosmotic_source_term(fracvol, center, dim, ns->par.t);
+                } else
+                    val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);
+                // Set the velocity value for the velocity distributed property
+                dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
+            }
+            // Destroying the iterator
+            higfit_destroy(fit);
+            // Sync initial values among processes
+            dp_sync(ns->ed.eo.dpFeo[dim]);
         }
-        // Destroying the iterator
-        higfit_destroy(fit);
-        // Sync initial values among processes
-        dp_sync(ns->ed.eo.dpFeo[dim]);
     }
 }
 
 // Initialize the electro-osmotic phi
 void higflow_initialize_electroosmotic_phi(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
-    // Getting the local domain
-    sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOphi);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
-    // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
-        // Get the center of the cell
-        Point center;
-        hig_get_center(c, center);
-        // Get the value for electro-osmotic phi in this cell
-        real val = ns->ed.eo.get_electroosmotic_phi(center, ns->par.t);
-        // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dpphi, clid, val);
+    if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        real val, fracvol;
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOphi);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            // Get the value for electro-osmotic phi in this cell
+            if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+                fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+                val = ns->ed.mult.eo.get_multiphase_electroosmotic_phi(fracvol, center, ns->par.t);
+            } else
+                val = ns->ed.eo.get_electroosmotic_phi(center, ns->par.t);
+            // Set the value for pressure distributed property
+            dp_set_value(ns->ed.eo.dpphi, clid, val);
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+        dp_sync(ns->ed.eo.dpphi);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
-    // Sync initial values among processes
-    dp_sync(ns->ed.eo.dpphi);
 }
 
 // Initialize the electro-osmotic psi
 void higflow_initialize_electroosmotic_psi(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
-    // Getting the local domain
-    sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
-    // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
-        // Get the center of the cell
-        Point center;
-        hig_get_center(c, center);
-        // Get the value for electro-osmotic psi in this cell
-        real val = ns->ed.eo.get_electroosmotic_psi(center, ns->par.t);
-        // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dppsi, clid, val);
+    if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        real val, fracvol;
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            // Get the value for electro-osmotic psi in this cell
+            if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+                fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+                val = ns->ed.mult.eo.get_multiphase_electroosmotic_psi(fracvol, center, ns->par.t);
+            } else
+                val = ns->ed.eo.get_electroosmotic_psi(center, ns->par.t);
+            // Set the value for pressure distributed property
+            dp_set_value(ns->ed.eo.dppsi, clid, val);
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+        dp_sync(ns->ed.eo.dppsi);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
-    // Sync initial values among processes
-    dp_sync(ns->ed.eo.dppsi);
 }
 
 // Initialize the electro-osmotic nplus
 void higflow_initialize_electroosmotic_nplus(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
-    // Getting the local domain
-    sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOnplus);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
-    // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
-        // Get the center of the cell
-        Point center;
-        hig_get_center(c, center);
-        // Get the value for electro-osmotic nplus in this cell
-        real val = ns->ed.eo.get_electroosmotic_nplus(center, ns->par.t);
-        // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dpnplus, clid, val);
+    if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        real val, fracvol;
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOnplus);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            // Get the value for electro-osmotic nplus in this cell
+            if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+                fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+                val = ns->ed.mult.eo.get_multiphase_electroosmotic_nplus(fracvol, center, ns->par.t);
+            } else
+                val = ns->ed.eo.get_electroosmotic_nplus(center, ns->par.t);
+            // Set the value for pressure distributed property
+            dp_set_value(ns->ed.eo.dpnplus, clid, val);
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+        dp_sync(ns->ed.eo.dpnplus);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
-    // Sync initial values among processes
-    dp_sync(ns->ed.eo.dpnplus);
 }
 
 // Initialize the electro-osmotic nminus
 void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
-    // Getting the local domain
-    sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOnminus);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
-    // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
-        // Get the center of the cell
-        Point center;
-        hig_get_center(c, center);
-        // Get the value for electro-osmotic nminus in this cell
-        real val = ns->ed.eo.get_electroosmotic_nminus(center, ns->par.t);
-        // Set the value for pressure distributed property
-        dp_set_value(ns->ed.eo.dpnminus, clid, val);
+    if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        real val, fracvol;
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOnminus);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int clid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            // Get the value for electro-osmotic nminus in this cell
+            if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+                fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+                val = ns->ed.mult.eo.get_multiphase_electroosmotic_nminus(fracvol, center, ns->par.t);
+            } else
+                val = ns->ed.eo.get_electroosmotic_nminus(center, ns->par.t);
+            // Set the value for pressure distributed property
+            dp_set_value(ns->ed.eo.dpnminus, clid, val);
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+        dp_sync(ns->ed.eo.dpnminus);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
-    // Sync initial values among processes
-    dp_sync(ns->ed.eo.dpnminus);
 }
 
 // Initialize the velocities
@@ -803,7 +851,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         break;
     }
     
-    if (ns->contr.eoflow == true) {
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic phi distributed property
         higflow_initialize_electroosmotic_phi(ns);
         // Initialize electro-osmotic psi distributed property
