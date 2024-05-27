@@ -8,6 +8,7 @@
 #define HIG_FLOW_STEP_VISCOELASTIC
 
 #include "hig-flow-step-generalized-newtonian.h"
+#include "hig-flow-mittag-leffler.h"
 
 // *******************************************************************
 // Navier-Stokes Step
@@ -29,7 +30,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(higflow_solv
 void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(higflow_solver *ns);
 
 // One step of the semi-implicit BDF2 method - Intermediate Velocity
-void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 
+void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solver *ns); 
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_viscoelastic(higflow_solver *ns); 

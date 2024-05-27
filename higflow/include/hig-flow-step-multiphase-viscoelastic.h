@@ -1,5 +1,5 @@
 // *******************************************************************
-//  HiG-Flow Solver Step multiphase - version 28/03/2024
+//  HiG-Flow Solver Step Multiphase Viscoelastic - version 28/03/2024
 // *******************************************************************
 
 #ifndef HIG_FLOW_STEP_MULTIPHASE_VISC
@@ -11,6 +11,10 @@
 // *******************************************************************
 // Navier-Stokes Step
 // *******************************************************************
+
+// Computing the viscosity
+real higflow_interp_visc_multiphase_viscoelastic(real visc0, real visc1, real fracvol);
+
 // Computing beta viscoelastic
 real higflow_interp_beta_multiphase_viscoelastic(real beta0, real beta1, real visc0, real visc1, real fracvol);
 

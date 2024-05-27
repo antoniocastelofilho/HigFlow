@@ -31,19 +31,13 @@ void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns);
 void higflow_explicit_euler_ionic_transport_equation_nminus(higflow_solver *ns); 
 
 // Compute the electric convective ionic term
-real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Point ccenter, Point cdelta, int dim, charge_type charge_sign);
+real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Point ccenter, Point cdelta, int dim, real alphaeo, real Pe, charge_type charge_sign);
 
 // Souce term by analytical PBDH model
 void higflow_calculate_electroosmotic_source_term_analytic_pbdh( higflow_solver *ns);
 
-// Souce term by PBDH model
-void higflow_calculate_electroosmotic_source_term_pbdh( higflow_solver *ns);
-
-// Souce term by PB model
-void higflow_calculate_electroosmotic_source_term_pb( higflow_solver *ns);
-
-// Souce term by PNP model
-void higflow_calculate_electroosmotic_source_term_pnp( higflow_solver *ns);
+// Electroosmotic Souce term
+void higflow_calculate_electroosmotic_source_term (higflow_solver *ns);
 
 // Boundary conditiono for electro-osmotic source term
 void higflow_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns); 
@@ -70,7 +64,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_so
 void higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(higflow_solver *ns); 
 
 // Navier-Stokes Step for the Implicit BDF2 Method
-void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 
+void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_solver *ns); 
 
 // print minimum and maximum values of distributed properties
 void print_minmax_properties(higflow_solver *ns);

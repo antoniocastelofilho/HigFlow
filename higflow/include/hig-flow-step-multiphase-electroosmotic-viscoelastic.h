@@ -1,18 +1,18 @@
 // *******************************************************************
 // *******************************************************************
-//  HiG-Flow Solver Step Electro-osmotic Viscoelastic - version 03/2024
+//  HiG-Flow Solver Step Multiphase Electro-osmotic Viscoelastic - version 12/05/2024
 // *******************************************************************
 // *******************************************************************
 
-#ifndef HIG_FLOW_STEP_ELECTROOSMOTIC_VISCOELASTIC
-#define HIG_FLOW_STEP_ELECTROOSMOTIC_VISCOELASTIC
+#ifndef HIG_FLOW_STEP_MULTIPHASE_ELECTROOSMOTIC_VISCOELASTIC
+#define HIG_FLOW_STEP_MULTIPHASE_ELECTROOSMOTIC_VISCOELASTIC
 
-#include "hig-flow-step-viscoelastic.h"
-#include "hig-flow-step-electroosmotic.h"
+#include "hig-flow-step-multiphase-electroosmotic.h"
+#include "hig-flow-step-multiphase-viscoelastic.h"
 
 // *******************************************************************
 
 // One step of the Navier-Stokes the projection method
-void higflow_solver_step_electroosmotic_viscoelastic(higflow_solver *ns); 
+void higflow_solver_step_multiphase_electroosmotic_viscoelastic(higflow_solver *ns); 
 
 #endif
