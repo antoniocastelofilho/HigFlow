@@ -11,10 +11,21 @@ CC = gcc
 
 DIM=2
 
-OPTSOPT = -Ofast -march=native -mtune=native -flto=8 -fno-fat-lto-objects
 STANDARDS = -std=gnu99
 
-CFLAGS+= $(shell pkg-config --cflags glib-2.0) -Werror
+CFILE = ns-example-2d
+
+ifdef DEBUG
+	CFLAGS+= -g -ggdb -Og -Wall
+	GDB_FLAG = gdb --args
+	DEBUG_DESC = "gdb debug"
+else
+	OPTSOPT = -flto=8 -fno-fat-lto-objects
+	CFLAGS+= -march=native -mtune=native -Ofast -Werror
+	DEBUG_DESC = "No Debugging/Optimized"
+endif
+
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
 
@@ -36,7 +47,17 @@ ifeq ($(NP),)
 	NP = 1
 endif
 
-OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-finite-difference-normal-curvature.o ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-adap-hf.o
+
+ifdef RESTART
+	LOAD_PATH = output/example-2d.save
+else
+	LOAD_PATH = input/example-2d.load
+endif
+
+OBJ1 = ns-example-2d.o 
+OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
+OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
+OBJ1 += ../src/hig-flow-res.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
@@ -49,8 +70,8 @@ run:
 	mkdir -p DATA || true
 	mkdir -p output || true
 	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example \
-		input/example-3d.load \
-		output/example-3d.save \
+		$(LOAD_PATH) \
+		output/newt.save \
 		VTKS/newt.print \
 		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
 compilerflags:
