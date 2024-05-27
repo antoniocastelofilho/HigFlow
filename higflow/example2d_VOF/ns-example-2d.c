@@ -14,22 +14,27 @@
 real func (Point p) {
 	real value;
 	Point c, pc, r, cav;
-	c[0]     = 0.5;
-	c[1]     = 0.75;
-	r[0]     = 0.15;
-	r[1]     = 0.15;
-	cav[0]   = 0.05;
-	cav[1]   = 0.2479;
-	pc[0]    = p[0] - c[0];
-	pc[1]    = p[1] - c[1];
-	// negative when in the circle
+	// c[0]     = 0.5;
+	// c[1]     = 0.75;
+	// r[0]     = 0.15;
+	// r[1]     = 0.15;
+	// cav[0]   = 0.05;
+	// cav[1]   = 0.2479;
+	// pc[0]    = p[0] - c[0];
+	// pc[1]    = p[1] - c[1];
+	// // negative when in the circle
+	// real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
+	// real incav1  = (fabs(pc[0]) - 0.5*cav[0])/r[0]; ;
+	// real incav2  = (pc[1] - (cav[1] - r[1]))/r[1];
+	// // negative when in the cavity - both incav1 and incav2 must be negative
+	// real incav   = max(incav1, incav2);
+	// value = min(outcirc, incav);
+
+	c[0] = 0.5; c[1] = 0.5;
+	r[0] = 1.0/6.0; r[1] = 1.0/6.0;
+	pc[0] = p[0] - c[0]; pc[1] = p[1] - c[1];
 	real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
-	real incav1  = (fabs(pc[0]) - 0.5*cav[0])/r[0]; ;
-	real incav2  = (pc[1] - (cav[1] - r[1]))/r[1];
-	// negative when in the cavity - both incav1 and incav2 must be negative
-	real incav   = max(incav1, incav2);
-	value = min(outcirc, incav);
-	//value = outcirc;
+	value = outcirc;
 	return value;
 }
 
@@ -321,70 +326,10 @@ real get_fracvol(Point center, Point delta, real t) {
 	return value;
 }
 
-// Value of the Tensor
-real get_tensor(Point center, int i, int j, real t) {
-	real value = 0.0;
-	return value;
-}
-
-real get_tensor0(Point center, int i, int j, real t) {
-	real value = 0.0;
-	return value;
-}
-
-real get_tensor1(Point center, int i, int j, real t) {
-	real value = 0.0;
-	return value;
-}
-
-// Value of the Tensor
-real get_boundary_tensor(int id, Point center, int i, int j, real t) {
-	real value = 0.0;
-	return value;
-}
-
-// Value of the Kernel
-real get_kernel(int dim, real lambda, real tol) {
-	real value;
-	//if (lambda < tol)
-	//   value = log(tol);
-	//else
-	//   value = log(lambda);
-	//if (lambda < tol)
-	//   value = sqrt(tol);
-	//else
-	//   value = sqrt(lambda);
-	value = lambda;
-	return value;
-}
-
-// Value of the Kernel inverse
-real get_kernel_inverse(int dim, real lambda, real tol) {
-	real value;
-	//value = exp(lambda);
-	//value = lambda*lambda;
-	value = lambda;
-	return value;
-}
-
-// Value of the Kernel Jacobian
-real get_kernel_jacobian(int dim, real lambda, real tol) {
-	real value;
-	//if (lambda < tol)
-	//   value = 1.0/tol;
-	//else
-	//   value = 1.0/lambda;
-	//if (lambda < tol)
-	//   value = 0.5/sqrt(tol);
-	//else
-	//   value = 0.5/sqrt(lambda);
-	value = 1.0;
-	return value;
-}
 
 // Value of the pressure
 real get_pressure(Point center, real t) {
-	real value      = 0.0;
+    real value = 0.0;
 	return value;
 }
 
@@ -394,20 +339,22 @@ real get_velocity(Point center, int dim, real t) {
 	real x = center[0];
 	real y = center[1];
 	
-	switch(dim){
-		case 0: ;
-			value = 0.5 - y;
-			// real sx = sin(pi*x);
-			// real cy = cos(pi*y);
-			// value = sx*cy;
-		break;
-		case 1: ;
-			value = x - 0.5;
-			// real sy = sin(pi*y);
-			// real cx = cos(pi*x);
-			// value = -sy*cx;
-		break;
-	}
+	// switch(dim){
+	// 	case 0: ;
+	// 		value = 0.5 - y;
+	// 		// real sx = sin(pi*x);
+	// 		// real cy = cos(pi*y);
+	// 		// value = sx*cy;
+	// 	break;
+	// 	case 1: ;
+	// 		value = x - 0.5;
+	// 		// real sy = sin(pi*y);
+	// 		// real cx = cos(pi*x);
+	// 		// value = -sy*cx;
+	// 	break;
+	// }
+
+	value = 0.0;
 	return value;
 }
 
@@ -448,7 +395,6 @@ real get_density0(Point center, real t) {
 real get_density1(Point center, real t) {
 	real value;
 	value = 1.0;
-	//value = 1.0;
 	return value;
 }
 
@@ -480,18 +426,33 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
 
 	switch (dim) {
 		case 0: ;
-			value = 0.5 - y;
-			// real sx = sin(pi*x);
-			// real cy = cos(pi*y);
-			// if(t<pi) value = sx*cy;
-			// else value = -sx*cy;
+			// value = 0.5 - y;
+			// // real sx = sin(pi*x);
+			// // real cy = cos(pi*y);
+			// // if(t<pi) value = sx*cy;
+			// // else value = -sx*cy;
+			switch (id) {
+				case 0: ;
+					value = 0.0;
+					break;
+				case 1: ;
+					value = 8.0*(1.0 + tanh(8.0*t - 4.0))*x*x*(1.0 - x)*(1.0 - x);
+					break;
+				case 2: ;
+					value = 0.0;
+					break;
+				case 3: ;
+					value = 0.0;
+					break;
+			}
 			break;
 		case 1: ;
-			value = x - 0.5;
-			// real sy = sin(pi*y);
-			// real cx = cos(pi*x);
-			// if(t<pi) value = -sy*cx;
-			// else value = sy*cx;
+			// value = x - 0.5;
+			// // real sy = sin(pi*y);
+			// // real cx = cos(pi*x);
+			// // if(t<pi) value = -sy*cx;
+			// // else value = sy*cx;
+			value = 0.0;
 			break;
 	}
 	return value;
@@ -515,25 +476,6 @@ real get_boundary_viscosity(int id, Point center, real q, real t) {
 	return value;
 }
 
-// Define the user function for viscoelastic flow
-void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol) {
-	// Calculate the matrix MM and BB for Oldroyd-B model
-	for (int i = 0; i < DIM; i++) {
-		for (int j = i+1; j < DIM; j++) {
-			M_aux[i][j] = 0.0;
-			M_aux[j][i] = 0.0;
-		}
-		real jlambda = get_kernel_jacobian(i, lambda[i], tol);
-		M_aux[i][i]  = (1.0-lambda[i])*jlambda;
-	}
-}
-
-void set_generalized_newtonian(higflow_solver *ns,int cache,int order_center,
-		real(*get_viscosity)(Point center,real q,real t))
-{
-	higflow_create_domain_generalized_newtonian(ns, cache, order_center,get_viscosity); 
-}
-
 // *******************************************************************
 // Navier-Stokes main program
 // *******************************************************************
@@ -551,13 +493,13 @@ int main (int argc, char *argv[]) {
 	// Create Navier-Stokes solver
 	higflow_solver *ns = higflow_create();
 	// Load the data files
-	higflow_load_data_files(argc, argv, ns);
+	higflow_load_data_file_names(argc, argv, ns);
 	print0f("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
-   higflow_load_controllers_and_parameters_yaml(ns, myrank);
+    higflow_load_all_controllers_and_parameters_yaml(ns, myrank);
         // set the external functions
 	higflow_set_external_functions(ns, get_pressure, get_velocity,
 			get_source_term, get_facet_source_term,
-			get_boundary_pressure,  get_boundary_velocity,
+            get_boundary_pressure, get_boundary_velocity,
 			get_boundary_source_term, get_boundary_facet_source_term);
 	// Set the order of the interpolation to be used in the SD.
 	int order_center = 2;
@@ -576,13 +518,10 @@ int main (int argc, char *argv[]) {
    //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
     
-	// Set the user mode
-	//higflow_define_user_function_viscoelastic(ns, calculate_m_user);
-    
 	// Initialize the boundaries
     print0f("=+=+=+= Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
 	//higflow_initialize_boundaries(ns);
-	higflow_initialize_boundary_conditions_yaml(ns);
+	higflow_initialize_boundaries_yaml(ns);
    
 	// Creating distributed property
 	higflow_create_distributed_properties(ns);
@@ -594,30 +533,45 @@ int main (int argc, char *argv[]) {
 	// Load the properties form
 	if (ns->par.step > 0) {
 		// Loading the velocities
-        print0f("===> Loading t = %f <===\n",ns->par.t);
-		//higflow_load_properties(ns, myrank, ntasks);
+        if (myrank == 0) {
+            printf("*********************************************************************************\n");
+            printf("*********************************************************************************\n");
+            printf("===> Reloading properties from previous simulation <====> step = %d <====> t = %15.10lf <===\n", ns->par.step, ns->par.t);
+            printf("*********************************************************************************\n");
+            printf("*********************************************************************************\n");
+        }
+        higflow_load_properties(ns, myrank, ntasks);
 	}
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    print0f("=+=+ Saving Domain and Boundary Properties =+=+\n");
+    higflow_save_domain_yaml(ns, myrank, ntasks);
+    higflow_save_all_boundaries_yaml(ns, myrank, ntasks);
+    higflow_save_all_controllers_and_parameters_yaml(ns, myrank); //copying necessary yamls
 
 	// Printing the properties to visualize: first step
 	if (ns->par.step == 0) {
         print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
 		higflow_print_vtk(ns, myrank);
-		// frame update
+        //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
+        ns->par.tp += ns->par.dtp;
 		ns->par.frame++;
+        print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
+        higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
+        higflow_save_properties(ns, myrank, ntasks);
+        ns->par.ts += ns->par.dts;
 	}
 
 	// ********************************************************
 	// Begin Loop for the Navier-Stokes equations integration
 	// ********************************************************
 
-    for (int step0 = ns->par.initstep; ns->par.step < ns->par.finalstep; ns->par.step++) {
+    for (int step0 = ns->par.initstep; ns->par.step <= ns->par.finalstep; ns->par.step++) {
 		// Print the step
         print0f("===> Step:        %7d <====> t  = %15.10lf <===\n", ns->par.step, ns->par.t);
 		// Start the first step time
         if (ns->par.step == step0)  START_CLOCK(firstiter); 
 		// Update velocities and pressure using the projection method
-		// higflow_solver_step(ns);
-		// higflow_solver_step_gen_newt(ns);
 		//printf("===> calling step multiphase at step: %d <=== \n",ns->par.stepaux);
 		// real max_IF0 = max_dp(ns, ns->ed.mult.dpIF[0]);
 		// real max_IF1 = max_dp(ns, ns->ed.mult.dpIF[1]);
@@ -625,51 +579,31 @@ int main (int argc, char *argv[]) {
 		// printf("===> max_IF1 = %f <=== \n",max_IF1);
 		higflow_solver_step_multiphase(ns);
 		ns->par.stepaux=ns->par.stepaux+1;
-		// higflow_solver_step_viscoelastic(ns);
 		
 		// Time update
 		ns->par.t += ns->par.dt;
-		//--- compute norm ---
-		//compute_and_print_error_norm_velocity(ns, myrank);
-		//compute_and_print_error_norm_pressure(ns, myrank);
-		//--- compute norm ---
 		// Stop the first step time
         if (ns->par.step == step0) STOP_CLOCK(firstiter); 
 		// Printing
-		if (ns->par.t >= ns->par.tp + ns->par.dtp) {
-			// tprint update
-			ns->par.tp += ns->par.dtp;
-			// Printing the properties to visualize
+        if (ns->par.t >= ns->par.tp) {
 			print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
 			higflow_print_vtk(ns, myrank);
-			// frame update
+            //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
+            ns->par.tp += ns->par.dtp;
 			ns->par.frame++;
 		}
 		// Saving the properties
-		if (ns->par.t >= ns->par.ts + ns->par.dts) {
-			// tsave update
-			ns->par.ts += ns->par.dts;
-            print0f("===> Saving         <====> ts = %15.10lf <===\n",ns->par.ts);
-			// Saving the properties
+        if (ns->par.t >= ns->par.ts) {
+            print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
+            higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
 			higflow_save_properties(ns, myrank, ntasks);
-            higflow_save_parameters(ns, myrank);
-            higflow_save_controllers(ns, myrank);
-			higflow_save_multiphase_parameters(ns, myrank);
-			higflow_save_multiphase_controllers(ns, myrank);
+            ns->par.ts += ns->par.dts;
 		}
 	}
 	// ********************************************************
 	// End Loop for the Navier-Stokes equations integration
 	// ********************************************************
 
-	// Saving
-    print0f("===> Saving               <====> t  = %15.10lf <===\n",ns->par.t);
-	// Saving the properties
-	higflow_save_properties(ns, myrank, ntasks);
-    higflow_save_parameters(ns, myrank);
-    higflow_save_controllers(ns, myrank);
-	higflow_save_multiphase_parameters(ns, myrank);
-	higflow_save_multiphase_controllers(ns, myrank);
 	// Destroy the Navier-Stokes object
 	higflow_destroy(ns);
 	// Stop the total time
