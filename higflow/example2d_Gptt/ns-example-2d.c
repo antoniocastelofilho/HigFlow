@@ -117,7 +117,8 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
                     //value = 3.2e-3*(-center[1]*center[1] + center[1]);
                     //value = 4.0*(-center[1]*center[1] + 0.25);
                     //set max velocity = 1.5 
-                    value = -4.0*center[1]*(center[1] - 1.0);
+                    value = 1.5*(1.0 - center[1]*center[1]);
+                    //value = 1.0;
                     break;
                 case 1:
                     value = 0.0;
@@ -177,15 +178,14 @@ real get_boundary_viscosity(int id, Point center, real q, real t) {
 }
 
 // Define the user function for viscoelastic flow
-void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol) {
-    // Calculate the matrix MM and BB for Oldroyd model
+void calculate_m_user(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par) {
+    // Calculate the matrix MM and BB for Oldroyd-B model
     for (int i = 0; i < DIM; i++) {
         for (int j = i+1; j < DIM; j++) {
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        real jlambda = get_kernel_jacobian(i, lambda[i], tol);
-        M_aux[i][i]  = (1.0-lambda[i])*jlambda;
+        M_aux[i][i]  = (1.0-lambda[i])*jlambda[i];
     }
 }
 
@@ -209,21 +209,20 @@ int main (int argc, char *argv[]) {
     // Create Navier-Stokes solver
     higflow_solver *ns = higflow_create();
     // Load the data files
-    higflow_load_data_files(argc, argv, ns); 
-    // Load the parameters data for Navier-Stokes simulation
-    higflow_load_parameters(ns, myrank);
-    // Load the controllers data for Navier-Stokes simulation
-    higflow_load_controllers(ns, myrank);
+    higflow_load_data_file_names(argc, argv, ns); 
+	print0f("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
+    higflow_load_all_controllers_and_parameters_yaml(ns, myrank);
     // set the external functions
     higflow_set_external_functions(ns, get_pressure, get_velocity, 
         get_source_term, get_facet_source_term,
-        get_boundary_pressure,  get_boundary_velocity,
+        get_boundary_pressure, get_boundary_velocity,
         get_boundary_source_term, get_boundary_facet_source_term); 
     // Set the order of the interpolation to be used in the SD. 
-    int order_center = 3;
+    int order_center = 2;
     int order_facet = 2;
     // Set the cache: Reuse interpolation, 0 on, 1 off
     int cache = 1;
+
     // Create the simulation domain
     higflow_create_domain(ns, cache, order_center); 
     // Create the simulation domain for non newtonian simulation
@@ -231,113 +230,90 @@ int main (int argc, char *argv[]) {
     //    get_viscosity, get_boundary_viscosity); 
     higflow_create_domain_viscoelastic(ns, cache, order_center,get_tensor, 
 		    get_kernel, get_kernel_inverse, get_kernel_jacobian); 
-    //higflow_create_domain_viscoelastic_integral(ns, cache, order_center, get_tensor); 
     // Initialize the domain
-    higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
-    // Load the controllers data for viscoelastic simulation
-    higflow_load_viscoelastic_controllers(ns, myrank);
-    // Load the parameters data for viscoelastic simulation
-    higflow_load_viscoelastic_parameters(ns, myrank);
-    // Load the controllers data for viscoelastic simulation
-    //higflow_load_viscoelastic_integral_controllers(ns, myrank);
-    // Load the parameters data for viscoelastic simulation
-    //higflow_load_viscoelastic_integral_parameters(ns, myrank);
-    // Set the user model
+    higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
+    // define the user function for viscoelastic flow in case model is user set
     //higflow_define_user_function_viscoelastic(ns, calculate_m_user);
+
     // Initialize the boundaries
-    higflow_initialize_boundaries(ns); 
+    print0f("=+=+=+= Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+    //higflow_initialize_boundaries(ns);
+    higflow_initialize_boundaries_yaml(ns);
+
     // Creating distributed property  
-    higflow_create_ditributed_properties(ns);
-    // Creating distributed property for generalized newtonian simulation
-    //higflow_create_ditributed_properties_generalized_newtonian(ns);
-    higflow_create_ditributed_properties_viscoelastic(ns);
-    //higflow_create_ditributed_properties_viscoelastic_integral(ns);
+    higflow_create_distributed_properties(ns);
     // Initialize distributed properties
-    higflow_initialize_distributed_properties(ns);
+    if (ns->par.step == 0) higflow_initialize_distributed_properties(ns);
     // Create the linear system solvers
     higflow_create_solver(ns);
+
     // Load the properties form 
     if (ns->par.step > 0) {
         // Loading the velocities 
-        printf("===> Loading t = %f <===\n",ns->par.t);
-        //higflow_load_properties(ns);
+        if (myrank == 0) {
+            printf("*********************************************************************************\n");
+            printf("*********************************************************************************\n");
+            printf("===> Reloading properties from previous simulation <====> step = %d <====> t = %15.10lf <===\n", ns->par.step, ns->par.t);
+            printf("*********************************************************************************\n");
+            printf("*********************************************************************************\n");
+        }
+        higflow_load_properties(ns, myrank, ntasks);
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    print0f("=+=+ Saving Domain and Boundary Properties =+=+\n");
+    higflow_save_domain_yaml(ns, myrank, ntasks);
+    higflow_save_all_boundaries_yaml(ns, myrank, ntasks);
+    higflow_save_all_controllers_and_parameters_yaml(ns, myrank); //copying necessary yamls
+
     // Printing the properties to visualize: first step
     if (ns->par.step == 0) {
-        if (myrank == 0) 
-            printf("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+        print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
         higflow_print_vtk(ns, myrank);
-        // frame update
+        //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
+        ns->par.tp += ns->par.dtp;
         ns->par.frame++;
+        print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
+        higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
+        higflow_save_properties(ns, myrank, ntasks);
+        ns->par.ts += ns->par.dts;
     }
+    
     // ********************************************************
     // Begin Loop for the Navier-Stokes equations integration
     // ********************************************************
-    int step0 = ns->par.step;
-    for (int step = ns->par.step; step < ns->par.finalstep; step++) {
+
+    for (int step0 = ns->par.initstep; ns->par.step <= ns->par.finalstep; ns->par.step++) {
         // Print the step
-        if (myrank == 0) 
-            printf("===> Step:        %7d <====> t     = %15.10lf <===\n", step, ns->par.t);
-            //printf("===> Step:        %7d <====> tdim  = %15.10lf seg <===\n", step, (ns->par.t)*0.06);
+        print0f("===> Step:        %7d <====> t  = %15.10lf <===\n", ns->par.step, ns->par.t);
         // Start the first step time
-        if (step == step0)  START_CLOCK(firstiter); 
+        if (ns->par.step == step0)  START_CLOCK(firstiter); 
         // Update velocities and pressure using the projection method 
-        //higflow_solver_step(ns);
-        //higflow_solver_step_gen_newt(ns);
         higflow_solver_step_viscoelastic(ns);
-        //higflow_solver_step_viscoelastic_integral(ns);
-        
         // Time update 
         ns->par.t += ns->par.dt;
-        //--- compute norm ---
-        //compute_and_print_error_norm_velocity(ns, myrank);
-        //compute_and_print_error_norm_pressure(ns, myrank);
-        //--- compute norm ---
         // Stop the first step time
-        if (step == step0) STOP_CLOCK(firstiter); 
+        if (ns->par.step == step0) STOP_CLOCK(firstiter); 
         // Printing
-        if (ns->par.t >= ns->par.tp + ns->par.dtp) {
-            // tprint update
-            ns->par.tp += ns->par.dtp;
-            // Printing the properties to visualize 
-            if (myrank == 0) 
-                printf("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+        if (ns->par.t >= ns->par.tp) {
+            print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
             higflow_print_vtk(ns, myrank);
-            
-            
-            // frame update
+            //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
+            ns->par.tp += ns->par.dtp;
             ns->par.frame++;
         }
         // Saving the properties
-        if (ns->par.t >= ns->par.ts + ns->par.dts) {
-            // tsave update
+        if (ns->par.t >= ns->par.ts) {
+            print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
+            higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
+            higflow_save_properties(ns, myrank, ntasks);
             ns->par.ts += ns->par.dts;
-            if (myrank == 0) 
-                printf("===> Saving               <====> ts = %15.10lf <===\n",ns->par.ts);
-            // Saving the properties
-            //higflow_save_properties(ns, myrank, ntasks);
-            // Saving the parameters
-            //higflow_save_parameters(ns, myrank);
-            // Saving the controllers
-            //higflow_save_controllers(ns, myrank);
         }
-        // Step update
-        ns->par.step = step;
     }
-    (ns->par.step)++;
     // ********************************************************
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
 
-    // Saving
-    if (myrank == 0) 
-        printf("===> Saving               <====> t  = %15.10lf <===\n",ns->par.t);
-    // Saving the properties
-    //higflow_save_properties(ns, myrank, ntasks);
-    // Saving the parameters
-    //higflow_save_parameters(ns, myrank);
-    // Saving the controllers
-    //higflow_save_controllers(ns, myrank);
     // Destroy the Navier-Stokes object
     higflow_destroy(ns);
     // Stop the total time
