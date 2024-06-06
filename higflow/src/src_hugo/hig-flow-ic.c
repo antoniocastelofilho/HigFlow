@@ -1,15 +1,10 @@
 // *******************************************************************
 // *******************************************************************
-//  HiG-Flow Solver Initial Condition - version 10/11/2016
-// *******************************************************************
-// *******************************************************************
-
 #include "hig-flow-ic.h"
 
 // *******************************************************************
 // Navier-Stokes Initialize Properties
 // *******************************************************************
-
 // Navier-Stokes initialize the domain
 void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int order) {
     // Loading the domain data
@@ -64,17 +59,17 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     } else if (ns->contr.flowtype == 4) {
-       // Initialize integral tensors domain
+        // Initialize integral tensors domain
         higflow_create_partitioned_domain_viscoelastic_integral(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     } else if (ns->contr.flowtype == 6) {
-       // Initialize viscoelastic flow with variable viscosity domain
+        // Initialize viscoelastic flow with variable viscosity domain
         higflow_create_partitioned_domain_viscoelastic_variable_viscosity(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
     } else if (ns->contr.flowtype == 7) {
-       // Initialize viscoelastic flow with shear-banding domain
+        // Initialize viscoelastic flow with shear-banding domain
         higflow_create_partitioned_domain_viscoelastic_shear_banding(ns, pg, order);
         // Creating the stencil for properties interpolation
         higflow_create_stencil_for_extra_domain(ns);
@@ -102,7 +97,6 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         higflow_create_stencil_for_extra_domain(ns);
     }
 }
-
 
 // Initialize the pressure
 void higflow_initialize_pressure(higflow_solver *ns) {
@@ -1035,67 +1029,6 @@ void higflow_initialize_volume_fraction(higflow_solver *ns) {
     //printf("=+=+=+= WE ARE HERE AFTER initialising volfrac =+=+=+=\n");
 }
 
-// Initialize the energy source term for non-isothermal flows
-void higflow_initialize_energy_source_term(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
-    // Getting the local domain 
-    sim_domain *sdphi = psd_get_local_domain(ns->ed.nif.psdT);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdphi);
-    // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdphi); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
-        // Get the center of the cell
-        Point center;
-        hig_get_center(c, center);
-        // Get the value for structural parameter in this cell
-        real val = ns->ed.nif.get_energy_source_term(center, ns->par.t, 0.0, ns->ed.nif.par.T0, ns->ed.nif.par.T1, ns->ed.nif.par.Pr, ns->ed.nif.par.Br, ns->ed.nif.par.Gr, ns->ed.nif.par.Ga);
-        //printf("===> volfrac = %lf <===\n", val);
-        // Set the value for structural parameter distributed property
-        dp_set_value(ns->ed.nif.dpEF, cgid, val);
-    }
-    // Destroying the iterator
-    higcit_destroy(it);
-    // Sync initial values among processes
-    dp_sync(ns->ed.nif.dpEF);
-    //printf("=+=+=+= WE ARE HERE AFTER initialising volfrac =+=+=+=\n");
-}
-
-
-// Initialize the dimensionless temperature for non-isothermal flows
-void higflow_initialize_temperature(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
-    // Getting the local domain
-    sim_domain *sdp = psd_get_local_domain(ns->ed.nif.psdT);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
-    // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
-        // Get the center of the cell
-        Point center;
-        hig_get_center(c, center);
-        // Get the value for electro-osmotic phi in this cell
-        real val = ns->ed.nif.get_T(center, ns->par.t, ns->ed.nif.par.T0, ns->ed.nif.par.T1);
-        // Set the value for pressure distributed property
-        dp_set_value(ns->ed.nif.dpT, cgid, val);
-    }
-    // Destroying the iterator
-    higcit_destroy(it);
-    // Sync initial values among processes
-    dp_sync(ns->ed.nif.dpT);
-}
-
-
-
 // Initialize the velocities
 void higflow_initialize_velocity(higflow_solver *ns) {
     // Setting the facet-cell iterator
@@ -1189,34 +1122,34 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         // Initialize non Newtonian integral finger tensor distributed property
         higflow_initialize_viscoelastic_integral_finger_tensor(ns);
     } else if (ns->contr.flowtype == 6) {
-            if (ns->contr.modelflowtype == 3) {
-                //Initialize structural parameter
-                higflow_initialize_structural_parameter(ns);
-            }
+        if (ns->contr.modelflowtype == 3) {
+            //Initialize structural parameter
+            higflow_initialize_structural_parameter(ns);
+        }
         //Initialize viscosity distributed property for viscoelastic flows with variable viscosity
         higflow_initialize_viscosity_vevv(ns);
         //Initialize non Newtonian and viscoelastic tensor distributed property
         higflow_initialize_viscoelastic_tensor_variable_viscosity(ns);
     } else if (ns->contr.flowtype == 7) {
-            if (ns->contr.modelflowtype == 4) {
-                //Initialize the density number nA
-                higflow_initialize_shear_banding_nA(ns);
-                //Initialize the density number nB
-                higflow_initialize_shear_banding_nB(ns);
-                // Initialize the concentration of specie A (cA)
-                higflow_initialize_shear_banding_cA(ns);
-                // Initialize the concentration of specie B (cB)
-                higflow_initialize_shear_banding_cB(ns);
-                // Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
-                higflow_initialize_conformation_tensor_A_shear_banding(ns);
-                // Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
-                higflow_initialize_conformation_tensor_B_shear_banding(ns);
-            }
-        //Initialize the viscoelastic tensor distributed property    
-        higflow_initialize_viscoelastic_tensor_shear_banding(ns);
+       if (ns->contr.modelflowtype == 4) {
+           //Initialize the density number nA
+           higflow_initialize_shear_banding_nA(ns);
+           //Initialize the density number nB
+           higflow_initialize_shear_banding_nB(ns);
+           // Initialize the concentration of specie A (cA)
+           higflow_initialize_shear_banding_cA(ns);
+           // Initialize the concentration of specie B (cB)
+           higflow_initialize_shear_banding_cB(ns);
+           // Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
+           higflow_initialize_conformation_tensor_A_shear_banding(ns);
+           // Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
+           higflow_initialize_conformation_tensor_B_shear_banding(ns);
+       }
+       //Initialize the viscoelastic tensor distributed property    
+       higflow_initialize_viscoelastic_tensor_shear_banding(ns);
     } else if (ns->contr.flowtype == 8) {
-        // Initialize non Newtonian tensor distributed property
-        higflow_initialize_elastoviscoplastic_tensor(ns);
+       // Initialize non Newtonian tensor distributed property
+       higflow_initialize_elastoviscoplastic_tensor(ns);
     } else if (ns->contr.flowtype == 9) {
         //only for the model that considers particle migration
         //printf("=+=+=+= WE ARE HERE IN INITIALIZE DP =+=+=+=\n");

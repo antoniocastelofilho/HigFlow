@@ -105,9 +105,6 @@ void higflow_initialize_volume_fraction(higflow_solver *ns);
 // Initialize the energy source term for non-isothermal flows
 void higflow_initialize_energy_source_term(higflow_solver *ns);
 
-// Initialize the dimensionless temperature for non-isothermal flows
-void higflow_initialize_temperature(higflow_solver *ns);
-
 // Initialize the velocities
 void higflow_initialize_velocity(higflow_solver *ns); 
 

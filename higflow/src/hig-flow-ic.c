@@ -80,7 +80,32 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
             // Creating the stencil for properties interpolation
             higflow_create_stencil_for_extra_domain(ns);
             break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            // Initialize viscoelastic flow with variable viscosity domain
+            higflow_create_partitioned_domain_viscoelastic_variable_viscosity(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case SHEAR_BANDING:
+            // Initialize viscoelastic flow with shear-banding domain
+            higflow_create_partitioned_domain_viscoelastic_shear_banding(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case ELASTOVISCOPLASTIC:
+            // Initialize elastoviscoplastic tensor domain
+            higflow_create_partitioned_domain_elastoviscoplastic(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case SUSPENSIONS:
+            // Initialize shear-thickening supension tensor domain
+            higflow_create_partitioned_domain_shear_thickening_suspension(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
     }
+
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
@@ -165,7 +190,32 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
             // Creating the stencil for properties interpolation
             higflow_create_stencil_for_extra_domain(ns);
             break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            // Initialize viscoelastic flow with variable viscosity domain
+            higflow_create_partitioned_domain_viscoelastic_variable_viscosity(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case SHEAR_BANDING:
+            // Initialize viscoelastic flow with shear-banding domain
+            higflow_create_partitioned_domain_viscoelastic_shear_banding(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case ELASTOVISCOPLASTIC:
+            // Initialize elastoviscoplastic tensor domain
+            higflow_create_partitioned_domain_elastoviscoplastic(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
+        case SUSPENSIONS:
+            // Initialize shear-thickening supension tensor domain
+            higflow_create_partitioned_domain_shear_thickening_suspension(ns, pg, order);
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_for_extra_domain(ns);
+            break;
     }
+
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
@@ -745,6 +795,494 @@ void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
     }
 }
 
+// Initialize the viscosity for viscoelastic flows with variable viscosity
+void higflow_initialize_viscosity_vevv(higflow_solver *ns) {
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain (viscosity)
+    sim_domain *sdvisc = psd_get_local_domain(ns->ed.vevv.psdVisc);
+    // Getting the Mapper for the local domain 
+    mp_mapper *m = sd_get_domain_mapper(sdvisc);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        real val;
+       if (ns->contr.rheotype == PLM) {
+           val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, 0.0);
+       }
+       if (ns->contr.rheotype == THIXOTROPIC) {
+           real valstruct;
+           valstruct = ns->ed.vevv.get_structpar(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, ns->ed.vevv.par.Phi, ns->ed.vevv.par.Lambda, ns->ed.vevv.par.Gamma);
+           val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, valstruct);
+       }
+        // Set the value for viscosity distributed property
+        dp_set_value(ns->ed.vevv.dpvisc, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.vevv.dpvisc);
+}
+
+// Initialize the structural parameter for viscoelastic flows
+void higflow_initialize_structural_parameter(higflow_solver *ns) {
+    //Get the BMP model parameters
+    real Lambda = ns->ed.vevv.par.Lambda;
+    real Phi = ns->ed.vevv.par.Phi;
+    real Gamma = ns->ed.vevv.par.Gamma;
+    real beta = ns->ed.vevv.par.beta;
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain 
+    sim_domain *sdstructpar = psd_get_local_domain(ns->ed.vevv.psdVisc);
+    // Getting the Mapper for the local domain 
+    mp_mapper *m = sd_get_domain_mapper(sdstructpar);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdstructpar); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        // Get the value for structural parameter in this cell
+        real val = ns->ed.vevv.get_structpar(center, 0.0, ns->par.t, beta, Phi, Lambda, Gamma);
+        // Set the value for structural parameter distributed property
+        dp_set_value(ns->ed.vevv.dpStructPar, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.vevv.dpStructPar);
+}
+
+// Initialize the Non-Newtonian Tensor for viscoelastic flows with variable viscosity
+void higflow_initialize_viscoelastic_tensor_variable_viscosity(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.vevv.get_tensor(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.vevv.dpS[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.vevv.dpS[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the shear-banding density number nA
+void higflow_initialize_shear_banding_nA(higflow_solver *ns) {
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain
+    sim_domain *sdp = psd_get_local_domain(ns->ed.vesb.psdSBnA);
+    // Getting the Mapper for the local domain
+    mp_mapper *m = sd_get_domain_mapper(sdp);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        // Get the value for nA in this cell
+        real val = ns->ed.vesb.get_nA(center, ns->par.t);
+        // Set the value for distributed property
+        dp_set_value(ns->ed.vesb.dpnA, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.vesb.dpnA);
+}
+
+// Initialize the shear-banding density number nB
+void higflow_initialize_shear_banding_nB(higflow_solver *ns) {
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain
+    sim_domain *sdp = psd_get_local_domain(ns->ed.vesb.psdSBnB);
+    // Getting the Mapper for the local domain
+    mp_mapper *m = sd_get_domain_mapper(sdp);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        // Get the value for nB in this cell
+        real val = ns->ed.vesb.get_nB(center, ns->par.t);
+        // Set the value for distributed property
+        dp_set_value(ns->ed.vesb.dpnB, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.vesb.dpnB);
+}
+
+// Initialize the concentration of specie A (cA)
+void higflow_initialize_shear_banding_cA(higflow_solver *ns) {
+    real CAeq = ns->ed.vesb.par.CAeq;
+    real chi = ns->ed.vesb.par.chi;
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain 
+    sim_domain *sdca = psd_get_local_domain(ns->ed.psdED);
+    // Getting the Mapper for the local domain 
+    mp_mapper *m = sd_get_domain_mapper(sdca);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdca); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        // Get the value for pressure in this cell
+        real val = ns->ed.vesb.get_cA(center, ns->par.t, CAeq, chi, 0.0);;
+        // Set the value for pressure distributed property
+        dp_set_value(ns->ed.vesb.dpcA, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.vesb.dpcA);
+}
+
+// Initialize the concentration of specie B (cB)
+void higflow_initialize_shear_banding_cB(higflow_solver *ns) {
+    real CBeq = ns->ed.vesb.par.CBeq;
+    real chi = ns->ed.vesb.par.chi;
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain 
+    sim_domain *sdcb = psd_get_local_domain(ns->ed.psdED);
+    // Getting the Mapper for the local domain 
+    mp_mapper *m = sd_get_domain_mapper(sdcb);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdcb); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        // Get the value for pressure in this cell
+        real val = ns->ed.vesb.get_cB(center, ns->par.t, CBeq, chi, 0.0);;
+        // Set the value for pressure distributed property
+        dp_set_value(ns->ed.vesb.dpcB, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.vesb.dpcB);
+}
+
+
+// Initialize the Non-Newtonian Tensor for viscoelastic flows with shear-banding
+void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.flowtype == SHEAR_BANDING) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.vesb.get_tensor(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.vesb.dpS[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.vesb.dpS[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
+void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.rheotype == VCM) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.vesb.get_tensor_A(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.vesb.dpA[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.vesb.dpA[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
+void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.rheotype == VCM) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.vesb.get_tensor_B(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.vesb.dpB[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.vesb.dpB[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the Non-Newtonian Tensor
+void higflow_initialize_elastoviscoplastic_tensor(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.flowtype == ELASTOVISCOPLASTIC) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.vepl.get_tensor(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.vepl.dpS[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.vepl.dpS[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the Tensor S for shear-thickening suspension
+void higflow_initialize_shear_thickening_suspension_tensor(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.flowtype == SUSPENSIONS) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.stsp.get_tensor(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.stsp.dpS[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.stsp.dpS[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the microstructure tensor A for shear-thickening suspension
+void higflow_initialize_shear_thickening_suspension_microstructure_tensor(higflow_solver *ns) {
+    // Non Newtonian flow
+    if (ns->contr.flowtype == SUSPENSIONS) {
+        // Setting the cell iterator
+        higcit_celliterator *it;
+        // Getting the local domain
+        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+        // Getting the Mapper for the local domain
+        mp_mapper *m = sd_get_domain_mapper(sdp);
+        // Traversing the cells of local domain
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Getting the cell
+            hig_cell *c = higcit_getcell(it);
+            // Get the cell identifier
+            int cgid = mp_lookup(m, hig_get_cid(c));
+            // Get the center of the cell
+            Point center;
+            hig_get_center(c, center);
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
+                    // Get the value for the tensor in this cell
+                    real val = ns->ed.stsp.get_tensor_A(center, i, j, ns->par.t);
+                    // Set the value for tensor distributed property
+                    dp_set_value(ns->ed.stsp.dpA[i][j], cgid, val);
+                }
+            }
+        }
+        // Destroying the iterator
+        higcit_destroy(it);
+        // Sync initial values among processes
+	for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                dp_sync(ns->ed.stsp.dpA[i][j]);
+	    }
+	}
+    }
+}
+
+// Initialize the volume fraction for shear thickening suspensions (with particle migration)
+void higflow_initialize_volume_fraction(higflow_solver *ns) {
+    // Setting the cell iterator
+    higcit_celliterator *it;
+    // Getting the local domain 
+    sim_domain *sdphi = psd_get_local_domain(ns->ed.stsp.psdphi);
+    // Getting the Mapper for the local domain 
+    mp_mapper *m = sd_get_domain_mapper(sdphi);
+    // Traversing the cells of local domain
+    for(it = sd_get_domain_celliterator(sdphi); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Getting the cell
+        hig_cell *c = higcit_getcell(it);
+        // Get the cell identifier
+        int cgid = mp_lookup(m, hig_get_cid(c));
+        // Get the center of the cell
+        Point center;
+        hig_get_center(c, center);
+        // Get the value for structural parameter in this cell
+        real val = ns->ed.stsp.get_vol_frac(center, ns->par.t);
+        //printf("===> volfrac = %lf <===\n", val);
+        // Set the value for structural parameter distributed property
+        dp_set_value(ns->ed.stsp.dpphi, cgid, val);
+    }
+    // Destroying the iterator
+    higcit_destroy(it);
+    // Sync initial values among processes
+    dp_sync(ns->ed.stsp.dpphi);
+    //printf("=+=+=+= WE ARE HERE AFTER initialising volfrac =+=+=+=\n");
+}
+
 // Initialize the velocities
 void higflow_initialize_velocity(higflow_solver *ns) {
     // Setting the facet-cell iterator
@@ -849,8 +1387,51 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
             // Initialize non Newtonian integral finger tensor distributed property
             higflow_initialize_viscoelastic_integral_finger_tensor(ns);
         break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            if (ns->contr.rheotype == THIXOTROPIC) {
+                //Initialize structural parameter
+                higflow_initialize_structural_parameter(ns);
+            }
+            //Initialize viscosity distributed property for viscoelastic flows with variable viscosity
+            higflow_initialize_viscosity_vevv(ns);
+            //Initialize non Newtonian and viscoelastic tensor distributed property
+            higflow_initialize_viscoelastic_tensor_variable_viscosity(ns);
+        break;
+        case SHEAR_BANDING:
+            if (ns->contr.rheotype == VCM) {
+               //Initialize the density number nA
+               higflow_initialize_shear_banding_nA(ns);
+               //Initialize the density number nB
+               higflow_initialize_shear_banding_nB(ns);
+               // Initialize the concentration of specie A (cA)
+               higflow_initialize_shear_banding_cA(ns);
+               // Initialize the concentration of specie B (cB)
+               higflow_initialize_shear_banding_cB(ns);
+               // Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
+               higflow_initialize_conformation_tensor_A_shear_banding(ns);
+               // Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
+               higflow_initialize_conformation_tensor_B_shear_banding(ns);
+            }
+            //Initialize the viscoelastic tensor distributed property    
+            higflow_initialize_viscoelastic_tensor_shear_banding(ns);
+        break;
+        case ELASTOVISCOPLASTIC:
+       // Initialize non Newtonian tensor distributed property
+       higflow_initialize_elastoviscoplastic_tensor(ns);
+        break;
+        case SUSPENSIONS:
+            //only for the model that considers particle migration
+            //printf("=+=+=+= WE ARE HERE IN INITIALIZE DP =+=+=+=\n");
+            if (ns->ed.stsp.contr.model == 2) {
+                //Initialize structural parameter
+                higflow_initialize_volume_fraction(ns);
+                //printf("=+=+=+= WE ARE HERE after =+=+=+=\n");
+            }
+            // Initialize shear-thickening suspension tensor distributed properties
+            higflow_initialize_shear_thickening_suspension_tensor(ns);
+            higflow_initialize_shear_thickening_suspension_microstructure_tensor(ns);
+        break;
     }
-    
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic phi distributed property
         higflow_initialize_electroosmotic_phi(ns);
