@@ -106,11 +106,6 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbc
             // Destroying the iterator 
             higcit_destroy(it);
         }
-        /////////// Already runs on kernel.c
-        // // Mapping the properties in the domain (velocities)
-        // psfd_compute_sfbi(ns->psfdu[dim]);
-        // // Sync mapper for velocities
-        // psfd_synced_mapper(ns->psfdu[dim]);
     }
 }
 
@@ -373,6 +368,106 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
     }
 }
 
+// Creating and setting the boundary condition for the density number nA (viscoelastic flows with shear-banding)
+void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nAbctypes[], bc_valuetype nAbcvaluetype[]) {
+    // Get the HigTree from amr file
+    hig_cell *bcg[numbcs];
+    for(int h = 0; h < numbcs; h++) {
+        FILE *fd = fopen(bcfilenames[h], "r");
+        bcg[h] = higio_read_from_amr(fd);
+	fclose(fd);
+    }
+    // Loop for each boundary condition
+    for(int h = 0; h < numbcs; h++) {
+        // Get the local domain for cell center
+        sim_domain *sd = psd_get_local_domain(ns->ed.vesb.psdSBnA);
+        // Set the type bondary condition
+        bc_type bc_t = ((nAbctypes[h]==0)?DIRICHLET:NEUMANN);
+        // Create the bounary condition
+        sim_boundary *bc = higflow_make_bc(bcg[h], nAbctypes[h], id[h], nAbcvaluetype[h]);
+        // Adding the boundary condition 
+        sd_add_boundary(sd, bc);
+        // Get the mapper for the boundary condition
+        mp_mapper *bm = sb_get_mapper(bc);
+        // Loop for the cells of the boundaries conditions 
+        higcit_celliterator *it;
+        for(it = sb_get_celliterator(bc); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell 
+            hig_cell *bcell = higcit_getcell(it);
+            // Get the cell center
+            Point bccenter;
+            hig_get_center(bcell, bccenter);
+            // Get the id of the cell
+            int bcgid = mp_lookup(bm, hig_get_cid(bcell));
+            // Set the time to get the pressure
+            real t = ns->par.t + ns->par.dt;
+            // Get the pressure defined by the user
+            real val;
+            if (nAbctypes[h] == NEUMANN) {
+                // Get the density number defined by the user
+                val = ns->ed.vesb.get_boundary_nA(id[h], bccenter, ns->par.t);
+            } else {
+                // Dirichlet boundary type
+                val = ns->ed.vesb.get_boundary_nA(id[h], bccenter, ns->par.t);
+            }
+            // Set the value 
+            sb_set_value(bc, bcgid, val);
+        }
+        // Destroy the iterator
+        higcit_destroy(it);
+    }
+}
+
+// Creating and setting the boundary condition for the density number nB (viscoelastic flows with shear-banding)
+void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nBbctypes[], bc_valuetype nBbcvaluetype[]) {
+    // Get the HigTree from amr file
+    hig_cell *bcg[numbcs];
+    for(int h = 0; h < numbcs; h++) {
+        FILE *fd = fopen(bcfilenames[h], "r");
+        bcg[h] = higio_read_from_amr(fd);
+	fclose(fd);
+    }
+    // Loop for each boundary condition
+    for(int h = 0; h < numbcs; h++) {
+        // Get the local domain for cell center
+        sim_domain *sd = psd_get_local_domain(ns->ed.vesb.psdSBnB);
+        // Set the type bondary condition
+        bc_type bc_t = ((nBbctypes[h]==0)?DIRICHLET:NEUMANN);
+        // Create the bounary condition
+        sim_boundary *bc = higflow_make_bc(bcg[h], nBbctypes[h], id[h], nBbcvaluetype[h]);
+        // Adding the boundary condition 
+        sd_add_boundary(sd, bc);
+        // Get the mapper for the boundary condition
+        mp_mapper *bm = sb_get_mapper(bc);
+        // Loop for the cells of the boundaries conditions 
+        higcit_celliterator *it;
+        for(it = sb_get_celliterator(bc); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell 
+            hig_cell *bcell = higcit_getcell(it);
+            // Get the cell center
+            Point bccenter;
+            hig_get_center(bcell, bccenter);
+            // Get the id of the cell
+            int bcgid = mp_lookup(bm, hig_get_cid(bcell));
+            // Set the time to get the pressure
+            real t = ns->par.t + ns->par.dt;
+            // Get the pressure defined by the user
+            real val;
+            if (nBbctypes[h] == NEUMANN) {
+                // Get the electro-osmotic nplus defined by the user
+                val = ns->ed.vesb.get_boundary_nB(id[h], bccenter, ns->par.t);
+            } else {
+                // Dirichlet boundary type
+                val = ns->ed.vesb.get_boundary_nB(id[h], bccenter, ns->par.t);
+            }
+            // Set the value 
+            sb_set_value(bc, bcgid, val);
+        }
+        // Destroy the iterator
+        higcit_destroy(it);
+    }
+}
+
 // Creating and setting the boundary condition for cell source term
 void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]) {
     // Get the HigTree from amr file
@@ -453,11 +548,6 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
             // Destroying the iterator 
             higcit_destroy(it);
         }
-        /////////// Already runs on kernel.c
-        // // // Mapping the properties in the domain (velocities)
-        // psfd_compute_sfbi(ns->psfdF[dim]);
-        // // Sync mapper for velocities
-        // psfd_synced_mapper(ns->psfdF[dim]);
     }
 }
 
@@ -497,7 +587,6 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
             // Outflow
             ns->contr.desingpressure = false;
         }
-        
         for (int dim = 0; dim < DIM; dim++) {
             // Velocity boundary condition type
             ifd = fscanf(fbc,"%d",(int *)&(ubctypes[dim][h]));
@@ -514,7 +603,6 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
     higflow_set_boundary_condition_for_cell_source_term(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
     // Setting the boundary conditions for the facet source term
     higflow_set_boundary_condition_for_facet_source_term(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
-    
     // Setting the boundary conditions for the electro-osmotic model
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         sprintf(namefile,"%s.bcelectroosmotic",ns->par.nameload);
@@ -601,7 +689,49 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
             print0f("=+=+=+=\n");
         }
     }
+    // Setting the boundary conditions for the VCM model (viscoelastic with shear-banding)
+    if (ns->contr.rheotype == VCM) {
+        sprintf(namefile,"%s.bcvesb",ns->par.nameload);
+        printf("nome: %s", namefile);
+        FILE *fbc = fopen(namefile, "r");
+        if (fbc == NULL) {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
+            exit(1);
+        }
+        // Number of boundaries
+        int numbcs; 
+        int ifd = fscanf(fbc,"%d\n",&numbcs);
+        // Boudary condition data
+        int           id[numbcs];
+        char          amrBCfilename[numbcs][1024]; 
+        bc_type       nAbctypes[numbcs]; 
+        bc_valuetype  nAbcvaluetype[numbcs];
+        bc_type       nBbctypes[numbcs]; 
+        bc_valuetype  nBbcvaluetype[numbcs];
+        for(int h = 0; h < numbcs; h++) {
+            ifd = fscanf(fbc,"%d\n",&(id[h]));
+            // HigTree Boundary condition file name
+            __higflow_readstring(amrBCfilename[h],1024,fbc);
+            // Pressure boundary condition type
+            int aux;
+            // Density number of spece A nA boundary condition type
+            ifd = fscanf(fbc,"%d",(int *)&(nAbctypes[h]));
+            // Density number of spece A nA boundary condition value
+            ifd = fscanf(fbc,"%d",(int *)&(nAbcvaluetype[h]));
+            // Density number of spece B nB boundary condition type
+            ifd = fscanf(fbc,"%d",(int *)&(nBbctypes[h]));
+            // Density number of spece B nB boundary condition value
+            ifd = fscanf(fbc,"%d",(int *)&(nBbcvaluetype[h]));
+        }
+        fclose(fbc);
+        // Setting the boundary conditions for the density number nB of specie B
+        higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(ns, numbcs, id, amrBCfilename, nAbctypes, nAbcvaluetype);
+        // Setting the boundary conditions for the density number nA of specie A
+        higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(ns, numbcs, id, amrBCfilename, nBbctypes, nBbcvaluetype);
+    }
 }
+
 // Navier-Stokes initialize the domain and boudaries
 void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
     // Loading the boundary condition data
@@ -631,7 +761,6 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
     bc_valuetype  ubcvaluetype[DIM][numbcs]; 
     // Setting the pressure desingularizadtion control
     ns->contr.desingpressure = true;
-    
     for(int h = 0; h < numbcs; h++) {
         char atrib[1024];
         sprintf(atrib,"/bc/bc%d/id %%d",h);
@@ -660,7 +789,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
         } else if(strcmp(aux,"time_dependent") == 0) {
             pbcvaluetype[h] = timedependent;
         } 
-           // Not implemented yet
+        // Not implemented yet
         // else if(strcmp(aux,"zero_gradient") == 0) {
         //     pbcvaluetype[h] = zeroGradient;
         //  } else if(strcmp(aux,"freestream") == 0) {
@@ -706,7 +835,6 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
             }
         }
     }
-
     // Setting the boundary conditions for the pressure
     higflow_set_boundary_condition_for_pressure(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
     // Setting the boundary conditions for the velocities
@@ -867,8 +995,77 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
             }
             print0f("=+=+=+=\n");
         }
-
     }
+    // Setting the boundary conditions for the Shear Banding model
+    if (ns->contr.flowtype == SHEAR_BANDING) {
+        int ifd = fy_document_scanf(fyd,"/bc_shear_banding/number_bc %d",&numbcs);
+ 
+        // Boudary condition data
+        int           id[numbcs];
+        char          amrBCfilename[numbcs][1024]; 
+        bc_type       nAbctypes[numbcs]; 
+        bc_valuetype  nAbcvaluetype[numbcs];
+        bc_type       nBbctypes[numbcs]; 
+        bc_valuetype  nBbcvaluetype[numbcs];
+        
+        for(int h = 0; h < numbcs; h++) {
+            char atrib[1024];
+            sprintf(atrib,"/bc_shear_banding/bc%d/id %%d",h);
+            ifd = fy_document_scanf(fyd,atrib,&(id[h]));
+            // HigTree Boundary condition file name
+            sprintf(atrib,"/bc_shear_banding/bc%d/path %%s",h);
+            ifd = fy_document_scanf(fyd,atrib,amrBCfilename[h]);
+            // nA boundary condition type
+            char aux[1024];
+            sprintf(atrib,"/bc_shear_banding/bc%d/nA/type %%s",h);
+            ifd = fy_document_scanf(fyd,atrib,aux);
+            if (strcmp(aux,"dirichlet") == 0) {
+                nAbctypes[h] = DIRICHLET;
+            } else if (strcmp(aux,"neumann") == 0) {
+                nAbctypes[h] = NEUMANN;
+            } else {
+                printf("=+=+=+= Error loading boundary condition type for nA in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
+                exit(1);
+            }
+            // nA boundary condition value type
+            sprintf(atrib,"/bc_shear_banding/bc%d/nA/value_type %%s",h);
+            ifd = fy_document_scanf(fyd,atrib,aux);
+            if (strcmp(aux,"fixed_value") == 0) {
+                nAbcvaluetype[h] = fixedValue;
+            } else if(strcmp(aux,"time_dependent") == 0) {
+                nAbcvaluetype[h] = timedependent;
+            } else {
+                printf("=+=+=+= Error loading boundary condition valuetype for nA in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
+                exit(1);
+            }
 
+            // nB boundary condition type
+            sprintf(atrib,"/bc_shear_banding/bc%d/nB/type %%s",h);
+            ifd = fy_document_scanf(fyd,atrib,aux);
+            if (strcmp(aux,"dirichlet") == 0) {
+                nBbctypes[h] = DIRICHLET;
+            } else if (strcmp(aux,"neumann") == 0) {
+                nBbctypes[h] = NEUMANN;
+            } else {
+                printf("=+=+=+= Error loading boundary condition type for nB in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
+                exit(1);
+            }
+            // nB boundary condition value type
+            sprintf(atrib,"/bc_shear_banding/bc%d/nB/value_type %%s",h);
+            ifd = fy_document_scanf(fyd,atrib,aux);
+            if (strcmp(aux,"fixed_value") == 0) {
+                nBbcvaluetype[h] = fixedValue;
+            } else if(strcmp(aux,"time_dependent") == 0) {
+                nBbcvaluetype[h] = timedependent;
+            } else {
+                printf("=+=+=+= Error loading boundary condition valuetype for nB in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
+                exit(1);
+            }
+        }
+        // Setting the boundary conditions for the Shear Banding 
+        higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(ns, numbcs, id, amrBCfilename, nAbctypes, nAbcvaluetype);
+        // Setting the boundary conditions for the Shear Banding 
+        higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(ns, numbcs, id, amrBCfilename, nBbctypes, nBbcvaluetype);
+    }
     fy_document_destroy(fyd);
 }
