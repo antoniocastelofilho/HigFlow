@@ -178,7 +178,7 @@ void higflow_destroy (higflow_solver *ns) {
         case SUSPENSIONS:
             // Shear-thickening suspensions
             //Destroy this for the model that considers the particle migration equation
-            if (ns->ed.stsp.contr.model == 2) {
+            if (ns->ed.stsp.contr.model == GW_WC_IF) {
                 dp_destroy(ns->ed.stsp.dpphi);
             }
             for (int i = 0; i < DIM; i++)
@@ -1179,7 +1179,7 @@ void higflow_create_distributed_properties_shear_thickening_suspension(higflow_s
     if (ns->contr.flowtype == SUSPENSIONS) {
         //printf("=+=+=+= WE ARE HERE =+=+=+=\n");
         //Distributed property for volumen fraction
-        if (ns->ed.stsp.contr.model == 2) {
+        if (ns->ed.stsp.contr.model == GW_WC_IF) {
             //printf("=+=+=+= WE ARE HERE BEFORE CREATING DP =+=+=+=\n");
             ns->ed.stsp.dpphi  = psd_create_property(ns->ed.stsp.psdphi);
             //printf("=+=+=+= WE ARE HERE AFTER CREATING DP =+=+=+=\n");

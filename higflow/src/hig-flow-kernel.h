@@ -814,19 +814,26 @@ typedef struct stsp_parameters
     real apsize;
 } stsp_parameters;
 
+typedef enum suspension_model_type {
+    USERSET_SM = -1,
+    GW = 0,
+    GW_WC = 1,
+    GW_WC_IF = 2,
+} suspension_model_type;
+
 // Controllers for shear-thickening suspensions simulation
 typedef struct stsp_controllers
 {
     // Suspension model
-    int model;
+    suspension_model_type model;
     // Discretization type
-    int discrtype;
+    tempdiscr_type discrtype;
     // Discretization type of the convective term of the microstructure tensor evolution equation
-    int convecdiscrtype;
+    cell_convecdiscr_type convecdiscrtype;
     // Discretization type for the volume fraction (particle migration equation)
-    int volfracdiscrtype;
+    tempdiscr_type volfracdiscrtype;
     // Convective discretization type for the volume fraction (particle migration equation)
-    int volfracconvecdiscrtype;
+    cell_convecdiscr_type volfracconvecdiscrtype;
 } stsp_controllers;
 
 

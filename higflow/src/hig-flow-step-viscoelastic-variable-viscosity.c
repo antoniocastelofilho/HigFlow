@@ -13,7 +13,7 @@
 
 // Computing the Kernel Tensor
 void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.modelflowtype == 2) || (ns->contr.modelflowtype == 3)){
+    if ((ns->contr.rheotype == PLM) || (ns->contr.rheotype == THIXOTROPIC)){
         // Get the cosntants
         real Re   = ns->par.Re;
         real De   = ns->ed.vevv.par.De;
@@ -101,7 +101,7 @@ void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
 
 // Computing the Polymeric Tensor
 void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.modelflowtype == 2)||(ns->contr.modelflowtype == 3)) {
+    if ((ns->contr.rheotype == PLM)||(ns->contr.rheotype == THIXOTROPIC)) {
         // Get the constants
         real Re   = ns->par.Re;
         real De   = ns->ed.vevv.par.De;
@@ -201,7 +201,7 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
 // Constitutive Equation Step for the Explicit Euler Method
 // *******************************************************************
 void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.modelflowtype == 2)||(ns->contr.modelflowtype == 3)) {
+    if ((ns->contr.rheotype == PLM)||(ns->contr.rheotype == THIXOTROPIC)) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.vevv.par.De;
@@ -569,7 +569,7 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
 // Constitutive Equation Step for the Implicit Euler Method
 // *******************************************************************
 void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.modelflowtype == 2)||(ns->contr.modelflowtype == 3)) {
+    if ((ns->contr.rheotype == PLM)||(ns->contr.rheotype == THIXOTROPIC)) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -1402,7 +1402,7 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns) {
     // Calculate the velocity derivative tensor
     higflow_compute_velocity_derivative_tensor(ns);
     //Calculate the viscosity (model defined by the user)
-    if (ns->contr.modelflowtype == 2){
+    if (ns->contr.rheotype == PLM){
         //User defined model
         higflow_compute_viscosity_user_model_vevv(ns);
         // Computing the Kernel Tensor
@@ -1422,7 +1422,7 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns) {
         higflow_compute_polymeric_tensor_variable_viscosity(ns);
     }
     //Calculate the viscosity (BMP model)
-    if (ns->contr.modelflowtype == 3){
+    if (ns->contr.rheotype == THIXOTROPIC){
         //BMP Model
         switch (ns->ed.vevv.contr.structpdiscrtype){
             case 0:
@@ -1951,7 +1951,7 @@ void higflow_compute_viscosity_user_model_vevv(higflow_solver *ns) {
 
 // Computing the viscosity of the BMP model using an Euler explicit method
 void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 3) {
+    if (ns->contr.rheotype == THIXOTROPIC) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.vevv.par.De;
@@ -2428,7 +2428,7 @@ real higflow_convective_BMP_structural_parameter_term_cubista(higflow_solver *ns
 
 // Computing the viscosity of the BMP model using an Euler implicit method
 void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 3) {
+    if (ns->contr.rheotype == THIXOTROPIC) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.vevv.par.De;

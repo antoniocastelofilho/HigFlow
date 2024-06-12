@@ -1500,7 +1500,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         }
         higcit_destroy(it);
 
-        if (ns->contr.modelflowtype == 4){
+        if (ns->contr.rheotype == VCM){
             //Printing the density number nA
             sim_domain *sdna =  psd_get_local_domain(ns->ed.vesb.psdSBnA);
             fprintf(f, "\nSCALARS nA FLOAT\nLOOKUP_TABLE default\n");
@@ -3805,7 +3805,7 @@ void higflow_print_vtk3D_shear_thickening_suspensions(higflow_solver *ns, int ra
     higcit_destroy(it);
 
     //only for the model that considers particle migration
-    if (ns->ed.stsp.contr.model == 2) {
+    if (ns->ed.stsp.contr.model == GW_WC_IF) {
         //Printing the viscosity
         //sim_domain *sdvisc =  psd_get_local_domain(ns->ed.vevv.psdVisc);
         fprintf(f, "\nSCALARS VolFrac FLOAT\nLOOKUP_TABLE default\n");
@@ -4921,7 +4921,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.kernel_tol));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.alpha_gptt));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.beta_gptt));
-        if (ns->contr.modelflowtype == 3)
+        if (ns->contr.rheotype == THIXOTROPIC)
         {
             ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.Lambda));
             ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.Phi));
@@ -4932,7 +4932,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vevv.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.beta);
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 printf("=+=+=+= Lambda: %f =+=+=+=\n", ns->ed.vevv.par.Lambda);
                 printf("=+=+=+= Phi: %f =+=+=+=\n", ns->ed.vevv.par.Phi);
@@ -4968,7 +4968,7 @@ void higflow_save_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.kernel_tol));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.alpha_gptt));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.beta_gptt));
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 fprintf(fd, "%lf\n", (ns->ed.vevv.par.Lambda));
                 fprintf(fd, "%lf\n", (ns->ed.vevv.par.Phi));
@@ -5041,7 +5041,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                 printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 if (ns->ed.vevv.contr.structparmodel == 0)
                 {
@@ -5178,7 +5178,7 @@ void higflow_save_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
             fprintf(fd, "%d\n", (ns->ed.vevv.contr.model));
             fprintf(fd, "%d\n", (ns->ed.vevv.contr.discrtype));
             fprintf(fd, "%d\n", (ns->ed.vevv.contr.convecdiscrtype));
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 fprintf(fd, "%d\n", (ns->ed.vevv.contr.structpdiscrtype));
                 fprintf(fd, "%d\n", (ns->ed.vevv.contr.structpconvecdiscrtype));
@@ -5209,7 +5209,7 @@ void higflow_load_viscoelastic_variable_shear_banding_parameters(higflow_solver 
         int ifd;
         ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.De));
         ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.beta));
-        if (ns->contr.modelflowtype == 4)
+        if (ns->contr.rheotype == VCM)
         {
             ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.DeA));
             ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.epsilon));
@@ -5225,7 +5225,7 @@ void higflow_load_viscoelastic_variable_shear_banding_parameters(higflow_solver 
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vesb.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vesb.par.beta);
-            if (ns->contr.modelflowtype == 4)
+            if (ns->contr.rheotype == VCM)
             {
                 printf("=+=+=+= Deborah Number of specie A: %f =+=+=+=\n", ns->ed.vesb.par.DeA);
                 printf("=+=+=+= Epsilon = lambdaB/lambdaA: %f =+=+=+=\n", ns->ed.vesb.par.epsilon);
@@ -5259,7 +5259,7 @@ void higflow_save_viscoelastic_shear_banding_parameters(higflow_solver *ns, int 
             // Saving the parameters
             fprintf(fd, "%lf\n", (ns->ed.vesb.par.De));
             fprintf(fd, "%lf\n", (ns->ed.vesb.par.beta));
-            if (ns->contr.modelflowtype == 4)
+            if (ns->contr.rheotype == VCM)
             {
                 fprintf(fd, "%lf\n", (ns->ed.vesb.par.DeA));
                 fprintf(fd, "%lf\n", (ns->ed.vesb.par.epsilon));
@@ -5294,7 +5294,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
         ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.model));
         ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.discrtype));
         ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.convecdiscrtype));
-        if (ns->contr.modelflowtype == 4)
+        if (ns->contr.rheotype == VCM)
         {
             ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.nAnBdiscrtype));
             ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.nAnBconvecdiscrtype));     
@@ -5329,7 +5329,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
                 printf("=+=+=+= Viscoelastic Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
-            if (ns->contr.modelflowtype == 4)
+            if (ns->contr.rheotype == VCM)
             {
                 switch (ns->ed.vesb.contr.nAnBdiscrtype)
                 {
@@ -5375,7 +5375,7 @@ void higflow_save_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
             fprintf(fd, "%d\n", (ns->ed.vesb.contr.model));
             fprintf(fd, "%d\n", (ns->ed.vesb.contr.discrtype));
             fprintf(fd, "%d\n", (ns->ed.vesb.contr.convecdiscrtype));
-            if (ns->contr.modelflowtype == 4)
+            if (ns->contr.rheotype == VCM)
             {
                 fprintf(fd, "%d\n", (ns->ed.vesb.contr.nAnBdiscrtype));
                 fprintf(fd, "%d\n", (ns->ed.vesb.contr.nAnBconvecdiscrtype));     
@@ -5585,7 +5585,7 @@ void higflow_load_shear_thickening_suspension_parameters(higflow_solver *ns, int
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vevv.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.beta);
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 printf("=+=+=+= Lambda: %f =+=+=+=\n", ns->ed.vevv.par.Lambda);
                 printf("=+=+=+= Phi: %f =+=+=+=\n", ns->ed.vevv.par.Phi);
@@ -5598,7 +5598,7 @@ void higflow_load_shear_thickening_suspension_parameters(higflow_solver *ns, int
             printf("=+=+=+= Alpha parameter: %f =+=+=+=\n", ns->ed.stsp.par.alpha);
             printf("=+=+=+= Viscosity of the suspension: %f =+=+=+=\n", ns->ed.stsp.par.eta0);
             printf("=+=+=+= Microstructure association rate (beta): %f =+=+=+=\n", ns->ed.stsp.par.beta);
-            if ((ns->ed.stsp.contr.model == 1)|| (ns->ed.stsp.contr.model == -1))
+            if ((ns->ed.stsp.contr.model == GW_WC)|| (ns->ed.stsp.contr.model == USERSET_SM))
             {
                 printf("=+=+=+= Extremal jamming point 1: %f =+=+=+=\n", ns->ed.stsp.par.chij1);
                 printf("=+=+=+= Extremal jamming point 2: %f =+=+=+=\n", ns->ed.stsp.par.chij2);
@@ -5607,7 +5607,7 @@ void higflow_load_shear_thickening_suspension_parameters(higflow_solver *ns, int
                 printf("=+=+=+= Critical particle pressure: %f =+=+=+=\n", ns->ed.stsp.par.Pic);
             }
             //only for the model with particle migration
-            if ((ns->ed.stsp.contr.model == 2))
+            if ((ns->ed.stsp.contr.model == GW_WC_IF))
             {
                 printf("=+=+=+= Extremal jamming point 1: %f =+=+=+=\n", ns->ed.stsp.par.chij1);
                 printf("=+=+=+= Extremal jamming point 2: %f =+=+=+=\n", ns->ed.stsp.par.chij2);
@@ -5715,7 +5715,7 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
                 printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
-            if (ns->ed.stsp.contr.model == 2)
+            if (ns->ed.stsp.contr.model == GW_WC_IF)
             {
                 switch (ns->ed.stsp.contr.volfracdiscrtype)
                 {

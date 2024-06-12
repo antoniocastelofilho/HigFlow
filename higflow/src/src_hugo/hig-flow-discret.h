@@ -43,45 +43,45 @@ real compute_value_at_mid_point(real valuel, real valuer);
 // *******************************************************************
 
 // Computing the necessary term for the Navier-Stokes equation
-void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
+void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 // Computing the necessary term for the Generalized Newtonian Navier-Stokes equation
-void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
+void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 // Computing the necessary term for the Implicit Generalized Newtonian Navier-Stokes equation
-void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 // Computing the necessary term for the Multifase Navier-Stokes equation
-void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
+void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 // Computing the necessary term for the Multifase Navier-Stokes equation
-void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
+void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 // Computing the necessary term for the Viscoelastic Navier-Stokes equation
-void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
+void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 // Computing the necessary term for the Navier-Stokes equation
-void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
+void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]); 
 
 void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, sim_domain *sdpsi, sim_domain *sdphi, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, distributed_property *dppsi, distributed_property *dpphi);
 
 // Computing the necessary term for the Viscoelastic Navier-Stokes equation
-void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 //Computing the necessary terms for the Navier-Stokes equations of the viscoelastic flows with variable viscosity
-void higflow_computational_cell_viscoelastic_variable_viscosity(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_viscoelastic_variable_viscosity(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 // Computing the necessary term for the viscoelastic Navier-Stokes equation
-void higflow_computational_cell_viscoelastic_shear_banding(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_viscoelastic_shear_banding(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 //Computing the terms needed for the simulation of viscoelastic flows that exhibit shear-banding behaviour using the VCM model
 void higflow_computational_cell_shear_banding_VCM_model(higflow_solver *ns, sim_domain *sdn, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn);
 
 // Computing the necessary term for the elastoviscoplastic Navier-Stokes equation
-void higflow_computational_cell_elastoviscoplastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_elastoviscoplastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 // Computing the necessary term for the shear-thickening suspenions Navier-Stokes equation
-void higflow_computational_cell_shear_thickening_suspensions(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_shear_thickening_suspensions(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 //Computational cell used to calculate the terms of the particle migration equation (evolution of the fraction volume)
 void higflow_computational_cell_volume_fraction_suspensions(higflow_solver *ns, sim_domain *sdphi, int clid, Point ccenter, Point cdelta, int dim,  distributed_property *dpphi);

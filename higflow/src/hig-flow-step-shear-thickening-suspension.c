@@ -115,7 +115,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
             {
                 for (int j = 0; j < DIM; j++)
                 {
-                    if (ns->ed.stsp.contr.model == 2){
+                    if (ns->ed.stsp.contr.model == GW_WC_IF){
                         T0[i][j] = S0[i][j];
                     }
                     else {
@@ -276,7 +276,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
             real FOM[DIM][DIM][DIM][DIM];
             hig_flow_calculate_4th_order_orientation_moment(AM, KD, A, FOM);
             real tau_M[DIM][DIM];
-            if (ns->ed.stsp.contr.model == 0){
+            if (ns->ed.stsp.contr.model == GW){
                 // For GW model
                 real E2[DIM][DIM];
                 for (int i = 0; i < DIM; i++)
@@ -298,7 +298,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
                 }
                 // DEBUG_INSPECT(tau_M[0][1],%lf);
                 // DEBUG_INSPECT(tau_M[1][0],%lf);
-            } else if (ns->ed.stsp.contr.model == 2) {
+            } else if (ns->ed.stsp.contr.model == GW_WC_IF) {
                 // GW-WC model for inhomogeneous flows
                 real E2[DIM][DIM];
                 for (int i = 0; i < DIM; i++)
@@ -528,7 +528,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
             }
 
             /*here
-            if ((ns->ed.stsp.contr.model == 0)){
+            if ((ns->ed.stsp.contr.model == GW)){
                 //For GW model
                 real E2[DIM][DIM];
                 for (int i = 0; i < DIM; i++) {
@@ -690,7 +690,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
         //   }
         //}
 
-        if ((ns->ed.stsp.contr.model == 1))
+        if ((ns->ed.stsp.contr.model == GW_WC))
         {
             // Printing the min and max values of f
             printf("===> fmin = %lf <===> fmax = %lf <===\n", fmin, fmax);
@@ -699,7 +699,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
             // Printing the min and max values of Xchi
             printf("===> Xchimin = %lf <===> Xchimax = %lf <===\n", chiJmin, chiJmax);
         }
-        if ((ns->ed.stsp.contr.model == 2))
+        if ((ns->ed.stsp.contr.model == GW_WC_IF))
         {
             // Printing the min and max values of f
             printf("===> fmin = %lf <===> fmax = %lf <===\n", fmin, fmax);
@@ -874,7 +874,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
             real FOM[DIM][DIM][DIM][DIM];
             hig_flow_calculate_4th_order_orientation_moment(AM, KD, A, FOM);
             real tau_M[DIM][DIM];
-            if (ns->ed.stsp.contr.model == 0){
+            if (ns->ed.stsp.contr.model == GW){
                 // For GW model
                 real E2[DIM][DIM];
                 for (int i = 0; i < DIM; i++)
@@ -895,7 +895,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
                 }
                 // DEBUG_INSPECT(tau_M[0][1],%lf);
                 // DEBUG_INSPECT(tau_M[1][0],%lf);
-            } else if (ns->ed.stsp.contr.model == 2) {
+            } else if (ns->ed.stsp.contr.model == GW_WC_IF) {
                 // GW-WC model for inhomogeneous flows
                 real E2[DIM][DIM];
                 for (int i = 0; i < DIM; i++)
@@ -1191,7 +1191,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
         //   }
         //}
 
-        if ((ns->ed.stsp.contr.model == 1))
+        if ((ns->ed.stsp.contr.model == GW_WC))
         {
             // Printing the min and max values of f
             printf("===> fmin = %lf <===> fmax = %lf <===\n", fmin, fmax);
@@ -1200,7 +1200,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
             // Printing the min and max values of Xchi
             printf("===> Xchimin = %lf <===> Xchimax = %lf <===\n", chiJmin, chiJmax);
         }
-        if ((ns->ed.stsp.contr.model == 2))
+        if ((ns->ed.stsp.contr.model == GW_WC_IF))
         {
             // Printing the min and max values of f
             printf("===> fmin = %lf <===> fmax = %lf <===\n", fmin, fmax);
@@ -1239,7 +1239,7 @@ void higflow_explicit_euler_evolution_equation_microstructure_tensor(higflow_sol
         real beta = ns->ed.stsp.par.beta;
         real small = 1.0e-14;
         real phi;
-        if (ns->ed.stsp.contr.model == 0)
+        if (ns->ed.stsp.contr.model == GW)
         {
             // Value of phi for the GW model
             phi = 1.0;
@@ -1386,7 +1386,7 @@ void higflow_explicit_euler_evolution_equation_microstructure_tensor(higflow_sol
             // hig_flow_calculate_double_dot_product_tensors (E_E, FOM, EP);
             //  Calculate RHS = A*Du + (Du)^T * A- 2*(Du)^T : <pppp> - beta*( E_E:<pppp> + (phi/15)*(2*E_C+Tr(E_C)*KD) )
             real RHS[DIM][DIM];
-            if (ns->ed.stsp.contr.model == 2)
+            if (ns->ed.stsp.contr.model == GW_WC_IF)
             {
                 // Model with fluctuations
                 hig_flow_calculate_double_dot_product_tensors(E_ERMS, FOM, EP);
@@ -1423,7 +1423,7 @@ void higflow_explicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                     real rhs = 0.0;
                     switch (ns->ed.stsp.contr.convecdiscrtype)
                     {
-                    case 0:
+                    case CELL_CENTRAL:
                         // Tensor derivative at cell center
                         hig_flow_derivative_tensor_A_at_center_cell(ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                         for (int dim = 0; dim < DIM; dim++)
@@ -1432,7 +1432,7 @@ void higflow_explicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                             rhs -= u[dim] * dAdx[dim];
                         }
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         // Compute convective tensor term CUBISTA in rhs
                         for (int dim = 0; dim < DIM; dim++)
                         {
@@ -1802,7 +1802,7 @@ void higflow_implicit_euler_evolution_equation_microstructure_tensor(higflow_sol
         real small = 1.0e-14;
         real dt = ns->par.dt;
         real phi;
-        if (ns->ed.stsp.contr.model == 0)
+        if (ns->ed.stsp.contr.model == GW)
         {
             // Value of phi for the GW model
             phi = 1.0;
@@ -1944,7 +1944,7 @@ void higflow_implicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                     real rhs = 0.0;
                     switch (ns->ed.stsp.contr.convecdiscrtype)
                     {
-                    case 0:
+                    case CELL_CENTRAL:
                         // Tensor derivative at cell center
                         hig_flow_derivative_tensor_A_at_center_cell(ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                         for (int dim = 0; dim < DIM; dim++)
@@ -1953,7 +1953,7 @@ void higflow_implicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                             rhs -= u[dim] * dAdx[dim];
                         }
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         // Compute convective tensor term CUBISTA in rhs
                         for (int dim = 0; dim < DIM; dim++)
                         {
@@ -2765,17 +2765,17 @@ void higflow_solver_step_shear_thickening_suspensions(higflow_solver *ns)
     //solving the particle migration equation
     switch (ns->ed.stsp.contr.discrtype)
     {
-    case 0:
+    case EXPLICIT_EULER:
         // Explicit method
         higflow_explicit_euler_evolution_equation_microstructure_tensor(ns);
         break;
-    case 1:
+    case SEMI_IMPLICIT_EULER:
         // Implicit method
         higflow_implicit_euler_evolution_equation_microstructure_tensor(ns);
         break;
     }
     // Constitutive Equation Step for the Explicit Euler Method
-    if (ns->ed.stsp.contr.model == 2){
+    if (ns->ed.stsp.contr.model == GW_WC_IF){
         higflow_compute_particle_stress_tensor_shear_thickening_suspension(ns);
         higflow_explicit_euler_volume_fraction_equation(ns);
     }
@@ -3543,7 +3543,7 @@ real hig_flow_fraction_volume_suspensions_term_cubista(higflow_solver *ns, distr
 // *******************************************************************
 void higflow_explicit_euler_volume_fraction_equation(higflow_solver *ns)
 {
-    if (ns->ed.stsp.contr.model == 2)
+    if (ns->ed.stsp.contr.model == GW_WC_IF)
     {
         real apsize = ns->ed.stsp.par.apsize;
         real rho = ns->par.Re;
@@ -3599,7 +3599,7 @@ void higflow_explicit_euler_volume_fraction_equation(higflow_solver *ns)
             switch (ns->ed.stsp.contr.volfracconvecdiscrtype)
             {
             // Central scheme
-            case 0:
+            case CELL_CENTRAL:
                 // volume fraction derivative at cell center
                 hig_flow_derivative_volfrac_at_center_cell(ns, ccenter, cdelta, varphi, dphidx);
                 for (int dim = 0; dim < DIM; dim++)
@@ -3622,7 +3622,7 @@ void higflow_explicit_euler_volume_fraction_equation(higflow_solver *ns)
                 //rhs += higflow_vol_frac_term2(ns, varphi);
                 break;
             // CUBISTA scheme
-            case 1:
+            case CELL_CUBISTA:
                 for (int dim = 0; dim < DIM; dim++)
                 {
                     // Set the computational cell

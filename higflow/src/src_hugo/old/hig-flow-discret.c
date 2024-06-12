@@ -85,7 +85,7 @@ real compute_value_at_mid_point(real valuel, real valuer) {
 // *******************************************************************
 
 // Computing the necessary term for the Navier-Stokes equation
-void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -106,7 +106,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -278,7 +278,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
 
 
 // Computing the necessary term for the Generalized Newtonian Navier-Stokes equation
-void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -299,7 +299,7 @@ void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, si
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -495,7 +495,7 @@ void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, si
 
 
 // Computing the necessary term for the Implicit Generalized Newtonian Navier-Stokes equation
-void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -516,7 +516,7 @@ void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -716,7 +716,7 @@ void higflow_computational_cell_imp_gen_newt(higflow_solver *ns, sim_domain *sdp
 
 
 // Computing the necessary term for the Multifase Navier-Stokes equation
-void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -738,7 +738,7 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -967,7 +967,7 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 	}
 }
 
-void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -989,7 +989,7 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -1221,7 +1221,7 @@ void higflow_computational_cell_imp_multiphase(higflow_solver *ns, sim_domain *s
 }
 
 // Computing the necessary term for the viscoelastic Navier-Stokes equation
-void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -1242,7 +1242,7 @@ void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -1423,7 +1423,7 @@ void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp
 }
 
 // Computing the necessary term for the Navier-Stokes equation
-void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -1444,7 +1444,7 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell
@@ -1713,7 +1713,7 @@ void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_dom
 
 
 // Computing the necessary term for the viscoelastic Navier-Stokes equation
-void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
+void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
 	real  uc[DIM], ul[DIM], ur[DIM], Sl[DIM], Sr[DIM], pl, pr, Fl, Fr;
 	real  ull[DIM], urr[DIM];
@@ -1734,7 +1734,7 @@ void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_do
 		// Set the convective method
 		ns->cc.convec_type = ns->contr.convecdiscrtype;
 		// Get the velocity in the facet center
-		ns->cc.ucell  = dp_get_value(dpu[dim], fgid);
+		ns->cc.ucell  = dp_get_value(dpu[dim], flid);
 		// Get the facet source tern in the facet center
 		ns->cc.F      = compute_facet_value_at_point(ns->sfdF[dim], fcenter, fcenter, 1.0, ns->dpFU[dim], ns->stnF);
 		// Get the pressure in the left cell

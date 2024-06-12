@@ -2096,7 +2096,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.kernel_tol));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.alpha_gptt));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.beta_gptt));
-        if (ns->contr.modelflowtype == 3)
+        if (ns->contr.rheotype == THIXOTROPIC)
         {
             ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.Lambda));
             ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.Phi));
@@ -2107,7 +2107,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vevv.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.beta);
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.Lambda);
                 printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.Phi);
@@ -2143,7 +2143,7 @@ void higflow_save_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.kernel_tol));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.alpha_gptt));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.beta_gptt));
-            if (ns->contr.modelflowtype == 3)
+            if (ns->contr.rheotype == THIXOTROPIC)
             {
                 fprintf(fd, "%lf\n", (ns->ed.vevv.par.Lambda));
                 fprintf(fd, "%lf\n", (ns->ed.vevv.par.Phi));

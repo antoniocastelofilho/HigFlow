@@ -108,7 +108,7 @@ void higflow_compute_viscoelastic_shear_banding_cA_VCM(higflow_solver *ns) {
                Dmin[i][j] =  1.0e16;
            }
         }
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the local sub-domain for the facets
@@ -214,7 +214,7 @@ void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
     real CBeq   = ns->ed.vesb.par.CBeq;
     real chi   = ns->ed.vesb.par.chi;
     real CBMaxMin;
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the local sub-domain for the facets
@@ -262,7 +262,7 @@ void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie A using the Explicit Euler Method
 void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real DeA    = ns->ed.vesb.par.DeA;
@@ -488,7 +488,7 @@ void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie B using the Explicit Euler Method
 void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real DeA    = ns->ed.vesb.par.DeA;
@@ -686,7 +686,7 @@ void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie A using the Implicit Euler Method
 void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -941,7 +941,7 @@ void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie B using the Implicit Euler Method
 void higflow_implicit_euler_conformation_tensor_B(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -1941,7 +1941,7 @@ void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM][DIM*DIM+1], real Omega[D
 
 // Transport equation of the density numbers of specie A using Euler explicit method
 void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2067,7 +2067,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *
 
 // Transport equation of the density numbers of specie B using Euler explicit method
 void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2189,7 +2189,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *
 
 // Transport equation of the density numbers of specie A using Euler implicit method
 void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2344,7 +2344,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
 
 // Transport equation of the density numbers of specie B using Euler implicit method
 void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *ns) {
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -3316,7 +3316,7 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
     // Calculate the velocity derivative tensor
     higflow_compute_velocity_derivative_tensor(ns);
     // Solve the transport equations of the density number of species A and B
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         //Calculate the breakage and reformation rates of species A and B
         higflow_compute_viscoelastic_shear_banding_cA_VCM(ns);
         higflow_compute_viscoelastic_shear_banding_cB_VCM(ns);

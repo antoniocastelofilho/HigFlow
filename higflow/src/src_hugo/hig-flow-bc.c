@@ -686,7 +686,7 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
             // HigTree Boundary condition file name
             __higflow_readstring(amrBCfilename[h],1024,fbc);
     // Setting the boundary conditions for the VCM model (viscoelastic with shear-banding)
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         sprintf(namefile,"%s.bcvesb",ns->par.nameload);
         printf("nome: %s", namefile);
         FILE *fbc = fopen(namefile, "r");

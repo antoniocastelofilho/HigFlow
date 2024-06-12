@@ -413,14 +413,14 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
             real val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->ed.eo.dpFeo[dim], fgid, val);
+            dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -559,10 +559,10 @@ void higflow_initialize_viscosity_vevv(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         real val;
-       if (ns->contr.modelflowtype == 2) {
+       if (ns->contr.rheotype == PLM) {
            val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, 0.0);
        }
-       if (ns->contr.modelflowtype == 3) {
+       if (ns->contr.rheotype == THIXOTROPIC) {
            real valstruct;
            valstruct = ns->ed.vevv.get_structpar(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, ns->ed.vevv.par.Phi, ns->ed.vevv.par.Lambda, ns->ed.vevv.par.Gamma);
            val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, valstruct);
@@ -807,7 +807,7 @@ void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
 // Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
 void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -846,7 +846,7 @@ void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) 
 // Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
 void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.modelflowtype == 4) {
+    if (ns->contr.rheotype == VCM) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -1045,14 +1045,14 @@ void higflow_initialize_velocity(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
             real val = ns->func.get_velocity(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->dpu[dim], fgid, val);
+            dp_set_value(ns->dpu[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -1077,14 +1077,14 @@ void higflow_initialize_facet_source_term(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the facet source term in this cell facet
             real val = ns->func.get_facet_source_term(center, dim, ns->par.t);
             // Set the value for the facet source term distributed property
-            dp_set_value(ns->dpFU[dim], fgid, val);
+            dp_set_value(ns->dpFU[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -1122,7 +1122,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         // Initialize non Newtonian integral finger tensor distributed property
         higflow_initialize_viscoelastic_integral_finger_tensor(ns);
     } else if (ns->contr.flowtype == 6) {
-        if (ns->contr.modelflowtype == 3) {
+        if (ns->contr.rheotype == THIXOTROPIC) {
             //Initialize structural parameter
             higflow_initialize_structural_parameter(ns);
         }
@@ -1131,7 +1131,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         //Initialize non Newtonian and viscoelastic tensor distributed property
         higflow_initialize_viscoelastic_tensor_variable_viscosity(ns);
     } else if (ns->contr.flowtype == 7) {
-       if (ns->contr.modelflowtype == 4) {
+       if (ns->contr.rheotype == VCM) {
            //Initialize the density number nA
            higflow_initialize_shear_banding_nA(ns);
            //Initialize the density number nB
@@ -1153,7 +1153,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
     } else if (ns->contr.flowtype == 9) {
         //only for the model that considers particle migration
         //printf("=+=+=+= WE ARE HERE IN INITIALIZE DP =+=+=+=\n");
-        if (ns->ed.stsp.contr.model == 2) {
+        if (ns->ed.stsp.contr.model == GW_WC_IF) {
             //Initialize structural parameter
             higflow_initialize_volume_fraction(ns);
             //printf("=+=+=+= WE ARE HERE after =+=+=+=\n");

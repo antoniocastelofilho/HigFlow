@@ -1422,7 +1422,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
         case SUSPENSIONS:
             //only for the model that considers particle migration
             //printf("=+=+=+= WE ARE HERE IN INITIALIZE DP =+=+=+=\n");
-            if (ns->ed.stsp.contr.model == 2) {
+            if (ns->ed.stsp.contr.model == GW_WC_IF) {
                 //Initialize structural parameter
                 higflow_initialize_volume_fraction(ns);
                 //printf("=+=+=+= WE ARE HERE after =+=+=+=\n");

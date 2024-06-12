@@ -398,14 +398,14 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
             real val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->ed.eo.dpFeo[dim], fgid, val);
+            dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -542,14 +542,14 @@ void higflow_initialize_velocity(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
             real val = ns->func.get_velocity(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
-            dp_set_value(ns->dpu[dim], fgid, val);
+            dp_set_value(ns->dpu[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
@@ -574,14 +574,14 @@ void higflow_initialize_facet_source_term(higflow_solver *ns) {
             // Getting the cell
             hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int fgid = mp_lookup(m, hig_get_fid(f));
+            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the facet source term in this cell facet
             real val = ns->func.get_facet_source_term(center, dim, ns->par.t);
             // Set the value for the facet source term distributed property
-            dp_set_value(ns->dpFU[dim], fgid, val);
+            dp_set_value(ns->dpFU[dim], flid, val);
         }
         // Destroying the iterator
         higfit_destroy(fit);
