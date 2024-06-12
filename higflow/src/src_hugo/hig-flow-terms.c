@@ -94,6 +94,7 @@ real higflow_tensor_term(higflow_solver *ns)
             // value += ns->cc.dSdx[dim2];
         }
     }
+
     // Viscoelastic flow with variable viscosity
     if (ns->contr.flowtype == 6)
     {
@@ -130,12 +131,10 @@ real higflow_tensor_term(higflow_solver *ns)
 }
 
 // Convective term: Quick scheme
-real higflow_convective_term_quick(higflow_solver *ns, Point delta, int dim)
-{
+real higflow_convective_term_quick(higflow_solver *ns, Point delta, int dim) {
     // Set the convective term
     real value = 0.0;
-    for (int dim2 = 0; dim2 < DIM; dim2++)
-    {
+    for (int dim2 = 0; dim2 < DIM; dim2++) {
         value += (ns->cc.v[dim2] + fabs(ns->cc.v[dim2])) * 0.1875 * ns->cc.dudxl[dim2];
         value += (ns->cc.v[dim2] + fabs(ns->cc.v[dim2])) * 0.3750 * ns->cc.dudxr[dim2];
         value -= (ns->cc.v[dim2] + fabs(ns->cc.v[dim2])) * 0.0625 * ns->cc.dudxrr[dim2];
@@ -350,24 +349,21 @@ real higflow_difusive_term(higflow_solver *ns, Point delta)
 }
 
 // Cell electroosmotic source term contribution for the Navier-Stokes equation
-real higflow_electroosmotic_source_term(higflow_solver *ns)
-{
+real higflow_electroosmotic_source_term(higflow_solver *ns) {
     // Set the source term
     real value = ns->cc.Feo;
     return value;
 }
 
 // Cell electroosmotic diffusive ionic term contribution for the Navier-Stokes equation
-real higflow_diffusive_ionic_term(higflow_solver *ns)
-{
+real higflow_diffusive_ionic_term(higflow_solver *ns) {
     // Set the diffusive ionic term
     real value = ns->cc.d2ndx2 / ns->ed.eo.par.Pe;
     return value;
 }
 
 // Cell electroosmotic potential ionic term contribution for the Navier-Stokes equation
-real higflow_potential_ionic_term(higflow_solver *ns)
-{
+real higflow_potential_ionic_term(higflow_solver *ns) {
     // Set the potential ionic term
     real value;
     value = ns->cc.dndx * (ns->cc.dphidx + ns->cc.dpsidx) + ns->cc.ncell * (ns->cc.d2psidx2 + ns->cc.d2phidx2);
@@ -448,28 +444,5 @@ real higflow_vol_frac_term2(higflow_solver *ns, real varphic)
     //value = (pow((1.0-0.1),4.0));
     value = ns->cc.d2Tdx2;
     value *= -2.0*(ns->par.Re)*(pow(ns->ed.stsp.par.apsize,2.0)) / (9.0*(ns->ed.stsp.par.eta0));
-    return value;
-}
-
-// Cell energy equation diffusion term
-real higflow_difussion_energy_equation_term(higflow_solver *ns)
-{
-    // Set the potential ionic term
-    real value;
-    real PrRe = (ns->par.Re)*(ns->ed.nif.par.Pr);
-    //value = (ns->cc.dKTdx) * (ns->cc.dTempdx) + (ns->cc.KT)*(ns->cc.d2Tempdx2);
-    value = ns->cc.d2Tempdx2;
-    value /= PrRe;
-    return value;
-}
-
-// Cell energy equation diffusion term
-real higflow_implicit_difussion_energy_equation_term(higflow_solver *ns)
-{
-    // Set the potential ionic term
-    real value;
-    real PrRe = (ns->par.Re)*(ns->ed.nif.par.Pr);
-    value = (ns->cc.dKTdx) * (ns->cc.dTempdx);
-    value /= PrRe;
     return value;
 }

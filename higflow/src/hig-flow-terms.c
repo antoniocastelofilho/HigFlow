@@ -83,6 +83,38 @@ real higflow_tensor_term(higflow_solver *ns) {
         }
     }
 
+    // Viscoelastic flow with variable viscosity
+    if (ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY)
+    {
+        for (int dim2 = 0; dim2 < DIM; dim2++)
+        {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
+    // Viscoelastic flow with shear-banding
+    if (ns->contr.flowtype == SHEAR_BANDING)
+    {
+        for (int dim2 = 0; dim2 < DIM; dim2++)
+        {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
+    // Elastoviscoplastic flow
+    if (ns->contr.flowtype == ELASTOVISCOPLASTIC)
+    {
+        for (int dim2 = 0; dim2 < DIM; dim2++)
+        {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
+    // Shear-thickening suspensions
+    if (ns->contr.flowtype == SUSPENSIONS)
+    {
+        for (int dim2 = 0; dim2 < DIM; dim2++)
+        {
+            value += ns->cc.dSdx[dim2];
+        }
+    }
     return value;
 }
 
@@ -234,6 +266,40 @@ real higflow_diffusive_term(higflow_solver *ns, Point delta) {
            }
            value /= ns->par.Re;
            break;    
+       // Viscoelastic with variable viscosity
+       case VISCOELASTIC_VAR_VISCOSITY:
+           for (int dim2 = 0; dim2 < DIM; dim2++)
+           {
+               value += ns->cc.du2dx2[dim2];
+           }
+           value /= ns->par.Re;
+           break;
+       // Viscoelastic with shear-banding
+       case SHEAR_BANDING:
+           for (int dim2 = 0; dim2 < DIM; dim2++)
+           {
+               value += ns->cc.du2dx2[dim2];
+           }
+           // value /= ns->par.Re;
+           // value *= ns->ed.vesb.par.De;
+           value *= (1.0 + ns->ed.vesb.par.beta) * (ns->ed.vesb.par.De) / ns->par.Re;
+           break;
+       // Elastoviscoplastic
+       case ELASTOVISCOPLASTIC:
+           for (int dim2 = 0; dim2 < DIM; dim2++)
+           {
+               value += ns->cc.du2dx2[dim2];
+           }
+           value /= ns->par.Re;
+           break;
+       // Shear-thickening suspension
+       case SUSPENSIONS:
+           for (int dim2 = 0; dim2 < DIM; dim2++)
+           {
+               value += ns->cc.du2dx2[dim2];
+           }
+           value *= 2.0 * (ns->ed.stsp.par.eta0);
+           break;
     }
     return value;
 }
@@ -279,5 +345,81 @@ real higflow_electric_convective_ionic_term_central(higflow_solver *ns, real alp
 real higflow_electric_divergence_ionic_term(higflow_solver *ns, real alphaeo, real Pe) { 
     real value;
     value   = ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2)*alphaeo/Pe;
+    return value;
+}
+
+// Cell the diffusive term contribution for the transport equation of the specie A
+real higflow_diffusive_shear_banding_nA_term(higflow_solver *ns)
+{
+    // Set the diffusive term
+    real value;
+    value = ns->cc.d2nABdx2;
+    value *= 2.0;
+    value /= ns->ed.vesb.par.PeA;
+    return value;
+}
+
+// Cell the diffusive term contribution for the transport equation of the specie B
+real higflow_diffusive_shear_banding_nB_term(higflow_solver *ns)
+{
+    // Set the diffusive term
+    real value;
+    value = ns->cc.d2nABdx2;
+    value *= 2.0;
+    value /= ns->ed.vesb.par.PeB;
+    return value;
+}
+
+// Cell the diffusive term contribution for the transport equation of the specie A
+// real higflow_diffusive_shear_banding_conformation_tensor_A_term(higflow_solver *ns) {
+// Set the diffusive ionic term
+// real value = ns->cc.d2ABdx2/ns->ed.vesb.par.PeA;
+// return value;
+//}
+
+// Cell the diffusive term contribution for the transport equation of the specie B
+// real higflow_diffusive_shear_banding_conformation_tensor_B_term(higflow_solver *ns) {
+// Set the diffusive ionic term
+// real value = ns->cc.d2ABdx2/ns->ed.vesb.par.PeB;
+// return value;
+//}
+
+// Cell particle migration equation: calculation of the diffusive term -4*(1-phi)3*(dphidx)*(dTdx)
+real higflow_vol_frac_term1(higflow_solver *ns)
+{
+    // Set the terms
+    
+    real value = 0.0;
+    for (int dim2 = 0; dim2 < DIM; dim2++)
+    {
+        //if (dim2 == 1) {
+        //    value += ns->cc.dTdx[dim2];
+        //} else {
+        //    value +=  0.0;
+        //}
+        value += ns->cc.dTdx[dim2];
+        //value += dim2;
+    }
+    
+    //value = dim;
+    //value = ns->cc.dTdx[dim];
+    //real value = -ns->cc.phivfcell;
+    value *= (ns->cc.dphivfdx);
+    // value   = ns->cc.dndx*(ns->cc.dphidx + ns->cc.dpsidx) + ns->cc.ncell*(ns->cc.d2psidx2 + ns->cc.d2phidx2);
+    value *= -4.0*(pow((1.0-ns->cc.phivfcell),3.0));
+    value *= -2.0*(ns->par.Re)*(pow(ns->ed.stsp.par.apsize,2.0)) / (9.0*(ns->ed.stsp.par.eta0));
+    //value = 8.0;
+    return value;
+}
+
+// Cell particle migration equation: calculation of the diffusive term (1-phi)4*(d2Tdx2)
+real higflow_vol_frac_term2(higflow_solver *ns, real varphic)
+{
+    // Set the potential ionic term
+    real value = 0.0;
+    //value += ns->cc.d2Tdx2;
+    //value = (pow((1.0-0.1),4.0));
+    value = ns->cc.d2Tdx2;
+    value *= -2.0*(ns->par.Re)*(pow(ns->ed.stsp.par.apsize,2.0)) / (9.0*(ns->ed.stsp.par.eta0));
     return value;
 }

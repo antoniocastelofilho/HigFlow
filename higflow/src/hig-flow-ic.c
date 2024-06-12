@@ -607,12 +607,12 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
         higcit_destroy(it);
         // Sync initial values among processes
         for (int k = 0; k <= NDT; k++) {
-       for (int i = 0; i < DIM; i++) {
+            for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     dp_sync(ns->ed.im.dpB[k][i][j]);
-           }
-       }
-   }
+                }
+            }
+        }
     }
 }
 

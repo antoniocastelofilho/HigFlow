@@ -12,7 +12,14 @@
 
 // Computing the velocity derivative Tensor
 void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
-    if ((ns->contr.flowtype == GENERALIZED_NEWTONIAN) || (ns->contr.flowtype == MULTIPHASE) || (ns->contr.flowtype == VISCOELASTIC) || (ns->contr.flowtype == VISCOELASTIC_INTEGRAL)) {
+    if ((ns->contr.flowtype == GENERALIZED_NEWTONIAN) || 
+	(ns->contr.flowtype == MULTIPHASE) || 
+	(ns->contr.flowtype == VISCOELASTIC) || 
+	(ns->contr.flowtype == VISCOELASTIC_INTEGRAL) ||
+	(ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY) ||
+	(ns->contr.flowtype == SHEAR_BANDING) ||
+	(ns->contr.flowtype == ELASTOVISCOPLASTIC) ||
+	(ns->contr.flowtype == SUSPENSIONS)) {
         int infacet, infacetl, infacetr, auxl, auxr;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -52,16 +59,33 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                         ur = compute_facet_u_4_right(sfdu[dim], ccenter, cdelta, dim, dim2, 1.0, ns->dpu[dim], ns->stn);
                     }
                     dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
-                    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
-                  dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
-                    } else if (ns->contr.flowtype == MULTIPHASE) {
+                    switch (ns->contr.flowtype) { 
+			case GENERALIZED_NEWTONIAN: 
+                        dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
+                        break;
+			case MULTIPHASE: 
                         if(ns->ed.mult.contr.viscoelastic_either == true)
                             dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
-               } else if (ns->contr.flowtype == VISCOELASTIC) {
-                  dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
-                    } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL){
-                  dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
-                    }
+                        break;
+			case VISCOELASTIC: 
+                        dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
+                        break;
+			case VISCOELASTIC_INTEGRAL: 
+                        dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
+                        break;
+			case VISCOELASTIC_VAR_VISCOSITY: 
+                        dp_set_value(ns->ed.vevv.dpD[dim][dim2], clid, dudx);
+                        break;
+			case SHEAR_BANDING: 
+                        dp_set_value(ns->ed.vesb.dpD[dim][dim2], clid, dudx);
+                        break;
+			case ELASTOVISCOPLASTIC: 
+                        dp_set_value(ns->ed.vepl.dpD[dim][dim2], clid, dudx);
+                        break;
+			case SUSPENSIONS: 
+                        dp_set_value(ns->ed.stsp.dpD[dim][dim2], clid, dudx);
+                        break;
+		    }
                 }
             }
         }
@@ -70,16 +94,33 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
         // Sync the distributed pressure property
         for (int dim = 0; dim < DIM; dim++) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {
-                if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
+                switch (ns->contr.flowtype) { 
+		    case GENERALIZED_NEWTONIAN: 
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == MULTIPHASE) {
+                    break;
+		    case MULTIPHASE: 
                     if(ns->ed.mult.contr.viscoelastic_either == true) 
                         dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == VISCOELASTIC) {
+                    break;
+		    case VISCOELASTIC: 
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                } else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
+                    break;
+		    case VISCOELASTIC_INTEGRAL: 
                     dp_sync(ns->ed.im.dpD[dim][dim2]);
-                }
+                    break;
+		    case VISCOELASTIC_VAR_VISCOSITY: 
+                    dp_sync(ns->ed.vevv.dpD[dim][dim2]);
+                    break;
+		    case SHEAR_BANDING: 
+                    dp_sync(ns->ed.vesb.dpD[dim][dim2]);
+                    break;
+		    case ELASTOVISCOPLASTIC: 
+                    dp_sync(ns->ed.vepl.dpD[dim][dim2]);
+                    break;
+		    case SUSPENSIONS: 
+                    dp_sync(ns->ed.stsp.dpD[dim][dim2]);
+                    break;
+		}
             }
         }
     }

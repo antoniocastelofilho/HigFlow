@@ -10,6 +10,8 @@
 #include "hig-flow-kernel.h"
 #include "hig-flow-eval.h"
 
+
+
 // *******************************************************************
 // Navier-Stokes Print for Visualize
 // *******************************************************************
@@ -154,17 +156,4 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
 
 // Saving the shear-thickening suspension controllers
 void higflow_save_shear_thickening_suspension_controllers(higflow_solver *ns, int myrank);
-
-// Loading the non-isothermal flow parameters
-void higflow_load_non_isothermal_flow_parameters(higflow_solver *ns, int myrank);
-
-// Saving the non-isothermal flow parameters
-void higflow_save_non_isothermal_flow_parameters(higflow_solver *ns, int myrank);
-
-// Loading the non-isothermal controllers
-void higflow_load_non_isothermal_flow_controllers(higflow_solver *ns, int myrank);
-
-// Saving the non-isothermal controllers
-void higflow_save_non_isothermal_flow_controllers(higflow_solver *ns, int myrank);
-
 #endif

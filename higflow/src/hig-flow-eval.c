@@ -512,3 +512,75 @@ real compute_center_p_right_22(sim_domain *sdp, Point center, Point delta, int d
     real valueh = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
     return valueh;
 }
+
+// Get the left facet value of a cell property
+real compute_center_p_left_2_1(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn) {
+    // Set the left point
+    Point p;
+    POINT_ASSIGN(p, center);
+    // Get the value at the left left point
+    p[dim2] = center[dim2] - 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim] - alpha * delta[dim];
+    real valuel = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Get the value at the left right point
+    p[dim2] = center[dim2] - 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim];
+    real valuer = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Eval at left point
+    real value = 0.5*(valuel + valuer);
+    return value;
+}
+
+// Get the right facet value of a cell property
+real compute_center_p_right_2_1(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn) {
+    // Set the right point
+    Point p;
+    POINT_ASSIGN(p, center);
+    // Get the value at the right left point
+    p[dim2] = center[dim2] + 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim] - alpha * delta[dim];
+    real valuel = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Get the value at the right right point
+    p[dim2] = center[dim2] + 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim];
+    real valuer = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Eval at left point
+    real value = 0.5*(valuel + valuer);
+    return value;
+}
+
+// Get the left facet value of a cell property
+real compute_center_p_left_2_r(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn) {
+    // Set the left point
+    Point p;
+    POINT_ASSIGN(p, center);
+    // Get the value at the left left point
+    p[dim2] = center[dim2] - 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim] - 0.5*alpha * delta[dim];
+    real valuel = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Get the value at the left right point
+    p[dim2] = center[dim2] - 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim] + 0.5*alpha * delta[dim];
+    real valuer = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Eval at left point
+    real value = 0.5*(valuel + valuer);
+    return value;
+}
+
+// Get the right facet value of a cell property
+real compute_center_p_right_2_r(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn) {
+    // Set the right point
+    Point p;
+    POINT_ASSIGN(p, center);
+    // Get the value at the right left point
+    p[dim2] = center[dim2] + 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim] - 0.5*alpha * delta[dim];
+    real valuel = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Get the value at the right right point
+    p[dim2] = center[dim2] + 0.5*alpha * delta[dim2];
+    p[dim]  = center[dim] + 0.5*alpha * delta[dim];
+    real valuer = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
+    // Eval at left point
+    real value = 0.5*(valuel + valuer);
+    return value;
+}

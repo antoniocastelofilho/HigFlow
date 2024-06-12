@@ -10,8 +10,7 @@
 // Navier-Stokes Computing Value Property
 // *******************************************************************
 
-real interpolate_from_stencil(distributed_property *dp, sim_stencil *stn)
-{
+real interpolate_from_stencil(distributed_property *dp, sim_stencil *stn) {
 	/* Computing property at a point using the Moving Least Square method */
 
 	/* Evaluating the property at the point using the stencil using the center of the cells */
@@ -516,7 +515,6 @@ real compute_center_p_right_22(sim_domain *sdp, Point center, Point delta, int d
     real valueh = compute_value_at_point(sdp, center, p, 1.0, dpp, stn);
     return valueh;
 }
-
 
 // Get the left facet value of a cell property
 real compute_center_p_left_2_1(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn) {

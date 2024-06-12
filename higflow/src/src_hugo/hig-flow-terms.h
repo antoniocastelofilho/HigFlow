@@ -52,7 +52,7 @@ real higflow_convective_term_central(higflow_solver *ns, Point delta, int dim);
 real higflow_convective_term(higflow_solver *ns, Point delta, int dim); 
 
 // Difusive term contribution for the Navier-Stokes equation
-real higflow_difusive_term(higflow_solver *ns, Point delta); 
+real higflow_diffusive_term(higflow_solver *ns, Point delta); 
 
 // Cell electroosmotic source term contribution for the Navier-Stokes equation
 real higflow_electroosmotic_source_term(higflow_solver *ns);
@@ -80,12 +80,4 @@ real higflow_vol_frac_term1(higflow_solver *ns);
 
 // Cell particle migration equation: calculation of the diffusive term (1-phi)4*(d2Tdx2)
 real higflow_vol_frac_term2(higflow_solver *ns, real varphic);
-
-// Cell energy equation diffusion term
-real higflow_difussion_energy_equation_term(higflow_solver *ns);
-
-// Cell energy equation diffusion term
-real higflow_implicit_difussion_energy_equation_term(higflow_solver *ns);
-
-
 #endif

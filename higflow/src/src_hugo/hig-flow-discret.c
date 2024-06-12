@@ -1,7 +1,5 @@
 // *******************************************************************
-// *******************************************************************
 //  HiG-Flow Solver Discretization - version 10/11/2016
-// *******************************************************************
 // *******************************************************************
 
 #include "hig-flow-discret.h"
@@ -2043,28 +2041,6 @@ void higflow_computational_cell_shear_banding_VCM_model(higflow_solver *ns, sim_
 	}
 }
 
-
-//Computing the terms needed for the simulation of viscoelastic flows that exhibit shear-banding behaviour using the VCM model
-//void higflow_computational_cell_conformation_tensor_shear_banding_VCM_model(higflow_solver *ns, sim_domain *sdn, int clid, Point ccenter, Point cdelta, int dim, int i, int j, distributed_property *dpA[DIM][DIM]){
-	//real nc, nr, nl;
-//	real  ABl[DIM][DIM], ABr[DIM][DIM];
-//	int  incell_l, incell_r;
-//	switch (ns->contr.spatialdiscrtype) {
-	// Second order
-//	case 0:
-		// Get the tensor at the cell 
-		//ns->cc.ABcell  = dp_get_value(dpA[i][j], clid);
-		// Get the conformation tensor in the left cell
-//		ABl = compute_center_p_left_22(sdn, ccenter, cdelta, dim, 1.0, dpA[i][j], ns->ed.stn, &incell_l);
-		//compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.vesb.dpS[dim][dim2], ns->ed.stn)
-		// Get the conformation tensor in the right cell
-//		ABr = compute_center_p_right_22(sdn, ccenter, cdelta, dim, 1.0, dpA[i][j], ns->ed.stn, &incell_r);
-		// Compute the necessary derivatives
-//		ns->cc.d2ABdx2   = compute_facet_du2dx2(cdelta, dim, 1.0, dpA[i][j], ABl, ABr);
-//		break;
-//	}
-//}
-
 // Computing the necessary term for the Navier-Stokes equation
 void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
 	// Set the computational cell
@@ -2276,7 +2252,7 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
 	}
 }
 
-/*void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, sim_domain *sdpsi, sim_domain *sdphi, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, distributed_property *dppsi, distributed_property *dpphi){
+void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, sim_domain *sdpsi, sim_domain *sdphi, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, distributed_property *dppsi, distributed_property *dpphi){
               real psic, phic, psir,psil, phir, phil, nc, nr, nl, nplus, nminus; 
               int incell_r, incell_l;
               switch (ns->contr.spatialdiscrtype) {
@@ -2314,7 +2290,7 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
             ns->cc.d2ndx2   = compute_facet_du2dx2(cdelta, dim, 1.0, nc, nl, nr);
             break; 
             }
-            }*/
+}
 
 void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, sim_domain *sdpsi, sim_domain *sdphi, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, distributed_property *dppsi, distributed_property *dpphi){
 	real psic, phic, psir,psil, phir, phil, nc, nr, nl;
@@ -2353,7 +2329,6 @@ void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_dom
 		break;
 	}
 }
-
 
 // Computing the necessary term for the viscoelastic Navier-Stokes equation
 void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
@@ -3174,152 +3149,6 @@ void higflow_computational_cell_volume_fraction_suspensions(higflow_solver *ns, 
 		//            ns->cc.d2phidx2 = compute_facet_du2dx2(cdelta, dim, 1.0, phic, phil, phir);
 		//            ns->cc.d2psidx2 = ns->ed.eo.par.delta*(dp_get_value(ns->ed.eo.dpnminus, clid) - dp_get_value(ns->ed.eo.dpnplus,clid));
 		//ns->cc.d2phidx2 = 0.0;
-		break;
-	}
-}
-
-
-//Computing and storing the temperature value to be included in the Bousinessq term of the momentum equation
-void higflow_computational_cell_bousinessq_term_momentum_equation(higflow_solver *ns, int clid, Point ccenter, distributed_property *dpn){
-	real Tc, Bs;
-	//Thermo parameters
-	real Ga   = ns->ed.nif.par.Ga;
-	real Gr   = ns->ed.nif.par.Gr;
-	real T0   = ns->ed.nif.par.T0;
-    real T1   = ns->ed.nif.par.T1;
-    real alphaT = ns->ed.nif.par.alphaT;
-    real A0 = ns->ed.nif.par.A0;
-    real B0 = ns->ed.nif.par.B0;
-    real c1 = ns->ed.nif.par.c1;
-    real c2 = ns->ed.nif.par.c2;
-	// Get the Temperature in the cell center
-	Tc = dp_get_value(dpn, clid);
-	//Bs = (Ga-Gr*(Tc));
-	//If the Bousinessq approximation is activated
-	if (ns->ed.nif.contr.bousinessq == 1) {
-		//ns->cc.Bous = Bs;
-		real Bous   =  dp_get_value(ns->ed.nif.dpEF, clid);
-		ns->cc.Bous = Bous;
-	} else {
-		ns->cc.Bous = 0.0;
-	}
-	//Define the function of temperature f(T)
-	//real Temp = Tc*(T1-T0) + T0;
-	real Temp = Tc*(T0-T1) + T1;
-	real fTemp = 0.0;
-	switch (ns->ed.nif.contr.ftmodel) {
-		case 0: 
-			//Function f(T): Arrhenius
-			fTemp = exp(alphaT*( (1.0/Temp)-(1.0/T0) ));
-        	break;
-        case 1: 
-            //Function f(T): Modified-Arrhenius
-            fTemp = exp( -1.0*(alphaT*( Temp-T0 )));
-            break;
-        case 2: 
-            //Function f(T): Vogel-Tamman-Fulcher (VTF)
-            fTemp = pow(10.0, B0 + (A0/(Temp-T0)));
-            break;
-        case 3: 
-            //Function f(T): Williams-Landel-Ferry
-            fTemp = pow(10.0, -1.0*((c1*(Temp-T0))/(c2 + (Temp-T0))));
-            break;
-        case 4: 
-            //Function f(T): Constant
-            fTemp = 1.0;
-            break;
-    }
-	//This is the function that will be used to scale the solvent viscosity with temperature
-	ns->cc.FT = fTemp;
-}
-
-//Computational cell used to calculate the terms needed to solve the energy equation
-void higflow_computational_cell_energy_equation(higflow_solver *ns, sim_domain *sdT, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpT){
-	real psic, phic, psir,psil, phir, phil, nc, nr, nl;
-	real Tc, Tcd, Tl, Tld, Tr, Trd;
-	real KT0, KTC, KTL, KTR;
-	int  incell_l, incell_r;
-	real k0 = ns->ed.nif.par.k0;
-    real k1 = ns->ed.nif.par.k1;
-    real k2 = ns->ed.nif.par.k2;
-    real k3 = ns->ed.nif.par.k3;
-	real T0 = ns->ed.nif.par.T0;
-	real T1 = ns->ed.nif.par.T1;
-	switch (ns->contr.spatialdiscrtype) {
-	// Second order
-	case 0:
-		// Get the n in the cell center
-		Tc    = dp_get_value(dpT, clid);
-		//ns->cc.Temp = Tc;
-		// Get the T in the left cell
-		Tl    = compute_center_p_left_22(sdT, ccenter, cdelta, dim, 1.0, dpT, ns->ed.stn, &incell_l);
-		// Get the n in the right cell
-		Tr    = compute_center_p_right_22(sdT, ccenter, cdelta, dim, 1.0, dpT, ns->ed.stn, &incell_r);
-		//Get the dimensional temperature T in the cell center
-		//Tcd = (Tc)*(T1-T0) + T0;
-		Tcd = (Tc)*(T0-T1) + T1;
-		//real Tcdc = Tcd - 273.15;
-		//Tcd = 468.15;
-		//Get the dimensional temperature T in the left cell
-		//Tld = (Tl)*(T1-T0) + T0;
-		Tld = (Tl)*(T0-T1) + T1;
-		//Tld = 463.15;
-		//real Tldc = Tld - 273.15;
-		//DEBUG_INSPECT(Tld,%lf);
-		//Tld = 453.15
-		//Get the dimensional temperature T in the right cell
-		//Trd = (Tr)*(T1-T0) + T0;
-		Trd = (Tr)*(T0-T1) + T1;
-		//real Trdc = Trd - 273.15;
-		//Calculate the thermal conductivity K at the temperature of reference
-		//KT0 = k0 + k1*T0 + k2*(pow(T0,2.0)) + k2*(pow(T0,3.0));
-		//real LC = 1.0;
-		//LC /= KT0;
-		//DEBUG_INSPECT(LC,%lf);
-		//DEBUG_INSPECT(KT0,%lf);
-		//Calculate the thermal conductivity K at the temperaturate in the cell center
-		KTC = k0 + k1*Tcd + k2*(pow(Tcd,2.0)) + k2*(pow(Tcd,3.0));
-		//KTC /= 5.0;
-		//DEBUG_INSPECT(KTC,%lf);
-		//KTC /= KT0;
-		//Calculate the thermal conductivity K at the temperaturate in the left cell
-		KTL = k0 + k1*Tld + k2*(pow(Tld,2.0)) + k2*(pow(Tld,3.0));
-		ns->cc.KTL = KTL;
-		//DEBUG_INSPECT(ns->cc.KTL,%lf);
-		//KTL /= KT0;
-		//Calculate the thermal conductivity K at the temperaturate in the right cell
-		KTR = k0 + k1*Trd + k2*(pow(Trd,2.0)) + k2*(pow(Trd,3.0));
-		ns->cc.KTR = KTR;
-		//DEBUG_INSPECT(ns->cc.KTR,%lf);
-		//KTR /= KT0;
-		// Compute the necessary derivatives
-		ns->cc.Temp      = Tc;
-		ns->cc.dKTdx     = compute_dpdx_at_point(cdelta, dim, 1.0, KTL, KTR);
-		ns->cc.dTempdx   = compute_dpdx_at_point(cdelta, dim, 1.0, Tl, Tr);
-		//ns->cc.d2Tempdx2 = compute_facet_du2dx2(cdelta, dim, 1.0, Tc, Tl, Tr);
-		ns->cc.KT = KTC;
-
-		//ns->cc.viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.gn.dpvisc, ns->ed.stn);
-		// Get the cell viscolity in the right cell
-		//ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.gn.dpvisc, ns->ed.stn);
-		Point p;
-		POINT_ASSIGN(p, ccenter);
-		p[dim]      = ccenter[dim] + cdelta[dim];
-		//real ucl     = compute_facet_u_left(sfdu[dim], p, fdelta, dim2, 0.5, dpu[dim], ns->stn, &infacet);
-		real Tlr = compute_center_p_left_22(sdT, p, cdelta, dim, 1.0, dpT, ns->ed.stn, &incell_l);
-		real Trr = compute_center_p_right_22(sdT, p, cdelta, dim, 1.0, dpT, ns->ed.stn, &incell_r);
-		real dTdxjr = compute_dpdx_at_point(cdelta, dim, 1.0, Tlr, Trr);
-
-		p[dim]      =  ccenter[dim] - cdelta[dim];
-		real Tll = compute_center_p_left_22(sdT, p, cdelta, dim, 1.0, dpT, ns->ed.stn, &incell_l);
-		real Trl = compute_center_p_right_22(sdT, p, cdelta, dim, 1.0, dpT, ns->ed.stn, &incell_r);
-		real dTdxjl = compute_dpdx_at_point(cdelta, dim, 1.0, Tll, Trl);
-
-		//ns->cc.du2dx2[dim2] += (ns->cc.viscr*duidxjr - ns->cc.viscl*duidxjl)/fdelta[dim];
-		ns->cc.d2Tempdx2 += (KTR*dTdxjr - KTL*dTdxjl)/(2.0*cdelta[dim]);
-		//real const0 = 5.0;
-		//ns->cc.d2Tempdx2 += const0;
-
 		break;
 	}
 }

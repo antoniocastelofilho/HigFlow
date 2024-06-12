@@ -150,66 +150,61 @@ void higflow_print_velocity(higflow_solver *ns, FILE *data, int dimprint, real p
 }
 
 // Print the VTK file for visualize
-void higflow_print_vtk(higflow_solver *ns, int rank)
-{
-    switch (DIM)
-    {
-    case 2:
-        // 2D case
-        higflow_print_vtk2D(ns, rank);
-        break;
-    case 3:
-        // 3D case
-        switch (ns->contr.flowtype)
-        {
-        case 0:
-            // Newtonian
-            higflow_print_vtk3D(ns, rank);
-            break;
-        case 1:
-            // Generalized Newtonian
-            higflow_print_vtk3D(ns, rank);
-            break;
+void higflow_print_vtk(higflow_solver *ns, int rank) {
+    switch (DIM) {
         case 2:
-            // Multiphase
-            higflow_print_vtk3D(ns, rank);
+            // 2D case
+            higflow_print_vtk2D(ns, rank);
             break;
         case 3:
-            // Viscoelastic
-            higflow_print_vtk3D_viscoelastic(ns, rank);
+            // 3D case
+            switch (ns->contr.flowtype) {
+            case 0:
+                // Newtonian
+                higflow_print_vtk3D(ns, rank);
+                break;
+            case 1:
+                // Generalized Newtonian
+                higflow_print_vtk3D(ns, rank);
+                break;
+            case 2:
+                // Multiphase
+                higflow_print_vtk3D(ns, rank);
+                break;
+            case 3:
+                // Viscoelastic
+                higflow_print_vtk3D_viscoelastic(ns, rank);
+                break;
+            case 6:
+                //Viscoelastic with variable viscosity
+                higflow_print_vtk3D_viscoelastic_variable_viscosity(ns, rank);
+                break;
+            case 7:
+                //Viscoelastic with shear-banding
+                higflow_print_vtk3D_viscoelastic_shear_banding(ns, rank);
+                break;
+            case 8:
+                //Elastoviscoplastic
+                higflow_print_vtk3D_elastoviscoplastic(ns, rank);
+                break;
+            case 9:
+                //Shear-thickening suspensions
+                higflow_print_vtk3D_shear_thickening_suspensions(ns, rank);
+                break;
+            }
             break;
-        case 6:
-            //Viscoelastic with variable viscosity
-            higflow_print_vtk3D_viscoelastic_variable_viscosity(ns, rank);
-            break;
-        case 7:
-            //Viscoelastic with shear-banding
-            higflow_print_vtk3D_viscoelastic_shear_banding(ns, rank);
-            break;
-        case 8:
-            //Elastoviscoplastic
-            higflow_print_vtk3D_elastoviscoplastic(ns, rank);
-            break;
-        case 9:
-            //Shear-thickening suspensions
-            higflow_print_vtk3D_shear_thickening_suspensions(ns, rank);
-            break;
-        }
-        break;
     }
 }
 
 // Print the VTK file for visualize 2D
-void higflow_print_vtk2D(higflow_solver *ns, int rank)
-{
+void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     // Open the VTK file
     real Re = ns->par.Re;
     real beta = ns->ed.ve.par.beta;
     char vtkname[1024];
     snprintf(vtkname, sizeof vtkname, "%s_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
     FILE *f = fopen(vtkname, "w");
-    if (f == NULL)
-    {
+    if (f == NULL) {
         return;
     }
     sim_domain *sdp = psd_get_local_domain(ns->psdp);

@@ -191,8 +191,41 @@ void higflow_print_vtk(higflow_solver *ns, int rank) {
             break;
         case 3:
             // 3D case
-             higflow_print_vtk3D(ns, rank);
-        break;
+            switch (ns->contr.flowtype) {
+            case 0:
+                // Newtonian
+                higflow_print_vtk3D(ns, rank);
+                break;
+            case 1:
+                // Generalized Newtonian
+                higflow_print_vtk3D(ns, rank);
+                break;
+            case 2:
+                // Multiphase
+                higflow_print_vtk3D(ns, rank);
+                break;
+            case 3:
+                // Viscoelastic
+                higflow_print_vtk3D_viscoelastic(ns, rank);
+                break;
+            case 6:
+                //Viscoelastic with variable viscosity
+                higflow_print_vtk3D_viscoelastic_variable_viscosity(ns, rank);
+                break;
+            case 7:
+                //Viscoelastic with shear-banding
+                higflow_print_vtk3D_viscoelastic_shear_banding(ns, rank);
+                break;
+            case 8:
+                //Elastoviscoplastic
+                higflow_print_vtk3D_elastoviscoplastic(ns, rank);
+                break;
+            case 9:
+                //Shear-thickening suspensions
+                higflow_print_vtk3D_shear_thickening_suspensions(ns, rank);
+                break;
+            }
+            break;
     }
 }
 

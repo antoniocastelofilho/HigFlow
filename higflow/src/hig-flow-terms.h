@@ -70,4 +70,22 @@ real higflow_electric_convective_ionic_term_central(higflow_solver *ns, real alp
 // Cell electroosmotic divergence electric term contribution for the Navier-Stokes equation
 // n * lapl (phi + psi)
 real higflow_electric_divergence_ionic_term(higflow_solver *ns, real alphaeo, real Pe);
+
+// Cell the diffusive term contribution for the transport equation of the specie A
+real higflow_diffusive_shear_banding_nA_term(higflow_solver *ns);
+
+// Cell the diffusive term contribution for the transport equation of the specie B
+real higflow_diffusive_shear_banding_nB_term(higflow_solver *ns);
+
+// Cell the diffusive term contribution for the transport equation of the specie A
+//real higflow_diffusive_shear_banding_conformation_tensor_A_term(higflow_solver *ns);
+
+// Cell the diffusive term contribution for the transport equation of the specie B
+//real higflow_diffusive_shear_banding_conformation_tensor_B_term(higflow_solver *ns);
+
+// Cell particle migration equation: calculation of the diffusive term -4*(1-phi)3*(dphidx)*(dTdx)
+real higflow_vol_frac_term1(higflow_solver *ns);
+
+// Cell particle migration equation: calculation of the diffusive term (1-phi)4*(d2Tdx2)
+real higflow_vol_frac_term2(higflow_solver *ns, real varphic);
 #endif

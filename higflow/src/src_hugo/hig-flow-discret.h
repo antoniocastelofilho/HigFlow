@@ -92,7 +92,4 @@ void higflow_computational_cell_bousinessq_term_momentum_equation(higflow_solver
 //Computational cell used to calculate the terms needed to solve the energy equation
 void higflow_computational_cell_energy_equation(higflow_solver *ns, sim_domain *sdT, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpT);
 
-//Computing the terms needed for the simulation of viscoelastic flows that exhibit shear-banding behaviour using the VCM model
-//void higflow_computational_cell_conformation_tensor_shear_banding_VCM_model(higflow_solver *ns, sim_domain *sdn, int clid, Point ccenter, Point cdelta, int dim, int i, int j, distributed_property *dpA[DIM][DIM]);
-
 #endif
