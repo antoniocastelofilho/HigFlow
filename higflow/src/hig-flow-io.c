@@ -4995,6 +4995,112 @@ void higflow_save_boundaries(higflow_solver *ns, int myrank, int ntasks) {
     }
 }
 
+void higflow_save_boundaries_shear_banding(higflow_solver *ns, int myrank, int ntasks) {
+
+    if(ns->ed.nn_contr.rheotype != VCM) return;
+
+    if(myrank == 0) { 
+        // Loading the boundary data
+        char namefile_load[1024];
+        sprintf(namefile_load,"%s.bc_shear_banding",ns->par.nameload);
+        char namefile_save[1024];
+        sprintf(namefile_save, "%s.bc_shear_banding", ns->par.namesave);
+
+        int samefile = 0;
+        if(strcmp(namefile_load, namefile_save) == 0) {
+            printf("=+=+=+= Load and Save names are the same - not changing the bcvesb file =+=+=+=\n");
+            samefile = 1;
+        }
+
+        FILE *fboundary_load = fopen(namefile_load, "r");
+        if (fboundary_load == NULL) {
+            // Error in open the file
+            printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile_load);
+            exit(1);
+        }
+
+        FILE *fboundary_save;
+        if(samefile == 0) {
+            fboundary_save = fopen(namefile_save, "w");
+            if (fboundary_save == NULL) {
+                // Error in open the file
+                printf("=+=+=+= Error saving file %s =+=+=+=\n",namefile_save);
+                exit(1);
+            }
+        }
+        
+        // Number of HigTrees
+        int numbcs;
+        int ifd = fscanf(fboundary_load,"%d\n",&numbcs);
+
+        // write number of higtrees
+        if(samefile == 0) fprintf(fboundary_save,"%d\n",numbcs);
+
+        for(int h = 0; h < numbcs; h++) {
+            // write boundary id
+            int bcid;
+            ifd = fscanf(fboundary_load,"%d\n",&bcid);
+            if(samefile == 0) fprintf(fboundary_save,"%d\n",bcid);
+
+            // Name of the HigTree file
+            char amrfilename_load[1024];
+            __higflow_readstring(amrfilename_load,1024,fboundary_load);
+
+            // Open the AMR format file
+            FILE *fd_load = fopen(amrfilename_load, "r");
+            if (fd_load == NULL) {
+                // Error in open the file
+                printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename_load);
+                exit(1);
+            }
+            
+            char ch;
+            char amrfilename_save[1024];
+            get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+
+            int samefile_amr = 0;
+            if(strcmp(amrfilename_load, amrfilename_save) == 0) {
+                printf("=+=+=+= Load and Save names are the same - not changing the boundary %d amr file =+=+=+=\n", h);
+                samefile_amr = 1;
+            }
+
+            // copy the corresponding filename of the hig
+            if(samefile == 0) fprintf(fboundary_save,"%s\n",amrfilename_save);
+
+            if(samefile_amr == 0) {
+                printf("=+=+=+= Saving boundary %d to %s =+=+=+=\n", h, amrfilename_save);
+
+                // Copy
+                FILE *fd_save = fopen(amrfilename_save, "w");
+                if (fd_save == NULL) {
+                    // Error in open the file
+                    printf("=+=+=+= Error saving file %s =+=+=+=\n",amrfilename_save);
+                    exit(1);
+                }
+
+                while ((ch = fgetc(fd_load)) != EOF) {
+                    fputc(ch, fd_save);
+                }
+                fclose(fd_save);
+            }
+
+            // Close the AMR format files
+            fclose(fd_load);
+
+            // write boundary conditions
+            int nAbc_type; int nAbc_valuetype; int nBbc_type; int nBbc_valuetype;
+            ifd = fscanf(fboundary_load,"%d %d %d %d\n",&nAbc_type, &nAbc_valuetype,
+                                                        &nBbc_type, &nBbc_valuetype);
+            if(samefile == 0) fprintf(fboundary_save, "%d %d %d %d\n",&nAbc_type, &nAbc_valuetype,
+                                                                      &nBbc_type, &nBbc_valuetype);
+        }
+        fclose(fboundary_load);
+        if(samefile == 0) fclose(fboundary_save);
+
+    }
+}
+
+
 void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int ntasks) {
     if(myrank == 0) { 
         // Loading the boundary data
@@ -5102,8 +5208,17 @@ void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int 
     }
 }
 
+
+
 void higflow_save_all_boundaries(higflow_solver *ns, int myrank, int ntasks) {
     higflow_save_boundaries(ns, myrank, ntasks);
+
+    if (ns->contr.flowtype == SHEAR_BANDING)
+    {
+        if(ns->ed.nn_contr.rheotype == VCM)
+            higflow_save_boundaries_shear_banding(ns, myrank, ntasks);
+    }
+    
 
     if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true))
         higflow_save_boundaries_electroosmotic(ns, myrank, ntasks);
@@ -5335,6 +5450,71 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
             
             // Close the AMR format files
             fclose(fd_load);
+        }
+
+        /////////// Shear Banding //////////////
+        int err = fy_document_scanf(fyd_load, "/bc_shear_banding/number_bc %d", &numbcs);
+        if(err != -1) {
+
+            for(int h = 0; h < numbcs; h++) {
+                // Name of the HigTree file
+                char amrfilename_load[1024];
+                char path_path[1024];
+                sprintf(path_path, "/bc_shear_banding/bc%d/path", h);
+                strcat(path_path, " %s");
+                fy_document_scanf(fyd_load, path_path, amrfilename_load);
+
+                // Open the AMR format file
+                FILE *fd_load = fopen(amrfilename_load, "r");
+                if (fd_load == NULL) {
+                    // Error in open the file
+                    printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename_load);
+                    exit(1);
+                }
+                
+                char ch;
+                char amrfilename_save[1024];
+                get_filename_save(&amrfilename_load, &namefile_save, amrfilename_save);
+
+                int samefile_amr = 0;
+                if(strcmp(amrfilename_load, amrfilename_save) == 0) {
+                    printf("=+=+=+= Load and Save names are the same - not changing the boundary %d amr file =+=+=+=\n", h);
+                    samefile_amr = 1;
+                }
+
+                // copy the corresponding filename of the hig
+                if(samefile == 0) {
+                    sprintf(path_path, "/bc_shear_banding/bc%d/path", h);
+                    fy_document_insert_at(fyd_save, path_path, FY_NT,
+                                        fy_node_buildf(fyd_save, "%s", amrfilename_save));
+                }
+
+                if(samefile_amr == 0) {
+                    printf("=+=+=+= Saving shear banding boundary %d to %s =+=+=+=\n", h, amrfilename_save);
+
+                    // Copy
+                    FILE *fd_save = fopen(amrfilename_save, "w");
+                    if (fd_save == NULL) {
+                        // Error in open the file
+                        printf("=+=+=+= Error saving file %s =+=+=+=\n",amrfilename_save);
+                        exit(1);
+                    }
+
+                    while ((ch = fgetc(fd_load)) != EOF) {
+                        fputc(ch, fd_save);
+                    }
+
+                    fclose(fd_save);
+                }
+                
+                // Close the AMR format files
+                fclose(fd_load);
+            }
+        }
+        else {
+            if(ns->contr.flowtype == SHEAR_BANDING && ns->ed.nn_contr.rheotype == VCM){
+                printf("=+=+=+= Warning: could not save the shear banding boundaries =+=+=+=\n");
+            }
         }
 
         /////////// Electroosmotic //////////////

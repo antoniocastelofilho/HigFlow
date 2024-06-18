@@ -71,6 +71,9 @@ void higflow_save_domain(higflow_solver *ns, int myrank, int ntasks);
 // save the boundary amr info
 void higflow_save_boundaries(higflow_solver *ns, int myrank, int ntasks);
 
+// Save the boundary amr info for shear banding
+void higflow_save_boundaries_shear_banding(higflow_solver *ns, int myrank, int ntasks);
+
 // Save the boundary amr info for electroosmotic
 void higflow_save_boundaries_electroosmotic(higflow_solver *ns, int myrank, int ntasks);
 
