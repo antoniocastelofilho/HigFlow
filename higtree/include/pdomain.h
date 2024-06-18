@@ -340,24 +340,16 @@ int psfd_get_global_id(psim_facet_domain *pfsd, hig_facet *f);
 // Prefer to use this function instead of psfd_get_global_id(), when possible.<F8>
 int psfd_lid_to_gid(psim_facet_domain *psfd, int localid);
 
-// Restart simulation ---> 20_01_26 ---> Properties
+// Restart simulation ---> 04_04_23 ---> Properties
 /**
  * I removed the definition of this function from the code because it relied on
  * a single process having the complete global data of a distributed_property.
  * If you want to restore and fix this function to work with **actually** distributed
  * properties, the code is in commit 5a4c19ae3c315b876848107e7008513372c977a5.
  */
-void loadUV(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], FILE *fd, int myrank, int ntasks);
-void loadOneU(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-void loadP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-void loadOneP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-void loadVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-void loadOneVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-void loadS(psim_domain *psdu, distributed_property *dpu[DIM][DIM], FILE *fd, int myrank, int ntasks);
-void loadOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
+void load_dp_scalar(psim_domain *psdu, distributed_property *dpu, char *filename_base, int myrank, int ntasks);
+void load_fdp_vec(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], char *filename_base, int myrank, int ntasks);
+void load_dp_tensor(psim_domain *psdu, distributed_property *dpu[DIM][DIM], char *filename_base, int myrank, int ntasks);
 
 /**
  * I removed the definition of this function from the code because it relied on
@@ -365,21 +357,8 @@ void loadOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank
  * If you want to restore and fix this function to work with **actually** distributed
  * properties, the code is in commit 5a4c19ae3c315b876848107e7008513372c977a5.
  */
-void saveUV(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], FILE *fd, int myrank, int ntasks);
-void saveOneU(psim_facet_domain *psfdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-void saveP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-void saveOneP(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-void saveVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-void saveOneVF(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-void saveS(psim_domain *psdu, distributed_property *dpu[DIM][DIM], FILE *fd, int myrank, int ntasks);
-void saveOneS(psim_domain *psdu, distributed_property *dpu, FILE *fd, int myrank, int ntasks);
-
-// Restart simulation ---> 20_01_26 ---> Properties Cells
-void load_property_cell(psim_domain *psd, distributed_property *dp, FILE *fd);
-
-void save_property_cell(psim_domain *psd, distributed_property *dp, FILE *fd, int myrank, int ntasks);
+void save_dp_scalar(psim_domain *psdu, distributed_property *dpu, char *filename_base, int myrank, int ntasks);
+void save_fdp_vec(psim_facet_domain *psfdu[DIM], distributed_property *dpu[DIM], char *filename_base, int myrank, int ntasks);
+void save_dp_tensor(psim_domain *psdu, distributed_property *dpu[DIM][DIM], char *filename_base, int myrank, int ntasks);
 
 #endif

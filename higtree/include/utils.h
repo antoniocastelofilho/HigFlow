@@ -6,6 +6,7 @@
 #include<stdint.h>
 #include<stdbool.h>
 #include<math.h>
+#define __USE_POSIX199309 1
 #include<time.h>
 
 #include "coord.h"
@@ -103,7 +104,7 @@ real min(real a, real b) __attribute__ ((const));
 
 //clock_gettime is not implemented on OSX
 #ifdef __MACH__
-#include <sys/time.h>
+#include <time.h>
 #define CLOCK_MONOTONIC 0
 #define CLOCK_REALTIME 0
 int clock_gettime(int clk_id, struct timespec* t);
