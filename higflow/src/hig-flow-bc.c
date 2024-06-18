@@ -690,7 +690,7 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
         }
     }
     // Setting the boundary conditions for the VCM model (viscoelastic with shear-banding)
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         sprintf(namefile,"%s.bcvesb",ns->par.nameload);
         printf("nome: %s", namefile);
         FILE *fbc = fopen(namefile, "r");

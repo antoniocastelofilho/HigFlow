@@ -1,11 +1,11 @@
 simulation_par:
-  numsteps: 100001                         # The Maximum Number of Steps 
-  dt: 0.0002                       # The Time spacing 
-  dts: 1.0                         # The Time spacing for saving data (output) 
-  dtp: 1.0                         # The Time spacing for saving VTKs
+  numsteps: 101                         # The Maximum Number of Steps 
+  dt: 0.001                       # The Time spacing 
+  dts: 0.01                         # The Time spacing for saving data (output) 
+  dtp: 0.01                         # The Time spacing for saving VTKs
 
 adimensional:
-  Re: 0.005                             # The Reynolds Number  Re = ρUH/μ
+  Re: 1.0                             # The Reynolds Number  Re = ρUH/μ
   Fr: 0.1                              # The Froude Number (not used yet)    Fr = U/√(gL) 
 
 simulation_contr:
@@ -15,19 +15,19 @@ simulation_contr:
   convecdiscrtype: second_order            # central, first_order or second_order
   secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick
 
-flowphase: multiphase                    # singlephase or multiphase
+flowphase: singlephase                    # singlephase or multiphase
 
 ###########################################################################################################################   
 
 singlephase:
   contr:
-    flowtype: viscoelastic          # newtonian, generalized_newtonian, viscoelastic or viscoelastic_integral
+    flowtype: newtonian          # newtonian, generalized_newtonian, viscoelastic or viscoelastic_integral
     eoflow: false              # for electrosmotic flow - true or false 
   viscoelastic:
     contr:
       model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # central or cubista
+      convecdiscrtype: cubista       # upwind or cubista
     adimensional:
       De: 1.0                        # Deborah Number         De = λU/H
       beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
@@ -53,7 +53,7 @@ singlephase:
     contr:
       model: kbkz            # kbkz or kbkz_fractional
       discrtype: explicit               # explicit (only)
-      convecdiscrtype: cubista          # central or cubista
+      convecdiscrtype: cubista          # upwind or cubista
     adimensional:
       De: 0.2                           # Deborah Number
     damping:
@@ -83,26 +83,26 @@ singlephase:
       Ex: 20.0               # dϕ/dx - adimensionalized applied field differential per unit distance
     model_pnp:
       tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
-      convecdiscrtype: cubista                      # central or cubista
+      convecdiscrtype: cubista                      # upwind or cubista
       Pe: 12.5                                      # Péclet number  Pe = UH/D
 
 ###############################################################################################################      
 
 multiphase:
   contr:
-    flowtype0: newtonian             # newtonian or viscoelastic
-    flowtype1: viscoelastic             # newtonian or viscoelastic
+    flowtype0: viscoelastic             # newtonian or viscoelastic
+    flowtype1: newtonian             # newtonian or viscoelastic
     eoflow0: false              # true or false
     eoflow1: false              # true or false
   adimensional:
-    Ca: 1.0                           # Capillary number (not used unless you enable the interfacial force term in code)   Ca = We/Re = μU/σ
+    Ca: 1.0                           # Capillary number   Ca = We/Re = μU/σ
 
   viscoelastic:
     contr:
       model0: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
-      model1: gptt                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
+      model1: lptt                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       discrtype: explicit               # explicit or implicit
-      convecdiscrtype: cubista          # central or cubista
+      convecdiscrtype: cubista          # upwind or cubista
     phase0:      # (all ignored if newtonian)
       adimensional:
         De: 1.0                         # Deborah Number         De = λU/H
@@ -133,7 +133,7 @@ multiphase:
         epsilon: 0.125                   # extensional fluid response parameter
         xi: 0.0                         # continuum slip parameter
       model_gptt:
-        epsilon: 0.05                   # extensional fluid response parameter
+        epsilon: 0.025                   # extensional fluid response parameter
         xi: 0.0                         # continuum slip parameter
         alpha_gptt: 1.0                  # mittag-leffler parameter
         beta_gptt: 1.0                   # mittag-leffler parameter
@@ -151,7 +151,7 @@ multiphase:
       model: pnp    # (for all phases) pnp, pb (not working yet), pbdh  
     model_pnp:
       tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
-      convecdiscrtype: cubista                      # central or cubista
+      convecdiscrtype: cubista                      # upwind or cubista
     phase0:      # (all ignored if not electroosmotic)
       adimensional:
         alpha: 2.35                                 # ratio of electric energy to thermal energy  α = ezζ_0/k_bT

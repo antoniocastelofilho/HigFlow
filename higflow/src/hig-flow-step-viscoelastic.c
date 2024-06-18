@@ -454,7 +454,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.ve.contr.convecdiscrtype) {
-                        case CELL_CENTRAL: 
+                        case CELL_UPWIND: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -817,7 +817,7 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.ve.contr.convecdiscrtype) {
-                        case CELL_CENTRAL: 
+                        case CELL_UPWIND: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -1486,81 +1486,6 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
     }
 }
 
-// One step of the Navier-Stokes the projection method
-void higflow_solver_step_viscoelastic(higflow_solver *ns) {
-
-    // Calculate the velocity derivative tensor
-    higflow_compute_velocity_derivative_tensor(ns);
-    // Computing the Kernel Tensor
-    //higflow_compute_initial_kernel_tensor(ns);
-    //higflow_compute_kernel_tensor(ns);
-
-    // Constitutive Equation Step for the Explicit Euler Method
-    switch (ns->ed.ve.contr.discrtype) {
-        case EXPLICIT:
-        // Explicit method
-        higflow_explicit_euler_constitutive_equation(ns);
-        break;
-        case IMPLICIT: 
-        // Implicit method
-        higflow_implicit_euler_constitutive_equation(ns);
-        break;
-    }
-    // Computing the Polymeric Tensor
-    higflow_compute_polymeric_tensor(ns);
-
-    // Boundary condition for velocity
-    higflow_boundary_condition_for_velocity(ns);
-    // Boundary conditions for source term
-    higflow_boundary_condition_for_cell_source_term(ns);
-    higflow_boundary_condition_for_facet_source_term(ns);
-    // Boundary condition for pressure
-    higflow_boundary_condition_for_pressure(ns);
-    // // Initial velocity derivative
-    // if(ns->par.step == 0 && ns->par.t == 0.0) hig_flow_compute_initial_velocity_derivative_tensor(ns);
-    // Calculate the source term
-    higflow_calculate_source_term(ns);
-    // Calculate the facet source term
-    higflow_calculate_facet_source_term(ns);
-    // Calculate the intermediated velocity
-    switch (ns->contr.tempdiscrtype) {
-        case EXPLICIT_EULER:
-           // Explicit Euler method
-           higflow_explicit_euler_intermediate_velocity_viscoelastic(ns, ns->dpu, ns->dpustar);
-           break;
-        case EXPLICIT_RK2: 
-           // Explicit RK2 method
-           higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic(ns);
-           break;
-        case EXPLICIT_RK3: 
-           // Explicit RK3 method
-           higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic(ns);
-           break;
-        case SEMI_IMPLICIT_EULER: 
-           // Semi-Implicit Euler Method
-           higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(ns);
-           break;
-        case SEMI_IMPLICIT_CN: 
-           // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(ns);
-           break;
-        case SEMI_IMPLICIT_BDF2: 
-           // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(ns);
-           break;
-    }
-    // Set outflow for ustar velocity 
-    //higflow_outflow_ustar_step(ns);
-    // Calculate the pressure
-    higflow_pressure(ns);
-    // Calculate the final velocity
-    higflow_final_velocity(ns);
-    // Set outflow for velocity
-    //higflow_outflow_u_step(ns);
-    // Calculate the final pressure
-    higflow_final_pressure(ns);
-}
-
 // Calculate the eige-value and eige-vectors using the Jacobi method
 void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]) {
     real b[DIM];
@@ -2078,6 +2003,82 @@ void hig_flow_compute_initial_conformation_e_fene(real Rhs[DIM][DIM], real A[DIM
         }
     }
 }
+
+// One step of the Navier-Stokes the projection method
+void higflow_solver_step_viscoelastic(higflow_solver *ns) {
+
+    // Calculate the velocity derivative tensor
+    higflow_compute_velocity_derivative_tensor(ns);
+    // Computing the Kernel Tensor
+    //higflow_compute_initial_kernel_tensor(ns);
+    //higflow_compute_kernel_tensor(ns);
+
+    // Constitutive Equation Step for the Explicit Euler Method
+    switch (ns->ed.ve.contr.discrtype) {
+        case EXPLICIT:
+        // Explicit method
+        higflow_explicit_euler_constitutive_equation(ns);
+        break;
+        case IMPLICIT: 
+        // Implicit method
+        higflow_implicit_euler_constitutive_equation(ns);
+        break;
+    }
+    // Computing the Polymeric Tensor
+    higflow_compute_polymeric_tensor(ns);
+
+    // Boundary condition for velocity
+    higflow_boundary_condition_for_velocity(ns);
+    // Boundary conditions for source term
+    higflow_boundary_condition_for_cell_source_term(ns);
+    higflow_boundary_condition_for_facet_source_term(ns);
+    // Boundary condition for pressure
+    higflow_boundary_condition_for_pressure(ns);
+    // // Initial velocity derivative
+    // if(ns->par.step == 0 && ns->par.t == 0.0) hig_flow_compute_initial_velocity_derivative_tensor(ns);
+    // Calculate the source term
+    higflow_calculate_source_term(ns);
+    // Calculate the facet source term
+    higflow_calculate_facet_source_term(ns);
+    // Calculate the intermediated velocity
+    switch (ns->contr.tempdiscrtype) {
+        case EXPLICIT_EULER:
+           // Explicit Euler method
+           higflow_explicit_euler_intermediate_velocity_viscoelastic(ns, ns->dpu, ns->dpustar);
+           break;
+        case EXPLICIT_RK2: 
+           // Explicit RK2 method
+           higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic(ns);
+           break;
+        case EXPLICIT_RK3: 
+           // Explicit RK3 method
+           higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic(ns);
+           break;
+        case SEMI_IMPLICIT_EULER: 
+           // Semi-Implicit Euler Method
+           higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(ns);
+           break;
+        case SEMI_IMPLICIT_CN: 
+           // Semi-Implicit Crank-Nicolson Method
+           higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic(ns);
+           break;
+        case SEMI_IMPLICIT_BDF2: 
+           // Semi-Implicit Crank-Nicolson Method
+           higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(ns);
+           break;
+    }
+    // Set outflow for ustar velocity 
+    //higflow_outflow_ustar_step(ns);
+    // Calculate the pressure
+    higflow_pressure(ns);
+    // Calculate the final velocity
+    higflow_final_velocity(ns);
+    // Set outflow for velocity
+    //higflow_outflow_u_step(ns);
+    // Calculate the final pressure
+    higflow_final_pressure(ns);
+}
+
 
 // void hig_flow_compute_initial_velocity_derivative_tensor(higflow_solver *ns){
 //     int infacet;

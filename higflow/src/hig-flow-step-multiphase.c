@@ -1399,7 +1399,7 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
        real rhs = 0.0;
        int  convecdiscrtype = 1;
            switch (convecdiscrtype) {
-              case CELL_CENTRAL: 
+              case CELL_UPWIND: 
                  // Kernel derivative at cell center
                  hig_flow_derivative_fracvol_at_center_cell(ns, ccenter, cdelta, fracvol, dfracvoldx);
                  for (int dim = 0; dim < DIM; dim++) {

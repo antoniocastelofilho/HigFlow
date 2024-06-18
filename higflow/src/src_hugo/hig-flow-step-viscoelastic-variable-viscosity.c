@@ -2058,7 +2058,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     //For the BMP with solvent (1) and the NM_T models (4) we take into consideration the solvent contribution
-                    if ((ns->ed.vevv.contr.structparmodel == 1) || (ns->ed.vevv.contr.structparmodel == 4)){
+                    if ((ns->ed.vevv.contr.structparmodel == BMP_SOLVENT) || (ns->ed.vevv.contr.structparmodel == NM_T)){
                         TS[i][j] = S[i][j] + 2.0*D[i][j]/Re;
                     } else {
                         TS[i][j] = S[i][j] + 2.0*(1.0-beta)*D[i][j]/Re;
@@ -2093,7 +2093,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             real StructParP = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpStructPar, ns->ed.stn);
             real StructParT;
             //Calculate varphi_T (solvent + polymer viscosities) at time "n" (only for the BMP model with solvent)
-            if (ns->ed.vevv.contr.structparmodel == 1) {
+            if (ns->ed.vevv.contr.structparmodel == BMP_SOLVENT) {
                 StructParT = StructParP/(1.0 + (beta/(1.0-beta))*StructParP);
             } else {
                 StructParT = StructParP;

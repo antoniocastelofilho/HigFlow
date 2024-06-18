@@ -206,7 +206,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 // Right hand side equation
                 real rhs = 0.0;
                 switch (ns->ed.mult.ve.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
+                case CELL_UPWIND:
                     // Kernel derivative at cell center
                     hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -464,7 +464,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 // Right hand side equation
                 real rhs = 0.0;
                 switch (ns->ed.mult.ve.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
+                case CELL_UPWIND:
                     // Kernel derivative at cell center
                     hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                     for (int dim = 0; dim < DIM; dim++) {

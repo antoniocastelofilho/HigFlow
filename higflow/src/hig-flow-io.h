@@ -206,7 +206,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
 void higflow_save_viscoelastic_variable_viscosity_controllers(higflow_solver *ns, int myrank);
 
 // Loading the parameters of viscoelastic flows with shear-banding
-void higflow_load_viscoelastic_variable_shear_banding_parameters(higflow_solver *ns, int myrank);
+void higflow_load_viscoelastic_shear_banding_parameters(higflow_solver *ns, int myrank);
 
 // Saving the parameters of the viscoelastic flows with shear-banding
 void higflow_save_viscoelastic_shear_banding_parameters(higflow_solver *ns, int myrank);

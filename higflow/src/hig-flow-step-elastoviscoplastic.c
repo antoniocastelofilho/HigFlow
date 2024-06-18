@@ -300,25 +300,25 @@ void higflow_explicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
             // Calculate the matrix MM for the model
             real MM[DIM][DIM], M_aux[DIM][DIM];
             switch (ns->ed.vepl.contr.model) {
-                case -1: 
+                case GENERAL_SARAMITO: 
                     // User Model
                     //ns->ed.vepl.calculate_m_user(ns->par.Re, ns->ed.vepl.par.De, ns->ed.vepl.par.beta, tr, lambda, R, M, M_aux, tol, SD);
                     ns->ed.vepl.calculate_m_user(Re, De, beta, Bi, zeta, epsilon, Np, tr, lambda, R, M, M_aux, tol, smallTD, SD);
                     break;
-                case 0: 
+                case OLDROYD_B_BINGHAM: 
                     // Oldroyd-B-Bingham model
                     hig_flow_calculate_m_oldroyd_bingham(ns, lambda, M, R, M_aux, tol, smallTD, SD);
                     //hig_flow_calculate_m_oldroyd_bingham(ns, lambda, Du, R, M_aux, tol, smallTD, SD);
                     break;
-                case 1: 
+                case OLDROYD_B_HB: 
                     // Oldroyd-B-Herschel-Bulkley Model
                     hig_flow_calculate_m_oldroyd_HB(ns, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;
-                case 2: 
+                case LPTT_BINGHAM: 
                     // LPTT-Bingham Model
                     hig_flow_calculate_m_lptt_bingham(ns, tr, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;
-                case 3: 
+                case EPTT_BINGHAM: 
                     // EPTT-Bingham 
                     hig_flow_calculate_m_eptt_bingham(ns, tr, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;
@@ -714,24 +714,24 @@ void higflow_implicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
             // Calculate the matrix MM for the model
             real MM[DIM][DIM], M_aux[DIM][DIM];
             switch (ns->ed.vepl.contr.model) {
-                case -1: 
+                case GENERAL_SARAMITO: 
                     // User Model
                     //ns->ed.vepl.calculate_m_user(ns->par.Re, ns->ed.vepl.par.De, ns->ed.vepl.par.beta, tr, lambda, R, M, M_aux, tol, SD);
                     ns->ed.vepl.calculate_m_user(Re, De, beta, Bi, zeta, epsilon, Np, tr, lambda, R, M, M_aux, tol, smallTD, SD);
                     break;
-                case 0: 
+                case OLDROYD_B_BINGHAM: 
                     // Oldroyd-B-Bingham model
                     hig_flow_calculate_m_oldroyd_bingham(ns, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;
-                case 1: 
+                case OLDROYD_B_HB: 
                     // Oldroyd-B-Herschel-Bulkley Model
                     hig_flow_calculate_m_oldroyd_HB(ns, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;
-                case 2: 
+                case LPTT_BINGHAM: 
                     // LPTT-Bingham Model
                     hig_flow_calculate_m_lptt_bingham(ns, tr, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;
-                case 3: 
+                case EPTT_BINGHAM: 
                     // EPTT-Bingham 
                     hig_flow_calculate_m_eptt_bingham(ns, tr, lambda, M, R, M_aux, tol, smallTD, SD);
                     break;

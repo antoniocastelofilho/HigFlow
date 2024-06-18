@@ -79,7 +79,7 @@ void higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(higflow_so
                 rhs    += higflow_diffusive_ionic_term(ns, Pe);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_CENTRAL: // Central scheme
+                    case CELL_UPWIND: // Central scheme
                         rhs    -= ns->cc.ucell * ns->cc.dndx;
                         rhs    += higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    += higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -147,7 +147,7 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
                 rhs    += higflow_diffusive_ionic_term(ns, Pe);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_CENTRAL: // Central scheme
+                    case CELL_UPWIND: // Central scheme
                         rhs    -= ns->cc.ucell * ns->cc.dndx;
                         rhs    -= higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    -= higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -216,7 +216,7 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
                 higflow_computational_cell_electroosmotic_ionic(ns, sdnplus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_CENTRAL: // Central scheme
+                    case CELL_UPWIND: // Central scheme
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    += higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    += higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -321,7 +321,7 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
                 higflow_computational_cell_electroosmotic_ionic(ns, sdnminus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_CENTRAL: // Central scheme
+                    case CELL_UPWIND: // Central scheme
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    -= higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    -= higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);

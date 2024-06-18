@@ -27,7 +27,7 @@ singlephase:
     contr:
       model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # central or cubista
+      convecdiscrtype: cubista       # upwind or cubista
     adimensional:
       De: 1.0                        # Deborah Number         De = λU/H
       beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
@@ -53,7 +53,7 @@ singlephase:
     contr:
       model: kbkz            # kbkz or kbkz_fractional
       discrtype: explicit               # explicit (only)
-      convecdiscrtype: cubista          # central or cubista
+      convecdiscrtype: cubista          # upwind or cubista
     adimensional:
       De: 0.2                           # Deborah Number
     damping:
@@ -83,7 +83,7 @@ singlephase:
       Ex: 20.0               # dϕ/dx - adimensionalized applied field differential per unit distance
     model_pnp:
       tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
-      convecdiscrtype: cubista                      # central or cubista
+      convecdiscrtype: cubista                      # upwind or cubista
       Pe: 12.5                                      # Péclet number  Pe = UH/D
 
 ###############################################################################################################      
@@ -102,7 +102,7 @@ multiphase:
       model0: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       model1: lptt                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       discrtype: explicit               # explicit or implicit
-      convecdiscrtype: cubista          # central or cubista
+      convecdiscrtype: cubista          # upwind or cubista
     phase0:      # (all ignored if newtonian)
       adimensional:
         De: 1.0                         # Deborah Number         De = λU/H
@@ -151,7 +151,7 @@ multiphase:
       model: pnp    # (for all phases) pnp, pb (not working yet), pbdh  
     model_pnp:
       tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
-      convecdiscrtype: cubista                      # central or cubista
+      convecdiscrtype: cubista                      # upwind or cubista
     phase0:      # (all ignored if not electroosmotic)
       adimensional:
         alpha: 2.35                                 # ratio of electric energy to thermal energy  α = ezζ_0/k_bT

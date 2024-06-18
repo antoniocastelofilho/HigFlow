@@ -176,7 +176,8 @@ typedef enum tempdiscr_type{
 typedef enum rheo_type{
     PLM = 2,
     THIXOTROPIC = 3,
-    VCM = 4
+    VCM = 4,
+    mVCM = 5,
 } rheo_type;
 
 typedef enum spatialdiscr_type{
@@ -198,8 +199,6 @@ typedef struct higflow_controllers{
     flow_type   flowtype;
     // Electroosmotic flow? : 0 No, 1 Electro-osmotic, 
     int   eoflow;
-    // Rheological Flow Type : 2 Power Law Model, 3 ThixoTropic Model, 4 VCM
-    rheo_type rheotype;
     // Temporal discretization type: 0 Explicit Euler, 1 Explicit RK2, .....
     tempdiscr_type   tempdiscrtype;
     // Spatial discretization type: 0 second order, 1 forth order
@@ -301,14 +300,15 @@ typedef enum visc_model_type{
     E_FENE = 5
 } visc_model_type;
 
-typedef enum inhomogenous_discr_type{
+typedef enum constitutive_discr_type{
     EXPLICIT = 0,
     IMPLICIT = 1
-} inhomogenous_discr_type;
+} constitutive_discr_type;
 
 typedef enum cell_convecdiscr_type{
     CELL_CENTRAL = 0,
-    CELL_CUBISTA = 1
+    CELL_UPWIND = 1,
+    CELL_CUBISTA = 2
 } cell_convecdiscr_type;
 
 // Parameters for electro-osmotic simulation
@@ -337,7 +337,7 @@ typedef struct eo_controllers{
     tempdiscr_type    tempdiscrtype;             // temporal discretization (relative to diffusive term)
     cell_convecdiscr_type    convecdiscrtype;       // (u + grad (phi + psi)) dot grad n term
     // cell_convecdiscr_type    electric_convecdiscrtype; // grad (phi + psi) dot grad n    term
-    // inhomogenous_discr_type    electricdiv_discrtype; // n lap (phi + psi) term
+    // constitutive_discr_type    electricdiv_discrtype; // n lap (phi + psi) term
     int    is_phibc_timedependent; // if boundary conditions are time dependent - determines if laplace equation should be solved again
     int    is_psibc_timedependent; // if boundary conditions are time dependent - determines if poisson equation should be solved again
                                   // only relevant for poisson-boltzmann and poisson-boltzmann-debye huckel
@@ -443,7 +443,7 @@ typedef struct ve_controllers{
     // Viscoelastic model
     visc_model_type    model;
     // Viscoelastic discretization type
-    inhomogenous_discr_type    discrtype;
+    constitutive_discr_type    discrtype;
     // Viscoelastic convective discretization type
     cell_convecdiscr_type    convecdiscrtype;
 } ve_controllers;
@@ -525,7 +525,7 @@ typedef struct im_controllers{
     // Relaxation model
     visc_integral_relax_model_type    model_H;
     // Viscoelastic discretization type
-    inhomogenous_discr_type    discrtype;
+    constitutive_discr_type    discrtype;
     // Viscoelastic convective discretization type
     cell_convecdiscr_type    convecdiscrtype;
 } im_controllers;
@@ -575,21 +575,29 @@ typedef struct vevv_parameters
     real Gamma;
 } vevv_parameters;
 
+typedef enum thixotropic_model_type {
+    BMP = 0,
+    BMP_SOLVENT = 1,
+    MBM = 2,
+    NM_TAUP = 3,
+    NM_T = 4,
+} thixotropic_model_type;
+
 // Controllers for viscoelastic simulation
 typedef struct vevv_controllers
 {
     // Viscoelastic model
-    int model;
+    visc_model_type model;
     // Viscoelastic discretization type
-    int discrtype;
+    constitutive_discr_type discrtype;
     // Viscoelastic convective discretization type
-    int convecdiscrtype;
+    cell_convecdiscr_type convecdiscrtype;
     // Discretization type for the structural parameter evolution equation (only for the models that have a kinetic equation for the structural parameter)
-    int structpdiscrtype;
+    constitutive_discr_type structpdiscrtype;
     // Convective discretization type for the structural parameter evolution equation (only for the models that have a kinetic equation for the structural parameter)
-    int structpconvecdiscrtype;
+    cell_convecdiscr_type structpconvecdiscrtype;
     // Kinetic equation to be used for the structural parameter (Original BMP model, BMP model with solvent, MBM, NM_taup or NM_T)
-    int structparmodel;
+    thixotropic_model_type structparmodel;
 } vevv_controllers;
 
 //Domains and distributed properties for viscoelastic flows with variable viscosity
@@ -661,16 +669,16 @@ typedef struct vesb_parameters
 // Controllers for viscoelastic simulation
 typedef struct vesb_controllers
 {
-    // Shear-banding model
-    int model;
+    // // Shear-banding model
+    // shear_banding_model_type model;
     // Discretization type for the viscoelastic equations of both species
-    int discrtype;
+    constitutive_discr_type discrtype;
     // Viscoelastic convective discretization type for both species
-    int convecdiscrtype;
+    cell_convecdiscr_type convecdiscrtype;
     // Discretization type for the evolution equations of the density numbers of both species 
-    int nAnBdiscrtype;
+    constitutive_discr_type nAnBdiscrtype;
     // Convective discretization type for the  evolution equations of the density numbers of both species
-    int nAnBconvecdiscrtype;
+    cell_convecdiscr_type nAnBconvecdiscrtype;
 } vesb_controllers;
 
 //Domains and distributed properties for viscoelastic flows with variable viscosity
@@ -751,15 +759,23 @@ typedef struct vepl_parameters
     //real gamma_gptt;
 } vepl_parameters;
 
+typedef enum elastoviscoplastic_model_type {
+    GENERAL_SARAMITO = -1,
+    OLDROYD_B_BINGHAM = 0,
+    OLDROYD_B_HB = 1,
+    LPTT_BINGHAM = 2,
+    EPTT_BINGHAM = 3,
+} elastoviscoplastic_model_type;
+
 // Controllers for elastoviscoplastic simulation
 typedef struct vepl_controllers
 {
     // Elastoviscoplastic model
-    int model;
+    elastoviscoplastic_model_type model;
     // Elastoviscoplastic discretization type
-    int discrtype;
+    constitutive_discr_type discrtype;
     // Elastoviscoplastic convective discretization type
-    int convecdiscrtype;
+    cell_convecdiscr_type convecdiscrtype;
 } vepl_controllers;
 
 
@@ -827,11 +843,11 @@ typedef struct stsp_controllers
     // Suspension model
     suspension_model_type model;
     // Discretization type
-    tempdiscr_type discrtype;
+    constitutive_discr_type discrtype;
     // Discretization type of the convective term of the microstructure tensor evolution equation
     cell_convecdiscr_type convecdiscrtype;
     // Discretization type for the volume fraction (particle migration equation)
-    tempdiscr_type volfracdiscrtype;
+    constitutive_discr_type volfracdiscrtype;
     // Convective discretization type for the volume fraction (particle migration equation)
     cell_convecdiscr_type volfracconvecdiscrtype;
 } stsp_controllers;
@@ -954,7 +970,7 @@ typedef struct mult_ve_controllers{
     visc_model_type    model1;
 
     // Viscoelastic discretization type
-    inhomogenous_discr_type    discrtype;
+    constitutive_discr_type    discrtype;
     // Viscoelastic convective discretization type
     cell_convecdiscr_type    convecdiscrtype;
 } mult_ve_controllers;
@@ -1069,13 +1085,20 @@ typedef struct higflow_multiphase{
     real (*get_fracvol)(Point center, Point delta, real t);
 } higflow_multiphase;
 
+
+typedef struct non_newtonian_controllers {
+    // Rheological Flow Type : 2 Power Law Model, 3 ThixoTropic Model, 4 VCM
+    rheo_type rheotype;
+} non_newtonian_controllers;
+
 // Domains and distributed properties for non newtonian and multiphase flows
 typedef struct higflow_extra_domains{
     // Sub-domain to simulation for extra domain
     sim_domain                     *sdED;
     // Partitioned sub-domain to simulation for extra domain
     psim_domain                    *psdED;
-    // Sub-domain to simulation for extra domain
+    // Non-Newtonian Controllers
+    non_newtonian_controllers      nn_contr;
     // Generalized newtonian flows
     higflow_gen_newtonian          gn;
     // Multifase flows

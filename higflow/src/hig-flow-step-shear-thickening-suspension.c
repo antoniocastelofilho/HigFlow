@@ -1423,7 +1423,7 @@ void higflow_explicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                     real rhs = 0.0;
                     switch (ns->ed.stsp.contr.convecdiscrtype)
                     {
-                    case CELL_CENTRAL:
+                    case CELL_UPWIND:
                         // Tensor derivative at cell center
                         hig_flow_derivative_tensor_A_at_center_cell(ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                         for (int dim = 0; dim < DIM; dim++)
@@ -1944,7 +1944,7 @@ void higflow_implicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                     real rhs = 0.0;
                     switch (ns->ed.stsp.contr.convecdiscrtype)
                     {
-                    case CELL_CENTRAL:
+                    case CELL_UPWIND:
                         // Tensor derivative at cell center
                         hig_flow_derivative_tensor_A_at_center_cell(ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                         for (int dim = 0; dim < DIM; dim++)
@@ -2765,11 +2765,11 @@ void higflow_solver_step_shear_thickening_suspensions(higflow_solver *ns)
     //solving the particle migration equation
     switch (ns->ed.stsp.contr.discrtype)
     {
-    case EXPLICIT_EULER:
+    case EXPLICIT:
         // Explicit method
         higflow_explicit_euler_evolution_equation_microstructure_tensor(ns);
         break;
-    case SEMI_IMPLICIT_EULER:
+    case IMPLICIT:
         // Implicit method
         higflow_implicit_euler_evolution_equation_microstructure_tensor(ns);
         break;
@@ -3599,7 +3599,7 @@ void higflow_explicit_euler_volume_fraction_equation(higflow_solver *ns)
             switch (ns->ed.stsp.contr.volfracconvecdiscrtype)
             {
             // Central scheme
-            case CELL_CENTRAL:
+            case CELL_UPWIND:
                 // volume fraction derivative at cell center
                 hig_flow_derivative_volfrac_at_center_cell(ns, ccenter, cdelta, varphi, dphidx);
                 for (int dim = 0; dim < DIM; dim++)

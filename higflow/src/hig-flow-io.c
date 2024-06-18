@@ -1219,7 +1219,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         break;
 
         case SHEAR_BANDING:
-            if (ns->contr.rheotype == VCM){
+            if (ns->ed.nn_contr.rheotype == VCM){
                 //Printing the density number nA
                 sim_domain *sdna =  psd_get_local_domain(ns->ed.vesb.psdSBnA);
                 fprintf(f, "\nSCALARS nA FLOAT\nLOOKUP_TABLE default\n");
@@ -5488,7 +5488,7 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
             snprintf(namefile, sizeof namefile, "%s._dpS_vevv", ns->par.namesave);
             load_dp_tensor(ns->ed.psdED, ns->ed.vevv.dpS, namefile, myrank, ntasks);
 
-            if(ns->contr.rheotype == THIXOTROPIC) {
+            if(ns->ed.nn_contr.rheotype == THIXOTROPIC) {
                 // Structural Parameter
                 snprintf(namefile, sizeof namefile, "%s._dpPhi_vevv", ns->par.namesave);
                 load_dp_scalar(ns->ed.vevv.psdVisc, ns->ed.vevv.dpStructPar, namefile, myrank, ntasks);
@@ -5500,7 +5500,7 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
             snprintf(namefile, sizeof namefile, "%s._dpS_vesb", ns->par.namesave);
             load_dp_tensor(ns->ed.psdED, ns->ed.vesb.dpS, namefile, myrank, ntasks);
 
-            if(ns->contr.rheotype == VCM) {
+            if(ns->ed.nn_contr.rheotype == VCM) {
                 // Density number species A
                 snprintf(namefile, sizeof namefile, "%s._dpnA_vesb", ns->par.namesave);
                 load_dp_scalar(ns->ed.vesb.psdSBnA, ns->ed.vesb.dpnA, namefile, myrank, ntasks);
@@ -5542,7 +5542,11 @@ void higflow_load_properties(higflow_solver *ns, int myrank, int ntasks) {
             snprintf(namefile, sizeof namefile, "%s._dpA_stsp", ns->par.namesave);
             load_dp_tensor(ns->ed.psdED, ns->ed.stsp.dpA, namefile, myrank, ntasks);
 
-            if()
+            if(ns->ed.stsp.contr.model == GW_WC_IF) {
+                // Volume Fraction Inhomogenous Flow
+                snprintf(namefile, sizeof namefile, "%s._dpphi_stsp", ns->par.namesave);
+                load_dp_scalar(ns->ed.psdED, ns->ed.stsp.dpphi, namefile, myrank, ntasks);
+            }
         break;
 
     }
@@ -5656,6 +5660,76 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
                 // Viscoelastic Integral Finger Tensor (B) file name base at a certain time frame k
                 snprintf(namefile, sizeof namefile, "%s._dpB%d", ns->par.namesave, k);
                 save_dp_tensor(ns->ed.psdED, ns->ed.im.dpB[k], namefile, myrank, ntasks);
+            }
+        break;
+
+        case VISCOELASTIC_VAR_VISCOSITY:
+            // Viscoelastic variable viscosity - viscosity
+            snprintf(namefile, sizeof namefile, "%s._dpvisc_vevv", ns->par.namesave);
+            save_dp_scalar(ns->ed.vevv.psdVisc, ns->ed.vevv.dpvisc, namefile, myrank, ntasks);
+
+            // Viscoelastic tensor S
+            snprintf(namefile, sizeof namefile, "%s._dpS_vevv", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.vevv.dpS, namefile, myrank, ntasks);
+
+            if(ns->ed.nn_contr.rheotype == THIXOTROPIC) {
+                // Structural Parameter
+                snprintf(namefile, sizeof namefile, "%s._dpPhi_vevv", ns->par.namesave);
+                save_dp_scalar(ns->ed.vevv.psdVisc, ns->ed.vevv.dpStructPar, namefile, myrank, ntasks);
+            }
+        break;
+
+        case SHEAR_BANDING:
+            // Viscoelastic Integral Elastic (S) Tensor file name
+            snprintf(namefile, sizeof namefile, "%s._dpS_vesb", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.vesb.dpS, namefile, myrank, ntasks);
+
+            if(ns->ed.nn_contr.rheotype == VCM) {
+                // Density number species A
+                snprintf(namefile, sizeof namefile, "%s._dpnA_vesb", ns->par.namesave);
+                save_dp_scalar(ns->ed.vesb.psdSBnA, ns->ed.vesb.dpnA, namefile, myrank, ntasks);
+
+                // Density number species B
+                snprintf(namefile, sizeof namefile, "%s._dpnB_vesb", ns->par.namesave);
+                save_dp_scalar(ns->ed.vesb.psdSBnB, ns->ed.vesb.dpnB, namefile, myrank, ntasks);
+
+                // Dimensionless breakage paramter 
+                snprintf(namefile, sizeof namefile, "%s._dpcA_vesb", ns->par.namesave);
+                save_dp_scalar(ns->ed.psdED, ns->ed.vesb.dpcA, namefile, myrank, ntasks);
+
+                // Dimensionless reformation parameter 
+                snprintf(namefile, sizeof namefile, "%s._dpcB_vesb", ns->par.namesave);
+                save_dp_scalar(ns->ed.psdED, ns->ed.vesb.dpcB, namefile, myrank, ntasks);
+
+                // Conformation Tensor A
+                snprintf(namefile, sizeof namefile, "%s._dpA_vesb", ns->par.namesave);
+                save_dp_tensor(ns->ed.psdED, ns->ed.vesb.dpA, namefile, myrank, ntasks);
+
+                // Conformation Tensor B
+                snprintf(namefile, sizeof namefile, "%s._dpB_vesb", ns->par.namesave);
+                save_dp_tensor(ns->ed.psdED, ns->ed.vesb.dpB, namefile, myrank, ntasks);
+            }
+        break;
+
+        case ELASTOVISCOPLASTIC:
+            // Viscoelastic Tensor S
+            snprintf(namefile, sizeof namefile, "%s._dpS_vepl", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.vepl.dpS, namefile, myrank, ntasks);
+        break;
+
+        case SUSPENSIONS:
+            // Viscoelastic Tensor S
+            snprintf(namefile, sizeof namefile, "%s._dpS_stsp", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.stsp.dpS, namefile, myrank, ntasks);
+
+            // Microstructural Tensor A
+            snprintf(namefile, sizeof namefile, "%s._dpA_stsp", ns->par.namesave);
+            save_dp_tensor(ns->ed.psdED, ns->ed.stsp.dpA, namefile, myrank, ntasks);
+
+            if(ns->ed.stsp.contr.model == GW_WC_IF) {
+                // Volume Fraction Inhomogenous Flow
+                snprintf(namefile, sizeof namefile, "%s._dpphi_stsp", ns->par.namesave);
+                save_dp_scalar(ns->ed.psdED, ns->ed.stsp.dpphi, namefile, myrank, ntasks);
             }
         break;
     }
@@ -6033,9 +6107,9 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "central") == 0) {
-                ns->ed.ve.contr.convecdiscrtype = CELL_CENTRAL;
-                print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.ve.contr.convecdiscrtype = CELL_UPWIND;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
                 ns->ed.ve.contr.convecdiscrtype = CELL_CUBISTA;
@@ -6128,9 +6202,9 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "central") == 0) {
-                ns->ed.im.contr.convecdiscrtype = CELL_CENTRAL;
-                print0f("=+=+=+= Constitutive Equation Integral Convective Term: Central  =+=+=+=\n");
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.im.contr.convecdiscrtype = CELL_UPWIND;
+                print0f("=+=+=+= Constitutive Equation Integral Convective Term: Upwind  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
                 ns->ed.im.contr.convecdiscrtype = CELL_CUBISTA;
@@ -6192,8 +6266,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "central") == 0) {
-                    ns->ed.eo.contr.convecdiscrtype = CELL_CENTRAL;
+                if (strcmp(auxchar, "upwind") == 0) {
+                    ns->ed.eo.contr.convecdiscrtype = CELL_UPWIND;
                     print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -6380,8 +6454,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "central") == 0) {
-                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CENTRAL;
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_UPWIND;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -6459,8 +6533,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "central") == 0) {
-                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CENTRAL;
+                if (strcmp(auxchar, "upwind") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_UPWIND;
                     print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -6641,8 +6715,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "central") == 0) {
-                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CENTRAL;
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_UPWIND;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -6722,8 +6796,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "central") == 0) {
-                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CENTRAL;
+                if (strcmp(auxchar, "upwind") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_UPWIND;
                     print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -7588,8 +7662,8 @@ void higflow_load_multiphase_viscoelastic_controllers(higflow_solver *ns, int my
             }
             // Constitutive Equation Convective Term
             switch (ns->ed.mult.ve.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
-                    printf("=+=+=+= Constitutive Equation Convective Term : Central  =+=+=+=\n");
+                case CELL_UPWIND:
+                    printf("=+=+=+= Constitutive Equation Convective Term : Upwind  =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
                     printf("=+=+=+= Constitutive Equation Convective Term : CUBISTA =+=+=+=\n");
@@ -7736,8 +7810,8 @@ void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank) {
                     break;
             }
             switch (ns->ed.ve.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
-                    printf("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
+                case CELL_UPWIND:
+                    printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
                     printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
@@ -7936,7 +8010,7 @@ void higflow_load_multiphase_electroosmotic_controllers(higflow_solver *ns, int 
                     break;
             }
             switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
+                case CELL_UPWIND:
                     printf("=+=+=+= Ionic concentration convective term: Central =+=+=+=\n");
                     printf("=+=+=+= Electric Field terms will be source          =+=+=+=\n");
                     break;
@@ -8065,7 +8139,7 @@ void higflow_load_electroosmotic_controllers(higflow_solver *ns, int myrank) {
                     break;
             }
             switch (ns->ed.eo.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
+                case CELL_UPWIND:
                     printf("=+=+=+= Ionic concentration convective term: Central =+=+=+=\n");
                     printf("=+=+=+= Electric Field terms will be source          =+=+=+=\n");
                     break;
@@ -8241,8 +8315,8 @@ void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myra
                     break;
             }
             switch (ns->ed.im.contr.convecdiscrtype) {
-                case CELL_CENTRAL:
-                    printf("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
+                case CELL_UPWIND:
+                    printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
                     printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
@@ -8298,7 +8372,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.kernel_tol));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.alpha_gptt));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.beta_gptt));
-        if (ns->contr.rheotype == THIXOTROPIC)
+        if (ns->ed.nn_contr.rheotype == THIXOTROPIC)
         {
             ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.Lambda));
             ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.Phi));
@@ -8309,7 +8383,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vevv.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.beta);
-            if (ns->contr.rheotype == THIXOTROPIC)
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC)
             {
                 printf("=+=+=+= Lambda: %f =+=+=+=\n", ns->ed.vevv.par.Lambda);
                 printf("=+=+=+= Phi: %f =+=+=+=\n", ns->ed.vevv.par.Phi);
@@ -8345,7 +8419,7 @@ void higflow_save_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.kernel_tol));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.alpha_gptt));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.beta_gptt));
-            if (ns->contr.rheotype == THIXOTROPIC)
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC)
             {
                 fprintf(fd, "%lf\n", (ns->ed.vevv.par.Lambda));
                 fprintf(fd, "%lf\n", (ns->ed.vevv.par.Phi));
@@ -8373,158 +8447,158 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
     {
         // Loading the parameters
         int ifd;
-        ifd = fscanf(fd, "%d", &(ns->ed.vevv.contr.model));
-        ifd = fscanf(fd, "%d", &(ns->ed.vevv.contr.discrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.vevv.contr.convecdiscrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.vevv.contr.structpdiscrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.vevv.contr.structpconvecdiscrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.vevv.contr.structparmodel));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vevv.contr.model));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vevv.contr.discrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vevv.contr.convecdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vevv.contr.structpdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vevv.contr.structpconvecdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vevv.contr.structparmodel));
         fclose(fd);
         if (myrank == 0)
         {
             switch (ns->ed.vevv.contr.model)
             {
-            case -1:
+            case USERSET:
                 printf("=+=+=+= Constitutive Equation Model: User Defined =+=+=+=\n");
                 break;
-            case 0:
+            case OLDROYD_B:
                 printf("=+=+=+= Constitutive Equation Model: Oldroyd =+=+=+=\n");
                 break;
-            case 1:
+            case GIESEKUS:
                 printf("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
                 break;
-            case 2:
+            case LPTT:
                 printf("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
                 break;
-            case 3:
+            case GPTT:
                 printf("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
                 break;
             }
             switch (ns->ed.vevv.contr.discrtype)
             {
-            case 0:
+            case EXPLICIT:
                 printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
                 break;
-            case 1:
+            case IMPLICIT:
                 printf("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
                 break;
             }
             switch (ns->ed.vevv.contr.convecdiscrtype)
             {
-            case 0:
+            case CELL_UPWIND:
                 printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
-            case 1:
+            case CELL_CUBISTA:
                 printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
-            if (ns->contr.rheotype == THIXOTROPIC)
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC)
             {
-                if (ns->ed.vevv.contr.structparmodel == 0)
+                if (ns->ed.vevv.contr.structparmodel == BMP)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= BMP Model Viscosity Evolution Equation Discretization: Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= BMP Model Viscosity Evolution Equation Discretization: Implicit  =+=+=+=\n");
                         break;
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= BMP Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= BMP Model Viscosity Evolution Equation Convective Term: CUBISTA  =+=+=+=\n");
                         break;            
                     }
                 }
                 
-                if (ns->ed.vevv.contr.structparmodel == 1)
+                if (ns->ed.vevv.contr.structparmodel == BMP_SOLVENT)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= BMP Model with solvent Viscosity Evolution Equation Discretization: Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= BMP Model with solvent Viscosity Evolution Equation Discretization: Implicit  =+=+=+=\n");
                         break;
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= BMP Model with solvent Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= BMP Model with solvent Viscosity Evolution Equation Convective Term: CUBISTA  =+=+=+=\n");
                         break;            
                     }
                 }
 
-                if (ns->ed.vevv.contr.structparmodel == 2)
+                if (ns->ed.vevv.contr.structparmodel == MBM)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= MBM Model Viscosity Evolution Equation Discretization: Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= MBM Model Viscosity Evolution Equation Discretization: Implicit  =+=+=+=\n");
                         break;
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= MBM Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= MBM Model Viscosity Evolution Equation Convective Term: CUBISTA  =+=+=+=\n");
                         break;            
                     }
                 }
 
-                if (ns->ed.vevv.contr.structparmodel == 3)
+                if (ns->ed.vevv.contr.structparmodel == NM_TAUP)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= NM_taup Model Viscosity Evolution Equation Discretization: Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= NM_taup Model Viscosity Evolution Equation Discretization: Implicit  =+=+=+=\n");
                         break;
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= NM_taup Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= NM_taup Model Viscosity Evolution Equation Convective Term: CUBISTA  =+=+=+=\n");
                         break;            
                     }
                 }
 
-                if (ns->ed.vevv.contr.structparmodel == 4)
+                if (ns->ed.vevv.contr.structparmodel == NM_T)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= NM_T Model Viscosity Evolution Equation Discretization: Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= NM_T Model Viscosity Evolution Equation Discretization: Implicit  =+=+=+=\n");
                         break;
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= NM_T Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= NM_T Model Viscosity Evolution Equation Convective Term: CUBISTA  =+=+=+=\n");
                         break;            
                     }
@@ -8552,14 +8626,14 @@ void higflow_save_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
         if (fd != NULL)
         {
             // Saving the parameters
-            fprintf(fd, "%d\n", (ns->ed.vevv.contr.model));
-            fprintf(fd, "%d\n", (ns->ed.vevv.contr.discrtype));
-            fprintf(fd, "%d\n", (ns->ed.vevv.contr.convecdiscrtype));
-            if (ns->contr.rheotype == THIXOTROPIC)
+            fprintf(fd, "%d\n", (int)(ns->ed.vevv.contr.model));
+            fprintf(fd, "%d\n", (int)(ns->ed.vevv.contr.discrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.vevv.contr.convecdiscrtype));
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC)
             {
-                fprintf(fd, "%d\n", (ns->ed.vevv.contr.structpdiscrtype));
-                fprintf(fd, "%d\n", (ns->ed.vevv.contr.structpconvecdiscrtype));
-                fprintf(fd, "%d\n", (ns->ed.vevv.contr.structparmodel));
+                fprintf(fd, "%d\n", (int)(ns->ed.vevv.contr.structpdiscrtype));
+                fprintf(fd, "%d\n", (int)(ns->ed.vevv.contr.structpconvecdiscrtype));
+                fprintf(fd, "%d\n", (int)(ns->ed.vevv.contr.structparmodel));
             }
             fclose(fd);
         }
@@ -8574,7 +8648,7 @@ void higflow_save_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
 
 
 // Loading the parameters of viscoelastic flows with shear-banding
-void higflow_load_viscoelastic_variable_shear_banding_parameters(higflow_solver *ns, int myrank)
+void higflow_load_viscoelastic_shear_banding_parameters(higflow_solver *ns, int myrank)
 {
     // Parameters file name
     char namefile[1024];
@@ -8586,7 +8660,7 @@ void higflow_load_viscoelastic_variable_shear_banding_parameters(higflow_solver 
         int ifd;
         ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.De));
         ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.beta));
-        if (ns->contr.rheotype == VCM)
+        if (ns->ed.nn_contr.rheotype == VCM)
         {
             ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.DeA));
             ifd = fscanf(fd, "%lf", &(ns->ed.vesb.par.epsilon));
@@ -8602,7 +8676,7 @@ void higflow_load_viscoelastic_variable_shear_banding_parameters(higflow_solver 
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vesb.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vesb.par.beta);
-            if (ns->contr.rheotype == VCM)
+            if (ns->ed.nn_contr.rheotype == VCM)
             {
                 printf("=+=+=+= Deborah Number of specie A: %f =+=+=+=\n", ns->ed.vesb.par.DeA);
                 printf("=+=+=+= Epsilon = lambdaB/lambdaA: %f =+=+=+=\n", ns->ed.vesb.par.epsilon);
@@ -8636,7 +8710,7 @@ void higflow_save_viscoelastic_shear_banding_parameters(higflow_solver *ns, int 
             // Saving the parameters
             fprintf(fd, "%lf\n", (ns->ed.vesb.par.De));
             fprintf(fd, "%lf\n", (ns->ed.vesb.par.beta));
-            if (ns->contr.rheotype == VCM)
+            if (ns->ed.nn_contr.rheotype == VCM)
             {
                 fprintf(fd, "%lf\n", (ns->ed.vesb.par.DeA));
                 fprintf(fd, "%lf\n", (ns->ed.vesb.par.epsilon));
@@ -8668,61 +8742,61 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
     {
         // Loading the parameters
         int ifd;
-        ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.model));
-        ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.discrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.convecdiscrtype));
-        if (ns->contr.rheotype == VCM)
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.contr.rheotype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vesb.contr.discrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vesb.contr.convecdiscrtype));
+        if (ns->ed.nn_contr.rheotype == VCM)
         {
-            ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.nAnBdiscrtype));
-            ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.nAnBconvecdiscrtype));     
+            ifd = fscanf(fd, "%d", (int *)&(ns->ed.vesb.contr.nAnBdiscrtype));
+            ifd = fscanf(fd, "%d", (int *)&(ns->ed.vesb.contr.nAnBconvecdiscrtype));     
         }
         fclose(fd);
         if (myrank == 0)
         {
-            switch (ns->ed.vesb.contr.model)
+            switch (ns->ed.contr.rheotype)
             {
-            case 0:
+            case VCM:
                 printf("=+=+=+= The Vazquez-McKinley-Cook (VCM) model =+=+=+=\n");
                 break;
-            case 1:
+            case mVCM:
                 printf("=+=+=+= The modified Vazquez-McKinley-Cook (VCM) model =+=+=+=\n");
                 break;
             }
             switch (ns->ed.vesb.contr.discrtype)
             {
-            case 0:
+            case EXPLICIT:
                 printf("=+=+=+= Viscoelastic Equation Discretization: Explicit =+=+=+=\n");
                 break;
-            case 1:
+            case IMPLICIT:
                 printf("=+=+=+= Viscoelastic Equation Discretization: Implicit =+=+=+=\n");
                 break;
             }
             switch (ns->ed.vesb.contr.convecdiscrtype)
             {
-            case 0:
+            case CELL_UPWIND:
                 printf("=+=+=+= Viscoelastic Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
-            case 1:
+            case CELL_CUBISTA:
                 printf("=+=+=+= Viscoelastic Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
-            if (ns->contr.rheotype == VCM)
+            if (ns->ed.nn_contr.rheotype == VCM)
             {
                 switch (ns->ed.vesb.contr.nAnBdiscrtype)
                 {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= Discretization of the Equations of the Density Numbers (nA and nB): Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= Discretization of the Equations of the Density Numbers (nA and nB): Implicit  =+=+=+=\n");
                         break;
                 }
                 switch (ns->ed.vesb.contr.nAnBconvecdiscrtype)
                 {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= Discretization of the Convective Term of of the Equations of the Density Numbers (nA and nB): Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= Discretization of the Convective Term of of the Equations of the Density Numbers (nA and nB): CUBISTA  =+=+=+=\n");
                         break;            
                 }                
@@ -8749,13 +8823,13 @@ void higflow_save_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
         if (fd != NULL)
         {
             // Saving the parameters
-            fprintf(fd, "%d\n", (ns->ed.vesb.contr.model));
-            fprintf(fd, "%d\n", (ns->ed.vesb.contr.discrtype));
-            fprintf(fd, "%d\n", (ns->ed.vesb.contr.convecdiscrtype));
-            if (ns->contr.rheotype == VCM)
+            fprintf(fd, "%d\n", (int)(ns->ed.contr.rheotype));
+            fprintf(fd, "%d\n", (int)(ns->ed.vesb.contr.discrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.vesb.contr.convecdiscrtype));
+            if (ns->ed.nn_contr.rheotype == VCM)
             {
-                fprintf(fd, "%d\n", (ns->ed.vesb.contr.nAnBdiscrtype));
-                fprintf(fd, "%d\n", (ns->ed.vesb.contr.nAnBconvecdiscrtype));     
+                fprintf(fd, "%d\n", (int)(ns->ed.vesb.contr.nAnBdiscrtype));
+                fprintf(fd, "%d\n", (int)(ns->ed.vesb.contr.nAnBconvecdiscrtype));     
             }
             fclose(fd);
         }
@@ -8794,13 +8868,13 @@ void higflow_load_elastoviscoplastic_parameters(higflow_solver *ns, int myrank)
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vepl.par.beta);
             printf("=+=+=+= Bingham number: %f =+=+=+=\n", ns->ed.vepl.par.Bi);
             printf("=+=+=+= Zeta parameter (viscoelastic): %f =+=+=+=\n", ns->ed.vepl.par.zeta);
-            if ((ns->ed.vepl.contr.model == 1)|| (ns->ed.vepl.contr.model == -1))
+            if ((ns->ed.vepl.contr.model == OLDROYD_B_HB)|| (ns->ed.vepl.contr.model == GENERAL_SARAMITO))
             {
                 //Oldroyd-B-Herschel-Bulkley
                 printf("=+=+=+= Power-law coefficient (OBHB): %f =+=+=+=\n", ns->ed.vepl.par.Np);
             }
-            if ((ns->ed.vepl.contr.model == 2) || (ns->ed.vepl.contr.model == 3) ||
-                (ns->ed.vepl.contr.model == -1))
+            if ((ns->ed.vepl.contr.model == LPTT_BINGHAM) || (ns->ed.vepl.contr.model == EPTT_BINGHAM) ||
+                (ns->ed.vepl.contr.model == GENERAL_SARAMITO))
             {
                 //LPTT-Bingham and EPTT-Bingham
                 printf("=+=+=+= Epsilon parameter: %f =+=+=+=\n", ns->ed.vepl.par.epsilon);
@@ -8856,45 +8930,45 @@ void higflow_load_elastoviscoplastic_controllers(higflow_solver *ns, int myrank)
     {
         // Loading the parameters
         int ifd;
-        ifd = fscanf(fd, "%d", &(ns->ed.vepl.contr.model));
-        ifd = fscanf(fd, "%d", &(ns->ed.vepl.contr.discrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.vepl.contr.convecdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vepl.contr.model));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vepl.contr.discrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.vepl.contr.convecdiscrtype));
         fclose(fd);
         if (myrank == 0)
         {
             switch (ns->ed.vepl.contr.model)
             {
-            case -1:
+            case GENERAL_SARAMITO:
                 printf("=+=+=+= Constitutive Equation Model: General Saramito Model (User Defined) =+=+=+=\n");
                 break;
-            case 0:
+            case OLDROYD_B_BINGHAM:
                 printf("=+=+=+= Constitutive Equation Model: Oldroyd-B Bingham =+=+=+=\n");
                 break;
-            case 1:
+            case OLDROYD_B_HB:
                 printf("=+=+=+= Constitutive Equation Model: Oldroyd-B-Herschel-Bulkley =+=+=+=\n");
                 break;
-            case 2:
+            case LPTT_BINGHAM:
                 printf("=+=+=+= Constitutive Equation Model: LPTT-Bingham =+=+=+=\n");
                 break;
-            case 3:
+            case EPTT_BINGHAM:
                 printf("=+=+=+= Constitutive Equation Model: EPTT-Bingham =+=+=+=\n");
                 break;
             }
             switch (ns->ed.vepl.contr.discrtype)
             {
-            case 0:
+            case EXPLICIT:
                 printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
                 break;
-            case 1:
+            case IMPLICIT:
                 printf("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
                 break;
             }
             switch (ns->ed.vepl.contr.convecdiscrtype)
             {
-            case 0:
+            case CELL_UPWIND:
                 printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
-            case 1:
+            case CELL_CUBISTA:
                 printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
@@ -8920,9 +8994,9 @@ void higflow_save_elastoviscoplastic_controllers(higflow_solver *ns, int myrank)
         if (fd != NULL)
         {
             // Saving the parameters
-            fprintf(fd, "%d\n", (ns->ed.vepl.contr.model));
-            fprintf(fd, "%d\n", (ns->ed.vepl.contr.discrtype));
-            fprintf(fd, "%d\n", (ns->ed.vepl.contr.convecdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.vepl.contr.model));
+            fprintf(fd, "%d\n", (int)(ns->ed.vepl.contr.discrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.vepl.contr.convecdiscrtype));
             fclose(fd);
         }
         else
@@ -8962,7 +9036,7 @@ void higflow_load_shear_thickening_suspension_parameters(higflow_solver *ns, int
         {
             printf("=+=+=+= Deborah Number: %f =+=+=+=\n", ns->ed.vevv.par.De);
             printf("=+=+=+= Beta: %f =+=+=+=\n", ns->ed.vevv.par.beta);
-            if (ns->contr.rheotype == THIXOTROPIC)
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC)
             {
                 printf("=+=+=+= Lambda: %f =+=+=+=\n", ns->ed.vevv.par.Lambda);
                 printf("=+=+=+= Phi: %f =+=+=+=\n", ns->ed.vevv.par.Phi);
@@ -9051,11 +9125,11 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
     {
         // Loading the parameters
         int ifd;
-        ifd = fscanf(fd, "%d", &(ns->ed.stsp.contr.model));
-        ifd = fscanf(fd, "%d", &(ns->ed.stsp.contr.discrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.stsp.contr.convecdiscrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.stsp.contr.volfracdiscrtype));
-        ifd = fscanf(fd, "%d", &(ns->ed.stsp.contr.volfracconvecdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.stsp.contr.model));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.stsp.contr.discrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.stsp.contr.convecdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.stsp.contr.volfracdiscrtype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.stsp.contr.volfracconvecdiscrtype));
         fclose(fd);
         if (myrank == 0)
         {
@@ -9076,19 +9150,19 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
             }
             switch (ns->ed.stsp.contr.discrtype)
             {
-            case 0:
+            case EXPLICIT:
                 printf("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
                 break;
-            case 1:
+            case IMPLICIT:
                 printf("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
                 break;
             }
             switch (ns->ed.stsp.contr.convecdiscrtype)
             {
-            case 0:
+            case CELL_UPWIND:
                 printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
-            case 1:
+            case CELL_CUBISTA:
                 printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
                 break;
             }
@@ -9096,19 +9170,19 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
             {
                 switch (ns->ed.stsp.contr.volfracdiscrtype)
                 {
-                    case 0:
+                    case EXPLICIT:
                         printf("=+=+=+= Volume Fraction Evolution Equation Discretization: Explicit  =+=+=+=\n"); 
                         break;
-                    case 1:
+                    case IMPLICIT:
                         printf("=+=+=+= Volume Fraction Evolution Equation Discretization: Implicit  =+=+=+=\n");
                         break;
                 }
                 switch (ns->ed.stsp.contr.volfracconvecdiscrtype)
                 {
-                    case 0:
+                    case CELL_UPWIND:
                         printf("=+=+=+= Volume Fraction Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
-                    case 1:
+                    case CELL_CUBISTA:
                         printf("=+=+=+= Volume Fraction Evolution Equation Convective Term: CUBISTA  =+=+=+=\n");
                         break;            
                 }
@@ -9136,11 +9210,11 @@ void higflow_save_shear_thickening_suspension_controllers(higflow_solver *ns, in
         if (fd != NULL)
         {
             // Saving the parameters
-            fprintf(fd, "%d\n", (ns->ed.stsp.contr.model));
-            fprintf(fd, "%d\n", (ns->ed.stsp.contr.discrtype));
-            fprintf(fd, "%d\n", (ns->ed.stsp.contr.convecdiscrtype));
-            fprintf(fd, "%d\n", (ns->ed.stsp.contr.volfracdiscrtype));
-            fprintf(fd, "%d\n", (ns->ed.stsp.contr.volfracconvecdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.stsp.contr.model));
+            fprintf(fd, "%d\n", (int)(ns->ed.stsp.contr.discrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.stsp.contr.convecdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.stsp.contr.volfracdiscrtype));
+            fprintf(fd, "%d\n", (int)(ns->ed.stsp.contr.volfracconvecdiscrtype));
             fclose(fd);
         }
         else

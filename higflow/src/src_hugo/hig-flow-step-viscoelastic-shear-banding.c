@@ -3324,7 +3324,7 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
         switch (ns->ed.vesb.contr.nAnBdiscrtype) {
             case 0: //Explicit Euler Method
                 //VCM model
-                switch (ns->ed.vesb.contr.model) {
+                switch (ns->ed.contr.rheotype) {
                     case 0:
                     //Standard VCM model
                     higflow_explicit_euler_shear_banding_transport_equation_nA(ns);
@@ -3339,7 +3339,7 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
             break;
             case 1: //Implicit Euler Method
                 //VCM model
-                switch (ns->ed.vesb.contr.model) {
+                switch (ns->ed.contr.rheotype) {
                     case 0:
                     //Standard VCM model
                     higflow_implicit_euler_shear_banding_transport_equation_nA(ns);

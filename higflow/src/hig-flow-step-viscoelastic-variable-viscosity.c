@@ -13,7 +13,7 @@
 
 // Computing the Kernel Tensor
 void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.rheotype == PLM) || (ns->contr.rheotype == THIXOTROPIC)){
+    if ((ns->ed.nn_contr.rheotype == PLM) || (ns->ed.nn_contr.rheotype == THIXOTROPIC)){
         // Get the cosntants
         real Re   = ns->par.Re;
         real De   = ns->ed.vevv.par.De;
@@ -101,7 +101,7 @@ void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
 
 // Computing the Polymeric Tensor
 void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.rheotype == PLM)||(ns->contr.rheotype == THIXOTROPIC)) {
+    if ((ns->ed.nn_contr.rheotype == PLM)||(ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
         // Get the constants
         real Re   = ns->par.Re;
         real De   = ns->ed.vevv.par.De;
@@ -201,7 +201,7 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
 // Constitutive Equation Step for the Explicit Euler Method
 // *******************************************************************
 void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.rheotype == PLM)||(ns->contr.rheotype == THIXOTROPIC)) {
+    if ((ns->ed.nn_contr.rheotype == PLM)||(ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.vevv.par.De;
@@ -209,7 +209,7 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
         real tol   = ns->ed.vevv.par.kernel_tol;
         real small = 1.0e-14;
         switch (ns->ed.vevv.contr.model) {
-                case 3:
+                case GPTT:
             ns->ed.vevv.par.gamma_gptt = tgamma(ns->ed.vevv.par.beta_gptt);
         }
         //tol        = 1.0e-3;
@@ -277,23 +277,23 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             // Calculate the matrix MM for the model
             real MM[DIM][DIM], M_aux[DIM][DIM];
             switch (ns->ed.vevv.contr.model) {
-                case -1: 
+                case USERSET: 
                     // User Model
                     ns->ed.ve.calculate_m_user(ns->par.Re, ns->ed.vevv.par.De, ns->ed.vevv.par.beta, tr, lambda, R, M, M_aux, tol);
                     break;
-                case 0: 
+                case OLDROYD_B: 
                     // Oldroyd Model
                     hig_flow_calculate_m_oldroyd(ns, lambda, M, M_aux, tol);
                     break;
-                case 1: 
+                case GIESEKUS: 
                     // Giesekus Model
                     hig_flow_calculate_m_giesekus(ns, lambda, M, M_aux, tol);
                     break;
-                case 2: 
+                case LPTT: 
                     // LPTT Model
                     hig_flow_calculate_m_lptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
-                case 3: 
+                case GPTT: 
                     // GPTT Model
                     hig_flow_calculate_m_gptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
@@ -322,7 +322,7 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vevv.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -330,7 +330,7 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                                 rhs -= u[dim]*dKdx[dim];
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, Kernel, ccenter, cdelta, dim, i, j);
@@ -569,7 +569,7 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
 // Constitutive Equation Step for the Implicit Euler Method
 // *******************************************************************
 void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_solver *ns) {
-    if ((ns->contr.rheotype == PLM)||(ns->contr.rheotype == THIXOTROPIC)) {
+    if ((ns->ed.nn_contr.rheotype == PLM)||(ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -578,7 +578,7 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
         real tol   = ns->ed.vevv.par.kernel_tol;
         real small = 1.0e-14;
         switch (ns->ed.vevv.contr.model) {
-                case 3:
+                case GPTT:
             ns->ed.vevv.par.gamma_gptt = tgamma(ns->ed.vevv.par.beta_gptt);
         }
         //tol        = 1.0e-3;
@@ -644,23 +644,23 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             // Calculate the matrix MM for the model
             real MM[DIM][DIM], M_aux[DIM][DIM];
             switch (ns->ed.vevv.contr.model) {
-                case -1: 
+                case USERSET: 
                     // User Model
                     ns->ed.ve.calculate_m_user(ns->par.Re, ns->ed.vevv.par.De, ns->ed.vevv.par.beta, tr, lambda, R, M, M_aux, tol);
                     break;
-                case 0: 
+                case OLDROYD_B: 
                     // Oldroyd Model
                     hig_flow_calculate_m_oldroyd(ns, lambda, M, M_aux, tol);
                     break;
-                case 1: 
+                case GIESEKUS: 
                     // Giesekus Model
                     hig_flow_calculate_m_giesekus(ns, lambda, M, M_aux, tol);
                     break;
-                case 2: 
+                case LPTT: 
                     // LPTT Model
                     hig_flow_calculate_m_lptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
-                case 3: 
+                case GPTT: 
                     // GPTT Model
                     hig_flow_calculate_m_gptt(ns, tr, lambda, M, R, M_aux, tol);
                     break;
@@ -693,7 +693,7 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vevv.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -701,7 +701,7 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                                 rhs -= u[dim]*dKdx[dim];
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, Kernel, ccenter, cdelta, dim, i, j);
@@ -1402,18 +1402,18 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns) {
     // Calculate the velocity derivative tensor
     higflow_compute_velocity_derivative_tensor(ns);
     //Calculate the viscosity (model defined by the user)
-    if (ns->contr.rheotype == PLM){
+    if (ns->ed.nn_contr.rheotype == PLM){
         //User defined model
         higflow_compute_viscosity_user_model_vevv(ns);
         // Computing the Kernel Tensor
         higflow_compute_kernel_tensor_variable_viscosity(ns);
         // Constitutive Equation Step for the Explicit Euler Method
         switch (ns->ed.vevv.contr.discrtype) {
-            case 0:
+            case EXPLICIT:
             // Explicit method
             higflow_explicit_euler_constitutive_equation_variable_viscosity(ns);
             break;
-            case 1: 
+            case IMPLICIT: 
             // Implicit method
             higflow_implicit_euler_constitutive_equation_variable_viscosity(ns);
             break;
@@ -1422,14 +1422,14 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns) {
         higflow_compute_polymeric_tensor_variable_viscosity(ns);
     }
     //Calculate the viscosity (BMP model)
-    if (ns->contr.rheotype == THIXOTROPIC){
+    if (ns->ed.nn_contr.rheotype == THIXOTROPIC){
         //BMP Model
         switch (ns->ed.vevv.contr.structpdiscrtype){
-            case 0:
+            case EXPLICIT:
                 //Explicit method
                 higflow_explicit_euler_BMP_viscosity_evolution_equation(ns);
                 break;
-            case 1:
+            case IMPLICIT:
                 //Implicit method
                 higflow_implicit_euler_BMP_viscosity_evolution_equation(ns);
                 break;
@@ -1438,11 +1438,11 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns) {
         higflow_compute_kernel_tensor_variable_viscosity(ns);
         // Constitutive Equation Step for the Explicit Euler Method
         switch (ns->ed.vevv.contr.discrtype) {
-            case 0:
+            case EXPLICIT:
                 // Explicit method
                 higflow_explicit_euler_constitutive_equation_variable_viscosity(ns);
                 break;
-            case 1: 
+            case IMPLICIT: 
                 // Implicit method
                 higflow_implicit_euler_constitutive_equation_variable_viscosity(ns);
                 break;
@@ -1951,7 +1951,7 @@ void higflow_compute_viscosity_user_model_vevv(higflow_solver *ns) {
 
 // Computing the viscosity of the BMP model using an Euler explicit method
 void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns) {
-    if (ns->contr.rheotype == THIXOTROPIC) {
+    if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.vevv.par.De;
@@ -2058,7 +2058,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     //For the BMP with solvent (1) and the NM_T models (4) we take into consideration the solvent contribution
-                    if ((ns->ed.vevv.contr.structparmodel == 1) || (ns->ed.vevv.contr.structparmodel == 4)){
+                    if ((ns->ed.vevv.contr.structparmodel == BMP_SOLVENT) || (ns->ed.vevv.contr.structparmodel == NM_T)){
                         TS[i][j] = S[i][j] + 2.0*D[i][j]/Re;
                     } else {
                         TS[i][j] = S[i][j] + 2.0*(1.0-beta)*D[i][j]/Re;
@@ -2093,7 +2093,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             real StructParP = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpStructPar, ns->ed.stn);
             real StructParT;
             //Calculate varphi_T (solvent + polymer viscosities) at time "n" (only for the BMP model with solvent)
-            if (ns->ed.vevv.contr.structparmodel == 1) {
+            if (ns->ed.vevv.contr.structparmodel == BMP_SOLVENT) {
                 StructParT = StructParP/(1.0 + (beta/(1.0-beta))*StructParP);
             } else {
                 StructParT = StructParP;
@@ -2105,23 +2105,23 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             real RHS = 0.0;
             //real RHS = hig_flow_structural_par_BMP_model2_RHS(Lambda, Phi, Gamma, Re, De, beta, StructParT, TD);
             switch (ns->ed.vevv.contr.structparmodel) {
-                case 0: 
+                case BMP: 
                     //Original BMP model
                     RHS = hig_flow_structural_par_BMP_model_RHS(Lambda, Phi, Gamma, Re, beta, StructParT, TD);
                     break;
-                case 1: 
+                case BMP_SOLVENT: 
                     //BMP model wit solvent viscosity
                     RHS = hig_flow_structural_par_BMP_model_RHS(Lambda, Phi, Gamma, Re, beta, StructParT, TD);
                     break;
-                case 2: 
+                case MBM: 
                     //MBM model
                     RHS = hig_flow_structural_par_BMP_model2_RHS(Lambda, Phi, Gamma, Re, StructParT, TD);
                     break;
-                case 3: 
+                case NM_TAUP: 
                     // NM_taup model
                     RHS = hig_flow_structural_par_BMP_model3_RHS(Lambda, Phi, Gamma, Re, De, StructParT, TD);
                     break;
-                case 4: 
+                case NM_T: 
                     // NM_T model
                     RHS = hig_flow_structural_par_BMP_model3_RHS(Lambda, Phi, Gamma, Re, De, StructParT, TD);
                     break;
@@ -2136,7 +2136,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             // Right hand side equation
             real rhs = 0.0;
             switch (ns->ed.vevv.contr.structpconvecdiscrtype) {
-                case 0: 
+                case CELL_UPWIND: 
                     // Structural parameter derivative at cell center
                     hig_flow_derivative_structural_parameter_center_cell(ns, ccenter, cdelta, StructParP, dSpardx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2144,7 +2144,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
                         rhs    -= u[dim]*dSpardx[dim];
                     }
                     break;
-                case 1: 
+                case CELL_CUBISTA: 
                     //Compute convective tensor term CUBISTA in rhs of the structural parameter equation
                     for (int dim = 0; dim < DIM; dim++) {
                         rhs -= higflow_convective_BMP_structural_parameter_term_cubista(ns, ns->dpu[dim], ns->ed.vevv.dpStructPar, ns->ed.vevv.sdVisc, ns->ed.stn, StructParP, ccenter, cdelta, dim);
@@ -2428,7 +2428,7 @@ real higflow_convective_BMP_structural_parameter_term_cubista(higflow_solver *ns
 
 // Computing the viscosity of the BMP model using an Euler implicit method
 void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns) {
-    if (ns->contr.rheotype == THIXOTROPIC) {
+    if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real De    = ns->ed.vevv.par.De;
@@ -2579,7 +2579,7 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             // Right hand side equation
             real rhs = 0.0;
             switch (ns->ed.vevv.contr.structpconvecdiscrtype) {
-                case 0: 
+                case CELL_UPWIND: 
                     // Structural parameter derivative at cell center
                     hig_flow_derivative_structural_parameter_center_cell(ns, ccenter, cdelta, StructParP, dSpardx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2587,7 +2587,7 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
                         rhs    -= u[dim]*dSpardx[dim];
                     }
                     break;
-                case 1: 
+                case CELL_CUBISTA: 
                     //Compute convective tensor term CUBISTA in rhs of the structural parameter equation
                     for (int dim = 0; dim < DIM; dim++) {
                         rhs -= higflow_convective_BMP_structural_parameter_term_cubista(ns, ns->dpu[dim], ns->ed.vevv.dpStructPar, ns->ed.vevv.sdVisc, ns->ed.stn, StructParP, ccenter, cdelta, dim);

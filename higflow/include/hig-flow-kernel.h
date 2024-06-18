@@ -281,7 +281,7 @@ typedef enum inhomogenous_discr_type{
 } inhomogenous_discr_type;
 
 typedef enum cell_convecdiscr_type{
-    CELL_CENTRAL = 0,
+    CELL_UPWIND = 0,
     CELL_CUBISTA = 1
 } cell_convecdiscr_type;
 

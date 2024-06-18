@@ -813,10 +813,10 @@ void higflow_initialize_viscosity_vevv(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         real val;
-       if (ns->contr.rheotype == PLM) {
+       if (ns->ed.nn_contr.rheotype == PLM) {
            val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, 0.0);
        }
-       if (ns->contr.rheotype == THIXOTROPIC) {
+       if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
            real valstruct;
            valstruct = ns->ed.vevv.get_structpar(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, ns->ed.vevv.par.Phi, ns->ed.vevv.par.Lambda, ns->ed.vevv.par.Gamma);
            val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, valstruct);
@@ -1061,7 +1061,7 @@ void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
 // Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
 void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -1100,7 +1100,7 @@ void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) 
 // Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
 void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Setting the cell iterator
         higcit_celliterator *it;
         // Getting the local domain
@@ -1388,7 +1388,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
             higflow_initialize_viscoelastic_integral_finger_tensor(ns);
         break;
         case VISCOELASTIC_VAR_VISCOSITY:
-            if (ns->contr.rheotype == THIXOTROPIC) {
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
                 //Initialize structural parameter
                 higflow_initialize_structural_parameter(ns);
             }
@@ -1398,7 +1398,7 @@ void higflow_initialize_distributed_properties(higflow_solver *ns) {
             higflow_initialize_viscoelastic_tensor_variable_viscosity(ns);
         break;
         case SHEAR_BANDING:
-            if (ns->contr.rheotype == VCM) {
+            if (ns->ed.nn_contr.rheotype == VCM) {
                //Initialize the density number nA
                higflow_initialize_shear_banding_nA(ns);
                //Initialize the density number nB

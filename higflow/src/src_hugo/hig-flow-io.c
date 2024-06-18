@@ -5043,7 +5043,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
             }
             if (ns->contr.rheotype == THIXOTROPIC)
             {
-                if (ns->ed.vevv.contr.structparmodel == 0)
+                if (ns->ed.vevv.contr.structparmodel == BMP)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
@@ -5065,7 +5065,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                 }
                 
-                if (ns->ed.vevv.contr.structparmodel == 1)
+                if (ns->ed.vevv.contr.structparmodel == BMP_SOLVENT)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
@@ -5087,7 +5087,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                 }
 
-                if (ns->ed.vevv.contr.structparmodel == 2)
+                if (ns->ed.vevv.contr.structparmodel == MBM)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
@@ -5109,7 +5109,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                 }
 
-                if (ns->ed.vevv.contr.structparmodel == 3)
+                if (ns->ed.vevv.contr.structparmodel == NM_TAUP)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
@@ -5131,7 +5131,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                 }
 
-                if (ns->ed.vevv.contr.structparmodel == 4)
+                if (ns->ed.vevv.contr.structparmodel == NM_T)
                 {
                     switch (ns->ed.vevv.contr.structpdiscrtype)
                     {
@@ -5291,7 +5291,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
     {
         // Loading the parameters
         int ifd;
-        ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.model));
+        ifd = fscanf(fd, "%d", &(ns->ed.contr.rheotype));
         ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.discrtype));
         ifd = fscanf(fd, "%d", &(ns->ed.vesb.contr.convecdiscrtype));
         if (ns->contr.rheotype == VCM)
@@ -5302,7 +5302,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
         fclose(fd);
         if (myrank == 0)
         {
-            switch (ns->ed.vesb.contr.model)
+            switch (ns->ed.contr.rheotype)
             {
             case 0:
                 printf("=+=+=+= The Vazquez-McKinley-Cook (VCM) model =+=+=+=\n");
@@ -5372,7 +5372,7 @@ void higflow_save_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
         if (fd != NULL)
         {
             // Saving the parameters
-            fprintf(fd, "%d\n", (ns->ed.vesb.contr.model));
+            fprintf(fd, "%d\n", (ns->ed.contr.rheotype));
             fprintf(fd, "%d\n", (ns->ed.vesb.contr.discrtype));
             fprintf(fd, "%d\n", (ns->ed.vesb.contr.convecdiscrtype));
             if (ns->contr.rheotype == VCM)

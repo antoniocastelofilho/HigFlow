@@ -119,7 +119,7 @@ void higflow_destroy (higflow_solver *ns) {
          case VISCOELASTIC_VAR_VISCOSITY:
            //Destroy the variable viscosity
             dp_destroy(ns->ed.vevv.dpvisc);
-            if (ns->contr.rheotype == THIXOTROPIC) {
+            if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
                 dp_destroy(ns->ed.vevv.dpStructPar);
             }
             //Destroy the viscoelastic tensor
@@ -135,7 +135,7 @@ void higflow_destroy (higflow_solver *ns) {
             break;
         case SHEAR_BANDING:
             //VCM Model
-            if (ns->contr.rheotype == VCM) {
+            if (ns->ed.nn_contr.rheotype == VCM) {
                 //Destroy nA and nB
                 dp_destroy(ns->ed.vesb.dpnA);
                 dp_destroy(ns->ed.vesb.dpnB);
@@ -289,7 +289,7 @@ void higflow_create_solver(higflow_solver *ns) {
         // Set the maximum of non zeros 
         slv_set_maxnonzeros(ns->ed.eo.slvnminus, 800);
     }
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the localdomainsize for cell center
         int localdomainsizenA = psd_get_local_domain_size(ns->ed.vesb.psdSBnA);
         // Creates a solver for nA
@@ -363,7 +363,7 @@ void higflow_realloc_solver(higflow_solver *ns) {
         // Set the maximum of non zeros 
         slv_set_maxnonzeros(ns->ed.eo.slvnminus, 800);
     }
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the localdomainsize for cell center
         int localdomainsizenA = psd_get_local_domain_size(ns->ed.vesb.psdSBnA);
         // Creates a solver for nA
@@ -677,7 +677,7 @@ real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real La
        sd_set_interpolator_order(ns->ed.vevv.sdVisc, order);
        // viscosity function for the domain
        ns->ed.vevv.get_viscosity = get_viscosity;
-       if (ns->contr.rheotype == THIXOTROPIC) {
+       if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
            // Structural parameter function for the domain (For the BMP model, structural parameter=fluidity)
            ns->ed.vevv.get_structpar = get_structpar;
        }
@@ -704,7 +704,7 @@ void higflow_create_domain_viscoelastic_shear_banding (higflow_solver *ns, int c
        sd_set_interpolator_order(ns->ed.sdED, order);
        // function for the domain
        ns->ed.vesb.get_tensor          = get_tensor;
-       if (ns->contr.rheotype == VCM) {
+       if (ns->ed.nn_contr.rheotype == VCM) {
            //Get the function for tensor_A
            ns->ed.vesb.get_tensor_A = get_tensor_A;
            //Get the function for tensor_B
@@ -765,7 +765,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
 // Define the user function for viscoelastic flow
 void higflow_define_user_function_elastoviscoplastic (higflow_solver *ns, 
 void (*calculate_m_user)(real Re, real De, real beta, real Bi, real zeta, real epsilon, real Np, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol, real smallTD, real SD)) {
-    if (ns->ed.vepl.contr.model == -1) {
+    if (ns->ed.vepl.contr.model == GENERAL_SARAMITO) {
        // function for the user viscoelastic model
        ns->ed.vepl.calculate_m_user = calculate_m_user;
     }
@@ -961,7 +961,7 @@ void higflow_create_partitioned_domain_viscoelastic_shear_banding (higflow_solve
         ns->ed.psdED = psd_create(ns->ed.sdED, pg);
         // Synced mapper (for viscoelastic tensors)
         psd_synced_mapper(ns->ed.psdED);
-        if (ns->contr.rheotype == VCM) {
+        if (ns->ed.nn_contr.rheotype == VCM) {
             // Creating the partitioned sub-domain to simulation SB nA
             ns->ed.vesb.psdSBnA = psd_create(ns->ed.vesb.sdSBnA, pg);
             // Synced mapper
@@ -1117,7 +1117,7 @@ void higflow_create_distributed_properties_viscoelastic_variable_viscosity(higfl
          // Distributed property for variable viscosity
          ns->ed.vevv.dpvisc  = psd_create_property(ns->ed.vevv.psdVisc);
          //Distributed property for structural parameter
-         if (ns->contr.rheotype == THIXOTROPIC) {
+         if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
              ns->ed.vevv.dpStructPar  = psd_create_property(ns->ed.vevv.psdVisc);
          }
          // Distributed property for viscoelastic tensor 
@@ -1142,7 +1142,7 @@ void higflow_create_distributed_properties_viscoelastic_shear_banding(higflow_so
               }
         }
          //Distributed property for density numbers nA and nB
-         if (ns->contr.rheotype == VCM) {
+         if (ns->ed.nn_contr.rheotype == VCM) {
              ns->ed.vesb.dpnA  = psd_create_property(ns->ed.vesb.psdSBnA);
              ns->ed.vesb.dpnB  = psd_create_property(ns->ed.vesb.psdSBnB);
              ns->ed.vesb.dpcA  = psd_create_property(ns->ed.psdED);
@@ -1315,11 +1315,11 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
         }
 	// Reunir Daniel
         //Viscoelastic flow with variable viscosity
-        if ((ns->contr.rheotype == PLM) || (ns->contr.rheotype == THIXOTROPIC)) {
+        if ((ns->ed.nn_contr.rheotype == PLM) || (ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
             sd_add_higtree(ns->ed.vevv.sdVisc, root);
         }
         //Viscoelastic flow with shear-banding
-        if ((ns->contr.rheotype == VCM)) {
+        if ((ns->ed.nn_contr.rheotype == VCM)) {
             sd_add_higtree(ns->ed.vesb.sdSBnA, root);
             sd_add_higtree(ns->ed.vesb.sdSBnB, root);
         }

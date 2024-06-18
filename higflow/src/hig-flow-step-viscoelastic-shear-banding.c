@@ -108,7 +108,7 @@ void higflow_compute_viscoelastic_shear_banding_cA_VCM(higflow_solver *ns) {
                Dmin[i][j] =  1.0e16;
            }
         }
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the local sub-domain for the facets
@@ -214,7 +214,7 @@ void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
     real CBeq   = ns->ed.vesb.par.CBeq;
     real chi   = ns->ed.vesb.par.chi;
     real CBMaxMin;
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
         // Get the local sub-domain for the facets
@@ -262,7 +262,7 @@ void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie A using the Explicit Euler Method
 void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real DeA    = ns->ed.vesb.par.DeA;
@@ -368,7 +368,7 @@ void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_A_at_center_cell (ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -377,7 +377,7 @@ void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
                                 rhs += higflow_computational_cell_conformation_tensor_A_shear_banding_VCM_model(ns, ns->ed.sdED, ns->ed.stn, A, ccenter, cdelta, dim, i, j);
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_A_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, A, ccenter, cdelta, dim, i, j);
@@ -488,7 +488,7 @@ void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie B using the Explicit Euler Method
 void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real Re    = ns->par.Re;
         real DeA    = ns->ed.vesb.par.DeA;
@@ -593,7 +593,7 @@ void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_B_at_center_cell (ns, ccenter, cdelta, i, j, B[i][j], dBdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -602,7 +602,7 @@ void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
                                 rhs += higflow_computational_cell_conformation_tensor_B_shear_banding_VCM_model(ns, ns->ed.sdED, ns->ed.stn, B, ccenter, cdelta, dim, i, j);
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_B_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, B, ccenter, cdelta, dim, i, j);
@@ -686,7 +686,7 @@ void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie A using the Implicit Euler Method
 void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -799,7 +799,7 @@ void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_A_at_center_cell (ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -808,7 +808,7 @@ void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
                                 rhs += higflow_computational_cell_conformation_tensor_A_shear_banding_VCM_model(ns, ns->ed.sdED, ns->ed.stn, A, ccenter, cdelta, dim, i, j);
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_A_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, A, ccenter, cdelta, dim, i, j);
@@ -941,7 +941,7 @@ void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
 
 // Solve the Constitutive Equation of specie B using the Implicit Euler Method
 void higflow_implicit_euler_conformation_tensor_B(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real dt    = ns->par.dt;
         real Re    = ns->par.Re;
@@ -1054,7 +1054,7 @@ void higflow_implicit_euler_conformation_tensor_B(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_B_at_center_cell (ns, ccenter, cdelta, i, j, B[i][j], dBdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -1063,7 +1063,7 @@ void higflow_implicit_euler_conformation_tensor_B(higflow_solver *ns) {
                                 rhs += higflow_computational_cell_conformation_tensor_B_shear_banding_VCM_model(ns, ns->ed.sdED, ns->ed.stn, B, ccenter, cdelta, dim, i, j);
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_B_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, B, ccenter, cdelta, dim, i, j);
@@ -1941,7 +1941,7 @@ void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM][DIM*DIM+1], real Omega[D
 
 // Transport equation of the density numbers of specie A using Euler explicit method
 void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2021,7 +2021,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case 0: 
+                case CELL_UPWIND: 
                     // Derivative at cell center
                     hig_flow_derivative_nA_at_center_cell(ns, ccenter, cdelta, nA, dnAdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2034,7 +2034,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *
                     }
                     break;
                 // CUBISTA scheme
-                case 1: 
+                case CELL_CUBISTA: 
                     for (int dim = 0; dim < DIM; dim++) {
                         // Set the computational cell 
                         higflow_computational_cell_shear_banding_VCM_model(ns, sdnA, clid, ccenter, cdelta, dim, ns->ed.vesb.dpnA);
@@ -2067,7 +2067,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *
 
 // Transport equation of the density numbers of specie B using Euler explicit method
 void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2143,7 +2143,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case 0: 
+                case CELL_UPWIND: 
                     // Ionic derivative at cell center
                     hig_flow_derivative_nB_at_center_cell(ns, ccenter, cdelta, nB, dnBdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2156,7 +2156,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *
                     }
                     break;
                 // CUBISTA scheme
-                case 1: 
+                case CELL_CUBISTA: 
                     for (int dim = 0; dim < DIM; dim++) {
                         // Set the computational cell 
                         higflow_computational_cell_shear_banding_VCM_model(ns, sdnB, clid, ccenter, cdelta, dim, ns->ed.vesb.dpnB);
@@ -2189,7 +2189,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *
 
 // Transport equation of the density numbers of specie A using Euler implicit method
 void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2269,7 +2269,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case 0: 
+                case CELL_UPWIND: 
                     // Derivative at cell center
                     hig_flow_derivative_nA_at_center_cell(ns, ccenter, cdelta, nA, dnAdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2280,7 +2280,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
                     }
                     break;
                 // CUBISTA scheme
-                case 1: 
+                case CELL_CUBISTA: 
                     for (int dim = 0; dim < DIM; dim++) {
                         // Set the computational cell 
                         higflow_computational_cell_shear_banding_VCM_model(ns, sdnA, clid, ccenter, cdelta, dim, ns->ed.vesb.dpnA);
@@ -2344,7 +2344,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
 
 // Transport equation of the density numbers of specie B using Euler implicit method
 void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *ns) {
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the cosntants
         real DeA    = ns->ed.vesb.par.DeA;
         real epsilon   = ns->ed.vesb.par.epsilon;
@@ -2420,7 +2420,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case 0: 
+                case CELL_UPWIND: 
                     // Ionic derivative at cell center
                     hig_flow_derivative_nB_at_center_cell(ns, ccenter, cdelta, nB, dnBdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2431,7 +2431,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *
                     }
                     break;
                 // CUBISTA scheme
-                case 1: 
+                case CELL_CUBISTA: 
                     for (int dim = 0; dim < DIM; dim++) {
                         // Set the computational cell 
                         higflow_computational_cell_shear_banding_VCM_model(ns, sdnB, clid, ccenter, cdelta, dim, ns->ed.vesb.dpnB);
@@ -3316,36 +3316,36 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
     // Calculate the velocity derivative tensor
     higflow_compute_velocity_derivative_tensor(ns);
     // Solve the transport equations of the density number of species A and B
-    if (ns->contr.rheotype == VCM) {
+    if (ns->ed.nn_contr.rheotype == VCM) {
         //Calculate the breakage and reformation rates of species A and B
         higflow_compute_viscoelastic_shear_banding_cA_VCM(ns);
         higflow_compute_viscoelastic_shear_banding_cB_VCM(ns);
         //Type of the Discretization of the transport equations to be selected
         switch (ns->ed.vesb.contr.nAnBdiscrtype) {
-            case 0: //Explicit Euler Method
+            case EXPLICIT: //Explicit Euler Method
                 //VCM model
-                switch (ns->ed.vesb.contr.model) {
-                    case 0:
+                switch (ns->ed.contr.rheotype) {
+                    case VCM: // CHANGED
                     //Standard VCM model
                     higflow_explicit_euler_shear_banding_transport_equation_nA(ns);
                     higflow_explicit_euler_shear_banding_transport_equation_nB(ns);
                     break;
-                    case 1:
+                    case mVCM: // CHANGED
                     //New VCM model that could be implemented here
                     higflow_explicit_euler_shear_banding_transport_equation_nA(ns);
                     higflow_explicit_euler_shear_banding_transport_equation_nB(ns);           
                     break;
                 }
             break;
-            case 1: //Implicit Euler Method
+            case IMPLICIT: //Implicit Euler Method
                 //VCM model
-                switch (ns->ed.vesb.contr.model) {
-                    case 0:
+                switch (ns->ed.contr.rheotype) {
+                    case VCM:
                     //Standard VCM model
                     higflow_implicit_euler_shear_banding_transport_equation_nA(ns);
                     higflow_implicit_euler_shear_banding_transport_equation_nB(ns);
                     break;
-                    case 1:
+                    case mVCM:
                     //New VCM model that could be implemented here
                     higflow_explicit_euler_shear_banding_transport_equation_nA(ns);
                     higflow_explicit_euler_shear_banding_transport_equation_nB(ns);           
@@ -3359,14 +3359,14 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
     }
     // Constitutive Equation Step for the Explicit Euler Method
     switch (ns->ed.vesb.contr.discrtype) {
-        case 0:
+        case EXPLICIT:
            // Explicit method
            //Solving the conformation tensor equation of specie A
            higflow_explicit_euler_conformation_tensor_A(ns);
            //Solving the conformation tensor equation of specie B
            higflow_explicit_euler_conformation_tensor_B(ns);
            break;
-        case 1: 
+        case IMPLICIT: 
            // Implicit method
            //Solving the conformation tensor equation of specie A
            higflow_implicit_euler_conformation_tensor_A(ns);

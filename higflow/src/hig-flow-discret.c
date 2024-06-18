@@ -706,7 +706,7 @@ void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_dom
 
 		switch (ns->ed.eo.contr.convecdiscrtype)
 		{
-		case CELL_CENTRAL:
+		case CELL_UPWIND:
 			ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet_l);
 			ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet_r);
 			ns->cc.ucell = 0.5 * (ul + ur);
