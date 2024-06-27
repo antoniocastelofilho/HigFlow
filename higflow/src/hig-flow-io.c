@@ -557,9 +557,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             p3[0] = c->lowpoint[0];
             p3[1] = c->highpoint[1];
 
-            uniqueid id = hig_get_cid(c);
-            int cgid = mp_lookup(m, id);
-
             real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
 
             for (int i = 0; i <= DIM; i++)
@@ -669,9 +666,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             p3[0] = c->lowpoint[0];
             p3[1] = c->highpoint[1];
 
-            uniqueid id = hig_get_cid(c);
-            int cgid = mp_lookup(m, id);
-
             real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
 
             for (int i = 0; i <= DIM; i++)
@@ -779,9 +773,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             p3[0] = c->lowpoint[0];
             p3[1] = c->highpoint[1];
 
-            uniqueid id = hig_get_cid(c);
-            int cgid = mp_lookup(m, id);
-
+            
             real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
 
             for (int i = 0; i <= DIM; i++)
@@ -865,9 +857,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             p2[1] = c->highpoint[1];
             p3[0] = c->lowpoint[0];
             p3[1] = c->highpoint[1];
-
-            uniqueid id = hig_get_cid(c);
-            int cgid = mp_lookup(m, id);
 
             real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
 
@@ -957,8 +946,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             p3[0] = c->lowpoint[0];
             p3[1] = c->highpoint[1];
 
-            uniqueid id = hig_get_cid(c);
-            int cgid = mp_lookup(m, id);
 
             real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
 
@@ -1064,9 +1051,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             p2[1] = c->highpoint[1];
             p3[0] = c->lowpoint[0];
             p3[1] = c->highpoint[1];
-
-            uniqueid id = hig_get_cid(c);
-            int cgid = mp_lookup(m, id);
 
             real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
 
@@ -1199,8 +1183,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             for (it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it))
             {
                 hig_cell *c = higcit_getcell(it);
-                uniqueid id = hig_get_cid(c);
-                int cgid = mp_lookup(m, id);
                 Point cdelta, ccenter, clowpoint, chightpoint;
                 hig_get_delta(c, cdelta);
                 //Point ccenter;
@@ -1226,8 +1208,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 for (it = sd_get_domain_celliterator(sdna); !higcit_isfinished(it); higcit_nextcell(it))
                 {
                     hig_cell *c = higcit_getcell(it);
-                    uniqueid id = hig_get_cid(c);
-                    int cgid = mp_lookup(m, id);
                     Point cdelta, ccenter, clowpoint, chightpoint;
                     hig_get_delta(c, cdelta);
                     //Point ccenter;
@@ -1244,8 +1224,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 for (it = sd_get_domain_celliterator(sdnb); !higcit_isfinished(it); higcit_nextcell(it))
                 {
                     hig_cell *c = higcit_getcell(it);
-                    uniqueid id = hig_get_cid(c);
-                    int cgid = mp_lookup(m, id);
+                    
                     Point cdelta, ccenter, clowpoint, chightpoint;
                     hig_get_delta(c, cdelta);
                     //Point ccenter;
@@ -5091,8 +5070,8 @@ void higflow_save_boundaries_shear_banding(higflow_solver *ns, int myrank, int n
             int nAbc_type; int nAbc_valuetype; int nBbc_type; int nBbc_valuetype;
             ifd = fscanf(fboundary_load,"%d %d %d %d\n",&nAbc_type, &nAbc_valuetype,
                                                         &nBbc_type, &nBbc_valuetype);
-            if(samefile == 0) fprintf(fboundary_save, "%d %d %d %d\n",&nAbc_type, &nAbc_valuetype,
-                                                                      &nBbc_type, &nBbc_valuetype);
+            if(samefile == 0) fprintf(fboundary_save, "%d %d %d %d\n",nAbc_type, nAbc_valuetype,
+                                                                      nBbc_type, nBbc_valuetype);
         }
         fclose(fboundary_load);
         if(samefile == 0) fclose(fboundary_save);
@@ -5518,7 +5497,7 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
         }
 
         /////////// Electroosmotic //////////////
-        int err = fy_document_scanf(fyd_load, "/bc_electroosmotic/number_bc %d", &numbcs);
+        err = fy_document_scanf(fyd_load, "/bc_electroosmotic/number_bc %d", &numbcs);
         if(err != -1) {
 
             for(int h = 0; h < numbcs; h++) {
@@ -6392,6 +6371,547 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
             else {
                 print0f("=+=+=+= Constitutive Equation Integral Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "viscoelastic_var_viscosity") == 0) {
+            /////////////////////////////  Single-phase Viscoelastic var-viscosity Flow /////////////////////////////////
+            
+            ns->contr.flowtype = VISCOELASTIC_VAR_VISCOSITY;
+            print0f("=+=+=+= Flow Type: Viscoelastic - Variable Viscosity =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/adimensional/De %lf", &(ns->ed.vevv.par.De));
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/adimensional/beta %lf", &(ns->ed.vevv.par.beta));
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/adimensional/kernel_tol %lf", &(ns->ed.vevv.par.kernel_tol));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.vevv.par.De);
+            print0f("=+=+=+= Beta ratio: %lf =+=+=+=\n", ns->ed.vevv.par.beta);
+            print0f("=+=+=+= Kernel Tolerance: %lf =+=+=+=\n", ns->ed.vevv.par.kernel_tol);
+
+            //////////////// Viscoelastic Models ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/contr/model %s", auxchar);
+            if (strcmp(auxchar, "oldroyd_b") == 0) {
+                ns->ed.vevv.contr.model = OLDROYD_B;
+                print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "giesekus") == 0) {
+                ns->ed.vevv.contr.model = GIESEKUS;
+                print0f("=+=+=+= Constitutive Equation Model: Giesekus =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_giesekus/alpha %lf", &(ns->ed.vevv.par.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.vevv.par.alpha);
+            }
+            else if (strcmp(auxchar, "lptt") == 0) {
+                ns->ed.vevv.contr.model = LPTT;
+                print0f("=+=+=+= Constitutive Equation Model: LPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_lptt/epsilon %lf", &(ns->ed.vevv.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_lptt/xi %lf", &(ns->ed.vevv.par.xi));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vevv.par.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.vevv.par.xi);
+            }
+            else if (strcmp(auxchar, "gptt") == 0) {
+                ns->ed.vevv.contr.model = GPTT;
+                print0f("=+=+=+= Constitutive Equation Model: GPTT =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/epsilon %lf", &(ns->ed.vevv.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/xi %lf", &(ns->ed.vevv.par.xi));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/alpha_gptt %lf", &(ns->ed.vevv.par.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/beta_gptt %lf", &(ns->ed.vevv.par.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vevv.par.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.vevv.par.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.vevv.par.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.vevv.par.beta_gptt);
+                ns->ed.vevv.par.gamma_gptt = tgamma(ns->ed.vevv.par.beta_gptt);
+            }
+            // else if (strcmp(auxchar, "fene_p") == 0) {
+            //     ns->ed.vevv.contr.model = FENE_P;
+            //     print0f("=+=+=+= Constitutive Equation Model: FENE-P =+=+=+=\n");
+
+            //     ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_fene_p/L2 %lf", &(ns->ed.vevv.par.L2_fene));
+            //     print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.vevv.par.L2_fene);
+            // }
+            // else if (strcmp(auxchar, "e_fene") == 0) {
+            //     ns->ed.vevv.contr.model = E_FENE;
+            //     print0f("=+=+=+= Constitutive Equation Model: e-FENE =+=+=+=\n");
+
+            //     ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_e_fene/L2 %lf", &(ns->ed.vevv.par.L2_fene));
+            //     ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_e_fene/lambda %lf", &(ns->ed.vevv.par.lambda_fene));
+            //     ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_e_fene/E %lf", &(ns->ed.vevv.par.E_fene));
+            //     print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.vevv.par.L2_fene);
+            //     print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.vevv.par.lambda_fene);
+            //     print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.vevv.par.E_fene);
+            // }
+            else if (strcmp(auxchar, "user_set") == 0) {
+                ns->ed.vevv.contr.model = USERSET;
+                print0f("=+=+=+= Constitutive Equation Model: User Set Model =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_giesekus/alpha %lf", &(ns->ed.vevv.par.alpha));
+                print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.vevv.par.alpha);
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_lptt/epsilon %lf", &(ns->ed.vevv.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_lptt/xi %lf", &(ns->ed.vevv.par.xi));
+                print0f("=+=+=+= Epsilon (LPTT): %lf =+=+=+=\n", ns->ed.vevv.par.epsilon);
+                print0f("=+=+=+= Xi (LPTT): %lf =+=+=+=\n", ns->ed.vevv.par.xi);
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/epsilon %lf", &(ns->ed.vevv.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/xi %lf", &(ns->ed.vevv.par.xi));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/alpha_gptt %lf", &(ns->ed.vevv.par.alpha_gptt));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_gptt/beta_gptt %lf", &(ns->ed.vevv.par.beta_gptt));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vevv.par.epsilon);
+                print0f("=+=+=+= Xi: %lf =+=+=+=\n", ns->ed.vevv.par.xi);
+                print0f("=+=+=+= Alpha GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.vevv.par.alpha_gptt);
+                print0f("=+=+=+= Beta GPTT (Mittag-Leffler): %lf =+=+=+=\n", ns->ed.vevv.par.beta_gptt);
+                // ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_fene_p/L2 %lf", &(ns->ed.vevv.par.L2_fene));
+                // print0f("=+=+=+= L2 (FENE-P): %lf =+=+=+=\n", ns->ed.vevv.par.L2_fene);
+                // ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_e_fene/L2 %lf", &(ns->ed.vevv.par.L2_fene));
+                // ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_e_fene/lambda %lf", &(ns->ed.vevv.par.lambda_fene));
+                // ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/model_e_fene/E %lf", &(ns->ed.vevv.par.E_fene));
+                // print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.vevv.par.L2_fene);
+                // print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.vevv.par.lambda_fene);
+                // print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.vevv.par.E_fene);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Model %s: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Thixotropic ////////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/rheotype/ %s", auxchar);
+            if (strcmp(auxchar, "thixotropic") == 0) {
+                ns->ed.nn_contr.rheotype = THIXOTROPIC;
+                print0f("=+=+=+= Thixotropic Model =+=+=+=\n");
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/structpdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "explicit") == 0) {
+                    ns->ed.vevv.contr.structpdiscrtype = EXPLICIT;
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Discretization: Explicit =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "implicit") == 0) {
+                    ns->ed.vevv.contr.structpdiscrtype = IMPLICIT;
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Discretization: Implicit =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/structpconvecdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "upwind") == 0) {
+                    ns->ed.vevv.contr.structpconvecdiscrtype = CELL_UPWIND;
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "cubista") == 0) {
+                    ns->ed.vevv.contr.structpconvecdiscrtype = CELL_CUBISTA;
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/structparmodel %s", auxchar);
+                if (strcmp(auxchar, "bmp") == 0) {
+                    ns->ed.vevv.contr.structparmodel = BMP;
+                    print0f("=+=+=+= Thixotropic Structural Parameter Model: BMP  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "bmp_solvent") == 0) {
+                    ns->ed.vevv.contr.structparmodel = BMP_SOLVENT;
+                    print0f("=+=+=+= Thixotropic Structural Parameter Model: BMP-Solvent  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "mbm") == 0) {
+                    ns->ed.vevv.contr.structparmodel = MBM;
+                    print0f("=+=+=+= Thixotropic Structural Parameter Model: MBM  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "nm_taup") == 0) {
+                    ns->ed.vevv.contr.structparmodel = NM_TAUP;
+                    print0f("=+=+=+= Thixotropic Structural Parameter Model: NM-Taup  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "nm_t") == 0) {
+                    ns->ed.vevv.contr.structparmodel = NM_T;
+                    print0f("=+=+=+= Thixotropic Structural Parameter Model: NM-T  =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= Thixotropic Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/Lambda %lf", &(ns->ed.vevv.par.Lambda));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/Phi %lf", &(ns->ed.vevv.par.Phi));
+                ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/Gamma %lf", &(ns->ed.vevv.par.Gamma));
+                print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.vevv.par.Lambda);
+                print0f("=+=+=+= Phi: %lf =+=+=+=\n", ns->ed.vevv.par.Phi);
+                print0f("=+=+=+= Gamma: %lf =+=+=+=\n", ns->ed.vevv.par.Gamma);
+
+            }
+            if (strcmp(auxchar, "plm") == 0) {
+                ns->ed.nn_contr.rheotype = PLM;
+                print0f("=+=+=+= Power-Law Model =+=+=+=\n");
+                print0f("=+=+=+= Parameters for PLM are given in the main file =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Rheological Model %s for Viscoelastic Variable Viscosity: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Viscoelastic Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.vevv.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.vevv.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.vevv.contr.convecdiscrtype = CELL_UPWIND;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.vevv.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "shear_banding") == 0) {
+            /////////////////////////////  Single-phase Shear-Banding Flow /////////////////////////////////
+            
+            ns->contr.flowtype = SHEAR_BANDING;
+            print0f("=+=+=+= Flow Type: Shear-Banding =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/adimensional/De %lf", &(ns->ed.vesb.par.De));
+            ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/adimensional/beta %lf", &(ns->ed.vesb.par.beta));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.vesb.par.De);
+            print0f("=+=+=+= Beta ratio: %lf =+=+=+=\n", ns->ed.vesb.par.beta);
+
+            //////////////// VCM ////////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/rheotype/ %s", auxchar);
+            if (strcmp(auxchar, "vcm") == 0) {
+                ns->ed.nn_contr.rheotype = VCM;
+                print0f("=+=+=+= Vasquez-Cook-Mckinley Model =+=+=+=\n");
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/nAnBdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "explicit") == 0) {
+                    ns->ed.vesb.contr.nAnBdiscrtype = EXPLICIT;
+                    print0f("=+=+=+= VCM Constitutive Equation Discretization: Explicit =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "implicit") == 0) {
+                    ns->ed.vesb.contr.nAnBconvecdiscrtype = IMPLICIT;
+                    print0f("=+=+=+= VCM Constitutive Equation Discretization: Implicit =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= VCM Constitutive Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/nAnBconvecdiscrtype %s", auxchar);
+                if (strcmp(auxchar, "upwind") == 0) {
+                    ns->ed.vesb.contr.nAnBconvecdiscrtype = CELL_UPWIND;
+                    print0f("=+=+=+= VCM Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+                }
+                else if (strcmp(auxchar, "cubista") == 0) {
+                    ns->ed.vesb.contr.nAnBconvecdiscrtype = CELL_CUBISTA;
+                    print0f("=+=+=+= VCM Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+                }
+                else {
+                    print0f("=+=+=+= VCM Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                    exit(1);
+                }
+
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/DeA %lf", &(ns->ed.vesb.par.DeA));
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/epsilon %lf", &(ns->ed.vesb.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/PeA %lf", &(ns->ed.vesb.par.PeA));
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/PeB %lf", &(ns->ed.vesb.par.PeB));
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/chi %lf", &(ns->ed.vesb.par.chi));
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/CAeq %lf", &(ns->ed.vesb.par.CAeq));
+                ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/CBeq %lf", &(ns->ed.vesb.par.CBeq));
+                print0f("=+=+=+= Deborah-A: %lf =+=+=+=\n", ns->ed.vesb.par.DeA);
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vesb.par.epsilon);
+                print0f("=+=+=+= Péclet-A: %lf =+=+=+=\n", ns->ed.vesb.par.PeA);
+                print0f("=+=+=+= Péclet-B: %lf =+=+=+=\n", ns->ed.vesb.par.PeB);
+                print0f("=+=+=+= Chi: %lf =+=+=+=\n", ns->ed.vesb.par.chi);
+                print0f("=+=+=+= CA: %lf =+=+=+=\n", ns->ed.vesb.par.CAeq);
+                print0f("=+=+=+= CB: %lf =+=+=+=\n", ns->ed.vesb.par.CBeq);
+
+            }
+            else {
+                print0f("=+=+=+= Rheological Model %s for Shear-Banding: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Viscoelastic Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.vesb.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.vesb.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.vesb.contr.convecdiscrtype = CELL_UPWIND;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.vesb.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "elastoviscoplastic") == 0) {
+            /////////////////////////////  Single-phase Elastoviscoplastic Flow /////////////////////////////////
+            
+            ns->contr.flowtype = ELASTOVISCOPLASTIC;
+            print0f("=+=+=+= Flow Type: Elastoviscoplastic =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/adimensional/De %lf", &(ns->ed.vepl.par.De));
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/adimensional/beta %lf", &(ns->ed.vepl.par.beta));
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/adimensional/kernel_tol %lf", &(ns->ed.vepl.par.kernel_tol));
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/adimensional/Bi %lf", &(ns->ed.vepl.par.Bi));
+            print0f("=+=+=+= Deborah Number: %lf =+=+=+=\n", ns->ed.vepl.par.De);
+            print0f("=+=+=+= Beta ratio: %lf =+=+=+=\n", ns->ed.vepl.par.beta);
+            print0f("=+=+=+= Kernel Tolerance: %lf =+=+=+=\n", ns->ed.vepl.par.kernel_tol);
+            print0f("=+=+=+= Bingham Number: %lf =+=+=+=\n", ns->ed.vepl.par.Bi);
+
+            //////////////// Elastoviscoplastic Models ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/contr/model %s", auxchar);
+            if (strcmp(auxchar, "oldroyd_b_bingham") == 0) {
+                ns->ed.vepl.contr.model = OLDROYD_B_BINGHAM;
+                print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B Bingham =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "oldroyd_b_hb") == 0) {
+                ns->ed.vepl.contr.model = OLDROYD_B_HB;
+                print0f("=+=+=+= Constitutive Equation Model: Oldroyd-B HB =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/oldroyd_b_hb/Np %lf", &(ns->ed.vepl.par.Np));
+                print0f("=+=+=+= Power-Law Coefficient (Np): %lf =+=+=+=\n", ns->ed.vepl.par.Np);
+            }
+            else if (strcmp(auxchar, "lptt_bingham") == 0) {
+                ns->ed.vepl.contr.model = LPTT_BINGHAM;
+                print0f("=+=+=+= Constitutive Equation Model: LPTT Bingham =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/lptt_bingham/epsilon %lf", &(ns->ed.vepl.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/lptt_bingham/zeta %lf", &(ns->ed.vepl.par.zeta));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vepl.par.epsilon);
+                print0f("=+=+=+= Zeta (Xi): %lf =+=+=+=\n", ns->ed.vepl.par.zeta);
+            }
+            else if (strcmp(auxchar, "eptt_bingham") == 0) {
+                ns->ed.vepl.contr.model = EPTT_BINGHAM;
+                print0f("=+=+=+= Constitutive Equation Model: EPTT Bingham =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/eptt_bingham/epsilon %lf", &(ns->ed.vepl.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/eptt_bingham/zeta %lf", &(ns->ed.vepl.par.zeta));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vepl.par.epsilon);
+                print0f("=+=+=+= Zeta (Xi): %lf =+=+=+=\n", ns->ed.vepl.par.zeta);
+            }
+            // else if (strcmp(auxchar, "fene_p") == 0) {
+            //     ns->ed.vepl.contr.model = FENE_P;
+            //     print0f("=+=+=+= Constitutive Equation Model: FENE-P =+=+=+=\n");
+
+            //     ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_fene_p/L2 %lf", &(ns->ed.vepl.par.L2_fene));
+            //     print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.vepl.par.L2_fene);
+            // }
+            // else if (strcmp(auxchar, "e_fene") == 0) {
+            //     ns->ed.vepl.contr.model = E_FENE;
+            //     print0f("=+=+=+= Constitutive Equation Model: e-FENE =+=+=+=\n");
+
+            //     ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_e_fene/L2 %lf", &(ns->ed.vepl.par.L2_fene));
+            //     ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_e_fene/lambda %lf", &(ns->ed.vepl.par.lambda_fene));
+            //     ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_e_fene/E %lf", &(ns->ed.vepl.par.E_fene));
+            //     print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.vepl.par.L2_fene);
+            //     print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.vepl.par.lambda_fene);
+            //     print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.vepl.par.E_fene);
+            // }
+            else if (strcmp(auxchar, "general_saramito") == 0) {
+                ns->ed.vepl.contr.model = GENERAL_SARAMITO;
+                print0f("=+=+=+= Constitutive Equation Model: General Saramito (User Set) Model =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/oldroyd_b_hb/Np %lf", &(ns->ed.vepl.par.Np));
+                print0f("=+=+=+= Power-Law Coefficient (Np): %lf =+=+=+=\n", ns->ed.vepl.par.Np);
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/lptt_bingham/epsilon %lf", &(ns->ed.vepl.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/lptt_bingham/zeta %lf", &(ns->ed.vepl.par.zeta));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vepl.par.epsilon);
+                print0f("=+=+=+= Zeta (Xi): %lf =+=+=+=\n", ns->ed.vepl.par.zeta);
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/eptt_bingham/epsilon %lf", &(ns->ed.vepl.par.epsilon));
+                ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/eptt_bingham/zeta %lf", &(ns->ed.vepl.par.zeta));
+                print0f("=+=+=+= Epsilon: %lf =+=+=+=\n", ns->ed.vepl.par.epsilon);
+                print0f("=+=+=+= Zeta (Xi): %lf =+=+=+=\n", ns->ed.vepl.par.zeta);
+            
+                // ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_fene_p/L2 %lf", &(ns->ed.vepl.par.L2_fene));
+                // print0f("=+=+=+= L2 (FENE-P): %lf =+=+=+=\n", ns->ed.vepl.par.L2_fene);
+                // ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_e_fene/L2 %lf", &(ns->ed.vepl.par.L2_fene));
+                // ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_e_fene/lambda %lf", &(ns->ed.vepl.par.lambda_fene));
+                // ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/model_e_fene/E %lf", &(ns->ed.vepl.par.E_fene));
+                // print0f("=+=+=+= L2: %lf =+=+=+=\n", ns->ed.vepl.par.L2_fene);
+                // print0f("=+=+=+= Lambda: %lf =+=+=+=\n", ns->ed.vepl.par.lambda_fene);
+                // print0f("=+=+=+= E: %lf =+=+=+=\n", ns->ed.vepl.par.E_fene);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Model %s: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Elastoviscoplastic Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.vepl.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.vepl.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Omega Terms Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.vepl.contr.convecdiscrtype = CELL_UPWIND;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.vepl.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+        }
+        else if (strcmp(auxchar, "suspensions") == 0) {
+            /////////////////////////////  Single-phase Suspensions Flow /////////////////////////////////
+            
+            ns->contr.flowtype = SUSPENSIONS;
+            print0f("=+=+=+= Flow Type: Suspensions =+=+=+=\n");
+
+            //////////////// General Parameters ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/suspensions/dimensional/alpha %lf", &(ns->ed.stsp.par.alpha));
+            ifd += fy_document_scanf(fyd, "/singlephase/suspensions/dimensional/eta0 %lf", &(ns->ed.stsp.par.eta0));
+            ifd += fy_document_scanf(fyd, "/singlephase/suspensions/dimensional/beta %lf", &(ns->ed.stsp.par.beta));
+            print0f("=+=+=+= Alpha: %lf =+=+=+=\n", ns->ed.stsp.par.alpha);
+            print0f("=+=+=+= Eta0: %lf =+=+=+=\n", ns->ed.stsp.par.eta0);
+            print0f("=+=+=+= Beta: %lf =+=+=+=\n", ns->ed.stsp.par.beta);
+
+            //////////////// Suspensions Models ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/suspensions/contr/model %s", auxchar);
+            if (strcmp(auxchar, "gw") == 0) {
+                ns->ed.stsp.contr.model = GW;
+                print0f("=+=+=+= Constitutive Equation Model: GW =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "gw_wc") == 0) {
+                ns->ed.stsp.contr.model = GW_WC;
+                print0f("=+=+=+= Constitutive Equation Model: GW-WC =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/chij1 %lf", &(ns->ed.stsp.par.chij1));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/chij2 %lf", &(ns->ed.stsp.par.chij2));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/X0 %lf", &(ns->ed.stsp.par.X0));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/phi %lf", &(ns->ed.stsp.par.phi));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/Pic %lf", &(ns->ed.stsp.par.Pic));
+                print0f("=+=+=+= Chij1: %lf =+=+=+=\n", ns->ed.stsp.par.chij1);
+                print0f("=+=+=+= Chij2: %lf =+=+=+=\n", ns->ed.stsp.par.chij2);
+                print0f("=+=+=+= X0: %lf =+=+=+=\n", ns->ed.stsp.par.X0);
+                print0f("=+=+=+= Phi: %lf =+=+=+=\n", ns->ed.stsp.par.phi);
+                print0f("=+=+=+= Pic: %lf =+=+=+=\n", ns->ed.stsp.par.Pic);
+            }
+            else if (strcmp(auxchar, "gw_wc_if") == 0) {
+                ns->ed.stsp.contr.model = GW_WC_IF;
+                print0f("=+=+=+= Constitutive Equation Model: GW-WC Inhomogeneous Flows =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/chij1 %lf", &(ns->ed.stsp.par.chij1));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/chij2 %lf", &(ns->ed.stsp.par.chij2));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/X0 %lf", &(ns->ed.stsp.par.X0));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/phi %lf", &(ns->ed.stsp.par.phi));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/Pic %lf", &(ns->ed.stsp.par.Pic));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/gdrms %lf", &(ns->ed.stsp.par.gdrms));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/apsize %lf", &(ns->ed.stsp.par.apsize));
+                print0f("=+=+=+= Chij1: %lf =+=+=+=\n", ns->ed.stsp.par.chij1);
+                print0f("=+=+=+= Chij2: %lf =+=+=+=\n", ns->ed.stsp.par.chij2);
+                print0f("=+=+=+= X0: %lf =+=+=+=\n", ns->ed.stsp.par.X0);
+                print0f("=+=+=+= Phi: %lf =+=+=+=\n", ns->ed.stsp.par.phi);
+                print0f("=+=+=+= Pic: %lf =+=+=+=\n", ns->ed.stsp.par.Pic);
+                print0f("=+=+=+= (dot)gamma_rms (gdrms): %lf =+=+=+=\n", ns->ed.stsp.par.gdrms);
+                print0f("=+=+=+= Adimensional Particle Size (apsize): %lf =+=+=+=\n", ns->ed.stsp.par.apsize);
+            }
+            else if (strcmp(auxchar, "userset") == 0) {
+                ns->ed.stsp.contr.model = USERSET_SM;
+                print0f("=+=+=+= Constitutive Equation Model: General Saramito (User Set) Model =+=+=+=\n");
+
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/chij1 %lf", &(ns->ed.stsp.par.chij1));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/chij2 %lf", &(ns->ed.stsp.par.chij2));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/X0 %lf", &(ns->ed.stsp.par.X0));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/phi %lf", &(ns->ed.stsp.par.phi));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc/Pic %lf", &(ns->ed.stsp.par.Pic));
+                print0f("=+=+=+= Chij1: %lf =+=+=+=\n", ns->ed.stsp.par.chij1);
+                print0f("=+=+=+= Chij2: %lf =+=+=+=\n", ns->ed.stsp.par.chij2);
+                print0f("=+=+=+= X0: %lf =+=+=+=\n", ns->ed.stsp.par.X0);
+                print0f("=+=+=+= Phi: %lf =+=+=+=\n", ns->ed.stsp.par.phi);
+                print0f("=+=+=+= Pic: %lf =+=+=+=\n", ns->ed.stsp.par.Pic);
+                 ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/chij1 %lf", &(ns->ed.stsp.par.chij1));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/chij2 %lf", &(ns->ed.stsp.par.chij2));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/X0 %lf", &(ns->ed.stsp.par.X0));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/phi %lf", &(ns->ed.stsp.par.phi));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/Pic %lf", &(ns->ed.stsp.par.Pic));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/gdrms %lf", &(ns->ed.stsp.par.gdrms));
+                ifd += fy_document_scanf(fyd, "/singlephase/suspensions/gw_wc_if/apsize %lf", &(ns->ed.stsp.par.apsize));
+                print0f("=+=+=+= Chij1: %lf =+=+=+=\n", ns->ed.stsp.par.chij1);
+                print0f("=+=+=+= Chij2: %lf =+=+=+=\n", ns->ed.stsp.par.chij2);
+                print0f("=+=+=+= X0: %lf =+=+=+=\n", ns->ed.stsp.par.X0);
+                print0f("=+=+=+= Phi: %lf =+=+=+=\n", ns->ed.stsp.par.phi);
+                print0f("=+=+=+= Pic: %lf =+=+=+=\n", ns->ed.stsp.par.Pic);
+                print0f("=+=+=+= (dot)gamma_rms (gdrms): %lf =+=+=+=\n", ns->ed.stsp.par.gdrms);
+                print0f("=+=+=+= Adimensional Particle Size (apsize): %lf =+=+=+=\n", ns->ed.stsp.par.apsize);
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Model %s: Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            //////////////// Other Suspensions Controllers ///////////////
+            ifd += fy_document_scanf(fyd, "/singlephase/suspensions/contr/discrtype %s", auxchar);
+            if (strcmp(auxchar, "explicit") == 0) {
+                ns->ed.stsp.contr.discrtype = EXPLICIT;
+                print0f("=+=+=+= Constitutive Equation Discretization: Explicit =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "implicit") == 0) {
+                ns->ed.stsp.contr.discrtype = IMPLICIT;
+                print0f("=+=+=+= Constitutive Equation Discretization: Implicit =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Discretization %s Invalid =+=+=+=\n", auxchar);
+                exit(1);
+            }
+
+            ifd += fy_document_scanf(fyd, "/singlephase/suspensions/contr/convecdiscrtype %s", auxchar);
+            if (strcmp(auxchar, "upwind") == 0) {
+                ns->ed.stsp.contr.convecdiscrtype = CELL_UPWIND;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+            }
+            else if (strcmp(auxchar, "cubista") == 0) {
+                ns->ed.stsp.contr.convecdiscrtype = CELL_CUBISTA;
+                print0f("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
+            }
+            else {
+                print0f("=+=+=+= Constitutive Equation Convective Term %s Invalid =+=+=+=\n", auxchar);
                 exit(1);
             }
         }
@@ -8547,7 +9067,7 @@ void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.De));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.beta));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.epsilon));
-        ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.psi));
+        ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.xi));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.alpha));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.kernel_tol));
         ifd = fscanf(fd, "%lf", &(ns->ed.vevv.par.alpha_gptt));
@@ -8594,7 +9114,7 @@ void higflow_save_viscoelastic_variable_viscosity_parameters(higflow_solver *ns,
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.De));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.beta));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.epsilon));
-            fprintf(fd, "%lf\n", (ns->ed.vevv.par.psi));
+            fprintf(fd, "%lf\n", (ns->ed.vevv.par.xi));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.alpha));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.kernel_tol));
             fprintf(fd, "%lf\n", (ns->ed.vevv.par.alpha_gptt));
@@ -8922,7 +9442,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
     {
         // Loading the parameters
         int ifd;
-        ifd = fscanf(fd, "%d", (int *)&(ns->ed.contr.rheotype));
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.nn_contr.rheotype));
         ifd = fscanf(fd, "%d", (int *)&(ns->ed.vesb.contr.discrtype));
         ifd = fscanf(fd, "%d", (int *)&(ns->ed.vesb.contr.convecdiscrtype));
         if (ns->ed.nn_contr.rheotype == VCM)
@@ -8933,7 +9453,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
         fclose(fd);
         if (myrank == 0)
         {
-            switch (ns->ed.contr.rheotype)
+            switch (ns->ed.nn_contr.rheotype)
             {
             case VCM:
                 printf("=+=+=+= The Vazquez-McKinley-Cook (VCM) model =+=+=+=\n");
@@ -9003,7 +9523,7 @@ void higflow_save_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
         if (fd != NULL)
         {
             // Saving the parameters
-            fprintf(fd, "%d\n", (int)(ns->ed.contr.rheotype));
+            fprintf(fd, "%d\n", (int)(ns->ed.nn_contr.rheotype));
             fprintf(fd, "%d\n", (int)(ns->ed.vesb.contr.discrtype));
             fprintf(fd, "%d\n", (int)(ns->ed.vesb.contr.convecdiscrtype));
             if (ns->ed.nn_contr.rheotype == VCM)

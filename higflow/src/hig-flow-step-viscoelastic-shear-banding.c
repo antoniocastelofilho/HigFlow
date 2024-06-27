@@ -2719,7 +2719,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_shear_banding(hig
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Compute the intermediate velocity
@@ -2995,7 +2995,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_banding(hi
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5*higflow_difusive_term(ns, fdelta);
+            rhs += 0.5*higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -3110,7 +3110,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solv
             // Total contribuition terms times delta t
             rhs *= 0.5*ns->par.dt;
             // Difusive term contribution
-            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
             rhs += ns->cc.ucell;
             // Reset the stencil
@@ -3324,7 +3324,7 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
         switch (ns->ed.vesb.contr.nAnBdiscrtype) {
             case EXPLICIT: //Explicit Euler Method
                 //VCM model
-                switch (ns->ed.contr.rheotype) {
+                switch (ns->ed.nn_contr.rheotype) {
                     case VCM: // CHANGED
                     //Standard VCM model
                     higflow_explicit_euler_shear_banding_transport_equation_nA(ns);
@@ -3339,7 +3339,7 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
             break;
             case IMPLICIT: //Implicit Euler Method
                 //VCM model
-                switch (ns->ed.contr.rheotype) {
+                switch (ns->ed.nn_contr.rheotype) {
                     case VCM:
                     //Standard VCM model
                     higflow_implicit_euler_shear_banding_transport_equation_nA(ns);

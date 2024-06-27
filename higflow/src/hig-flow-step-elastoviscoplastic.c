@@ -877,7 +877,7 @@ void higflow_explicit_euler_intermediate_velocity_elastoviscoplastic(higflow_sol
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
             real ustar = ns->cc.ucell + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
@@ -1153,7 +1153,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_elastoviscoplast
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5 * higflow_difusive_term(ns, fdelta);
+            rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution

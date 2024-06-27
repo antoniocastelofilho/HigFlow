@@ -37,6 +37,12 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
 // Navier-Stokes initialize the domain and boudaries
 void higflow_initialize_boundaries(higflow_solver *ns); 
 
+// Creating and setting the boundary condition for the density number nA (viscoelastic flows with shear-banding)
+void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nAbctypes[], bc_valuetype nAbcvaluetype[]);
+
+// Creating and setting the boundary condition for the density number nB (viscoelastic flows with shear-banding)
+void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nBbctypes[], bc_valuetype nBbcvaluetype[]);
+
 // Navier-Stokes initialize the domain and boudaries
 void higflow_initialize_boundaries_yaml(higflow_solver *ns);
 

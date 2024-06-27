@@ -560,7 +560,7 @@ typedef struct vevv_parameters
     // LPTT parameter
     real epsilon;
     // LPTT parameter
-    real psi;
+    real xi;
     // Giesekus parameter
     real alpha;
     // Kernel tolerance parameter

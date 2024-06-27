@@ -66,6 +66,51 @@ void higflow_initialize_electroosmotic_nplus(higflow_solver *ns);
 // Initialize the electro-osmotic nminus
 void higflow_initialize_electroosmotic_nminus(higflow_solver *ns);
 
+// Initialize the viscosity for viscoelastic flows
+void higflow_initialize_viscosity_vevv(higflow_solver *ns);
+
+// Initialize the structural parameter for viscoelastic flows
+void higflow_initialize_structural_parameter(higflow_solver *ns);
+
+// Initialize the Non-Newtonian Tensor for viscoelastic flows with variable viscosity
+void higflow_initialize_viscoelastic_tensor_variable_viscosity(higflow_solver *ns);
+
+// Initialize the shear-banding density number nA
+void higflow_initialize_shear_banding_nA(higflow_solver *ns);
+
+// Initialize the shear-banding density number nB
+void higflow_initialize_shear_banding_nB(higflow_solver *ns);
+
+// Initialize the concentration of specie A (cA)
+void higflow_initialize_shear_banding_cA(higflow_solver *ns);
+
+// Initialize the concentration of specie B (cB)
+void higflow_initialize_shear_banding_cB(higflow_solver *ns);
+
+// Initialize the Non-Newtonian Tensor for viscoelastic flows with shear-banding
+void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns);
+
+// Initialize the conformation tensor of specie A for viscoelastic flows with shear-banding
+void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns);
+
+// Initialize the conformation tensor of specie B for viscoelastic flows with shear-banding
+void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns);
+
+// Initialize the Non-Newtonian Tensor
+void higflow_initialize_elastoviscoplastic_tensor(higflow_solver *ns);
+
+// Initialize the Tensor S for shear-thickening suspension
+void higflow_initialize_shear_thickening_suspension_tensor(higflow_solver *ns);
+
+// Initialize the microstructure tensor A for shear-thickening suspension
+void higflow_initialize_shear_thickening_suspension_microstructure_tensor(higflow_solver *ns);
+
+// Initialize the volume fraction for shear thickening suspensions (with particle migration)
+void higflow_initialize_volume_fraction(higflow_solver *ns);
+
+// Initialize the energy source term for non-isothermal flows
+void higflow_initialize_energy_source_term(higflow_solver *ns);
+
 // Initialize the velocities
 void higflow_initialize_velocity(higflow_solver *ns); 
 

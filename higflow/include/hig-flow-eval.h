@@ -88,5 +88,18 @@ real compute_cell_u_bar_1(sim_domain *sdp, Point center, Point delta, int dim, r
 // Get the left facet value of a facet property for tensor CUBISTA term
 real compute_cell_u_bar_2(sim_domain *sdp, Point center, Point delta, int dim, real alpha, distributed_property *dpu, sim_stencil *stn, int *incell);
 
+//These functions are used to calculate the second deritatives of the stress tensor (crossed derivatives)
+
+// Get the left facet value of a cell property
+real compute_center_p_left_2_1(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn);
+
+// Get the right facet value of a cell property
+real compute_center_p_right_2_1(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn);
+
+// Get the left facet value of a cell property
+real compute_center_p_left_2_r(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn);
+
+// Get the right facet value of a cell property
+real compute_center_p_right_2_r(sim_domain *sdp, Point center, Point delta, int dim, int dim2, real alpha, distributed_property *dpp, sim_stencil *stn);
 
 #endif

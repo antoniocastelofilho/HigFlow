@@ -279,7 +279,7 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             switch (ns->ed.vevv.contr.model) {
                 case USERSET: 
                     // User Model
-                    ns->ed.ve.calculate_m_user(ns->par.Re, ns->ed.vevv.par.De, ns->ed.vevv.par.beta, tr, lambda, R, M, M_aux, tol);
+                    ns->ed.vevv.calculate_m_user(ns->par.Re, ns->ed.vevv.par.De, ns->ed.vevv.par.beta, tr, lambda, R, M, M_aux, tol);
                     break;
                 case OLDROYD_B: 
                     // Oldroyd Model
@@ -646,7 +646,7 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             switch (ns->ed.vevv.contr.model) {
                 case USERSET: 
                     // User Model
-                    ns->ed.ve.calculate_m_user(ns->par.Re, ns->ed.vevv.par.De, ns->ed.vevv.par.beta, tr, lambda, R, M, M_aux, tol);
+                    ns->ed.vevv.calculate_m_user(ns->par.Re, ns->ed.vevv.par.De, ns->ed.vevv.par.beta, tr, lambda, R, M, M_aux, tol);
                     break;
                 case OLDROYD_B: 
                     // Oldroyd Model
@@ -816,7 +816,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_variable_viscosit
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
-            rhs += higflow_difusive_term(ns, fdelta);
+            rhs += higflow_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
             real ustar = ns->cc.ucell + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
@@ -1092,7 +1092,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_var
             // Right hand side equation
             real rhs = 0.0;
             // Diffusive term term contribution
-            rhs += 0.5 * higflow_difusive_term(ns, fdelta);
+            rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -1658,7 +1658,7 @@ void hig_flow_calculate_m_giesekus (higflow_solver *ns, real lambda[DIM], real M
         }
         real jlambda = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
         real aux     = 1.0-lambda[i];
-        M_aux[i][i]  = (aux - ns->ed.ve.par.alpha*aux*aux)*jlambda;
+        M_aux[i][i]  = (aux - ns->ed.vevv.par.alpha*aux*aux)*jlambda;
     }
 }
 
@@ -1687,7 +1687,7 @@ void hig_flow_calculate_m_lptt (higflow_solver *ns, real tr, real lambda[DIM],  
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.vevv.par.De*ns->ed.vevv.par.psi*jlambda[j];
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.vevv.par.De*ns->ed.vevv.par.xi*jlambda[j];
         }
     }
 }
@@ -1713,19 +1713,19 @@ void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  
             M_aux[j][i] = 0.0;
         }
         jlambda[i]   = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
-	real alfa1 = ns->ed.ve.par.alpha_gptt;
-	real beta1 = ns->ed.ve.par.beta_gptt;
-	real gama1 = ns->ed.ve.par.gamma_gptt;
+	real alfa1 = ns->ed.vevv.par.alpha_gptt;
+	real beta1 = ns->ed.vevv.par.beta_gptt;
+	real gama1 = ns->ed.vevv.par.gamma_gptt;
 	//real gama1, gama1n; 
 	//gama1 = 0.572365;
         //gama1n = lgamma(beta1);
         numc z, mitt;
-	z.real = ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr/(1.0-ns->ed.ve.par.beta);
+	z.real = ns->ed.vevv.par.epsilon*ns->par.Re*ns->ed.vevv.par.De*tr/(1.0-ns->ed.vevv.par.beta);
 	z.imag = 0.0;
 	mitt   =  mlfv(alfa1,beta1, z, 6);
         // Exponêncial
         //real mittreal;
-        //mittreal = exp(ns->ed.ve.par.epsilon*ns->par.Re*ns->ed.ve.par.De*tr);
+        //mittreal = exp(ns->ed.vevv.par.epsilon*ns->par.Re*ns->ed.vevv.par.De*tr);
         /*if(gama1==0)
          printf("Gamma1=0");
         else
@@ -1743,7 +1743,7 @@ void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  
     }
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.ve.par.De*ns->ed.ve.par.psi*jlambda[j];
+            M_aux[i][j] += -2.0*(B[i][j]-B[i][j]*lambda[j])*ns->ed.vevv.par.De*ns->ed.vevv.par.xi*jlambda[j];
         }
     }
 }
