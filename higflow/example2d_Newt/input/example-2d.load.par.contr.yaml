@@ -1,5 +1,5 @@
 simulation_par:
-  numsteps: 101                         # The Maximum Number of Steps 
+  numsteps: 501                         # The Maximum Number of Steps 
   dt: 0.001                       # The Time spacing 
   dts: 0.01                         # The Time spacing for saving data (output) 
   dtp: 0.01                         # The Time spacing for saving VTKs
@@ -82,7 +82,7 @@ singlephase:
       model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt or user_set
       discrtype: explicit            # explicit or implicit
       convecdiscrtype: cubista       # upwind or cubista
-   adimensional:
+    adimensional:
       De: 1.0                        # Deborah Number         De = λU/H
       beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
       kernel_tol: 1.0e-2             # kernel function interpolation tolerance
@@ -132,12 +132,12 @@ singlephase:
       beta: 0.01                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
       kernel_tol: 1.0e-2             # kernel function interpolation tolerance
       Bi:  1.0                       # Bingham number bi
-   oldroyd_b_hb:
+    oldroyd_b_hb:
       Np:  1.0                          # power-law coefficient
-   lptt_bingham:
+    lptt_bingham:
       epsilon: 0.1                      # extensional fluid response parameter
       zeta: 0.0                     # Gordon-schowalter non-affine motion parameter zeta
-   eptt_bingham:
+    eptt_bingham:
       epsilon: 0.1                      # extensional fluid response parameter
       zeta: 0.0                     # Gordon-schowalter non-affine motion parameter zeta      
       

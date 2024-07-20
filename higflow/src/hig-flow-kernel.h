@@ -1087,7 +1087,7 @@ typedef struct higflow_multiphase{
 
 
 typedef struct non_newtonian_controllers {
-    // Rheological Flow Type : 2 Power Law Model, 3 ThixoTropic Model, 4 VCM
+    // Rheological Flow Type : 2 Power Law Model, 3 ThixoTropic Model, 4 VCM, 5 mVCM
     rheo_type rheotype;
 } non_newtonian_controllers;
 

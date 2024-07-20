@@ -1,5 +1,5 @@
 simulation_par:
-  numsteps: 101                         # The Maximum Number of Steps 
+  numsteps: 501                         # The Maximum Number of Steps 
   dt: 0.001                       # The Time spacing 
   dts: 0.01                         # The Time spacing for saving data (output) 
   dtp: 0.01                         # The Time spacing for saving VTKs
@@ -23,6 +23,9 @@ singlephase:
   contr:
     flowtype: newtonian          # newtonian, generalized_newtonian, viscoelastic or viscoelastic_integral
     eoflow: false              # for electrosmotic flow - true or false 
+    
+  rheotype: thixotropic          # plm (power-law-model), thixotropic or vcm
+    
   viscoelastic:
     contr:
       model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
@@ -73,6 +76,96 @@ singlephase:
       beta_frac: 0.175                            # fractional exponent
       V_fmm: 8.02e-4                              # fractional maxwell model parameter
       G_fmm: 1.03e-5                              # fractional maxwell model parameter
+
+  viscoelastic_var_viscosity:
+    contr:
+      model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt or user_set
+      discrtype: explicit            # explicit or implicit
+      convecdiscrtype: cubista       # upwind or cubista
+    adimensional:
+      De: 1.0                        # Deborah Number         De = λU/H
+      beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
+      kernel_tol: 1.0e-2             # kernel function interpolation tolerance
+    model_lptt:
+      epsilon: 0.25                  # extensional fluid response parameter
+      xi: 0.0                        # continuum slip parameter
+    model_gptt:
+      epsilon: 0.05                  # extensional fluid response parameter
+      xi: 0.0                        # continuum slip parameter
+      alpha_gptt: 1.0                 # mittag-leffler parameter
+      beta_gptt: 1.0                  # mittag-leffler parameter
+    model_giesekus:
+      alpha: 0.2                     # mobility factor
+    thixotropic:
+      structpdiscrtype: explicit            # explicit or implicit
+      structpconvecdiscrtype: cubista       # upwind or cubista
+      structparmodel: bmp            # bmp, bmp_solvent, mbm, nm_taup or nm_t
+      Lambda: 1.0                    # structural relaxation parameter
+      Phi: 0.1                       # thixotropic ratio parameter
+      Gamma: 0.5                     # destruction parameter
+      
+  shear_banding:
+    contr:
+      discrtype: explicit            # explicit or implicit
+      convecdiscrtype: cubista       # upwind or cubista
+    adimensional:
+      De: 10.0                        # Deborah Number         De = λU/H
+      beta: 0.01                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
+    vcm:
+      nAnBdiscrtype: explicit            # explicit or implicit
+      nAnBconvecdiscrtype: cubista       # upwind or cubista
+      DeA: 1.9                           # Deborah Number of specie A DeA = lambda_A*(U0/L)
+      epsilon: 6.27e-4                           # Ratio of relaxation parameters epsilon = lambda_B/lambda_A
+      PeA: 1000.0                        # Péclet number of species A PeA = UH/Da
+      PeB: 1000.0                        # Péclet number of species B PeB = UH/Db
+      chi: 0.57                             # Adimensional Shifted Characteristic time of concentration destruction Chi = (1+CAeq*lambda_A)*Xi*(U0/L)
+      CAeq: 0.9                              # Equilibrium Concentration of species A
+      CBeq: 1.4                             # Equilibrium Concentration of species B
+      
+  elastoviscoplastic:
+    contr:
+      model: oldroyd_b_bingham               # oldroyd_b_bingham, oldroyd_b_hb, lptt_bingham, eptt_bingham or general_saramito
+      discrtype: explicit            # explicit or implicit
+      convecdiscrtype: cubista       # upwind or cubista
+    adimensional:
+      De: 1.0                        # Deborah Number         De = λU/H
+      beta: 0.01                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
+      kernel_tol: 1.0e-2             # kernel function interpolation tolerance
+      Bi:  1.0                       # Bingham number bi
+    oldroyd_b_hb:
+      Np:  1.0                          # power-law coefficient
+    lptt_bingham:
+      epsilon: 0.1                      # extensional fluid response parameter
+      zeta: 0.0                     # Gordon-schowalter non-affine motion parameter zeta
+    eptt_bingham:
+      epsilon: 0.1                      # extensional fluid response parameter
+      zeta: 0.0                     # Gordon-schowalter non-affine motion parameter zeta      
+      
+  suspensions:
+    contr:
+      model: gw                      # gw, gw_wc, gw_wc_if or userset
+      discrtype: explicit            # explicit or implicit
+      convecdiscrtype: cubista       # upwind or cubista
+    dimensional:
+      alpha: 2.4                        # lubrification forces coefficient
+      eta0:  1.0                        # solvent viscosity eta_0
+      beta:  4.05                        # creation and destruction of particle pairs parameter
+    gw_wc:
+      chij1: 0.267                        # extremal jamming point 1
+      chij2: 0.217                        # extremal jamming point 2
+      X0:  2.4                          # direct interparticle forces
+      phi: 0.65                          # particle volume fraction parameter
+      Pic: 0.5                          # critical particle pressure
+    gw_wc_if:
+      volfracdiscrtype: explicit            # explicit or implicit
+      volfracconvecdiscrtype: cubista       # upwind or cubista
+      chij1: 0.267                        # extremal jamming point 1
+      chij2: 0.217                        # extremal jamming point 2
+      X0:  2.4                          # direct interparticle forces
+      phi: 0.65                          # particle volume fraction parameter
+      Pic: 0.5                          # critical particle pressure
+      gdrms: 0.1                         # Standard deviation of the shear rate fluctuations
+      apsize: 0.1                       # Particle size
 
   electroosmotic:
     contr:

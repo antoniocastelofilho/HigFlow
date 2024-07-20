@@ -33,7 +33,11 @@ ifeq ($(ARCH), Linux)
 	LIBS+= -lrt
 endif
 
-OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-viscoelastic-variable-viscosity.o
+ifeq ($(NP),)
+	NP=1
+endif
+
+OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-viscoelastic-variable-viscosity.o ../src/hig-flow-mittag-leffler.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
@@ -42,12 +46,7 @@ ns-example: $(OBJ1)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run:
-	mkdir -p VTKS || true
-	mkdir -p Profiles || true
-	mkdir -p Profiles/Tensors || true
-	mkdir -p Profiles/Viscosities || true
-	mkdir -p Profiles/Velocities || true
-	mpirun -n 1 ./ns-example \
+	mpirun -n $(NP) ./ns-example \
 		input/example-3d.load \
 		output/example-3d.save \
 		VTKS/example-3d.print \

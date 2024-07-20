@@ -192,35 +192,35 @@ void higflow_print_vtk(higflow_solver *ns, int rank) {
         case 3:
             // 3D case
             switch (ns->contr.flowtype) {
-            case 0:
+            case NEWTONIAN:
                 // Newtonian
                 higflow_print_vtk3D(ns, rank);
                 break;
-            case 1:
+            case GENERALIZED_NEWTONIAN:
                 // Generalized Newtonian
                 higflow_print_vtk3D(ns, rank);
                 break;
-            case 2:
+            case MULTIPHASE:
                 // Multiphase
                 higflow_print_vtk3D(ns, rank);
                 break;
-            case 3:
+            case VISCOELASTIC:
                 // Viscoelastic
                 higflow_print_vtk3D_viscoelastic(ns, rank);
                 break;
-            case 6:
+            case VISCOELASTIC_VAR_VISCOSITY:
                 //Viscoelastic with variable viscosity
                 higflow_print_vtk3D_viscoelastic_variable_viscosity(ns, rank);
                 break;
-            case 7:
+            case SHEAR_BANDING:
                 //Viscoelastic with shear-banding
                 higflow_print_vtk3D_viscoelastic_shear_banding(ns, rank);
                 break;
-            case 8:
+            case ELASTOVISCOPLASTIC:
                 //Elastoviscoplastic
                 higflow_print_vtk3D_elastoviscoplastic(ns, rank);
                 break;
-            case 9:
+            case SUSPENSIONS:
                 //Shear-thickening suspensions
                 higflow_print_vtk3D_shear_thickening_suspensions(ns, rank);
                 break;
@@ -536,7 +536,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         break;
 
 
-        case 6:
+        case VISCOELASTIC_VAR_VISCOSITY:
         //sim_domain *sdte =  psd_get_local_domain(ns->ed.psdED);
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
@@ -645,7 +645,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         higcit_destroy(it);
         break;
 
-    case 7:
+    case SHEAR_BANDING:
         //sim_domain *sdte =  psd_get_local_domain(ns->ed.psdED);
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
@@ -924,7 +924,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
 
         break;
 
-    case 8:
+    case ELASTOVISCOPLASTIC:
         // Elastoviscoplastic
 
         fprintf(f, "\nTENSORS stress FLOAT\n");
@@ -1031,7 +1031,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
 
         break;
 
-    case 9:
+    case SUSPENSIONS:
         // Shear-thickening suspensions
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
@@ -7657,6 +7657,11 @@ void higflow_save_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
 // Loading all the controllers
 void higflow_load_all_controllers(higflow_solver *ns, int myrank) {
     higflow_load_controllers(ns, myrank);
+
+    if(ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY || ns->contr.flowtype == SHEAR_BANDING) {
+        higflow_load_non_newtonian_controllers(ns, myrank);
+    }
+
     switch (ns->contr.flowtype) {
         case MULTIPHASE:
             higflow_load_multiphase_controllers(ns, myrank);
@@ -7671,13 +7676,32 @@ void higflow_load_all_controllers(higflow_solver *ns, int myrank) {
         case VISCOELASTIC_INTEGRAL:
             higflow_load_viscoelastic_integral_controllers(ns, myrank);
             break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            higflow_load_viscoelastic_variable_viscosity_controllers(ns, myrank);
+            break;
+        case SHEAR_BANDING:
+            higflow_load_viscoelastic_shear_banding_controllers(ns, myrank);
+            break;
+        case ELASTOVISCOPLASTIC:
+            higflow_load_elastoviscoplastic_controllers(ns, myrank);
+            break;
+        case SUSPENSIONS:
+            higflow_load_shear_thickening_suspension_controllers(ns, myrank);
+            break;
     }
     if (ns->contr.eoflow == true)   higflow_load_electroosmotic_controllers(ns, myrank);
+
+    
 }
 
 // Saving all the controllers
 void higflow_save_all_controllers(higflow_solver *ns, int myrank) {
     higflow_save_controllers(ns, myrank);
+
+    if(ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY || ns->contr.flowtype == SHEAR_BANDING) {
+        higflow_save_non_newtonian_controllers(ns, myrank);
+    }
+
     switch (ns->contr.flowtype) {
         case MULTIPHASE:
             higflow_save_multiphase_controllers(ns, myrank);
@@ -7692,6 +7716,18 @@ void higflow_save_all_controllers(higflow_solver *ns, int myrank) {
         case VISCOELASTIC_INTEGRAL:
             higflow_save_viscoelastic_integral_controllers(ns, myrank);
             break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            higflow_save_viscoelastic_variable_viscosity_controllers(ns, myrank);
+            break;
+        case SHEAR_BANDING:
+            higflow_save_viscoelastic_shear_banding_controllers(ns, myrank);
+            break;
+        case ELASTOVISCOPLASTIC:
+            higflow_save_elastoviscoplastic_controllers(ns, myrank);
+            break;
+        case SUSPENSIONS:
+            higflow_save_shear_thickening_suspension_controllers(ns, myrank);
+            break;
     }
     if (ns->contr.eoflow == true)   higflow_save_electroosmotic_controllers(ns, myrank);
 }
@@ -7699,6 +7735,7 @@ void higflow_save_all_controllers(higflow_solver *ns, int myrank) {
 // Loading all the parameters
 void higflow_load_all_parameters(higflow_solver *ns, int myrank) {
     higflow_load_parameters(ns, myrank);
+
     switch (ns->contr.flowtype) {
         case MULTIPHASE:
             higflow_load_multiphase_parameters(ns, myrank);
@@ -7712,6 +7749,18 @@ void higflow_load_all_parameters(higflow_solver *ns, int myrank) {
             break;
         case VISCOELASTIC_INTEGRAL:
             higflow_load_viscoelastic_integral_parameters(ns, myrank);
+            break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            higflow_load_viscoelastic_variable_viscosity_parameters(ns, myrank);
+            break;
+        case SHEAR_BANDING:
+            higflow_load_viscoelastic_shear_banding_parameters(ns, myrank);
+            break;
+        case ELASTOVISCOPLASTIC:
+            higflow_load_elastoviscoplastic_parameters(ns, myrank);
+            break;
+        case SUSPENSIONS:
+            higflow_load_shear_thickening_suspension_parameters(ns, myrank);
             break;
     }
     if (ns->contr.eoflow == true)   higflow_load_electroosmotic_parameters(ns, myrank);
@@ -7733,6 +7782,18 @@ void higflow_save_all_parameters(higflow_solver *ns, int myrank) {
             break;
         case VISCOELASTIC_INTEGRAL:
             higflow_save_viscoelastic_integral_parameters(ns, myrank);
+            break;
+        case VISCOELASTIC_VAR_VISCOSITY:
+            higflow_save_viscoelastic_variable_viscosity_parameters(ns, myrank);
+            break;
+        case SHEAR_BANDING:
+            higflow_save_viscoelastic_shear_banding_parameters(ns, myrank);
+            break;
+        case ELASTOVISCOPLASTIC:
+            higflow_save_elastoviscoplastic_parameters(ns, myrank);
+            break;
+        case SUSPENSIONS:
+            higflow_save_shear_thickening_suspension_parameters(ns, myrank);
             break;
     }
     if (ns->contr.eoflow == true)   higflow_save_electroosmotic_parameters(ns, myrank);
@@ -9051,6 +9112,71 @@ void higflow_save_viscoelastic_integral_controllers(higflow_solver *ns, int myra
         }
     }
 }
+
+// Loading the controllers for non-newtonian flows
+void higflow_load_non_newtonian_controllers(higflow_solver *ns, int myrank)
+{
+    // Parameters file name
+    char namefile[1024];
+    snprintf(namefile, sizeof namefile, "%s.nncontr", ns->par.nameload);
+    FILE *fd = fopen(namefile, "r");
+    if (fd != NULL)
+    {
+        // Loading the parameters
+        int ifd;
+        ifd = fscanf(fd, "%d", (int *)&(ns->ed.nn_contr.rheotype));
+        fclose(fd);
+        if (myrank == 0)
+        {
+            switch (ns->ed.nn_contr.rheotype)
+            {
+            case PLM:
+                printf("=+=+=+= Rheological Type: Viscoelastic Power-Law Model =+=+=+=\n");
+                break;
+            case THIXOTROPIC:
+                printf("=+=+=+= Rheological Type: Viscoelastic Thixotropic =+=+=+=\n");
+                break;
+            case VCM:
+                printf("=+=+=+= Rheological Type: Shear-Banding VCM =+=+=+=\n");
+                break;
+            case mVCM:
+                printf("=+=+=+= Rheological Type: Shear-Banding mVCM  =+=+=+=\n");
+                break;
+            }
+        }
+    }
+    else
+    {
+        // Error in open the file
+        printf("=+=+=+= Error loading file %s =+=+=+=\n", namefile);
+        exit(1);
+    }
+}
+
+// Saving the controllers for non-newtonian flows
+void higflow_save_non_newtonian_controllers(higflow_solver *ns, int myrank)
+{
+    if (myrank == 0)
+    {
+        // Parameters file name
+        char namefile[1024];
+        snprintf(namefile, sizeof namefile, "%s.nncontr", ns->par.namesave);
+        FILE *fd = fopen(namefile, "w");
+        if (fd != NULL)
+        {
+            // Saving the parameters
+            fprintf(fd, "%d\n", (int)(ns->ed.nn_contr.rheotype));
+            fclose(fd);
+        }
+        else
+        {
+            // Error in open the file
+            printf("=+=+=+= Error saving file %s =+=+=+=\n", namefile);
+            exit(1);
+        }
+    }
+}
+
 
 
 // Loading the parameters of viscoelastic flows with variable viscosity

@@ -2721,27 +2721,27 @@ void higflow_solver_step_shear_thickening_suspensions(higflow_solver *ns)
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype)
     {
-    case 0:
+    case EXPLICIT_EULER:
         // Explicit Euler method
         higflow_explicit_euler_intermediate_velocity_shear_thickening_suspensions(ns, ns->dpu, ns->dpustar);
         break;
-    case 1:
+    case EXPLICIT_RK2:
         // Explicit RK2 method
         higflow_explicit_runge_kutta_2_intermediate_velocity_shear_thickening_suspensions(ns);
         break;
-    case 2:
+    case EXPLICIT_RK3:
         // Explicit RK3 method
         higflow_explicit_runge_kutta_3_intermediate_velocity_shear_thickening_suspensions(ns);
         break;
-    case 3:
+    case SEMI_IMPLICIT_EULER:
         // Semi-Implicit Euler Method
         higflow_semi_implicit_euler_intermediate_velocity_shear_thickening_suspensions(ns);
         break;
-    case 4:
+    case SEMI_IMPLICIT_CN:
         // Semi-Implicit Crank-Nicolson Method
         higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_thickening_suspensions(ns);
         break;
-    case 5:
+    case SEMI_IMPLICIT_BDF2:
         // Semi-Implicit Crank-Nicolson Method
         higflow_semi_implicit_bdf2_intermediate_velocity_shear_thickening_suspensions(ns, ns->dpu, ns->dpustar);
         break;

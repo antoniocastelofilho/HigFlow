@@ -1,0 +1,150 @@
+bc:
+  number_bc: 4
+  bc0:
+    id: 0
+    path: output/ch-bc-0.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value
+  bc1:
+    id: 1
+    path: output/ch-bc-1.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value
+  bc2:
+    id: 2
+    path: output/ch-bc-2.amr
+    pressure:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_0:
+      type: neumann
+      value_type: fixed_value
+    velocity_1:
+      type: neumann
+      value_type: fixed_value
+  bc3:
+    id: 3
+    path: output/ch-bc-3.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value
+bc_electroosmotic:
+  number_bc: 4
+  bc0:
+    id: 0
+    path: output/ch-bc-0.amr
+    phi:
+      type: dirichlet
+      value_type: fixed_value
+    psi:
+      type: neumann
+      value_type: fixed_value
+    nplus:
+      type: dirichlet
+      value_type: fixed_value
+    nminus:
+      type: dirichlet
+      value_type: fixed_value
+  bc1:
+    id: 1
+    path: output/ch-bc-1.amr
+    phi:
+      type: neumann
+      value_type: fixed_value
+    psi:
+      type: dirichlet
+      value_type: fixed_value
+    nplus:
+      type: dirichlet
+      value_type: fixed_value
+    nminus:
+      type: dirichlet
+      value_type: fixed_value
+  bc2:
+    id: 2
+    path: output/ch-bc-2.amr
+    phi:
+      type: dirichlet
+      value_type: fixed_value
+    psi:
+      type: neumann
+      value_type: fixed_value
+    nplus:
+      type: neumann
+      value_type: fixed_value
+    nminus:
+      type: neumann
+      value_type: fixed_value
+  bc3:
+    id: 3
+    path: output/ch-bc-3.amr
+    phi:
+      type: neumann
+      value_type: fixed_value
+    psi:
+      type: dirichlet
+      value_type: fixed_value
+    nplus:
+      type: dirichlet
+      value_type: fixed_value
+    nminus:
+      type: dirichlet
+      value_type: fixed_value
+bc_shear_banding:
+  number_bc: 4
+  bc0:
+    id: 0
+    path: output/ch-bc-0.amr
+    nA:
+      type: dirichlet
+      value_type: fixed_value
+    nB:
+      type: dirichlet
+      value_type: fixed_value
+  bc1:
+    id: 1
+    path: output/ch-bc-1.amr
+    nA:
+      type: neumann
+      value_type: fixed_value
+    nB:
+      type: neumann
+      value_type: fixed_value
+  bc2:
+    id: 2
+    path: output/ch-bc-2.amr
+    nA:
+      type: neumann
+      value_type: fixed_value
+    nB:
+      type: neumann
+      value_type: fixed_value
+  bc3:
+    id: 3
+    path: output/ch-bc-3.amr
+    nA:
+      type: neumann
+      value_type: fixed_value
+    nB:
+      type: neumann
+      value_type: fixed_value

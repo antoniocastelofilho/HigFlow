@@ -337,7 +337,7 @@ void higflow_explicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vepl.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -345,7 +345,7 @@ void higflow_explicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
                                 rhs -= u[dim]*dKdx[dim];
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, Kernel, ccenter, cdelta, dim, i, j);
@@ -754,7 +754,7 @@ void higflow_implicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vepl.contr.convecdiscrtype) {
-                        case 0: 
+                        case CELL_UPWIND: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -762,7 +762,7 @@ void higflow_implicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
                                 rhs -= u[dim]*dKdx[dim];
                             }
                             break;
-                        case 1: 
+                        case CELL_CUBISTA: 
                             //Compute convective tensor term CUBISTA in rhs
                             for (int dim = 0; dim < DIM; dim++) {
                                 rhs -= hig_flow_convective_tensor_term_cubista(ns, ns->dpu[dim], ns->ed.sdED, ns->ed.stn, Kernel, ccenter, cdelta, dim, i, j);
@@ -1421,27 +1421,27 @@ void higflow_solver_step_elastoviscoplastic(higflow_solver *ns) {
     higflow_calculate_facet_source_term(ns);
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
-        case 0:
+        case EXPLICIT_EULER:
            // Explicit Euler method
            higflow_explicit_euler_intermediate_velocity_elastoviscoplastic(ns, ns->dpu, ns->dpustar);
            break;
-        case 1: 
+        case EXPLICIT_RK2: 
            // Explicit RK2 method
            higflow_explicit_runge_kutta_2_intermediate_velocity_elastoviscoplastic(ns);
            break;
-        case 2: 
+        case EXPLICIT_RK3: 
            // Explicit RK3 method
            higflow_explicit_runge_kutta_3_intermediate_velocity_elastoviscoplastic(ns);
            break;
-        case 3: 
+        case SEMI_IMPLICIT_EULER: 
            // Semi-Implicit Euler Method
            higflow_semi_implicit_euler_intermediate_velocity_elastoviscoplastic(ns);
            break;
-        case 4: 
+        case SEMI_IMPLICIT_CN: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_crank_nicolson_intermediate_velocity_elastoviscoplastic(ns);
            break;
-        case 5: 
+        case SEMI_IMPLICIT_BDF2: 
            // Semi-Implicit Crank-Nicolson Method
            higflow_semi_implicit_bdf2_intermediate_velocity_elastoviscoplastic(ns, ns->dpu, ns->dpustar);
            break;
@@ -1466,11 +1466,11 @@ void higflow_solver_step_elastoviscoplastic(higflow_solver *ns) {
     higflow_compute_kernel_tensor_elastoviscoplastic(ns);
     // Constitutive Equation Step for the Explicit Euler Method
     switch (ns->ed.vepl.contr.discrtype) {
-        case 0:
+        case EXPLICIT:
            // Explicit method
            higflow_explicit_euler_constitutive_equation_elastoviscoplastic(ns);
            break;
-        case 1: 
+        case IMPLICIT: 
            // Implicit method
            higflow_implicit_euler_constitutive_equation_elastoviscoplastic(ns);
            break;

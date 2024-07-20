@@ -194,7 +194,13 @@ void higflow_save_viscoelastic_integral_parameters(higflow_solver *ns, int myran
 void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myrank); 
 
 // Saving the viscoelastic integral controllers
-void higflow_save_viscoelastic_integral_controllers(higflow_solver *ns, int myrank); 
+void higflow_save_viscoelastic_integral_controllers(higflow_solver *ns, int myrank);
+
+// Loading the controllers for non-newtonian flows
+void higflow_load_non_newtonian_controllers(higflow_solver *ns, int myrank);
+
+// Saving the controllers for non-newtonian flows
+void higflow_save_non_newtonian_controllers(higflow_solver *ns, int myrank);
 
 // Loading the parameters of viscoelastic flows with variable viscosity 
 void higflow_load_viscoelastic_variable_viscosity_parameters(higflow_solver *ns, int myrank);

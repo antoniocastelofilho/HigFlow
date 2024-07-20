@@ -677,11 +677,11 @@ int main (int argc, char *argv[]) {
     // Create Navier-Stokes solver
     higflow_solver *ns = higflow_create();
     // Load the data files
-    higflow_load_data_files(argc, argv, ns); 
-    // Load the parameters data for Navier-Stokes simulation
-    higflow_load_parameters(ns, myrank);
+    higflow_load_data_file_names(argc, argv, ns); 
     // Load the controllers data for Navier-Stokes simulation
-    higflow_load_controllers(ns, myrank);
+    higflow_load_all_controllers(ns, myrank);
+    // Load the parameters data for Navier-Stokes simulation
+    higflow_load_all_parameters(ns, myrank);
     // set the external functions
     higflow_set_external_functions(ns, get_pressure, get_velocity, 
         get_source_term, get_facet_source_term,
@@ -705,26 +705,27 @@ int main (int argc, char *argv[]) {
     // Initialize the domain
     higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
     // Load the controllers data for viscoelastic simulation
-    //higflow_load_viscoelastic_controllers(ns, myrank);
-    higflow_load_viscoelastic_variable_viscosity_controllers(ns,myrank);
-    // Load the parameters data for viscoelastic simulation
-    //higflow_load_viscoelastic_parameters(ns, myrank);
-    higflow_load_viscoelastic_variable_viscosity_parameters(ns,myrank);
-    // Load the controllers data for viscoelastic simulation
-    //higflow_load_viscoelastic_integral_controllers(ns, myrank);
-    // Load the parameters data for viscoelastic simulation
-    //higflow_load_viscoelastic_integral_parameters(ns, myrank);
-    // Set the user model
-    //higflow_define_user_function_viscoelastic(ns, calculate_m_user);
+    // higflow_load_non_newtonian_controllers(ns, myrank);
+    // //higflow_load_viscoelastic_controllers(ns, myrank);
+    // higflow_load_viscoelastic_variable_viscosity_controllers(ns,myrank);
+    // // Load the parameters data for viscoelastic simulation
+    // //higflow_load_viscoelastic_parameters(ns, myrank);
+    // higflow_load_viscoelastic_variable_viscosity_parameters(ns,myrank);
+    // // Load the controllers data for viscoelastic simulation
+    // //higflow_load_viscoelastic_integral_controllers(ns, myrank);
+    // // Load the parameters data for viscoelastic simulation
+    // //higflow_load_viscoelastic_integral_parameters(ns, myrank);
+    // // Set the user model
+    // //higflow_define_user_function_viscoelastic(ns, calculate_m_user);
     // Initialize the boundaries
     higflow_initialize_boundaries(ns); 
     // Creating distributed property  
-    higflow_create_ditributed_properties(ns);
+    higflow_create_distributed_properties(ns);
     // Creating distributed property for generalized newtonian simulation
-    //higflow_create_ditributed_properties_generalized_newtonian(ns);
-    //higflow_create_ditributed_properties_viscoelastic(ns);
-    higflow_create_ditributed_properties_viscoelastic_variable_viscosity(ns);
-    //higflow_create_ditributed_properties_viscoelastic_integral(ns);
+    //higflow_create_distributed_properties_generalized_newtonian(ns);
+    //higflow_create_distributed_properties_viscoelastic(ns);
+    //higflow_create_distributed_properties_viscoelastic_variable_viscosity(ns);
+    //higflow_create_distributed_properties_viscoelastic_integral(ns);
     // Initialize distributed properties
     higflow_initialize_distributed_properties(ns);
     // Create the linear system solvers
