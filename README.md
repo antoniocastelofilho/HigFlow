@@ -35,7 +35,11 @@ Inicialmente é preciso ter um terminal aberto no diretório do sistema HigFlow.
 
 * make clean && make DIM=2 && make DIM=3
 
-Retorne ao diretório 'higflow' (no mesmo terminal) e compile o código fazendo:
+Retorne ao diretório 'higflow' (no mesmo terminal), configure as variáveis de ambiente
+
+* source ../etc/higflow-env.sh
+
+então, compile o código fazendo:
 
 * make clean && make DIM=2
 

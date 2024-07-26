@@ -61,3 +61,9 @@ bibliotecas/
 
 # Vscode
 .vscode*
+
+# Singularity images
+*.sif
+
+# Outputs
+**/output/**
