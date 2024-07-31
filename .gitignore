@@ -12,6 +12,7 @@ bibliotecas/
 *.vtk
 *.txt
 *.dat
+!CMakeLists.txt
 
 # Object files
 *.o
@@ -67,3 +68,7 @@ bibliotecas/
 
 # Outputs
 **/output/**
+
+# Cmake version dirs
+**build**
+**install**

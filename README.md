@@ -37,7 +37,7 @@ Inicialmente é preciso ter um terminal aberto no diretório do sistema HigFlow.
 
 Retorne ao diretório 'higflow' (no mesmo terminal), configure as variáveis de ambiente
 
-* source ../etc/higflow-env.sh
+* source ../etc/higflow-env-mak.sh
 
 então, compile o código fazendo:
 
@@ -48,3 +48,46 @@ Posteriormente basta escolher qual exemplo (já adicionado) deseja estudar e exe
 * make clean && make && make run
 
 
+## cmake with lmod (mflab'ss stack 13 - usp version)
+
+Para compilar, cria a pasta build na raiz do projeto
+
+Carrega os módulos
+
+```
+ml gnu/13.2.0 cmake glib boost libfyaml glib viennacl openmpi hdf5 petsc zoltan
+```
+
+Compila com a dimensão que for usar o higtree e higflow
+
+```
+cmake .. -Wno-dev -Ddim=2
+make
+make install
+```
+
+Opções do cmake
+
+```
+-Dprefix=PATH   Indica um path para instalar as libs e binários
+-Ddebug=1       Ativa a compilação em modo debug
+```
+
+Para rodar vai na pasta onde instalou o código 
+
+```
+cd PASTA_ONDE_INSTALOU
+```
+
+carrega os módulos (se abrindo em outro terminal)
+
+```
+ml gnu/13.2.0 cmake glib boost libfyaml glib viennacl openmpi hdf5 petsc zoltan
+```
+
+Configura as variáveis de ambiente e rode
+
+```
+source ../etc/higflow-env.sh
+mpirun ...
+```
