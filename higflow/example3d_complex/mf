@@ -1,0 +1,60 @@
+run16:
+	mpirun -n 1 ./ns-example \
+		input16/example-3d.load \
+		output16/example-3d.save \
+		VTKS16/example-3d.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		#-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6 -ksp_view -log_summary -ksp_monitor
+		#-ksp_type bcgs -pc_type hypre -pc_factor_mat_ordering_type rcm -ksp_view -log_summary -ksp_monitor
+
+run32:
+	mpirun -n 2 ./ns-example \
+		input32/example-3d.load \
+		output32/example-3d.save \
+		VTKS32/example-3d.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		#-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6 -ksp_view -log_summary -ksp_monitor
+		#-ksp_type bcgs -pc_type hypre -pc_factor_mat_ordering_type rcm -ksp_view -log_summary -ksp_monitor
+
+runcomplex:
+	mpirun -n 2 ./ns-complex \
+		input_complex/example-3d.load \
+		output_complex/example-3d.save \
+		VTKS_complex/example-3d.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		#-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6 -ksp_view -log_summary -ksp_monitor
+		#-ksp_type bcgs -pc_type hypre -pc_factor_mat_ordering_type rcm -ksp_view -log_summary -ksp_monitor
+
+runobs:
+	mpirun -n 2 ./ns-obs \
+		input_obs/example-3d.load \
+		output_obs/example-3d.save \
+		VTKS_obs/example-3d.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		#-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6 -ksp_view -log_summary -ksp_monitor
+		#-ksp_type bcgs -pc_type hypre -pc_factor_mat_ordering_type rcm -ksp_view -log_summary -ksp_monitor
+
+runmultifase:
+	mpirun -n 1 ./ns-multifase \
+		input_multifase/example-3d.load \
+		output_multifase/example-3d.save \
+		VTKS_multifase/example-3d.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6
+		#-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-6 -ksp_rtol 1e-6 -ksp_view -log_summary -ksp_monitor
+		#-ksp_type bcgs -pc_type hypre -pc_factor_mat_ordering_type rcm -ksp_view -log_summary -ksp_monitor
+
+clean16 :
+		$(RM) -f VTKS16/*.vtk output16/*
+
+clean32 :
+		$(RM) -f VTKS32/*.vtk output32/*
+
+cleancomplex :
+		$(RM) -f VTKS_complex/*.vtk output_complex/*
+
+cleanobs :
+		$(RM) -f VTKS_obs/*.vtk output_obs/*
+
+cleanmultifase :
+		$(RM) -f VTKS_multifase/*.vtk output_multifase/*
+

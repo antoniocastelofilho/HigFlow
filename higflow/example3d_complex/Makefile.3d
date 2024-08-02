@@ -1,0 +1,70 @@
+# Must be set outwards
+# Try variables path of either PETSc versions (3.5.2, 3.5.3, 3.6.2):
+-include ${PETSC_DIR}/conf/variables
+-include ${PETSC_DIR}/lib/petsc-conf/petscvariables
+-include ${PETSC_DIR}/lib/petsc/conf/petscvariables
+
+# HiG-Tree common
+include ${HIGTREE_DIR}/Makefile.common
+
+# HiG-Flow common
+include ${HIGFLOW_DIR}/Makefile.higflow.common
+
+CC = gcc
+
+DIM=3
+
+OPTSOPT = -Ofast -march=native -mtune=native -flto=8 -fno-fat-lto-objects
+STANDARDS = -std=gnu99
+
+CFLAGS+= $(shell pkg-config --cflags glib-2.0) -Werror
+CFLAGS+= $(PETSC_CC_INCLUDES)
+CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
+CFLAGS+= -I$(HIGFLOW_SRCPATH)
+
+LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5)
+LDFLAGS+= -L$(LIBPATH) $(OPTSOPT)
+LDFLAGS+= -L$(HIGFLOW_LIBPATH) 
+
+LIBS+= -lhig$(DIM)d
+LIBS+= -lhigflow$(DIM)d
+LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5)
+LIBS+= $(PETSC_LIB)
+LIBS+= $(PETSC_EXTRA_LIB)
+LIBS+= -lm -ltrilinos_zoltan -lHYPRE_krylov
+
+ARCH = $(shell uname)
+ifeq ($(ARCH), Linux)
+	LIBS+= -lrt
+endif
+
+OBJ1 = ns-example-3d.o 
+
+OBJ2 = ns-complex-3d.o 
+
+OBJ3 = ns-obs-3d.o 
+
+OBJ4 = ns-multifase-3d.o 
+
+ns-example: $(OBJ1)
+	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
+
+ns-complex: $(OBJ2)
+	$(CC) $(LDFLAGS) $(OBJ2) -o $@ $(LIBS)
+
+ns-obs: $(OBJ3)
+	$(CC) $(LDFLAGS) $(OBJ3) -o $@ $(LIBS)
+
+ns-multifase: $(OBJ4)
+	$(CC) $(LDFLAGS) $(OBJ4) -o $@ $(LIBS)
+
+%.o: %.c ${HIGFLOW_DIR}/lib/libhigflow$(DIM)d.a ${HIGTREE_DIR}/lib/libhig$(DIM)d.a 
+	$(CC) $(CFLAGS) -c $< -o $@
+
+compilerflags:
+	@echo COMPILER_FLAGS=$(CFLAGS)
+
+clean :
+		$(RM) -f *.o 
+
+.PHONY: run clean compilerflags

@@ -8,7 +8,6 @@
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
 
-
 real dpdx = 3.0;
 real L = 8.0;
 //higflow_solver *nsaux;
@@ -202,7 +201,6 @@ int main (int argc, char *argv[]) {
     if (ns->par.step == 0) higflow_initialize_distributed_properties(ns);
     // Create the linear system solvers
     higflow_create_solver(ns);
-
     // Load the properties form 
     if (ns->par.step > 0) {
         // Loading the velocities 
