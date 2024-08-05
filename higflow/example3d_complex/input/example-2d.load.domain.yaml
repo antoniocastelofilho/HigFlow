@@ -1,0 +1,101 @@
+domain:
+   number_domains: 33                      #*** The Total Number of the Domains ***
+   domain0:
+      id: 0                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-0.amr       #*** The Path to the Domain          ***
+   domain1:
+      id: 1                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-1.amr       #*** The Path to the Domain          ***
+   domain2:
+      id: 2                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-2.amr       #*** The Path to the Domain          ***
+   domain3:
+      id: 3                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-3.amr       #*** The Path to the Domain          ***
+   domain4:
+      id: 4                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-4.amr       #*** The Path to the Domain          ***
+   domain5:
+      id: 5                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-5.amr       #*** The Path to the Domain          ***
+   domain6:
+      id: 6                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-6.amr       #*** The Path to the Domain          ***
+   domain7:
+      id: 7                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-7.amr       #*** The Path to the Domain          ***
+   domain8:
+      id: 8                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-8.amr       #*** The Path to the Domain          ***
+   domain9:
+      id: 9                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-9.amr       #*** The Path to the Domain          ***
+   domain10:
+      id: 10                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-10.amr       #*** The Path to the Domain          ***
+   domain11:
+      id: 11                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-11.amr       #*** The Path to the Domain          ***
+   domain12:
+      id: 12                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-12.amr       #*** The Path to the Domain          ***
+   domain13:
+      id: 13                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-13.amr       #*** The Path to the Domain          ***
+   domain14:
+      id: 14                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-14.amr       #*** The Path to the Domain          ***
+   domain15:
+      id: 15                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-15.amr       #*** The Path to the Domain          ***
+   domain16:
+      id: 16                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-16.amr       #*** The Path to the Domain          ***
+   domain17:
+      id: 17                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-17.amr       #*** The Path to the Domain          ***
+   domain18:
+      id: 18                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-18.amr       #*** The Path to the Domain          ***
+   domain19:
+      id: 19                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-19.amr       #*** The Path to the Domain          ***
+   domain20:
+      id: 20                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-20.amr       #*** The Path to the Domain          ***
+   domain21:
+      id: 21                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-21.amr       #*** The Path to the Domain          ***
+   domain22:
+      id: 22                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-22.amr       #*** The Path to the Domain          ***
+   domain23:
+      id: 23                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-23.amr       #*** The Path to the Domain          ***
+   domain24:
+      id: 24                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-24.amr       #*** The Path to the Domain          ***
+   domain25:
+      id: 25                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-25.amr       #*** The Path to the Domain          ***
+   domain26:
+      id: 26                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-26.amr       #*** The Path to the Domain          ***
+   domain27:
+      id: 27                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-27.amr       #*** The Path to the Domain          ***
+   domain28:
+      id: 28                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-28.amr       #*** The Path to the Domain          ***
+   domain29:
+      id: 29                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-29.amr       #*** The Path to the Domain          ***
+   domain30:
+      id: 30                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-30.amr       #*** The Path to the Domain          ***
+   domain31:
+      id: 31                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-31.amr       #*** The Path to the Domain          ***
+   domain32:
+      id: 32                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-32.amr       #*** The Path to the Domain          ***

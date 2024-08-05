@@ -810,7 +810,7 @@ real (*get_alpha)(Point center, real t, real alpha, real phi, real phircp)) {
 }
 
 // Create the partitioned simulation sub-domain for NS object
-void higflow_create_partitioned_domain (higflow_solver *ns, partition_graph *pg, int order) {
+void higflow_create_partitioned_domain(higflow_solver *ns, partition_graph *pg, int order) {
     // Creating the partitioned sub-domain to simulation for pressure
     ns->psdp = psd_create(ns->sdp, pg);
     // Synced mapper for pressure
@@ -880,7 +880,7 @@ void higflow_create_partitioned_domain_multiphase (higflow_solver *ns, partition
 }
 
 // Create the partitioned simulation sub-domain for viscoelastic simulation
-void higflow_create_partitioned_domain_viscoelastic (higflow_solver *ns, partition_graph *pg, int order) {
+void higflow_create_partitioned_domain_viscoelastic(higflow_solver *ns, partition_graph *pg, int order) {
     if (ns->contr.flowtype == VISCOELASTIC) {
         // Creating the partitioned sub-domain to simulation
         ns->ed.psdED = psd_create(ns->ed.sdED, pg);

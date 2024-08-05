@@ -128,7 +128,7 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     }
     // Number of HigTrees
     int numhigs;
-    int ifd = fy_document_scanf(fyd,"/domain/number_domains %d",&numhigs);
+    int ifd = fy_document_scanf(fyd,"/domain/number_domains %d", &numhigs);
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         char atrib[1024], amrfilename[1024];
@@ -138,7 +138,7 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         //char *amrfilename = argv[1]; argv++;
         sprintf(atrib,"/domain/domain%d/path %%s",h);
         ifd = fy_document_scanf(fyd,atrib,amrfilename);
-        
+        printf("=+=+=+= path file %s =+=+=+=\n",amrfilename);
         FILE *fd = fopen(amrfilename, "r");
         mi[h] = higio_read_amr_info(fd);
         fclose(fd);
@@ -154,8 +154,9 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         for(int h = 0; h < numhigs; h++)
             mi_mult[h] = higflow_create_amr_info_mult(mi[h]);
         higflow_partition_domain_multiphase(ns, pg, numhigs, mi, mi_mult, ntasks, myrank);
+    } else {
+	higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
     }
-    else higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
     // Creating the partitioned sub-domain to simulation
     higflow_create_partitioned_domain(ns, pg, order);
     // Creating the stencil for properties interpolation
@@ -215,7 +216,6 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
             higflow_create_stencil_for_extra_domain(ns);
             break;
     }
-
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);

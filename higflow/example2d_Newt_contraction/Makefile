@@ -9,11 +9,11 @@ include ${HIGTREE_DIR}/Makefile.common
 
 CC = gcc
 
-DIM=3
+DIM=2
 
 STANDARDS = -std=gnu99
 
-CFILE = ns-complex-3d
+CFILE = ns-example-2d
 
 ifdef DEBUG
 	CFLAGS+= -g -ggdb -Og -Wall
@@ -54,12 +54,12 @@ else
 	LOAD_PATH = input/example-2d.load
 endif
 
-OBJ1 = ns-complex-3d.o 
+OBJ1 = ns-example-2d.o 
 OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
 OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
 OBJ1 += ../src/hig-flow-res.o
 
-ns-complex-3d: $(OBJ1)
+ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
 
 %.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
@@ -69,17 +69,16 @@ run:
 	mkdir -p VTKS || true
 	mkdir -p DATA || true
 	mkdir -p output || true
-	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-complex-3d \
+	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example \
 		$(LOAD_PATH) \
-		output/complex.save \
-		VTKS/complex.print \
+		output/newt.save \
+		VTKS/newt.print \
 		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f ns-complex-3d.o ns-complex-3d
-
+		$(RM) -f ns-example-2d.o ns-example
 
 rebuild_higflow:
 	$(MAKE) -C .. clean
