@@ -74,7 +74,7 @@ higcit_celliterator *sb_get_celliterator(sim_boundary *bc);
 //! Gets the HiG-Tree associated with the BC
 hig_cell *sb_get_higtree(sim_boundary *bc);
 
-#define MAXHIGTREESPERDOMAIN 30
+#define MAXHIGTREESPERDOMAIN 40
 #define MAXBCSPERDOMAIN 200
 
 //! \brief A simulation domain (SD) contains a set of HiG-Trees which composes the domain; each domain has a low point lp and a high point hp. It has a mapper shared by all domains.
