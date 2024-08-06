@@ -337,7 +337,7 @@ void higflow_explicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vepl.contr.convecdiscrtype) {
-                        case CELL_UPWIND: 
+                        case CELL_CENTRAL: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -754,7 +754,7 @@ void higflow_implicit_euler_constitutive_equation_elastoviscoplastic(higflow_sol
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vepl.contr.convecdiscrtype) {
-                        case CELL_UPWIND: 
+                        case CELL_CENTRAL: 
                             // Kernel derivative at cell center
                             hig_flow_derivative_kernel_at_center_cell(ns, ccenter, cdelta, i, j, Kernel[i][j], dKdx);
                             for (int dim = 0; dim < DIM; dim++) {

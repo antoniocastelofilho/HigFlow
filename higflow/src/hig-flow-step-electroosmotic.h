@@ -43,7 +43,10 @@ void higflow_calculate_electroosmotic_source_term (higflow_solver *ns);
 void higflow_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns); 
 
 // Electroosmotic induced potential psi 
-void higflow_electroosmotic_psi(higflow_solver *ns);
+real higflow_electroosmotic_psi(higflow_solver *ns);
+
+// Electroosmotic solve the Poisson-Boltzmann equation
+void higflow_electroosmotic_solve_pb(higflow_solver *ns);
 
 // Electroosmotic applied potential psi 
 void higflow_electroosmotic_phi(higflow_solver *ns);

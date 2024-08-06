@@ -12,14 +12,7 @@
 
 // Computing the velocity derivative Tensor
 void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
-    if ((ns->contr.flowtype == GENERALIZED_NEWTONIAN) || 
-	(ns->contr.flowtype == MULTIPHASE) || 
-	(ns->contr.flowtype == VISCOELASTIC) || 
-	(ns->contr.flowtype == VISCOELASTIC_INTEGRAL) ||
-	(ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY) ||
-	(ns->contr.flowtype == SHEAR_BANDING) ||
-	(ns->contr.flowtype == ELASTOVISCOPLASTIC) ||
-	(ns->contr.flowtype == SUSPENSIONS)) {
+    if ((ns->contr.flowtype == GENERALIZED_NEWTONIAN) || (ns->contr.flowtype == MULTIPHASE) || (ns->contr.flowtype == VISCOELASTIC) || (ns->contr.flowtype == VISCOELASTIC_INTEGRAL)) {
         int infacet, infacetl, infacetr, auxl, auxr;
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -34,9 +27,9 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
         higcit_celliterator *it;
         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
+            hig_cell* c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
+            int clid = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
             hig_get_center(c, ccenter);
@@ -49,43 +42,30 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                     real dudx, ul, ur;
                     if (dim == dim2) {
                         // Get the velocity in the left facet center
-                        ul   = compute_facet_u_left(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+                        ul = compute_facet_u_left(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                         // Get the velocity in the right facet center
-                        ur   = compute_facet_u_right(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-                    } else {
+                        ur = compute_facet_u_right(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+                    }
+                    else {
                         // Get the velocity in the left facet center
                         ul = compute_facet_u_4_left(sfdu[dim], ccenter, cdelta, dim, dim2, 1.0, ns->dpu[dim], ns->stn);
                         // Get the velocity in the right facet center
                         ur = compute_facet_u_4_right(sfdu[dim], ccenter, cdelta, dim, dim2, 1.0, ns->dpu[dim], ns->stn);
                     }
                     dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
-                    switch (ns->contr.flowtype) { 
-			case GENERALIZED_NEWTONIAN: 
+                    if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
                         dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
-                        break;
-			case MULTIPHASE: 
-                        if(ns->ed.mult.contr.viscoelastic_either == true)
+                    }
+                    else if (ns->contr.flowtype == MULTIPHASE) {
+                        if (ns->ed.mult.contr.viscoelastic_either == true)
                             dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
-                        break;
-			case VISCOELASTIC: 
+                    }
+                    else if (ns->contr.flowtype == VISCOELASTIC) {
                         dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
-                        break;
-			case VISCOELASTIC_INTEGRAL: 
+                    }
+                    else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
                         dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
-                        break;
-			case VISCOELASTIC_VAR_VISCOSITY: 
-                        dp_set_value(ns->ed.vevv.dpD[dim][dim2], clid, dudx);
-                        break;
-			case SHEAR_BANDING: 
-                        dp_set_value(ns->ed.vesb.dpD[dim][dim2], clid, dudx);
-                        break;
-			case ELASTOVISCOPLASTIC: 
-                        dp_set_value(ns->ed.vepl.dpD[dim][dim2], clid, dudx);
-                        break;
-			case SUSPENSIONS: 
-                        dp_set_value(ns->ed.stsp.dpD[dim][dim2], clid, dudx);
-                        break;
-		    }
+                    }
                 }
             }
         }
@@ -94,33 +74,19 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
         // Sync the distributed pressure property
         for (int dim = 0; dim < DIM; dim++) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {
-                switch (ns->contr.flowtype) { 
-		    case GENERALIZED_NEWTONIAN: 
+                if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
                     dp_sync(ns->ed.gn.dpD[dim][dim2]);
-                    break;
-		    case MULTIPHASE: 
-                    if(ns->ed.mult.contr.viscoelastic_either == true) 
+                }
+                else if (ns->contr.flowtype == MULTIPHASE) {
+                    if (ns->ed.mult.contr.viscoelastic_either == true)
                         dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                    break;
-		    case VISCOELASTIC: 
+                }
+                else if (ns->contr.flowtype == VISCOELASTIC) {
                     dp_sync(ns->ed.ve.dpD[dim][dim2]);
-                    break;
-		    case VISCOELASTIC_INTEGRAL: 
+                }
+                else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
                     dp_sync(ns->ed.im.dpD[dim][dim2]);
-                    break;
-		    case VISCOELASTIC_VAR_VISCOSITY: 
-                    dp_sync(ns->ed.vevv.dpD[dim][dim2]);
-                    break;
-		    case SHEAR_BANDING: 
-                    dp_sync(ns->ed.vesb.dpD[dim][dim2]);
-                    break;
-		    case ELASTOVISCOPLASTIC: 
-                    dp_sync(ns->ed.vepl.dpD[dim][dim2]);
-                    break;
-		    case SUSPENSIONS: 
-                    dp_sync(ns->ed.stsp.dpD[dim][dim2]);
-                    break;
-		}
+                }
             }
         }
     }
@@ -423,8 +389,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                real wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wr = - ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= (wr + wl) ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -532,8 +498,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 0.5*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                real wl = - 0.5*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wr = - 0.5*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - 0.5*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= (wr + wl) ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -639,8 +605,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 0.25*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                real wl = - 0.25*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wr = - 0.25*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - 0.25*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= (wr + wl); //divide po 4 para usar regra trapezio em t(n+1/2)
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -729,8 +695,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
-                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= (wr + wl); //divide po 4 para usar regra trapezio em t(n+1/2)
                 Point p;
                 POINT_ASSIGN(p, fcenter);

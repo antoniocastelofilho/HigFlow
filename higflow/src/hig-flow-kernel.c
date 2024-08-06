@@ -12,7 +12,7 @@
 
 // Create the NS object
 higflow_solver *higflow_create (void) {
-    DECL_AND_ALLOC(higflow_solver, ns, 1);
+    DECL_AND_ALLOC(higflow_solver, ns, 1);   
     return ns;
 }
 
@@ -115,7 +115,7 @@ void higflow_destroy (higflow_solver *ns) {
            }
            // Destroy the stencil for extra domains
            stn_destroy(ns->ed.stn);
-           break;
+           break;   
          case VISCOELASTIC_VAR_VISCOSITY:
            //Destroy the variable viscosity
             dp_destroy(ns->ed.vevv.dpvisc);
@@ -201,6 +201,8 @@ void higflow_destroy (higflow_solver *ns) {
         dp_destroy(ns->ed.eo.dppsi);
         dp_destroy(ns->ed.eo.dpnplus);
         dp_destroy(ns->ed.eo.dpnminus);
+        dp_destroy(ns->ed.eo.dpnplus_temp);
+        dp_destroy(ns->ed.eo.dpnminus_temp);
         // Destroy the solver for potential psi 
         slv_destroy(ns->ed.eo.slvpsi);
         slv_destroy(ns->ed.eo.slvphi);
@@ -447,6 +449,8 @@ real (*get_fracvol)(Point center, Point delta, real t)) {
        ns->ed.mult.get_density1        = get_density1;
        // function for the domain
        ns->ed.mult.get_fracvol         = get_fracvol;
+
+       ns->ed.mult.num_plic_lines = 0;
     }
 }
 
@@ -471,7 +475,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
 
 // Define the user function for viscoelastic flow
 void higflow_define_user_function_multiphase_viscoelastic(higflow_solver *ns, 
-void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1)) {
+void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1)) {
     if (ns->contr.flowtype == MULTIPHASE) {
        // function for the user viscoelastic model
        ns->ed.mult.ve.calculate_m_user_multiphase = calculate_m_user_multiphase;
@@ -504,7 +508,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
 
 // Define the user function for viscoelastic flow
 void higflow_define_user_function_viscoelastic(higflow_solver *ns, 
-void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par)) {
+void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par)) {
     if (ns->contr.flowtype == VISCOELASTIC) {
        // function for the user viscoelastic model
        ns->ed.ve.calculate_m_user = calculate_m_user;
@@ -527,122 +531,128 @@ real (*get_tensor)(Point center, int i, int j, real t)) {
 }
 
 // Create the simulation domain for multiphase electroosmotic flow
-void higflow_create_domain_multiphase_electroosmotic (higflow_solver *ns, int cache, int order,
-real (*get_multiphase_electroosmotic_source_term)(real fracvol, Point center, int dim, real t),
-real (*get_multiphase_electroosmotic_phi)(real fracvol, Point center, real t),
-real (*get_multiphase_electroosmotic_psi)(real fracvol, Point center, real t),
-real (*get_multiphase_electroosmotic_nplus)(real fracvol, Point center, real t),
-real (*get_multiphase_electroosmotic_nminus)(real fracvol, Point center, real t),
-real (*get_boundary_multiphase_electroosmotic_source_term)(real fracvol, int id, Point center, int dim, real t),
-real (*get_boundary_multiphase_electroosmotic_phi)(real fracvol, int id, Point center, real t),
-real (*get_boundary_multiphase_electroosmotic_psi)(real fracvol, int id, Point center, real t),
-real (*get_boundary_multiphase_electroosmotic_nplus)(real fracvol, int id, Point center, real t),
-real (*get_boundary_multiphase_electroosmotic_nminus)(real fracvol, int id, Point center, real t)) {
+void higflow_create_domain_multiphase_electroosmotic(higflow_solver* ns, int cache, int order,
+    real(*get_multiphase_electroosmotic_source_term)(real fracvol, Point center, int dim, real t),
+    real(*get_multiphase_electroosmotic_phi)(real fracvol, Point center, real t),
+    real(*get_multiphase_electroosmotic_psi)(real fracvol, Point center, real t),
+    real(*get_multiphase_electroosmotic_nplus)(real fracvol, Point center, real t),
+    real(*get_multiphase_electroosmotic_nminus)(real fracvol, Point center, real t),
+    real(*get_boundary_multiphase_electroosmotic_source_term)(real fracvol, int id, Point center, int dim, real t),
+    real(*get_boundary_multiphase_electroosmotic_phi)(real fracvol, int id, Point center, real t),
+    real(*get_boundary_multiphase_electroosmotic_psi)(real fracvol, int id, Point center, real t),
+    real(*get_boundary_multiphase_electroosmotic_nplus)(real fracvol, int id, Point center, real t),
+    real(*get_boundary_multiphase_electroosmotic_nminus)(real fracvol, int id, Point center, real t),
+    real(*get_permittivity)(real fracvol, Point center, real t)) {
     if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-       // simulation domain (EO) for phi
-       ns->ed.eo.sdEOphi = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOphi, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOphi, order);
-       // simulation domain (EO) for psi
-       ns->ed.eo.sdEOpsi = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOpsi, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOpsi, order);
-       // simulation domain (EO) for nplus
-       ns->ed.eo.sdEOnplus = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOnplus, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOnplus, order);
-       // simulation domain (EO) for nminus
-       ns->ed.eo.sdEOnminus = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOnminus, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOnminus, order);
-       // function for the eo source term 
-       ns->ed.mult.eo.get_multiphase_electroosmotic_source_term = get_multiphase_electroosmotic_source_term;
-       // function for the eo phi
-       ns->ed.mult.eo.get_multiphase_electroosmotic_phi         = get_multiphase_electroosmotic_phi;
-       // function for the eo psi
-       ns->ed.mult.eo.get_multiphase_electroosmotic_psi         = get_multiphase_electroosmotic_psi ;
-       // function for the eo positive ion concentration 
-       ns->ed.mult.eo.get_multiphase_electroosmotic_nplus       = get_multiphase_electroosmotic_nplus;
-       // function for the eo negative ion concentration 
-       ns->ed.mult.eo.get_multiphase_electroosmotic_nminus      = get_multiphase_electroosmotic_nminus;
-       // function for the boundary source term
-       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term = get_boundary_multiphase_electroosmotic_source_term;
-       // function for the boundary potential phi
-       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi         = get_boundary_multiphase_electroosmotic_phi;
-       // function for the boundary potential psi
-       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi         = get_boundary_multiphase_electroosmotic_psi ;
-       // function for the boundary concentration of positive ion
-       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus       = get_boundary_multiphase_electroosmotic_nplus;
-       // function for the boundary concentration of negative ion
-       ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus      = get_boundary_multiphase_electroosmotic_nminus;
+        // simulation domain (EO) for phi
+        ns->ed.eo.sdEOphi = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOphi, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOphi, order);
+        // simulation domain (EO) for psi
+        ns->ed.eo.sdEOpsi = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOpsi, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOpsi, order);
+        // simulation domain (EO) for nplus
+        ns->ed.eo.sdEOnplus = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOnplus, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOnplus, order);
+        // simulation domain (EO) for nminus
+        ns->ed.eo.sdEOnminus = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOnminus, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOnminus, order);
+        // function for the eo source term 
+        ns->ed.mult.eo.get_multiphase_electroosmotic_source_term = get_multiphase_electroosmotic_source_term;
+        // function for the eo phi
+        ns->ed.mult.eo.get_multiphase_electroosmotic_phi = get_multiphase_electroosmotic_phi;
+        // function for the eo psi
+        ns->ed.mult.eo.get_multiphase_electroosmotic_psi = get_multiphase_electroosmotic_psi;
+        // function for the eo positive ion concentration 
+        ns->ed.mult.eo.get_multiphase_electroosmotic_nplus = get_multiphase_electroosmotic_nplus;
+        // function for the eo negative ion concentration 
+        ns->ed.mult.eo.get_multiphase_electroosmotic_nminus = get_multiphase_electroosmotic_nminus;
+        // function for the boundary source term
+        ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term = get_boundary_multiphase_electroosmotic_source_term;
+        // function for the boundary potential phi
+        ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi = get_boundary_multiphase_electroosmotic_phi;
+        // function for the boundary potential psi
+        ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi = get_boundary_multiphase_electroosmotic_psi;
+        // function for the boundary concentration of positive ion
+        ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus = get_boundary_multiphase_electroosmotic_nplus;
+        // function for the boundary concentration of negative ion
+        ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus = get_boundary_multiphase_electroosmotic_nminus;
+        // function for the permittivity
+        ns->ed.mult.eo.get_permittivity = get_permittivity;
     }
 }
 
 // Create the simulation domain for electroosmotic flow
-void higflow_create_domain_electroosmotic (higflow_solver *ns, int cache, int order,
-real (*get_electroosmotic_source_term)(Point center, int dim, real t),
-real (*get_electroosmotic_phi)(Point center, real t),
-real (*get_electroosmotic_psi)(Point center, real t),
-real (*get_electroosmotic_nplus)(Point center, real t),
-real (*get_electroosmotic_nminus)(Point center, real t),
-real (*get_boundary_electroosmotic_source_term)(int id, Point center, int dim, real t),
-real (*get_boundary_electroosmotic_phi)(int id, Point center, real t),
-real (*get_boundary_electroosmotic_psi)(int id, Point center, real t),
-real (*get_boundary_electroosmotic_nplus)(int id, Point center, real t),
-real (*get_boundary_electroosmotic_nminus)(int id, Point center, real t)) {
+void higflow_create_domain_electroosmotic(higflow_solver* ns, int cache, int order,
+    real(*get_electroosmotic_source_term)(Point center, int dim, real t),
+    real(*get_electroosmotic_phi)(Point center, real t),
+    real(*get_electroosmotic_psi)(Point center, real t),
+    real(*get_electroosmotic_nplus)(Point center, real t),
+    real(*get_electroosmotic_nminus)(Point center, real t),
+    real(*get_boundary_electroosmotic_source_term)(int id, Point center, int dim, real t),
+    real(*get_boundary_electroosmotic_phi)(int id, Point center, real t),
+    real(*get_boundary_electroosmotic_psi)(int id, Point center, real t),
+    real(*get_boundary_electroosmotic_nplus)(int id, Point center, real t),
+    real(*get_boundary_electroosmotic_nminus)(int id, Point center, real t),
+    real(*get_permittivity)(Point center, real t)) {
     if (ns->contr.eoflow == true) {
-       // simulation domain (EO) for phi
-       ns->ed.eo.sdEOphi = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOphi, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOphi, order);
-       // simulation domain (EO) for psi
-       ns->ed.eo.sdEOpsi = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOpsi, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOpsi, order);
-       // simulation domain (EO) for nplus
-       ns->ed.eo.sdEOnplus = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOnplus, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOnplus, order);
-       // simulation domain (EO) for nminus
-       ns->ed.eo.sdEOnminus = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.eo.sdEOnminus, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.eo.sdEOnminus, order);
-       // function for the eo source term 
-       ns->ed.eo.get_electroosmotic_source_term = get_electroosmotic_source_term;
-       // function for the eo phi
-       ns->ed.eo.get_electroosmotic_phi         = get_electroosmotic_phi;
-       // function for the eo psi
-       ns->ed.eo.get_electroosmotic_psi         = get_electroosmotic_psi ;
-       // function for the eo positive ion concentration 
-       ns->ed.eo.get_electroosmotic_nplus       = get_electroosmotic_nplus;
-       // function for the eo negative ion concentration 
-       ns->ed.eo.get_electroosmotic_nminus      = get_electroosmotic_nminus;
-       // function for the boundary source term
-       ns->ed.eo.get_boundary_electroosmotic_source_term = get_boundary_electroosmotic_source_term;
-       // function for the boundary potential phi
-       ns->ed.eo.get_boundary_electroosmotic_phi         = get_boundary_electroosmotic_phi;
-       // function for the boundary potential psi
-       ns->ed.eo.get_boundary_electroosmotic_psi         = get_boundary_electroosmotic_psi ;
-       // function for the boundary concentration of positive ion
-       ns->ed.eo.get_boundary_electroosmotic_nplus       = get_boundary_electroosmotic_nplus;
-       // function for the boundary concentration of negative ion
-       ns->ed.eo.get_boundary_electroosmotic_nminus      = get_boundary_electroosmotic_nminus;
+        // simulation domain (EO) for phi
+        ns->ed.eo.sdEOphi = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOphi, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOphi, order);
+        // simulation domain (EO) for psi
+        ns->ed.eo.sdEOpsi = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOpsi, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOpsi, order);
+        // simulation domain (EO) for nplus
+        ns->ed.eo.sdEOnplus = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOnplus, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOnplus, order);
+        // simulation domain (EO) for nminus
+        ns->ed.eo.sdEOnminus = sd_create(NULL);
+        //reuse interpolation, 0 on, 1 off
+        sd_use_cache(ns->ed.eo.sdEOnminus, cache);
+        //Sets the order of the interpolation to bhe used for the SD. 
+        sd_set_interpolator_order(ns->ed.eo.sdEOnminus, order);
+        // function for the eo source term 
+        ns->ed.eo.get_electroosmotic_source_term = get_electroosmotic_source_term;
+        // function for the eo phi
+        ns->ed.eo.get_electroosmotic_phi = get_electroosmotic_phi;
+        // function for the eo psi
+        ns->ed.eo.get_electroosmotic_psi = get_electroosmotic_psi;
+        // function for the eo positive ion concentration 
+        ns->ed.eo.get_electroosmotic_nplus = get_electroosmotic_nplus;
+        // function for the eo negative ion concentration 
+        ns->ed.eo.get_electroosmotic_nminus = get_electroosmotic_nminus;
+        // function for the boundary source term
+        ns->ed.eo.get_boundary_electroosmotic_source_term = get_boundary_electroosmotic_source_term;
+        // function for the boundary potential phi
+        ns->ed.eo.get_boundary_electroosmotic_phi = get_boundary_electroosmotic_phi;
+        // function for the boundary potential psi
+        ns->ed.eo.get_boundary_electroosmotic_psi = get_boundary_electroosmotic_psi;
+        // function for the boundary concentration of positive ion
+        ns->ed.eo.get_boundary_electroosmotic_nplus = get_boundary_electroosmotic_nplus;
+        // function for the boundary concentration of negative ion
+        ns->ed.eo.get_boundary_electroosmotic_nminus = get_boundary_electroosmotic_nminus;
+        // function for the permittivity
+        ns->ed.eo.get_permittivity = get_permittivity;
     }
 }
 
@@ -810,7 +820,7 @@ real (*get_alpha)(Point center, real t, real alpha, real phi, real phircp)) {
 }
 
 // Create the partitioned simulation sub-domain for NS object
-void higflow_create_partitioned_domain(higflow_solver *ns, partition_graph *pg, int order) {
+void higflow_create_partitioned_domain (higflow_solver *ns, partition_graph *pg, int order) {
     // Creating the partitioned sub-domain to simulation for pressure
     ns->psdp = psd_create(ns->sdp, pg);
     // Synced mapper for pressure
@@ -819,6 +829,7 @@ void higflow_create_partitioned_domain(higflow_solver *ns, partition_graph *pg, 
     ns->psdF = psd_create(ns->sdF, pg);
     // Synced mapper for source force
     psd_synced_mapper(ns->psdF);
+
     // Linking the property to the facets 
     for (int dim = 0; dim < DIM; dim++) {
         // Creating the list of cells center in the local domain (velocities)
@@ -880,7 +891,7 @@ void higflow_create_partitioned_domain_multiphase (higflow_solver *ns, partition
 }
 
 // Create the partitioned simulation sub-domain for viscoelastic simulation
-void higflow_create_partitioned_domain_viscoelastic(higflow_solver *ns, partition_graph *pg, int order) {
+void higflow_create_partitioned_domain_viscoelastic (higflow_solver *ns, partition_graph *pg, int order) {
     if (ns->contr.flowtype == VISCOELASTIC) {
         // Creating the partitioned sub-domain to simulation
         ns->ed.psdED = psd_create(ns->ed.sdED, pg);
@@ -976,7 +987,7 @@ void higflow_create_partitioned_domain_viscoelastic_shear_banding (higflow_solve
 
 // Create the partitioned simulation sub-domain for elastoviscoplastic simulation
 void higflow_create_partitioned_domain_elastoviscoplastic (higflow_solver *ns, partition_graph *pg, int order) {
-    if (ns->contr.flowtype == 8) {
+    if (ns->contr.flowtype == ELASTOVISCOPLASTIC) {
         // Creating the partitioned sub-domain to simulation
         ns->ed.psdED = psd_create(ns->ed.sdED, pg);
         // Synced mapper
@@ -986,7 +997,7 @@ void higflow_create_partitioned_domain_elastoviscoplastic (higflow_solver *ns, p
 
 // Create the partitioned simulation sub-domain for shear-thickening suspension simulation
 void higflow_create_partitioned_domain_shear_thickening_suspension (higflow_solver *ns, partition_graph *pg, int order) {
-    if (ns->contr.flowtype == 9) {
+    if (ns->contr.flowtype == SUSPENSIONS) {
         // Creating the partitioned sub-domain to simulation
         ns->ed.psdED = psd_create(ns->ed.sdED, pg);
         // Synced mapper
@@ -1107,6 +1118,8 @@ void higflow_create_distributed_properties_electroosmotic(higflow_solver *ns) {
         ns->ed.eo.dppsi      = psd_create_property(ns->ed.eo.psdEOpsi);
         ns->ed.eo.dpnplus    = psd_create_property(ns->ed.eo.psdEOnplus);
         ns->ed.eo.dpnminus   = psd_create_property(ns->ed.eo.psdEOnminus);
+        ns->ed.eo.dpnplus_temp = psd_create_property(ns->ed.eo.psdEOnplus);
+        ns->ed.eo.dpnminus_temp = psd_create_property(ns->ed.eo.psdEOnminus);
     }
 }
 
@@ -1313,7 +1326,7 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
             sd_add_higtree(ns->ed.eo.sdEOnplus, root);
             sd_add_higtree(ns->ed.eo.sdEOnminus, root);
         }
-	// Reunir Daniel
+
         //Viscoelastic flow with variable viscosity
         if ((ns->ed.nn_contr.rheotype == PLM) || (ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
             sd_add_higtree(ns->ed.vevv.sdVisc, root);

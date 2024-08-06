@@ -442,7 +442,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
                         // Right hand side equation
                         real rhs = 0.0;
                         switch (ns->ed.im.contr.convecdiscrtype) {
-                            case CELL_UPWIND: 
+                            case CELL_CENTRAL: 
                                 // Kernel derivative at cell center
                                 hig_flow_derivative_b_at_center_cell(ns, ccenter, cdelta, k, i, j, B[i][j], dBdx);
                                 for (int dim = 0; dim < DIM; dim++) {

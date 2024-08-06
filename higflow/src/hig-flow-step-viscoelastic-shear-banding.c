@@ -368,7 +368,7 @@ void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case CELL_UPWIND: 
+                        case CELL_CENTRAL: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_A_at_center_cell (ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -593,7 +593,7 @@ void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case CELL_UPWIND: 
+                        case CELL_CENTRAL: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_B_at_center_cell (ns, ccenter, cdelta, i, j, B[i][j], dBdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -799,7 +799,7 @@ void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case CELL_UPWIND: 
+                        case CELL_CENTRAL: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_A_at_center_cell (ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -1054,7 +1054,7 @@ void higflow_implicit_euler_conformation_tensor_B(higflow_solver *ns) {
                     // Right hand side equation
                     real rhs = 0.0;
                     switch (ns->ed.vesb.contr.convecdiscrtype) {
-                        case CELL_UPWIND: 
+                        case CELL_CENTRAL: 
                             // Tensor derivative at cell center
                             hig_flow_derivative_tensor_B_at_center_cell (ns, ccenter, cdelta, i, j, B[i][j], dBdx);
                             for (int dim = 0; dim < DIM; dim++) {
@@ -2021,7 +2021,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case CELL_UPWIND: 
+                case CELL_CENTRAL: 
                     // Derivative at cell center
                     hig_flow_derivative_nA_at_center_cell(ns, ccenter, cdelta, nA, dnAdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2143,7 +2143,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case CELL_UPWIND: 
+                case CELL_CENTRAL: 
                     // Ionic derivative at cell center
                     hig_flow_derivative_nB_at_center_cell(ns, ccenter, cdelta, nB, dnBdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2269,7 +2269,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case CELL_UPWIND: 
+                case CELL_CENTRAL: 
                     // Derivative at cell center
                     hig_flow_derivative_nA_at_center_cell(ns, ccenter, cdelta, nA, dnAdx);
                     for (int dim = 0; dim < DIM; dim++) {
@@ -2420,7 +2420,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *
             real rhs = 0.0;
             switch (ns->ed.vesb.contr.nAnBconvecdiscrtype) {
                 // Central scheme
-                case CELL_UPWIND: 
+                case CELL_CENTRAL: 
                     // Ionic derivative at cell center
                     hig_flow_derivative_nB_at_center_cell(ns, ccenter, cdelta, nB, dnBdx);
                     for (int dim = 0; dim < DIM; dim++) {

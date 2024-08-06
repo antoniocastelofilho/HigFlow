@@ -270,7 +270,7 @@ void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns) {
                 rhs    += higflow_diffusive_ionic_term(ns, Pe);
                 // convective term
                 switch (ns->ed.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         //hig_flow_derivative_nplus_at_center_cell(ns, ccenter, cdelta, nplus, dnplusdx);
                         rhs    -= ns->cc.ucell * ns->cc.dndx;
                         rhs    += higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
@@ -285,12 +285,12 @@ void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns) {
             // Compute the final value step time
             real newnplus =  nplus + ns->par.dt * rhs;
             // Set property value  
-            dp_set_value(ns->ed.eo.dpnplus, clid, newnplus);
+            dp_set_value(ns->ed.eo.dpnplus_temp, clid, newnplus);
         }
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the distributed ionic property
-        dp_sync(ns->ed.eo.dpnplus);
+        dp_sync(ns->ed.eo.dpnplus_temp);
     }
 }
 
@@ -331,7 +331,7 @@ void higflow_explicit_euler_ionic_transport_equation_nminus(higflow_solver *ns) 
                 rhs += higflow_diffusive_ionic_term(ns, Pe);
                 // convective term
                 switch (ns->ed.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         //hig_flow_derivative_nminus_at_center_cell(ns, ccenter, cdelta, nminus, dnminusdx);
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    -= higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
@@ -346,12 +346,12 @@ void higflow_explicit_euler_ionic_transport_equation_nminus(higflow_solver *ns) 
             // Compute the final value step time
             real newnminus =  nminus + ns->par.dt * rhs;
             // Set ionic property value  
-            dp_set_value(ns->ed.eo.dpnminus, clid, newnminus);
+            dp_set_value(ns->ed.eo.dpnminus_temp, clid, newnminus);
         }
         // Destroy the iterator
         higcit_destroy(itt);
         // Sync the distributed ionic property
-        dp_sync(ns->ed.eo.dpnminus);
+        dp_sync(ns->ed.eo.dpnminus_temp);
     }
 }
 
@@ -390,7 +390,7 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
                 higflow_computational_cell_electroosmotic_ionic(ns, sdnplus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
                 // convective term
                 switch (ns->ed.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         //hig_flow_derivative_nplus_at_center_cell(ns, ccenter, cdelta, nplus, dnplusdx);
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    += higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
@@ -444,9 +444,9 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
         // Solve the linear system
         slv_solve(ns->ed.eo.slvnplus);
         //Load property from solver
-        dp_slv_load_from_solver(ns->ed.eo.dpnplus, ns->ed.eo.slvnplus);
+        dp_slv_load_from_solver(ns->ed.eo.dpnplus_temp, ns->ed.eo.slvnplus);
         // Syncing the distributed property
-        dp_sync(ns->ed.eo.dpnplus);
+        dp_sync(ns->ed.eo.dpnplus_temp);
     }
 }
 
@@ -484,7 +484,7 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver 
                 higflow_computational_cell_electroosmotic_ionic(ns, sdnminus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
                 // convective term
                 switch (ns->ed.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         //hig_flow_derivative_nminus_at_center_cell(ns, ccenter, cdelta, nminus, dnminusdx);
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    -= higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
@@ -538,9 +538,9 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver 
         // Solve the linear system
         slv_solve(ns->ed.eo.slvnminus);
         //Load property from solver
-        dp_slv_load_from_solver(ns->ed.eo.dpnminus, ns->ed.eo.slvnminus);
+        dp_slv_load_from_solver(ns->ed.eo.dpnminus_temp, ns->ed.eo.slvnminus);
         // Syncing the distributed property
-        dp_sync(ns->ed.eo.dpnminus);
+        dp_sync(ns->ed.eo.dpnminus_temp);
     }
 }
 
@@ -796,10 +796,10 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
 
 
 // Electroosmotic induced potential psi 
-void higflow_electroosmotic_psi(higflow_solver *ns) {
+real higflow_electroosmotic_psi(higflow_solver *ns) {
     real alphaeo = ns->ed.eo.par.alpha;
     real delta   = ns->ed.eo.par.delta;
-    real nminus, nplus, psi;
+    real nminus_temp, nplus_temp, psi;
     // Get the local sub-domain for the cells
     sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
     // Get the map for the domain property nminus
@@ -824,36 +824,41 @@ void higflow_electroosmotic_psi(higflow_solver *ns) {
         if (ns->ed.eo.contr.eo_model == PNP) {
             // Poisson-Nernst-Planck model 
             // Get the ionic concentration n- at center cell
-            nplus    = dp_get_value(ns->ed.eo.dpnplus, clid);
-            nminus   = dp_get_value(ns->ed.eo.dpnminus, clid);
-            rhs      = delta*(nminus - nplus);
+            nplus_temp    = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus_temp, ns->ed.eo.stnnplus);
+            nminus_temp   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus_temp, ns->ed.eo.stnnminus);
+            rhs      = -delta*(nplus_temp - nminus_temp);
         } else if (ns->ed.eo.contr.eo_model == PB) {
             // Poisson-Boltzmann model 
             psi      = dp_get_value(ns->ed.eo.dppsi, clid);
-            rhs      = 2.0*delta*sinh(alphaeo*psi);
+            rhs      = 2.0*delta*sinh(alphaeo*psi) - 2.0*delta*alphaeo*psi*cosh(alphaeo*psi);
         }
         // Calculate the point and weight of the stencil
         stn_set_rhs(ns->ed.eo.stnpsi, rhs);
         real alpha = 0.0;
         for(int dim = 0; dim < DIM; dim++) {
-            // Stencil weight update
-            real w = 1.0/(cdelta[dim]*cdelta[dim]);
-            alpha -= 2.0 * w;
             // Stencil point update
             Point p;
             POINT_ASSIGN(p, ccenter);
+            real perm = ns->ed.eo.get_permittivity(p, ns->par.t);
             // Stencil point update: right point
             p[dim] = ccenter[dim] + cdelta[dim];
-            sd_get_stencil(sdp, ccenter, p, w, ns->ed.eo.stnpsi);
+            real permr = ns->ed.eo.get_permittivity(p, ns->par.t);
+            real permrc = 0.5*(perm + permr);
+            real wr = permrc/(cdelta[dim]*cdelta[dim]);
+            sd_get_stencil(sdp, ccenter, p, wr, ns->ed.eo.stnpsi);
             // Stencil point update: left point
             p[dim] = ccenter[dim] - cdelta[dim];
-            sd_get_stencil(sdp, ccenter, p, w, ns->ed.eo.stnpsi);
+            real perml = ns->ed.eo.get_permittivity(p, ns->par.t);
+            real permlc = 0.5*(perm + perml);
+            real wl = permlc/(cdelta[dim]*cdelta[dim]);
+            sd_get_stencil(sdp, ccenter, p, wl, ns->ed.eo.stnpsi);
+
+            alpha -= (wr + wl);
         }
         switch (ns->ed.eo.contr.eo_model) {
         case PB:
             // Poisson-Boltzmann model 
-         //    printf("xxxxxx Please, you must implement this model xxxxxxx\n");
-         //    exit(1);
+            alpha -= 2.0*alphaeo*delta*cosh(alphaeo*psi);
             break;
         case PBDH:
             // Debye-Hückel model (solving poisson equation for psi) 
@@ -887,6 +892,7 @@ void higflow_electroosmotic_psi(higflow_solver *ns) {
     slv_solve(ns->ed.eo.slvpsi);
     // Set the solver solution in distributed property
     //dp_slv_load_from_solver(ns->ed.eo.dppsi, ns->ed.eo.slvpsi);
+    real max_psi_res = 0.0;
     for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         // Get the cell
         hig_cell *c = higcit_getcell(it);
@@ -898,8 +904,10 @@ void higflow_electroosmotic_psi(higflow_solver *ns) {
         hig_get_center(c, ccenter);
         // Get the value of psi
         real psi_new = slv_get_xi(ns->ed.eo.slvpsi, cgid);
-
-        UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.eo.dppsi, clid), psi_new, c, ccenter)
+        real psi_old = dp_get_value(ns->ed.eo.dppsi, clid);
+        UPDATE_RESIDUAL_BUFFER_CELL(ns, psi_old, psi_new, c, ccenter)
+        real res = fabs(psi_new - psi_old);
+        if(res > max_psi_res) max_psi_res = res;
 
         // Store psi
         dp_set_value(ns->ed.eo.dppsi, clid, psi_new);   
@@ -910,6 +918,35 @@ void higflow_electroosmotic_psi(higflow_solver *ns) {
     UPDATE_RESIDUALS(ns, ns->residuals->psi)
 
     dp_sync(ns->ed.eo.dppsi);
+
+    // get the global residual
+    real max_psi_res_global = INFINITY;
+    MPI_Allreduce(&max_psi_res, &max_psi_res_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    return max_psi_res_global;
+}
+
+
+
+void higflow_electroosmotic_solve_pb(higflow_solver *ns) {
+    real max_psi_res = INFINITY, max_psi_res_global = INFINITY;
+    real pb_tol = EPSMACH;
+    int iter = 0, maxiter = 50;
+    
+    while (max_psi_res_global > pb_tol && iter < maxiter) {
+        max_psi_res = higflow_electroosmotic_psi(ns);
+        MPI_Allreduce(&max_psi_res, &max_psi_res_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("Poisson-Boltzmann model residual: %e\n", max_psi_res_global);
+        iter++;
+    }
+    if (iter < maxiter) {
+        print0f("Poisson-Boltzmann model converged after %d iterations\n", iter);
+    }
+    else {
+        print0f("Poisson-Boltzmann model did not converge after %d iterations\n", iter);
+        exit(1);
+    }
+
 }
 
 // Electroosmotic applied potential phi 
@@ -1042,7 +1079,28 @@ void higflow_calculate_electroosmotic_source_term( higflow_solver *ns) {
                     break;
             }
             // Compute the electro-osmotic source term
-            Feo = -rho*(dphidx + dpsidx) ;
+            //Feo = -rho*(dphidx + dpsidx) ;
+            Feo = -rho*(dphidx) ; // large normal psi gradients make the above formulation incompatible with pressure neumann conditions
+            real normE2 = dphidx*dphidx;
+            for (int dim2 = 0; dim2 < DIM; dim2++) {
+                if(dim2 != dim) {
+                    real phil_ = compute_center_p_left_2(sdphi, fcenter, fdelta, dim, dim2, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
+                    real phir_ = compute_center_p_right_2(sdphi, fcenter, fdelta, dim, dim2, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
+                    real dphidx_ = compute_dpdx_at_point(fdelta, dim2, 1.0, phil_, phir_);
+                    normE2 += dphidx_*dphidx_;
+                }
+            }
+            Point ccenterl, ccenterr;
+            POINT_ASSIGN(ccenterl, fcenter); POINT_ASSIGN(ccenterr, fcenter);
+            ccenterl[dim] -= 0.5*fdelta[dim]; ccenterr[dim] += 0.5*fdelta[dim];
+            real perml = ns->ed.eo.get_permittivity(ccenterl, ns->par.t);
+            real permr = ns->ed.eo.get_permittivity(ccenterr, ns->par.t);
+            real dpermdx = compute_dpdx_at_point(fdelta, dim, 0.5, perml, permr);
+
+            // Extra term arising due to (possibly non-uniform) permittivity gradient
+            // Comes from Korteweg-Helmholtz force for linear dielectric isotropic media with instantaneous polarization response
+            Feo += -0.5*normE2*dpermdx;
+            
             // Get the electroosmotic extra source term defined by user
             Feo   += ns->ed.eo.get_electroosmotic_source_term(fcenter, dim, ns->par.t);
             // Set the distributed source term property
@@ -1769,6 +1827,8 @@ void print_minmax_properties(higflow_solver *ns) {
         //get cell and its id
         hig_cell *c = higcit_getcell(it);
         int clid    = mp_lookup(m, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
         //get distributed properties and update min and max
         for(int dim=0; dim<DIM; dim++){
             // u[dim] = dp_get_value(ns->dpu[dim], clid);
@@ -1777,23 +1837,23 @@ void print_minmax_properties(higflow_solver *ns) {
             // ustar[dim] = dp_get_value(ns->dpustar[dim], clid);
             // if(ustar[dim]>ustar_max[dim]) ustar_max[dim] = ustar[dim];
             // if(ustar[dim]<ustar_min[dim]) ustar_min[dim] = ustar[dim];
-            Feo[dim] = dp_get_value(ns->ed.eo.dpFeo[dim], clid);
+            Feo[dim] = compute_facet_value_at_point(ns->ed.eo.sfdEOFeo[dim], ccenter, ccenter, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
             if(Feo[dim]>Feo_max[dim]) Feo_max[dim] = Feo[dim];
             if(Feo[dim]<Feo_min[dim]) Feo_min[dim] = Feo[dim];
         }
         // p = dp_get_value(ns->dpp, clid);
         // if(p>p_max) p_max = p;
         // if(p<p_min) p_min = p;
-        phi = dp_get_value(ns->ed.eo.dpphi, clid);
+        phi = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
         if(phi>phi_max) phi_max = phi;
         if(phi<phi_min) phi_min = phi;
         psi = dp_get_value(ns->ed.eo.dppsi, clid);
         if(psi>psi_max) psi_max = psi;
         if(psi<psi_min) psi_min = psi;
-        nplus = dp_get_value(ns->ed.eo.dpnplus, clid);
+        nplus = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
         if(nplus>nplus_max) nplus_max = nplus;
         if(nplus<nplus_min) nplus_min = nplus;
-        nminus = dp_get_value(ns->ed.eo.dpnminus, clid);
+        nminus = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
         if(nminus>nminus_max) nminus_max = nminus;
         if(nminus<nminus_min) nminus_min = nminus;
         // deltap = dp_get_value(ns->ddeltap, clid);
@@ -1837,7 +1897,8 @@ void print_minmax_properties(higflow_solver *ns) {
 
     // print psi, nplus and Feo
     print0f("===> \u03A8min = %15.10lf <===> \u03A8max = %15.10lf <===\n", psi_min_global, psi_max_global);
-    print0f("===> n+min = %15.10lf <===> n+max = %15.10lf <===\n", nplus_min_global, nplus_max_global);
+    if(ns->ed.eo.contr.eo_model == PNP)
+        print0f("===> n+min = %15.10lf <===> n+max = %15.10lf <===\n", nplus_min_global, nplus_max_global);
     for(int dim=0; dim<DIM; dim++)
         print0f("===> %d: Feomin = %15.10lf <===> Feomax = %15.10lf <===\n", dim, Feo_min_global[dim], Feo_max_global[dim]);
 
@@ -1845,72 +1906,60 @@ void print_minmax_properties(higflow_solver *ns) {
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_electroosmotic(higflow_solver *ns) {
-    // Boundary condition for velocity
+    // Boundary conditions and source terms
     higflow_boundary_condition_for_velocity(ns);
-    // Boundary conditions for source term
     higflow_boundary_condition_for_cell_source_term(ns);
     higflow_boundary_condition_for_facet_source_term(ns);
-    // Boundary condition for n+ 
-    higflow_boundary_condition_for_electroosmotic_nplus(ns);
-    // Boundary condition for n- 
-    higflow_boundary_condition_for_electroosmotic_nminus(ns);
-    // Boundary condition for pressure
     higflow_boundary_condition_for_pressure(ns);
-    // Calculate the source term
     higflow_calculate_source_term(ns);
-    // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
-    // Calculate the electro-osmotic source term
-    switch (ns->ed.eo.contr.eo_model) {
-    case PNP:
-        // Poisson-Nernst-Planck model
-        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
-            higflow_boundary_condition_for_phi(ns);
-            higflow_electroosmotic_phi(ns);
-        }
-        switch (ns->ed.eo.contr.tempdiscrtype) {
-            case EXPLICIT_EULER:
-                higflow_explicit_euler_ionic_transport_equation_nplus(ns);
-                higflow_explicit_euler_ionic_transport_equation_nminus(ns);
-                break;
-            case SEMI_IMPLICIT_EULER:
-                higflow_semi_implicit_euler_ionic_transport_equation_nplus(ns);
-                higflow_semi_implicit_euler_ionic_transport_equation_nminus(ns);
-                break;
 
+    // Calculate the electro-osmotic terms
+    higflow_boundary_condition_for_phi(ns);
+    higflow_boundary_condition_for_psi(ns);
+    switch (ns->ed.eo.contr.eo_model) {
+    case PNP: // Poisson-Nernst-Planck model
+        for(int k=0; k<2; k++) {
+            higflow_boundary_condition_for_electroosmotic_nplus(ns);
+            higflow_boundary_condition_for_electroosmotic_nminus(ns);
+            if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true)
+            higflow_electroosmotic_phi(ns);
+            switch (ns->ed.eo.contr.tempdiscrtype) {
+                case EXPLICIT_EULER:
+                    higflow_explicit_euler_ionic_transport_equation_nplus(ns);
+                    higflow_explicit_euler_ionic_transport_equation_nminus(ns);
+                    break;
+                case SEMI_IMPLICIT_EULER:
+                    higflow_semi_implicit_euler_ionic_transport_equation_nplus(ns);
+                    higflow_semi_implicit_euler_ionic_transport_equation_nminus(ns);
+                    break;
+            }
+            real max_psi_res = higflow_electroosmotic_psi(ns);
+            if(k>0) print0f("=+=+=+ psi residual in inner iteration %d: %15.10lf =+=+=+\n", k+1, max_psi_res);
         }
-        higflow_boundary_condition_for_psi(ns);
-        higflow_electroosmotic_psi(ns);
+        dp_copy_values(ns->ed.eo.dpnplus, ns->ed.eo.dpnplus_temp);
+        dp_copy_values(ns->ed.eo.dpnminus, ns->ed.eo.dpnminus_temp);
         higflow_calculate_electroosmotic_source_term(ns);
         break;
-    case PB:
-        // Poisson-Boltzmann model 
-        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
-            higflow_boundary_condition_for_phi(ns);
-            higflow_electroosmotic_phi(ns);
-        }
-        higflow_boundary_condition_for_psi(ns);
-        higflow_electroosmotic_psi(ns);
-        higflow_calculate_electroosmotic_source_term(ns);
-        break;
-    case PBDH:
-        // Debye-Hückel model (solving poisson equation for psi) 
-        // Poisson-Boltzmann model 
-        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true) {
-            higflow_boundary_condition_for_phi(ns);
-            higflow_electroosmotic_phi(ns);
-        }
-        if( (ns->par.step == 0) || ns->ed.eo.contr.is_psibc_timedependent == true) {
-            higflow_boundary_condition_for_psi(ns);
-            higflow_electroosmotic_psi(ns);
-        }
+    case PB: // Poisson-Boltzmann model 
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true)
+        higflow_electroosmotic_phi(ns);
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_psibc_timedependent == true)
+        higflow_electroosmotic_solve_pb(ns);
         if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true
-                              || ns->ed.eo.contr.is_psibc_timedependent == true) {
+                                || ns->ed.eo.contr.is_psibc_timedependent == true)
             higflow_calculate_electroosmotic_source_term(ns);
-        }
         break;
-    case PBDH_ANALYTIC:
-        // Debye-Hückel model (using the analytic solution for psi)
+    case PBDH: // Debye-Hückel model (solving poisson equation for psi) 
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true)
+        higflow_electroosmotic_phi(ns);
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_psibc_timedependent == true)
+            higflow_electroosmotic_psi(ns);
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_phibc_timedependent == true
+                                || ns->ed.eo.contr.is_psibc_timedependent == true)
+            higflow_calculate_electroosmotic_source_term(ns);
+        break;
+    case PBDH_ANALYTIC: // Debye-Hückel model (using the analytic solution for psi)
         higflow_calculate_electroosmotic_source_term_analytic_pbdh(ns);
         break;
     } 
@@ -1918,39 +1967,28 @@ void higflow_solver_step_electroosmotic(higflow_solver *ns) {
     // Calculate the intermediate velocity
     switch (ns->contr.tempdiscrtype) {
     case EXPLICIT_EULER:
-        // Explicit Euler method
         higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpustar);
         break;
     case EXPLICIT_RK2:
-        // Explicit RK2 method
         higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(ns);
         break;
     case EXPLICIT_RK3:
-        // Explicit RK3 method
         higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(ns);
         break;
     case SEMI_IMPLICIT_EULER:
-        // Semi-Implicit Euler Method
         higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(ns);
         break;
     case SEMI_IMPLICIT_CN:
-        // Semi-Implicit Crank-Nicolson Method
         higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(ns);
         break;
     case SEMI_IMPLICIT_BDF2:
-        // Semi-Implicit Crank-Nicolson Method
         higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(ns);
         break;
     }
-    // Set outflow for ustar velocity 
-    // higflow_outflow_ustar_step(ns);
-    // Calculate the pressure
+
+    // Projection
     higflow_pressure(ns);
-    // Calculate the final velocity
     higflow_final_velocity(ns);
-    // Set outflow for u velocity 
-    // higflow_outflow_u_step(ns);
-    // Calculate the final pressure
     higflow_final_pressure(ns);
 }
 

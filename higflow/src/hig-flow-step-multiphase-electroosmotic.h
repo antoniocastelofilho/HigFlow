@@ -21,7 +21,9 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
 
 void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higflow_solver *ns);
 
-void higflow_multiphase_electroosmotic_psi(higflow_solver *ns);
+real higflow_multiphase_electroosmotic_psi(higflow_solver *ns);
+
+void higflow_multiphase_electroosmotic_solve_pb(higflow_solver *ns);
 
 void higflow_calculate_multiphase_electroosmotic_source_term( higflow_solver *ns);
 

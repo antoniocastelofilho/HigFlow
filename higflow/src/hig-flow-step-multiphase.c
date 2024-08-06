@@ -1399,7 +1399,7 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
        real rhs = 0.0;
        int  convecdiscrtype = 1;
            switch (convecdiscrtype) {
-              case CELL_UPWIND: 
+              case CELL_CENTRAL: 
                  // Kernel derivative at cell center
                  hig_flow_derivative_fracvol_at_center_cell(ns, ccenter, cdelta, fracvol, dfracvoldx);
                  for (int dim = 0; dim < DIM; dim++) {
@@ -2080,45 +2080,45 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             // Calculate the point and weight of the stencil
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
-                // if(dim2==dim) {
-                //     // Get the cell viscosity in the left cell
-                //     ns->cc.viscl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
-                //     // Get the cell viscosity in the right cell
-                //     ns->cc.viscr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
-                // } else {
-                //     Point p1,p2,p3,p4,p3_,p4_;
-                //     // p1 and p2 in facet center
-                //     POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
-                //     // p1 and p2 in cell center
-                //     p1[dim]=p1[dim]-0.5*fdelta[dim];p2[dim]=p2[dim]+0.5*fdelta[dim];
-                //     // copy p1 and p2 in p3 and p4
-                //     POINT_ASSIGN(p3, p1);POINT_ASSIGN(p4, p2);
-                //     POINT_ASSIGN(p3_, p1);POINT_ASSIGN(p4_, p2);
-                //     // p3 and p4 in cell center
-                //     p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
-                //     p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
-                //     // viscosity 
-                //     real v1=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-                //     real v2=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-                //     real v3=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-                //     real v4=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-                //     real v3_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-                //     real v4_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-                //     ns->cc.viscl=4.0/(1.0/v1+1.0/v2+1.0/v3_+1.0/v4_);
-                //     ns->cc.viscr=4.0/(1.0/v1+1.0/v2+1.0/v3+1.0/v4);
-                // }
-                // Stencil weight update
-                real wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                alpha -= (wr + wl);
-                Point p;
-                POINT_ASSIGN(p, fcenter);
-                // Stencil point update: right point
-                p[dim2] = fcenter[dim2] + fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
-                // Stencil point update: left point
-                p[dim2] = fcenter[dim2] - fdelta[dim2];
-                sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
+               //  if(dim2==dim) {
+               //      // Get the cell viscosity in the left cell
+               //      ns->cc.viscl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
+               //      // Get the cell viscosity in the right cell
+               //      ns->cc.viscr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
+               //  } else {
+               //      Point p1,p2,p3,p4,p3_,p4_;
+               //      // p1 and p2 in facet center
+               //      POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
+               //      // p1 and p2 in cell center
+               //      p1[dim]=p1[dim]-0.5*fdelta[dim];p2[dim]=p2[dim]+0.5*fdelta[dim];
+               //      // copy p1 and p2 in p3 and p4
+               //      POINT_ASSIGN(p3, p1);POINT_ASSIGN(p4, p2);
+               //      POINT_ASSIGN(p3_, p1);POINT_ASSIGN(p4_, p2);
+               //      // p3 and p4 in cell center
+               //      p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
+               //      p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
+               //      // viscosity 
+               //      real v1=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+               //      real v2=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+               //      real v3=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+               //      real v4=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+               //      real v3_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+               //      real v4_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+               //      ns->cc.viscl=4.0/(1.0/v1+1.0/v2+1.0/v3_+1.0/v4_);
+               //      ns->cc.viscr=4.0/(1.0/v1+1.0/v2+1.0/v3+1.0/v4);
+               //  }
+               // Stencil weight update
+               real wr = - ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+               real wl = - ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+               alpha -= (wr + wl);
+               Point p;
+               POINT_ASSIGN(p, fcenter);
+               // Stencil point update: right point
+               p[dim2] = fcenter[dim2] + fdelta[dim2];
+               sfd_get_stencil(sfdu[dim], fcenter, p, wr, ns->stn);
+               // Stencil point update: left point
+               p[dim2] = fcenter[dim2] - fdelta[dim2];
+               sfd_get_stencil(sfdu[dim], fcenter, p, wl, ns->stn);
             }
             alpha = 1.0 + alpha;
             // Get the stencil
@@ -2215,8 +2215,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(higfl
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 0.5*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - 0.5*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - 0.5*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 0.5*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -2322,8 +2322,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 0.25*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - 0.25*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - 0.25*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 0.25*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -2413,8 +2413,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -2490,6 +2490,8 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_compute_density_multiphase(ns);
     // Calculate the curvature
     higflow_compute_curvature_multiphase(ns);
+
+    higflow_compute_plic_lines_2d(ns);
 
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {

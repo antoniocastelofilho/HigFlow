@@ -1423,7 +1423,7 @@ void higflow_explicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                     real rhs = 0.0;
                     switch (ns->ed.stsp.contr.convecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         // Tensor derivative at cell center
                         hig_flow_derivative_tensor_A_at_center_cell(ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                         for (int dim = 0; dim < DIM; dim++)
@@ -1944,7 +1944,7 @@ void higflow_implicit_euler_evolution_equation_microstructure_tensor(higflow_sol
                     real rhs = 0.0;
                     switch (ns->ed.stsp.contr.convecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         // Tensor derivative at cell center
                         hig_flow_derivative_tensor_A_at_center_cell(ns, ccenter, cdelta, i, j, A[i][j], dAdx);
                         for (int dim = 0; dim < DIM; dim++)
@@ -3599,7 +3599,7 @@ void higflow_explicit_euler_volume_fraction_equation(higflow_solver *ns)
             switch (ns->ed.stsp.contr.volfracconvecdiscrtype)
             {
             // Central scheme
-            case CELL_UPWIND:
+            case CELL_CENTRAL:
                 // volume fraction derivative at cell center
                 hig_flow_derivative_volfrac_at_center_cell(ns, ccenter, cdelta, varphi, dphidx);
                 for (int dim = 0; dim < DIM; dim++)

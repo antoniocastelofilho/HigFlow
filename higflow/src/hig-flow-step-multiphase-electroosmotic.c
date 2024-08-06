@@ -64,22 +64,31 @@ void higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(higflow_so
                 dp_set_value(ns->ed.eo.dpnplus, clid, 1.0);
                 continue;
             }
-            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(ns->ed.mult.eo.par0.alpha, ns->ed.mult.eo.par1.alpha, 1.0);
-            real Pe = higflow_interp_Pe_multiphase_electroosmotic(ns->ed.mult.eo.par0.Pe, ns->ed.mult.eo.par1.Pe, 1.0);
-
+            real alphaeo0 = ns->ed.mult.eo.par0.alpha; real alphaeo1 = ns->ed.mult.eo.par1.alpha;
+            real Pe0 = ns->ed.mult.eo.par0.Pe; real Pe1 = ns->ed.mult.eo.par1.Pe;
+            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, 1.0);
+            real Pe = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, 1.0);
+            
             // compute nplus value at point 
             real nplus = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
             // Solving the Transport Equation using the Euler Method
             // Right hand side equation
             real rhs = 0.0;
             for (int dim = 0; dim < DIM; dim++) { // sum in both directions
+                real fracvoll = compute_center_p_left(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real fracvolr = compute_center_p_right(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real alphaeol = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvoll);
+                real alphaeor = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvolr);
+                real Pel = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvoll);
+                real Per = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvolr);
                 // Set the computational cell in this particular direction
-                higflow_computational_cell_electroosmotic_ionic(ns, sdnplus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
+                higflow_computational_cell_multiphase_electroosmotic_ionic(ns, sdnplus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus, 
+                                                                           alphaeo, alphaeol, alphaeor, Pe, Pel, Per);
                 // Compute the diffusive ionic term rhs
                 rhs    += higflow_diffusive_ionic_term(ns, Pe);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         rhs    -= ns->cc.ucell * ns->cc.dndx;
                         rhs    += higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    += higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -93,12 +102,12 @@ void higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(higflow_so
             // Compute the final value step time
             real newnplus =  nplus + ns->par.dt * rhs;
             // Set property value  
-            dp_set_value(ns->ed.eo.dpnplus, clid, newnplus);
+            dp_set_value(ns->ed.eo.dpnplus_temp, clid, newnplus);
         }
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the distributed ionic property
-        dp_sync(ns->ed.eo.dpnplus);
+        dp_sync(ns->ed.eo.dpnplus_temp);
     }
 }
 
@@ -132,8 +141,10 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
                 dp_set_value(ns->ed.eo.dpnplus, clid, 1.0);
                 continue;
             }
-            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(ns->ed.mult.eo.par0.alpha, ns->ed.mult.eo.par1.alpha, 1.0);
-            real Pe = higflow_interp_Pe_multiphase_electroosmotic(ns->ed.mult.eo.par0.Pe, ns->ed.mult.eo.par1.Pe, 1.0);
+            real alphaeo0 = ns->ed.mult.eo.par0.alpha; real alphaeo1 = ns->ed.mult.eo.par1.alpha;
+            real Pe0 = ns->ed.mult.eo.par0.Pe; real Pe1 = ns->ed.mult.eo.par1.Pe;
+            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, 1.0);
+            real Pe = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, 1.0);
 
             // compute nminus value at point 
             real nminus = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
@@ -141,13 +152,20 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
             // Right hand side equation
             real rhs = 0.0;
             for (int dim = 0; dim < DIM; dim++) { // sum in both directions
+                real fracvoll = compute_center_p_left(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real fracvolr = compute_center_p_right(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real alphaeol = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvoll);
+                real alphaeor = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvolr);
+                real Pel = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvoll);
+                real Per = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvolr);
                 // Set the computational cell in this particular direction
-                higflow_computational_cell_electroosmotic_ionic(ns, sdnminus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
+                higflow_computational_cell_multiphase_electroosmotic_ionic(ns, sdnminus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus,
+                                                                           alphaeo, alphaeol, alphaeor, Pe, Pel, Per);
                 // Compute the diffusive ionic term rhs
                 rhs    += higflow_diffusive_ionic_term(ns, Pe);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         rhs    -= ns->cc.ucell * ns->cc.dndx;
                         rhs    -= higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    -= higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -161,12 +179,12 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
             // Compute the final value step time
             real newnminus =  nminus + ns->par.dt * rhs;
             // Set property value  
-            dp_set_value(ns->ed.eo.dpnminus, clid, newnminus);
+            dp_set_value(ns->ed.eo.dpnminus_temp, clid, newnminus);
         }
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the distributed ionic property
-        dp_sync(ns->ed.eo.dpnminus);
+        dp_sync(ns->ed.eo.dpnminus_temp);
     }
 }
 
@@ -203,20 +221,30 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
                 slv_set_Ai(ns->ed.eo.slvnplus, cgid, 1, &j, &val);
                 continue;
             }
-            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(ns->ed.mult.eo.par0.alpha, ns->ed.mult.eo.par1.alpha, 1.0);
-            real Pe = higflow_interp_Pe_multiphase_electroosmotic(ns->ed.mult.eo.par0.Pe, ns->ed.mult.eo.par1.Pe, 1.0);
+            real alphaeo0 = ns->ed.mult.eo.par0.alpha; real alphaeo1 = ns->ed.mult.eo.par1.alpha;
+            real Pe0 = ns->ed.mult.eo.par0.Pe; real Pe1 = ns->ed.mult.eo.par1.Pe;
+            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, 1.0);
+            real Pe = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, 1.0);
             
             // compute nplus value at point 
             real nplus = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
             // Solving the Transport Equation using the Euler Method
             // Right hand side equation
             real rhs = 0.0;
+            real fracvoll[DIM], fracvolr[DIM], Pel[DIM], Per[DIM];
             for (int dim = 0; dim < DIM; dim++) { // sum in both directions
+                fracvoll[dim] = compute_center_p_left(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                fracvolr[dim] = compute_center_p_right(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real alphaeol = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvoll[dim]);
+                real alphaeor = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvolr[dim]);
+                Pel[dim] = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvoll[dim]);
+                Per[dim] = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvolr[dim]);
                 // Set the computational cell in this particular direction
-                higflow_computational_cell_electroosmotic_ionic(ns, sdnplus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
+                higflow_computational_cell_multiphase_electroosmotic_ionic(ns, sdnplus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus,
+                                                                           alphaeo, alphaeol, alphaeor, Pe, Pel[dim], Per[dim]);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    += higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    += higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -233,19 +261,23 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
             // Set the right side of stencil
             stn_set_rhs(ns->ed.eo.stnnplus, rhs);
             // Calculate the point and weight of the stencil
-            real alpha = 0.0;
+            real alpha = 0.0, Pelc, Perc;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
+                // consider non-uniform diffusivity around the interface
+                Pelc = 0.5 * (Pel[dim2] + Pe);
+                Perc = 0.5 * (Per[dim2] + Pe);
                 // Stencil weight update
-                real w  = -ns->par.dt/(Pe*cdelta[dim2]*cdelta[dim2]);
-                alpha  -= 2.0*w ;
+                real wl = -ns->par.dt/(Pelc*cdelta[dim2]*cdelta[dim2]);
+                real wr = -ns->par.dt/(Perc*cdelta[dim2]*cdelta[dim2]);
+                alpha  -= (wl + wr) ;
                 Point p;
                 POINT_ASSIGN(p, ccenter);
                 // Stencil point update: right point
                 p[dim2] = ccenter[dim2] + cdelta[dim2];
-                sd_get_stencil(sdnplus, ccenter, p, w, ns->ed.eo.stnnplus);
+                sd_get_stencil(sdnplus, ccenter, p, wr, ns->ed.eo.stnnplus);
                 // Stencil point update: left point
                 p[dim2] = ccenter[dim2] - cdelta[dim2];
-                sd_get_stencil(sdnplus, ccenter, p, w, ns->ed.eo.stnnplus);                
+                sd_get_stencil(sdnplus, ccenter, p, wl, ns->ed.eo.stnnplus);                
             }
             alpha = 1.0 + alpha;
             // Get the stencil
@@ -269,9 +301,9 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
         // Solve the linear system
         slv_solve(ns->ed.eo.slvnplus);
         //Load property from solver
-        dp_slv_load_from_solver(ns->ed.eo.dpnplus, ns->ed.eo.slvnplus);
+        dp_slv_load_from_solver(ns->ed.eo.dpnplus_temp, ns->ed.eo.slvnplus);
         // Syncing the distributed property
-        dp_sync(ns->ed.eo.dpnplus);
+        dp_sync(ns->ed.eo.dpnplus_temp);
     }
 }
 
@@ -308,20 +340,30 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
                 slv_set_Ai(ns->ed.eo.slvnminus, cgid, 1, &j, &val);
                 continue;
             }
-            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(ns->ed.mult.eo.par0.alpha, ns->ed.mult.eo.par1.alpha, 1.0);
-            real Pe = higflow_interp_Pe_multiphase_electroosmotic(ns->ed.mult.eo.par0.Pe, ns->ed.mult.eo.par1.Pe, 1.0);
+            real alphaeo0 = ns->ed.mult.eo.par0.alpha; real alphaeo1 = ns->ed.mult.eo.par1.alpha;
+            real Pe0 = ns->ed.mult.eo.par0.Pe; real Pe1 = ns->ed.mult.eo.par1.Pe;
+            real alphaeo = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, 1.0);
+            real Pe = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, 1.0);
             
             // compute nminus value at point 
             real nminus = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
             // Solving the Transport Equation using the Euler Method
             // Right hand side equation
             real rhs = 0.0;
+            real fracvoll[DIM], fracvolr[DIM], Pel[DIM], Per[DIM];
             for (int dim = 0; dim < DIM; dim++) { // sum in both directions
+                fracvoll[dim] = compute_center_p_left(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                fracvolr[dim] = compute_center_p_right(ns->ed.mult.sdmult, ccenter, cdelta, dim, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real alphaeol = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvoll[dim]);
+                real alphaeor = higflow_interp_alpha_multiphase_electroosmotic(alphaeo0, alphaeo1, fracvolr[dim]);
+                Pel[dim] = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvoll[dim]);
+                Per[dim] = higflow_interp_Pe_multiphase_electroosmotic(Pe0, Pe1, fracvolr[dim]);
                 // Set the computational cell in this particular direction
-                higflow_computational_cell_electroosmotic_ionic(ns, sdnminus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
+                higflow_computational_cell_multiphase_electroosmotic_ionic(ns, sdnminus, clid, ccenter, cdelta, dim, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus,
+                                                                           alphaeo, alphaeol, alphaeor, Pe, Pel[dim], Per[dim]);
                 // convective term
                 switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                    case CELL_UPWIND: // Central scheme
+                    case CELL_CENTRAL: // Central scheme
                         rhs -= ns->cc.ucell * ns->cc.dndx;
                         rhs    -= higflow_electric_convective_ionic_term_central(ns, alphaeo, Pe);
                         rhs    -= higflow_electric_divergence_ionic_term(ns, alphaeo, Pe);
@@ -338,19 +380,23 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
             // Set the right side of stencil
             stn_set_rhs(ns->ed.eo.stnnminus, rhs);
             // Calculate the point and weight of the stencil
-            real alpha = 0.0;
+            real alpha = 0.0, Pelc, Perc;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
+                // consider non-uniform diffusivity around the interface
+                Pelc = 0.5 * (Pel[dim2] + Pe);
+                Perc = 0.5 * (Per[dim2] + Pe);
                 // Stencil weight update
-                real w  = -ns->par.dt/(Pe*cdelta[dim2]*cdelta[dim2]);
-                alpha  -= 2.0*w ;
+                real wl = -ns->par.dt/(Pelc*cdelta[dim2]*cdelta[dim2]);
+                real wr = -ns->par.dt/(Perc*cdelta[dim2]*cdelta[dim2]);
+                alpha  -= (wl + wr) ;
                 Point p;
                 POINT_ASSIGN(p, ccenter);
                 // Stencil point update: right point
                 p[dim2] = ccenter[dim2] + cdelta[dim2];
-                sd_get_stencil(sdnminus, ccenter, p, w, ns->ed.eo.stnnminus);
+                sd_get_stencil(sdnminus, ccenter, p, wr, ns->ed.eo.stnnminus);
                 // Stencil point update: left point
                 p[dim2] = ccenter[dim2] - cdelta[dim2];
-                sd_get_stencil(sdnminus, ccenter, p, w, ns->ed.eo.stnnminus);                
+                sd_get_stencil(sdnminus, ccenter, p, wl, ns->ed.eo.stnnminus);                
             }
             alpha = 1.0 + alpha;
             // Get the stencil
@@ -374,16 +420,16 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
         // Solve the linear system
         slv_solve(ns->ed.eo.slvnminus);
         //Load property from solver
-        dp_slv_load_from_solver(ns->ed.eo.dpnminus, ns->ed.eo.slvnminus);
+        dp_slv_load_from_solver(ns->ed.eo.dpnminus_temp, ns->ed.eo.slvnminus);
         // Syncing the distributed property
-        dp_sync(ns->ed.eo.dpnminus);
+        dp_sync(ns->ed.eo.dpnminus_temp);
     }
 }
 
 
 // Electroosmotic induced potential psi multiphase
-void higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
-    real nminus, nplus, psi;
+real higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
+    real nminus_temp, nplus_temp, psi;
     // Get the local sub-domain for the cells
     sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
     // Get the map for the domain property nminus
@@ -413,34 +459,43 @@ void higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
         if (ns->ed.mult.eo.contr.eo_model == PNP) {
             // Poisson-Nernst-Planck model 
             // Get the ionic concentration n- at center cell
-            nplus    = dp_get_value(ns->ed.eo.dpnplus, clid);
-            nminus   = dp_get_value(ns->ed.eo.dpnminus, clid);
-            rhs      = deltaeo*(nminus - nplus);
+            nplus_temp    = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus_temp, ns->ed.eo.stnnplus);
+            nminus_temp   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus_temp, ns->ed.eo.stnnminus);
+            rhs      = -deltaeo*(nplus_temp - nminus_temp);
         } else if (ns->ed.mult.eo.contr.eo_model == PB) {
             // Poisson-Boltzmann model 
             psi      = dp_get_value(ns->ed.eo.dppsi, clid);
-            rhs      = 2.0*deltaeo*sinh(alphaeo*psi);
+            rhs      = 2.0*deltaeo*sinh(alphaeo*psi) - 2.0*deltaeo*alphaeo*psi*cosh(alphaeo*psi);
         }
         // Calculate the point and weight of the stencil
         stn_set_rhs(ns->ed.eo.stnpsi, rhs);
         real alpha = 0.0;
         for(int dim = 0; dim < DIM; dim++) {
-            // Stencil weight update
-            real w = 1.0/(cdelta[dim]*cdelta[dim]);
-            alpha -= 2.0 * w;
             // Stencil point update
             Point p;
             POINT_ASSIGN(p, ccenter);
+            real perm = ns->ed.mult.eo.get_permittivity(fracvol, p, ns->par.t);
             // Stencil point update: right point
             p[dim] = ccenter[dim] + cdelta[dim];
-            sd_get_stencil(sdp, ccenter, p, w, ns->ed.eo.stnpsi);
+            real fracvolr = compute_value_at_point(ns->ed.mult.sdmult, p, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+            real permr = ns->ed.mult.eo.get_permittivity(fracvolr, p, ns->par.t);
+            real permrc = 0.5*(perm + permr);
+            real wr = permrc/(cdelta[dim]*cdelta[dim]);
+            sd_get_stencil(sdp, ccenter, p, wr, ns->ed.eo.stnpsi);
             // Stencil point update: left point
             p[dim] = ccenter[dim] - cdelta[dim];
-            sd_get_stencil(sdp, ccenter, p, w, ns->ed.eo.stnpsi);
+            real fracvoll = compute_value_at_point(ns->ed.mult.sdmult, p, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+            real perml = ns->ed.mult.eo.get_permittivity(fracvoll, p, ns->par.t);
+            real permlc = 0.5*(perm + perml);
+            real wl = permlc/(cdelta[dim]*cdelta[dim]);
+            sd_get_stencil(sdp, ccenter, p, wl, ns->ed.eo.stnpsi);
+
+            alpha -= (wr + wl);
         }
         switch (ns->ed.mult.eo.contr.eo_model) {
         case PB:
-            // Poisson-Boltzmann model 
+            // Poisson-Boltzmann model
+            alpha -= 2.0*alphaeo*deltaeo*cosh(alphaeo*psi); 
             break;
         case PBDH:
             // Debye-Hückel model (solving poisson equation for psi) 
@@ -474,6 +529,7 @@ void higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
     slv_solve(ns->ed.eo.slvpsi);
     // Set the solver solution in distributed property
     //dp_slv_load_from_solver(ns->ed.eo.dppsi, ns->ed.eo.slvpsi);
+    real max_psi_res = 0.0;
     for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         // Get the cell
         hig_cell *c = higcit_getcell(it);
@@ -486,7 +542,10 @@ void higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
         // Get the value of psi
         real psi_new = slv_get_xi(ns->ed.eo.slvpsi, cgid);
 
-        UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.eo.dppsi, clid), psi_new, c, ccenter)
+        real psi_old = dp_get_value(ns->ed.eo.dppsi, clid);
+        UPDATE_RESIDUAL_BUFFER_CELL(ns, psi_old, psi_new, c, ccenter)
+        real res = fabs(psi_new - psi_old);
+        if(res > max_psi_res) max_psi_res = res;
 
         // Store psi
         dp_set_value(ns->ed.eo.dppsi, clid, psi_new);   
@@ -497,6 +556,33 @@ void higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
     UPDATE_RESIDUALS(ns, ns->residuals->psi)
 
     dp_sync(ns->ed.eo.dppsi);
+
+    // get the global residual
+    real max_psi_res_global = INFINITY;
+    MPI_Allreduce(&max_psi_res, &max_psi_res_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    return max_psi_res_global;
+}
+
+
+void higflow_multiphase_electroosmotic_solve_pb(higflow_solver *ns) {
+    real max_psi_res = INFINITY, max_psi_res_global = INFINITY;
+    real pb_tol = EPSMACH;
+    int iter = 0, maxiter = 50;
+    
+    while (max_psi_res_global > pb_tol && iter < maxiter) {
+        max_psi_res = higflow_multiphase_electroosmotic_psi(ns);
+        MPI_Allreduce(&max_psi_res, &max_psi_res_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("Poisson-Boltzmann model residual: %e\n", max_psi_res_global);
+        iter++;
+    }
+    if (iter < maxiter) {
+        printf("Poisson-Boltzmann model converged after %d iterations\n", iter);
+    }
+    else {
+        printf("Poisson-Boltzmann model did not converge after %d iterations\n", iter);
+        exit(1);
+    }
 }
 
 // *******************************************************************
@@ -570,7 +656,30 @@ void higflow_calculate_multiphase_electroosmotic_source_term(higflow_solver *ns)
                     break;
             }
             // Compute the electro-osmotic source term
-            Feo = -rho*(dphidx + dpsidx) ;
+            //Feo = -rho*(dphidx + dpsidx) ;
+            Feo = -rho*(dphidx) ; // large normal psi gradients make the above formulation incompatible with pressure neumann conditions
+            real normE2 = dphidx*dphidx;
+            for (int dim2 = 0; dim2 < DIM; dim2++) {
+                if(dim2 != dim) {
+                    real phil_ = compute_center_p_left_2(sdphi, fcenter, fdelta, dim, dim2, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
+                    real phir_ = compute_center_p_right_2(sdphi, fcenter, fdelta, dim, dim2, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
+                    real dphidx_ = compute_dpdx_at_point(fdelta, dim2, 1.0, phil_, phir_);
+                    normE2 += dphidx_*dphidx_;
+                }
+            }
+            Point ccenterl, ccenterr;
+            POINT_ASSIGN(ccenterl, fcenter); POINT_ASSIGN(ccenterr, fcenter);
+            ccenterl[dim] -= 0.5*fdelta[dim]; ccenterr[dim] += 0.5*fdelta[dim];
+            real fracvoll = compute_value_at_point(ns->ed.mult.sdmult, ccenterl, ccenterl, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+            real perml = ns->ed.mult.eo.get_permittivity(fracvoll, ccenterl, ns->par.t);
+            real fracvolr = compute_value_at_point(ns->ed.mult.sdmult, ccenterr, ccenterr, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+            real permr = ns->ed.mult.eo.get_permittivity(fracvolr, ccenterr, ns->par.t);
+            real dpermdx = compute_dpdx_at_point(fdelta, dim, 0.5, perml, permr);
+
+            // Extra term arising due to (possibly non-uniform) permittivity gradient
+            // Comes from Korteweg-Helmholtz force for linear dielectric isotropic media with instantaneous polarization response
+            Feo += -0.5*normE2*dpermdx;
+            
             // Get the electroosmotic extra source term defined by user
             Feo   += ns->ed.mult.eo.get_multiphase_electroosmotic_source_term(fracvol, fcenter, dim, ns->par.t);
             // Set the distributed source term property
@@ -833,8 +942,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -946,8 +1055,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase_elect
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 0.5*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - 0.5*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - 0.5*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 0.5*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -1060,8 +1169,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 0.25*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - 0.25*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - 0.25*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 0.25*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -1158,8 +1267,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
-                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wr = - 1.0/3.0*ns->par.dt*ns->cc.viscr[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
+                real wl = - 1.0/3.0*ns->par.dt*ns->cc.viscl[dim2]/(ns->par.Re*fdelta[dim2]*fdelta[dim2])/ns->cc.dens;
                 alpha -= (wr + wl);
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -1214,121 +1323,100 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
 
 // One step of the Navier-Stokes the projection method
 void higflow_solver_step_multiphase_electroosmotic(higflow_solver *ns) {
-    // Boundary condition for velocity
+    // Boundary conditions and source terms
     higflow_boundary_condition_for_velocity(ns);
-    // Boundary conditions for source term
     higflow_boundary_condition_for_cell_source_term(ns);
     higflow_boundary_condition_for_facet_source_term(ns);
-    // Boundary condition for n+ 
-    higflow_boundary_condition_for_electroosmotic_nplus(ns);
-    // Boundary condition for n- 
-    higflow_boundary_condition_for_electroosmotic_nminus(ns);
-    // Boundary condition for pressure
     higflow_boundary_condition_for_pressure(ns);
-    // Calculate the source term
     higflow_calculate_source_term(ns);
-    // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
-    // Calculate the electro-osmotic source term
+
+    // Calculate the electro-osmotic terms
+    higflow_boundary_condition_for_phi(ns);
+    higflow_boundary_condition_for_psi(ns);
     switch (ns->ed.mult.eo.contr.eo_model) {
-    case PNP:
-        // Poisson-Nernst-Planck model
-        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true) {
-            higflow_boundary_condition_for_phi(ns);
+    case PNP: // Poisson-Nernst-Planck model
+        for(int k=0; k<3; k++) {
+            higflow_boundary_condition_for_electroosmotic_nplus(ns);
+            higflow_boundary_condition_for_electroosmotic_nminus(ns);
+            if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true)
             higflow_electroosmotic_phi(ns);
+            switch (ns->ed.mult.eo.contr.tempdiscrtype) {
+                case EXPLICIT_EULER:
+                    higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(ns);
+                    higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(ns);
+                    break;
+                case SEMI_IMPLICIT_EULER:
+                    higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(ns);
+                    higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(ns);
+                    break;
+            }
+            real max_psi_res = higflow_multiphase_electroosmotic_psi(ns);
+            if(k>0) print0f("=+=+=+ psi residual in inner iteration %d: %15.10lf =+=+=+\n", k+1, max_psi_res);
         }
-        switch (ns->ed.mult.eo.contr.tempdiscrtype) {
-            case EXPLICIT_EULER:
-                higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(ns);
-                higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(ns);
-                break;
-            case SEMI_IMPLICIT_EULER:
-                higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(ns);
-                higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(ns);
-                break;
-        }
-        higflow_boundary_condition_for_psi(ns);
-        higflow_multiphase_electroosmotic_psi(ns);
+        dp_copy_values(ns->ed.eo.dpnplus, ns->ed.eo.dpnplus_temp);
+        dp_copy_values(ns->ed.eo.dpnminus, ns->ed.eo.dpnminus_temp);
         higflow_calculate_multiphase_electroosmotic_source_term(ns);
         break;
-    case PB:
-        // Poisson-Boltzmann model 
-        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true) {
-            higflow_boundary_condition_for_phi(ns);
-            higflow_electroosmotic_phi(ns);
-        }
-        higflow_boundary_condition_for_psi(ns);
-        higflow_multiphase_electroosmotic_psi(ns);
-        higflow_calculate_multiphase_electroosmotic_source_term(ns);
-        break;
-    case PBDH:
-        // Debye-Hückel model (solving poisson equation for psi) 
-        // Poisson-Boltzmann model 
-        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true) {
-            higflow_boundary_condition_for_phi(ns);
-            higflow_electroosmotic_phi(ns);
-        }
-        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_psibc_timedependent == true) {
-            higflow_boundary_condition_for_psi(ns);
-            higflow_multiphase_electroosmotic_psi(ns);
-        }
+    case PB: // Poisson-Boltzmann model 
+        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true)
+        higflow_electroosmotic_phi(ns);
+        if( (ns->par.step == 0) || ns->ed.eo.contr.is_psibc_timedependent == true)
+        higflow_multiphase_electroosmotic_solve_pb(ns);
         if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true
-                              || ns->ed.mult.eo.contr.is_psibc_timedependent == true) {
+                              || ns->ed.mult.eo.contr.is_psibc_timedependent == true)
+        higflow_calculate_multiphase_electroosmotic_source_term(ns);
+        break;
+    case PBDH: // Debye-Hückel model (solving poisson equation for psi) 
+        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true)
+        higflow_electroosmotic_phi(ns);
+        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_psibc_timedependent == true)
+            higflow_multiphase_electroosmotic_psi(ns);
+        if( (ns->par.step == 0) || ns->ed.mult.eo.contr.is_phibc_timedependent == true
+                              || ns->ed.mult.eo.contr.is_psibc_timedependent == true)
             higflow_calculate_multiphase_electroosmotic_source_term(ns);
-        }
         break;
     case PBDH_ANALYTIC:
         printf("PBDH_ANALYTIC not implemented\n");
         break;
     }
 
-    // Calculate the viscosity
+    // Interpolate the viscosity and density
     higflow_compute_viscosity_multiphase(ns);
-    // Calculate the density
     higflow_compute_density_multiphase(ns);
     // Calculate the curvature, interfacial force and normal
     higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
     higflow_compute_distance_multiphase_2D(ns);
+    higflow_compute_plic_lines_2d(ns);
 
     // Calculate the intermediate velocity
     switch (ns->contr.tempdiscrtype) {
     case EXPLICIT_EULER:
-        // Explicit Euler method
         higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(ns, ns->dpu, ns->dpustar);
         break;
     case EXPLICIT_RK2:
-        // Explicit RK2 method
         higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase_electroosmotic(ns);
         break;
     case EXPLICIT_RK3:
-        // Explicit RK3 method
         higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase_electroosmotic(ns);
         break;
     case SEMI_IMPLICIT_EULER:
-        // Semi-Implicit Euler Method
         higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic(ns);
         break;
     case SEMI_IMPLICIT_CN:
-        // Semi-Implicit Crank-Nicolson Method
         higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase_electroosmotic(ns);
         break;
     case SEMI_IMPLICIT_BDF2:
-        // Semi-Implicit Crank-Nicolson Method
         higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(ns);
         break;
     }
-    // Set outflow for ustar velocity 
-    // higflow_outflow_ustar_step(ns);
-    // Calculate the pressure
+
+    // Projection
     higflow_pressure_multiphase(ns);
-    // Calculate the final velocity
     higflow_final_velocity_multiphase(ns);
-    // Set outflow for u velocity 
-    // higflow_outflow_u_step(ns);
-    // Calculate the final pressure
     higflow_final_pressure(ns);
+
     // Calculate the volume fraction
     higflow_plic_advection_volume_fraction(ns);
-
 }
 

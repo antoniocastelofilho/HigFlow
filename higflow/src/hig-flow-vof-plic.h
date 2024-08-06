@@ -29,6 +29,9 @@ int sign(real value);
 
 void higflow_compute_distance_multiphase_2D(higflow_solver *ns);
 
+// compute the plic lines of the interface for the 2D case
+void higflow_compute_plic_lines_2d(higflow_solver *ns);
+
 void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns);
 
 #endif

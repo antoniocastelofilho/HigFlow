@@ -358,6 +358,96 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
     dp_sync(ns->ed.mult.dpdistance);
 }
 
+// compute the plic lines of the interface for the 2D case
+void higflow_compute_plic_lines_2d(higflow_solver *ns) {
+   sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+   mp_mapper *mp = sd_get_domain_mapper(sdm);
+   higcit_celliterator *it; hig_cell *c;
+   int clid;
+   real fracvol;
+   int interface_counter = 0;
+   for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      c = higcit_getcell(it);
+      clid = mp_lookup(mp, hig_get_cid(c));
+      fracvol = dp_get_value(ns->ed.mult.dpfracvol, clid);
+      if(FLT_GT(fracvol, 0.0) && FLT_LT(fracvol, 1.0)) interface_counter++;
+   } higcit_destroy(it);
+
+   if(ns->ed.mult.num_plic_lines !=0) free(ns->ed.mult.plic_lines);
+   ns->ed.mult.num_plic_lines = interface_counter;
+
+   if(interface_counter == 0) return;
+   ns->ed.mult.plic_lines = (Line*)malloc(sizeof(Line)*interface_counter);
+
+   int line_index = 0;
+   Point ccenter, cdelta;
+   real nx, ny, dist;
+   Line l;
+   for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      c = higcit_getcell(it);
+      clid = mp_lookup(mp, hig_get_cid(c));
+      fracvol = dp_get_value(ns->ed.mult.dpfracvol, clid);
+      if(FLT_GT(fracvol, 0.0) && FLT_LT(fracvol, 1.0)) {
+         hig_get_center(c, ccenter);
+         hig_get_delta(c, cdelta);
+         nx= dp_get_value(ns->ed.mult.dpnormal[0], clid);
+         ny = dp_get_value(ns->ed.mult.dpnormal[1], clid);
+         dist = dp_get_value(ns->ed.mult.dpdistance, clid);
+
+         if(FLT_EQ(nx, 0.0)) {
+            l[0][0] = ccenter[0] - 0.5*cdelta[0];
+            l[0][1] = ccenter[1] + dist;
+            l[1][0] = ccenter[0] + 0.5*cdelta[0];
+            l[1][1] = ccenter[1] + dist;
+         } else if(FLT_EQ(ny, 0.0)) {
+            l[0][0] = ccenter[0] + dist;
+            l[0][1] = ccenter[1] - 0.5*cdelta[1];
+            l[1][0] = ccenter[0] + dist;
+            l[1][1] = ccenter[1] + 0.5*cdelta[1];
+         } else {
+            int pt_index = 0;
+            real x,y;
+            x = -0.5*cdelta[0]; y = (dist - x*nx)/ny;
+            if(FLT_LE(fabs(y),0.5*cdelta[1])) { // if it intersects the left wall
+               l[pt_index][0] = x + ccenter[0]; l[pt_index][1] = y + ccenter[1]; 
+               pt_index++;
+            }
+            x = 0.5*cdelta[0]; y = (dist - x*nx)/ny;
+            if(FLT_LE(fabs(y),0.5*cdelta[1])) { // if it intersects the right wall
+               l[pt_index][0] = x + ccenter[0]; l[pt_index][1] = y + ccenter[1]; 
+               pt_index++;
+            }
+            y = -0.5*cdelta[1]; x = (dist - y*ny)/nx;
+            if(FLT_LE(fabs(x),0.5*cdelta[0])) { // if it intersects the bottom wall
+               l[pt_index][0] = x + ccenter[0]; l[pt_index][1] = y + ccenter[1]; 
+               pt_index++;
+            }
+            y = 0.5*cdelta[1]; x = (dist - y*ny)/nx;
+            if(FLT_LE(fabs(x),0.5*cdelta[0])) { // if it intersects the top wall
+               l[pt_index][0] = x + ccenter[0]; l[pt_index][1] = y + ccenter[1]; 
+               pt_index++;
+            }
+         }
+
+         // check orientation
+         real vx = l[1][0] - l[0][0]; real vy = l[1][1] - l[0][1];
+         if(FLT_GE(nx*vy - ny*vx, 0.0)) {
+            ns->ed.mult.plic_lines[line_index][0][0] = l[0][0];
+            ns->ed.mult.plic_lines[line_index][0][1] = l[0][1];
+            ns->ed.mult.plic_lines[line_index][1][0] = l[1][0];
+            ns->ed.mult.plic_lines[line_index][1][1] = l[1][1];
+         } else {
+            ns->ed.mult.plic_lines[line_index][0][0] = l[1][0];
+            ns->ed.mult.plic_lines[line_index][0][1] = l[1][1];
+            ns->ed.mult.plic_lines[line_index][1][0] = l[0][0];
+            ns->ed.mult.plic_lines[line_index][1][1] = l[0][1];
+         }
+         line_index++;
+      }
+      
+   } higcit_destroy(it);
+}
+
 void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
       real IF[DIM];
       // Get the local sub-domain for the cells
