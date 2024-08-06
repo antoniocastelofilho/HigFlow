@@ -61,16 +61,20 @@ MODULES = \
 	discret \
 	terms \
 	res \
+	timestep \
 	step \
 	step-generalized-newtonian \
 	step-multiphase \
-	step-multiphase-viscoelastic \
+		step-multiphase-viscoelastic \
 	vof-plic \
 	vof-adap-hf \
 	vof-finite-difference-normal-curvature \
 	step-viscoelastic \
         step-viscoelastic-integral \
 	step-electroosmotic \
+		step-electroosmotic-viscoelastic \
+		step-multiphase-electroosmotic \
+		step-multiphase-electroosmotic-viscoelastic \
 	step-shear-thickening-suspension \
 	step-viscoelastic-shear-banding \
 	step-viscoelastic-variable-viscosity \
