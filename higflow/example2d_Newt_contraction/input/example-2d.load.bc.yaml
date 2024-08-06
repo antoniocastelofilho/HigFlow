@@ -96,15 +96,3 @@ bc:
     velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
       type: dirichlet                # dirichlet or neumann 
       value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
-  bc8:                                #*** The Boundary ***
-    id: 8                             #*** The Boundary Identifier ***
-    path: amrs/bc/ch-bc-8.amr        #*** The Path to the Boundary ***
-    pressure:                         #*** The Pressure Condition ***
-      type: neumann                   # dirichlet or neumann
-      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
-    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
-      type: dirichlet                # dirichlet or neumann
-      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
-    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
-      type: dirichlet                # dirichlet or neumann 
-      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
