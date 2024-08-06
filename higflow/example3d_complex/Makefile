@@ -49,9 +49,9 @@ endif
 
 
 ifdef RESTART
-	LOAD_PATH = output/example-2d.save
+	LOAD_PATH = output/example-3d.save
 else
-	LOAD_PATH = input/example-2d.load
+	LOAD_PATH = input/example-3d.load
 endif
 
 OBJ1 = ns-complex-3d.o 
