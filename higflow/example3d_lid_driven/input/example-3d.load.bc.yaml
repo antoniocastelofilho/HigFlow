@@ -1,0 +1,93 @@
+bc:
+  number_bc: 6                        #*** The Total Number of the Boundary Conditions ***
+  bc0:                                #*** The Boundary ***
+    id: 0                             #*** The Boundary Identifier ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-0.amr         #*** The Path to the Boundary ***
+    pressure:                         #*** The Pressure Condition ***
+      type: neumann                # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
+      type: dirichlet                   # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_2:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+  bc1:                                #*** The Boundary ***
+    id: 1                             #*** The Boundary Identifier ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-1.amr         #*** The Path to the Boundary ***
+    pressure:                         #*** The Pressure Condition ***
+      type: neumann                # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
+      type: dirichlet                   # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_2:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+  bc2:                                #*** The Boundary ***
+    id: 2                             #*** The Boundary Identifier ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-2.amr         #*** The Path to the Boundary ***
+    pressure:                         #*** The Pressure Condition ***
+      type: neumann                # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
+      type: dirichlet                   # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_2:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+  bc3:                                #*** The Boundary ***
+    id: 3                             #*** The Boundary Identifier ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-3.amr         #*** The Path to the Boundary ***
+    pressure:                         #*** The Pressure Condition ***
+      type: neumann                # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
+      type: dirichlet                   # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_2:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+  bc4:                                #*** The Boundary ***
+    id: 4                             #*** The Boundary Identifier ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-4.amr         #*** The Path to the Boundary ***
+    pressure:                         #*** The Pressure Condition ***
+      type: neumann                # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
+      type: dirichlet                   # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_2:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+  bc5:                                #*** The Boundary ***
+    id: 5                             #*** The Boundary Identifier ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-5.amr         #*** The Path to the Boundary ***
+    pressure:                         #*** The Pressure Condition ***
+      type: neumann                # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
+      type: dirichlet                   # dirichlet or neumann
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+    velocity_2:                       #*** The Velocity Boundary Condition (y-Direction) ***
+      type: dirichlet                # dirichlet or neumann 
+      value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
+ 
