@@ -19,9 +19,14 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         exit(1);
     }
     // Number of HigTrees
-    int numhigs, numhigs_mult, numhigs_total;
+    int numhigs;
     int ifd = fscanf(fdomain,"%d\n",&numhigs);
-    higio_amr_info *mi[numhigs_total];
+    int maxhigs = MAXHIGTREESPERDOMAIN;
+    if(numhigs > maxhigs) {
+        printf("Error: Number of HigTrees is greater than MAXHIGTREESPERDOMAIN = %d\n", maxhigs);
+        exit(1);
+    }
+    higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         // Name of the HigTree file
         //char *amrfilename = argv[1]; argv++;
@@ -35,6 +40,7 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         fclose(fd);
     }
     fclose(fdomain);
+    
     // Taking the sub-domain of the myrank process
     // Creates a partition table.
     partition_graph *pg = pg_create(MPI_COMM_WORLD);
@@ -128,7 +134,12 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     }
     // Number of HigTrees
     int numhigs;
-    int ifd = fy_document_scanf(fyd,"/domain/number_domains %d", &numhigs);
+    int ifd = fy_document_scanf(fyd,"/domain/number_domains %d",&numhigs);
+    int maxhigs = MAXHIGTREESPERDOMAIN;
+    if(numhigs > maxhigs) {
+        printf("Error: Number of HigTrees is greater than MAXHIGTREESPERDOMAIN = %d\n", maxhigs);
+        exit(1);
+    }
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         char atrib[1024], amrfilename[1024];
@@ -138,7 +149,7 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         //char *amrfilename = argv[1]; argv++;
         sprintf(atrib,"/domain/domain%d/path %%s",h);
         ifd = fy_document_scanf(fyd,atrib,amrfilename);
-        printf("=+=+=+= path file %s =+=+=+=\n",amrfilename);
+        
         FILE *fd = fopen(amrfilename, "r");
         mi[h] = higio_read_amr_info(fd);
         fclose(fd);
@@ -154,9 +165,8 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         for(int h = 0; h < numhigs; h++)
             mi_mult[h] = higflow_create_amr_info_mult(mi[h]);
         higflow_partition_domain_multiphase(ns, pg, numhigs, mi, mi_mult, ntasks, myrank);
-    } else {
-	higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
     }
+    else higflow_partition_domain(ns, pg, numhigs, mi, ntasks, myrank);
     // Creating the partitioned sub-domain to simulation
     higflow_create_partitioned_domain(ns, pg, order);
     // Creating the stencil for properties interpolation
@@ -216,6 +226,7 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
             higflow_create_stencil_for_extra_domain(ns);
             break;
     }
+
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         // Initialize electro-osmotic domain
         higflow_create_partitioned_domain_electroosmotic(ns, pg, order);
@@ -607,12 +618,12 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
         higcit_destroy(it);
         // Sync initial values among processes
         for (int k = 0; k <= NDT; k++) {
-            for (int i = 0; i < DIM; i++) {
+       for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     dp_sync(ns->ed.im.dpB[k][i][j]);
-                }
-            }
-        }
+           }
+       }
+   }
     }
 }
 

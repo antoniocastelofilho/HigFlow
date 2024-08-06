@@ -194,8 +194,8 @@ void higflow_print_vtk(higflow_solver *ns, int rank) {
             switch (ns->contr.flowtype) {
             case NEWTONIAN:
                 // Newtonian
-                higflow_print_vtk3D(ns, rank);
-                break;
+             higflow_print_vtk3D(ns, rank);
+        break;
             case GENERALIZED_NEWTONIAN:
                 // Generalized Newtonian
                 higflow_print_vtk3D(ns, rank);
@@ -363,6 +363,8 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             if(ns->ed.mult.contr.viscoelastic_either == true) {
                 real beta0 = ns->ed.mult.ve.par0.beta;
                 real beta1 = ns->ed.mult.ve.par1.beta;
+                int flowtype0 = ns->ed.mult.contr.flowtype0;
+                int flowtype1 = ns->ed.mult.contr.flowtype1;
                 real t = ns->par.t;
                 real beta_interp;
                 real fracvol;
@@ -396,37 +398,71 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     for (int i = 0; i < DIM; i++) {
                         for (int j = 0; j < DIM; j++) {
                             
-                            fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p0, t);
                             visc1 = ns->ed.mult.get_viscosity1(p0, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            }
+                            else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            }
+                            else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup0[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                            taup0[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp0[i][j])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p1, t);
                             visc1 = ns->ed.mult.get_viscosity1(p1, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            } else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            } else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup1[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                            taup1[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp1[i][j])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p2, t);
                             visc1 = ns->ed.mult.get_viscosity1(p2, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            } else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            } else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup2[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                            taup2[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp2[i][j])/Re;
                             
-                            fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p3, t);
                             visc1 = ns->ed.mult.get_viscosity1(p3, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            } else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            } else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup3[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                            taup3[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp3[i][j])/Re;
                         } 
                     }  
 
@@ -467,13 +503,13 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                        taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j])/Re;
                         taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                        taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j])/Re;
                         taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                        taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j])/Re;
                         taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                        taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j])/Re;
                     } 
                 }  
 
@@ -540,107 +576,47 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         //sim_domain *sdte =  psd_get_local_domain(ns->ed.psdED);
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-        {
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
             hig_cell *c = higcit_getcell(it);
-            Point cdelta, ccenter, clowpoint, chightpoint;
-            hig_get_delta(c, cdelta);
-            hig_get_center(c, ccenter);
+            Point ccenter;
+            hig_get_center(c,ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];
-            p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0];
-            p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0];
-            p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];
-            p3[1] = c->highpoint[1];
-
-            real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    taup0[i][j] = 0.0;
-                    taup1[i][j] = 0.0;
-                    taup2[i][j] = 0.0;
-                    taup3[i][j] = 0.0;
-                }
-            }
-
-
-            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            
+            real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Dp0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-                    Dp1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-                    Dp2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-                    Dp3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
                 }
             }
-          
-
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+                
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
-                    taup0[i][j] += 2.0 * (1.0 - ns->ed.vevv.par.beta) * 0.5 * (Dp0[i][j] + Dp0[j][i]) / Re;
-                    //taup0[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta0 * 0.5 * (Dp0[i][j] + Dp0[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp0[i][j] + Dp0[j][i]);
+                    taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
-                    taup1[i][j] += 2.0 * (1.0 - ns->ed.vevv.par.beta) * 0.5 * (Dp1[i][j] + Dp1[j][i]) / Re;
-                    //taup1[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta1 * 0.5 * (Dp1[i][j] + Dp1[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp1[i][j] + Dp1[j][i]);
+                    taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
-                    taup2[i][j] += 2.0 * (1.0 - ns->ed.vevv.par.beta) * 0.5 * (Dp2[i][j] + Dp2[j][i]) / Re;
-                    //taup2[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta2 * 0.5 * (Dp2[i][j] + Dp2[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp2[i][j] + Dp2[j][i]);
+                    taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
-                    taup3[i][j] += 2.0 * (1.0 - ns->ed.vevv.par.beta) * 0.5 * (Dp3[i][j] + Dp3[j][i]) / Re;
-                    //taup3[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta3 * 0.5 * (Dp3[i][j] + Dp3[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp3[i][j] + Dp3[j][i]);
-                }
+                    taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                } 
             }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup0[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup1[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup2[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup3[i][j]);
-                }
-                fprintf(f, "\n");
-            }
+            
+            fprintf(f, "%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n",
+            taup0[0][0], taup0[0][1], taup0[1][0], taup0[1][1],
+            taup1[0][0], taup1[0][1], taup1[1][0], taup1[1][1],
+            taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
+            taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
         higcit_destroy(it);
         break;
@@ -649,108 +625,47 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         //sim_domain *sdte =  psd_get_local_domain(ns->ed.psdED);
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-        {
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
             hig_cell *c = higcit_getcell(it);
-            Point cdelta, ccenter, clowpoint, chightpoint;
-            hig_get_delta(c, cdelta);
-            hig_get_center(c, ccenter);
+            Point ccenter;
+            hig_get_center(c,ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];
-            p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0];
-            p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0];
-            p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];
-            p3[1] = c->highpoint[1];
-
-            real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    taup0[i][j] = 0.0;
-                    taup1[i][j] = 0.0;
-                    taup2[i][j] = 0.0;
-                    taup3[i][j] = 0.0;
-                }
-            }
-
-
-            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            
+            real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Dp0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
-                    Dp1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
-                    Dp2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
-                    Dp3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
                 }
             }
-
-
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+                
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
-                    taup0[i][j] += 2.0 * (ns->ed.vesb.par.De) * 0.5 * (Dp0[i][j] + Dp0[j][i]) / Re;
-                    //taup0[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta0 * 0.5 * (Dp0[i][j] + Dp0[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp0[i][j] + Dp0[j][i]);
+                    taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
-                    taup1[i][j] += 2.0 * (ns->ed.vesb.par.De) * 0.5 * (Dp1[i][j] + Dp1[j][i]) / Re;
-                    //taup1[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta1 * 0.5 * (Dp1[i][j] + Dp1[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp1[i][j] + Dp1[j][i]);
+                    taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
-                    taup2[i][j] += 2.0 * (ns->ed.vesb.par.De) * 0.5 * (Dp2[i][j] + Dp2[j][i]) / Re;
-                    //taup2[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta2 * 0.5 * (Dp2[i][j] + Dp2[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp2[i][j] + Dp2[j][i]);
+                    taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
-                    taup3[i][j] += 2.0 * (ns->ed.vesb.par.De) * 0.5 * (Dp3[i][j] + Dp3[j][i]) / Re;
-                    //taup3[i][j] += 2.0* (1.0- ns->ed.vevv.par.beta)* eta3 * 0.5 * (Dp3[i][j] + Dp3[j][i])/Re -2.0*(ns->ed.vevv.par.beta)/Re* 0.5 * (Dp3[i][j] + Dp3[j][i]);
-                }
+                    taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                } 
             }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup0[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup1[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup2[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup3[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
+            
+            fprintf(f, "%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n",
+            taup0[0][0], taup0[0][1], taup0[1][0], taup0[1][1],
+            taup1[0][0], taup1[0][1], taup1[1][0], taup1[1][1],
+            taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
+            taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
         higcit_destroy(it);
 
@@ -759,82 +674,31 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
         {
             hig_cell *c = higcit_getcell(it);
-            Point cdelta, ccenter, clowpoint, chightpoint;
-            hig_get_delta(c, cdelta);
-            hig_get_center(c, ccenter);
+            Point ccenter;
+            hig_get_center(c,ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];
-            p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0];
-            p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0];
-            p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];
-            p3[1] = c->highpoint[1];
-
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
             
-            real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    taup0[i][j] = 0.0;
-                    taup1[i][j] = 0.0;
-                    taup2[i][j] = 0.0;
-                    taup3[i][j] = 0.0;
-                }
-            }
-
-            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+            real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
+                
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
-                }
+                } 
             }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup0[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup1[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup2[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup3[i][j]);
-                }
-                fprintf(f, "\n");
-            }
+            
+            fprintf(f, "%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n",
+            taup0[0][0], taup0[0][1], taup0[1][0], taup0[1][1],
+            taup1[0][0], taup1[0][1], taup1[1][0], taup1[1][1],
+            taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
+            taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
         higcit_destroy(it);
 
@@ -844,81 +708,31 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
         {
             hig_cell *c = higcit_getcell(it);
-            Point cdelta, ccenter, clowpoint, chightpoint;
-            hig_get_delta(c, cdelta);
-            hig_get_center(c, ccenter);
+            Point ccenter;
+            hig_get_center(c,ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];
-            p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0];
-            p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0];
-            p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];
-            p3[1] = c->highpoint[1];
-
-            real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    taup0[i][j] = 0.0;
-                    taup1[i][j] = 0.0;
-                    taup2[i][j] = 0.0;
-                    taup3[i][j] = 0.0;
-                }
-            }
-
-            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            
+            real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
+                
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vesb.dpB[i][j], ns->ed.stn);
                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vesb.dpB[i][j], ns->ed.stn);
                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vesb.dpB[i][j], ns->ed.stn);
                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vesb.dpB[i][j], ns->ed.stn);
-                }
+                } 
             }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup0[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup1[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup2[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup3[i][j]);
-                }
-                fprintf(f, "\n");
-            }
+            
+            fprintf(f, "%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n",
+            taup0[0][0], taup0[0][1], taup0[1][0], taup0[1][1],
+            taup1[0][0], taup1[0][1], taup1[1][0], taup1[1][1],
+            taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
+            taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
         higcit_destroy(it);
 
@@ -929,44 +743,21 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
 
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-        {
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
             hig_cell *c = higcit_getcell(it);
-            Point cdelta, ccenter, clowpoint, chightpoint;
-            hig_get_delta(c, cdelta);
-            hig_get_center(c, ccenter);
+            Point ccenter;
+            hig_get_center(c,ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];
-            p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0];
-            p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0];
-            p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];
-            p3[1] = c->highpoint[1];
-
-
-            real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    taup0[i][j] = 0.0;
-                    taup1[i][j] = 0.0;
-                    taup2[i][j] = 0.0;
-                    taup3[i][j] = 0.0;
-                }
-            }
-
-            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            
+            real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     // Get Du
                     Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.vepl.dpD[i][j], ns->ed.stn);
                     Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.vepl.dpD[i][j], ns->ed.stn);
@@ -974,58 +765,25 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.vepl.dpD[i][j], ns->ed.stn);
                 }
             }
-
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+                
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.vepl.dpS[i][j], ns->ed.stn);
-                    taup0[i][j] += 2.0 * (1.0 - ns->ed.vepl.par.beta) * 0.5 * (Dp0[i][j] + Dp0[j][i]) / Re;
+                    taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.vepl.dpS[i][j], ns->ed.stn);
-                    taup1[i][j] += 2.0 * (1.0 - ns->ed.vepl.par.beta) * 0.5 * (Dp1[i][j] + Dp1[j][i]) / Re;
+                    taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.vepl.dpS[i][j], ns->ed.stn);
-                    taup2[i][j] += 2.0 * (1.0- ns->ed.vepl.par.beta) * 0.5 * (Dp2[i][j] + Dp2[j][i]) / Re;
+                    taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.vepl.dpS[i][j], ns->ed.stn);
-                    taup3[i][j] += 2.0 * (1.0 - ns->ed.vepl.par.beta) * 0.5 * (Dp3[i][j] + Dp3[j][i]) / Re;
-                }
+                    taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                } 
             }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup0[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup1[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup2[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup3[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
+            
+            fprintf(f, "%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n",
+            taup0[0][0], taup0[0][1], taup0[1][0], taup0[1][1],
+            taup1[0][0], taup1[0][1], taup1[1][0], taup1[1][1],
+            taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
+            taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
         higcit_destroy(it);
 
@@ -1035,43 +793,21 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         // Shear-thickening suspensions
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-        {
+        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
             hig_cell *c = higcit_getcell(it);
-            Point cdelta, ccenter, clowpoint, chightpoint;
-            hig_get_delta(c, cdelta);
-            hig_get_center(c, ccenter);
+            Point ccenter;
+            hig_get_center(c,ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];
-            p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0];
-            p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0];
-            p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];
-            p3[1] = c->highpoint[1];
-
-            real taup0[DIM + 1][DIM + 1], taup1[DIM + 1][DIM + 1], taup2[DIM + 1][DIM + 1], taup3[DIM + 1][DIM + 1];
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    taup0[i][j] = 0.0;
-                    taup1[i][j] = 0.0;
-                    taup2[i][j] = 0.0;
-                    taup3[i][j] = 0.0;
-                }
-            }
-
-            sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-
+            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
+            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
+            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
+            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            
+            real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     // Get Du
                     Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.stsp.dpD[i][j], ns->ed.stn);
                     Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.stsp.dpD[i][j], ns->ed.stn);
@@ -1079,59 +815,25 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.stsp.dpD[i][j], ns->ed.stn);
                 }
             }
-
-            for (int i = 0; i < DIM; i++)
-            {
-                for (int j = 0; j < DIM; j++)
-                {
-                    //Tau = S + 2*(eta0)*D
+                
+            for (int i = 0; i < DIM; i++) {
+                for (int j = 0; j < DIM; j++) {
                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.stsp.dpS[i][j], ns->ed.stn);
-                    taup0[i][j] += 2.0 * (ns->ed.stsp.par.eta0) * 0.5 * (Dp0[i][j] + Dp0[j][i]) / Re;
+                    taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.stsp.dpS[i][j], ns->ed.stn);
-                    taup1[i][j] += 2.0 * (ns->ed.stsp.par.eta0) * 0.5 * (Dp1[i][j] + Dp1[j][i]) / Re;
+                    taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.stsp.dpS[i][j], ns->ed.stn);
-                    taup2[i][j] += 2.0 * (ns->ed.stsp.par.eta0) * 0.5 * (Dp2[i][j] + Dp2[j][i]) / Re;
+                    taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.stsp.dpS[i][j], ns->ed.stn);
-                    taup3[i][j] += 2.0 * (ns->ed.stsp.par.eta0) * 0.5 * (Dp3[i][j] + Dp3[j][i]) / Re;
-                }
+                    taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                } 
             }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup0[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup1[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup2[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
-            for (int i = 0; i <= DIM; i++)
-            {
-                for (int j = 0; j <= DIM; j++)
-                {
-                    fprintf(f, "%e ", taup3[i][j]);
-                }
-                fprintf(f, "\n");
-            }
-
+            
+            fprintf(f, "%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n%e %e 0\n%e %e 0\n0 0 0\n",
+            taup0[0][0], taup0[0][1], taup0[1][0], taup0[1][1],
+            taup1[0][0], taup1[0][1], taup1[1][0], taup1[1][1],
+            taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
+            taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
         higcit_destroy(it);
 
@@ -1407,6 +1109,43 @@ void higflow_print_vtk2D_multiphase(higflow_solver *ns, int rank) {
 }
 
 
+// Print the VTK file for visualize 2D PLIC Interface Lines
+void higflow_print_vtk2d_multiphase_plic_lines(higflow_solver *ns, int rank) {
+     if(ns->contr.flowtype != MULTIPHASE) {
+        return;
+    }
+
+    //  Open the VTK file
+    char vtkname[1024];
+    snprintf(vtkname, sizeof vtkname, "%s_mult_plic_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
+    FILE *f = fopen(vtkname, "w");
+    if (f == NULL) {
+        return;
+    }
+
+    int numlines = ns->ed.mult.num_plic_lines;
+
+    fprintf(f, "# vtk DataFile Version 3.0\n");
+    fprintf(f, "higtree multiphase PLIC Interface Lines\n");
+    fprintf(f, "ASCII\n");
+    fprintf(f, "DATASET POLYDATA\n");
+    fprintf(f, "\nPOINTS %d float\n", 2*numlines);
+
+    for (int i = 0; i < numlines; i++) {
+        fprintf(f, "%e %e 0\n%e %e 0\n", 
+        ns->ed.mult.plic_lines[i][0][0], ns->ed.mult.plic_lines[i][0][1],
+        ns->ed.mult.plic_lines[i][1][0], ns->ed.mult.plic_lines[i][1][1]);
+    }
+
+    fprintf(f, "\nLINES %d %d\n", numlines, 3*numlines);
+
+    for (int i = 0; i < numlines; i++) {
+        fprintf(f, "2 %d %d\n", 2*i, 2*i+1);
+    }
+
+    fclose(f);
+}
+
 static long get_offset_cummulative(long proc_block_size){
     long offset_cum;
     MPI_Scan(&proc_block_size, &offset_cum, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
@@ -1444,7 +1183,8 @@ static void update_buffer_write(MPI_File *f, long offset, char *write_buff, int 
 }
 
 static void write_remainder(MPI_File *f, long offset, char *write_buff, int buff_size, long proc_block_size) {
-    int offset_remainder = proc_block_size % buff_size;
+    int offset_remainder = 0;
+    if(buff_size != 0) offset_remainder = proc_block_size % buff_size;
     if(offset_remainder != 0) { // write the remaining values
         int local_offset = proc_block_size - offset_remainder;
         MPI_File_write_at(*f, offset + local_offset, write_buff, offset_remainder, MPI_CHAR, MPI_STATUS_IGNORE);
@@ -1699,6 +1439,8 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                 
                 real beta0 = ns->ed.mult.ve.par0.beta;
                 real beta1 = ns->ed.mult.ve.par1.beta;
+                int flowtype0 = ns->ed.mult.contr.flowtype0;
+                int flowtype1 = ns->ed.mult.contr.flowtype1;
                 real t = ns->par.t;
                 real beta_interp;
                 real fracvol;
@@ -1731,37 +1473,71 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                     for (int i = 0; i < DIM; i++) {
                         for (int j = 0; j < DIM; j++) {
                             
-                            fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p0, t);
                             visc1 = ns->ed.mult.get_viscosity1(p0, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            }
+                            else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            }
+                            else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p0, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup0[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                            taup0[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp0[i][j])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p1, t);
                             visc1 = ns->ed.mult.get_viscosity1(p1, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            } else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            } else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup1[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                            taup1[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp1[i][j])/Re;
 
-                            fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                             visc0 = ns->ed.mult.get_viscosity0(p2, t);
                             visc1 = ns->ed.mult.get_viscosity1(p2, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            } else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            } else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup2[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
-
-                            fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                            taup2[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp2[i][j])/Re;
+                            
                             visc0 = ns->ed.mult.get_viscosity0(p3, t);
                             visc1 = ns->ed.mult.get_viscosity1(p3, t);
-                            visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
-                            beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            if(flowtype0 != VISCOELASTIC) {
+                                visc = visc1;
+                                beta_interp = beta1;
+                            } else if(flowtype1 != VISCOELASTIC) {
+                                visc = visc0;
+                                beta_interp = beta0;
+                            } else {
+                                fracvol = compute_value_at_point(sdp, ccenter, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                                visc = (1.0 - fracvol) * visc0 + fracvol * visc1;
+                                beta_interp =  ((1 - fracvol) * visc0 * beta0 + fracvol * visc1 * beta1) / visc;
+                            }
                             taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                            taup3[i][j] += 2.0*(1-beta_interp)*visc*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                            taup3[i][j]+= 2.0*(1-beta_interp)*visc*0.5*(Dp3[i][j])/Re;
                         } 
                     }
 
@@ -1820,13 +1596,13 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                        taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j])/Re;
                         taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                        taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j])/Re;
                         taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                        taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j])/Re;
                         taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
-                        taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                        taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j])/Re;
                         // taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                         // taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                         // taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
@@ -1891,13 +1667,13 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
-                        taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                        taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j])/Re;
                         taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
-                        taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                        taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j])/Re;
                         taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
-                        taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                        taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j])/Re;
                         taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
-                        taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                        taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j])/Re;
                     } 
                 }
                 
@@ -2417,15 +2193,105 @@ void higflow_print_vtk2D_multiphase_parallel_single(higflow_solver *ns, int rank
 }
 
 
+// Print the VTK file for visualize 2D PLIC Interface Lines
+void higflow_print_vtk2d_multiphase_plic_lines_parallel_single(higflow_solver *ns, int rank, int nprocs) {
+    
+    if(ns->contr.flowtype != MULTIPHASE) {
+        return;
+    }
+    
+    //  Open the VTK file
+    char vtkname[1024];
+    snprintf(vtkname, sizeof vtkname, "%s_mult_plic_%d.vtk", ns->par.nameprint, ns->par.frame);
+    MPI_File f;
+    int openerr = MPI_File_open(MPI_COMM_WORLD, vtkname, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &f);
+    if(openerr != MPI_SUCCESS) {
+        printf("Error opening file %s\n", vtkname);
+        return;
+    }
+
+    /////////////////// Buffers and variables ////////////////////////////////////////////
+
+    int numlines = ns->ed.mult.num_plic_lines;
+    int numlines_global;
+    MPI_Allreduce(&numlines, &numlines_global, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    
+    int curr_file_ptr_pos = 0, proc_block_size, proc_offset;
+    char local_str[1024];
+    int local_str_size, d_max_size, e_max_size = 13;
+    int buff_count = min(numlines, 1048576);
+    char *write_buff;
+
+    /////////////////////////////// Header /////////////////////////////////////////////////
+    
+    sprintf(local_str, "# vtk DataFile Version 3.0\nhigtree multiphase PLIC Interface Lines\nASCII\nDATASET POLYDATA\n\nPOINTS %d float\n",
+    2*numlines_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    ////////////////////////////// Points //////////////////////////////////////////////////
+
+    // hardcoded buffer size
+    local_str_size = 2 * (2 * e_max_size + 4) * sizeof(char);
+    if(buff_count!=0) write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numlines;
+    proc_offset = get_offset_cummulative(proc_block_size);
+
+    for (int i = 0; i < numlines; i++) {
+        sprintf(local_str, "%e %e 0\n%e %e 0\n", 
+        ns->ed.mult.plic_lines[i][0][0], ns->ed.mult.plic_lines[i][0][1],
+        ns->ed.mult.plic_lines[i][1][0], ns->ed.mult.plic_lines[i][1][1]);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, i);
+    }
+    if(buff_count!=0) write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    if(buff_count!=0) free(write_buff);
+
+    // ///////////////////////////////// Lines /////////////////////////////////////////////////
+
+    // header
+    sprintf(local_str, "\nLINES %d %d\n", numlines_global, 3*numlines_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+    
+    // hardcoded buffer size
+    int numlines_cummulative;
+    MPI_Scan(&numlines, &numlines_cummulative, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    numlines_cummulative -= numlines;
+    char dummy_str[20];
+    sprintf(dummy_str, "%d", 2*(numlines_cummulative + numlines));
+    d_max_size = strlen(dummy_str);
+
+    local_str_size = (d_max_size * 2 + 4) * sizeof(char);
+    if(buff_count!=0) write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numlines;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    int it_count = 0;
+    for (int i = numlines_cummulative; i < numlines_cummulative + numlines; i++) {
+        sprintf(local_str, "2 %d %d\n", 2*i, 2*i+1);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    if(buff_count!=0) write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count*local_str_size, proc_block_size);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    if(buff_count!=0) free(write_buff);
+    
+    MPI_File_close(&f);
+}
+
+
 // Print the VTK file for visualize 3D
-void higflow_print_vtk3D(higflow_solver *ns, int rank)
-{
+void higflow_print_vtk3D(higflow_solver *ns, int rank) {
     // Open the VTK file
+    real Re   = ns->par.Re;
+    real beta = ns->ed.ve.par.beta;
     char vtkname[1024];
     snprintf(vtkname, sizeof vtkname, "%s_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
     FILE *f = fopen(vtkname, "w");
-    if (f == NULL)
-    {
+    if (f == NULL) {
         return;
     }
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
@@ -2440,8 +2306,7 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank)
     fprintf(f, "DATASET UNSTRUCTURED_GRID\n");
     fprintf(f, "POINTS %ld float\n", 8 * numleafs);
     hig_cell *c;
-    for (; !higcit_isfinished(it_t); higcit_nextcell(it_t))
-    {
+    for (; !higcit_isfinished(it_t); higcit_nextcell(it_t)) {
         c = higcit_getcell(it_t);
         fprintf(f, "%lf %lf %lf\n", c->lowpoint[0], c->lowpoint[1], c->lowpoint[2]);
         fprintf(f, "%lf %lf %lf\n", c->highpoint[0], c->lowpoint[1], c->lowpoint[2]);
@@ -2453,13 +2318,11 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank)
         fprintf(f, "%lf %lf %lf\n", c->lowpoint[0], c->highpoint[1], c->highpoint[2]);
     }
     fprintf(f, "CELLS %ld %ld\n", numleafs, 9 * numleafs);
-    for (int i = 0; i < numleafs; i++)
-    {
+    for (int i = 0; i < numleafs; i++) {
         fprintf(f, "%d %d %d %d %d %d %d %d %d\n", 8, 8 * i + 0, 8 * i + 1, 8 * i + 2, 8 * i + 3, 8 * i + 4, 8 * i + 5, 8 * i + 6, 8 * i + 7); //x == 0
     }
     fprintf(f, "CELL_TYPES %ld\n", numleafs);
-    for (int i = 0; i < numleafs; i++)
-    {
+    for (int i = 0; i < numleafs; i++) {
         fprintf(f, "12 "); //x == 0
     }
     higcit_destroy(it_t);
@@ -2472,9 +2335,7 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank)
     mp_mapper *m = sd_get_domain_mapper(sdp);
     sim_facet_domain *sfdu2[DIM];
     int dimension[DIM];
-    dimension[0] = 0;
-    dimension[1] = 0;
-    dimension[2] = 0;
+    dimension[0] = 0; dimension[1] = 0; dimension[2] = 0;
     int degree = 2;
     const int maxpts = 2 * DIM * wls_num_min_points(DIM, degree);
     //const int maxpts = 2*DIM*wls_num_min_points(degree);
@@ -2483,40 +2344,23 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank)
     real w0[maxpts], w1[maxpts], w2[maxpts], w3[maxpts], w4[maxpts], w5[maxpts], w6[maxpts], w7[maxpts];
     uniqueid gids[maxpts];
     fprintf(f, "\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 8 * numleafs);
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-    {
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
         Point cdelta, ccenter, clowpoint, chightpoint;
         hig_get_delta(c, cdelta);
         hig_get_center(c, ccenter);
         // Pontos onde será interpolada a velocidade
         Point p0, p1, p2, p3, p4, p5, p6, p7;
-        p0[0] = c->lowpoint[0];
-        p0[1] = c->lowpoint[1];
-        p0[2] = c->lowpoint[2];
-        p1[0] = c->highpoint[0];
-        p1[1] = c->lowpoint[1];
-        p1[2] = c->lowpoint[2];
-        p2[0] = c->highpoint[0];
-        p2[1] = c->highpoint[1];
-        p2[2] = c->lowpoint[2];
-        p3[0] = c->lowpoint[0];
-        p3[1] = c->highpoint[1];
-        p3[2] = c->lowpoint[2];
-        p4[0] = c->lowpoint[0];
-        p4[1] = c->lowpoint[1];
-        p4[2] = c->highpoint[2];
-        p5[0] = c->highpoint[0];
-        p5[1] = c->lowpoint[1];
-        p5[2] = c->highpoint[2];
-        p6[0] = c->highpoint[0];
-        p6[1] = c->highpoint[1];
-        p6[2] = c->highpoint[2];
-        p7[0] = c->lowpoint[0];
-        p7[1] = c->highpoint[1];
-        p7[2] = c->highpoint[2];
+        p0[0] = c->lowpoint[0]; p0[1] = c->lowpoint[1]; p0[2] = c->lowpoint[2];
+        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1]; p1[2] = c->lowpoint[2];
+        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
+        p3[0] = c->lowpoint[0]; p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
+        p4[0] = c->lowpoint[0]; p4[1] = c->lowpoint[1]; p4[2] = c->highpoint[2];
+        p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1]; p5[2] = c->highpoint[2];
+        p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
+        p7[0] = c->lowpoint[0]; p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
         uniqueid id = hig_get_cid(c);
-        int cgid = mp_lookup(m, id);
+        int clid = mp_lookup(m, id);
         double lu0 = 0, lv0 = 0, lw0 = 0;
         double lu1 = 0, lv1 = 0, lw1 = 0;
         double lu2 = 0, lv2 = 0, lw2 = 0;
@@ -2525,114 +2369,105 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank)
         double lu5 = 0, lv5 = 0, lw5 = 0;
         double lu6 = 0, lv6 = 0, lw6 = 0;
         double lu7 = 0, lv7 = 0, lw7 = 0;
-        for (int dim = 0; dim < DIM; dim++)
-        {
+        for (int dim = 0; dim < DIM; dim++) {
             // int numpts = 0;
             // int cont = 0;
             sfdu2[dim] = psfd_get_local_domain(ns->psfdu[dim]);
             mp_mapper *m = sfd_get_domain_mapper(sfdu2[dim]);
             real value0 = compute_facet_value_at_point(sfdu2[dim], ccenter, p0, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu0 = value0;
+            switch (dim) {
+                case 0:
+                    lu0 = value0;
                 break;
-            case 1:
-                lv0 = value0;
+                case 1:
+                    lv0 = value0;
                 break;
-            case 2:
-                lw0 = value0;
+                case 2:
+                    lw0 = value0;
                 break;
             }
             real value1 = compute_facet_value_at_point(sfdu2[dim], ccenter, p1, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu1 = value1;
+            switch (dim) {
+                case 0:
+                    lu1 = value1;
                 break;
-            case 1:
-                lv1 = value1;
+                case 1:
+                    lv1 = value1;
                 break;
-            case 2:
-                lw1 = value1;
+                case 2:
+                    lw1 = value1;
                 break;
             }
             real value2 = compute_facet_value_at_point(sfdu2[dim], ccenter, p2, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu2 = value2;
+            switch (dim) {
+                case 0:
+                    lu2 = value2;
                 break;
-            case 1:
-                lv2 = value2;
+                case 1:
+                    lv2 = value2;
                 break;
-            case 2:
-                lw2 = value2;
+                case 2:
+                    lw2 = value2;
                 break;
             }
             real value3 = compute_facet_value_at_point(sfdu2[dim], ccenter, p3, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu3 = value3;
+            switch (dim) {
+                case 0:
+                    lu3 = value3;
                 break;
-            case 1:
-                lv3 = value3;
+                case 1:
+                    lv3 = value3;
                 break;
-            case 2:
-                lw3 = value3;
+                case 2:
+                    lw3 = value3;
                 break;
             }
             real value4 = compute_facet_value_at_point(sfdu2[dim], ccenter, p4, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu4 = value4;
+            switch (dim) {
+                case 0:
+                    lu4 = value4;
                 break;
-            case 1:
-                lv4 = value4;
+                case 1:
+                    lv4 = value4;
                 break;
-            case 2:
-                lw4 = value4;
+                case 2:
+                    lw4 = value4;
                 break;
             }
             real value5 = compute_facet_value_at_point(sfdu2[dim], ccenter, p5, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu5 = value5;
+            switch (dim) {
+                case 0:
+                    lu5 = value5;
                 break;
-            case 1:
-                lv5 = value5;
+                case 1:
+                    lv5 = value5;
                 break;
-            case 2:
-                lw5 = value5;
+                case 2:
+                    lw5 = value5;
                 break;
             }
             real value6 = compute_facet_value_at_point(sfdu2[dim], ccenter, p6, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu6 = value6;
+            switch (dim) {
+                case 0:
+                    lu6 = value6;
                 break;
-            case 1:
-                lv6 = value6;
+                case 1:
+                    lv6 = value6;
                 break;
-            case 2:
-                lw6 = value6;
+                case 2:
+                    lw6 = value6;
                 break;
             }
             real value7 = compute_facet_value_at_point(sfdu2[dim], ccenter, p7, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu7 = value7;
+            switch (dim) {
+                case 0:
+                    lu7 = value7;
                 break;
-            case 1:
-                lv7 = value7;
+                case 1:
+                    lv7 = value7;
                 break;
-            case 2:
-                lw7 = value7;
+                case 2:
+                    lw7 = value7;
                 break;
             }
             // printf("Máximo de pontos --> %d\nMínimo de pontos --> %d\nPontos usados --> %d\n",maxpts,wls_num_min_points(DIM,degree),cont);
@@ -2647,29 +2482,322 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank)
         fprintf(f, "%e %e %e\n", lu7, lv7, lw7);
     }
     higcit_destroy(it);
+    // Saving vectorial properties 
+    switch (ns->contr.flowtype) {
+        case NEWTONIAN:
+        break;
+        
+        case GENERALIZED_NEWTONIAN:
+        break;
+        
+        case MULTIPHASE:
+         break;
+            
+        case VISCOELASTIC:
+            fprintf(f, "\nTENSORS Tensor FLOAT\n");
+            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+                hig_cell *c = higcit_getcell(it);
+                Point cdelta, ccenter, clowpoint, chightpoint;
+                hig_get_delta(c,cdelta);
+                hig_get_center(c,ccenter);
+                // Pontos onde será interpolada a velocidade
+                Point p0, p1, p2, p3, p4, p5, p6, p7;
+                p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];  p0[2] = c->lowpoint[2];
+                p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];  p1[2] = c->lowpoint[2];
+                p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
+                p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
+                p4[0] = c->lowpoint[0];  p4[1] = c->lowpoint[1];  p4[2] = c->highpoint[2];
+                p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1];  p5[2] = c->highpoint[2];
+                p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
+                p7[0] = c->lowpoint[0];  p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
+                uniqueid id = hig_get_cid(c);
+                int clid = mp_lookup(m, id);
+                real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
+                real taup4[DIM+1][DIM+1], taup5[DIM+1][DIM+1], taup6[DIM+1][DIM+1], taup7[DIM+1][DIM+1];
+                for (int i = 0; i <= DIM; i++) {
+                    for (int j = 0; j <= DIM; j++) {
+                        taup0[i][j]=0.0; taup1[i][j]=0.0; taup2[i][j]=0.0; taup3[i][j]=0.0;
+                        taup4[i][j]=0.0; taup5[i][j]=0.0; taup6[i][j]=0.0; taup7[i][j]=0.0;
+                    }
+                }
+                sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+                real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
+                real Dp4[DIM][DIM], Dp5[DIM][DIM], Dp6[DIM][DIM], Dp7[DIM][DIM];
+                for (int i = 0; i < DIM; i++) {
+                    for (int j = 0; j < DIM; j++) {
+                        // Get Du
+                        Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp4[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p4, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp5[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p5, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp6[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p6, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                        Dp7[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p7, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                    }
+                }
+                 for (int i = 0; i < DIM; i++) {
+                   for (int j = 0; j < DIM; j++) {
+                     taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup0[i][j]+= 2.0*(1-beta)*0.5*(Dp0[i][j]+Dp0[j][i])/Re;
+                     taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup1[i][j]+= 2.0*(1-beta)*0.5*(Dp1[i][j]+Dp1[j][i])/Re;
+                     taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup2[i][j]+= 2.0*(1-beta)*0.5*(Dp2[i][j]+Dp2[j][i])/Re;
+                     taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup3[i][j]+= 2.0*(1-beta)*0.5*(Dp3[i][j]+Dp3[j][i])/Re;
+                     taup4[i][j] = compute_value_at_point(ns->ed.sdED, p4, p4, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup4[i][j]+= 2.0*(1-beta)*0.5*(Dp4[i][j]+Dp4[j][i])/Re;
+                     taup5[i][j] = compute_value_at_point(ns->ed.sdED, p5, p5, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup5[i][j]+= 2.0*(1-beta)*0.5*(Dp5[i][j]+Dp5[j][i])/Re;
+                     taup6[i][j] = compute_value_at_point(ns->ed.sdED, p6, p6, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup6[i][j]+= 2.0*(1-beta)*0.5*(Dp6[i][j]+Dp6[j][i])/Re;
+                     taup7[i][j] = compute_value_at_point(ns->ed.sdED, p7, p7, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                     taup7[i][j]+= 2.0*(1-beta)*0.5*(Dp7[i][j]+Dp7[j][i])/Re;
+                  }
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup0[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup1[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup2[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup3[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup4[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup5[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup6[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+                for (int i = 0; i <= DIM; i++) {
+                   for (int j = 0; j <= DIM; j++) {
+                      fprintf(f, "%e ", taup7[i][j]);
+                   }
+                   fprintf(f, "\n");
+                }
+            }
+            higcit_destroy(it);
+        break;
+        
+        case VISCOELASTIC_INTEGRAL:
+        // Integral
+                   fprintf(f, "\nTENSORS Tensor FLOAT\n");
+                   for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+                        hig_cell *c = higcit_getcell(it);
+                        Point cdelta, ccenter, clowpoint, chightpoint;
+                        hig_get_delta(c,cdelta);
+                        hig_get_center(c,ccenter);
+                        // Pontos onde será interpolada a velocidade
+                        Point p0, p1, p2, p3, p4, p5, p6, p7;
+                        p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];  p0[2] = c->lowpoint[2];
+                        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];  p1[2] = c->lowpoint[2];
+                        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
+                        p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
+                        p4[0] = c->lowpoint[0];  p4[1] = c->lowpoint[1];  p4[2] = c->highpoint[2];
+                        p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1];  p5[2] = c->highpoint[2];
+                        p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
+                        p7[0] = c->lowpoint[0];  p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
+
+                        uniqueid id = hig_get_cid(c);
+                        int clid = mp_lookup(m, id);
+                        
+                        real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
+                        real taup4[DIM+1][DIM+1], taup5[DIM+1][DIM+1], taup6[DIM+1][DIM+1], taup7[DIM+1][DIM+1];
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                          for (int j = 0; j <= DIM; j++) {
+                            taup0[i][j]=0.0; taup1[i][j]=0.0; taup2[i][j]=0.0; taup3[i][j]=0.0;
+                            taup4[i][j]=0.0; taup5[i][j]=0.0; taup6[i][j]=0.0; taup7[i][j]=0.0;
+                          }
+                        }
+                        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
+                        
+                        real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
+                        real Dp4[DIM][DIM], Dp5[DIM][DIM], Dp6[DIM][DIM], Dp7[DIM][DIM];
+                        for (int i = 0; i < DIM; i++) {
+                          for (int j = 0; j < DIM; j++) {
+                             // Get Du
+                             Dp0[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p0, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp1[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p1, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp2[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p2, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp3[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p3, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp4[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p4, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp5[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p5, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp6[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p6, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                             Dp7[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, p7, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                          }
+                         }
+                         
+                         for (int i = 0; i < DIM; i++) {
+                           for (int j = 0; j < DIM; j++) {
+                             taup0[i][j] = compute_value_at_point(ns->ed.sdED, p0, p0, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup0[i][j]+= (Dp0[i][j]+Dp0[j][i])/Re;
+                             
+                             taup1[i][j] = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup1[i][j]+= (Dp1[i][j]+Dp1[j][i])/Re;
+                             
+                             taup2[i][j] = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup2[i][j]+= (Dp2[i][j]+Dp2[j][i])/Re;
+                             
+                             taup3[i][j] = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup3[i][j]+= (Dp3[i][j]+Dp3[j][i])/Re;
+                             
+                             taup4[i][j] = compute_value_at_point(ns->ed.sdED, p4, p4, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup4[i][j]+= (Dp4[i][j]+Dp4[j][i])/Re;
+                             
+                             taup5[i][j] = compute_value_at_point(ns->ed.sdED, p5, p5, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup5[i][j]+= (Dp5[i][j]+Dp5[j][i])/Re;
+                             
+                             taup6[i][j] = compute_value_at_point(ns->ed.sdED, p6, p6, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup6[i][j]+= (Dp6[i][j]+Dp6[j][i])/Re;
+                             
+                             taup7[i][j] = compute_value_at_point(ns->ed.sdED, p7, p7, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
+                             taup7[i][j]+= (Dp7[i][j]+Dp7[j][i])/Re;
+                          }
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup0[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup1[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup2[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup3[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup4[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup5[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup6[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                        
+                        for (int i = 0; i <= DIM; i++) {
+                           for (int j = 0; j <= DIM; j++) {
+                              fprintf(f, "%e ", taup7[i][j]);
+                           }
+                           fprintf(f, "\n");
+                        }
+                    }
+                    higcit_destroy(it);
+        break;
+        
+    }
     fprintf(f, "\nCELL_DATA %ld\nSCALARS p FLOAT\nLOOKUP_TABLE default\n", numcells);
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-    {
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
         uniqueid id = hig_get_cid(c);
-        int cgid = mp_lookup(m, id);
-        real val = dp_get_value(ns->dpp, cgid);
+        int clid = mp_lookup(m, id);
+        real val = dp_get_value(ns->dpp, clid);
         fprintf(f, "%e\n", val);
-        // fprintf(f, "%f\n", val);
+        // fprintf(f, "%e\n", val);
     }
     higcit_destroy(it);
+    
+    // Saving scalar properties from the center of the cell 
+    switch (ns->contr.flowtype) {
+        case NEWTONIAN:
+        break;
+        
+        case GENERALIZED_NEWTONIAN:
+        break;
+        
+        case MULTIPHASE:
+            fprintf(f,"\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n");
+            sfdu2[0] = psfd_get_local_domain(ns->psfdu[0]);
+            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+               hig_cell *c = higcit_getcell(it);
+               uniqueid id = hig_get_cid(c);
+               int clid = mp_lookup(m, id);
+               Point cdelta, ccenter, p0, p1;
+               hig_get_delta(c, cdelta);
+               hig_get_center(c, ccenter);
+               real value = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               fprintf(f, "%e\n", value);
+            }
+            higcit_destroy(it);
+         break;
+            
+        case VISCOELASTIC:
+        break;
+        
+        case VISCOELASTIC_INTEGRAL:
+        break;
+
+    }
+    
     fclose(f);
 }
 
 // Print the VTK file for vilusalize 3D
-void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
-{
+void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank) {
     // Open the VTK file
     char vtkname[1024];
     snprintf(vtkname, sizeof vtkname, "%s_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
     FILE *f = fopen(vtkname, "w");
-    if (f == NULL)
-    {
+    if (f == NULL) {
         return;
     }
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
@@ -2682,10 +2810,9 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
     fprintf(f, "higtree\n");
     fprintf(f, "ASCII\n");
     fprintf(f, "DATASET UNSTRUCTURED_GRID\n");
-    fprintf(f, "POINTS %ld float\n", 8 * numleafs);
+    fprintf(f, "POINTS %ld float\n", 8*numleafs);
     hig_cell *c;
-    for (; !higcit_isfinished(it_t); higcit_nextcell(it_t))
-    {
+    for (; !higcit_isfinished(it_t); higcit_nextcell(it_t)) {
         c = higcit_getcell(it_t);
         fprintf(f, "%lf %lf %lf\n", c->lowpoint[0], c->lowpoint[1], c->lowpoint[2]);
         fprintf(f, "%lf %lf %lf\n", c->highpoint[0], c->lowpoint[1], c->lowpoint[2]);
@@ -2696,14 +2823,12 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
         fprintf(f, "%lf %lf %lf\n", c->highpoint[0], c->highpoint[1], c->highpoint[2]);
         fprintf(f, "%lf %lf %lf\n", c->lowpoint[0], c->highpoint[1], c->highpoint[2]);
     }
-    fprintf(f, "CELLS %ld %ld\n", numleafs, 9 * numleafs);
-    for (int i = 0; i < numleafs; i++)
-    {
-        fprintf(f, "%d %d %d %d %d %d %d %d %d\n", 8, 8 * i + 0, 8 * i + 1, 8 * i + 2, 8 * i + 3, 8 * i + 4, 8 * i + 5, 8 * i + 6, 8 * i + 7); //x == 0
+    fprintf(f, "CELLS %ld %ld\n", numleafs, 9*numleafs);
+    for (int i = 0; i < numleafs; i++) {
+        fprintf(f, "%d %d %d %d %d %d %d %d %d\n", 8, 8*i+0, 8*i+1, 8*i+2, 8*i+3, 8*i+4, 8*i+5, 8*i+6, 8*i+7); //x == 0
     }
     fprintf(f, "CELL_TYPES %ld\n", numleafs);
-    for (int i = 0; i < numleafs; i++)
-    {
+    for (int i = 0; i < numleafs; i++) {
         fprintf(f, "12 "); //x == 0
     }
     higcit_destroy(it_t);
@@ -2720,15 +2845,14 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
     dimension[1] = 0;
     dimension[2] = 0;
     int degree = 2;
-    const int maxpts = 2 * DIM * wls_num_min_points(DIM, degree);
+    const int maxpts = 2*DIM*wls_num_min_points(DIM,degree);
     //const int maxpts = 2*DIM*wls_num_min_points(degree);
-    Point pts[maxpts + 1];
-    real dist[maxpts + 1];
+    Point pts[maxpts+1];
+    real dist[maxpts+1];
     real w0[maxpts], w1[maxpts], w2[maxpts], w3[maxpts], w4[maxpts], w5[maxpts], w6[maxpts], w7[maxpts];
     uniqueid gids[maxpts];
-    fprintf(f, "\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 8 * numleafs);
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
-    {
+    fprintf(f, "\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 8*numleafs);
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
         Point cdelta, ccenter, clowpoint, chightpoint;
         hig_get_delta(c, cdelta);
@@ -2760,7 +2884,7 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
         p7[1] = c->highpoint[1];
         p7[2] = c->highpoint[2];
         uniqueid id = hig_get_cid(c);
-        int cgid = mp_lookup(m, id);
+        int clid = mp_lookup(m, id);
         double lu0 = 0, lv0 = 0, lw0 = 0;
         double lu1 = 0, lv1 = 0, lw1 = 0;
         double lu2 = 0, lv2 = 0, lw2 = 0;
@@ -2769,114 +2893,105 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
         double lu5 = 0, lv5 = 0, lw5 = 0;
         double lu6 = 0, lv6 = 0, lw6 = 0;
         double lu7 = 0, lv7 = 0, lw7 = 0;
-        for (int dim = 0; dim < DIM; dim++)
-        {
+        for (int dim = 0; dim < DIM; dim++) {
             // int numpts = 0;
             // int cont = 0;
             sfdu2[dim] = psfd_get_local_domain(ns->psfdu[dim]);
             mp_mapper *m = sfd_get_domain_mapper(sfdu2[dim]);
             real value0 = compute_facet_value_at_point(sfdu2[dim], ccenter, p0, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu0 = value0;
+            switch (dim) {
+                case 0:
+                    lu0 = value0;
                 break;
-            case 1:
-                lv0 = value0;
+                case 1:
+                    lv0 = value0;
                 break;
-            case 2:
-                lw0 = value0;
+                case 2:
+                    lw0 = value0;
                 break;
             }
             real value1 = compute_facet_value_at_point(sfdu2[dim], ccenter, p1, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu1 = value1;
+            switch (dim) {
+                case 0:
+                    lu1 = value1;
                 break;
-            case 1:
-                lv1 = value1;
+                case 1:
+                    lv1 = value1;
                 break;
-            case 2:
-                lw1 = value1;
+                case 2:
+                    lw1 = value1;
                 break;
             }
             real value2 = compute_facet_value_at_point(sfdu2[dim], ccenter, p2, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu2 = value2;
+            switch (dim) {
+                case 0:
+                    lu2 = value2;
                 break;
-            case 1:
-                lv2 = value2;
+                case 1:
+                    lv2 = value2;
                 break;
-            case 2:
-                lw2 = value2;
+                case 2:
+                    lw2 = value2;
                 break;
             }
             real value3 = compute_facet_value_at_point(sfdu2[dim], ccenter, p3, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu3 = value3;
+            switch (dim) {
+                case 0:
+                    lu3 = value3;
                 break;
-            case 1:
-                lv3 = value3;
+                case 1:
+                    lv3 = value3;
                 break;
-            case 2:
-                lw3 = value3;
+                case 2:
+                    lw3 = value3;
                 break;
             }
             real value4 = compute_facet_value_at_point(sfdu2[dim], ccenter, p4, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu4 = value4;
+            switch (dim) {
+                case 0:
+                    lu4 = value4;
                 break;
-            case 1:
-                lv4 = value4;
+                case 1:
+                    lv4 = value4;
                 break;
-            case 2:
-                lw4 = value4;
+                case 2:
+                    lw4 = value4;
                 break;
             }
             real value5 = compute_facet_value_at_point(sfdu2[dim], ccenter, p5, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu5 = value5;
+            switch (dim) {
+                case 0:
+                    lu5 = value5;
                 break;
-            case 1:
-                lv5 = value5;
+                case 1:
+                    lv5 = value5;
                 break;
-            case 2:
-                lw5 = value5;
+                case 2:
+                    lw5 = value5;
                 break;
             }
             real value6 = compute_facet_value_at_point(sfdu2[dim], ccenter, p6, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu6 = value6;
+            switch (dim) {
+                case 0:
+                    lu6 = value6;
                 break;
-            case 1:
-                lv6 = value6;
+                case 1:
+                    lv6 = value6;
                 break;
-            case 2:
-                lw6 = value6;
+                case 2:
+                    lw6 = value6;
                 break;
             }
             real value7 = compute_facet_value_at_point(sfdu2[dim], ccenter, p7, 1.0, ns->dpu[dim], ns->stn);
-            switch (dim)
-            {
-            case 0:
-                lu7 = value7;
+            switch (dim) {
+                case 0:
+                    lu7 = value7;
                 break;
-            case 1:
-                lv7 = value7;
+                case 1:
+                    lv7 = value7;
                 break;
-            case 2:
-                lw7 = value7;
+                case 2:
+                    lw7 = value7;
                 break;
             }
             // printf("Máximo de pontos --> %d\nMínimo de pontos --> %d\nPontos usados --> %d\n",maxpts,wls_num_min_points(DIM,degree),cont);
@@ -2893,32 +3008,30 @@ void higflow_print_vtk3D_viscoelastic(higflow_solver *ns, int rank)
     higcit_destroy(it);
 
     // Pressure
-    /*
+/*
     fprintf(f, "\nCELL_DATA %ld\nSCALARS p FLOAT\nLOOKUP_TABLE default\n", numcells);
     for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
         uniqueid id = hig_get_cid(c);
-        int cgid = mp_lookup(m, id);
-        real val = dp_get_value(ns->dpp, cgid);
+        int clid = mp_lookup(m, id);
+        real val = dp_get_value(ns->dpp, clid);
         fprintf(f, "%e\n", val);
-        // fprintf(f, "%f\n", val);
+        // fprintf(f, "%e\n", val);
     }
     higcit_destroy(it);
 */
 
     fprintf(f, "\nCELL_DATA %ld\nSCALARS S00 FLOAT\nLOOKUP_TABLE default\n", numcells);
-    for (it = sd_get_domain_celliterator(ns->ed.sdED); !higcit_isfinished(it); higcit_nextcell(it))
-    {
+    for (it = sd_get_domain_celliterator(ns->ed.sdED); !higcit_isfinished(it); higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
         uniqueid id = hig_get_cid(c);
-        int cgid = mp_lookup(m, id);
-        real val = dp_get_value(ns->ed.ve.dpS[0][0], cgid);
+        int clid = mp_lookup(m, id);
+        real val = dp_get_value(ns->ed.ve.dpS[0][0], clid);
         fprintf(f, "%e\n", val);
     }
     higcit_destroy(it);
     fclose(f);
 }
-
 // Print the VTK file for vilusalize 3D viscoelastic flows with variable viscosity
 void higflow_print_vtk3D_viscoelastic_variable_viscosity(higflow_solver *ns, int rank)
 {
@@ -5254,7 +5367,11 @@ void higflow_save_domain_yaml(higflow_solver *ns, int myrank, int ntasks) {
 
         // Number of HigTrees
         int numhigs;
-        fy_document_scanf(fyd_load, "/domain/number_domains %d", &numhigs);
+        int err = fy_document_scanf(fyd_load, "/domain/number_domains %d", &numhigs);
+        if(err == 0) {
+            printf("=+=+=+= path=/domain/number_domains not found =+=+=+=\n");
+            exit(1);
+        }
 
         for(int h = 0; h < numhigs; h++) {
             // Name of the HigTree file
@@ -5262,7 +5379,11 @@ void higflow_save_domain_yaml(higflow_solver *ns, int myrank, int ntasks) {
             char path_path[1024];
             sprintf(path_path, "/domain/domain%d/path", h);
             strcat(path_path, " %s");
-            fy_document_scanf(fyd_load, path_path, amrfilename_load);
+            err = fy_document_scanf(fyd_load, path_path, amrfilename_load);
+            if(err == 0) {
+                printf("=+=+=+= path=%s not found =+=+=+=\n", path_path);
+                exit(1);
+            }
 
             // Open the AMR format file
             FILE *fd_load = fopen(amrfilename_load, "r");
@@ -5374,7 +5495,11 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
 
         // Number of HigTrees
         int numbcs;
-        fy_document_scanf(fyd_load, "/bc/number_bc %d", &numbcs);
+        int err = fy_document_scanf(fyd_load, "/bc/number_bc %d", &numbcs);
+        if(err == 0) {
+            printf("=+=+=+= path=/bc/number_bc not found =+=+=+=\n");
+            exit(1);
+        }
 
         for(int h = 0; h < numbcs; h++) {
             // Name of the HigTree file
@@ -5382,7 +5507,11 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
             char path_path[1024];
             sprintf(path_path, "/bc/bc%d/path", h);
             strcat(path_path, " %s");
-            fy_document_scanf(fyd_load, path_path, amrfilename_load);
+            err = fy_document_scanf(fyd_load, path_path, amrfilename_load);
+            if(err == 0) {
+                printf("=+=+=+= path=%s not found =+=+=+=\n", path_path);
+                exit(1);
+            }
 
             // Open the AMR format file
             FILE *fd_load = fopen(amrfilename_load, "r");
@@ -5432,8 +5561,8 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
         }
 
         /////////// Shear Banding //////////////
-        int err = fy_document_scanf(fyd_load, "/bc_shear_banding/number_bc %d", &numbcs);
-        if(err != -1) {
+        err = fy_document_scanf(fyd_load, "/bc_shear_banding/number_bc %d", &numbcs);
+        if(err != 0) {
 
             for(int h = 0; h < numbcs; h++) {
                 // Name of the HigTree file
@@ -5441,7 +5570,11 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
                 char path_path[1024];
                 sprintf(path_path, "/bc_shear_banding/bc%d/path", h);
                 strcat(path_path, " %s");
-                fy_document_scanf(fyd_load, path_path, amrfilename_load);
+                err = fy_document_scanf(fyd_load, path_path, amrfilename_load);
+                if(err == 0) { // no string found
+                    printf("=+=+=+= path=%s not found =+=+=+=\n", path_path);
+                    exit(1);
+                }
 
                 // Open the AMR format file
                 FILE *fd_load = fopen(amrfilename_load, "r");
@@ -5498,7 +5631,7 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
 
         /////////// Electroosmotic //////////////
         err = fy_document_scanf(fyd_load, "/bc_electroosmotic/number_bc %d", &numbcs);
-        if(err != -1) {
+        if(err != 0) {
 
             for(int h = 0; h < numbcs; h++) {
                 // Name of the HigTree file
@@ -5506,7 +5639,11 @@ void higflow_save_all_boundaries_yaml(higflow_solver *ns, int myrank, int ntasks
                 char path_path[1024];
                 sprintf(path_path, "/bc_electroosmotic/bc%d/path", h);
                 strcat(path_path, " %s");
-                fy_document_scanf(fyd_load, path_path, amrfilename_load);
+                err = fy_document_scanf(fyd_load, path_path, amrfilename_load);
+                if(err == 0) {
+                    printf("=+=+=+= path=%s not found =+=+=+=\n", path_path);
+                    exit(1);
+                }
 
                 // Open the AMR format file
                 FILE *fd_load = fopen(amrfilename_load, "r");
@@ -6020,6 +6157,7 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
     ifd += fy_document_scanf(fyd, "/simulation_par/numsteps %d", &(ns->par.numsteps));
     ns->par.finalstep = ns->par.step + ns->par.numsteps - 1;
     ifd += fy_document_scanf(fyd, "/simulation_par/dt %lf", &(ns->par.dt));
+    ns->par.dt0 = ns->par.dt;
     ifd += fy_document_scanf(fyd, "/simulation_par/dts %lf", &(ns->par.dts));
     ifd += fy_document_scanf(fyd, "/simulation_par/dtp %lf", &(ns->par.dtp));
     if(ifd != 4) {
@@ -6266,9 +6404,9 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.ve.contr.convecdiscrtype = CELL_UPWIND;
-                print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.ve.contr.convecdiscrtype = CELL_CENTRAL;
+                print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
                 ns->ed.ve.contr.convecdiscrtype = CELL_CUBISTA;
@@ -6361,9 +6499,9 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_integral/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.im.contr.convecdiscrtype = CELL_UPWIND;
-                print0f("=+=+=+= Constitutive Equation Integral Convective Term: Upwind  =+=+=+=\n");
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.im.contr.convecdiscrtype = CELL_CENTRAL;
+                print0f("=+=+=+= Constitutive Equation Integral Convective Term: Central  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
                 ns->ed.im.contr.convecdiscrtype = CELL_CUBISTA;
@@ -6494,8 +6632,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/thixotropic/structpconvecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "upwind") == 0) {
-                    ns->ed.vevv.contr.structpconvecdiscrtype = CELL_UPWIND;
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.vevv.contr.structpconvecdiscrtype = CELL_CENTRAL;
                     print0f("=+=+=+= Thixotropic Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -6567,8 +6705,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/viscoelastic_var_viscosity/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.vevv.contr.convecdiscrtype = CELL_UPWIND;
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.vevv.contr.convecdiscrtype = CELL_CENTRAL;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -6612,8 +6750,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/vcm/nAnBconvecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "upwind") == 0) {
-                    ns->ed.vesb.contr.nAnBconvecdiscrtype = CELL_UPWIND;
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.vesb.contr.nAnBconvecdiscrtype = CELL_CENTRAL;
                     print0f("=+=+=+= VCM Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -6662,8 +6800,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/shear_banding/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.vesb.contr.convecdiscrtype = CELL_UPWIND;
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.vesb.contr.convecdiscrtype = CELL_CENTRAL;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -6785,8 +6923,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/elastoviscoplastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.vepl.contr.convecdiscrtype = CELL_UPWIND;
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.vepl.contr.convecdiscrtype = CELL_CENTRAL;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -6902,8 +7040,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/singlephase/suspensions/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.stsp.contr.convecdiscrtype = CELL_UPWIND;
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.stsp.contr.convecdiscrtype = CELL_CENTRAL;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -6966,8 +7104,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/singlephase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "upwind") == 0) {
-                    ns->ed.eo.contr.convecdiscrtype = CELL_UPWIND;
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.eo.contr.convecdiscrtype = CELL_CENTRAL;
                     print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -6985,8 +7123,7 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
             else if (strcmp(auxchar, "pb") == 0) {
                 ns->ed.eo.contr.eo_model = PB;
-                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann (not working yet) =+=+=+=\n");
-                exit(1);
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann =+=+=+=\n");
             }
             else if (strcmp(auxchar, "pbdh") == 0) {
                 ns->ed.eo.contr.eo_model = PBDH;
@@ -7154,8 +7291,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.mult.ve.contr.convecdiscrtype = CELL_UPWIND;
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CENTRAL;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -7233,8 +7370,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "upwind") == 0) {
-                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_UPWIND;
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CENTRAL;
                     print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -7252,8 +7389,7 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
             else if (strcmp(auxchar, "pb") == 0) {
                 ns->ed.mult.eo.contr.eo_model = PB;
-                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann (not working yet) =+=+=+=\n");
-                exit(1);
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann =+=+=+=\n");
             }
             else if (strcmp(auxchar, "pbdh") == 0) {
                 ns->ed.mult.eo.contr.eo_model = PBDH;
@@ -7415,8 +7551,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
 
             ifd += fy_document_scanf(fyd, "/multiphase/viscoelastic/contr/convecdiscrtype %s", auxchar);
-            if (strcmp(auxchar, "upwind") == 0) {
-                ns->ed.mult.ve.contr.convecdiscrtype = CELL_UPWIND;
+            if (strcmp(auxchar, "central") == 0) {
+                ns->ed.mult.ve.contr.convecdiscrtype = CELL_CENTRAL;
                 print0f("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
             }
             else if (strcmp(auxchar, "cubista") == 0) {
@@ -7496,8 +7632,8 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
                 }
 
                 ifd += fy_document_scanf(fyd, "/multiphase/electroosmotic/model_pnp/convecdiscrtype %s", auxchar);
-                if (strcmp(auxchar, "upwind") == 0) {
-                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_UPWIND;
+                if (strcmp(auxchar, "central") == 0) {
+                    ns->ed.mult.eo.contr.convecdiscrtype = CELL_CENTRAL;
                     print0f("=+=+=+= Ionic Equation Convective Term: Central  =+=+=+=\n");
                 }
                 else if (strcmp(auxchar, "cubista") == 0) {
@@ -7515,8 +7651,7 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             }
             else if (strcmp(auxchar, "pb") == 0) {
                 ns->ed.mult.eo.contr.eo_model = PB;
-                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann (not working yet) =+=+=+=\n");
-                exit(1);
+                print0f("=+=+=+= Electroosmotic Model: Poisson-Boltzmann =+=+=+=\n");
             }
             else if (strcmp(auxchar, "pbdh") == 0) {
                 ns->ed.mult.eo.contr.eo_model = PBDH;
@@ -7690,8 +7825,6 @@ void higflow_load_all_controllers(higflow_solver *ns, int myrank) {
             break;
     }
     if (ns->contr.eoflow == true)   higflow_load_electroosmotic_controllers(ns, myrank);
-
-    
 }
 
 // Saving all the controllers
@@ -7953,6 +8086,7 @@ void higflow_load_parameters(higflow_solver *ns, int myrank) {
         ns->par.finalstep = ns->par.initstep + ns->par.numsteps - 1;
         ifd = fscanf(fd, "%lf", &(ns->par.t));
         ifd = fscanf(fd, "%lf", &(ns->par.dt));
+        ns->par.dt0 = ns->par.dt;
         ifd = fscanf(fd, "%lf", &(ns->par.Re));
         ifd = fscanf(fd, "%lf", &(ns->par.dts));
         ifd = fscanf(fd, "%lf", &(ns->par.dtp));
@@ -8423,8 +8557,8 @@ void higflow_load_multiphase_viscoelastic_controllers(higflow_solver *ns, int my
             }
             // Constitutive Equation Convective Term
             switch (ns->ed.mult.ve.contr.convecdiscrtype) {
-                case CELL_UPWIND:
-                    printf("=+=+=+= Constitutive Equation Convective Term : Upwind  =+=+=+=\n");
+                case CELL_CENTRAL:
+                    printf("=+=+=+= Constitutive Equation Convective Term : Central  =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
                     printf("=+=+=+= Constitutive Equation Convective Term : CUBISTA =+=+=+=\n");
@@ -8571,8 +8705,8 @@ void higflow_load_viscoelastic_controllers(higflow_solver *ns, int myrank) {
                     break;
             }
             switch (ns->ed.ve.contr.convecdiscrtype) {
-                case CELL_UPWIND:
-                    printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+                case CELL_CENTRAL:
+                    printf("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
                     printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
@@ -8771,7 +8905,7 @@ void higflow_load_multiphase_electroosmotic_controllers(higflow_solver *ns, int 
                     break;
             }
             switch (ns->ed.mult.eo.contr.convecdiscrtype) {
-                case CELL_UPWIND:
+                case CELL_CENTRAL:
                     printf("=+=+=+= Ionic concentration convective term: Central =+=+=+=\n");
                     printf("=+=+=+= Electric Field terms will be source          =+=+=+=\n");
                     break;
@@ -8900,7 +9034,7 @@ void higflow_load_electroosmotic_controllers(higflow_solver *ns, int myrank) {
                     break;
             }
             switch (ns->ed.eo.contr.convecdiscrtype) {
-                case CELL_UPWIND:
+                case CELL_CENTRAL:
                     printf("=+=+=+= Ionic concentration convective term: Central =+=+=+=\n");
                     printf("=+=+=+= Electric Field terms will be source          =+=+=+=\n");
                     break;
@@ -9076,8 +9210,8 @@ void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myra
                     break;
             }
             switch (ns->ed.im.contr.convecdiscrtype) {
-                case CELL_UPWIND:
-                    printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
+                case CELL_CENTRAL:
+                    printf("=+=+=+= Constitutive Equation Convective Term: Central  =+=+=+=\n");
                     break;
                 case CELL_CUBISTA:
                     printf("=+=+=+= Constitutive Equation Convective Term: CUBISTA =+=+=+=\n");
@@ -9311,7 +9445,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
             }
             switch (ns->ed.vevv.contr.convecdiscrtype)
             {
-            case CELL_UPWIND:
+            case CELL_CENTRAL:
                 printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
             case CELL_CUBISTA:
@@ -9333,7 +9467,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= BMP Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
@@ -9355,7 +9489,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= BMP Model with solvent Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
@@ -9377,7 +9511,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= MBM Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
@@ -9399,7 +9533,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= NM_taup Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
@@ -9421,7 +9555,7 @@ void higflow_load_viscoelastic_variable_viscosity_controllers(higflow_solver *ns
                     }
                     switch (ns->ed.vevv.contr.structpconvecdiscrtype)
                     {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= NM_T Model Viscosity Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
@@ -9599,7 +9733,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
             }
             switch (ns->ed.vesb.contr.convecdiscrtype)
             {
-            case CELL_UPWIND:
+            case CELL_CENTRAL:
                 printf("=+=+=+= Viscoelastic Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
             case CELL_CUBISTA:
@@ -9619,7 +9753,7 @@ void higflow_load_viscoelastic_shear_banding_controllers(higflow_solver *ns, int
                 }
                 switch (ns->ed.vesb.contr.nAnBconvecdiscrtype)
                 {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= Discretization of the Convective Term of of the Equations of the Density Numbers (nA and nB): Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
@@ -9791,7 +9925,7 @@ void higflow_load_elastoviscoplastic_controllers(higflow_solver *ns, int myrank)
             }
             switch (ns->ed.vepl.contr.convecdiscrtype)
             {
-            case CELL_UPWIND:
+            case CELL_CENTRAL:
                 printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
             case CELL_CUBISTA:
@@ -9985,7 +10119,7 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
             }
             switch (ns->ed.stsp.contr.convecdiscrtype)
             {
-            case CELL_UPWIND:
+            case CELL_CENTRAL:
                 printf("=+=+=+= Constitutive Equation Convective Term: Upwind  =+=+=+=\n");
                 break;
             case CELL_CUBISTA:
@@ -10005,7 +10139,7 @@ void higflow_load_shear_thickening_suspension_controllers(higflow_solver *ns, in
                 }
                 switch (ns->ed.stsp.contr.volfracconvecdiscrtype)
                 {
-                    case CELL_UPWIND:
+                    case CELL_CENTRAL:
                         printf("=+=+=+= Volume Fraction Evolution Equation Convective Term: Upwind  =+=+=+=\n");
                         break;
                     case CELL_CUBISTA:
