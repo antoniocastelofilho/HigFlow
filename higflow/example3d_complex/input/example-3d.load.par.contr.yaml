@@ -10,7 +10,7 @@ adimensional:
 
 simulation_contr:
   projtype: incremental                   # incremental or non_incremental
-  tempdiscrtype: explicit_euler      # explicit_euler, explicit_rk2, explicit_rk3, semi_implicit_euler, semi_implicit_crank_nicolson or semi_implicit_bdf2
+  tempdiscrtype: semi_implicit_euler      # explicit_euler, explicit_rk2, explicit_rk3, semi_implicit_euler, semi_implicit_crank_nicolson or semi_implicit_bdf2
   spatialdiscrtype: second_order           # second_order or forth_order (forth order is not implemented yet)
   convecdiscrtype: second_order            # central, first_order or second_order
   secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick

@@ -2520,12 +2520,10 @@ int main (int argc, char *argv[]) {
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
-    print0f("=+=+=+= Iiiiiirrraaaaa... Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     // Initialize the boundaries
     print0f("=+=+=+= Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_boundaries(ns);
     higflow_initialize_boundaries_yaml(ns);
-    print0f("=+=+=+= Iiiirrrrrrrrraaaaaaaaa... Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     // Creating distributed property  
     higflow_create_distributed_properties(ns);
     // Initialize distributed properties

@@ -1,8 +1,8 @@
 simulation_par:
-  numsteps: 100000                  # The Maximum Number of Steps 
-  dt: 0.005                         # The Time spacing 
-  dts: 0.5                          # The Time spacing for saving data (output) 
-  dtp: 0.5                          # The Time spacing for saving VTKs
+  numsteps: 1001                    # The Maximum Number of Steps 
+  dt: 0.001                         # The Time spacing 
+  dts: 0.01                         # The Time spacing for saving data (output) 
+  dtp: 0.01                         # The Time spacing for saving VTKs
 
 adimensional:
   Re: 1.0                             # The Reynolds Number  Re = ρUH/μ

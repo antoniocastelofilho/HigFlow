@@ -80,6 +80,9 @@ compilerflags:
 clean :
 		$(RM) -f ns-example-2d.o ns-example
 
+cleanall :
+		$(RM) -f ns-example-2d.o ns-example VTKS/*
+
 rebuild_higflow:
 	$(MAKE) -C .. clean
 	$(MAKE) -C .. DIM=$(DIM) DEBUG=$(DEBUG) RES=$(RES)

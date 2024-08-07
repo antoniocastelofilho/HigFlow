@@ -83,7 +83,7 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
                     //value = 4.0*(-center[1]*center[1] + 0.25);
                     //set max velocity = 1.5 
                     //value = -4.0*center[1]*(center[1] - 1.0);
-                    value = 1.5*(1.0 - center[1]*center[1]);
+                    value = 0.1*(16.0 - center[1]*center[1]);
                     //value = 1.25*(1.0 - center[1]*center[1]*center[1]*center[1]);
                     //value = 1.0*(1.0 - fabs(center[1]));
                     //value = 2.0*(1.0 - sqrt(fabs(center[1])));
@@ -220,7 +220,7 @@ int main (int argc, char *argv[]) {
     higflow_load_data_file_names(argc, argv, ns); 
     print0f("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
     higflow_load_all_controllers_and_parameters_yaml(ns, myrank);
-        // set the external functions
+    // set the external functions
     higflow_set_external_functions(ns, get_pressure, get_velocity, 
         get_source_term, get_facet_source_term,
         get_boundary_pressure, get_boundary_velocity,

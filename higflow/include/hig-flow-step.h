@@ -12,6 +12,7 @@
 #include "hig-flow-discret.h"
 #include "hig-flow-terms.h"
 #include "hig-flow-res.h"
+#include "hig-flow-timestep.h"
 
 // *******************************************************************
 // Navier-Stokes Step

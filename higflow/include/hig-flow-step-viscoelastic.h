@@ -54,25 +54,25 @@ void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM
 void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small); 
 
 // Calculate the matrix BB and the matrix B
-void hig_flow_calculate_bs (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM], real B[DIM][DIM]);
+void hig_flow_calculate_b (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM]);
 
 // Calculate the matrix MM for Oldroyd-B model
-void hig_flow_calculate_m_oldroyd (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+void hig_flow_calculate_m_oldroyd (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for Giesekus model
-void hig_flow_calculate_m_giesekus (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+void hig_flow_calculate_m_giesekus (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for LPTT model
-void hig_flow_calculate_m_lptt (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+void hig_flow_calculate_m_lptt (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for GPTT model
-void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par); 
+void hig_flow_calculate_m_gptt (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par); 
 
 // Calculate the matrix MM for FENE-P model
-void hig_flow_calculate_m_fene_p (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+void hig_flow_calculate_m_fene_p (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Calculate the matrix MM for e-FENE model
-void hig_flow_calculate_m_e_fene (real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+void hig_flow_calculate_m_e_fene (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Get the velocity at cell center 
 void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 

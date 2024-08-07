@@ -22,7 +22,13 @@ real higflow_interp_beta_multiphase_viscoelastic(real beta0, real beta1, real vi
 real higflow_interp_De_multiphase_viscoelastic(real De0, real De1, real fracvol);
 
 // Computing the rhs model specific matrix
-void higlow_interp_MM_multiphase_viscoelastic(real MM0[DIM][DIM], real MM1[DIM][DIM], real MM[DIM][DIM], real fracvol);
+void higflow_interp_MM_multiphase_viscoelastic(real MM0[DIM][DIM], real MM1[DIM][DIM], real MM[DIM][DIM], real fracvol);
+
+// Computing the De-rhs model specific matrix
+void higflow_interp_MM_De_multiphase_viscoelastic(real De0, real De1, real MM0[DIM][DIM], real MM1[DIM][DIM], real MM_De[DIM][DIM], real fracvol);
+
+// Computing the xi parameter of the Gordon-Schowalter derivative
+real higflow_interp_xi_multiphase_viscoelastic(real xi0, real xi1, real fracvol);
 
 // Computing the FENE function
 real higflow_interp_fA_multiphase_viscoelastic(real fA0, real fA1, real fracvol);

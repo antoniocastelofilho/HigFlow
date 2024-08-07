@@ -60,8 +60,12 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
 // Computing the necessary term for the ionic
 void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, sim_stencil *stnn);
 
+// Computing the necessary term for the ionic multiphase
+void higflow_computational_cell_multiphase_electroosmotic_ionic(higflow_solver *ns, sim_domain *sdn, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpn, sim_stencil *stnn,
+                                                                real alphaeo, real alphaeol, real alphaeor, real Pe, real Pel, real Per);
+
 // Computing the necessary term for the Viscoelastic Navier-Stokes equation
-void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
+void higflow_computational_cell_viscoelastic_integral(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);
 
 //Computing the necessary terms for the Navier-Stokes equations of the viscoelastic flows with variable viscosity
 void higflow_computational_cell_viscoelastic_variable_viscosity(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int fgid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]);

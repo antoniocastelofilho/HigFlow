@@ -1,12 +1,12 @@
 simulation_par:
-  numsteps: 501                         # The Maximum Number of Steps 
-  dt: 0.001                       # The Time spacing 
+  numsteps: 1001                     # The Maximum Number of Steps 
+  dt: 0.001                         # The Time spacing 
   dts: 0.01                         # The Time spacing for saving data (output) 
   dtp: 0.01                         # The Time spacing for saving VTKs
 
 adimensional:
-  Re: 1.0                             # The Reynolds Number  Re = ρUH/μ
-  Fr: 0.1                              # The Froude Number (not used yet)    Fr = U/√(gL) 
+  Re: 1.0                           # The Reynolds Number  Re = ρUH/μ
+  Fr: 0.1                           # The Froude Number (not used yet)    Fr = U/√(gL) 
 
 simulation_contr:
   projtype: incremental                   # incremental or non_incremental

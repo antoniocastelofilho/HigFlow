@@ -64,13 +64,13 @@ typedef struct higflow_compcell{
     real    du2dx2[DIM];
     // Tensor derivative
     real    dSdx[DIM];
-    // Cental ionic concentration
+    // Cental ionic concentration 
     real    ncell;
-    // Ionic potential derivative
+    // Ionic potential derivative 
     real    dpsidx;
     // Applied potential derivative
     real    dphidx;
-    // Ionic potential second order derivative
+    // Ionic potential second order derivative 
     real    d2psidx2;
     // Applied potential second order derivative
     real    d2phidx2;
@@ -81,9 +81,9 @@ typedef struct higflow_compcell{
     // Psi at the center
     real    psicell;
     // Viscosity at left cell
-    real    viscl;
+    real    viscl[DIM];
     // Viscosity at right cell
-    real    viscr;
+    real    viscr[DIM];
     //  Curvature cell
     real    curv;
     // Interfacial Force
@@ -118,6 +118,8 @@ typedef struct higflow_parameters{
     real   t;
     // Difference time
     real   dt;
+    // Initial dt
+    real   dt0;
     // Initial step number
     int    initstep;
     // Current step number
@@ -307,8 +309,7 @@ typedef enum constitutive_discr_type{
 
 typedef enum cell_convecdiscr_type{
     CELL_CENTRAL = 0,
-    CELL_UPWIND = 1,
-    CELL_CUBISTA = 2
+    CELL_CUBISTA = 1
 } cell_convecdiscr_type;
 
 // Parameters for electro-osmotic simulation
@@ -379,6 +380,10 @@ typedef struct higflow_electroosmotic{
     distributed_property *dpnplus;
     // Distributed property for negative charge concentration 
     distributed_property *dpnminus;
+    // Distributed property for positive charge concentration - temporary dp for inner iterations of PNP
+    distributed_property *dpnplus_temp;
+    // Distributed property for negative charge concentration - temporary dp for inner iterations of PNP
+    distributed_property *dpnminus_temp;
     // stencil for phi
     sim_stencil *stnphi;
     // stencil for psi and Feo
@@ -407,6 +412,8 @@ typedef struct higflow_electroosmotic{
     real (*get_boundary_electroosmotic_nplus)(int id, Point center, real t);
     // Function to get nminus at boundary
     real (*get_boundary_electroosmotic_nminus)(int id, Point center, real t);
+    // Function to get the permittivity
+    real (*get_permittivity)(Point center, real t);
     // Linear system solver for potential psi
     solver                     *slvpsi;
     solver                     *slvphi;
@@ -471,7 +478,7 @@ typedef struct higflow_viscoelastic{
     // Function to get the kernel jacobian
     real (*get_kernel_jacobian)(int dim, real lambda, real tol);
     // User function to define the viscoelastic model
-    void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
+    void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 } higflow_viscoelastic;
 
 
@@ -952,6 +959,8 @@ typedef struct higflow_multiphase_electroosmotic{
     real (*get_boundary_multiphase_electroosmotic_nplus)(real fracvol, int id, Point center, real t);
     // Function to get nminus at boundary
     real (*get_boundary_multiphase_electroosmotic_nminus)(real fracvol, int id, Point center, real t);
+    // Function to get the permittivity
+    real (*get_permittivity)(real fracvol, Point center, real t);
     // // Linear system solver for potential psi
     // solver                     *slvpsi;
     // solver                     *slvphi;
@@ -1014,7 +1023,7 @@ typedef struct higflow_multiphase_viscoelastic{
     // Function to get the kernel jacobian
     real (*get_kernel_jacobian)(int dim, real lambda, real tol);
     // User function to define the viscoelastic model
-    void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1);
+    void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1);
 } higflow_multiphase_viscoelastic;
 
 
@@ -1040,6 +1049,7 @@ typedef struct mult_controllers{
     int eoflow_either;
 } mult_controllers;
 
+typedef Point Line[2];
 // Domains and distributed properties for multiphase flows 
 typedef struct higflow_multiphase{
     // Sub-domain to simulation for multiphase
@@ -1072,7 +1082,11 @@ typedef struct higflow_multiphase{
     distributed_property *dpdistance;
     // Distributed property for interfacial force
     distributed_property *dpIF[DIM];
-    
+
+    // An array of point 2-tuples representing the interface lines
+    Line *plic_lines;
+    int num_plic_lines;
+
     // Function to get the viscosity for phase 0
     real (*get_viscosity0)(Point center, real t);
     // Function to get the viscosity for phase 1
@@ -1233,7 +1247,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol));
 
 // Define the user function for Multiphase viscoelastic flow
 void higflow_define_user_function_multiphase_viscoelastic (higflow_solver *ns, 
-void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1));
+void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1));
 
 
 // Create the simulation domain for viscoelastic flow
@@ -1245,7 +1259,7 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol));
 
 // Define the user function for viscoelastic flow
 void higflow_define_user_function_viscoelastic (higflow_solver *ns, 
-void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par));
+void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par));
 
 
 // Create the simulation domain for viscoelastic flow integral model
@@ -1263,7 +1277,8 @@ real (*get_multiphase_boundary_electroosmotic_source_term)(real fracvol, int id,
 real (*get_multiphase_boundary_electroosmotic_phi)(real fracvol, int id, Point center, real t),
 real (*get_multiphase_boundary_electroosmotic_psi)(real fracvol, int id, Point center, real t),
 real (*get_multiphase_boundary_electroosmotic_nplus)(real fracvol, int id, Point center, real t),
-real (*get_multiphase_boundary_electroosmotic_nminus)(real fracvol, int id, Point center, real t));
+real (*get_multiphase_boundary_electroosmotic_nminus)(real fracvol, int id, Point center, real t),
+real (*get_permittivity)(real fracvol, Point center, real t));
 
 // Create the simulation domain for electro-osmotic flow
 void higflow_create_domain_electroosmotic (higflow_solver *ns, int cache, int order,
@@ -1276,7 +1291,8 @@ real (*get_boundary_electroosmotic_source_term)(int id, Point center, int dim, r
 real (*get_boundary_electroosmotic_phi)(int id, Point center, real t),
 real (*get_boundary_electroosmotic_psi)(int id, Point center, real t),
 real (*get_boundary_electroosmotic_nplus)(int id, Point center, real t),
-real (*get_boundary_electroosmotic_nminus)(int id, Point center, real t));
+real (*get_boundary_electroosmotic_nminus)(int id, Point center, real t),
+real (*get_permittivity)(Point center, real t));
 
 // Create the simulation domain for viscoelastic flow with variable viscosity
 void higflow_create_domain_viscoelastic_variable_viscosity(higflow_solver *ns, int cache, int order,
@@ -1350,19 +1366,19 @@ void higflow_create_partitioned_domain_shear_thickening_suspension (higflow_solv
 // Create the distributed properties for generalized newtonian simulation
 //void higflow_create_distributed_properties_generalized_newtonian(higflow_solver *ns); 
 
-// Create the distributed properties for multiphase simulation
-//void higflow_create_distributed_properties_multiphase(higflow_solver *ns); 
+// // Create the distributed properties for multiphase simulation
+// void higflow_create_distributed_properties_multiphase(higflow_solver *ns); 
 
-// Create the distributed properties for multiphase viscoelastic simulation
+// // Create the distributed properties for multiphase viscoelastic simulation
 // void higflow_create_distributed_properties_multiphase_viscoelastic(higflow_solver *ns); 
 
-// Create the distributed properties for viscoelastic simulation
+// // Create the distributed properties for viscoelastic simulation
 // void higflow_create_distributed_properties_viscoelastic(higflow_solver *ns); 
 
-// Create the distributed properties for viscoelastic simulation integral model
+// // Create the distributed properties for viscoelastic simulation integral model
 // void higflow_create_distributed_properties_viscoelastic_integral(higflow_solver *ns); 
 
-// Create the distributed properties for electro-osmotic simulation
+// // Create the distributed properties for electro-osmotic simulation
 // void higflow_create_distributed_properties_electroosmotic(higflow_solver *ns); 
 
 // Create the distributed properties for simulation of viscoelastic flows with variable viscosity
