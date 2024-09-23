@@ -657,7 +657,7 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 	sim_stencil *stn, bool use_dirichlet, bool use_neumann,
 	const stencil_search_funcs *funcs, void *specific, bool from_sfd);
 
-// Must only be called if point is outside (or on the boundary of) the domain.
+// Must only be called if point is outside the domain.
 // Returns true if stencil has been filled.
 // TODO: generalize to any order...
 static inline bool
@@ -736,30 +736,6 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 		}
 	}
 
-	// If exactly on the boundary, we must check if the point is 
-	// to the left or right of the inner domain and assign the dist sign accordingly
-	if (POS_EQ(best.dist, 0.0)) { // modificação daniel
-		Point xl, xr;
-		POINT_ASSIGN(xl, x);
-		xl[best.proj_dir] -= 3.0 * EPSDELTA;
-		POINT_ASSIGN(xr, x);
-		xr[best.proj_dir] += 3.0 * EPSDELTA;
-		for(int i = 0; i < d->numhigtrees; i++) {
-			hig_cell *root = sd_get_higtree(d, i);
-
-			Rect bbox;
-			hig_get_bounding_box(root, &bbox);
-			if(rect_contains_point(&bbox, xl)) {
-				best.dist = 0.5*EPSMACH;
-				break;
-			}
-			if(rect_contains_point(&bbox, xr)) {
-				best.dist = -0.5*EPSMACH;
-				break;
-			}
-		}
-	}
-
 	// Finally, we get to work with the chosen Neumann BC:
 
 	// Take a point best_dist inside the domain (to guarantee 2nd order):
@@ -770,17 +746,17 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 	{
 
 		real delta = 1.0;
-		hig_cell *c;
-		Point deltas;
+		hig_cell *c = sd_get_cell_with_point(d, best.proj_x);
+		assert(c);
+		Point cdelta;
+		hig_get_delta(c, cdelta);
+		delta = cdelta[best.proj_dir];
 		// for(unsigned dim = 0; dim < DIM; ++dim) { // modificação daniel
 		// 	if(dim != best.proj_dir) {
-		// 		delta *= deltas[dim];
+		// 		delta *= cdelta[dim];
 		// 	}
 		// }
 		// delta = pow(delta, 1.0 / (DIM-1));
-		c = sd_get_cell_with_point(d, best.proj_x);
-		hig_get_delta(c, deltas);
-		delta = deltas[best.proj_dir];
 
 		// Sets a Δx/2 with sign to point innards:
 		minus_h = copysign(delta, best.dist) * -0.5;
@@ -794,14 +770,23 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 		}
 	}
 
+	// Point inside the domain:
 	Point inside_p;
 	POINT_ASSIGN(inside_p, best.proj_x);
 	inside_p[best.proj_dir] += minus_h;
 
-	const real delta = max(fabs(best.dist), fabs(minus_h) / 5.0);
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(best.nbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != best.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
 
 	// Take the stencil for the point inside the domain:
-	get_stencil(d, delta, inside_p, alpha, stn, true, false,
+	get_stencil(d, delta, inside_p, alpha, stn, false, false,
 		funcs, specific, from_sfd);
 
 	// Approximating the function as a line, get the line slope:
@@ -820,8 +805,8 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 		items->max_dist = 0.0;
 
 		Rect box;
-		POINT_SUB_SCALAR(box.lo, x, 5.0 * delta);
-		POINT_ADD_SCALAR(box.hi, x, 5.0 * delta);
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
 		search_cells_in_tree_box(best.nbc->bc, best.nbc->m,
 			best.proj_x, &box, d->bc_inter.maxpts, items, NULL, 2);
 
@@ -860,7 +845,7 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 }
 
 /******************************************* modificação daniel ************************************/
-// Must only be called if point is outside (or on the boundary of) the domain.
+// Must only be called if point is outside the domain and after get_stencil_neumann.
 // Returns true if stencil has been filled.
 // TODO: generalize to any order...
 static inline bool
@@ -868,6 +853,7 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 	sim_stencil *stn, const stencil_search_funcs *funcs,
 	_wls_item_list *items, void *specific, bool from_sfd)
 {
+	// TODO: implement cache for Dirichlet condition
 
 	// Check the distance of the point to each Dirichlet BC,
 	// also check if the point projects to the BC, along its
@@ -919,39 +905,16 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 		return false;
 	}
 
-	// If exactly on the boundary, we must check if the point is 
-	// to the left or right of the inner domain and assign the dist sign accordingly
-	if (POS_EQ(best.dist, 0.0)) { // modificação daniel
-		Point xl, xr;
-		POINT_ASSIGN(xl, x);
-		xl[best.proj_dir] -= 3.0 * EPSDELTA;
-		POINT_ASSIGN(xr, x);
-		xr[best.proj_dir] += 3.0 * EPSDELTA;
-		for(int i = 0; i < d->numhigtrees; i++) {
-			hig_cell *root = sd_get_higtree(d, i);
-
-			Rect bbox;
-			hig_get_bounding_box(root, &bbox);
-			if(rect_contains_point(&bbox, xl)) {
-				best.dist = 0.5*EPSMACH;
-				break;
-			}
-			if(rect_contains_point(&bbox, xr)) {
-				best.dist = -0.5*EPSMACH;
-				break;
-			}
-		}
-	}
-
 	// Finally, we get to work with the chosen Dirichlet BC:
 
 	// Take a point half Δx into the domain:
 	real minus_h;
 	{
-		Point deltas;
+		Point cdelta;
 		hig_cell *c = sd_get_cell_with_point(d, best.proj_x);
-		hig_get_delta(c, deltas);
-		real delta = deltas[best.proj_dir];
+		assert(c);
+		hig_get_delta(c, cdelta);
+		real delta = cdelta[best.proj_dir];
 
 		// Sets a Δx/2 with sign to point innards:
 		minus_h = copysign(delta, best.dist) * -0.5;
@@ -965,15 +928,24 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 		}
 	}
 
+	// Point inside the domain;
 	Point inside_p;
 	POINT_ASSIGN(inside_p, best.proj_x);
 	inside_p[best.proj_dir] += minus_h;
 	real ratio = (minus_h - best.dist) / (minus_h); // dist(point, pin) / dist(boundary, pin)
 
-	const real delta = max(fabs(best.dist), fabs(minus_h) / 5.0);
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(best.dbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != best.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
 
 	// Take the stencil for the point inside the domain:
-	get_stencil(d, delta, inside_p, (1.0 - ratio) * alpha, stn, true, false,
+	get_stencil(d, delta, inside_p, (1.0 - ratio) * alpha, stn, false, false,
 		funcs, specific, from_sfd);
 
 	// Approximating the function as a line, get the line slope:
@@ -992,8 +964,8 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 		items->max_dist = 0.0;
 
 		Rect box;
-		POINT_SUB_SCALAR(box.lo, x, 5.0 * delta);
-		POINT_ADD_SCALAR(box.hi, x, 5.0 * delta);
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
 		search_cells_in_tree_box(best.dbc->bc, best.dbc->m,
 			best.proj_x, &box, d->bc_inter.maxpts, items, NULL, 2);
 
@@ -1031,6 +1003,276 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 	return true;
 }
 
+
+/******************************************* modificação daniel ************************************/
+// Must only be called if point is on the boundary of the domain.
+// Returns true if stencil has been filled.
+// TODO: generalize to any order...
+static inline bool
+get_stencil_neumann_boundary(sim_domain *d, const Point x, real alpha,
+	sim_stencil *stn, const stencil_search_funcs *funcs,
+	_wls_item_list *items, void *specific, bool from_sfd)
+{
+	// TODO: implement cache for Neumann condition
+
+	// Check the distance of the point to each Neumann BC,
+	// also check if the point projects to the BC, along its
+	// normal direction.
+	struct bc_data {
+		sim_boundary *nbc;
+		hig_cell *nbc_cell;
+		int proj_dir;
+	} curr = {
+		.nbc = NULL,
+		.nbc_cell = NULL,
+	};
+
+	for (int i = 0; i < d->numneumann_bcs; i++) {
+
+		sim_boundary *sb = d->neumann_bcs[i];
+		hig_cell *tree = sb->bc;
+
+		hig_cell *cell = hig_get_cell_with_point(tree, x);
+		// If a cell containing the point was found, it is on a neumann boundary
+		if (cell) {
+			curr.nbc = sb;
+			curr.nbc_cell = cell;
+			curr.proj_dir = hig_get_narrowest_dim(tree);
+		}
+	}
+
+	// No suitable Neumann BC found, we are done here.
+	if(!curr.nbc_cell) {
+		return false;
+	}
+
+	// Finally, we get to work with the chosen Neumann BC:
+
+	// Take a point best_dist inside the domain (to guarantee 2nd order):
+	//const real minus_h = -2.0 * best.dist;
+
+	// Take a point half Δx into the domain:
+	real minus_h;
+	{
+
+		// Get the direction into the domain
+		int out_sign = 1.0;
+		Point xl, xr;
+		POINT_ASSIGN(xl, x);
+		xl[curr.proj_dir] -= EPSDELTA + EPSMACH;
+		POINT_ASSIGN(xr, x);
+		xr[curr.proj_dir] += EPSDELTA + EPSMACH;
+		for(int i = 0; i < d->numhigtrees; i++) {
+			hig_cell *root = sd_get_higtree(d, i);
+
+			Rect bbox;
+			hig_get_bounding_box(root, &bbox);
+			if(rect_contains_point(&bbox, xl)) {
+				out_sign = 1.0;
+				break;
+			}
+			if(rect_contains_point(&bbox, xr)) {
+				out_sign = -1.0;
+				break;
+			}
+		}
+
+		hig_cell *c = sd_get_cell_with_point(d, x);
+		assert(c);
+		Point cdelta;
+		hig_get_delta(c, cdelta);
+		real delta = cdelta[curr.proj_dir];
+
+		// Sets a Δx/2 with sign to point innards:
+		minus_h = copysign(delta, out_sign) * -0.5;
+		if(from_sfd) { // modificação daniel
+			sim_facet_domain *sfd = (sim_facet_domain *)specific;
+			if(sfd->dim == curr.proj_dir) {
+				// Sets a Δx with sign to point innards: 
+				// nearest facet is of the same dim as proj direction
+				minus_h *= 2;
+			}
+		}
+	}
+
+	// Point inside the domain:
+	Point inside_p;
+	POINT_ASSIGN(inside_p, x);
+	inside_p[curr.proj_dir] += minus_h;
+
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(curr.nbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != curr.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
+
+	// Take the stencil for the point inside the domain:
+	get_stencil(d, delta, inside_p, alpha, stn, false, false,
+		funcs, specific, from_sfd);
+
+	// Approximating the function as a line, get the line slope:
+	Point proj_center;
+	hig_get_center(curr.nbc_cell, proj_center);
+	real slope;
+	if(Pointequal(proj_center, x)) {
+		// Get the exact value if projection point is over
+		// boundary cell center:
+		const int nbc_cid = mp_lookup(curr.nbc->m, hig_get_cid(curr.nbc_cell));
+		slope = sb_get_value(curr.nbc, nbc_cid);
+	} else {
+		// Projection is not over a cell center, interpolate the
+		// BC value at the point.
+		items->numpts = 0;
+		items->max_dist = 0.0;
+
+		Rect box;
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
+		search_cells_in_tree_box(curr.nbc->bc, curr.nbc->m,
+			x, &box, d->bc_inter.maxpts, items, NULL, 2);
+
+		// Sort the elements
+		qsort(items->ptr, items->numpts, sizeof *items->ptr,
+			(int (*)(const void *, const void *))_wls_compar);
+
+		// We must clip the elements beyond maxpts
+		if(items->numpts > d->bc_inter.maxpts) {
+			items->numpts = d->bc_inter.maxpts;
+		}
+
+		// We must remove the projection dimension from the points:
+		for(unsigned i = 0; i < items->numpts; ++i) {
+			PPoint x = items->ptr[i].x;
+			for(unsigned dim = curr.proj_dir+1; dim < DIM; ++dim) {
+				x[dim-1] = x[dim];
+			}
+		}
+
+		real w[d->bc_inter.maxpts];
+		calc_weight_from_points(&d->bc_inter, x, items, w);
+
+		// Calculate the slope with the interpolation:
+		slope = 0.0;
+		for(unsigned i = 0; i < items->numpts; i++) {
+			const int id = items->ptr[i].id;
+			slope += w[i] * sb_get_value(curr.nbc, id);
+		}
+	}
+
+	// Add the linear variation (negative because at the right hand size):
+	stn_add_to_rhs(stn, alpha * slope * minus_h);
+
+	return true;
+}
+
+
+/******************************************* modificação daniel ************************************/
+// Must only be called if point is on the boundary of the domain.
+// Returns true if stencil has been filled.
+// TODO: generalize to any order...
+static inline bool
+get_stencil_dirichlet_boundary(sim_domain *d, const Point x, real alpha,
+	sim_stencil *stn, const stencil_search_funcs *funcs,
+	_wls_item_list *items, void *specific, bool from_sfd)
+{
+
+	struct bc_data {
+		sim_boundary *dbc;
+		hig_cell *dbc_cell;
+		int proj_dir;
+	} curr = {
+		.dbc = NULL,
+		.dbc_cell = NULL
+	};
+
+	for (int i = 0; i < d->numdirichlet_bcs; i++) {
+		sim_boundary *sb = d->dirichlet_bcs[i];
+		hig_cell *tree = sb->bc;
+
+		hig_cell *cell = hig_get_cell_with_point(tree, x);
+		// If a cell containing the point was found, it is on a dirichlet boundary
+		if (cell) {
+			curr.dbc = sb;
+			curr.dbc_cell = cell;
+			curr.proj_dir = hig_get_narrowest_dim(tree);
+		}
+	}
+
+	// No suitable Dirichlet BC found, we are done here.
+	if(!curr.dbc_cell) {
+		return false;
+	}
+
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(curr.dbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != curr.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
+
+	// Approximating the function as a line, get the line slope:
+	Point center;
+	hig_get_center(curr.dbc_cell, center);
+	real bval;
+	if(Pointequal(center, x)) {
+		// Get the exact value if point is over boundary cell center:
+		const int nbc_cid = mp_lookup(curr.dbc->m, hig_get_cid(curr.dbc_cell));
+		bval = sb_get_value(curr.dbc, nbc_cid);
+	} else {
+		// Point is not over a cell center, interpolate the
+		// BC value at the point.
+		items->numpts = 0;
+		items->max_dist = 0.0;
+
+		Rect box;
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
+		search_cells_in_tree_box(curr.dbc->bc, curr.dbc->m,
+			x, &box, d->bc_inter.maxpts, items, NULL, 2);
+
+		// Sort the elements
+		qsort(items->ptr, items->numpts, sizeof *items->ptr,
+			(int (*)(const void *, const void *))_wls_compar);
+
+		// We must clip the elements beyond maxpts
+		if(items->numpts > d->bc_inter.maxpts) {
+			items->numpts = d->bc_inter.maxpts;
+		}
+
+		// We must remove the projection dimension from the points:
+		for(unsigned i = 0; i < items->numpts; ++i) {
+			PPoint x = items->ptr[i].x;
+			for(unsigned dim = curr.proj_dir+1; dim < DIM; ++dim) {
+				x[dim-1] = x[dim];
+			}
+		}
+
+		real w[d->bc_inter.maxpts];
+		calc_weight_from_points(&d->bc_inter, x, items, w);
+
+		// Calculate the slope with the interpolation:
+		bval = 0.0;
+		for(unsigned i = 0; i < items->numpts; i++) {
+			const int id = items->ptr[i].id;
+			bval += w[i] * sb_get_value(curr.dbc, id);
+		}
+	}
+
+	// Add the linear variation (negative because at the right hand size):
+	stn_add_to_rhs(stn, alpha * bval * (-1.0));
+
+	return true;
+}
+
+
+
 static bool dirichlet_find_in_center(sim_domain *d, CPPoint x, real alpha,
 	sim_stencil *stn)
 {
@@ -1048,38 +1290,6 @@ static bool dirichlet_find_in_center(sim_domain *d, CPPoint x, real alpha,
 				stn_add_to_rhs(stn, - alpha * bcval);
 				return true;
 			}
-		}
-	}
-
-	return false;
-}
-
-static bool dirichlet_find_in_cell(sim_domain *d, CPPoint x, real alpha,
-	sim_stencil *stn)
-{
-	for(int i = 0; i < d->numdirichlet_bcs; i++) {
-		sim_boundary *sb = d->dirichlet_bcs[i];
-		hig_cell *root = sb->bc;
-		mp_mapper *m = sb->m;
-		hig_cell *cx = hig_get_cell_with_point(root, x);
-		if (cx != NULL) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static bool neumann_find_in_cell(sim_domain *d, CPPoint x, real alpha,
-	sim_stencil *stn)
-{
-	for(int i = 0; i < d->numneumann_bcs; i++) {
-		sim_boundary *sb = d->neumann_bcs[i];
-		hig_cell *root = sb->bc;
-		mp_mapper *m = sb->m;
-		hig_cell *cx = hig_get_cell_with_point(root, x);
-		if (cx != NULL) {
-			return true;
 		}
 	}
 
@@ -1108,25 +1318,22 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 			return;
 		}
 
-		if(neumann_find_in_cell(d, x, alpha, stn)) { // modificação daniel
-			if(use_neumann) {
-				// If inside a neumann boundary, the point value will be determined by a
-				// Neumann boundary condition.
-				if(get_stencil_neumann(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
-					return;
-				}
+		if(use_neumann) {
+			// If on a Neumann boundary, the point value will be determined by a
+			// Neumann boundary condition.
+			if(get_stencil_neumann_boundary(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+				return;
 			}
 		}
 
-		if(dirichlet_find_in_cell(d, x, alpha, stn)) { // modificação daniel
-			if(use_dirichlet) {
-				// If inside a Dirichlet boundary, the point value will be determined by a
-				// Dirichlet boundary condition.
-				if(get_stencil_dirichlet(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
-					return;
-				}
+		if(use_dirichlet) {
+			// If on a Dirichlet boundary, the point value will be determined by a
+			// Dirichlet boundary condition.
+			if(get_stencil_dirichlet_boundary(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+				return;
 			}
 		}
+	
 	} else {
 		if(use_neumann) {
 			// If outside the domain, the point value may be determined by a
@@ -1230,7 +1437,7 @@ void sd_get_stencil_without_bc(sim_domain *d, Point x, real delta, real alpha,
 
 }
 
-hig_cell *sd_get_cell_with_point(sim_domain *sd, Point x) {
+hig_cell *sd_get_cell_with_point(sim_domain *sd, const Point x) {
 	higcit_celliterator *it;
 	int numhigs = sd_get_num_higtrees(sd);
 	for(int i = 0; i < numhigs; i++) {

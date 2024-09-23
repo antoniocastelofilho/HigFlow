@@ -210,7 +210,7 @@ int sd_get_local_id(sim_domain *sd, hig_cell *c);
 // the solver. The higcell must be contained in the domain.
 int sd_get_global_id(sim_domain *sd, hig_cell *c);
 
-hig_cell *sd_get_cell_with_point(sim_domain *d, Point x);
+hig_cell *sd_get_cell_with_point(sim_domain *d, const Point x);
 
 void sd_use_cache(sim_domain *d, int v);
 
