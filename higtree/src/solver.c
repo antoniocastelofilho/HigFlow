@@ -311,10 +311,12 @@ solver * slv_create(SolverEngine engine, int first_gid, size_t size)
 
     // Generic stuff
     s->size         = size;
-    s->MaxIteration = 10000;
     s->MaxNonZeros  = 0;
-    s->absolute_tolerance = 1e-8;
-    s->relative_tolerance = 1e-8;
+    if(!SOLVER_PETSC) { // already set on petsc
+        s->MaxIteration = 10000;
+        s->absolute_tolerance = 1e-8;
+        s->relative_tolerance = 1e-8;
+    }
 
     // Cache stuff
     s->lasti = -1;

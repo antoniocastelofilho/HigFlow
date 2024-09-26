@@ -380,7 +380,7 @@ real wls_set_points(wls_interpolator *wls, int numpts, Point pts[], Point x) {
 			for (int j = 0; j < wls->dim; j++) {
 				mlsw += (x[j]-pts[i][j])*(x[j]-pts[i][j]);
 			}
-			wls->D[i] = sqrt(1.0/(mlsw+1.0e-10));
+			wls->D[i] = sqrt(1.0/(mlsw+EPSMACH));
 			for (int j = 0; j < wls->numpoly; j++) {
 				wls->A[i][j] *= wls->D[i];
 			}
@@ -407,7 +407,7 @@ real wls_add_points(wls_interpolator *wls, int numpts, int addnumpts, Point pts[
 			for (int j = 0; j < wls->dim; j++) {
 				mlsw += (x[j]-pts[i][j])*(x[j]-pts[i][j]);
 			}
-			wls->D[i] = sqrt(1.0/(mlsw+1.0e-10));
+			wls->D[i] = sqrt(1.0/(mlsw+EPSMACH));
 			for (int j = 0; j < wls->numpoly; j++) {
 				wls->A[i][j] *= wls->D[i];
 			}
@@ -464,7 +464,7 @@ real wls_set_points_and_calc(wls_interpolator *wls, int numpts, Point pts[], Poi
 			for (int j = 0; j < wls->dim; j++) {
 				mlsw += (x[j]-pts[i][j])*(x[j]-pts[i][j]);
 			}
-			wls->D[i] = sqrt(1.0/(mlsw+1.0e-10));
+			wls->D[i] = sqrt(1.0/(mlsw+EPSMACH));
 			for (int j = 0; j < wls->numpoly; j++) {
 				wls->A[i][j] *= wls->D[i];
 			}
@@ -498,12 +498,12 @@ real wls_set_samples_and_calc(wls_interpolator *wls, int numpts, wls_item items[
 		_assembly_pts_matrix(wls->dim,wls->ord,numpts,wls->A[i], items[i].x);
 	}
 	if (wls->type == WLSMOVING) {
-        	for (int i = 0; i < numpts; i++) {
+        for (int i = 0; i < numpts; i++) {
 			real mlsw = 0.0;
 			for (int j = 0; j < wls->dim; j++) {
 				mlsw += (x[j]-items[i].x[j])*(x[j]-items[i].x[j]);
 			}
-			wls->D[i] = sqrt(1.0/(mlsw+1.0e-10));
+			wls->D[i] = sqrt(1.0/(mlsw+EPSMACH));
 			for (int j = 0; j < wls->numpoly; j++) {
 				wls->A[i][j] *= wls->D[i];
 			}
@@ -541,7 +541,7 @@ real wls_add_points_and_calc(wls_interpolator *wls, int numpts, int addnumpts, P
 			for (int j = 0; j < wls->dim; j++) {
 				mlsw += (x[j]-pts[i][j])*(x[j]-pts[i][j]);
 			}
-			wls->D[i] = sqrt(1.0/(mlsw+1.0e-10));
+			wls->D[i] = sqrt(1.0/(mlsw+EPSMACH));
 			for (int j = 0; j < wls->numpoly; j++) {
 				wls->A[i][j] *= wls->D[i];
 			}

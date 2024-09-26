@@ -251,6 +251,26 @@ static PetscErrorCode abs_convergence_test(KSP ksp, PetscInt it, PetscReal rnorm
 	return 0;
 }
 
+static PetscErrorCode rel_convergence_test(KSP ksp, PetscInt it, PetscReal rnorm, KSPConvergedReason *reason, void *cctx)
+{
+	_solver_impl_petsc *s = (_solver_impl_petsc*)cctx;
+
+	real abs_res_norm = calc_res_norm(s);
+    real rhs_norm;
+    VecNorm(s->b, NORM_INFINITY, &rhs_norm);
+    real rtol, atol, dtol;
+    int maxits;
+    KSPGetTolerances(s->ksp, &rtol, &atol, &dtol, &maxits);
+
+	if(abs_res_norm <= min(s->s.relative_tolerance, rtol) * rhs_norm) {
+		*reason = KSP_CONVERGED_RTOL;
+	} else {
+		*reason = KSP_CONVERGED_ITERATING;
+	}
+
+	return 0;
+}
+
 static void petsc_slv_solve(solver *cs) {
     _solver_impl_petsc *s = (_solver_impl_petsc*)cs;
 
@@ -368,14 +388,26 @@ solver * _slv_create_petsc(int first_gid, int size)
 
     KSPSetNormType(s->ksp, KSP_NORM_UNPRECONDITIONED);
 
-    //KSPSetInitialGuessNonzero(s->ksp, PETSC_FALSE);
-
-    PCSetType(s->pc, PCHYPRE);
+    KSPSetInitialGuessNonzero(s->ksp, PETSC_TRUE);
 
     KSPSetFromOptions(s->ksp);
     PCSetFromOptions(s->pc);
 
-    //KSPSetConvergenceTest(s->ksp, abs_convergence_test, s, NULL);
+    // PCSetType(s->pc, PCHYPRE);
+    // PCHYPRESetType(s->pc, "boomeramg");
+
+    KSPSetReusePreconditioner(s->ksp, PETSC_TRUE);
+
+    real rtol, atol, dtol;
+    int maxits;
+    KSPGetTolerances(s->ksp, &rtol, &atol, &dtol, &maxits);
+    print0f("PETSc: atol=%g, rtol=%g, dtol=%g, maxits=%d\n", atol, rtol, dtol, maxits);
+
+    slv_set_rel_tol(&s->s, rtol);
+    slv_set_abs_tol(&s->s, atol);
+    slv_set_maxiteration(&s->s, maxits);
+
+    //KSPSetConvergenceTest(s->ksp, rel_convergence_test, s, NULL);
 
     s->pre_solve_func = NULL;
 
