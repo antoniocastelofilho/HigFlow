@@ -517,6 +517,34 @@ get_stencil_interpolate(sim_domain *d, const Point x, real delta, real alpha,
 		}
 		items->numpts = cwls->numpts + cwls->numbcpts;
 	} else {
+		if (FLT_EQ(delta, 0.0)) { // no need to test this before get_stencil_interpolate is called
+			int numhigtrees = sd_get_num_higtrees(d);
+			for(int i = 0; i < numhigtrees; i++) {
+				hig_cell *root = sd_get_higtree(d, i);
+				hig_cell *c = hig_get_cell_with_point(root, x);
+				if (c != NULL) {
+					Point delt;
+					hig_get_delta(c, delt);
+					delta = delt[0];
+					for (int dim = 1; dim < DIM; ++dim)
+						delta *= delt[dim];
+					delta = pow(delta, 1.0 / DIM);
+					break;
+				}
+			}
+
+			if (FLT_EQ(delta, 0.0)) { // center is outside the domain
+				hig_cell *c = hig_get_first_cell_recursive(sd_get_higtree(d, 0));
+				Point delt;
+				hig_get_delta(c, delt);
+				delta = delt[0];
+				for (int dim = 1; dim < DIM; ++dim)
+					delta *= delt[dim];
+				delta = pow(delta, 1.0 / DIM);
+			}
+		}
+
+
 		items->numpts = 0;
 		items->max_dist = 0.0;
 
@@ -738,9 +766,6 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 
 	// Finally, we get to work with the chosen Neumann BC:
 
-	// Take a point best_dist inside the domain (to guarantee 2nd order):
-	//const real minus_h = -2.0 * best.dist;
-
 	// Take a point half Δx into the domain:
 	real minus_h;
 	{
@@ -786,7 +811,7 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 	}
 
 	// Take the stencil for the point inside the domain:
-	get_stencil(d, delta, inside_p, alpha, stn, false, false,
+	get_stencil(d, delta, inside_p, alpha, stn, true, false,
 		funcs, specific, from_sfd);
 
 	// Approximating the function as a line, get the line slope:
@@ -1047,9 +1072,6 @@ get_stencil_neumann_boundary(sim_domain *d, const Point x, real alpha,
 	}
 
 	// Finally, we get to work with the chosen Neumann BC:
-
-	// Take a point best_dist inside the domain (to guarantee 2nd order):
-	//const real minus_h = -2.0 * best.dist;
 
 	// Take a point half Δx into the domain:
 	real minus_h;
@@ -1413,20 +1435,6 @@ void sd_get_stencil(sim_domain *d, const Point center, const Point x, real alpha
 	sim_stencil *stn)
 {
 	real delta = co_distance(center, x);
-	if (FLT_EQ(delta, 0.0)) {
-		int numhigtrees = sd_get_num_higtrees(d);
-		for(int i = 0; i < numhigtrees; i++) {
-			hig_cell *root = sd_get_higtree(d, i);
-			hig_cell *c = hig_get_cell_with_point(root, x);
-			if (c != NULL) {
-				Point delt;
-				hig_get_delta(c, delt);
-				delta = delt[0];
-				break;
-			}
-		}
-	}
-
 	get_stencil(d, delta, x, alpha, stn, true, true, &cell_funcs, d, false);
 }
 
