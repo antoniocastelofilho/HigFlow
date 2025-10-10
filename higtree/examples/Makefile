@@ -36,7 +36,7 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -lhdf5 -ltrilinos_zoltan -lHYPRE_krylov
+LIBS+= -lm -lhdf5 -ltrilinos_zoltan
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)

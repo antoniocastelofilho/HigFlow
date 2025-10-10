@@ -97,3 +97,11 @@ Configura as variáveis de ambiente e rode
 source ../etc/higflow-env.sh
 mpirun ...
 ```
+
+# Docker
+
+Como configurar docker?
+
+```bash
+docker build . -t higflow:v01 -f conteiner/Dockerfile
+```
