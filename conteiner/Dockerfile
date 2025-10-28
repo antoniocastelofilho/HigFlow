@@ -7,12 +7,13 @@ cd bibliotecas/;                                                               \
 unzip libfyaml-master.zip;                                                     \
 sudo chmod 777 libfyaml-master;                                                \
 cd libfyaml-master/;                                                           \
-./bootstrap.sh ./configure make make check sudo make install;                  \
+./bootstrap.sh ./configure; make; make check; sudo make install;               \
 sudo apt-get update; sudo apt -y install libyaml-dev;                          \
 sudo /sbin/ldconfig -;                                                         \
 cd /home/hig_user/HigFlow;                                                     \
 source varsrc;                                                                 \
 (cd higtree/; make clean && make DIM=2 && make DIM=3);                         \
+echo "source /home/hig_user/HigFlow/varsrc" >> /home/hig_user/.bashrc
 # (cd higflow/; make clean && make DIM=2);                                       \
 # cd ../../                                                                    &&\
 # echo 'Configure hypre...'                                                    &&\
