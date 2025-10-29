@@ -7,7 +7,7 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = gcc
+CC = mpicc
 
 DIM=2
 
@@ -76,8 +76,16 @@ run:
 	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example \
 		$(LOAD_PATH) \
 		output/vof.save \
-		VTKS/vof.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
+		VTKS/vof.print
+#run:
+#	mkdir -p VTKS || true
+#	mkdir -p DATA || true
+#	mkdir -p output || true
+#	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example \
+#		$(LOAD_PATH) \
+#		output/vof.save \
+#		VTKS/vof.print \
+#		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
 
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)

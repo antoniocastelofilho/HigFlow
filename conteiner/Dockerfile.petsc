@@ -10,7 +10,7 @@ RUN apt-get update && apt-get dist-upgrade -y                                &&\
 apt-get install -y libglib2.0-dev libboost-all-dev valgrind cmake gfortran     \
 libhypre-dev libhdf5-openmpi-dev openmpi-bin  mpi check python3 python3-pip zip\
  libopenmpi-dev libtrilinos-zoltan-dev mpich gcc autoconf automake libtool git \
-make libltdl-dev pkg-config libyaml-dev sudo                                   \
+make libltdl-dev pkg-config libyaml-dev sudo neovim                            \
 python3-setuptools                                                           &&\
 apt-get clean && apt-get autoremove --purge                                  &&\
 rm -rf /var/lib/apt/lists/*                                                  &&\
@@ -27,16 +27,15 @@ ENV       HOME         "/home/hig_user/"
 
 COPY --chown=hig_user:hig_user . "$HOME/HigFlow/"
 
-RUN pip3 install wheel sphinx sphinx_rtd_theme sphinx-markdown-builder
+# RUN pip3 install wheel sphinx sphinx_rtd_theme sphinx-markdown-builder
 RUN cd $HOME/HigFlow/bibliotecas/                                            &&\
 tar -vzxf petsc-3.14.0.tar.gz                                                &&\
 cd petsc-3.14.0/                                                             &&\
-./configure --PETSC_ARCH=x86_64 --download-openmpi --download-hdf5             \
---download-hypre --download-fblaslapack --with-debubbing=yes  --with-cc=gcc    \
---with-cxx=g++ --with-fc=gfortran                                            &&\
+ ./configure --PETSC_ARCH=x86_64 --with-shared-libraries=1  --with-mpi-dir=/usr  --download-fblaslapack --with-debubbing=yes --with-yaml=1 --with-hdf5-dir=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib --with-hdf5=1 --with-hdf5-fortran-bindings=1 --with-mpi-f90module-visibility=0 &&\
 parch=$(tail -200 configure.log | awk '/PETSC_ARCH/ {print $2}')             &&\
 pdir=$(tail -200 configure.log | awk '/PETSC_DIR/ {print $2}')               &&\
 make PETSC_DIR=$pdir PETSC_ARCH=$parch all                                   &&\
+make PETSC_DIR=$pdir PETSC_ARCH=$parch check                                 &&\
 echo "export PETSC_DIR=$pdir"   >> $HOME/.bashrc                             &&\
 echo "export PETSC_ARCH=$parch" >> $HOME/.bashrc                             &&\
 echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH">>$HOME/.bashrc
