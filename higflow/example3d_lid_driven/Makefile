@@ -7,7 +7,7 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = gcc
+CC = mpicc
 
 DIM=3
 

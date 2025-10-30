@@ -142,3 +142,6 @@ salva os dados e destroi os objetos criados.
 Outras funcoes necessarias sao para as condicoes de contorno e dominio para
 inicializacao e no caso de ter tempo-dependente. Também sao necessarios funcoes
 dos termos fonte caso necessario.
+
+# Os arquivos VTK são um para cada processo, para ver o resultado é necessário
+abrir todos no paraview

@@ -36,6 +36,9 @@ parch=$(tail -200 configure.log | awk '/PETSC_ARCH/ {print $2}')             &&\
 pdir=$(tail -200 configure.log | awk '/PETSC_DIR/ {print $2}')               &&\
 make PETSC_DIR=$pdir PETSC_ARCH=$parch all                                   &&\
 make PETSC_DIR=$pdir PETSC_ARCH=$parch check                                 &&\
-echo "export PETSC_DIR=$pdir"   >> $HOME/.bashrc                             &&\
+echo "export PETSC_DIR=$pdir" >> $HOME/.bashrc                               &&\
 echo "export PETSC_ARCH=$parch" >> $HOME/.bashrc                             &&\
+echo "export HIGTREE_DIR=$HOME/HigFlow/higtree" >> $HOME/.bashrc             &&\
+echo "export HIGFLOW_DIR=$HOME/HigFlow/higflow" >> $HOME/.bashrc             &&\
+echo 'export PETSC_EXTRA_LIB="-lmpi"' >> $HOME/.bashrc                       &&\
 echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH">>$HOME/.bashrc
