@@ -31,14 +31,23 @@ COPY --chown=hig_user:hig_user . "$HOME/HigFlow/"
 RUN cd $HOME/HigFlow/bibliotecas/                                            &&\
 tar -vzxf petsc-3.14.0.tar.gz                                                &&\
 cd petsc-3.14.0/                                                             &&\
- ./configure --PETSC_ARCH=x86_64 --with-shared-libraries=1  --with-mpi-dir=/usr  --download-fblaslapack --with-debubbing=yes --with-yaml=1 --with-hdf5-dir=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib --with-hdf5=1 --with-hdf5-fortran-bindings=1 --with-mpi-f90module-visibility=0 &&\
+ ./configure --prefix=/opt/petsc-3.14.0 --with-shared-libraries=1  --with-mpi-dir=/usr  --download-fblaslapack --with-debubbing=yes --with-yaml=1 --with-hdf5-dir=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib --with-hdf5=1 --with-hdf5-fortran-bindings=1 --with-mpi-f90module-visibility=0 &&\
 parch=$(tail -200 configure.log | awk '/PETSC_ARCH/ {print $2}')             &&\
 pdir=$(tail -200 configure.log | awk '/PETSC_DIR/ {print $2}')               &&\
 make PETSC_DIR=$pdir PETSC_ARCH=$parch all                                   &&\
+sudo make PETSC_DIR=$pdir PETSC_ARCH=$parch install                          &&\
 make PETSC_DIR=$pdir PETSC_ARCH=$parch check                                 &&\
-echo "export PETSC_DIR=$pdir" >> $HOME/.bashrc                               &&\
-echo "export PETSC_ARCH=$parch" >> $HOME/.bashrc                             &&\
-echo "export HIGTREE_DIR=$HOME/HigFlow/higtree" >> $HOME/.bashrc             &&\
-echo "export HIGFLOW_DIR=$HOME/HigFlow/higflow" >> $HOME/.bashrc             &&\
-echo 'export PETSC_EXTRA_LIB="-lmpi"' >> $HOME/.bashrc                       &&\
-echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH">>$HOME/.bashrc
+echo "export PETSC_DIR=$pdir" >> $HOME/.varsrc                               &&\
+echo "export PETSC_ARCH=$parch" >> $HOME/.varsrc                             &&\
+echo "export HIGTREE_DIR=$HOME/HigFlow/higtree" >> $HOME/.varsrc             &&\
+echo "export HIGFLOW_DIR=$HOME/HigFlow/higflow" >> $HOME/.varsrc             &&\
+echo 'export PETSC_EXTRA_LIB="-lmpi"' >> $HOME/.varsrc                       &&\
+echo '. $HOME/.varsrc"' >> $HOME/.bashrc                                     &&\
+echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH">>$HOME/.bashrc &&\
+cd $HOME/HigFlow/bibliotecas/                                                &&\
+unzip libfyaml-master.zip                                                    &&\
+chmod 777 libfyaml-master                                                    &&\
+cd libfyaml-master/                                                          &&\
+./bootstrap.sh && ./configure && make && sudo make install                   &&\
+sudo apt-get update && sudo apt -y install libyaml-dev                       &&\
+sudo /sbin/ldconfig -v
