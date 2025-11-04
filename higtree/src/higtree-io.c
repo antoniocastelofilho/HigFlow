@@ -3,7 +3,6 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<stdarg.h>
-#include<hdf5.h>
 
 #include "Debug-c.h"
 #include "utils.h"
