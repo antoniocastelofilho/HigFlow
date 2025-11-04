@@ -10,10 +10,10 @@ real higflow_pressure_term(higflow_solver *ns) {
     // Set the pressure term
     real value = 0.0;
     if (ns->contr.projtype == INCREMENTAL) {
-       value = ns->cc.dpdx;
-       if (ns->contr.flowtype == MULTIPHASE) {
-           value /= ns->cc.dens;
-       }
+        value = ns->cc.dpdx;
+        if (ns->contr.flowtype == MULTIPHASE) {
+            value /= ns->cc.dens;
+        }
     }
     return value;
 }
@@ -30,30 +30,30 @@ real higflow_source_term(higflow_solver *ns) {
 
 // Cell term contribution for the interfacial tension
 real higflow_interfacial_tension_term(higflow_solver *ns) {
-    real We, Bo, value;
-    /*Bo = 10.0;
-    value = ns->cc.IF;
-    value /= (Bo*ns->cc.dens);*/
-    value = 0.0;
-    /*Re = ns->par.Re;
-    Ca = ns->ed.mult.par.Ca;
-    We = Ca*Re; // multiphase viscosity is already accounted for in discret
-    value = ns->cc.IF;
-    value /= (We*ns->cc.dens);*/
+    real value = 0.0;
+    if (ns->ed.mult.contr.add_surface_tension == true) {
+        real Re, Ca, We, Bo;
+        /*Bo = 10.0;
+        value = ns->cc.IF;
+        value /= (Bo*ns->cc.dens);*/
+        Re = ns->par.Re;
+        Ca = ns->ed.mult.spar.Ca;
+        We = Ca*Re;
+        value = ns->cc.IF/ (We*ns->cc.dens);
+    }
     return value;
 }
 
 // Cell term contribution for the gravity
 real higflow_gravity_term(higflow_solver *ns) {
-    //real Fr = 1.0;
-    // real value = ns->cc.curv;
-    //real value = 1.0/pow(Fr,2.0);
-    //real value = 0.98;
+
     real value = 0.0;
-    // real value = 1.0/(ns->par.Fr*ns->par.Fr);
-    // if (ns->contr.flowtype == MULTIPHASE) {
-    //     value /= ns->cc.dens;
-    // }
+    if (ns->contr.add_gravity == true) {
+        real value = 1.0/(ns->par.Fr*ns->par.Fr);
+        if (ns->contr.flowtype == MULTIPHASE) {
+            value /= ns->cc.dens;
+        }
+    }
     return value;
 }
 
@@ -208,7 +208,8 @@ real higflow_convective_term_central(higflow_solver *ns, Point delta, int dim) {
 // Convective term contribution for the Navier-Stokes equation
 real higflow_convective_term(higflow_solver *ns, Point delta, int dim) {
     // Set the convective term according choice
-    real value;
+    real value = 0.0;
+    if(ns->contr.equation == STOKES || ns->contr.equation == HEAT) return 0.0;
     switch (ns->cc.convec_type) {
         // Cental differening scheme
         case CENTRAL:
@@ -229,6 +230,7 @@ real higflow_convective_term(higflow_solver *ns, Point delta, int dim) {
 // Difusive term contribution for the Navier-Stokes equation
 real higflow_diffusive_term(higflow_solver *ns, Point delta) {
     real value = 0.0;
+    if(ns->contr.equation == INVISCID_EULER || ns->contr.equation == INVISCID_BURGERS) return 0.0;
     switch (ns->contr.flowtype) {
         // Newtonian
         case NEWTONIAN:
@@ -299,10 +301,37 @@ real higflow_diffusive_term(higflow_solver *ns, Point delta) {
                value += ns->cc.du2dx2[dim2];
            }
            value *= 2.0 * (ns->ed.stsp.par.eta0);
+           break;    
+    }
+    return value;
+}
+
+
+// Extra Difusive term contribution for the Navier-Stokes equation when Viscosity is not uniform
+// Arises from mixed derivatives together with viscosity gradient
+real higflow_extra_diffusive_term(higflow_solver *ns, Point delta) {
+    real value = 0.0;
+    if(ns->contr.equation == INVISCID_EULER || ns->contr.equation == INVISCID_BURGERS) return 0.0;
+    switch (ns->contr.flowtype) {
+        // Generalized Newtonian
+        case GENERALIZED_NEWTONIAN:
+           for (int dim2 = 0; dim2 < DIM; dim2++) {
+               value += ns->cc.d2vdx2[dim2];
+           }
+           value /= ns->par.Re;
+           break;
+        // Multiphase
+        case MULTIPHASE:
+           for (int dim2 = 0; dim2 < DIM; dim2++) {
+               value += ns->cc.d2vdx2[dim2]; // multiphase viscosity is already accounted for in discret
+           }
+           value /= ns->par.Re;
+           value /= ns->cc.dens;
            break;
     }
     return value;
 }
+
 
 // Cell electroosmotic source term contribution for the Navier-Stokes equation
 real higflow_electroosmotic_source_term(higflow_solver *ns, real Ex) {

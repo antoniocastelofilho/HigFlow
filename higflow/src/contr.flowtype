@@ -1213,7 +1213,7 @@ hig-flow-step.c:    sim_domain *sdp = psd_get_local_domain(ns->psdp);
 hig-flow-step.c:        sfdu[dim2] = psfd_get_local_domain(ns->psfdu[dim2]);
 hig-flow-step.c:            higflow_computational_cell(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
 hig-flow-step.c:            rhs *= 0.5*ns->par.dt;
-hig-flow-step.c:            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+hig-flow-step.c:            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
 hig-flow-step.c:            rhs += ns->cc.ucell;
 hig-flow-step.c:            stn_reset(ns->stn);
 hig-flow-step.c:            stn_set_rhs(ns->stn,rhs);
@@ -1526,7 +1526,7 @@ hig-flow-step-electroosmotic.c:    sim_domain *sdp = psd_get_local_domain(ns->ps
 hig-flow-step-electroosmotic.c:        sfdu[dim2] = psfd_get_local_domain(ns->psfdu[dim2]);
 hig-flow-step-electroosmotic.c:            higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
 hig-flow-step-electroosmotic.c:            rhs *= 0.5*ns->par.dt;
-hig-flow-step-electroosmotic.c:            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+hig-flow-step-electroosmotic.c:            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
 hig-flow-step-electroosmotic.c:            rhs += ns->cc.ucell;
 hig-flow-step-electroosmotic.c:            stn_reset(ns->stn);
 hig-flow-step-electroosmotic.c:            stn_set_rhs(ns->stn,rhs);
@@ -1920,7 +1920,7 @@ hig-flow-step-electroosmotic-viscoelastic.c:    sim_domain *sdp = psd_get_local_
 hig-flow-step-electroosmotic-viscoelastic.c:        sfdu[dim2] = psfd_get_local_domain(ns->psfdu[dim2]);
 hig-flow-step-electroosmotic-viscoelastic.c:            higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
 hig-flow-step-electroosmotic-viscoelastic.c:            rhs *= 0.5*ns->par.dt;
-hig-flow-step-electroosmotic-viscoelastic.c:            rhs += 0.25*ns->par.dt*higflow_difusive_term(ns, fdelta);
+hig-flow-step-electroosmotic-viscoelastic.c:            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
 hig-flow-step-electroosmotic-viscoelastic.c:            rhs += ns->cc.ucell;
 hig-flow-step-electroosmotic-viscoelastic.c:            stn_reset(ns->stn);
 hig-flow-step-electroosmotic-viscoelastic.c:            stn_set_rhs(ns->stn,rhs);

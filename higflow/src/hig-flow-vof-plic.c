@@ -418,14 +418,13 @@ void higflow_compute_plic_lines_2d(higflow_solver *ns) {
                pt_index++;
             }
             y = -0.5*cdelta[1]; x = (dist - y*ny)/nx;
-            if(FLT_LE(fabs(x),0.5*cdelta[0])) { // if it intersects the bottom wall
+            if(FLT_LE(fabs(x),0.5*cdelta[0]) && pt_index < 2) { // if it intersects the bottom wall
                l[pt_index][0] = x + ccenter[0]; l[pt_index][1] = y + ccenter[1]; 
-               pt_index++;
+               if(!point_equal_tol(l[0],l[1],EPSMACH)) pt_index++; // prevent duplicates (left-bottom and right-bottom)
             }
             y = 0.5*cdelta[1]; x = (dist - y*ny)/nx;
-            if(FLT_LE(fabs(x),0.5*cdelta[0])) { // if it intersects the top wall
+            if(FLT_LE(fabs(x),0.5*cdelta[0]) && pt_index < 2) { // if it intersects the top wall
                l[pt_index][0] = x + ccenter[0]; l[pt_index][1] = y + ccenter[1]; 
-               pt_index++;
             }
          }
 

@@ -21,6 +21,16 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
 
 void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higflow_solver *ns);
 
+void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus_multiphase(higflow_solver *ns);
+
+void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus_multiphase(higflow_solver *ns);
+
+void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus_multiphase(higflow_solver *ns);
+
+void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus_multiphase(higflow_solver *ns);
+
+void higflow_multiphase_electroosmotic_phi(higflow_solver *ns);
+
 real higflow_multiphase_electroosmotic_psi(higflow_solver *ns);
 
 void higflow_multiphase_electroosmotic_solve_pb(higflow_solver *ns);

@@ -54,17 +54,22 @@ void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p
    do { i++;
       pp[1] = center[1] + i * delta[1];
       status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
-      if (status == 1) {
+      if (status != -1) {
          *vertical += fracvol;
-      } else if (status == 0) {
-         // //printf("Up - Vertical cell out of domain \n");
-         // return;
-         break;
+         if (status == 0) {
+            // //printf("Up - Vertical cell out of domain \n");
+            // return;
+            break;
+         }
       } else {
          //printf("Up - Vertical cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && status == 1);
+   } while (i<3);
+   if(i>5) {
+      printf("cell (%lf,%lf) over fringe - col = %d\n",center[0],center[1],i);
+   }
+
    fracvol_aux = fracvol;
    ppt[0]=pp[0];ppt[1]=pp[1]+0.5*delta[1]; 
    real fracvol_top = fracvol;             
@@ -73,17 +78,21 @@ void vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p
    do { i++;
       pp[1] = p[1] - i * delta[1];
       status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
-      if (status == 1) {
+      if (status != -1) {
          *vertical += fracvol;
-      } else if (status == 0) {
-         // //printf("Down - Vertical cell out of domain \n");
-         // return;
-         break;
+         if (status == 0) {
+            // //printf("Up - Vertical cell out of domain \n");
+            // return;
+            break;
+         }
       } else {
-         //printf("Down - Vertical cells with different sizes \n");
+         //printf("Up - Vertical cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && FLT_NE(fracvol, fracvol_aux) && status == 1);
+   } while (i<3);
+   if(i>5) {
+      printf("cell (%lf,%lf) over fringe - col = %d\n",center[0],center[1],i);
+   }
 
    if (fracvol == fracvol_aux) {
       //printf("The phases are not different \n");
@@ -122,17 +131,23 @@ void horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, 
    do { i++;
       pp[0] = center[0] + i*delta[0];
       status=get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
-      if (status == 1) {
+      if (status != -1) {
          *horizontal += fracvol;
-      } else if (status == 0) {
-         // //printf("Right - Horizontal cell out of domain \n");
-         // return;
-         break;
+         if (status == 0) {
+            // //printf("Up - Vertical cell out of domain \n");
+            // return;
+            break;
+         }
       } else {
-         //printf("Right - Horizontal cells with different sizes \n");
+         //printf("Up - Vertical cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && status == 1);
+   } while (i<3);
+   if(i>5) {
+      printf("cell (%lf,%lf) over fringe - row = %d\n",center[0],center[1],i);
+   }
+
+
    fracvol_aux = fracvol;
    ppr[0]=pp[0]+0.5*delta[0];
    ppr[1]=pp[1];
@@ -143,17 +158,21 @@ void horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, 
    do { i++;
       pp[0] = p[0] - i*delta[0];
       status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
-      if (status == 1) {
+      if (status != -1) {
          *horizontal += fracvol;
-      } else if (status == 0) {
-         // //printf("Left - Horizontal cell out of domain \n");
-         // return;
-         break;
+         if (status == 0) {
+            // //printf("Up - Vertical cell out of domain \n");
+            // return;
+            break;
+         }
       } else {
-         //printf("Left - Horizontal cells with different sizes \n");
+         //printf("Up - Vertical cells with different sizes \n");
          return;
       }
-   } while (fracvol > 0.0 && fracvol < 1.0 && FLT_NE(fracvol, fracvol_aux) && status == 1);
+   } while (i<3);
+   if(i>5) {
+      printf("cell (%lf,%lf) over fringe - row = %d\n",center[0],center[1],i);
+   }
 
    if (fracvol == fracvol_aux){
       //printf("The phases are not different:\n");
@@ -893,204 +912,218 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani
          }
           
          higflow_compute_normal_multiphase_2D_shirani_9_cells(ns, sdm, clid, center, p, delta);
+
+         real N[DIM];
+         for (int i = 0; i < DIM; i++) {
+            N[i] = dp_get_value(ns->ed.mult.dpnormal[i], clid);
+         }
+
+         if(FLT_GE(fabs(N[0]),fabs(N[1]))) {
+
+            real hm, hb, ht;
+            int aux_mh, aux_b, aux_t;
+            real orig_mh, orig_b, orig_t;
          
-         real hm, hb, ht;
-         int aux_mh, aux_b, aux_t;
-         real orig_mh, orig_b, orig_t;
-         // Middle
-         horizontal_row(sdm, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
-         // Top
-         p[1] = center[1] + delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &ht, &aux_t, &orig_t);
-         // Bottom
-         p[1] = center[1] - delta[1];
-         horizontal_row(sdm, ns, center, p, delta, &hb, &aux_b, &orig_b);
+            // Middle
+            horizontal_row(sdm, ns, center, p, delta, &hm, &aux_mh, &orig_mh);
+            // Top
+            p[1] = center[1] + delta[1];
+            horizontal_row(sdm, ns, center, p, delta, &ht, &aux_t, &orig_t);
+            // Bottom
+            p[1] = center[1] - delta[1];
+            horizontal_row(sdm, ns, center, p, delta, &hb, &aux_b, &orig_b);
 
-         if (abs(aux_mh + aux_t + aux_b) == 3){
-            real H[3];
-            H[0] = hb;
-            H[1] = hm;
-            H[2] = ht;
-            real origh[3];
-            origh[0] = orig_b;
-            origh[1] = orig_mh;
-            origh[2] = orig_t;
-            set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
-            //calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
-            calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//            real curvaturech = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
-            continue;
-         }
-//         getchar();
-         // Set p cell
-         p[0] = center[0];
-         p[1] = center[1];
-
-         real vm, vl, vr;
-         int aux_mv, aux_l, aux_r;
-         real orig_mv, orig_l, orig_r;
-         // Middle
-         vertical_collumn(sdm, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
-         // Right
-         p[0] = center[0] + delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vr, &aux_r, &orig_r);
-         // Left
-         p[0] = center[0] - delta[0];
-         vertical_collumn(sdm, ns, center, p, delta, &vl, &aux_l, &orig_l);
-         if (abs(aux_mv + aux_r + aux_l) == 3){
-            real V[3];
-            V[0] = vl;
-            V[1] = vm;
-            V[2] = vr;
-            real origv[3];
-            origv[0] = orig_l;
-            origv[1] = orig_mv;
-            origv[2] = orig_r;
-            set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
-            //calculate_normal_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-            calculate_curvature_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-            //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//            real curvaturecv = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
-            continue;
-         }
-
-         if(abs(aux_mh+aux_t)==2){
-            // Set p cell
-            p[0] = center[0];
-            p[1] = center[1];
-            
-            real htt;
-            int aux_tt;
-            real orig_tt;
-
-            //top-top
-            p[1] = center[1] + 2*delta[1];
-//            printf("Horizontal: going top top\n");
-            horizontal_row(sdm, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
-//            printf("Horizontal: TOP TOP: htt=%lf auxtt=%d origtt=%lf\n",htt,aux_tt,orig_tt);
-            
-            if(abs(aux_mh+aux_t+aux_tt)==3){
+            if (abs(aux_mh + aux_t + aux_b) == 3){
                real H[3];
-               H[0] = hm;
-               H[1] = ht;
-               H[2] = htt;
-               
+               H[0] = hb;
+               H[1] = hm;
+               H[2] = ht;
                real origh[3];
-               origh[0] = orig_mh;
-               origh[1] = orig_t; 
-               origh[2] = orig_tt;
-               
+               origh[0] = orig_b;
+               origh[1] = orig_mh;
+               origh[2] = orig_t;
                set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
-               //calculate_normal_cell_progressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               calculate_curvature_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+               //calculate_normal_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
+               calculate_curvature_cell_central_2nd_order_finite_difference_Horizontal(ns,clid,H[0],H[1],H[2],delta[0],delta[1],aux_mh);
                //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//               real curvaturecp = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+               //real curvaturech = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
                continue;
             }
-         }
 
-         if(abs(aux_mh+aux_b)==2){
-            // Set p cell
-            p[0] = center[0];
-            p[1] = center[1];
-            
-            real hbb;
-            int aux_bb;
-            real orig_bb;
-            
-            //bottom-bottom
-            p[1] = center[1] - 2*delta[1];
-//            printf("Horizontal: going botton botton\n");
-            horizontal_row(sdm, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
-//            printf("Horizontal: BOTTON BOTTON: hbb=%lf auxbb=%d origbb=%lf\n",hbb,aux_bb,orig_bb);
-            
-            if(abs(aux_mh+aux_b+aux_bb)==3){
-               real H[3];
-               H[0] = hbb;
-               H[1] = hb;
-               H[2] = hm;
+            if(abs(aux_mh+aux_t)==2){
+               // Set p cell
+               p[0] = center[0];
+               p[1] = center[1];
                
-               real origh[3];
-               origh[0] = orig_bb;
-               origh[1] = orig_b;
-               origh[2] = orig_mh;
+               real htt;
+               int aux_tt;
+               real orig_tt;
+
+               //top-top
+               p[1] = center[1] + 2*delta[1];
+               //printf("Horizontal: going top top\n");
+               horizontal_row(sdm, ns, center, p, delta, &htt, &aux_tt, &orig_tt);
+               //printf("Horizontal: TOP TOP: htt=%lf auxtt=%d origtt=%lf\n",htt,aux_tt,orig_tt);
                
-               set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
-               //calculate_normal_cell_regressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               calculate_curvature_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
-//               real curvaturerh = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
-               continue;
+               if(abs(aux_mh+aux_t+aux_tt)==3){
+                  real H[3];
+                  H[0] = hm;
+                  H[1] = ht;
+                  H[2] = htt;
+                  
+                  real origh[3];
+                  origh[0] = orig_mh;
+                  origh[1] = orig_t; 
+                  origh[2] = orig_tt;
+                  
+                  set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
+                  //calculate_normal_cell_progressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+                  calculate_curvature_cell_progressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+                  //calculate_interfacial_force(sdm, ns, clid, center, IF);
+                  //real curvaturecp = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+                  continue;
+               }
             }
+
+            if(abs(aux_mh+aux_b)==2){
+               // Set p cell
+               p[0] = center[0];
+               p[1] = center[1];
+               
+               real hbb;
+               int aux_bb;
+               real orig_bb;
+               
+               //bottom-bottom
+               p[1] = center[1] - 2*delta[1];
+               //printf("Horizontal: going botton botton\n");
+               horizontal_row(sdm, ns, center, p, delta, &hbb, &aux_bb, &orig_bb);
+               //printf("Horizontal: BOTTON BOTTON: hbb=%lf auxbb=%d origbb=%lf\n",hbb,aux_bb,orig_bb);
+               
+               if(abs(aux_mh+aux_b+aux_bb)==3){
+                  real H[3];
+                  H[0] = hbb;
+                  H[1] = hb;
+                  H[2] = hm;
+                  
+                  real origh[3];
+                  origh[0] = orig_bb;
+                  origh[1] = orig_b;
+                  origh[2] = orig_mh;
+                  
+                  set_common_orig_horizontal(H, aux_mh, origh, 3, delta[0]);
+                  //calculate_normal_cell_regressive_2nd_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+                  calculate_curvature_cell_regressive_1st_order_finite_difference_Horizontal(ns, clid, H[0], H[1], H[2], delta[0], delta[1], aux_mh);
+                  //calculate_interfacial_force(sdm, ns, clid, center, IF);
+                  //real curvaturerh = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
+                  continue;
+               }
+            }
+
          }
 
-         if(abs(aux_mv+aux_r)==2){
+         else {
+            //getchar();
             // Set p cell
             p[0] = center[0];
             p[1] = center[1];
-            
-            real vrr;
-            int aux_rr;
-            real orig_rr;
-            
-            //right-right
-            p[0] = center[0] + 2*delta[0];
-//            printf("Vertical: going right right\n");
-            vertical_collumn(sdm, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
-//            printf("Vertical: RIGHT RIGHT: vrr=%lf auxrr=%d origrr=%lf\n",vrr,aux_rr,orig_rr);
-            
-            if(abs(aux_mv+aux_r+aux_rr)==3){
+
+            real vm, vl, vr;
+            int aux_mv, aux_l, aux_r;
+            real orig_mv, orig_l, orig_r;
+            // Middle
+            vertical_collumn(sdm, ns, center, p, delta, &vm, &aux_mv, &orig_mv);
+            // Right
+            p[0] = center[0] + delta[0];
+            vertical_collumn(sdm, ns, center, p, delta, &vr, &aux_r, &orig_r);
+            // Left
+            p[0] = center[0] - delta[0];
+            vertical_collumn(sdm, ns, center, p, delta, &vl, &aux_l, &orig_l);
+            if (abs(aux_mv + aux_r + aux_l) == 3){
                real V[3];
-               V[0] = vm;
-               V[1] = vr;
-               V[2] = vrr;
-               
+               V[0] = vl;
+               V[1] = vm;
+               V[2] = vr;
                real origv[3];
-               origv[0] = orig_mv;
-               origv[1] = orig_r; 
-               origv[2] = orig_rr;
-               
+               origv[0] = orig_l;
+               origv[1] = orig_mv;
+               origv[2] = orig_r;
                set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
-               //calculate_normal_cell_progressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               calculate_curvature_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+               //calculate_normal_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+               calculate_curvature_cell_central_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
                //calculate_interfacial_force(sdm, ns, clid, center, IF);
+               //real curvaturecv = compute_value_at_point(sdm, center, center,1.0, ns->ed.mult.dpcurvature, ns->ed.mult.stn);
                continue;
             }
-         }
+
+            if(abs(aux_mv+aux_r)==2){
+               // Set p cell
+               p[0] = center[0];
+               p[1] = center[1];
+               
+               real vrr;
+               int aux_rr;
+               real orig_rr;
+               
+               //right-right
+               p[0] = center[0] + 2*delta[0];
+               //printf("Vertical: going right right\n");
+               vertical_collumn(sdm, ns, center, p, delta, &vrr, &aux_rr, &orig_rr);
+               //printf("Vertical: RIGHT RIGHT: vrr=%lf auxrr=%d origrr=%lf\n",vrr,aux_rr,orig_rr);
+               
+               if(abs(aux_mv+aux_r+aux_rr)==3){
+                  real V[3];
+                  V[0] = vm;
+                  V[1] = vr;
+                  V[2] = vrr;
+                  
+                  real origv[3];
+                  origv[0] = orig_mv;
+                  origv[1] = orig_r; 
+                  origv[2] = orig_rr;
+                  
+                  set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
+                  //calculate_normal_cell_progressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+                  calculate_curvature_cell_progressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+                  //calculate_interfacial_force(sdm, ns, clid, center, IF);
+                  continue;
+               }
+            }
+            
+            if (abs(aux_mv + aux_l) == 2) {
+               // Set p cell
+               p[0] = center[0];
+               p[1] = center[1];
+
+               real vll;
+               int aux_ll;
+               real orig_ll;
+
+               //left-left
+               p[0] = center[0] - 2 * delta[0];
+               //printf("Vertical: going left left\n");
+               vertical_collumn(sdm, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
+               //printf("Vertical: LEFT LEFT: vll=%lf auxll=%d origll=%lf\n",vll,aux_ll,orig_ll);
+
+               if (abs(aux_mv + aux_l + aux_ll) == 3) {
+                  real V[3];
+                  V[0] = vll;
+                  V[1] = vl;
+                  V[2] = vm;
+
+                  real origv[3];
+                  origv[0] = orig_ll;
+                  origv[1] = orig_l;
+                  origv[2] = orig_mv;
+
+                  set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
+                  //calculate_normal_cell_regressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+                  calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
+                  //calculate_interfacial_force(sdm, ns, clid, center, IF);
+                  continue;
+               }
+            }
          
-         if (abs(aux_mv + aux_l) == 2) {
-            // Set p cell
-            p[0] = center[0];
-            p[1] = center[1];
-
-            real vll;
-            int aux_ll;
-            real orig_ll;
-
-            //left-left
-            p[0] = center[0] - 2 * delta[0];
-//            printf("Vertical: going left left\n");
-            vertical_collumn(sdm, ns, center, p, delta, &vll, &aux_ll,&orig_ll);
-//            printf("Vertical: LEFT LEFT: vll=%lf auxll=%d origll=%lf\n",vll,aux_ll,orig_ll);
-
-            if (abs(aux_mv + aux_l + aux_ll) == 3) {
-               real V[3];
-               V[0] = vll;
-               V[1] = vl;
-               V[2] = vm;
-
-               real origv[3];
-               origv[0] = orig_ll;
-               origv[1] = orig_l;
-               origv[2] = orig_mv;
-
-               set_common_orig_vertical(V, aux_mv, origv, 3, delta[1]);
-               //calculate_normal_cell_regressive_2nd_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               calculate_curvature_cell_regressive_1st_order_finite_difference_Vertical(ns, clid, V[0], V[1], V[2], delta[0], delta[1], aux_mv);
-               //calculate_interfacial_force(sdm, ns, clid, center, IF);
-               continue;
-            }
          }
       }
       // Destroy the iterator

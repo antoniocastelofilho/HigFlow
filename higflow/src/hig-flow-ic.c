@@ -16,15 +16,15 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
     if (fdomain == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // Number of HigTrees
     int numhigs;
     int ifd = fscanf(fdomain,"%d\n",&numhigs);
     int maxhigs = MAXHIGTREESPERDOMAIN;
     if(numhigs > maxhigs) {
-        printf("Error: Number of HigTrees is greater than MAXHIGTREESPERDOMAIN = %d\n", maxhigs);
-        exit(1);
+        printf("Error: Number of HigTrees (%d) is greater than MAXHIGTREESPERDOMAIN = %d\n", numhigs, maxhigs);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
@@ -130,15 +130,15 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     if (fyd == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // Number of HigTrees
     int numhigs;
     int ifd = fy_document_scanf(fyd,"/domain/number_domains %d",&numhigs);
     int maxhigs = MAXHIGTREESPERDOMAIN;
     if(numhigs > maxhigs) {
-        printf("Error: Number of HigTrees is greater than MAXHIGTREESPERDOMAIN = %d\n", maxhigs);
-        exit(1);
+        printf("Error: Number of HigTrees (%d) is greater than MAXHIGTREESPERDOMAIN = %d\n", numhigs, maxhigs);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
@@ -237,6 +237,11 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
 
 // Initialize the pressure
 void higflow_initialize_pressure(higflow_solver *ns) {
+    if(ns->contr.equation == VISCOUS_BURGERS ||
+       ns->contr.equation == INVISCID_BURGERS ||
+       ns->contr.equation == HEAT) {
+        return;
+    }
     // Setting the cell iterator
     higcit_celliterator *it;
     // Getting the local domain
@@ -649,9 +654,13 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
                 // Get the center of the facet
                 Point center;
                 hig_get_facet_center(f, center);
+                Point delta;
+                hig_get_facet_delta(f, delta);
                 // Get the value for the velocity in this cell facet
                 if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-                    fracvol = compute_value_at_point(ns->ed.mult.sdmult, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
+                    real fracl = compute_center_p_left(ns->ed.mult.sdmult, center, delta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                    real fracr = compute_center_p_right(ns->ed.mult.sdmult, center, delta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                    fracvol = 0.5*(fracl + fracr);
                     val = ns->ed.mult.eo.get_multiphase_electroosmotic_source_term(fracvol, center, dim, ns->par.t);
                 } else
                     val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);

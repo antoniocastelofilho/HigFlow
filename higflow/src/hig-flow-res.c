@@ -149,7 +149,7 @@ static void get_channel_lengths_yaml(Point center, Point L, char *nameload) {
     if (fyd == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // Number of HigTrees
     int numhigs;
@@ -166,7 +166,7 @@ static void get_channel_lengths_yaml(Point center, Point L, char *nameload) {
     if (fd == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // low and high points of the domain
     real l[DIM], h[DIM];
@@ -188,7 +188,7 @@ static void get_channel_lengths(Point center, Point L, char *nameload) {
     if (fdomain == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // Number of HigTrees
     int numhigs;
@@ -201,7 +201,7 @@ static void get_channel_lengths(Point center, Point L, char *nameload) {
     if (fd == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",amrfilename);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // low and high points of the domain
     real l[DIM], h[DIM];
