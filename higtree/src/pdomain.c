@@ -1106,22 +1106,22 @@ enum {SEND = 0, RECEIVE = 1};
 
 void dp_sync(distributed_property *dp)
 {
-	psim_domain *bpsd = dp->pdata->bpsd;
-	property_sync_datatype *psync = dp->pdata->psync;
+    psim_domain *bpsd = dp->pdata->bpsd;
+    property_sync_datatype *psync = dp->pdata->psync;
 
-	const int tag = 629697;
+    const int tag = 629697;
 
-	MPI_Comm comm = pg_get_MPI_comm(bpsd->pg);
+    MPI_Comm comm = pg_get_MPI_comm(bpsd->pg);
 
-	guint nb_count = g_hash_table_size(bpsd->filtered_neighbors);
-	MPI_Request reqs[nb_count * 2];
+    guint nb_count = g_hash_table_size(bpsd->filtered_neighbors);
+    MPI_Request reqs[nb_count * 2];
 
-	GHashTableIter nbiter;
-	g_hash_table_iter_init(&nbiter, bpsd->filtered_neighbors);
-	struct neighbor_proc *nb;
-	gpointer key;
-	while(g_hash_table_iter_next(&nbiter, &key, (gpointer)&nb)) {
-		int nb_rank = GPOINTER_TO_INT(key);
+    GHashTableIter nbiter;
+    g_hash_table_iter_init(&nbiter, bpsd->filtered_neighbors);
+    struct neighbor_proc *nb;
+    gpointer key;
+    while(g_hash_table_iter_next(&nbiter, &key, (gpointer)&nb)) {
+        int nb_rank = GPOINTER_TO_INT(key);
 
 		MPI_Irecv(dp->values, 1, psync[nb->idx].recv, nb_rank,
 			tag, comm, &reqs[nb->idx]);

@@ -117,6 +117,9 @@ higio_hdf5 *higio_open_hdf5(const char *filename);
 //! Closes an HDF5 file, and free the resources used by it.
 void higio_close_hdf5(higio_hdf5* ctx);
 
+//! Sets the chunk size for writing HDF5 files.
+void higio_set_chunk_size(unsigned long long size);
+
 //! Writes down a HigTree in serialized format.
 void higio_write_tree_hdf5(higio_hdf5* ctx, const char* dataset_path, hig_cell* root);
 

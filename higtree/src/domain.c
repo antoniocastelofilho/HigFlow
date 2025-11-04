@@ -476,13 +476,24 @@ calc_weight_from_points(struct interpolator *inter, CPPoint x, _wls_item_list *i
 
 }
 
+// Trinary enum to represent the position of a point
+// IN_DOMAIN_PROPER means it is inside the domain.
+// ON_BOUNDARY means it is on the boundary.
+// OUTSIDE_DOMAIN means it is outside the domain.
+typedef enum {
+	IN_DOMAIN_PROPER = 0,
+	ON_BOUNDARY = 1,
+	OUTSIDE_DOMAIN = 2
+} point_location;
+
+
 // Functions used by the stencil interpolation search, implemented for
 // both domain types: sim_domain and sim_facet_domain.
 typedef struct stencil_search_funcs {
 	void (*stencil_search_box) (void *specific, CPPoint x,
 		Rect *box, _wls_item_list *items);
 	bool (*find_in_center) (void *specific, CPPoint x, real alpha,
-		bool *in_domain, sim_stencil *stn);
+		point_location *in_domain, sim_stencil *stn);
 } stencil_search_funcs;
 
 static inline void
@@ -685,6 +696,7 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 	sim_stencil *stn, bool use_dirichlet, bool use_neumann,
 	const stencil_search_funcs *funcs, void *specific, bool from_sfd);
 
+
 // Must only be called if point is outside the domain.
 // Returns true if stencil has been filled.
 // TODO: generalize to any order...
@@ -869,6 +881,224 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 	return true;
 }
 
+// Calculate the 1st derivative of the Lagrange coefficients for a given point x and a set of points xv.
+static void calc_lagrange_coefficient_derivatives(int n, int dir, const Point x, Point *xv, real *coeffs) {
+	for(int i = 0; i < n; i++) {
+		coeffs[i] = 0.0;
+		// sum_k prod_{i != j,k} (x - x_j) / prod_{i != j} (x_i - x_j)
+		for(int k = 0; k < n; k++) {
+			if(k != i) {
+				real prod = 1.0;
+				for(int j = 0; j < n; j++)
+					if(j != i && j != k)
+						prod *= x[dir] - xv[j][dir];
+				coeffs[i] += prod;
+			}
+		}
+
+		for (int j = 0; j < n; j++)
+			if (j != i) coeffs[i] /= xv[i][dir] - xv[j][dir];
+	}
+}
+
+// Must only be called if point is outside the domain.
+// Returns true if stencil has been filled.
+static inline bool
+get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
+	sim_stencil *stn, const stencil_search_funcs *funcs,
+	_wls_item_list *items, void *specific, bool from_sfd)
+{
+	// TODO: implement cache for Neumann condition
+
+	// Check the distance of the point to each Neumann BC,
+	// also check if the point projects to the BC, along its
+	// normal direction.
+	struct bc_data {
+		Point proj_x;
+		sim_boundary *nbc;
+		hig_cell *nbc_cell;
+		real dist;
+		int proj_dir;
+	} best = {
+		.nbc = NULL,
+		.dist = DBL_MAX
+	};
+
+	for (int i = 0; i < d->numneumann_bcs; i++) {
+		struct bc_data curr;
+
+		curr.nbc = d->neumann_bcs[i];
+		hig_cell *tree = curr.nbc->bc;
+
+		// The direction of the projection is the
+		// degenerated one.
+		curr.proj_dir = hig_get_narrowest_dim(tree);
+
+		Point center;
+		hig_get_center(tree, center);
+
+		POINT_ASSIGN(curr.proj_x, x);
+		curr.proj_x[curr.proj_dir] = center[curr.proj_dir];
+
+		curr.nbc_cell = hig_get_cell_with_point(tree, curr.proj_x);
+
+		// If no cell containing the projected point was found,
+		// this Neumann BC is unrelated to the point, skip it:
+		if(!curr.nbc_cell) {
+			continue;
+		}
+
+		curr.dist = x[curr.proj_dir] - curr.proj_x[curr.proj_dir];
+
+		if(fabs(curr.dist) < fabs(best.dist)) {
+			best = curr;
+		}
+	}
+
+	// No suitable Neumann BC found, we are done here.
+	if(!best.nbc) {
+		return false;
+	}
+
+	{
+		real delta = fabs(best.dist);
+
+		// We have a candidate Neumann BC to use, but if there
+		// is a Dirichlet BC closer than the Neumann BC, use
+		// it instead:
+		for (int i = 0; i < d->numdirichlet_bcs; i++) {
+			sim_boundary *nbc = d->dirichlet_bcs[i];
+			hig_cell *tree = nbc->bc;
+
+			Rect bbox;
+			hig_get_bounding_box(tree, &bbox);
+			const real dist = rect_distance_to_point(&bbox, x);
+			if(dist < delta) {
+				return false;
+			}
+		}
+	}
+
+	// Finally, we get to work with the chosen Neumann BC:
+
+	// Take a point half Δx into the domain:
+	real minus_h, minus_hb;
+	{
+
+		real delta = 1.0;
+		hig_cell *c = sd_get_cell_with_point(d, best.proj_x);
+		assert(c);
+		Point cdelta;
+		hig_get_delta(c, cdelta);
+		delta = cdelta[best.proj_dir];
+		// for(unsigned dim = 0; dim < DIM; ++dim) { // modificação daniel
+		// 	if(dim != best.proj_dir) {
+		// 		delta *= cdelta[dim];
+		// 	}
+		// }
+		// delta = pow(delta, 1.0 / (DIM-1));
+
+		// Sets a Δx/2 with sign to point innards:
+		minus_hb = copysign(delta, best.dist) * -0.5;
+		minus_h  = 2.0 * minus_hb;
+		if(from_sfd) { // modificação daniel
+			sim_facet_domain *sfd = (sim_facet_domain *)specific;
+			if(sfd->dim == best.proj_dir) {
+				// Sets a Δx with sign to point innards: 
+				// nearest facet is of the same dim as proj direction
+				minus_hb *= 2;
+			}
+		}
+	}
+
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(best.nbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != best.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
+
+	// Points to sample from
+	int domain_order = d->inter.order;
+	Point inside_p[domain_order+1];
+	real lagrange_dweights[domain_order+1];
+
+	for(int i = 0; i < domain_order; i++) {
+		real distb = minus_hb + i*minus_h;
+		POINT_ASSIGN(inside_p[i], best.proj_x);
+		inside_p[i][best.proj_dir] += distb;
+	}
+	POINT_ASSIGN(inside_p[domain_order], x);
+
+	calc_lagrange_coefficient_derivatives(domain_order+1, best.proj_dir, best.proj_x, inside_p, lagrange_dweights);
+	real wb = 1.0/lagrange_dweights[domain_order];
+
+	// Calculate the Lagrange weights:
+	for(int i = 0; i < domain_order; i++) {
+		// Take the stencils for the points inside the domain:
+		real wi = -lagrange_dweights[i]*wb;
+		get_stencil(d, delta, inside_p[i], wi * alpha, stn, false, false,
+			funcs, specific, from_sfd);
+	}
+
+	// Approximating the function as a polynomial:
+	Point proj_center;
+	hig_get_center(best.nbc_cell, proj_center);
+	real der;
+	if(Pointequal(proj_center, best.proj_x)) {
+		// Get the exact value if projection point is over
+		// boundary cell center:
+		const int nbc_cid = mp_lookup(best.nbc->m, hig_get_cid(best.nbc_cell));
+		der = sb_get_value(best.nbc, nbc_cid);
+	} else {
+		// Projection is not over a cell center, interpolate the
+		// BC value at the point.
+		items->numpts = 0;
+		items->max_dist = 0.0;
+
+		Rect box;
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
+		search_cells_in_tree_box(best.nbc->bc, best.nbc->m,
+			best.proj_x, &box, d->bc_inter.maxpts, items, NULL, 2);
+
+		// Sort the elements
+		qsort(items->ptr, items->numpts, sizeof *items->ptr,
+			(int (*)(const void *, const void *))_wls_compar);
+
+		// We must clip the elements beyond maxpts
+		if(items->numpts > d->bc_inter.maxpts) {
+			items->numpts = d->bc_inter.maxpts;
+		}
+
+		// We must remove the projection dimension from the points:
+		for(unsigned i = 0; i < items->numpts; ++i) {
+			PPoint x = items->ptr[i].x;
+			for(unsigned dim = best.proj_dir+1; dim < DIM; ++dim) {
+				x[dim-1] = x[dim];
+			}
+		}
+
+		real w[d->bc_inter.maxpts];
+		calc_weight_from_points(&d->bc_inter, best.proj_x, items, w);
+
+		// Calculate the slope with the interpolation:
+		der = 0.0;
+		for(unsigned i = 0; i < items->numpts; i++) {
+			const int id = items->ptr[i].id;
+			der += w[i] * sb_get_value(best.nbc, id);
+		}
+	}
+
+	// Add the linear variation (negative because at the right hand size):
+	stn_add_to_rhs(stn, alpha * der * (-wb));
+
+	return true;
+}
+
 /******************************************* modificação daniel ************************************/
 // Must only be called if point is outside the domain and after get_stencil_neumann.
 // Returns true if stencil has been filled.
@@ -1024,6 +1254,203 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 
 	// Add the linear variation (negative because at the right hand size):
 	stn_add_to_rhs(stn, alpha * bval * (-ratio));
+
+	return true;
+}
+
+// Calculate the Lagrange coefficients for a given point x and a set of points xv.
+static void calc_lagrange_coefficients(int n, int dir, const Point x, Point *xv, real *coeffs) {
+	for(int i = 0; i < n; i++) {
+		coeffs[i] = 1.0;
+		for(int j = 0; j < n; j++) {
+			if(j != i) {
+				coeffs[i] *= x[dir] - xv[j][dir];
+				coeffs[i] /= xv[i][dir] - xv[j][dir];
+			}
+		}
+	}
+}
+
+/******************************************* modificação daniel ************************************/
+// Must only be called if point is outside the domain and after get_stencil_neumann.
+// Returns true if stencil has been filled.
+static inline bool
+get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
+	sim_stencil *stn, const stencil_search_funcs *funcs,
+	_wls_item_list *items, void *specific, bool from_sfd)
+{
+	// TODO: implement cache for Dirichlet condition
+
+	// Check the distance of the point to each Dirichlet BC,
+	// also check if the point projects to the BC, along its
+	// normal direction.
+	struct bc_data {
+		Point proj_x;
+		sim_boundary *dbc;
+		hig_cell *dbc_cell;
+		real dist;
+		int proj_dir;
+	} best = {
+		.dbc = NULL,
+		.dist = DBL_MAX
+	};
+
+	for (int i = 0; i < d->numdirichlet_bcs; i++) {
+		struct bc_data curr;
+
+		curr.dbc = d->dirichlet_bcs[i];
+		hig_cell *tree = curr.dbc->bc;
+
+		// The direction of the projection is the
+		// degenerated one.
+		curr.proj_dir = hig_get_narrowest_dim(tree);
+
+		Point center;
+		hig_get_center(tree, center);
+
+		POINT_ASSIGN(curr.proj_x, x);
+		curr.proj_x[curr.proj_dir] = center[curr.proj_dir];
+
+		curr.dbc_cell = hig_get_cell_with_point(tree, curr.proj_x);
+
+		// If no cell containing the projected point was found,
+		// this Dirichlet BC is unrelated to the point, skip it:
+		if(!curr.dbc_cell) {
+			continue;
+		}
+
+		curr.dist = x[curr.proj_dir] - curr.proj_x[curr.proj_dir];
+
+		if(fabs(curr.dist) < fabs(best.dist)) {
+			best = curr;
+		}
+	}
+
+	// No suitable Dirichlet BC found, we are done here.
+	if(!best.dbc) {
+		return false;
+	}
+
+	// Finally, we get to work with the chosen Dirichlet BC:
+
+	// Take a point half Δx into the domain:
+	real minus_h, minus_hb;
+	{
+		Point cdelta;
+		hig_cell *c = sd_get_cell_with_point(d, best.proj_x);
+		assert(c);
+		hig_get_delta(c, cdelta);
+		real delta = cdelta[best.proj_dir];
+
+		// Sets a Δx/2 with sign to point innards:
+		minus_hb = copysign(delta, best.dist) * -0.5;
+		minus_h  = 2.0 * minus_hb;
+
+		if(from_sfd) { // modificação daniel
+			sim_facet_domain *sfd = (sim_facet_domain *)specific;
+			if(sfd->dim == best.proj_dir) {
+				// Sets a Δx with sign to point innards: 
+				// nearest facet is of the same dim as proj direction
+				minus_hb *= 2.0;
+			}
+		}
+	}
+
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(best.dbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != best.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
+
+	// Points to sample from
+	int domain_order = d->inter.order;
+	Point inside_p[domain_order+1];
+	real lagrange_weights[domain_order+1];
+
+	for(int i = 0; i < domain_order; i++) {
+		real distb = minus_hb + i*minus_h;
+		POINT_ASSIGN(inside_p[i], best.proj_x);
+		inside_p[i][best.proj_dir] += distb;
+	}
+	POINT_ASSIGN(inside_p[domain_order], best.proj_x);
+
+	calc_lagrange_coefficients(domain_order+1, best.proj_dir, x, inside_p, lagrange_weights);
+
+	// Calculate the Lagrange weights:
+	for(int i = 0; i < domain_order; i++) {
+		// lagrange_weights[i] = 1.0;
+		// for(int j = 0; j < domain_order+1; j++) {
+		// 	if(j != i) {
+		// 		lagrange_weights[i] *= x[best.proj_dir] - inside_p[j][best.proj_dir];
+		// 		lagrange_weights[i] /= inside_p[i][best.proj_dir] - inside_p[j][best.proj_dir];
+		// 	}
+		// }
+		// Take the stencils for the points inside the domain:
+		get_stencil(d, delta, inside_p[i], lagrange_weights[i] * alpha, stn, false, false,
+			funcs, specific, from_sfd);
+	}
+
+	// Approximating the function as a polynomial:
+	Point proj_center;
+	hig_get_center(best.dbc_cell, proj_center);
+	real bval;
+	if(Pointequal(proj_center, best.proj_x)) {
+		// Get the exact value if projection point is over
+		// boundary cell center:
+		const int nbc_cid = mp_lookup(best.dbc->m, hig_get_cid(best.dbc_cell));
+		bval = sb_get_value(best.dbc, nbc_cid);
+	} else {
+		// Projection is not over a cell center, interpolate the
+		// BC value at the point.
+		items->numpts = 0;
+		items->max_dist = 0.0;
+
+		Rect box;
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
+		search_cells_in_tree_box(best.dbc->bc, best.dbc->m,
+			best.proj_x, &box, d->bc_inter.maxpts, items, NULL, 2);
+
+		// Sort the elements
+		qsort(items->ptr, items->numpts, sizeof *items->ptr,
+			(int (*)(const void *, const void *))_wls_compar);
+
+		// We must clip the elements beyond maxpts
+		if(items->numpts > d->bc_inter.maxpts) {
+			items->numpts = d->bc_inter.maxpts;
+		}
+
+		// We must remove the projection dimension from the points:
+		for(unsigned i = 0; i < items->numpts; ++i) {
+			PPoint x = items->ptr[i].x;
+			for(unsigned dim = best.proj_dir+1; dim < DIM; ++dim) {
+				x[dim-1] = x[dim];
+			}
+		}
+
+		real w[d->bc_inter.maxpts];
+		calc_weight_from_points(&d->bc_inter, best.proj_x, items, w);
+
+		// Calculate the slope with the interpolation:
+		bval = 0.0;
+		for(unsigned i = 0; i < items->numpts; i++) {
+			const int id = items->ptr[i].id;
+			bval += w[i] * sb_get_value(best.dbc, id);
+		}
+	}
+
+	// lagrange_weights[domain_order] = 1.0;
+	// for(int j = 0; j < domain_order; j++) {
+	// 	lagrange_weights[domain_order] *= x[best.proj_dir] - inside_p[j][best.proj_dir];
+	// 	lagrange_weights[domain_order] /= inside_p[domain_order][best.proj_dir] - inside_p[j][best.proj_dir];
+	// }
+	real wb = lagrange_weights[domain_order];
+	// Add the linear variation (negative because at the right hand size):
+	stn_add_to_rhs(stn, alpha * bval * (-wb));
 
 	return true;
 }
@@ -1195,6 +1622,184 @@ get_stencil_neumann_boundary(sim_domain *d, const Point x, real alpha,
 /******************************************* modificação daniel ************************************/
 // Must only be called if point is on the boundary of the domain.
 // Returns true if stencil has been filled.
+static inline bool
+get_stencil_neumann_boundary_any_order(sim_domain *d, const Point x, real alpha,
+	sim_stencil *stn, const stencil_search_funcs *funcs,
+	_wls_item_list *items, void *specific, bool from_sfd)
+{
+	// TODO: implement cache for Neumann condition
+
+	// Check the distance of the point to each Neumann BC,
+	// also check if the point projects to the BC, along its
+	// normal direction.
+	struct bc_data {
+		sim_boundary *nbc;
+		hig_cell *nbc_cell;
+		int proj_dir;
+	} curr = {
+		.nbc = NULL,
+		.nbc_cell = NULL,
+	};
+
+	for (int i = 0; i < d->numneumann_bcs; i++) {
+
+		sim_boundary *sb = d->neumann_bcs[i];
+		hig_cell *tree = sb->bc;
+
+		hig_cell *cell = hig_get_cell_with_point(tree, x);
+		// If a cell containing the point was found, it is on a neumann boundary
+		if (cell) {
+			curr.nbc = sb;
+			curr.nbc_cell = cell;
+			curr.proj_dir = hig_get_narrowest_dim(tree);
+		}
+	}
+
+	// No suitable Neumann BC found, we are done here.
+	if(!curr.nbc_cell) {
+		return false;
+	}
+
+	// Finally, we get to work with the chosen Neumann BC:
+
+	// Take a point half Δx into the domain:
+	real minus_h, minus_hb;
+	{
+
+		// Get the direction into the domain
+		int out_sign = 1.0;
+		Point xl, xr;
+		POINT_ASSIGN(xl, x);
+		xl[curr.proj_dir] -= EPSDELTA + EPSMACH;
+		POINT_ASSIGN(xr, x);
+		xr[curr.proj_dir] += EPSDELTA + EPSMACH;
+		for(int i = 0; i < d->numhigtrees; i++) {
+			hig_cell *root = sd_get_higtree(d, i);
+
+			Rect bbox;
+			hig_get_bounding_box(root, &bbox);
+			if(rect_contains_point(&bbox, xl)) {
+				out_sign = 1.0;
+				break;
+			}
+			if(rect_contains_point(&bbox, xr)) {
+				out_sign = -1.0;
+				break;
+			}
+		}
+
+		hig_cell *c = sd_get_cell_with_point(d, x);
+		assert(c);
+		Point cdelta;
+		hig_get_delta(c, cdelta);
+		real delta = cdelta[curr.proj_dir];
+
+		// Sets a Δx/2 with sign to point innards:
+		minus_hb = copysign(delta, out_sign) * -0.5;
+		minus_h  = 2.0 * minus_hb;
+		if(from_sfd) { // modificação daniel
+			sim_facet_domain *sfd = (sim_facet_domain *)specific;
+			if(sfd->dim == curr.proj_dir) {
+				// Sets a Δx with sign to point innards: 
+				// nearest facet is of the same dim as proj direction
+				minus_hb *= 2.0;
+			}
+		}
+	}
+
+	// Get the delta to sample the boundary for values
+	Point bdelta;
+	hig_get_delta(curr.nbc_cell, bdelta);
+	real delta = 0.0;
+	for(int dim=0; dim < DIM; dim++) {
+		if(dim != curr.proj_dir) {
+			delta = max(delta, bdelta[dim]);
+		}
+	}
+
+	// Points to sample from
+	int domain_order = d->inter.order;
+	Point inside_p[domain_order+1];
+	real lagrange_dweights[domain_order+1];
+
+	for(int i = 0; i < domain_order; i++) {
+		real distb = minus_hb + i*minus_h;
+		POINT_ASSIGN(inside_p[i], x);
+		inside_p[i][curr.proj_dir] += distb;
+	}
+	POINT_ASSIGN(inside_p[domain_order], x);
+
+	calc_lagrange_coefficient_derivatives(domain_order+1, curr.proj_dir, x, inside_p, lagrange_dweights);
+	real wb = 1.0/lagrange_dweights[domain_order];
+
+	// Calculate the Lagrange weights:
+	for(int i = 0; i < domain_order; i++) {
+		// Take the stencils for the points inside the domain:
+		real wi = -lagrange_dweights[i]*wb;
+		get_stencil(d, delta, inside_p[i], wi * alpha, stn, false, false,
+			funcs, specific, from_sfd);
+	}
+
+	// Approximating the function as a polynomial:
+	Point proj_center;
+	hig_get_center(curr.nbc_cell, proj_center);
+	real der;
+	if(Pointequal(proj_center, x)) {
+		// Get the exact value if projection point is over
+		// boundary cell center:
+		const int nbc_cid = mp_lookup(curr.nbc->m, hig_get_cid(curr.nbc_cell));
+		der = sb_get_value(curr.nbc, nbc_cid);
+	} else {
+		// Projection is not over a cell center, interpolate the
+		// BC value at the point.
+		items->numpts = 0;
+		items->max_dist = 0.0;
+
+		Rect box;
+		POINT_SUB_SCALAR(box.lo, x, 3.0 * delta);
+		POINT_ADD_SCALAR(box.hi, x, 3.0 * delta);
+		search_cells_in_tree_box(curr.nbc->bc, curr.nbc->m,
+			x, &box, d->bc_inter.maxpts, items, NULL, 2);
+
+		// Sort the elements
+		qsort(items->ptr, items->numpts, sizeof *items->ptr,
+			(int (*)(const void *, const void *))_wls_compar);
+
+		// We must clip the elements beyond maxpts
+		if(items->numpts > d->bc_inter.maxpts) {
+			items->numpts = d->bc_inter.maxpts;
+		}
+
+		// We must remove the projection dimension from the points:
+		for(unsigned i = 0; i < items->numpts; ++i) {
+			PPoint x = items->ptr[i].x;
+			for(unsigned dim = curr.proj_dir+1; dim < DIM; ++dim) {
+				x[dim-1] = x[dim];
+			}
+		}
+
+		real w[d->bc_inter.maxpts];
+		calc_weight_from_points(&d->bc_inter, x, items, w);
+
+		// Calculate the slope with the interpolation:
+		der = 0.0;
+		for(unsigned i = 0; i < items->numpts; i++) {
+			const int id = items->ptr[i].id;
+			der += w[i] * sb_get_value(curr.nbc, id);
+		}
+	}
+
+	// Add the linear variation (negative because at the right hand size):
+	stn_add_to_rhs(stn, alpha * der * (-wb));
+
+	return true;
+}
+
+
+
+/******************************************* modificação daniel ************************************/
+// Must only be called if point is on the boundary of the domain.
+// Returns true if stencil has been filled.
 // TODO: generalize to any order...
 static inline bool
 get_stencil_dirichlet_boundary(sim_domain *d, const Point x, real alpha,
@@ -1328,13 +1933,15 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 
 	// Find if point is inside the domain and if it is at a cell
 	// center:
-	bool in_domain;
+	// if it is at a cell center, already add the element to the stencil.
+	point_location in_domain;
 	if(funcs->find_in_center(specific, x, alpha, &in_domain, stn)) {
 		return;
 	}
 
-	if(in_domain) {
-		// If in domain, there is a chance it is at the center of a
+	if(in_domain == ON_BOUNDARY) {
+
+		// If on domain boundary, there is a chance it is at the center of a
 		// Dirichlet boundary condition.
 		if(dirichlet_find_in_center(d, x, alpha, stn)) {
 			return;
@@ -1343,7 +1950,7 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 		if(use_neumann) {
 			// If on a Neumann boundary, the point value will be determined by a
 			// Neumann boundary condition.
-			if(get_stencil_neumann_boundary(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+			if(get_stencil_neumann_boundary_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
 				return;
 			}
 		}
@@ -1356,18 +1963,20 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 			}
 		}
 	
-	} else {
+	} else if(in_domain == OUTSIDE_DOMAIN) {
+
 		if(use_neumann) {
 			// If outside the domain, the point value may be determined by a
 			// Neumann boundary condition.
-			if(get_stencil_neumann(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+			if(get_stencil_neumann_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
 				return;
 			}
 		}
+
 		if(use_dirichlet) { // modificação daniel
 			// If outside the domain, the point value may be determined by a
 			// Dirichlet boundary condition.
-			if(get_stencil_dirichlet(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+			if(get_stencil_dirichlet_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
 				return;
 			}
 		}
@@ -1392,19 +2001,26 @@ cell_search_box(void *param, CPPoint x, Rect *box, _wls_item_list *items)
 }
 
 static bool
-cell_find_in_center(void *param, CPPoint x, real alpha, bool *in_domain,
+cell_find_in_center(void *param, CPPoint x, real alpha, point_location *in_domain,
 	sim_stencil *stn)
 {
 	sim_domain *d = param;
 
-	*in_domain = false;
+	*in_domain = OUTSIDE_DOMAIN;
 	for(int i = 0; i < d->numhigtrees; i++) {
 		hig_cell *root = sd_get_higtree(d, i);
 
 		Rect bbox;
 		hig_get_bounding_box(root, &bbox);
 		if(rect_contains_point(&bbox, x)) {
-			*in_domain = true;
+			*in_domain = IN_DOMAIN_PROPER;
+
+			for(unsigned dim = 0; dim < DIM; ++dim) {
+				if(POS_EQ(x[dim], bbox.hi[dim]) || POS_EQ(x[dim], bbox.lo[dim])) {
+					*in_domain = ON_BOUNDARY;
+					break;
+				}
+			}
 
 			hig_cell *cx = hig_get_cell_with_point(root, x);
 			if (cx != NULL) {
@@ -1563,19 +2179,26 @@ facet_search_box(void *param, CPPoint x, Rect *box, _wls_item_list *items)
 
 static bool
 facet_find_in_center(void *param, CPPoint x, real alpha,
-	bool *in_domain, sim_stencil *stn)
+	point_location *in_domain, sim_stencil *stn)
 {
 	sim_facet_domain *sfd = param;
 	sim_domain *d = sfd->cdom;
 
-	*in_domain = false;
+	*in_domain = OUTSIDE_DOMAIN;
 	for(int i = 0; i < d->numhigtrees; i++) {
 		hig_cell *root = sd_get_higtree(d, i);
 
 		Rect bbox;
 		hig_get_bounding_box(root, &bbox);
 		if(rect_contains_point(&bbox, x)) {
-			*in_domain = true;
+			*in_domain = IN_DOMAIN_PROPER;
+
+			for(unsigned dim = 0; dim < DIM; ++dim) {
+				if(POS_EQ(x[dim], bbox.hi[dim]) || POS_EQ(x[dim], bbox.lo[dim])) {
+					*in_domain = ON_BOUNDARY;
+					break;
+				}
+			}
 
 			hig_facet fx;
 			bool hasf = hig_get_facet_with_point(root, sfd->dim, x, &fx);
