@@ -15,7 +15,7 @@ ifdef DEBUG
 	DEBUG_DESC = "gdb debug"
 else
 	OPTSOPT = -flto=8 -fno-fat-lto-objects
-	CFLAGS+= -march=native -mtune=native -Ofast
+	CFLAGS+= -march=native -mtune=native -O3 
 	DEBUG_DESC = "No Debugging/Optimized"	
 endif
 

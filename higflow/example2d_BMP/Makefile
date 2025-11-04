@@ -12,7 +12,7 @@ CC = gcc
 
 DIM=2
 
-OPTSOPT = -Ofast -march=native -mtune=native -flto=8 -fno-fat-lto-objects
+OPTSOPT = -O3 -march=native -mtune=native -flto=8 -fno-fat-lto-objects -Werror
 STANDARDS = -std=gnu99
 
 CFLAGS+= $(shell pkg-config --cflags glib-2.0) -Werror
@@ -38,6 +38,7 @@ ifeq ($(NP),)
 endif
 
 OBJ1 = ns-example-2d.o ../src/hig-flow-io.o ../src/hig-flow-kernel.o ../src/hig-flow-step.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o ../src/hig-flow-terms.o ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-multiphase.o ../src/hig-flow-step-viscoelastic-integral.o ../src/hig-flow-step-viscoelastic-variable-viscosity.o ../src/hig-flow-mittag-leffler.o
+OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
