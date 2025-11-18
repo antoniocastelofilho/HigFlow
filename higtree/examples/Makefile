@@ -3,7 +3,7 @@
 -include ${PETSC_DIR}/conf/variables
 -include ${PETSC_DIR}/lib/petsc-conf/petscvariables
 -include ${PETSC_DIR}/lib/petsc/conf/petscvariables
-include ../Makefile.common
+include ${HIGTREE_DIR}/Makefile.common
 
 CC = mpicc
 
@@ -63,7 +63,7 @@ all :
 
 ex$(DIM)d : $(EXAMPLES)
 
-%-example-$(DIM)d : %-example-$(DIM)d.c ../lib/libhig$(DIM)d.a
+%-example-$(DIM)d : %-example-$(DIM)d.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 ifndef DIM
 	$(error DIM no set)
 endif
@@ -71,7 +71,7 @@ endif
 	+$(CC) $(LDFLAGS) $@.o -o $@ $(LIBS)
 
 # Support for DIM-agnostic examples.
-%-example-$(DIM)d : %-example.c ../lib/libhig$(DIM)d.a
+%-example-$(DIM)d : %-example.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 ifndef DIM
 	$(error DIM no set)
 endif
