@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	Point low, high;
-	const int maxpts = 2 * DIM * wls_num_min_points(degree);
+	const int maxpts = 2 * DIM * wls_num_min_points(DIM, degree);
 	printf("maxpts = %d\n",maxpts);
 	Point pts[maxpts];
 	Point ptsadd[maxpts];
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 	uniqueid gids[maxpts];
 
 
-        wls_interpolator *wls = wls_create(degree, maxpts);
+        wls_interpolator *wls = wls_create(DIM, degree, maxpts);
 	printf("numpoly = %d\n",wls->numpoly);
 	int nbadpts = 0;
 	for(it = higcit_create_all_leaves(root); !higcit_isfinished(it); higcit_nextcell(it)) {
