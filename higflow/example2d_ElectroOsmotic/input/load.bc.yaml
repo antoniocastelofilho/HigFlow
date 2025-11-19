@@ -28,13 +28,13 @@ bc:
     id: 2                             #*** The Boundary Identifier ***
     path: mesh/__using/bc/ch-bc-2.amr         #*** The Path to the Boundary ***
     pressure:                         #*** The Pressure Condition ***
-      type: dirichlet                # dirichlet or neumann
+      type: neumann                  # dirichlet or neumann
       value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
     velocity_0:                       #*** The Velocity Boundary Condition (x-Direction) ***
-      type: neumann                   # dirichlet or neumann
+      type: dirichlet                 # dirichlet or neumann
       value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
     velocity_1:                       #*** The Velocity Boundary Condition (y-Direction) ***
-      type: neumann                   # dirichlet or neumann 
+      type: dirichlet                 # dirichlet or neumann 
       value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
   bc3:                                #*** The Boundary ***
     id: 3                             #*** The Boundary Identifier ***

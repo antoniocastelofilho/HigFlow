@@ -1,11 +1,11 @@
 simulation_par:
-  numsteps: 20001                          # The Maximum Number of Steps 
-  dt: 0.01                       # The Time spacing 
-  dts: 0.005                       # The Time spacing for saving data (output) 
-  dtp: 0.1                          # The Time spacing for saving VTKs
+  numsteps: 101                            # The Maximum Number of Steps 
+  dt: 0.0002                     # The Time spacing 
+  dts: 1.0                         # The Time spacing for saving data (output) 
+  dtp: 0.01                         # The Time spacing for saving VTKs
 
 adimensional:
-  Re: 0.01                                  # The Reynolds Number  Re = ρUH/μ
+  Re: 0.005                                 # The Reynolds Number  Re = ρUH/μ
   Fr: 0.1                              # The Froude Number (not used yet)    Fr = U/√(gL) 
 
 simulation_contr:
@@ -16,7 +16,7 @@ simulation_contr:
   secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick
   gravity: false                          # for adding a gravity force - true or false
 
-flowphase: singlephase                   # singlephase or multiphase
+flowphase: multiphase                    # singlephase or multiphase
 
 ###########################################################################################################################   
 
@@ -95,8 +95,8 @@ multiphase:
   contr:
     flowtype0: newtonian             # newtonian or viscoelastic
     flowtype1: viscoelastic             # newtonian or viscoelastic
-    eoflow0: true               # true or false
-    eoflow1: true               # true or false
+    eoflow0: false              # true or false
+    eoflow1: false              # true or false
     surf_tension: true             # for the interfacial tension force - true or false
   adimensional:
     Ca: 2.4                           # Capillary number (not used unless you enable the interfacial force term in code)   Ca = We/Re = μU/σ
@@ -137,7 +137,7 @@ multiphase:
         E: 1.0                          # adimensional charge density parameter       E = q^2∕4𝜋𝜀k_bTQ_0
     phase1:      # (ignored if newtonian)
       adimensional:
-        De: 0.4                         # Deborah Number         De = λU/H
+        De: 1.0                         # Deborah Number         De = λU/H
         beta: 0.5                       # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
         kernel_tol: 1.0e-2              # kernel function interpolation tolerance  (minimum of both phases is chosen)
       model_lptt:
