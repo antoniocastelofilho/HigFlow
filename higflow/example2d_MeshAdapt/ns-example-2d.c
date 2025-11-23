@@ -337,8 +337,10 @@ int main(int argc, char* argv[]) {
 
         ///////////////////////////////////////////////////////
         solver_step(ns);
-        // adapt_mesh_and_update_solver(ns);
-        higflow_save_refined_mesh_preview(ns, ns->par.step);
+        if (ns->par.step % 5 == 0) {
+            higflow_save_refined_mesh_preview(ns, ns->par.step);
+        }
+        // higflow_save_refined_mesh_preview(ns, ns->par.step);
         ///////////////////////////////////////////////////////
 
         write_mem_usage(ns, "after step");
