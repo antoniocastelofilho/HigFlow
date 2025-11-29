@@ -17,7 +17,9 @@ sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype 
 void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]); 
 
 // Creating and setting the boundary condition for the velocity
-void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]); 
+void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
+    numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type
+    bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]); 
 
 // Creating and setting the boundary condition for the electro-osmotic source term
 void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]); 

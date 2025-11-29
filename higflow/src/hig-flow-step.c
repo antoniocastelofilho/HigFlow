@@ -824,13 +824,13 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
 
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-   // Get the map of domain
+        // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
+            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);

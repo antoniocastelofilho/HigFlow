@@ -244,7 +244,6 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     real beta = ns->ed.ve.par.beta;
     char vtkname[1024];
     snprintf(vtkname, sizeof vtkname, "%s_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
-    printf(vtkname, sizeof vtkname, "%s_%d-%d.vtk", ns->par.nameprint, rank, ns->par.frame);
     FILE *f = fopen(vtkname, "w");
     if (f == NULL) {
         return;
