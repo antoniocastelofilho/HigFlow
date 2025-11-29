@@ -78,7 +78,7 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f ns-example-2d.o ns-example
+		$(RM) -fr ns-example-2d.o ns-example VTKS output
 
 rebuild_higflow:
 	$(MAKE) -C .. clean

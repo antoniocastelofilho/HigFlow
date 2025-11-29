@@ -77,9 +77,12 @@ hig_cell *sb_get_higtree(sim_boundary *bc);
 #define MAXHIGTREESPERDOMAIN 40
 #define MAXBCSPERDOMAIN 200
 
-//! \brief A simulation domain (SD) contains a set of HiG-Trees which composes the domain; each domain has a low point lp and a high point hp. It has a mapper shared by all domains.
+//! \brief A simulation domain (SD) contains a set of HiG-Trees which composes
+//the domain; each domain has a low point lp and a high point hp. It has a
+//mapper shared by all domains.
 //! An SD has a set of dirichlet BCs and a set of neumann BCs.
-//! An SD has an interpolator, which can be used multiple times without needing creating/destroying one each time.
+//! An SD has an interpolator, which can be used multiple times without needing
+//creating/destroying one each time.
 //! The cwls keeps the interpolation within a cell (it is a cached interpolation).
 typedef struct sim_domain {
 	unsigned max_numhigtrees; //!< Currently allocated size of higtrees vector.
@@ -112,8 +115,9 @@ typedef struct sim_facet_block_info {
 	unsigned char h: 1;
 } sim_facet_block_info;
 
-//! \brief A simulation facet domain (SFD) contains a simulation domain SD, thus, SFD is a specialization of SD.
-//! An SFD has a valid bounding box and a dimension of the facets which are used.
+//! \brief A simulation facet domain (SFD) contains a simulation domain SD,
+//thus, SFD is a specialization of SD. ! An SFD has a valid bounding box and a
+//dimension of the facets which are used.
 typedef struct sim_facet_domain {
 	mp_mapper *__cm;
 	mp_mapper *fm;
@@ -210,7 +214,7 @@ int sd_get_local_id(sim_domain *sd, hig_cell *c);
 // the solver. The higcell must be contained in the domain.
 int sd_get_global_id(sim_domain *sd, hig_cell *c);
 
-hig_cell *sd_get_cell_with_point(sim_domain *d, Point x);
+hig_cell *sd_get_cell_with_point(sim_domain *d, const Point x);
 
 void sd_use_cache(sim_domain *d, int v);
 
@@ -312,7 +316,7 @@ typedef struct sim_stencil {
 void sd_set_interpolator_order(sim_domain *d, int order);
 
 //! \brief Computes the stencil associated with point x, scaled by alpha, using the center of cells in SD. The results
-//! are accumulates in stn, i.e., if stn is not a resetted stencil, the result of this interpolation will be
+//! accumulates in stn, i.e., if stn is not a resetted stencil, the result of this interpolation will be
 //! added to the current result of stn. Boundary conditions are considered.
 void sd_get_stencil(sim_domain *d, const Point center, const Point x, real alpha, sim_stencil *stn);
 
@@ -386,7 +390,8 @@ void stn_destroy(sim_stencil *stn);
 //! Computes the scalar product of the stencil with the values in v.
 real stn_mult_vector(sim_stencil *stn, real *v);
 
-//! \brief Caches the result of an interpolation. It should not be used directly.
+//! \brief Caches the result of an interpolation. It should not be used
+//directly.
 typedef struct _cache_wls_item {
 	int numpts;
 	int numbcpts;
@@ -396,7 +401,8 @@ typedef struct _cache_wls_item {
 } _cache_wls_item;
 
 
-/*! Caches two interpolation stencils of a point. One with and one without dirichlet BCs. */
+/*! Caches two interpolation stencils of a point. One with and one without
+ * dirichlet BCs. */
 typedef struct _cache_wls_choice {
 	struct _cache_wls_item *with_bc;
 	struct _cache_wls_item *without_bc;

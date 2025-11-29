@@ -78,7 +78,13 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
 }
 
 // Creating and setting the boundary condition for the velocity
-void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {
+void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
+                                                   numbcs, int id[numbcs], char
+                                                   bcfilenames[numbcs][1024],
+                                                   bc_type
+                                                   bctypes[DIM][numbcs],
+                                                   bc_valuetype
+                                                   bcvaluetype[DIM][numbcs]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -711,7 +717,10 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
     // Setting the boundary conditions for the pressure
     higflow_set_boundary_condition_for_pressure(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
     // Setting the boundary conditions for the velocities
-    higflow_set_boundary_condition_for_velocities(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
+    higflow_set_boundary_condition_for_velocities(ns, numbcs, id,
+                                                  amrBCfilename,
+                                                  ubctypes,
+                                                  ubcvaluetype);
     // Setting the boundary conditions for the cell source term 
     higflow_set_boundary_condition_for_cell_source_term(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
     // Setting the boundary conditions for the facet source term

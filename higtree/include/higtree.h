@@ -149,16 +149,20 @@ int hig_get_narrowest_dim(hig_cell *c);
 //! Converts a cell relative coordinate (between 0 and 1) to absolute coordinates.
 void hig_get_relative_coord(hig_cell *c, Point relcoord, Point coord);
 
-//! Creates a hig_cell, with the given low and high points. The cell has no parent. Thus, it is a root of the tree. It also has no children.
+//! Creates a hig_cell, with the given low and high points. The cell has no
+//parent. Thus, it is a root of the tree. It also has no children.
 hig_cell * hig_create_root(Point lowpoint, Point highpoint);
 
-//! Creates a hig_cell, with given low point and delta (highpoint = lowpoint + delta), parent and position among its parent's children. The child is assigned to the parent.
+//! Creates a hig_cell, with given low point and delta (highpoint = lowpoint +
+//delta), parent and position among its parent's children. The child is
+//assigned to the parent.
 hig_cell * hig_create_leaf(Point lowpoint, Point delta, hig_cell * parent, int pp);
 
 //! Creates an empty hig_cell, to be filled with hig_fill_empty().
 hig_cell * hig_create_empty_leaf(hig_cell *parent, int pp);
 
-//! Refines a cell, creating a grid where which cell has the same delta (the delta can be different in different dimensions).
+//! Refines a cell, creating a grid where which cell has the same delta (the
+//delta can be different in different dimensions).
 hig_cell * hig_refine_uniform(hig_cell * parent, int numcells[DIM]);
 //hig_cell * hig_refine(hig_cell * cell, int numcells[DIM], Point lowpoint[], Point highpoint[]);
 
@@ -176,10 +180,12 @@ void hig_destroy(hig_cell *cell);
 //! Computes in the coordinates of the children of cell which contains point.
 void hig_get_cell_coords_of_point(hig_cell *cell, const Point point, int pp[DIM]);
 
-//! Computes which cell contains a given point. Starts the search from parent and moves down the tree.
+//! Computes which cell contains a given point. Starts the search from parent
+//and moves down the tree.
 hig_cell * hig_get_cell_with_point(hig_cell *parent, const Point point);
 
-//! Computes which cell contains a given point. Starts from a given cell, moving up if necessary, then moving down the tree.
+//! Computes which cell contains a given point. Starts from a given cell,
+//moving up if necessary, then moving down the tree.
 hig_cell * hig_get_cell_with_point_from_another_cell(hig_cell *cell, Point point);
 
 //! Merges all children of a cell, deleting them. After that, p is a leave.
@@ -188,8 +194,10 @@ hig_cell * hig_merge_children(hig_cell *p);
 //! Computes the number of leaves of the tree, starting from parent.
 long hig_get_number_of_leaves(hig_cell *parent);
 
-//! Determines whether the bounding box defined by lowpoint and highpoint is completely inside cell.
-bool hig_is_bounding_box_inside_cell(hig_cell *cell, const Point lowpoint, const Point highpoint);
+//! Determines whether the bounding box defined by lowpoint and highpoint is
+//completely inside cell.
+bool hig_is_bounding_box_inside_cell(hig_cell *cell, const Point lowpoint,
+    const Point highpoint);
 
 //! Determines whether the bounding box defined by lowpoint and highpoint intersects cell.
 bool hig_intersect_bounding_box(hig_cell *cell, const Point lowpoint, const Point highpoint);
@@ -207,8 +215,10 @@ long int hig_memory_used(hig_cell *parent);
 //! Determines whether two trees, rooted at c1 and c2, are equal (only ids are not checked)
 bool hig_equal(hig_cell *c1, hig_cell *c2);
 
-//! Copies the refiment of tree rooted at *from* into the tree rooted at *to*. The *to* tree is assumed to be a leaf, i.e., without refiment.
-//! Moreover, the refiment should be regular. After executing this function, the trees rooted at *from* and *to* are equal (except for ids).
+//! Copies the refiment of tree rooted at *from* into the tree rooted at *to*.
+//The *to* tree is assumed to be a leaf, i.e., without refiment.
+//! Moreover, the refiment should be regular. After executing this function,
+//the trees rooted at *from* and *to* are equal (except for ids).
 void hig_copy_regular_refinement(hig_cell *from, hig_cell *to);
 
 //! Creates a copy of the tree rooted at *from*. Ids are not copied; thus, the new tree has unique ids.

@@ -34,6 +34,12 @@ void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns,
 // Creating and setting the boundary condition for the electro-osmotic nminus
 void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]); 
 
+// Creating and setting the boundary condition for volume fraction and other multiphase properties
+void higflow_set_boundary_condition_for_mult(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]);
+
+// Creating and setting the boundary condition for extra domains domain (for viscoelastic tensors and such)
+void higflow_set_boundary_condition_for_tensors(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]);
+
 // Navier-Stokes initialize the domain and boudaries
 void higflow_initialize_boundaries(higflow_solver *ns); 
 
