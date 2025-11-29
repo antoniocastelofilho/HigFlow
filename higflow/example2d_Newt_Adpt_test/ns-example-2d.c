@@ -3,6 +3,7 @@
 // *******************************************************************
 
 #include "ns-example-2d.h"
+#include "utils.h"
 #include <unistd.h> // Required for sleep()
 
 // *******************************************************************
@@ -72,6 +73,7 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
       switch (dim) {
         case 0: ;
           value = 1.5*(1.0 - center[1]*center[1]);
+          // value = 1.5;
           break;
         case 1:
           value = 0.0;
@@ -151,7 +153,6 @@ void higflow_interpolate_pressure(higflow_solver *ns, higflow_solver *ns2) {
     hig_get_center(c, ccenter);
     // Get the pressure in the distributed pressure property
     real interpolated_p;
-
     // compute value of p in a point
     interpolated_p = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->stn);
 
@@ -201,191 +202,125 @@ void higflow_interpolate_velocity(higflow_solver *ns, higflow_solver *ns2) {
   }
 }
 
-void higflow_interpolate_condition_for_pressure(higflow_solver *ns, higflow_solver *ns2) {
-  // Loading the boundary condition data
-  char namefile[1024];
-  sprintf(namefile,"%s.bc.yaml", ns2->par.nameload);
+void higflow_interpolate_bc_for_pressure(higflow_solver *ns, higflow_solver *ns2) {
+  // Facet iterator
+  higcit_celliterator *it;
+  // Get the local sub-domain
+  sim_domain *sdp = psd_get_local_domain(ns->psdp);
+  sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
 
-  FILE *fbc = fopen(namefile, "r");
-  struct fy_document *fyd = NULL;
-  fyd = fy_document_build_from_file(NULL, namefile);
+  int num_bc_types = 2;
+  bc_type bc_t;
+  for(int i = 0; i < num_bc_types; i++) {
+    if(i == 0) bc_t = DIRICHLET;
+    else if(i == 1) bc_t = NEUMANN;
 
-  if (fyd == NULL) {
-    // Error in open the file
-    printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  // Number of boundaries
-  int numbcs; 
-  int ifd = fy_document_scanf(fyd,"/bc/number_bc %d",&numbcs);
-  int maxbcs = MAXBCSPERDOMAIN;
-  if(numbcs > maxbcs) {
-    printf("Error: Number of Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  // Boudary condition data
-  int           id[numbcs];
-  char          amrBCfilename[numbcs][1024]; 
-  bc_type       pbctypes[numbcs]; 
-  bc_type       ubctypes[DIM][numbcs]; 
-  bc_valuetype  pbcvaluetype[numbcs];
-  bc_valuetype  ubcvaluetype[DIM][numbcs]; 
-  // Setting the pressure desingularizadtion control
-  ns2->contr.desingpressure = true;
-
-  for(int h = 0; h < numbcs; h++) {
-    char atrib[1024];
-    sprintf(atrib,"/bc/bc%d/id %%d",h);
-    ifd = fy_document_scanf(fyd,atrib,&(id[h]));
-    // HigTree Boundary condition file name
-    sprintf(atrib,"/bc/bc%d/path %%s",h);
-    ifd = fy_document_scanf(fyd,atrib,amrBCfilename[h]);
-    //__higflow_readstring(amrBCfilename[h],1024,fbc);
-    // Pressure boundary condition type
-    char aux[1024];
-    sprintf(atrib,"/bc/bc%d/pressure/type %%s",h);
-    ifd = fy_document_scanf(fyd,atrib,aux);
-    if (strcmp(aux,"dirichlet") == 0) {
-      pbctypes[h] = DIRICHLET;
-    } else if (strcmp(aux,"neumann") == 0) {
-      pbctypes[h] = NEUMANN;
-    } else {
-      printf("=+=+=+= Error loading boundary condition type for the pressure in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-      MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    // Pressure boundary condition value
-    sprintf(atrib,"/bc/bc%d/pressure/value_type %%s",h);
-    ifd = fy_document_scanf(fyd,atrib,aux);
-    if (strcmp(aux,"fixed_value") == 0) {
-      pbcvaluetype[h] = fixedValue;
-    } else if(strcmp(aux,"time_dependent") == 0) {
-      pbcvaluetype[h] = timedependent;
-    } 
-    else {
-      printf("=+=+=+= Error loading boundary condition valuetype for the pressure in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-      MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    // Setting the pressure desingularizadtion control
-    if (pbctypes[h] == DIRICHLET) {
-      // Outflow
-      ns2->contr.desingpressure = false;
-    }
-    // Velocity boundary condition value
-    for (int dim = 0; dim < DIM; dim++) {
-      sprintf(atrib,"/bc/bc%d/velocity_%d/type %%s",h,dim);
-      ifd = fy_document_scanf(fyd,atrib,aux);
-      if (strcmp(aux,"dirichlet") == 0) {
-        ubctypes[dim][h] = DIRICHLET;
-      } else if(strcmp(aux,"neumann") == 0) {
-        ubctypes[dim][h] = NEUMANN;
-      } else {
-        printf("=+=+=+= Error loading boundary condition type for the velocity in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-        MPI_Abort(MPI_COMM_WORLD, 1);
+    // Get the number of boundaries of type
+    int numbcs = sd_get_num_bcs(sdp2, bc_t);
+    // For each boundary
+    for (int h = 0; h < numbcs; h++) {
+      // Get the boundary
+      // sim_boundary *bc = sd_get_bc(sdp, bc_t, h); // Cuidado: pode não corresponder ao h do sdp2
+      sim_boundary *bc2 = sd_get_bc(sdp2, bc_t, h);
+      
+      // ===> CORREÇÃO 1: Filtrar tipos de valor <===
+      // Se for Neumann, não podemos interpolar P escalar.
+      // Se for Valor Fixo (fixedValue), mantemos o valor analítico (ex: 0.0) já setado.
+      bc_valuetype valuetype = sb_get_valuetype(bc2);
+      
+      if (bc_t == NEUMANN || valuetype == fixedValue) {
+          continue; // Pula para a próxima fronteira
       }
-      sprintf(atrib,"/bc/bc%d/velocity_%d/value_type %%s",h,dim);
-      ifd = fy_document_scanf(fyd,atrib,aux);
-      // Velocity boundary condition valuetype
-      if (strcmp(aux,"fixed_value") == 0) {
-        ubcvaluetype[dim][h] = fixedValue;
-      } else if(strcmp(aux,"time_dependent") == 0) {
-        ubcvaluetype[dim][h] = timedependent;
-      } else {
-        printf("=+=+=+= Error loading boundary condition valuetype for the velocity in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-        MPI_Abort(MPI_COMM_WORLD, 1);
+
+      // Get the mapper
+      // mp_mapper *bm = sb_get_mapper(bc); // Não use o mapper antigo se a topologia mudou
+      mp_mapper *bm2 = sb_get_mapper(bc2);
+
+      // For each cell of the boundary
+      for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
+        // Get the cell
+        hig_cell *bcell = higcit_getcell(it);
+        // Get the cell center
+        Point bccenter;
+        hig_get_center(bcell, bccenter);
+        // Get the id of the cell
+        int bclid = mp_lookup(bm2, hig_get_cid(bcell));
+        
+        // Get the pressure in the distributed pressure property
+        real interpolated_p;
+        stn_reset(ns->stn);
+        
+        // Usa o domínio antigo para pegar o valor
+        sd_get_stencil(sdp, bccenter, bccenter, 1, ns->stn);
+        interpolated_p = compute_value_at_point(sdp, bccenter,
+                                                bccenter, 1.0,
+                                                ns->dpp, ns->stn);
+        
+        // Set the value
+        sb_set_value(bc2, bclid, interpolated_p);
+      }
+      // Destroy the iterator
+      higcit_destroy(it);
+    }
+  }
+}
+void higflow_interpolate_bc_for_velocity(higflow_solver *ns, higflow_solver *ns2) {
+  // Facet iterator
+  higcit_celliterator *it;
+  // Local sub-domain
+  sim_facet_domain *sfdu[DIM];
+  sim_facet_domain *sfdu2[DIM];
+  // For each dimension
+  for(int dim = 0; dim < DIM; dim++) {
+    // Get the local sub-domain
+    sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+    sfdu2[dim] = psfd_get_local_domain(ns2->psfdu[dim]);
+    sim_domain *sd = sfdu[dim]->cdom;
+    sim_domain *sd2 = sfdu2[dim]->cdom;
+
+    int num_bc_types = 2;
+    bc_type bc_t;
+    for(int i = 0; i < num_bc_types; i++) {
+      if(i == 0) bc_t = DIRICHLET;
+      else if(i == 1) bc_t = NEUMANN;
+
+      // Get the number of boundaries of type
+      // int numbcs = sd_get_num_bcs(sd, bc_t);
+      int numbcs2 = sd_get_num_bcs(sd2, bc_t);
+      // For each boundary
+      for (int h = 0; h < numbcs2; h++) {
+        // Get the boundary
+        // sim_boundary *bc = sd_get_bc(sd, bc_t, i);
+        sim_boundary *bc2 = sd_get_bc(sd2, bc_t, h);
+        // Get the id defined by the user
+        int userid       = sb_get_userid(bc2);
+        // Get the value type of the boundary condition
+        bc_valuetype valuetype = sb_get_valuetype(bc2);
+        // Get the mapper
+        mp_mapper *bm2    = sb_get_mapper(bc2);
+        // For each cell of the boundary
+        for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
+          // Get the cell
+          hig_cell *bcell = higcit_getcell(it);
+          // Get the cell center
+          Point bccenter;
+          hig_get_center(bcell, bccenter);
+          // Get the id of the cell
+          int bclid = mp_lookup(bm2, hig_get_cid(bcell));
+          stn_reset(ns->stn);
+          sfd_get_stencil(sfdu[dim], bccenter, bccenter, 1, ns->stn);
+          // real interpolated_u = sfd_dp_interpolate(sfdu[dim], ns->dpu[dim],bccenter, bccenter, ns->stn);
+          real interpolated_u = dp_interpolate_from_stencil(ns->dpu[dim], ns->stn);
+          real t   = ns2->par.t + ns2->par.dt;
+          // Get the velocity defined by the user
+          real val = ns2->func.get_boundary_velocity(userid, bccenter, dim, t);
+          sb_set_value(bc2, bclid, val);
+        }
+        // Destroy the iterator
+        higcit_destroy(it);
       }
     }
   }
-
-  // Get the HigTree from amr file
-  hig_cell *bcg[numbcs];
-  for(int h = 0; h < numbcs; h++) {
-    FILE *fd = fopen(amrBCfilename[h], "r");
-    bcg[h] = higio_read_from_amr(fd);
-    fclose(fd);
-  }
-  // Loop for each boundary condition
-  for(int h = 0; h < numbcs; h++) {
-    // Get the local domain for cell center
-    sim_domain *sd = psd_get_local_domain(ns->psdp);
-    sim_domain *sd2 = psd_get_local_domain(ns2->psdp);
-
-    // Create the bounary condition
-    sim_boundary *bc2 = higflow_make_bc(bcg[h], pbctypes[h],
-                                        id[h],
-                                        pbcvaluetype[h]);
-
-    // Adding the boundary condition 
-    sd_add_boundary(sd2, bc2);
-
-    // Get the mapper for the boundary condition
-    mp_mapper *bm2 = sb_get_mapper(bc2);
-    // Loop for the cells of the boundaries conditions 
-    higcit_celliterator *it;
-    for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
-      // Get the cell 
-      hig_cell *bcell = higcit_getcell(it);
-      // Get the cell center
-      Point bccenter;
-      hig_get_center(bcell, bccenter);
-      // Get the id of the cell
-      int bclid = mp_lookup(bm2, hig_get_cid(bcell));
-      // Set the time to get the pressure
-      // Get the pressure defined by the user
-      real interpolated_p;
-      interpolated_p = compute_value_at_point(sd, bccenter,
-                                              bccenter, 1.0,
-                                              ns->dpp, ns->stn);
-      // Set the value
-      sb_set_value(bc2, bclid, interpolated_p);
-    }
-    // Destroy the iterator
-    higcit_destroy(it);
-  }
-
-  // sim_facet_domain *sfd;
-  // sim_facet_domain *sfd2;
-  //
-  // // Loop for the dimension
-  // for(int dim = 0; dim < DIM; dim++) {
-  //     // Loop for the boundaries conditions
-  //     for(int h = 0; h < numbcs; h++) {
-  //         // Get the local domain for the facet
-  //         sfd = psfd_get_local_domain(ns->psfdu[dim]);   // Domínio Fonte (Velocidade dim)
-  //         sfd2 = psfd_get_local_domain(ns2->psfdu[dim]); // Domínio Destino
-  //
-  //         hig_cell *bcg_clone = hig_clone(bcg[h]);
-  //
-  //         // Create the boundary condition com o CLONE
-  //         sim_boundary *bc2 = higflow_make_bc(bcg_clone,
-  //                                             ubctypes[dim][h],
-  //                                             id[h],
-  //                                             ubcvaluetype[dim][h]);
-  //
-  //         // Adding the boundary condition 
-  //         sfd_add_boundary(sfd2, bc2); // Adiciona ao NOVO solver
-  //
-  //         mp_mapper *bm2 = sb_get_mapper(bc2);
-  //
-  //         higcit_celliterator *it;
-  //         for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
-  //             hig_cell *bcell = higcit_getcell(it);
-  //             Point bccenter;
-  //             hig_get_center(bcell, bccenter);
-  //
-  //             int bclid = mp_lookup(bm2, hig_get_cid(bcell));
-  //
-  //             stn_reset(ns->stn);
-  //             sfd_get_stencil(sfd, bccenter, bccenter, 1, ns->stn);
-  //
-  //             real interpolated_u = dp_interpolate_from_stencil(ns->dpu[dim], ns->stn);
-  //
-  //             sb_set_value(bc2, bclid, interpolated_u);
-  //         }
-  //         higcit_destroy(it);
-  //     }
-  // }
 }
 
 // *******************************************************************
@@ -503,7 +438,7 @@ int main (int argc, char *argv[]) {
     }
 
     // Condition for testing, do this step only for the half time
-    if (ns->par.step == 2) {
+    if (ns->par.step == 50) {
       // Initializing Navier-Stokes solver
       // Create Navier-Stokes solver
       higflow_solver *ns2 = higflow_create();
@@ -541,9 +476,10 @@ int main (int argc, char *argv[]) {
 
       // Interpolar
       print0f("=+=+=+= Interpolation  +=+=+=+=+=\n");
-      higflow_interpolate_pressure(ns, ns2);
       higflow_interpolate_velocity(ns, ns2);
-      higflow_interpolate_condition_for_pressure(ns, ns2);
+      higflow_interpolate_pressure(ns, ns2);
+      higflow_interpolate_bc_for_velocity(ns, ns2);
+      higflow_interpolate_bc_for_pressure(ns, ns2);
 
       // Keep parameters like time  and steps
       ns2->par = ns->par;
@@ -551,8 +487,6 @@ int main (int argc, char *argv[]) {
 
       higflow_destroy(ns);
       ns = (higflow_solver *) ns2;
-
-      // ===> INSERIR AQUI <===
 
       // 1. Atualizar Mappers (Garante que os IDs globais do PETSc estejam certos)
       // É boa prática sincronizar pressão também
@@ -570,7 +504,6 @@ int main (int argc, char *argv[]) {
       higflow_create_solver(ns); 
 
       // ===> FIM DA INSERÇÃO <===
-
       higflow_print_vtk(ns, myrank);
     }
   }

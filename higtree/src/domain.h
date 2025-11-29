@@ -15,12 +15,12 @@ typedef enum bc_type {
 
 //! Value type of boundary contition
 typedef enum bc_valuetype {
-	fixedValue = 0,
-	zeroGradient = 1,
-        freestream = 2,
-        empty = 3,
-        timedependent = 4,
-	outflow = 5,
+  fixedValue = 0,
+  zeroGradient = 1,
+  freestream = 2,
+  empty = 3,
+  timedependent = 4,
+  outflow = 5,
 } bc_valuetype;
 
 //! \brief A boundary condition (BC).
