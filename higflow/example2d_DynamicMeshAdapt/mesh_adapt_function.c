@@ -58,20 +58,12 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
 
     
     float search_dist[MAX_REF_LEVEL]; // Tamanho fixo, mas usando a constante em cálculos
-    search_dist[0] = 0.03;
-    search_dist[1] = 0.05;
-    search_dist[2] = 0.08;
+    search_dist[0] = 0.1;
+    search_dist[1] = 0.15;
+    search_dist[2] = 0.2;
 
     float refiment_levels[MAX_REF_LEVEL];
     for (int i = 0; i < MAX_REF_LEVEL; i++) refiment_levels[i] = 1;
-
-    higcit_celliterator *it;
-    for (it = higcit_create_bounding_box(root, box->lo, box->hi);
-      !higcit_isfinished(it);
-      higcit_nextcell(it))
-    {
-      hig_cell *c = higcit_getcell(it);
-      int cid = mp_lookup(m, hig_get_cid(c));
 
     // Loop Iterativo de Propagação
     for (int pass = 0; pass < MAX_REF_LEVEL; pass++) {
@@ -79,20 +71,6 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
         int count = 0;
         hig_cell **cells_to_refine = (hig_cell **)malloc(capacity * sizeof(hig_cell*));
 
-        real max_dist = search_dist[0];
-        for (int i = 1; i < MAX_REF_LEVEL; i++){
-          if (search_dist[i] > max_dist) max_dist = search_dist[i];
-        }
-        
-        POINT_SUB_SCALAR(box.lo, x, 10.0 * delta);
-        POINT_ADD_SCALAR(box.hi, x, 10.0 * delta);
-        higcit_celliterator *it;
-        for (it = higcit_create_bounding_box(root_copy, box->lo, box->hi);
-          !higcit_isfinished(it);
-          higcit_nextcell(it))
-        {
-          hig_cell *c = higcit_getcell(it);
-          int cid = mp_lookup(m, hig_get_cid(c));
 
         higcit_celliterator *it = higcit_create_all_higtree(root_copy);
         while (!higcit_isfinished(it)) {
@@ -119,6 +97,7 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
                 if (val_center > 0.001 && val_center < 0.999) {
                     should_refine = 1;
                 } 
+                // Achar as céluas vizinhas à interface
                 else if (val_center >= 0.0) { 
                     // Distância de busca (Buffer + Grading)
                     // --- SONDAGEM GENERALIZADA (DIMENSIONAL-AGNOSTIC) ---

@@ -255,7 +255,40 @@ void get_inlet_types(higflow_solver* ns) {
 // Função para criar um snapshot da malha refinada sem afetar a simulação
 // Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
 
-#include "mesh_adapt_function.c"
+// #include "mesh_adapt_function.c"
+#include "mesh_adapt_function_bbox.c"
+
+void higflow_interpolate_pressure(higflow_solver *ns, higflow_solver *ns2) {
+  // Incremental projection method
+  // Get the local sub-domain
+  sim_domain *sdp = psd_get_local_domain(ns->psdp);
+  sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
+  // Get the map of the distributd properties in the cells
+  mp_mapper  *mp2  = sd_get_domain_mapper(sdp2);
+  // Loop for each cell
+  higcit_celliterator *it;
+  for(it = sd_get_domain_celliterator(sdp2); !higcit_isfinished(it); higcit_nextcell(it)) {
+    // Get the cell
+    hig_cell *c = higcit_getcell(it);
+    // Get the cell identifier
+    int clid    = mp_lookup(mp2, hig_get_cid(c));
+    // Get the cell center
+    Point ccenter;
+    hig_get_center(c, ccenter);
+    // Get the pressure in the distributed pressure property
+    real interpolated_p;
+    // compute value of p in a point
+    interpolated_p = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->dpp, ns->stn);
+
+    // Coloca o valor interplolado na malha 2
+    dp_set_value(ns2->dpp, clid, interpolated_p);
+  }
+  // Destroy the iterator
+  higcit_destroy(it);
+
+  // Sync the distributed pressure property
+  dp_sync(ns2->dpp);
+}
 
 int main(int argc, char* argv[]) {
     int errcode = 0;
