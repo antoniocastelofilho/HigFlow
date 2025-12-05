@@ -100,11 +100,11 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
     float search_dist[MAX_REF_LEVEL];
 
     // Zona Grossa: Células a até 0.08 unidades devem ser Nível 1
-    search_dist[0] = 0.8;
+    search_dist[0] = 0.08;
     // Zona Média: Células a até 0.05 unidades devem ser Nível 2
-    search_dist[1] = 0.05;
+    search_dist[1] = 0.005;
     // Zona Fina: Células a até 0.03 unidades devem ser Nível 3
-    search_dist[2] = 0.03;
+    search_dist[2] = 0.003;
 
     // A maior distância define o tamanho da Bounding Box de busca
     real max_search_dist = search_dist[0];
@@ -195,13 +195,13 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
 
                     // Verifica do mais restritivo (fino) ao permissivo
                     if (dist <= search_dist[2]) {
-                        target_level = 4; // Muito perto -> Fino
+                        target_level = 3; // Muito perto -> Fino
                     }
                     else if (dist <= search_dist[1]) {
-                        target_level = 3; // Perto -> Médio
+                        target_level = 2; // Perto -> Médio
                     }
                     else if (dist <= search_dist[0]) {
-                        target_level = 2; // Longe -> Grosso
+                        target_level = 1; // Longe -> Grosso
                     }
 
                     // Verifica se célula está aquém do nível desejado
@@ -238,5 +238,5 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
 
     hig_destroy(root_copy);
     if (myrank == 0) printf("Preview: Concluido.\n");
-    exit(0);
+    // exit(0);
 }
