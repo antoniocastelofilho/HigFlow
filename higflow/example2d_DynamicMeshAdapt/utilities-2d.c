@@ -1983,6 +1983,7 @@ void write_init(higflow_solver *ns) {
 
 void write_xdmf(higflow_solver *ns) {
 
+    printf("parameters: ", output, ns->par.step, reuse_grid);
     xdmf_write_timestep(output, ns->par.step, reuse_grid);
     if(reuse_grid == false) reuse_grid = true;
 
