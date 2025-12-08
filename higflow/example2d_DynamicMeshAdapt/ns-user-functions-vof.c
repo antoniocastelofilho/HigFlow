@@ -296,33 +296,34 @@ real get_fracvol(Point center, Point delta, real t) {
 }
 
 real func (Point p) {
-    real value;
-	Point c, pc, r, cav;
-    ////////////// Zalesak's disk ////////////
-	// c[0]     = 0.5; c[1]     = 0.75;
-	// r[0]     = 0.15; r[1]     = 0.15;
-	// cav[0]   = 0.05; cav[1]   = 0.2479;
-	// pc[0]    = p[0] - c[0]; pc[1]    = p[1] - c[1];
-	// // negative when in the circle
-	// real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
-	// real incav1  = (fabs(pc[0]) - 0.5*cav[0])/r[0]; ;
-	// real incav2  = (pc[1] - (cav[1] - r[1]))/r[1];
-	// // negative when in the cavity - both incav1 and incav2 must be negative
-	// real incav   = max(incav1, incav2);
-	// value = min(outcirc, incav);
+  real value;
+  Point c, pc, r, cav;
 
-    /////// Cavity ////////////
-	// c[0] = 0.5; c[1] = 0.5;
-	// r[0] = 1.0/6.0; r[1] = 1.0/6.0;
+  ////////////// Zalesak's disk ////////////
+  // c[0]     = 0.5; c[1]     = 0.75;
+  // r[0]     = 0.15; r[1]     = 0.15;
+  // cav[0]   = 0.05; cav[1]   = 0.2479;
+  // pc[0]    = p[0] - c[0]; pc[1]    = p[1] - c[1];
+  // // negative when in the circle
+  // real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
+  // real incav1  = (fabs(pc[0]) - 0.5*cav[0])/r[0]; ;
+  // real incav2  = (pc[1] - (cav[1] - r[1]))/r[1];
+  // // negative when in the cavity - both incav1 and incav2 must be negative
+  // real incav   = max(incav1, incav2);
+  // value = min(outcirc, incav);
 
-    /////// Shearing Droplet ////////////
-    c[0] = p_par->center[0].val; c[1] = p_par->center[1].val;
-    r[0] = 0.25; r[1] = 0.25;
+  /////// Cavity ////////////
+  // c[0] = 0.5; c[1] = 0.5;
+  // r[0] = 1.0/6.0; r[1] = 1.0/6.0;
 
-    pc[0] = p[0] - c[0]; pc[1] = p[1] - c[1];
-	real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
-	value = outcirc;
-	return value;
+  /////// Shearing Droplet ////////////
+  c[0] = p_par->center[0].val; c[1] = p_par->center[1].val;
+  r[0] = 0.25; r[1] = 0.25;
+
+  pc[0] = p[0] - c[0]; pc[1] = p[1] - c[1];
+  real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
+  value = outcirc;
+  return value;
 }
 
 // normalized viscosity at phase 0 over all time

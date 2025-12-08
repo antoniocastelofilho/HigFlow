@@ -256,7 +256,8 @@ void get_inlet_types(higflow_solver* ns) {
 // Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
 
 // #include "mesh_adapt_function.c"
-#include "mesh_adapt_function_bbox.c"
+// #include "mesh_adapt_function_bbox.c"
+#include "mesh_adapt_function_coarsen.c"
 
 // Navier-Stokes final pressure using the projection method
 void higflow_interpolate_pressure(higflow_solver *ns, higflow_solver *ns2) {
@@ -776,9 +777,9 @@ int main(int argc, char* argv[]) {
 
         ///////////////////////////////////////////////////////
         solver_step(ns);
-        // if (ns->par.step % 10 == 0) {
-        //     higflow_save_refined_mesh_preview(ns, ns->par.step);
-        // }
+        if (ns->par.step % 10 == 0) {
+          higflow_adapt_mesh_preview(ns, ns->par.step);
+        }
 
         if (ns->par.step == 20) {
             // Initializing Navier-Stokes solver
