@@ -366,9 +366,9 @@ void higflow_interpolate_viscosity(higflow_solver *ns, higflow_solver *ns2) {
                                               ns->ed.mult.stn);
 
         // Valor definido empiricamente (altamente testado)
-        real val = 0.3;
-        // Operador ternário para calcular a fração de volume sharp
-        fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
+        // real val = 0.3;
+        // // Operador ternário para calcular a fração de volume sharp
+        // fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
 
         real visc = compute_value_at_point(sdm, ccenter,
                                               ccenter, 1.0,
@@ -691,9 +691,6 @@ int main(int argc, char* argv[]) {
               // Initializing Navier-Stokes solver
               // Create Navier-Stokes solver
               higflow_solver *ns2 = higflow_create();
-              // 2. Copia parâmetros essenciais do solver antigo
-              ns2->par = ns->par;
-              ns2->contr = ns->contr;
 
               // Load the data files
               higflow_load_data_file_names(argc, argv, ns2); 
@@ -724,8 +721,8 @@ int main(int argc, char* argv[]) {
               /* Creating the distributed HigTree data structure */
               // hig_cell *root = lb_get_local_tree(lb, h, NULL);
               // hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
-              // hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
-              hig_cell *root = sd_get_higtree(ns->sdp, 0);
+              hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
+              // hig_cell *root = sd_get_higtree(ns->sdp, 0);
               // Add higtree for SDs
               sd_add_higtree(ns2->sdp, root);
               sd_add_higtree(ns2->sdF, root);
@@ -749,6 +746,9 @@ int main(int argc, char* argv[]) {
               print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
               higflow_create_distributed_properties(ns2);
 
+              // Treatment for boundary conditions
+              higflow_initialize_boundaries_yaml(ns2);
+
               // Interpolar
               print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
               // dpu
@@ -766,10 +766,11 @@ int main(int argc, char* argv[]) {
               higflow_interpolate_bc_for_pressure(ns, ns2);
               higflow_create_solver(ns2); 
 
-              // Keep parameters like time and steps
-              ns2->par = ns->par;
               // Destroy the Navier-Stokes object
-
+   
+              // 2. Copia parâmetros essenciais do solver antigo
+              ns2->par = ns->par;
+              ns2->contr = ns->contr;
               higflow_destroy(ns);
               ns = (higflow_solver *) ns2;
 
@@ -779,11 +780,11 @@ int main(int argc, char* argv[]) {
               for(int dim = 0; dim < DIM; dim++) {
                 psfd_synced_mapper(ns->psfdu[dim]); 
               }
-              
+
               // ===> FIM DA INSERÇÃO <===
               higflow_print_vtk(ns, myrank);
         }
-        ///////////////////////////////////////////////////////
+        /////////////////////////////////////////////////
 
         write_mem_usage(ns, "after step");
 
