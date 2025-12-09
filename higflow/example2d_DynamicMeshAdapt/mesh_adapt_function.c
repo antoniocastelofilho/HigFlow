@@ -1,5 +1,20 @@
-// Função auxiliar para pegar o nível da célula
-int get_cell_level(hig_cell *c) {
+
+#include "higtree.h"
+#include "higtree-io.h"
+#include "higtree-iterator.h"
+#include "pdomain.h"
+#include "utils.h"
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+// Estrutura para sementes da interface
+typedef struct {
+    Point center;
+} InterfaceSeedAdapt;
+
+// Função auxiliar para nível
+int get_cell_level_c(hig_cell *c) {
     int level = 0;
     hig_cell *p = hig_get_parent(c);
     while (p != NULL) {
@@ -9,270 +24,232 @@ int get_cell_level(hig_cell *c) {
     return level;
 }
 
-#define MAX_REF_LEVEL 3
-
-#include "higtree.h"
-#include "higtree-io.h"
-#include "higtree-iterator.h"
-#include "pdomain.h"
-#include <math.h>
-
-// Estrutura para armazenar posições da interface
-typedef struct {
-    Point center;
-} InterfaceSeed;
-
-// Função auxiliar para calcular o tamanho da menor célula (Nível Máximo)
-real get_h_min(hig_cell *root) {
-    Point delta;
-    hig_get_delta(root, delta);
-    real h = delta[0];
-    return h;
-    // for (int d = 1; d < DIM; d++) if (delta[d] < h) h = delta[d];
-    // Divide pelo nível máximo (2^MAX_LEVEL)
-    // for(int i = 0; i < max_level; i++) h *= 0.5;
-}
-
-// Função auxiliar para calcular distância ao quadrado entre pontos
-real dist_sq(Point p1, Point p2) {
+// Distância Euclidiana
+real dist_sq_c(Point p1, Point p2) {
     real d = 0.0;
     for(int i=0; i<DIM; i++) d += (p1[i]-p2[i])*(p1[i]-p2[i]);
     return d;
 }
 
-void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
+// =========================================================================================
+// FUNÇÃO DE ADAPTAÇÃO PARAMETRIZADA
+// Recebe lista de distancias: thresholds[0] -> Level 1, thresholds[1] -> Level 2, ...
+// =========================================================================================
+hig_cell * higflow_make_adapted_tree_params(higflow_solver *ns, int num_levels, real *thresholds) {
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     mp_mapper *mp = sd_get_domain_mapper(sdm);
     
     int myrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
-    // 1. Clonagem
+    // 1. Clonagem (Adaptação na cópia)
     hig_cell *root_original = sd_get_higtree(sdm, 0);
-    if (root_original == NULL) return;
-    
+    if (!root_original) return NULL;
     hig_cell *root_copy = hig_clone(root_original);
-    if (root_copy == NULL) return;
+    if (!root_copy) return NULL;
 
-    if(myrank == 0) printf("Preview: Refinando malha (DIM=%d) com Buffer e Grading (Frame %d)...\n", DIM, frame_id);
-
+    // Coletar Sementes (Interface)
+    int seed_cap = 1000;
+    int seed_count = 0;
+    InterfaceSeedAdapt *seeds = (InterfaceSeedAdapt *)malloc(seed_cap * sizeof(InterfaceSeedAdapt));
     
-    float search_dist[MAX_REF_LEVEL]; // Tamanho fixo, mas usando a constante em cálculos
-    search_dist[0] = 0.1;
-    search_dist[1] = 0.15;
-    search_dist[2] = 0.2;
-
-    float refiment_levels[MAX_REF_LEVEL];
-    for (int i = 0; i < MAX_REF_LEVEL; i++) refiment_levels[i] = 1;
-
-    // Loop Iterativo de Propagação
-    for (int pass = 0; pass < MAX_REF_LEVEL; pass++) {
-        int capacity = 1000;
-        int count = 0;
-        hig_cell **cells_to_refine = (hig_cell **)malloc(capacity * sizeof(hig_cell*));
-
-
-        higcit_celliterator *it = higcit_create_all_higtree(root_copy);
-        while (!higcit_isfinished(it)) {
-            hig_cell *c_copy = higcit_getcell(it);
-            int childrens = hig_get_number_of_children(c_copy);
-            
-            // if (get_cell_level(c_copy) < MAX_REF_LEVEL) {
-            if (childrens < pow(2, refiment_levels[pass])) {
-                Point center;
-                Point size;
-                hig_get_center(c_copy, center);
-                hig_get_delta(c_copy, size);
-
-                int should_refine = 0;
-                real val_center = -1.0;
-
-                // 1. Valor no Centro
-                hig_cell *c_orig = sd_get_cell_with_point(sdm, center);
-                if (c_orig) {
-                    int clid = mp_lookup(mp, hig_get_cid(c_orig));
-                    if (clid >= 0) val_center = dp_get_value(ns->ed.mult.dpfracvol, clid);
+    higcit_celliterator *it = sd_get_domain_celliterator(sdm);
+    while (!higcit_isfinished(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid >= 0) {
+            real val = dp_get_value(ns->ed.mult.dpfracvol, clid);
+            if (val > 0.001 && val < 0.999) {
+                if (seed_count >= seed_cap) {
+                    seed_cap *= 2;
+                    seeds = (InterfaceSeedAdapt *)realloc(seeds, seed_cap * sizeof(InterfaceSeedAdapt));
                 }
+                hig_get_center(c, seeds[seed_count].center);
+                seed_count++;
+            }
+        }
+        higcit_nextcell(it);
+    }
+    higcit_destroy(it);
 
-                if (val_center > 0.001 && val_center < 0.999) {
-                    should_refine = 1;
-                } 
-                // Achar as céluas vizinhas à interface
-                else if (val_center >= 0.0) { 
-                    // Distância de busca (Buffer + Grading)
-                    // --- SONDAGEM GENERALIZADA (DIMENSIONAL-AGNOSTIC) ---
-                    // Itera por cada dimensão (x, y, [z])
-                    for (int dim = 0; dim < DIM; dim++) {
-                        // Itera por direções (-1 e +1)
-                        for (int dir = -1; dir <= 1; dir += 2) {
-                            
-                            // Cria ponto de sonda copiando o centro manualmente
-                            Point probe;
-                            for(int k=0; k<DIM; k++) probe[k] = center[k];
-                            
-                            // Aplica o deslocamento na dimensão atual
-                            //  Pega a bounding box
-                            probe[dim] += dir * search_dist[pass];
+    // =====================================================================
+    // ETAPA A: REFINAMENTO
+    // =====================================================================
+    
+    if (seed_count > 0) {
+        // Iterate up to num_levels + 1 passes to ensure propagation
+        for (int pass = 0; pass < num_levels + 1; pass++) {
+            int refine_cap = 1000;
+            int refine_count = 0;
+            hig_cell **to_refine = (hig_cell **)malloc(refine_cap * sizeof(hig_cell*));
 
-                            // Verifica a sonda
-                            hig_cell *c_probe = sd_get_cell_with_point(sdm, probe);
-                            if (c_probe) {
-                                int pid = mp_lookup(mp, hig_get_cid(c_probe));
-                                if (pid >= 0) {
-                                    real val_probe = dp_get_value(ns->ed.mult.dpfracvol, pid);
-                                    
-                                    // Detecta mudança brusca (Fluido A <-> B) ou toque na Interface
-                                    if (fabs(val_probe - val_center) > 0.001 || 
-                                       (val_probe > 0.001 && val_probe < 0.999)) {
-                                        should_refine = 1;
-                                        // Break duplo para sair dos loops de direção/dimensão
-                                        goto found_refinement; 
-                                    }
-                                }
+            // Max search distance is the largest threshold (level 1)
+            real max_search = (num_levels > 0) ? thresholds[0] : 0.0;
+            
+            for(int s=0; s<seed_count; s++) {
+                Point center_s;
+                POINT_ASSIGN(center_s, seeds[s].center);
+                Point lo, hi;
+                for(int d=0; d<DIM; d++) {
+                    lo[d] = center_s[d] - max_search;
+                    hi[d] = center_s[d] + max_search;
+                }
+                
+                higcit_celliterator *it_bb = higcit_create_bounding_box(root_copy, lo, hi);
+                while(!higcit_isfinished(it_bb)) {
+                    hig_cell *neigh = higcit_getcell(it_bb);
+                    
+                    if(hig_get_number_of_children(neigh) == 0) { // Folha
+                        Point center_n;
+                        hig_get_center(neigh, center_n);
+                        real dist = sqrt(dist_sq_c(center_s, center_n));
+                        
+                        int target_level = 0;
+                        // Check thresholds from highest level down to 1
+                        for (int l = num_levels - 1; l >= 0; l--) {
+                            if (dist <= thresholds[l]) {
+                                target_level = l + 1;
+                                break;
+                            }
+                        }
+                        
+                        int current_lvl = get_cell_level_c(neigh);
+                        
+                        if (current_lvl < target_level) {
+                            if (refine_count >= refine_cap) {
+                                refine_cap *= 2;
+                                to_refine = (hig_cell **)realloc(to_refine, refine_cap * sizeof(hig_cell*));
+                            }
+                            int added = 0;
+                            for(int k=0; k<refine_count; k++) if(to_refine[k] == neigh) { added=1; break; }
+                            
+                            if(!added) {
+                                to_refine[refine_count++] = neigh;
                             }
                         }
                     }
-                    found_refinement:; // Label para sair do loop aninhado
+                    higcit_nextcell(it_bb);
                 }
-                if (should_refine) {
-                    if (count >= capacity) {
-                        capacity *= 2;
-                        cells_to_refine = (hig_cell **)realloc(cells_to_refine, capacity * sizeof(hig_cell*));
-                    }
-                    cells_to_refine[count++] = c_copy;
+                higcit_destroy(it_bb);
+            }
+            
+            if(refine_count == 0 && pass > 0) { 
+                 if (pass > num_levels) break; 
+            }
+            
+               for(int i=0; i<refine_count; i++) {
+                if(hig_get_number_of_children(to_refine[i]) == 0) {
+                     int nc[DIM];
+                     for(int d=0; d<DIM; d++) nc[d] = 2;
+                     hig_refine_uniform(to_refine[i], nc);
                 }
             }
-            higcit_nextcell(it);
+            free(to_refine);
         }
-        higcit_destroy(it);
-
-        if (count == 0) {
-            free(cells_to_refine);
-            break; 
-        }
-
-        // Aplica o refino
-        for (int i = 0; i < count; i++) {
-            int numcells[DIM];
-            hig_get_cells_per_dim(cells_to_refine[i], numcells);
-            // Generaliza a divisão para DIM (ex: 2x2 em 2D, 2x2x2 em 3D)
-            // Assume que a macro aceita args extras ou ignore se for 2D
-            POINT_ASSIGN_INTS(numcells, 1, 1, 1)
-            // Para ser 100% seguro em POINT_ASSIGN_INTS com DIM variável:
-            for(int d=0; d<DIM; d++) numcells[d] = 2; 
-            
-            hig_refine_uniform(cells_to_refine[i], numcells);
-        }
-        free(cells_to_refine);
-    } 
-
-    // Salva VTK
-    char filename[256];
-    sprintf(filename, "preview_mesh_r%d_f%d.vtk", myrank, frame_id);
-    FILE *fd = fopen(filename, "w");
-    if (fd) {
-        // Tenta usar a função disponível na sua versão
-        higio_print_in_vtk2d(fd, root_copy); 
-        // Nota: Se estiver em 3D, precisará trocar para higio_print_in_vtk3d(fd, root_copy) 
-        // ou a função genérica hig_print_vtk(root_copy, fd) se disponível.
-        fclose(fd);
     }
 
-    hig_destroy(root_copy);
-    if(myrank == 0) printf("Preview: Concluido.\n");
-    // exit(0);
+    // =====================================================================
+    // ETAPA B: ENGROSSAMENTO (4 Passes)
+    // =====================================================================
+    
+    float coarsen_hys = 0.005; // Margem de segurança
+    
+    for (int pass = 0; pass < 4; pass++) { 
+        int merge_cap = 1000;
+        int merge_count = 0;
+        hig_cell **parents_to_merge = (hig_cell **)malloc(merge_cap * sizeof(hig_cell*));
+        
+        higcit_celliterator *it_all = higcit_create_all_higtree(root_copy);
+        while (!higcit_isfinished(it_all)) {
+            hig_cell *c = higcit_getcell(it_all);
+            
+            if (hig_get_number_of_children(c) > 0) {
+                int all_leaves = 1;
+                for(int k=0; k<hig_get_number_of_children(c); k++) {
+                    hig_cell *ch = hig_get_child(c, k);
+                    if(hig_get_number_of_children(ch) > 0) {
+                        all_leaves = 0;
+                        break;
+                    }
+                }
+                
+                if (all_leaves) {
+                    int parent_lvl = get_cell_level_c(c); 
+                    
+                    int safe_to_merge = 1;
+                    
+                    if (seed_count > 0) {
+                        for(int k=0; k<hig_get_number_of_children(c); k++) {
+                            hig_cell *ch = hig_get_child(c, k);
+                            Point center;
+                            hig_get_center(ch, center);
+                            
+                            real min_d2 = 1.0e20;
+                            for(int s=0; s<seed_count; s++) {
+                                real d2 = dist_sq_c(center, seeds[s].center);
+                                if (d2 < min_d2) min_d2 = d2;
+                            }
+                            real dist = sqrt(min_d2);
+                            
+                            real threshold = 0.0;
+                            // logic: if parent_lvl is K, children are at K+1.
+                            // To keep children at K+1, dist must be <= thresholds[K].
+                            // To MERGE (go back to K), dist must be > thresholds[K] + hys.
+                            // BUT wait, thresholds array is 0-indexed: index 0 is Level 1.
+                            // If parent is Level 0, it has children at Level 1. threshold is thresholds[0].
+                            // If parent is Level 1, it has children at Level 2. threshold is thresholds[1].
+                            
+                            if (parent_lvl < num_levels) {
+                                threshold = thresholds[parent_lvl] + coarsen_hys;
+                            } else {
+                                // parent level >= num_levels? Should not happen if we only refine up to num_levels.
+                                // But if it does, we should probably merge.
+                                threshold = -1.0; // Always merge? Or huge?
+                                // If threshold is small, we merge if dist > threshold.
+                                // If we are WAY deep, we want to merge. 
+                                // Set threshold to something that allows merge.
+                                threshold = 1.0e20; // Wait, if dist <= threshold we DON'T merge.
+                                // If we want to merge, make condition fail. 
+                                // dist <= huge is TRUE -> safe_to_merge = 0 (Don't merge).
+                                // Wait, logic:
+                                // if (dist <= threshold) safe_to_merge = 0;
+                                // We want to merge if we are too deep.
+                                // Actually, if parent_lvl >= num_levels, we definitely want to merge to reduce level.
+                                // So we want safe_to_merge = 1.
+                                // So ensure (dist <= threshold) is FALSE.
+                                threshold = -1.0; 
+                            }
+                            
+                            if (dist <= threshold) {
+                                safe_to_merge = 0; 
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (safe_to_merge) {
+                        if (merge_count >= merge_cap) {
+                            merge_cap *= 2;
+                            parents_to_merge = (hig_cell **)realloc(parents_to_merge, merge_cap * sizeof(hig_cell*));
+                        }
+                        parents_to_merge[merge_count++] = c;
+                    }
+                }
+            }
+            higcit_nextcell(it_all);
+        }
+        higcit_destroy(it_all);
+        
+        if(merge_count > 0) {
+            for(int i=0; i<merge_count; i++) {
+                hig_merge_children(parents_to_merge[i]);
+            }
+        } else {
+            break;
+        }
+        free(parents_to_merge);
+    }
+    
+    free(seeds);
+    return root_copy;
 }
-
-// void higflow_refine_transition_zone(higflow_solver *ns) {
-//     // Obtém o domínio real da simulação
-//     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-//     mp_mapper *mp = sd_get_domain_mapper(sdm);
-//
-//     int myrank;
-//     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-//
-//     // --- PASSO 1: Coleta de Sementes (Interface) ---
-//     // Necessário para calcular a distância
-//     int seed_cap = 1000;
-//     int seed_count = 0;
-//     InterfaceSeed *seeds = (InterfaceSeed *)malloc(seed_cap * sizeof(InterfaceSeed));
-//
-//     higcit_celliterator *it = sd_get_domain_celliterator(sdm);
-//     while (!higcit_isfinished(it)) {
-//         hig_cell *c = higcit_getcell(it);
-//         int clid = mp_lookup(mp, hig_get_cid(c));
-//         if (clid >= 0) {
-//             real val = dp_get_value(ns->ed.mult.dpfracvol, clid);
-//             // Apenas mistura real (exclui paredes)
-//             if (val > 0.001 && val < 0.999) {
-//                 if (seed_count >= seed_cap) {
-//                     seed_cap *= 2;
-//                     seeds = (InterfaceSeed *)realloc(seeds, seed_cap * sizeof(InterfaceSeed));
-//                 }
-//                 hig_get_center(c, seeds[seed_count].center);
-//                 seed_count++;
-//             }
-//         }
-//         higcit_nextcell(it);
-//     }
-//     higcit_destroy(it);
-//
-//     if (seed_count == 0) {
-//         free(seeds);
-//         return; // Nada a fazer se não há interface
-//     }
-//
-//     // --- PASSO 2: Identifica Células de Transição para Refinar ---
-//     int refine_cap = 1000;
-//     int refine_count = 0;
-//     hig_cell **cells_to_refine = (hig_cell **)malloc(refine_cap * sizeof(hig_cell*));
-//
-//     it = sd_get_domain_celliterator(sdm);
-//     while (!higcit_isfinished(it)) {
-//         hig_cell *c = higcit_getcell(it);
-//
-//         // Verifica o nível atual
-//         int current_lvl = get_cell_level(c);
-//
-//         // Só nos interessa refinar se estiver ABAIXO do nível de transição
-//         if (current_lvl < TRANSITION_LEVEL) {
-//             Point center;
-//             hig_get_center(c, center);
-//
-//             // Calcula distância mínima à interface
-//             real min_dist_sq = 1.0e20;
-//             for (int k = 0; k < seed_count; k++) {
-//                 real d2 = dist_sq(center, seeds[k].center);
-//                 if (d2 < min_dist_sq) min_dist_sq = d2;
-//             }
-//             real dist = sqrt(min_dist_sq);
-//
-//             // Verifica se está na BANDA DE TRANSIÇÃO
-//             if (dist > SEARCH_DIST && dist <= SEARCH_DIST_TRANSITION) {
-//                 if (refine_count >= refine_cap) {
-//                     refine_cap *= 2;
-//                     cells_to_refine = (hig_cell **)realloc(cells_to_refine, refine_cap * sizeof(hig_cell*));
-//                 }
-//                 cells_to_refine[refine_count++] = c;
-//             }
-//         }
-//         higcit_nextcell(it);
-//     }
-//     higcit_destroy(it);
-//     free(seeds);
-//
-//     // --- PASSO 3: Aplica Refinamento e Atualiza Solver ---
-//     if (refine_count > 0) {
-//         if(myrank == 0) printf("Transition Refine: Refinando %d celulas na zona de transicao...\n", refine_count);
-//
-//         // 3.1 Refina
-//         for(int i=0; i<refine_count; i++) {
-//             int nc[DIM];
-//             // Refino padrão (ex: dividir em 2x2)
-//             for(int d=0; d<DIM; d++) nc[d] = 2; 
-//             hig_refine_uniform(cells_to_refine[i], nc);
-//         }
-//     }
-//
-//     free(cells_to_refine);
-// }

@@ -139,7 +139,7 @@ endif
 		$(LOAD_PATH) \
 		output/$(OUTNAME)/save/save \
 		output/$(OUTNAME)/vtk/ns$(EXTRANAME).print \
-	  -ksp_type fbcgsr -pc_type hypre -pc_hypre_type boomeramg -ksp_atol 1e-10 -ksp_rtol 1e-14 -ksp_initial_guess_nonzero true -ksp_monitor_short -mat_view ::ascii_info \
+	  -ksp_type fbcgsr -pc_type hypre -pc_hypre_type boomeramg -ksp_atol 1e-10 -ksp_rtol 1e-14 -ksp_initial_guess_nonzero true \
 		| tee output/$(OUTNAME)/save/ns$(EXTRANAME).log; 
 #		python3 scripts/compress_vtk.py output/$(OUTNAME)/vtk; \
 
