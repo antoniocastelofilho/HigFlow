@@ -12,7 +12,7 @@
 #define MAX_REF_LEVEL 4
 #endif
 
-// Estrutura para sementes da interface (Renomeada para evitar conflito com bbox)
+// Estrutura para sementes da interface
 typedef struct {
     Point center;
 } InterfaceSeedAdapt;
@@ -36,32 +36,21 @@ real dist_sq_c(Point p1, Point p2) {
 }
 
 // =========================================================================================
-// FUNÇÃO DE ADAPTAÇÃO COMBINADA (PREVIEW)
+// FUNÇÃO DE ADAPTAÇÃO PARAMETRIZADA
+// Recebe lista de distancias: thresholds[0] -> Level 1, thresholds[1] -> Level 2, ...
 // =========================================================================================
-hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
+hig_cell * higflow_make_adapted_tree_params(higflow_solver *ns, int num_levels, real *thresholds) {
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     mp_mapper *mp = sd_get_domain_mapper(sdm);
     
     int myrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
-    // 1. Clonagem (Preview)
+    // 1. Clonagem (Adaptação na cópia)
     hig_cell *root_original = sd_get_higtree(sdm, 0);
+    if (!root_original) return NULL;
     hig_cell *root_copy = hig_clone(root_original);
-
-    if(myrank == 0) printf("Adapt: Refinando e Engrossando Malha (Frame %d)...\n", frame_id);
-
-    // 2. Parâmetros de Distância (Zonas)
-    // Level 4 (Muito Fino): dist < 0.03
-    // Level 3 (Fino):       dist < 0.06
-    // Level 2 (Medio):      dist < 0.1
-    // Level 1 (Grosso):     dist < 0.2
-    
-    float dist_buffers[MAX_REF_LEVEL];
-    dist_buffers[0] = 0.0;  // Limite para Level 1
-    dist_buffers[1] = 0.0;  // Limite para Level 2
-    dist_buffers[2] = 0.00; // Limite para Level 3
-    dist_buffers[3] = 0.03; // Limite para Level 4
+    if (!root_copy) return NULL;
 
     // Coletar Sementes (Interface)
     int seed_cap = 1000;
@@ -92,12 +81,15 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
     // =====================================================================
     
     if (seed_count > 0) {
-        for (int pass = 0; pass < MAX_REF_LEVEL + 1; pass++) {
+        // Iterate up to num_levels + 1 passes to ensure propagation
+        for (int pass = 0; pass < num_levels + 1; pass++) {
             int refine_cap = 1000;
             int refine_count = 0;
             hig_cell **to_refine = (hig_cell **)malloc(refine_cap * sizeof(hig_cell*));
 
-            real max_search = dist_buffers[0];
+            // Max search distance is the largest threshold (level 1)
+            real max_search = (num_levels > 0) ? thresholds[0] : 0.0;
+            
             for(int s=0; s<seed_count; s++) {
                 Point center_s;
                 POINT_ASSIGN(center_s, seeds[s].center);
@@ -117,10 +109,13 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
                         real dist = sqrt(dist_sq_c(center_s, center_n));
                         
                         int target_level = 0;
-                        if (dist <= dist_buffers[3]) target_level = 4;      // < 0.03
-                        else if (dist <= dist_buffers[2]) target_level = 3; // < 0.06
-                        else if (dist <= dist_buffers[1]) target_level = 2; // < 0.1
-                        else if (dist <= dist_buffers[0]) target_level = 1; // < 0.2
+                        // Check thresholds from highest level down to 1
+                        for (int l = num_levels - 1; l >= 0; l--) {
+                            if (dist <= thresholds[l]) {
+                                target_level = l + 1;
+                                break;
+                            }
+                        }
                         
                         int current_lvl = get_cell_level_c(neigh);
                         
@@ -143,7 +138,7 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
             }
             
             if(refine_count == 0 && pass > 0) { 
-                 if (pass > MAX_REF_LEVEL) break; 
+                 if (pass > num_levels) break; 
             }
             
                for(int i=0; i<refine_count; i++) {
@@ -158,7 +153,7 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
     }
 
     // =====================================================================
-    // ETAPA B: ENGROSSAMENTO (4 Passees)
+    // ETAPA B: ENGROSSAMENTO (4 Passes)
     // =====================================================================
     
     float coarsen_hys = 0.005; // Margem de segurança
@@ -201,11 +196,33 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
                             real dist = sqrt(min_d2);
                             
                             real threshold = 0.0;
-                            // parent_lvl 3 (filhos 4) -> threshold buffer[3]
-                            if (parent_lvl == 3) threshold = dist_buffers[3] + coarsen_hys;
-                            else if (parent_lvl == 2) threshold = dist_buffers[2] + coarsen_hys;
-                            else if (parent_lvl == 1) threshold = dist_buffers[1] + coarsen_hys;
-                            else if (parent_lvl == 0) threshold = dist_buffers[0] + coarsen_hys;
+                            // logic: if parent_lvl is K, children are at K+1.
+                            // To keep children at K+1, dist must be <= thresholds[K].
+                            // To MERGE (go back to K), dist must be > thresholds[K] + hys.
+                            // BUT wait, thresholds array is 0-indexed: index 0 is Level 1.
+                            // If parent is Level 0, it has children at Level 1. threshold is thresholds[0].
+                            // If parent is Level 1, it has children at Level 2. threshold is thresholds[1].
+                            
+                            if (parent_lvl < num_levels) {
+                                threshold = thresholds[parent_lvl] + coarsen_hys;
+                            } else {
+                                // parent level >= num_levels? Should not happen if we only refine up to num_levels.
+                                // But if it does, we should probably merge.
+                                threshold = -1.0; // Always merge? Or huge?
+                                // If threshold is small, we merge if dist > threshold.
+                                // If we are WAY deep, we want to merge. 
+                                // Set threshold to something that allows merge.
+                                threshold = 1.0e20; // Wait, if dist <= threshold we DON'T merge.
+                                // If we want to merge, make condition fail. 
+                                // dist <= huge is TRUE -> safe_to_merge = 0 (Don't merge).
+                                // Wait, logic:
+                                // if (dist <= threshold) safe_to_merge = 0;
+                                // We want to merge if we are too deep.
+                                // Actually, if parent_lvl >= num_levels, we definitely want to merge to reduce level.
+                                // So we want safe_to_merge = 1.
+                                // So ensure (dist <= threshold) is FALSE.
+                                threshold = -1.0; 
+                            }
                             
                             if (dist <= threshold) {
                                 safe_to_merge = 0; 
@@ -231,7 +248,6 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
             for(int i=0; i<merge_count; i++) {
                 hig_merge_children(parents_to_merge[i]);
             }
-            if(myrank==0) printf("Adapt (Pass %d): Merged %d blocks.\n", pass, merge_count);
         } else {
             break;
         }
@@ -239,17 +255,5 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
     }
     
     free(seeds);
-
-    char filename[256];
-    sprintf(filename, "preview_adapt_r%d_f%d.vtk", myrank, frame_id);
-    FILE *fd = fopen(filename, "w");
-    if (fd) {
-        higio_print_in_vtk2d(fd, root_copy);
-        fclose(fd);
-    }
-
-    print0f("Número de Células dps de adicionar ao root %d\n", root_copy->numcells[0]);
     return root_copy;
-    hig_destroy(root_copy);
-    if(myrank == 0) printf("Adapt: Preview salvo em %s.\n", filename);
 }

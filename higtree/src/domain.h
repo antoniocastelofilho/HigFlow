@@ -305,8 +305,10 @@ void sfd_use_cache(sim_facet_domain *d, int v);
 //! It also has a rhs (right hand side) value, which is a value not associated with any element,
 //! usually used to keep the dirichlet values.
 typedef struct sim_stencil {
-	int numelems; //! Defines how many elements are in the stencil
-	int maxelems; //! Defines the maximum number of elements the stencil can keep.
+ //! Defines how many elements are in the stencil
+	int numelems;
+ //! Defines the maximum number of elements the stencil can keep.
+	int maxelems;
 	int *ids; //! Keeps the ids of the elements of the stencil
 	real *vals; //! Keeps the values associated with each element, usually the weight
 	real rhs; //! Keeps the values which is not associated with any element, usually the dirichlet value

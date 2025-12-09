@@ -255,9 +255,7 @@ void get_inlet_types(higflow_solver* ns) {
 // Função para criar um snapshot da malha refinada sem afetar a simulação
 // Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
 
-// #include "mesh_adapt_function.c"
-#include "mesh_adapt_function_bbox.c"
-// #include "mesh_adapt_function_coarsen.c"
+#include "mesh_adapt_function_coarsen.c"
 
 // Navier-Stokes final pressure using the projection method
 void higflow_interpolate_pressure(higflow_solver *ns, higflow_solver *ns2) {
@@ -366,9 +364,11 @@ void higflow_interpolate_viscosity(higflow_solver *ns, higflow_solver *ns2) {
                                               ns->ed.mult.stn);
 
         // Valor definido empiricamente (altamente testado)
-        // real val = 0.3;
-        // // Operador ternário para calcular a fração de volume sharp
-        // fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
+        if (ns->par.step == 5){
+          real val = 0.3;
+          // Operador ternário para calcular a fração de volume sharp
+          fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
+        }
 
         real visc = compute_value_at_point(sdm, ccenter,
                                               ccenter, 1.0,
@@ -719,9 +719,12 @@ int main(int argc, char* argv[]) {
               /* Partitioning the grid from AMR information */
               load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
               /* Creating the distributed HigTree data structure */
-              // hig_cell *root = lb_get_local_tree(lb, h, NULL);
-              // hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
-              hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
+              // Exemplo funcional com lista de distâncias
+              // Level 1: < 0.1, Level 2: < 0.05, Level 3: < 0.02
+              real thresholds[] = {0.1, 0.05, 0.03}; 
+              int num_levels = 3;
+              hig_cell *root = higflow_make_adapted_tree_params(ns, num_levels, thresholds);
+              // hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
               // hig_cell *root = sd_get_higtree(ns->sdp, 0);
               // Add higtree for SDs
               sd_add_higtree(ns2->sdp, root);
