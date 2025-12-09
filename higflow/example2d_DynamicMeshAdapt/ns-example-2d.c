@@ -440,97 +440,6 @@ void higflow_interpolate_density(higflow_solver *ns, higflow_solver *ns2) {
     dp_sync(ns2->ed.mult.dpdens);
 }
 
-void higflow_interpolate_curvature_force_normal(higflow_solver *ns, higflow_solver *ns2) {
-    // Obter o subdomínio local para as células da malha ANTIGA (Fonte)
-    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    
-    // Obter o subdomínio local para as células da NOVA malha (Destino)
-    sim_domain *sdm2 = psd_get_local_domain(ns2->ed.mult.psdmult);
-    
-    // Obter o mapa de propriedades para a nova malha
-    mp_mapper *mp2 = sd_get_domain_mapper(sdm2);
-    
-    // Iterar sobre cada célula da NOVA malha
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Obter a célula e ID
-        hig_cell *c = higcit_getcell(it);
-        int clid = mp_lookup(mp2, hig_get_cid(c));
-        
-        // Obter o centro
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        
-        // --- 1. Interpolação da Curvatura (Escalar) ---
-        // Usa o domínio antigo (sdm) e o stencil antigo (ns->ed.mult.stn)
-        real curv = compute_value_at_point(sdm, ccenter, ccenter, 1.0, 
-                                           ns->ed.mult.dpcurvature, ns->ed.mult.stn);
-        dp_set_value(ns2->ed.mult.dpcurvature, clid, curv);
-
-        // --- 2. Interpolação de Vetores (Força Interfacial e Normal) ---
-        for(int dim = 0; dim < DIM; dim++) {
-            // Força Interfacial (IF)
-            real if_val = compute_value_at_point(sdm, ccenter, ccenter, 1.0, 
-                                                 ns->ed.mult.dpIF[dim], ns->ed.mult.stn);
-            dp_set_value(ns2->ed.mult.dpIF[dim], clid, if_val);
-
-            // Vetor Normal
-            real norm_val = compute_value_at_point(sdm, ccenter, ccenter, 1.0, 
-                                                   ns->ed.mult.dpnormal[dim], ns->ed.mult.stn);
-            dp_set_value(ns2->ed.mult.dpnormal[dim], clid, norm_val);
-        }
-    }
-    
-    // Destruir o iterador
-    higcit_destroy(it);
-    
-    // Sincronizar todas as propriedades distribuídas na nova malha
-    dp_sync(ns2->ed.mult.dpcurvature);
-    for(int dim = 0; dim < DIM; dim++) {
-        dp_sync(ns2->ed.mult.dpIF[dim]);
-        dp_sync(ns2->ed.mult.dpnormal[dim]);
-    }
-}
-
-void higflow_interpolate_distance(higflow_solver *ns, higflow_solver *ns2) {
-    // Obter o subdomínio local para as células da malha ANTIGA (Fonte)
-    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    
-    // Obter o subdomínio local para as células da NOVA malha (Destino)
-    sim_domain *sdm2 = psd_get_local_domain(ns2->ed.mult.psdmult);
-    
-    // Obter o mapa de propriedades para a nova malha
-    mp_mapper *mp2 = sd_get_domain_mapper(sdm2);
-    
-    // Iterar sobre cada célula da NOVA malha
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Obter a célula atual
-        hig_cell *c = higcit_getcell(it);
-        
-        // Obter o identificador da célula no novo mapa
-        int clid = mp_lookup(mp2, hig_get_cid(c));
-        
-        // Obter o centro da célula
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        
-        // INTERPOLAÇÃO: Buscar a distância na malha ANTIGA (sdm) usando o stencil antigo
-        // Usa a propriedade 'dpdistance' da estrutura multipásica
-        real dist = compute_value_at_point(sdm, ccenter, ccenter, 1.0, 
-                                           ns->ed.mult.dpdistance, ns->ed.mult.stn);
-        
-        // Armazenar a distância interpolada na propriedade distribuída do NOVO solver (ns2)
-        dp_set_value(ns2->ed.mult.dpdistance, clid, dist);
-    }
-    
-    // Destruir o iterador
-    higcit_destroy(it);
-    
-    // Sincronizar a propriedade distribuída na nova malha
-    dp_sync(ns2->ed.mult.dpdistance);
-}
-
 void higflow_interpolate_bc_for_pressure(higflow_solver *ns, higflow_solver *ns2) {
   // Facet iterator
   higcit_celliterator *it;
@@ -777,44 +686,73 @@ int main(int argc, char* argv[]) {
 
         ///////////////////////////////////////////////////////
         solver_step(ns);
-        if (ns->par.step % 10 == 0) {
-          higflow_adapt_mesh_preview(ns, ns->par.step);
-        }
+        // if (ns->par.step % 5 == 0) {
+        // }
 
-        if (ns->par.step == 20) {
+        if (ns->par.step % 5 == 0) {
             // Initializing Navier-Stokes solver
             // Create Navier-Stokes solver
             higflow_solver *ns2 = higflow_create();
-            // Load the data files
-            // argv_new 
-            char *argv_new[argc];
-            argv_new[1] = "mesh/square_122_br";
-            argv_new[2] = "output/fine_mesh.save";
-            argv_new[3] = "VTKS/fine_mesh.print";
-            higflow_load_data_file_names(argc, argv_new, ns2); 
+            // Pega tudo do domínio anterior
+            // 2. Copia parâmetros essenciais do solver antigo
+            ns2->par = ns->par;
+            ns2->contr = ns->contr;
+            
+            // // Load the data files
+            // // argv_new 
+            // // char *argv_new[argc];
+            // // argv_new[1] = "mesh/square_122_br";
+            // // argv_new[2] = "output/fine_mesh.save";
+            // // argv_new[3] = "VTKS/fine_mesh.print";
+            higflow_load_data_file_names(argc, argv, ns2); 
             print0f("=+=+=+= Load Controllers and Parameters (ns2) =+=+=+=+=+\n");
             higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
-            // set the external functions
+            // // set the external functions
             higflow_set_external_functions(ns2, get_pressure, get_velocity, 
                                           get_source_term, get_facet_source_term,
                                           get_boundary_pressure, get_boundary_velocity,
                                           get_boundary_source_term, get_boundary_facet_source_term); 
-            // case MULTIPHASE:
+            // Reset simulation domain
+            higflow_create_domain(ns2, cache, order_center); 
+
+            // // case MULTIPHASE:
             higflow_create_domain_multiphase(ns2, cache, order_center, get_viscosity0, get_viscosity1, 
                                              get_density0, get_density1, get_fracvol);
 
-            // Create the simulation domain
-            higflow_create_domain(ns2, cache, order_center); 
-
-            // Initialize the domain
-            print0f("=+=+=+= Load Domain (ns2) =+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+            // // Initialize the domain
+            // print0f("=+=+=+= Load Domain (ns2) =+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
             //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
-            higflow_initialize_domain_yaml(ns2, ntasks, myrank, order_facet); 
+            partition_graph *pg = pg_create(MPI_COMM_WORLD);
+            // Initializing partition table
+            // Setting the fringe size of the sub-domain
+            // The fringe is a buffer around the cells of a given node
+            pg_set_fringe_size(pg, 5);
+            /* Partitioning the grid from AMR information */
+            load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
+            /* Creating the distributed HigTree data structure */
+            // hig_cell *root = lb_get_local_tree(lb, h, NULL);
+            // hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
+            hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
+            // Add higtree for SDs
+            sd_add_higtree(ns2->sdp, root);
+            sd_add_higtree(ns2->sdF, root);
+            if (ns2->contr.flowtype == MULTIPHASE) {
+                if(ns2->ed.mult.contr.viscoelastic_either == true) {
+                    sd_add_higtree(ns2->ed.sdED, root);
+                }
+            }
+            lb_destroy(lb);
 
-            // Initialize the boundaries
-            print0f("=+=+=+= Load Bondary Condtions (ns2) =+=+=+=+=+=+=+=+=+\n");
-            //higflow_initialize_boundaries(ns);
-            higflow_initialize_boundaries_yaml(ns2);
+            // // Creating the partitioned sub-domain to simulation
+            higflow_create_partitioned_domain(ns2, pg, order_center);
+            higflow_create_stencil(ns2);
+            higflow_create_partitioned_domain_multiphase(ns2, pg, order_center);
+            if(ns->ed.mult.contr.viscoelastic_either == true) {
+                // Creating the stencil for properties interpolation
+                higflow_create_stencil_for_extra_domain(ns2);
+            }
+            // Creating the stencil for properties interpolation
+            higflow_create_stencil_multiphase(ns2);
 
             // Creating distributed property  
             print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
@@ -822,7 +760,6 @@ int main(int argc, char* argv[]) {
 
             // Interpolar
             print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
-
             // dpu
             higflow_interpolate_velocity(ns, ns2);
             // dpp
@@ -834,15 +771,10 @@ int main(int argc, char* argv[]) {
             higflow_compute_plic_lines_2d(ns2);
 
             higflow_interpolate_pressure(ns, ns2);
-            // higflow_interpolate_fracvolaux(ns, ns2);
-            // dpvisc; dpfracvol
-            // dpcurvature; dpIF; dpnormal
-            // higflow_interpolate_curvature_force_normal(ns, ns2); Não faz sentido tbm
-            // higflow_interpolate_distance(ns, ns2); // Não faz sentido interpolar distância
-            // higflow_interpolate_bc_for_velocity(ns, ns2);
-            // higflow_interpolate_bc_for_pressure(ns, ns2);
+            higflow_interpolate_bc_for_velocity(ns, ns2);
+            higflow_interpolate_bc_for_pressure(ns, ns2);
 
-            // Keep parameters like time  and steps
+            // Keep parameters like time and steps
             ns2->par = ns->par;
             // Destroy the Navier-Stokes object
 

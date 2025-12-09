@@ -147,7 +147,7 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean:
-	@$(RM) $(CFILE).o $(CFILE) utilities-2d.o
+	rm -rf $(CFILE).o $(CFILE) utilities-2d.o *.vtk output/
 
 build_run:
 	@make clean; make;

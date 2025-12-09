@@ -38,7 +38,7 @@ real dist_sq_c(Point p1, Point p2) {
 // =========================================================================================
 // FUNÇÃO DE ADAPTAÇÃO COMBINADA (PREVIEW)
 // =========================================================================================
-void higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
+hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     mp_mapper *mp = sd_get_domain_mapper(sdm);
     
@@ -47,9 +47,7 @@ void higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
 
     // 1. Clonagem (Preview)
     hig_cell *root_original = sd_get_higtree(sdm, 0);
-    if (!root_original) return;
     hig_cell *root_copy = hig_clone(root_original);
-    if (!root_copy) return;
 
     if(myrank == 0) printf("Adapt: Refinando e Engrossando Malha (Frame %d)...\n", frame_id);
 
@@ -250,6 +248,8 @@ void higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
         fclose(fd);
     }
 
+    print0f("Número de Células dps de adicionar ao root %d\n", root_copy->numcells[0]);
+    return root_copy;
     hig_destroy(root_copy);
     if(myrank == 0) printf("Adapt: Preview salvo em %s.\n", filename);
 }
