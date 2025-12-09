@@ -256,8 +256,8 @@ void get_inlet_types(higflow_solver* ns) {
 // Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
 
 // #include "mesh_adapt_function.c"
-// #include "mesh_adapt_function_bbox.c"
-#include "mesh_adapt_function_coarsen.c"
+#include "mesh_adapt_function_bbox.c"
+// #include "mesh_adapt_function_coarsen.c"
 
 // Navier-Stokes final pressure using the projection method
 void higflow_interpolate_pressure(higflow_solver *ns, higflow_solver *ns2) {
@@ -366,7 +366,7 @@ void higflow_interpolate_viscosity(higflow_solver *ns, higflow_solver *ns2) {
                                               ns->ed.mult.stn);
 
         // Valor definido empiricamente (altamente testado)
-        real val = 0.4;
+        real val = 0.3;
         // Operador ternário para calcular a fração de volume sharp
         fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
 
@@ -686,121 +686,102 @@ int main(int argc, char* argv[]) {
 
         ///////////////////////////////////////////////////////
         solver_step(ns);
-        // if (ns->par.step % 5 == 0) {
-        // }
 
         if (ns->par.step % 5 == 0) {
-            // Initializing Navier-Stokes solver
-            // Create Navier-Stokes solver
-            higflow_solver *ns2 = higflow_create();
-            // Pega tudo do domínio anterior
-            // 2. Copia parâmetros essenciais do solver antigo
-            ns2->par = ns->par;
-            ns2->contr = ns->contr;
-            
-            // // Load the data files
-            // // argv_new 
-            // // char *argv_new[argc];
-            // // argv_new[1] = "mesh/square_122_br";
-            // // argv_new[2] = "output/fine_mesh.save";
-            // // argv_new[3] = "VTKS/fine_mesh.print";
-            higflow_load_data_file_names(argc, argv, ns2); 
-            print0f("=+=+=+= Load Controllers and Parameters (ns2) =+=+=+=+=+\n");
-            higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
-            // // set the external functions
-            higflow_set_external_functions(ns2, get_pressure, get_velocity, 
-                                          get_source_term, get_facet_source_term,
-                                          get_boundary_pressure, get_boundary_velocity,
-                                          get_boundary_source_term, get_boundary_facet_source_term); 
-            // Reset simulation domain
-            higflow_create_domain(ns2, cache, order_center); 
+              // Initializing Navier-Stokes solver
+              // Create Navier-Stokes solver
+              higflow_solver *ns2 = higflow_create();
+              // 2. Copia parâmetros essenciais do solver antigo
+              ns2->par = ns->par;
+              ns2->contr = ns->contr;
 
-            // // case MULTIPHASE:
-            higflow_create_domain_multiphase(ns2, cache, order_center, get_viscosity0, get_viscosity1, 
-                                             get_density0, get_density1, get_fracvol);
+              // Load the data files
+              higflow_load_data_file_names(argc, argv, ns2); 
+              print0f("=+=+=+= Load Controllers and Parameters (ns2) =+=+=+=+=+\n");
+              higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
+              // // set the external functions
+              higflow_set_external_functions(ns2, get_pressure, get_velocity, 
+                                            get_source_term, get_facet_source_term,
+                                            get_boundary_pressure, get_boundary_velocity,
+                                            get_boundary_source_term, get_boundary_facet_source_term); 
+              // Reset simulation domain
+              higflow_create_domain(ns2, cache, order_center); 
 
-            // // Initialize the domain
-            // print0f("=+=+=+= Load Domain (ns2) =+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
-            //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
-            partition_graph *pg = pg_create(MPI_COMM_WORLD);
-            // Initializing partition table
-            // Setting the fringe size of the sub-domain
-            // The fringe is a buffer around the cells of a given node
-            pg_set_fringe_size(pg, 5);
-            /* Partitioning the grid from AMR information */
-            load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
-            /* Creating the distributed HigTree data structure */
-            // hig_cell *root = lb_get_local_tree(lb, h, NULL);
-            // hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
-            hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
-            // Add higtree for SDs
-            sd_add_higtree(ns2->sdp, root);
-            sd_add_higtree(ns2->sdF, root);
-            if (ns2->contr.flowtype == MULTIPHASE) {
-                if(ns2->ed.mult.contr.viscoelastic_either == true) {
-                    sd_add_higtree(ns2->ed.sdED, root);
-                }
-            }
-            lb_destroy(lb);
+              // // case MULTIPHASE:
+              higflow_create_domain_multiphase(ns2, cache, order_center, get_viscosity0, get_viscosity1, 
+                                              get_density0, get_density1, get_fracvol);
 
-            // // Creating the partitioned sub-domain to simulation
-            higflow_create_partitioned_domain(ns2, pg, order_center);
-            higflow_create_stencil(ns2);
-            higflow_create_partitioned_domain_multiphase(ns2, pg, order_center);
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                // Creating the stencil for properties interpolation
-                higflow_create_stencil_for_extra_domain(ns2);
-            }
-            // Creating the stencil for properties interpolation
-            higflow_create_stencil_multiphase(ns2);
+              // // Initialize the domain
+              // print0f("=+=+=+= Load Domain (ns2) =+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
+              //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
+              partition_graph *pg = pg_create(MPI_COMM_WORLD);
+              // Initializing partition table
+              // Setting the fringe size of the sub-domain
+              // The fringe is a buffer around the cells of a given node
+              pg_set_fringe_size(pg, 5);
+              /* Partitioning the grid from AMR information */
+              load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
+              /* Creating the distributed HigTree data structure */
+              // hig_cell *root = lb_get_local_tree(lb, h, NULL);
+              // hig_cell *root = higflow_adapt_mesh_preview(ns, ns->par.step);
+              // hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
+              hig_cell *root = sd_get_higtree(ns->sdp, 0);
+              // Add higtree for SDs
+              sd_add_higtree(ns2->sdp, root);
+              sd_add_higtree(ns2->sdF, root);
+              sd_add_higtree(ns2->ed.mult.sdmult, root);
+              if (ns2->contr.flowtype == MULTIPHASE) {
+                  if(ns2->ed.mult.contr.viscoelastic_either == true) {
+                      sd_add_higtree(ns2->ed.sdED, root);
+                  }
+              }
+              lb_destroy(lb);
 
-            // Creating distributed property  
-            print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
-            higflow_create_distributed_properties(ns2);
+              // // Creating the partitioned sub-domain to simulation
+              higflow_create_partitioned_domain(ns2, pg, order_center);
+              higflow_create_partitioned_domain_multiphase(ns2, pg, order_center);
 
-            // Interpolar
-            print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
-            // dpu
-            higflow_interpolate_velocity(ns, ns2);
-            // dpp
-            higflow_interpolate_viscosity(ns, ns2);
-            higflow_interpolate_density(ns, ns2);
+              // Creating the stencil for properties interpolation
+              higflow_create_stencil(ns2);
+              higflow_create_stencil_multiphase(ns2);
 
-            higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns2);
-            higflow_compute_distance_multiphase_2D(ns2);
-            higflow_compute_plic_lines_2d(ns2);
+              // Creating distributed property  
+              print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
+              higflow_create_distributed_properties(ns2);
 
-            higflow_interpolate_pressure(ns, ns2);
-            higflow_interpolate_bc_for_velocity(ns, ns2);
-            higflow_interpolate_bc_for_pressure(ns, ns2);
+              // Interpolar
+              print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
+              // dpu
+              higflow_interpolate_velocity(ns, ns2);
+              // dpp
+              higflow_interpolate_viscosity(ns, ns2);
+              higflow_interpolate_density(ns, ns2);
 
-            // Keep parameters like time and steps
-            ns2->par = ns->par;
-            // Destroy the Navier-Stokes object
+              higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns2);
+              higflow_compute_distance_multiphase_2D(ns2);
+              higflow_compute_plic_lines_2d(ns2);
 
-            higflow_destroy(ns);
-            ns = (higflow_solver *) ns2;
+              higflow_interpolate_pressure(ns, ns2);
+              higflow_interpolate_bc_for_velocity(ns, ns2);
+              higflow_interpolate_bc_for_pressure(ns, ns2);
+              higflow_create_solver(ns2); 
 
-            // 1. Atualizar Mappers (Garante que os IDs globais do PETSc estejam certos)
-            // É boa prática sincronizar pressão também
-            psd_synced_mapper(ns->psdp); 
-            for(int dim = 0; dim < DIM; dim++) {
-              psfd_synced_mapper(ns->psfdu[dim]); 
-            }
+              // Keep parameters like time and steps
+              ns2->par = ns->par;
+              // Destroy the Navier-Stokes object
 
-            // 2. Criar Stencils (ns2 é novo, não tem stencils calculados ainda)
-            higflow_create_stencil(ns);
+              higflow_destroy(ns);
+              ns = (higflow_solver *) ns2;
 
-            // 3. CRIAR OS SOLVERS 
-            // Atenção: Use higflow_create_solver em vez de realloc, 
-            // pois ns2 é um objeto novo que nunca teve solver.
-            higflow_create_solver(ns); 
-
-            // ===> FIM DA INSERÇÃO <===
-            print0f("=+=+=+= write vtk (ns2) +=+=+=+=+=\n");
-            higflow_print_vtk(ns, myrank);
-            // exit(0);
-            print0f("=+=+=+= Wrote vtk (ns2) +=+=+=+=+=\n");
+              // 1. Atualizar Mappers (Garante que os IDs globais do PETSc estejam certos)
+              // É boa prática sincronizar pressão também
+              psd_synced_mapper(ns->psdp); 
+              for(int dim = 0; dim < DIM; dim++) {
+                psfd_synced_mapper(ns->psfdu[dim]); 
+              }
+              
+              // ===> FIM DA INSERÇÃO <===
+              higflow_print_vtk(ns, myrank);
         }
         ///////////////////////////////////////////////////////
 

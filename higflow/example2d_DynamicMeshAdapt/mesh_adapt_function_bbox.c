@@ -75,7 +75,7 @@ int get_cell_level(hig_cell *c) {
     return level;
 }
 
-void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
+hig_cell* higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
     // Acessa o domínio da simulação multifásica para ler a propriedade real
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     mp_mapper *mp = sd_get_domain_mapper(sdm);
@@ -86,10 +86,10 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
     // 1. CLONAGEM DA MALHA (PREVIEW)
     // Trabalhamos numa cópia para não alterar a malha da simulação
     hig_cell *root_original = sd_get_higtree(sdm, 0);
-    if (root_original == NULL) return;
+    if (root_original == NULL) return root_original;
 
     hig_cell *root_copy = hig_clone(root_original);
-    if (root_copy == NULL) return;
+    if (root_copy == NULL) return root_copy;
 
     if (myrank == 0) {
         printf("Preview: Refinando malha (BBox) - Frame %d...\n", frame_id);
@@ -102,9 +102,9 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
     // Zona Grossa: Células a até 0.08 unidades devem ser Nível 1
     search_dist[0] = 0.08;
     // Zona Média: Células a até 0.05 unidades devem ser Nível 2
-    search_dist[1] = 0.005;
+    search_dist[1] = 0.08;
     // Zona Fina: Células a até 0.03 unidades devem ser Nível 3
-    search_dist[2] = 0.003;
+    // search_dist[2] = 0.003;
 
     // A maior distância define o tamanho da Bounding Box de busca
     real max_search_dist = search_dist[0];
@@ -145,8 +145,8 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
     if (seed_count == 0) {
         if (myrank == 0) printf("Preview: Nenhuma interface encontrada.\n");
         free(seeds);
+        return root_copy;
         hig_destroy(root_copy);
-        return;
     }
 
     // 4. LOOP DE REFINAMENTO (MULTIBLOCO / PASSADAS)
@@ -194,10 +194,10 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
                     int target_level = 0;
 
                     // Verifica do mais restritivo (fino) ao permissivo
-                    if (dist <= search_dist[2]) {
-                        target_level = 3; // Muito perto -> Fino
-                    }
-                    else if (dist <= search_dist[1]) {
+                    // if (dist <= search_dist[2]) {
+                    //     target_level = 3; // Muito perto -> Fino
+                    // }
+                    if (dist <= search_dist[1]) {
                         target_level = 2; // Perto -> Médio
                     }
                     else if (dist <= search_dist[0]) {
@@ -236,7 +236,7 @@ void higflow_save_refined_mesh_preview(higflow_solver *ns, int frame_id) {
         fclose(fd);
     }
 
+    return root_copy;
     hig_destroy(root_copy);
     if (myrank == 0) printf("Preview: Concluido.\n");
-    // exit(0);
 }

@@ -58,9 +58,9 @@ hig_cell* higflow_adapt_mesh_preview(higflow_solver *ns, int frame_id) {
     // Level 1 (Grosso):     dist < 0.2
     
     float dist_buffers[MAX_REF_LEVEL];
-    dist_buffers[0] = 0.1;  // Limite para Level 1
-    dist_buffers[1] = 0.2;  // Limite para Level 2
-    dist_buffers[2] = 0.06; // Limite para Level 3
+    dist_buffers[0] = 0.0;  // Limite para Level 1
+    dist_buffers[1] = 0.0;  // Limite para Level 2
+    dist_buffers[2] = 0.00; // Limite para Level 3
     dist_buffers[3] = 0.03; // Limite para Level 4
 
     // Coletar Sementes (Interface)
