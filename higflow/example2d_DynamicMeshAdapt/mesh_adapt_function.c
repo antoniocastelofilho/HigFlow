@@ -21,7 +21,7 @@ int get_cell_level_c(hig_cell *c) {
         level++;
         p = hig_get_parent(p);
     }
-    return level;
+    return level - 1;
 }
 
 // Distância Euclidiana

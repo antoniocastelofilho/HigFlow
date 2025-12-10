@@ -319,10 +319,10 @@ real func (Point p) {
   /////// Shearing Droplet ////////////
   c[0] = p_par->center[0].val; c[1] = p_par->center[1].val;
   r[0] = 0.25; r[1] = 0.25;
-
   pc[0] = p[0] - c[0]; pc[1] = p[1] - c[1];
   real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
   value = outcirc;
+
   return value;
 }
 

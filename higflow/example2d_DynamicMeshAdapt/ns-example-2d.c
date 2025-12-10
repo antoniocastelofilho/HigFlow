@@ -721,9 +721,9 @@ int main(int argc, char* argv[]) {
               /* Creating the distributed HigTree data structure */
               // Exemplo funcional com lista de distâncias
               // Level 1: < 0.1, Level 2: < 0.05, Level 3: < 0.02
-              real thresholds[] = {0.1, 0.05, 0.03}; 
+              real thresholds[] = {0.05, 0.03}; 
               // 2 para passo de tempo == 5 e 3 otherwise 
-              int num_levels = (ns->par.step == 5) ? 2 : 3;
+              int num_levels = (ns->par.step == 5) ? 1 : 2;
               hig_cell *root = higflow_make_adapted_tree_params(ns, num_levels, thresholds);
               // hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
               // hig_cell *root = sd_get_higtree(ns->sdp, 0);
