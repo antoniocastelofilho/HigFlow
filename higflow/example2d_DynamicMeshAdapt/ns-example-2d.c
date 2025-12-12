@@ -364,10 +364,17 @@ void higflow_interpolate_viscosity(higflow_solver *ns, higflow_solver *ns2) {
                                               ns->ed.mult.stn);
 
         // Valor definido empiricamente (altamente testado)
-        if (ns->par.step == 5 || ns->par.step == 10){
+        if (ns->par.step == 5 || ns->par.step == 10 || ns->par.step == 15){
+          printf("Step %d\n", ns->par.step);
           real val = 0.4;
           // Operador ternário para calcular a fração de volume sharp
-          fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
+          // fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
+          // if (fracvol > (1 - 0.4)) {
+          //     fracvol = 1;
+          // } 
+          // else if (fracvol <= 0.4) {
+          //     fracvol = 0;
+          // }
         }
 
         real visc = compute_value_at_point(sdm, ccenter,
@@ -719,11 +726,21 @@ int main(int argc, char* argv[]) {
               /* Partitioning the grid from AMR information */
               load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
               /* Creating the distributed HigTree data structure */
-              // Exemplo funcional com lista de distâncias
-              // Level 1: < 0.1, Level 2: < 0.05, Level 3: < 0.02
-              real thresholds[] = {0.05, 0.03}; 
+
+              real thresholds[] = {0.08, 0.04, 0.02}; 
               // 2 para passo de tempo == 5 e 3 otherwise 
-              int num_levels = (ns->par.step == 5) ? 1 : 2;
+                
+              int num_levels;
+              if(ns->par.step <= 5) {
+                num_levels = 1;
+              } else if( ns->par.step > 5 && ns->par.step <= 10 ) {
+                num_levels = 2;
+              } else if(ns->par.step > 10 && ns->par.step <= 15){
+                num_levels = 3;
+              } else {
+                num_levels = 3;
+              }
+
               hig_cell *root = higflow_make_adapted_tree_params(ns, num_levels, thresholds);
               // hig_cell *root = higflow_save_refined_mesh_preview(ns, ns->par.step);
               // hig_cell *root = sd_get_higtree(ns->sdp, 0);
@@ -786,7 +803,7 @@ int main(int argc, char* argv[]) {
               }
 
               // ===> FIM DA INSERÇÃO <===
-              higflow_print_vtk(ns, myrank);
+              // higflow_print_vtk(ns, myrank);
         }
         /////////////////////////////////////////////////
 
