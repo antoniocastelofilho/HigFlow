@@ -74,12 +74,16 @@ typedef struct hig_facet {
 	int dir;
 } hig_facet;
 
-//! Given the number of cell division in each dimension and the position of the cell in each dimension, computes the the relative position of the cell among all its parent children.<BR>
-//! It can be thought of an enumeration of the cells, allowing to represent a object of DIM dimensions in a unidimensional array.
+//! Given the number of cell division in each dimension and the position of the
+//cell in each dimension, computes the the relative position of the cell among
+//all its parent children.<BR>
+//! It can be thought of an enumeration of the cells, allowing to represent a
+//object of DIM dimensions in a unidimensional array.
 //! See also hig_tobase.
 int hig_toposition(const int numcells[DIM], const int pp[DIM]);
 
-//! Converts the position of a cell in a unidimensional array in the its coordinates in the DIM dimensions.
+//! Converts the position of a cell in a unidimensional array in the its
+//coordinates in the DIM dimensions.
 void hig_tobase(int position, const int numcells[DIM], int pp[DIM]);
 
 //! Computes the lowpoint of a cell in a regular grid.
