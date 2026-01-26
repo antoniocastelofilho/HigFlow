@@ -267,5 +267,7 @@ bool hig_facet_intersect_bounding_box(hig_facet *facet, const Point l, const Poi
 //! Computes the facet which contains a given point.
 int hig_get_facet_with_point(hig_cell *root, int dim, const Point x, hig_facet *facet);
 
+//! Dyname mesh adapt
+// void hig_adapt_dynamic(hig_cell *root, scalar *fields, real *tolerances, int maxlevel); 
 
 #endif

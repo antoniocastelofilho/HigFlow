@@ -71,4 +71,4 @@ bibliotecas/
 
 # Cmake version dirs
 **build**
-**install**
+cmake_install*
