@@ -17,7 +17,7 @@ real get_velocity(Point center, int dim, real t) {
     real y = center[1];
     real x = center[0];
     if(flowtype == MULTIPHASE && eoflow_either == false)
-        if(dim==0) value = y;
+        if(dim==0) value = 2.0*y;
 
     if(flowtype == MULTIPHASE && eoflow_either == true) {
         real fracvol = compute_value_at_point(*sdmult_ptr, center, center, 1.0, *dpfracvol_ptr, *stnmult_ptr);
@@ -109,7 +109,7 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
         switch (dim) {
         case 0:
             if(flowtype == MULTIPHASE && eoflow_either == false)
-                value = 1.0;
+                value = 2.0;
                 //if(flowtype == MULTIPHASE && eoflow_either == false) value = 8.0*(1.0 + tanh(8.0*t - 4.0))*x*x*(1.0 - x)*(1.0 - x);
             else
                 value = 0.0;
@@ -133,7 +133,7 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
         switch (dim) {
         case 0:
             if(flowtype == MULTIPHASE && eoflow_either == false)
-                value = -1.0;
+                value = 0.0;
             else
                 value = 0.0;
             break;

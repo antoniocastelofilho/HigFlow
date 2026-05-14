@@ -7,7 +7,7 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = gcc
+CC = mpicc
 
 DIM=2
 
@@ -15,7 +15,12 @@ STANDARDS = -std=gnu99
 
 CFILE = ns-example-2d
 
-ifdef DEBUG
+ifdef SANITIZE
+	CFLAGS+= -g -ggdb -Og -Wall -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
+	LDFLAGS+= -fsanitize=address -fsanitize=undefined
+	GDB_FLAG =
+	DEBUG_DESC = "address sanitizer"
+else ifdef DEBUG
 	CFLAGS+= -g -ggdb -Og -Wall
 	GDB_FLAG = gdb --args
 	DEBUG_DESC = "gdb debug"
@@ -36,7 +41,7 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -ltrilinos -lHYPRE
+LIBS+= -lm -ltrilinos_zoltan -lHYPRE
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)
@@ -141,6 +146,7 @@ endif
 		output/$(OUTNAME)/vtk/ns$(EXTRANAME).print \
 	  -ksp_type fbcgsr -pc_type hypre -pc_hypre_type boomeramg -ksp_atol 1e-10 -ksp_rtol 1e-14 -ksp_initial_guess_nonzero true \
 		| tee output/$(OUTNAME)/save/ns$(EXTRANAME).log; 
+
 #		python3 scripts/compress_vtk.py output/$(OUTNAME)/vtk; \
 
 compilerflags:

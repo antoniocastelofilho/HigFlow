@@ -1075,7 +1075,12 @@ real get_fdp_value_at_point(higflow_solver *ns, distributed_property *dp, psim_f
         hig_get_center(c, center);
         dp_value_local = compute_facet_value_at_point(sfd, center, p, 1.0, dp, ns->stn);
     }
-    MPI_Allreduce(&dp_value_local, &dp_value, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    int ntasks;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    if (ntasks > 1)
+        MPI_Allreduce(&dp_value_local, &dp_value, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    else
+        dp_value = dp_value_local;
     return dp_value;
 }
 
@@ -1458,7 +1463,12 @@ long int get_current_mem_usage() {
     getrusage(RUSAGE_SELF, &ru_mem);
     long int local_usage = ru_mem.ru_maxrss;
     long int total_usage;
-    MPI_Allreduce(&local_usage, &total_usage, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    int ntasks;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    if (ntasks > 1)
+        MPI_Allreduce(&local_usage, &total_usage, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    else
+        total_usage = local_usage;
     return total_usage;
 }
 
