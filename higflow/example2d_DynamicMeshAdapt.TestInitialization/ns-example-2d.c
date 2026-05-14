@@ -281,338 +281,127 @@ real compute_total_fracvol(higflow_solver *ns) {
     return global_total;
 }
 
-// Navier-Stokes final pressure using the projection method
-void higflow_interpolate_pressure(higflow_solver *ns, higflow_solver *ns2) {
-  // Incremental projection method
-  // Get the local sub-domain
-  sim_domain *sdp = psd_get_local_domain(ns->psdp);
-  sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
-  // Get the map of the distributd properties in the cells
-  mp_mapper  *mp2  = sd_get_domain_mapper(sdp2);
-  // Loop for each cell
-  higcit_celliterator *it;
-  for(it = sd_get_domain_celliterator(sdp2); !higcit_isfinished(it); higcit_nextcell(it)) {
-    // Get the cell
-    hig_cell *c = higcit_getcell(it);
-    // Get the cell identifier
-    int clid    = mp_lookup(mp2, hig_get_cid(c));
-    // Get the cell center
-    Point ccenter;
-    hig_get_center(c, ccenter);
-    // Get the pressure in the distributed pressure property
-    real interpolated_p;
-    // compute value of p in a point
-    interpolated_p = compute_value_at_point(sdp, ccenter,
-                                            ccenter, 1.0,
-                                            ns->dpp, ns->stn);
-
-    // Coloca o valor interplolado na malha 2
-    dp_set_value(ns2->dpp, clid, interpolated_p);
-  }
-  // Destroy the iterator
-  higcit_destroy(it);
-
-  // Sync the distributed pressure property
-  dp_sync(ns2->dpp);
-}
-
-// Navier-Stokes final pressure using the projection method
-void higflow_interpolate_velocity(higflow_solver *ns, higflow_solver *ns2) {
-  // Get the local sub-domain
-  sim_facet_domain *sfdu[DIM];
-  sim_facet_domain *sfdu2[DIM];
-  // Loop for each dimension
-  higfit_facetiterator *fit;
-  for(int dim = 0; dim < DIM; dim++) {
-    // Get the local partitioned domain for facets
-    sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-    sfdu2[dim] = psfd_get_local_domain(ns2->psfdu[dim]);
-    // Get the map of the distributd properties in the facets
-    mp_mapper *mu2 = sfd_get_domain_mapper(sfdu2[dim]);
-
-    // Loop for each facet
-    for (fit = sfd_get_domain_facetiterator(sfdu2[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-      // Get the facet
-      hig_facet *f = higfit_getfacet(fit);
-      int flid = mp_lookup(mu2, hig_get_fid(f));
-      // Get the center of the facet
-      Point fcenter;
-      hig_get_facet_center(f, fcenter);
-      real interpolated_u;
-      stn_reset(ns->stn);
-      // Get the stencil parameters
-      sfd_get_stencil(sfdu[dim], fcenter, fcenter, 1, ns->stn);
-      interpolated_u = dp_interpolate_from_stencil(ns->dpu[dim], ns->stn);
-      dp_set_value(ns2->dpu[dim], flid, interpolated_u);
-    }
-    // Destroy the iterator
-    higfit_destroy(fit);
-    // Sync the distributed velocity property
-    dp_sync(ns2->dpu[dim]);
-  }
-}
-
-int signn(double x) {
-    return (x >= 0) - (x <= 0);
-}
-
-void higflow_interpolate_viscosity(higflow_solver *ns, higflow_solver *ns2) {
-    // Get the local sub-domain for the cells (SOURCE - Old Mesh)
-    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    
-    // Get the local sub-domain for the cells (TARGET - New Mesh)
+// Interpola todas as propriedades de célula num unico loop
+void higflow_interpolate_all_cells(higflow_solver *ns, higflow_solver *ns2) {
+    sim_domain *sdp  = psd_get_local_domain(ns->psdp);
+    sim_domain *sdm  = psd_get_local_domain(ns->ed.mult.psdmult);
+    sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
     sim_domain *sdm2 = psd_get_local_domain(ns2->ed.mult.psdmult);
-    
-    // Get the map for the domain properties (Target)
-    mp_mapper *mp2 = sd_get_domain_mapper(sdm2);
-    
-    // Loop for each cell in the NEW domain (ns2)
+
+    mp_mapper *mpp2 = sd_get_domain_mapper(sdp2);
+    mp_mapper *mpm2 = sd_get_domain_mapper(sdm2);
+
     higcit_celliterator *it;
     for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Get the cell
         hig_cell *c = higcit_getcell(it);
-        
-        // Get the cell identifier in the new mapper
-        int clid = mp_lookup(mp2, hig_get_cid(c));
-        
-        // Get the center of the cell
         Point ccenter;
         hig_get_center(c, ccenter);
-        
-        // Interpolate fracvol from the OLD solver (ns)
-        // Usamos o domínio 'sdm' (velho) e a propriedade 'dpfracvol' do 'ns'
-        // (velho)
-        real fracvol = compute_value_at_point(sdm, ccenter,
-                                              ccenter, 1.0,
-                                              ns->ed.mult.dpfracvol,
-                                              ns->ed.mult.stn);
 
-        // Valor definido empiricamente (altamente testado)
-        if (ns->par.step == 5 || ns->par.step == 10){
-          real val = 0.4;
-          // Operador ternário para calcular a fração de volume sharp
-          // fracvol = (fracvol > 1 - val) ? 1 : (fracvol < val ? 0 : fracvol);
-          if (fracvol >= (1 - val)) {
-              fracvol = 1;
-          }
-          else if (fracvol <= val) {
-              fracvol = 0;
-          }
+        int clid_m = mp_lookup(mpm2, hig_get_cid(c));
+        int clid_p = mp_lookup(mpp2, hig_get_cid(c));
+
+        real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0,
+                                               ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+
+        if (ns->par.step == 5 || ns->par.step == 10) {
+            real val = 0.4;
+            if (fracvol >= (1.0 - val))      fracvol = 1.0;
+            else if (fracvol <= val)         fracvol = 0.0;
         }
 
-        real visc = compute_value_at_point(sdm, ccenter,
-                                              ccenter, 1.0,
-                                              ns->ed.mult.dpvisc,
-                                              ns->ed.mult.stn);
-        
-        // Set the viscosity in the distributed viscosity property of the NEW solver (ns2)
-        dp_set_value(ns2->ed.mult.dpvisc, clid, visc);
-        
-        // É importante atualizar também o fracvol no novo solver para manter consistência
-        dp_set_value(ns2->ed.mult.dpfracvol, clid, fracvol);
-    }
-    
-    // Destroy the iterator
-    higcit_destroy(it);
-    
-    // Sync the distributed properties in the new solver
-    dp_sync(ns2->ed.mult.dpvisc);
-    dp_sync(ns2->ed.mult.dpfracvol);
-}
+        real visc = compute_value_at_point(sdm, ccenter, ccenter, 1.0,
+                                            ns->ed.mult.dpvisc, ns->ed.mult.stn);
 
-void higflow_interpolate_density(higflow_solver *ns, higflow_solver *ns2) {
-    // Obter o subdomínio local para as células da malha ANTIGA (Fonte)
-    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    
-    // Obter o subdomínio local para as células da NOVA malha (Destino)
-    sim_domain *sdm2 = psd_get_local_domain(ns2->ed.mult.psdmult);
-    
-    // Obter o mapa de propriedades para a nova malha
-    mp_mapper *mp2 = sd_get_domain_mapper(sdm2);
-    
-    // Iterar sobre cada célula da NOVA malha
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Obter a célula atual
-        hig_cell *c = higcit_getcell(it);
-        
-        // Obter o identificador da célula no novo mapa
-        int clid = mp_lookup(mp2, hig_get_cid(c));
-        
-        // Obter o centro da célula
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        
-        // INTERPOLAÇÃO: Buscar a fração de volume na malha ANTIGA (sdm) usando
-        // o stencil antigo (ns->stn)
-        real fracvol = compute_value_at_point(sdm2, ccenter,
-                                              ccenter, 1.0,
-                                              ns2->ed.mult.dpfracvol,
-                                              ns2->ed.mult.stn);
-        
-        // Recalcular a densidade com base na fração interpolada e nas propriedades dos fluidos
-        // Usa o tempo atual (ns->par.t) para propriedades que variam no tempo
         real dens0 = ns->ed.mult.get_density0(ccenter, ns->par.t);
         real dens1 = ns->ed.mult.get_density1(ccenter, ns->par.t);
-        
-        // Mistura linear baseada na fração de volume (regra da mistura)
-        real dens = (1.0 - fracvol) * dens0 + fracvol * dens1;
-        
-        // Armazenar a densidade calculada na propriedade distribuída do NOVO
-        // solver (ns2)
-        dp_set_value(ns2->ed.mult.dpdens, clid, dens);
+        real dens  = (1.0 - fracvol) * dens0 + fracvol * dens1;
+
+        real p = compute_value_at_point(sdp, ccenter, ccenter, 1.0,
+                                         ns->dpp, ns->stn);
+
+        dp_set_value(ns2->ed.mult.dpfracvol, clid_m, fracvol);
+        dp_set_value(ns2->ed.mult.dpvisc,   clid_m, visc);
+        dp_set_value(ns2->ed.mult.dpdens,   clid_m, dens);
+        dp_set_value(ns2->dpp,              clid_p, p);
     }
-    
-    // Destruir o iterador
     higcit_destroy(it);
-    
-    // Sincronizar a propriedade de densidade distribuída na nova malha
+
+    dp_sync(ns2->ed.mult.dpfracvol);
+    dp_sync(ns2->ed.mult.dpvisc);
     dp_sync(ns2->ed.mult.dpdens);
+    dp_sync(ns2->dpp);
 }
 
-void higflow_interpolate_bc_for_pressure(higflow_solver *ns, higflow_solver *ns2) {
-  // Facet iterator
-  higcit_celliterator *it;
-  // Get the local sub-domain
-  sim_domain *sdp = psd_get_local_domain(ns->psdp);
-  sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
+// Interpola velocidade (facets) da malha velha para a nova
+void higflow_interpolate_velocity(higflow_solver *ns, higflow_solver *ns2) {
+    for (int dim = 0; dim < DIM; dim++) {
+        sim_facet_domain *sfdu  = psfd_get_local_domain(ns->psfdu[dim]);
+        sim_facet_domain *sfdu2 = psfd_get_local_domain(ns2->psfdu[dim]);
+        mp_mapper *mu2 = sfd_get_domain_mapper(sfdu2);
 
-  int num_bc_types = 2;
-  bc_type bc_t;
-  for(int i = 0; i < num_bc_types; i++) {
-    if(i == 0) bc_t = DIRICHLET;
-    else if(i == 1) bc_t = NEUMANN;
-
-    // Get the number of boundaries of type
-    int numbcs = sd_get_num_bcs(sdp2, bc_t);
-    // For each boundary
-    for (int h = 0; h < numbcs; h++) {
-      // Get the boundary
-      // sim_boundary *bc = sd_get_bc(sdp, bc_t, h); // Cuidado: pode não corresponder ao h do sdp2
-      sim_boundary *bc2 = sd_get_bc(sdp2, bc_t, h);
-      
-      // ===> CORREÇÃO 1: Filtrar tipos de valor <===
-      // Se for Neumann, não podemos interpolar P escalar.
-      // Se for Valor Fixo (fixedValue), mantemos o valor analítico (ex: 0.0) já setado.
-      bc_valuetype valuetype = sb_get_valuetype(bc2);
-      
-      if (bc_t == NEUMANN || valuetype == fixedValue) {
-          continue; // Pula para a próxima fronteira
-      }
-
-      // Get the mapper
-      // mp_mapper *bm = sb_get_mapper(bc); // Não use o mapper antigo se a topologia mudou
-      mp_mapper *bm2 = sb_get_mapper(bc2);
-
-      // For each cell of the boundary
-      for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Get the cell
-        hig_cell *bcell = higcit_getcell(it);
-        // Get the cell center
-        Point bccenter;
-        hig_get_center(bcell, bccenter);
-        // Get the id of the cell
-        int bclid = mp_lookup(bm2, hig_get_cid(bcell));
-        
-        // Get the pressure in the distributed pressure property
-        real interpolated_p;
-        stn_reset(ns->stn);
-        
-        // Usa o domínio antigo para pegar o valor
-        sd_get_stencil(sdp, bccenter, bccenter, 1, ns->stn);
-        interpolated_p = compute_value_at_point(sdp, bccenter,
-                                                bccenter, 1.0,
-                                                ns->dpp, ns->stn);
-        
-        // Set the value
-        sb_set_value(bc2, bclid, interpolated_p);
-      }
-      // Destroy the iterator
-      higcit_destroy(it);
+        higfit_facetiterator *fit;
+        for (fit = sfd_get_domain_facetiterator(sfdu2); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+            hig_facet *f = higfit_getfacet(fit);
+            int flid = mp_lookup(mu2, hig_get_fid(f));
+            Point fcenter;
+            hig_get_facet_center(f, fcenter);
+            stn_reset(ns->stn);
+            sfd_get_stencil(sfdu, fcenter, fcenter, 1, ns->stn);
+            real u = dp_interpolate_from_stencil(ns->dpu[dim], ns->stn);
+            dp_set_value(ns2->dpu[dim], flid, u);
+        }
+        higfit_destroy(fit);
+        dp_sync(ns2->dpu[dim]);
     }
-  }
 }
 
-void higflow_interpolate_fracvolaux(higflow_solver *ns, higflow_solver *ns2) {
-    // Obter o subdomínio local para as células da malha ANTIGA (Fonte)
-    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    
-    // Obter o subdomínio local para as células da NOVA malha (Destino)
-    sim_domain *sdm2 = psd_get_local_domain(ns2->ed.mult.psdmult);
-    
-    // Obter o mapa de propriedades para a nova malha
-    mp_mapper *mp2 = sd_get_domain_mapper(sdm2);
-    
-    // Iterar sobre cada célula da NOVA malha
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Obter a célula atual
-        hig_cell *c = higcit_getcell(it);
-        
-        // Obter o identificador da célula no novo mapa
-        int clid = mp_lookup(mp2, hig_get_cid(c));
-        
-        // Obter o centro da célula
-        Point ccenter;
-        hig_get_center(c, ccenter);
-        
-        // INTERPOLAÇÃO: Buscar a fração de volume na malha ANTIGA (sdm) usando o stencil antigo (ns->stn)
-        real fracvolaux = compute_value_at_point(sdm, ccenter, ccenter, 1.0, 
-                                              ns->ed.mult.dpfracvolaux, ns->ed.mult.stn);
-        
-        // Se desejar inicializar também a variável auxiliar com o mesmo valor interpolado:
-        dp_set_value(ns2->ed.mult.dpfracvolaux, clid, fracvolaux);
-    }
-    
-    // Destruir o iterador
-    higcit_destroy(it);
-    
-    // Sincronizar as propriedades distribuídas na nova malha
-    dp_sync(ns2->ed.mult.dpfracvolaux);
-}
-
-void higflow_interpolate_bc_for_velocity(higflow_solver *ns, higflow_solver *ns2) {
-  // Facet iterator
-  higcit_celliterator *it;
-  // Local sub-domain
-  sim_facet_domain *sfdu2[DIM];
-  // For each dimension
-  for(int dim = 0; dim < DIM; dim++) {
-    // Get the local sub-domain
-    sfdu2[dim] = psfd_get_local_domain(ns2->psfdu[dim]);
-    sim_domain *sd2 = sfdu2[dim]->cdom;
-
+void higflow_interpolate_all_bcs(higflow_solver *ns, higflow_solver *ns2) {
+    sim_domain *sdp  = psd_get_local_domain(ns->psdp);
+    sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
     int num_bc_types = 2;
     bc_type bc_t;
-    for(int i = 0; i < num_bc_types; i++) {
-      if(i == 0) bc_t = DIRICHLET;
-      else if(i == 1) bc_t = NEUMANN;
 
-      // Get the number of boundaries of type
-      int numbcs2 = sd_get_num_bcs(sd2, bc_t);
-      // For each boundary
-      for (int h = 0; h < numbcs2; h++) {
-        // Get the boundary
-        sim_boundary *bc2 = sd_get_bc(sd2, bc_t, h);
-        // Get the id defined by the user
-        int userid       = sb_get_userid(bc2);
-        // Get the mapper
-        mp_mapper *bm2    = sb_get_mapper(bc2);
-        // For each cell of the boundary
-        for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
-          hig_cell *bcell = higcit_getcell(it);
-          Point bccenter;
-          hig_get_center(bcell, bccenter);
-          int bclid = mp_lookup(bm2, hig_get_cid(bcell));
-          real t   = ns2->par.t + ns2->par.dt;
-          real val = ns2->func.get_boundary_velocity(userid, bccenter, dim, t);
-          sb_set_value(bc2, bclid, val);
+    for (int i = 0; i < num_bc_types; i++) {
+        if (i == 0) bc_t = DIRICHLET; else bc_t = NEUMANN;
+        int numbcs = sd_get_num_bcs(sdp2, bc_t);
+        for (int h = 0; h < numbcs; h++) {
+            sim_boundary *bc2 = sd_get_bc(sdp2, bc_t, h);
+            if (bc_t == NEUMANN || sb_get_valuetype(bc2) == fixedValue) continue;
+            mp_mapper *bm2 = sb_get_mapper(bc2);
+            higcit_celliterator *it;
+            for (it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
+                hig_cell *bcell = higcit_getcell(it);
+                Point bc; hig_get_center(bcell, bc);
+                int bclid = mp_lookup(bm2, hig_get_cid(bcell));
+                stn_reset(ns->stn);
+                sd_get_stencil(sdp, bc, bc, 1, ns->stn);
+                sb_set_value(bc2, bclid, compute_value_at_point(sdp, bc, bc, 1.0, ns->dpp, ns->stn));
+            }
+            higcit_destroy(it);
         }
-        // Destroy the iterator
-        higcit_destroy(it);
-      }
     }
-  }
+
+    for (int dim = 0; dim < DIM; dim++) {
+        sim_facet_domain *sfdu2 = psfd_get_local_domain(ns2->psfdu[dim]);
+        sim_domain *sd2 = sfdu2->cdom;
+        for (int i = 0; i < num_bc_types; i++) {
+            if (i == 0) bc_t = DIRICHLET; else bc_t = NEUMANN;
+            int numbcs2 = sd_get_num_bcs(sd2, bc_t);
+            for (int h = 0; h < numbcs2; h++) {
+                sim_boundary *bc2 = sd_get_bc(sd2, bc_t, h);
+                int uid = sb_get_userid(bc2);
+                mp_mapper *bm2 = sb_get_mapper(bc2);
+                higcit_celliterator *it;
+                for (it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
+                    hig_cell *bcell = higcit_getcell(it);
+                    Point bc; hig_get_center(bcell, bc);
+                    int bclid = mp_lookup(bm2, hig_get_cid(bcell));
+                    sb_set_value(bc2, bclid, ns2->func.get_boundary_velocity(uid, bc, dim, ns2->par.t + ns2->par.dt));
+                }
+                higcit_destroy(it);
+            }
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -758,8 +547,8 @@ int main(int argc, char* argv[]) {
         solver_step(ns);
 
         if (ns->par.step % 10 == 0) {
-              real vol_before = compute_total_fracvol(ns);
-              print0f("=+= Volume before interpolation = %16.10lf =+=\n", vol_before);
+              // real vol_before = compute_total_fracvol(ns);
+              // print0f("=+= Volume before interpolation = %16.10lf =+=\n", vol_before);
 
               // Initializing Navier-Stokes solver
               // Create Navier-Stokes solver
@@ -812,27 +601,22 @@ int main(int argc, char* argv[]) {
               // Treatment for boundary conditions
               higflow_initialize_boundaries_yaml(ns2);
 
-              // Interpolar
+              // Interpolar (3 chamadas fundidas em vez de 6+)
               print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
-              // dpu
               higflow_interpolate_velocity(ns, ns2);
-              // dpp
-              higflow_interpolate_viscosity(ns, ns2);
-              higflow_interpolate_density(ns, ns2);
+              higflow_interpolate_all_cells(ns, ns2);
 
               higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns2);
               higflow_compute_distance_multiphase_2D(ns2);
               higflow_compute_plic_lines_2d(ns2);
 
-              higflow_interpolate_pressure(ns, ns2);
-              higflow_interpolate_bc_for_velocity(ns, ns2);
-              higflow_interpolate_bc_for_pressure(ns, ns2);
+              higflow_interpolate_all_bcs(ns, ns2);
 
-              {
-                  real vol_after = compute_total_fracvol(ns2);
-                  print0f("=+= Volume after interpolation  = %16.10lf =+=\n", vol_after);
-                  print0f("=+= Volume change               = %16.10lf =+=\n", vol_after - vol_before);
-              }
+              //{
+              //    real vol_after = compute_total_fracvol(ns2);
+              //    print0f("=+= Volume after interpolation  = %16.10lf =+=\n", vol_after);
+              //    print0f("=+= Volume change               = %16.10lf =+=\n", vol_after - vol_before);
+              //}
 
               higflow_create_solver(ns2); 
 
