@@ -256,7 +256,7 @@ void get_inlet_types(higflow_solver* ns) {
 // Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
 
 // thresholds de refinamento (sentinela -1.0 indica fim)
-real REFINE_THRESHOLDS[] = {0.04, 0.02, -1.0};
+real REFINE_THRESHOLDS[] = {0.05, 0.03, -1.0};
 
 #include "mesh_adapt_function.c"
 
@@ -575,14 +575,11 @@ void higflow_interpolate_bc_for_velocity(higflow_solver *ns, higflow_solver *ns2
   // Facet iterator
   higcit_celliterator *it;
   // Local sub-domain
-  sim_facet_domain *sfdu[DIM];
   sim_facet_domain *sfdu2[DIM];
   // For each dimension
   for(int dim = 0; dim < DIM; dim++) {
     // Get the local sub-domain
-    sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
     sfdu2[dim] = psfd_get_local_domain(ns2->psfdu[dim]);
-    sim_domain *sd = sfdu[dim]->cdom;
     sim_domain *sd2 = sfdu2[dim]->cdom;
 
     int num_bc_types = 2;
@@ -592,34 +589,22 @@ void higflow_interpolate_bc_for_velocity(higflow_solver *ns, higflow_solver *ns2
       else if(i == 1) bc_t = NEUMANN;
 
       // Get the number of boundaries of type
-      // int numbcs = sd_get_num_bcs(sd, bc_t);
       int numbcs2 = sd_get_num_bcs(sd2, bc_t);
       // For each boundary
       for (int h = 0; h < numbcs2; h++) {
         // Get the boundary
-        // sim_boundary *bc = sd_get_bc(sd, bc_t, i);
         sim_boundary *bc2 = sd_get_bc(sd2, bc_t, h);
         // Get the id defined by the user
         int userid       = sb_get_userid(bc2);
-        // Get the value type of the boundary condition
-        bc_valuetype valuetype = sb_get_valuetype(bc2);
         // Get the mapper
         mp_mapper *bm2    = sb_get_mapper(bc2);
         // For each cell of the boundary
         for(it = sb_get_celliterator(bc2); !higcit_isfinished(it); higcit_nextcell(it)) {
-          // Get the cell
           hig_cell *bcell = higcit_getcell(it);
-          // Get the cell center
           Point bccenter;
           hig_get_center(bcell, bccenter);
-          // Get the id of the cell
           int bclid = mp_lookup(bm2, hig_get_cid(bcell));
-          stn_reset(ns->stn);
-          sfd_get_stencil(sfdu[dim], bccenter, bccenter, 1, ns->stn);
-          // real interpolated_u = sfd_dp_interpolate(sfdu[dim], ns->dpu[dim],bccenter, bccenter, ns->stn);
-          real interpolated_u = dp_interpolate_from_stencil(ns->dpu[dim], ns->stn);
           real t   = ns2->par.t + ns2->par.dt;
-          // Get the velocity defined by the user
           real val = ns2->func.get_boundary_velocity(userid, bccenter, dim, t);
           sb_set_value(bc2, bclid, val);
         }
@@ -772,7 +757,7 @@ int main(int argc, char* argv[]) {
         ///////////////////////////////////////////////////////
         solver_step(ns);
 
-        if (ns->par.step % 5 == 0) {
+        if (ns->par.step % 10 == 0) {
               real vol_before = compute_total_fracvol(ns);
               print0f("=+= Volume before interpolation = %16.10lf =+=\n", vol_before);
 
@@ -780,11 +765,13 @@ int main(int argc, char* argv[]) {
               // Create Navier-Stokes solver
               higflow_solver *ns2 = higflow_create();
 
-              // Load the data files
-              higflow_load_data_file_names(argc, argv, ns2); 
-              print0f("=+=+=+= Load Controllers and Parameters (ns2) =+=+=+=+=+\n");
-              higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
-              // // set the external functions
+              // Herda parâmetros e controladores do solver antigo (evita re-leitura de YAML)
+              ns2->par = ns->par;
+              ns2->contr = ns->contr;
+              ns2->sdp = ns->sdp;
+              ns2->sdF = ns->sdF;
+
+              // set the external functions
               higflow_set_external_functions(ns2, get_pressure, get_velocity, 
                                             get_source_term, get_facet_source_term,
                                             get_boundary_pressure, get_boundary_velocity,
