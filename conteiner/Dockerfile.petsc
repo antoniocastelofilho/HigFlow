@@ -42,7 +42,7 @@ echo "export PETSC_ARCH=$parch" >> $HOME/.varsrc                             &&\
 echo "export HIGTREE_DIR=$HOME/HigFlow/higtree" >> $HOME/.varsrc             &&\
 echo "export HIGFLOW_DIR=$HOME/HigFlow/higflow" >> $HOME/.varsrc             &&\
 echo 'export PETSC_EXTRA_LIB="-lmpi"' >> $HOME/.varsrc                       &&\
-echo '. $HOME/.varsrc"' >> $HOME/.bashrc                                     &&\
+echo '. $HOME/.varsrc' >> $HOME/.bashrc                                     &&\
 echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH">>$HOME/.bashrc &&\
 cd $HOME/HigFlow/bibliotecas/                                                &&\
 unzip libfyaml-master.zip                                                    &&\
