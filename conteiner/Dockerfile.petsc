@@ -32,7 +32,7 @@ RUN pip3 install ruamel.yaml
 RUN cd $HOME/HigFlow/bibliotecas/                                            &&\
 tar -vzxf petsc-3.14.0.tar.gz                                                &&\
 cd petsc-3.14.0/                                                             &&\
- ./configure --prefix=/opt/petsc-3.14.0 --with-shared-libraries=1  --with-mpi-dir=/usr  --download-fblaslapack --with-debubbing=yes --with-yaml=1 --with-hdf5-dir=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib --with-hdf5=1 --with-hdf5-fortran-bindings=1 --with-mpi-f90module-visibility=0 --with-hypre=1 --with-hypre-dir=/usr --with-hypre-include=/usr/include/hypre &&\
+ ./configure --prefix=/opt/petsc-3.14.0 --with-shared-libraries=1  --with-mpi-dir=/usr  --download-fblaslapack --with-debubbing=yes --with-yaml=1 --with-hdf5-dir=/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib --with-hdf5=1 --with-hdf5-fortran-bindings=1 --with-mpi-f90module-visibility=0 --with-hypre=1 --with-hypre-include=/usr/include/hypre --with-hypre-lib=/usr/lib/libHYPRE.so &&\
 parch=$(tail -200 configure.log | awk '/PETSC_ARCH/ {print $2}')             &&\
 pdir=$(tail -200 configure.log | awk '/PETSC_DIR/ {print $2}')               &&\
 make PETSC_DIR=$pdir PETSC_ARCH=$parch all                                   &&\
