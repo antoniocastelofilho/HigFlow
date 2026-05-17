@@ -45,6 +45,13 @@ echo "export HIGFLOW_DIR=$HOME/HigFlow/higflow" >> $HOME/.varsrc             &&\
 echo 'export PETSC_EXTRA_LIB="-lmpi"' >> $HOME/.varsrc                       &&\
 echo '. $HOME/.varsrc' >> $HOME/.bashrc                                     &&\
 echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH">>$HOME/.bashrc &&\
+sudo mkdir -p /.singularity.d/env                                            &&\
+echo "export PETSC_DIR=$pdir" | sudo tee -a /.singularity.d/env/99-higflow.sh > /dev/null &&\
+echo "export PETSC_ARCH=$parch" | sudo tee -a /.singularity.d/env/99-higflow.sh > /dev/null &&\
+echo "export HIGTREE_DIR=$HOME/HigFlow/higtree" | sudo tee -a /.singularity.d/env/99-higflow.sh > /dev/null &&\
+echo "export HIGFLOW_DIR=$HOME/HigFlow/higflow" | sudo tee -a /.singularity.d/env/99-higflow.sh > /dev/null &&\
+echo 'export PETSC_EXTRA_LIB="-lmpi"' | sudo tee -a /.singularity.d/env/99-higflow.sh > /dev/null &&\
+echo "export LD_LIBRARY_PATH=\$PETSC_DIR/\$PETSC_ARCH/lib:\$LD_LIBRARY_PATH" | sudo tee -a /.singularity.d/env/99-higflow.sh > /dev/null &&\
 cd $HOME/HigFlow/bibliotecas/                                                &&\
 unzip libfyaml-master.zip                                                    &&\
 chmod 777 libfyaml-master                                                    &&\
