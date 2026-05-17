@@ -30,7 +30,7 @@ else
 	DEBUG_DESC = "No Debugging/Optimized"
 endif
 
-CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml)
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml hdf5)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(STANDARDS) -DDIM=$(DIM) $(OPTSOPT)
 
