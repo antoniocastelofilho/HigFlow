@@ -500,6 +500,37 @@ if(eo_any):
     with open(defines_filename, 'w') as file:
         file.write(defines_file)
 
+adapt_pos = pos_in_args('adapt=')
+if(adapt_pos != -1):
+    adapt_val = args[adapt_pos].split('=')[1].strip().lower()
+    adapt_enabled = 1 if adapt_val in ('true', '1') else 0
+    defines_filename = 'ns-example-2d.h'
+    with open(defines_filename, 'r') as file:
+        defines_file = file.read()
+    defines_file = re.sub(
+        r'(#define\s+ADAPT_ENABLED\s+)[01]',
+        f'\\g<1>{adapt_enabled}',
+        defines_file,
+        flags=re.DOTALL
+    )
+    with open(defines_filename, 'w') as file:
+        file.write(defines_file)
+
+freq_pos = pos_in_args('adapt_freq=')
+if(freq_pos != -1):
+    freq_val = args[freq_pos].split('=')[1].strip()
+    defines_filename = 'ns-example-2d.h'
+    with open(defines_filename, 'r') as file:
+        defines_file = file.read()
+    defines_file = re.sub(
+        r'(#define\s+ADAPT_FREQ\s+)\d+',
+        f'\\g<1>{freq_val}',
+        defines_file,
+        flags=re.DOTALL
+    )
+    with open(defines_filename, 'w') as file:
+        file.write(defines_file)
+
 ######################### Create name of output (to return) using controllers and parameters #########################
 
 def par2name(par_path):

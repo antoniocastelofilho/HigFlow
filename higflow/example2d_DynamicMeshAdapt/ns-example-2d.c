@@ -255,10 +255,12 @@ void get_inlet_types(higflow_solver* ns) {
 // Função para criar um snapshot da malha refinada sem afetar a simulação
 // Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
 
+#if ADAPT_ENABLED
 // thresholds de refinamento (sentinela -1.0 indica fim)
 real REFINE_THRESHOLDS[] = {0.05, 0.03, -1.0};
 
 #include "mesh_adapt_function.c"
+#endif
 
 real compute_total_fracvol(higflow_solver *ns) {
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
@@ -435,6 +437,7 @@ int main(int argc, char* argv[]) {
     // =====================================================
     // ADAPT INICIAL BASEADO NA INTERFACE ANALÍTICA
     // =====================================================
+#if ADAPT_ENABLED
     if (ns->par.step == 0) {
         int order_center = 1;
         int cache = 1;
@@ -476,6 +479,7 @@ int main(int argc, char* argv[]) {
 
         print0f("===> Initial analytic interface AMR applied\n");
     }
+#endif
 
     higflow_create_distributed_properties(ns);
     higflow_print_vtk(ns, myrank);
@@ -546,7 +550,8 @@ int main(int argc, char* argv[]) {
         ///////////////////////////////////////////////////////
         solver_step(ns);
 
-        if (ns->par.step % 20 == 0) {
+#if ADAPT_ENABLED
+        if (ns->par.step % ADAPT_FREQ == 0) {
               // real vol_before = compute_total_fracvol(ns);
               // print0f("=+= Volume before interpolation = %16.10lf =+=\n", vol_before);
 
@@ -637,6 +642,7 @@ int main(int argc, char* argv[]) {
               // ===> FIM DA INSERÇÃO <===
               // higflow_print_vtk(ns, myrank);
         }
+#endif
         /////////////////////////////////////////////////
 
         write_mem_usage(ns, "after step");
