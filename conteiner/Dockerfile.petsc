@@ -28,6 +28,7 @@ ENV       HOME         "/home/hig_user/"
 COPY --chown=hig_user:hig_user . "$HOME/HigFlow/"
 
 # RUN pip3 install wheel sphinx sphinx_rtd_theme sphinx-markdown-builder
+RUN pip3 install ruamel.yaml
 RUN cd $HOME/HigFlow/bibliotecas/                                            &&\
 tar -vzxf petsc-3.14.0.tar.gz                                                &&\
 cd petsc-3.14.0/                                                             &&\
