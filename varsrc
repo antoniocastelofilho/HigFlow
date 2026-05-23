@@ -2,6 +2,9 @@ export HIGTREE_DIR=$(pwd)/higtree
 export HIGFLOW_DIR=$(pwd)/higflow
 export PETSC_EXTRA_LIB="-lmpi"
 
+#LibTorch
+export LIBTORCH_DIR=$(pwd)/bibliotecas/libtorch
+
 #Petsc3.14
 export PETSC_DIR=$(pwd)/bibliotecas/petsc-3.14.0/x86_64
 export PETSC_ARCH=arch-linux-c-debug
