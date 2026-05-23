@@ -1,8 +1,8 @@
 /*
 *Reads ONE amr file, sets Dirichlet boundary conditions and export the stencil of each cell
 *file_coords_out exports a .csv with the relation between id (global), coordinate and delta.
-*file_weights_out exports a .txt with a python dictionary. The keys are the id and the value associated is a list
-*with tuples containing the id and the weight of the point.
+*file_weights_out exports a .txt with a python dictionary. The keys are the coordinates of the that is not in the mesh
+ and the value associated is a list with tuples containing the id and the weight of the point.
 */
 
 #include<stdio.h>
@@ -206,4 +206,4 @@ int main(int argc,char *argv[]) {
 
 	printf("done\n");
     return 0;
-}
+}	

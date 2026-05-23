@@ -12,6 +12,8 @@ bibliotecas/
 *.vtk
 *.txt
 *.dat
+*.fls
+*.fdb_latexmk
 !CMakeLists.txt
 
 # Object files
