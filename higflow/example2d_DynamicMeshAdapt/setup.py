@@ -16,12 +16,21 @@ if(len(args)>0):
         print('type: newt, visc, eo, eovisc (or visceo)')
         exit()
 
-def pos_in_args(str):
-    for pos, element in enumerate(args):
-        if str in element:
-            return pos
+def pos_in_args(token):
+    # For "key=" tokens, match the key exactly (the text before '=') so that a
+    # short key cannot collide with a longer argument name, e.g. 'eps=' must NOT
+    # match 'numsteps='.  For bare tokens (no '='), keep substring matching:
+    # model names may be passed combined, e.g. 'oldroyd_b-giesekus'.
+    if token.endswith('='):
+        key = token[:-1]
+        for pos, element in enumerate(args):
+            if '=' in element and element.split('=', 1)[0] == key:
+                return pos
     else:
-        return -1
+        for pos, element in enumerate(args):
+            if token in element:
+                return pos
+    return -1
  
 with open(filename) as yaml_file:
     yaml_data = yaml.load(yaml_file)
