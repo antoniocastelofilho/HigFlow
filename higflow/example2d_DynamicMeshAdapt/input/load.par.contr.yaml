@@ -1,5 +1,5 @@
 simulation_par:
-  numsteps: 1001                           # The Maximum Number of Steps 
+  numsteps: 10001                          # The Maximum Number of Steps 
   dt: 0.001                      # The Time spacing
   dts: 1.0                         # The Time spacing for saving data (output) 
   dtp: 0.01                         # The Time spacing for saving VTKs
@@ -93,7 +93,7 @@ singlephase:
 
 multiphase:
   contr:
-    flowtype0: newtonian             # newtonian or viscoelastic
+    flowtype0: viscoelastic          # newtonian or viscoelastic
     flowtype1: newtonian                # newtonian or viscoelastic
     eoflow0: false              # true or false
     eoflow1: false              # true or false
@@ -110,13 +110,13 @@ multiphase:
       mu: 1.0                          # Reference viscosity of phase 1 (for possible usage when setting the viscosities)
   viscoelastic:
     contr:
-      model0: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
+      model0: lptt                      # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       model1: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       discrtype: explicit               # explicit or implicit
       convecdiscrtype: cubista          # central or cubista
     phase0:      # (all ignored if newtonian)
       adimensional:
-        De: 0.4                         # Deborah Number         De = λU/H
+        De: 5.0                         # Deborah Number         De = λU/H
         beta: 0.5                       # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
         kernel_tol: 1.0e-2              # kernel function interpolation tolerance (minimum of both phases is chosen)
       model_lptt:
