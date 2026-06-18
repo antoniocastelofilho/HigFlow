@@ -5,6 +5,55 @@
 // *******************************************************************
 
 #include "ns-example-2d.h"
+#include <string.h>
+
+// -----------------------------------------------------------------------
+// BC higtree refinement for AMR cases.
+// Registered via higflow_set_bc_refine_hook() so each boundary higtree
+// is refined in place to match the adjacent internal mesh before the
+// sim_boundary is created.  _bc_domain_root is set just before calling
+// higflow_initialize_boundaries_yaml() and cleared immediately after.
+// -----------------------------------------------------------------------
+static hig_cell *_bc_domain_root = NULL;
+
+static int _bc_level(hig_cell *c) {
+    int l = 0;
+    while (c) { c = hig_get_parent(c); l++; }
+    return l;
+}
+
+static void _refine_bc_tree(hig_cell *bc_root, int bc_id) {
+    if (!_bc_domain_root) return;
+    const real eps = 1e-7;
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        higcit_celliterator *it = higcit_create_all_leaves(bc_root);
+        for (; !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *bc_leaf = higcit_getcell(it);
+            Point center; hig_get_center(bc_leaf, center);
+            Point q; q[0] = center[0]; q[1] = center[1];
+            if      (bc_id == 0) q[0] += eps;
+            else if (bc_id == 1) q[1] -= eps;
+            else if (bc_id == 2) q[0] -= eps;
+            else                 q[1] += eps;
+            hig_cell *dom = hig_get_cell_with_point(_bc_domain_root, q);
+            if (!dom) continue;
+            int bc_lev  = _bc_level(bc_leaf);
+            int dom_lev = _bc_level(dom);
+            if (dom_lev > bc_lev) {
+                int nc[DIM];
+                if (bc_id == 0 || bc_id == 2) { nc[0]=1; nc[1]=2; }
+                else                            { nc[0]=2; nc[1]=1; }
+                hig_refine_uniform(bc_leaf, nc);
+                changed = true;
+                higcit_destroy(it);
+                break;
+            }
+        }
+        if (!changed) higcit_destroy(it);
+    }
+}
 
 /************************************ user functions **************************************/
 
@@ -252,11 +301,8 @@ void get_inlet_types(higflow_solver* ns) {
 /******************************************************************************************/
 /******************************************************************************************/
 
-// Função para criar um snapshot da malha refinada sem afetar a simulação
-// Certifique-se de que estes includes estão no topo do arquivo ns-example-2d.c
-
 #if ADAPT_ENABLED
-// thresholds de refinamento (sentinela -1.0 indica fim)
+// Refinement thresholds (sentinel -1.0 marks end of array)
 real REFINE_THRESHOLDS[] = {0.05, 0.03, -1.0};
 
 #include "mesh_adapt_function.c"
@@ -283,7 +329,7 @@ real compute_total_fracvol(higflow_solver *ns) {
     return global_total;
 }
 
-// Interpola todas as propriedades de célula num unico loop
+// Interpolate all cell-centered properties in a single iterator pass
 void higflow_interpolate_all_cells(higflow_solver *ns, higflow_solver *ns2) {
     sim_domain *sdp  = psd_get_local_domain(ns->psdp);
     sim_domain *sdm  = psd_get_local_domain(ns->ed.mult.psdmult);
@@ -406,6 +452,7 @@ void higflow_interpolate_all_bcs(higflow_solver *ns, higflow_solver *ns2) {
     }
 }
 
+
 int main(int argc, char* argv[]) {
     int errcode = 0;
     START_CLOCK(total);
@@ -419,6 +466,7 @@ int main(int argc, char* argv[]) {
     printf("=+=+ Initializing Navier-Stokes Solver =+=+=+=+=+=+=+=+=+=+=+=+=\n");
     higflow_initialize(&argc, &argv, &myrank, &ntasks);
     higflow_solver* ns = higflow_create();
+    memset(ns, 0, sizeof(higflow_solver));
 
     // Set data file type names
     higflow_load_data_file_names(argc, argv, ns);
@@ -435,7 +483,7 @@ int main(int argc, char* argv[]) {
     print0f("=+=+ Creating and Initializing Distributed Properties =+=+=+=+=+=+=+=+=+=+=+=+=\n");
 
     // =====================================================
-    // ADAPT INICIAL BASEADO NA INTERFACE ANALÍTICA
+    // INITIAL ADAPTATION BASED ON ANALYTICAL INTERFACE
     // =====================================================
 #if ADAPT_ENABLED
     if (ns->par.step == 0) {
@@ -494,8 +542,16 @@ int main(int argc, char* argv[]) {
     get_inlet_types(ns);
 
     print0f("=+=+ Initializing Boundaries =+=+\n");
+#if ADAPT_ENABLED
+    _bc_domain_root = sd_get_higtree(psd_get_local_domain(ns->psdp), 0);
+    higflow_set_bc_refine_hook(_refine_bc_tree);
+#endif
     higflow_initialize_boundaries_yaml(ns);
-    
+#if ADAPT_ENABLED
+    higflow_set_bc_refine_hook(NULL);
+    _bc_domain_root = NULL;
+#endif
+
     if(ns->par.step > 0){
         if (myrank == 0) {
             printf("*********************************************************************************\n");
@@ -523,7 +579,7 @@ int main(int argc, char* argv[]) {
         save(ns, myrank, ntasks);
     }
     // =====================================================
-    // ADAPT INICIAL BASEADO NA INTERFACE ANALÍTICA
+    // INITIAL ADAPTATION BASED ON ANALYTICAL INTERFACE
     // =====================================================
 
     sim_residuals *sim_res = create_initialize_sim_residuals(ns);
@@ -559,7 +615,7 @@ int main(int argc, char* argv[]) {
               // Create Navier-Stokes solver
               higflow_solver *ns2 = higflow_create();
 
-              // Herda parâmetros e controladores do solver antigo (evita re-leitura de YAML)
+              // Inherit parameters and controllers from the old solver (avoids re-reading YAML)
               ns2->par = ns->par;
               ns2->contr = ns->contr;
               ns2->sdp = ns->sdp;
@@ -603,8 +659,12 @@ int main(int argc, char* argv[]) {
               print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
               higflow_create_distributed_properties(ns2);
 
-              // Treatment for boundary conditions
+              // Refine BC higtrees to match the adapted internal mesh before building boundaries
+              _bc_domain_root = root;
+              higflow_set_bc_refine_hook(_refine_bc_tree);
               higflow_initialize_boundaries_yaml(ns2);
+              higflow_set_bc_refine_hook(NULL);
+              _bc_domain_root = NULL;
 
               // Interpolar (3 chamadas fundidas em vez de 6+)
               print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
@@ -625,21 +685,18 @@ int main(int argc, char* argv[]) {
 
               higflow_create_solver(ns2); 
 
-              // Destroy the Navier-Stokes object
-              // 2. Copia parâmetros essenciais do solver antigo
+              // Copy essential parameters from the old solver, then destroy it
               ns2->par = ns->par;
               ns2->contr = ns->contr;
               higflow_destroy(ns);
               ns = (higflow_solver *) ns2;
 
-              // 1. Atualizar Mappers (Garante que os IDs globais do PETSc estejam certos)
-              // É boa prática sincronizar pressão também
+              // Sync mappers so PETSc global IDs are consistent
               psd_synced_mapper(ns->psdp); 
               for(int dim = 0; dim < DIM; dim++) {
                 psfd_synced_mapper(ns->psfdu[dim]); 
               }
 
-              // ===> FIM DA INSERÇÃO <===
               // higflow_print_vtk(ns, myrank);
         }
 #endif

@@ -22,7 +22,7 @@
 #define pi 3.1415926535897932384626434
 
 // enable/disable mesh adaptation (set by setup.py via adapt=)
-#define ADAPT_ENABLED 0
+#define ADAPT_ENABLED 1
 
 // adaptation frequency in time steps (set by setup.py via adapt_freq=)
 #define ADAPT_FREQ 5
