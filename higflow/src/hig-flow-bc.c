@@ -8,6 +8,19 @@
 #include <string.h>
 #include <libfyaml.h>
 
+// -----------------------------------------------------------------------
+// BC higtree post-read hook.
+// Set a callback with higflow_set_bc_refine_hook() before calling
+// higflow_initialize_boundaries_yaml().  The callback receives each
+// boundary higtree and its id immediately after it is read from disk,
+// before any sim_boundary is created.  Use NULL to disable.
+// -----------------------------------------------------------------------
+static void (*_bc_refine_hook)(hig_cell *bc_root, int bc_id) = NULL;
+
+void higflow_set_bc_refine_hook(void (*hook)(hig_cell *, int)) {
+    _bc_refine_hook = hook;
+}
+
 // Make the boundary condition
 sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype valuetype) {
     // Setting the map
@@ -38,6 +51,7 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -91,6 +105,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     sim_facet_domain *sfd;
     // Loop for the dimension
@@ -510,6 +525,7 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -549,6 +565,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     sim_facet_domain *sfdF;
     // Loop for the dimension
@@ -598,6 +615,7 @@ void higflow_set_boundary_condition_for_mult(higflow_solver *ns, int numbcs, int
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     
     // Loop for each boundary condition
