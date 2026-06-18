@@ -332,6 +332,54 @@ void higflow_interpolate_all_cells(higflow_solver *ns, higflow_solver *ns2) {
     dp_sync(ns2->dpp);
 }
 
+/*! \brief Interpolate viscoelastic tensors from old to new mesh.
+ *
+ *  Copies dpTaup[i][j] and dpKernel[i][j] (polymeric stress and kernel)
+ *  via stencil-based interpolation on the extra domain (sdED/psdED).
+ *  dpDu is NOT interpolated — it is recomputed from the velocity field
+ *  by higflow_compute_velocity_derivative_tensor at the start of the
+ *  next solver step.
+ */
+void higflow_interpolate_viscoelastic_tensors(higflow_solver *ns,
+                                              higflow_solver *ns2)
+{
+    sim_domain *sed  = psd_get_local_domain(ns->ed.psdED);
+    sim_domain *sed2 = psd_get_local_domain(ns2->ed.psdED);
+    mp_mapper *me2   = sd_get_domain_mapper(sed2);
+
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sed2);
+         !higcit_isfinished(it); higcit_nextcell(it))
+    {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(me2, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+
+        for (int i = 0; i < DIM; i++) {
+            for (int j = 0; j < DIM; j++) {
+                real taup = compute_value_at_point(
+                    sed, ccenter, ccenter, 1.0,
+                    ns->ed.ve.dpTaup[i][j], ns->ed.stn);
+                dp_set_value(ns2->ed.ve.dpTaup[i][j], clid, taup);
+
+                real krnl = compute_value_at_point(
+                    sed, ccenter, ccenter, 1.0,
+                    ns->ed.ve.dpKernel[i][j], ns->ed.stn);
+                dp_set_value(ns2->ed.ve.dpKernel[i][j], clid, krnl);
+            }
+        }
+    }
+    higcit_destroy(it);
+
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            dp_sync(ns2->ed.ve.dpTaup[i][j]);
+            dp_sync(ns2->ed.ve.dpKernel[i][j]);
+        }
+    }
+}
+
 // Interpola velocidade (facets) da malha velha para a nova
 void higflow_interpolate_velocity(higflow_solver *ns, higflow_solver *ns2) {
     for (int dim = 0; dim < DIM; dim++) {
@@ -456,11 +504,21 @@ int main(int argc, char* argv[]) {
             get_viscosity0, get_viscosity1,
             get_density0, get_density1, get_fracvol);
 
+        if (ns2->ed.mult.contr.viscoelastic_either == true) {
+            higflow_create_domain_multiphase_viscoelastic(ns2,
+                get_tensor_multiphase, get_kernel,
+                get_kernel_inverse, get_kernel_jacobian);
+            higflow_define_user_function_multiphase_viscoelastic(
+                ns2, calculate_m_user_multiphase);
+        }
+
         hig_cell *root = higflow_make_adapted_tree_params(ns, REFINE_THRESHOLDS);
 
         sd_add_higtree(ns2->sdp, root);
         sd_add_higtree(ns2->sdF, root);
         sd_add_higtree(ns2->ed.mult.sdmult, root);
+        if (ns2->ed.mult.contr.viscoelastic_either == true)
+            sd_add_higtree(ns2->ed.sdED, root);
 
         partition_graph *pg = pg_create(MPI_COMM_WORLD);
         pg_set_fringe_size(pg, 5);
@@ -472,6 +530,8 @@ int main(int argc, char* argv[]) {
 
         higflow_create_stencil(ns2);
         higflow_create_stencil_multiphase(ns2);
+        if (ns2->ed.mult.contr.viscoelastic_either == true)
+            higflow_create_stencil_for_extra_domain(ns2);
 
         ns2->par = ns->par;
         ns2->contr = ns->contr;
@@ -585,6 +645,14 @@ int main(int argc, char* argv[]) {
               higflow_create_domain_multiphase(ns2, cache, order_center, get_viscosity0, get_viscosity1, 
                                               get_density0, get_density1, get_fracvol);
 
+              if (ns2->ed.mult.contr.viscoelastic_either == true) {
+                  higflow_create_domain_multiphase_viscoelastic(ns2,
+                      get_tensor_multiphase, get_kernel,
+                      get_kernel_inverse, get_kernel_jacobian);
+                  higflow_define_user_function_multiphase_viscoelastic(
+                      ns2, calculate_m_user_multiphase);
+              }
+
               // // Initialize the domain
               // print0f("=+=+=+= Load Domain (ns2) =+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
               //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
@@ -598,6 +666,8 @@ int main(int argc, char* argv[]) {
               sd_add_higtree(ns2->sdp, root);
               sd_add_higtree(ns2->sdF, root);
               sd_add_higtree(ns2->ed.mult.sdmult, root);
+              if (ns2->ed.mult.contr.viscoelastic_either == true)
+                  sd_add_higtree(ns2->ed.sdED, root);
 
               // // Creating the partitioned sub-domain to simulation
               higflow_create_partitioned_domain(ns2, pg, order_center);
@@ -606,6 +676,8 @@ int main(int argc, char* argv[]) {
               // Creating the stencil for properties interpolation
               higflow_create_stencil(ns2);
               higflow_create_stencil_multiphase(ns2);
+              if (ns2->ed.mult.contr.viscoelastic_either == true)
+                  higflow_create_stencil_for_extra_domain(ns2);
 
               // Creating distributed property  
               print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
@@ -622,6 +694,8 @@ int main(int argc, char* argv[]) {
               print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
               higflow_interpolate_velocity(ns, ns2);
               higflow_interpolate_all_cells(ns, ns2);
+              if (ns2->ed.mult.contr.viscoelastic_either == true)
+                  higflow_interpolate_viscoelastic_tensors(ns, ns2);
 
               higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns2);
               higflow_compute_distance_multiphase_2D(ns2);
