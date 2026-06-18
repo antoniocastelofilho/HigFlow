@@ -72,3 +72,63 @@ bibliotecas/
 # Cmake version dirs
 **build**
 cmake_install*
+
+# Media and simulation output files
+*.png
+*.jpg
+*.jpeg
+core.*
+vgcore.*
+
+
+# Build artifacts
+*.o
+*.ko
+*.obj
+*.elf
+*.ilk
+*.map
+*.exp
+*.gch
+*.pch
+*.lib
+*.la
+*.lo
+*.a
+*.so
+*.so.*
+*.dll
+*.dylib
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.su
+*.idb
+*.pdb
+*.mod*
+*.cmd
+*.s
+
+# Core dumps
+core.*
+vgcore.*
+
+# Media / simulation-output files that should not be tracked
+coarsening.mp4
+compare_fine_adaptative.avi
+
+# Media files from simulations
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Compiled binaries (rebuilt per-platform; do not track)
+higflow/example*/ns-example
+higflow/example*/ns-example-2d
+higflow/example*/ns-exemple-3d
+higflow/example*/ns-complex-3d
