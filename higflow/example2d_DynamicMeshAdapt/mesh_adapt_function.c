@@ -18,7 +18,7 @@ static real dist_sq_c(Point p1, Point p2) {
     return d;
 }
 
-// --- Cell level cache (O(1) lookup, evita subir ate a raiz toda vez) ---
+// --- Cell level cache (O(1) lookup, avoids walking to the root every time) ---
 static int get_cached_level(GHashTable *cache, hig_cell *c) {
     if (c == NULL) return -1;
     gpointer val = g_hash_table_lookup(cache, c);
@@ -31,7 +31,7 @@ static int get_cached_level(GHashTable *cache, hig_cell *c) {
     return level;
 }
 
-// --- Spatial hash 2D para busca rapida de sementes vizinhas ---
+// --- 2D spatial hash for fast neighbour-seed queries ---
 typedef struct {
     int nx, ny;
     real bin_w, bin_h, ox, oy;
@@ -78,7 +78,7 @@ static void free_seed_hash(SeedHash *sh) {
     free(sh->start); free(sh->seeds); memset(sh, 0, sizeof(*sh));
 }
 
-// Menor distancia ao quadrado de um ponto p a qualquer semente via spatial hash
+// Smallest squared distance from a point p to any seed, via the spatial hash.
 static real min_dist2_to_seeds(Point p, InterfaceSeedAdapt *seeds,
                                 SeedHash *sh)
 {
@@ -100,15 +100,18 @@ static real min_dist2_to_seeds(Point p, InterfaceSeedAdapt *seeds,
 }
 
 // =====================================================================
-// FUNCAO DE ADAPTACAO OTIMIZADA
-// - Single bounding box unificado (evita overlaps)
-// - GHashSet para dedup O(1)
-// - Cache de niveis GHashTable (evita subir arvore repetidamente)
-// - Spatial hash para busca de sementes vizinhas (evita O(N*seeds))
-// - Comparacao de distancias ao quadrado (sem sqrt)
-// - Pre-alocacao de arrays
+// Optimised interface-driven adaptation core (shared by both entry points).
+// Refines cells near the VOF interface and coarsens those far from it,
+// operating in place on `root` (the live mesh or a clone).
+// Optimisations:
+//   - unified bounding box over all interface seeds (avoids overlaps)
+//   - GHashTable set for O(1) dedup of cells already scheduled
+//   - GHashTable level cache (avoids walking to the root repeatedly)
+//   - spatial hash for neighbour-seed queries (avoids O(N*seeds))
+//   - squared-distance comparisons (no sqrt)
+//   - pre-allocated work arrays
 // =====================================================================
-hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
+static void adapt_tree_core(higflow_solver *ns, real *thresholds, hig_cell *root)
 {
     int num_levels = 0;
     real thr_sq[10], thr_coarse_sq[10];
@@ -121,14 +124,8 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
 
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     mp_mapper *mp = sd_get_domain_mapper(sdm);
-    int myrank; MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
-    hig_cell *root_o = sd_get_higtree(sdm, 0);
-    if (!root_o) return NULL;
-    hig_cell *root_c = hig_clone(root_o);
-    if (!root_c) return NULL;
-
-    // Coleta sementes
+    // Collect interface seeds (cells with 0.001 < fracvol < 0.999).
     int seed_cap = 1000, seed_count = 0;
     InterfaceSeedAdapt *seeds = malloc(seed_cap * sizeof(*seeds));
     higcit_celliterator *it = sd_get_domain_celliterator(sdm);
@@ -157,11 +154,11 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
     }
     higcit_destroy(it);
 
-    // Cache de niveis e espaco para refinamento
+    // Level cache and scheduled-cell set.
     GHashTable *level_cache = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *ref_set    = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-    // Bounding box unificado de todas as sementes
+    // Unified bounding box of all seeds, padded by the search radius.
     Point bbox_lo = {DBL_MAX, DBL_MAX}, bbox_hi = {-DBL_MAX, -DBL_MAX};
     for (int s = 0; s < seed_count; s++) {
         for (int d = 0; d < DIM; d++) {
@@ -170,19 +167,19 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
         }
     }
 
-    // Spatial hash das sementes
+    // Spatial hash of the seeds.
     SeedHash seed_hash;
     if (seed_count > 0) {
         real bh = max_search + 0.005;
         build_seed_hash(&seed_hash, seeds, seed_count, bh, bh, bbox_lo, bbox_hi);
     }
 
-    // Pre-aloca arrays
+    // Pre-allocate work arrays.
     int refine_cap = (seed_count > 0) ? seed_count * 4 : 1000;
     int merge_cap  = (seed_count > 0) ? seed_count * 2 : 1000;
 
     // ==================================================================
-    // ETAPA A: REFINAMENTO
+    // STAGE A: REFINEMENT
     // ==================================================================
     if (seed_count > 0 && num_levels > 0) {
         for (int pass = 0; pass < num_levels + 1; pass++) {
@@ -190,7 +187,7 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
             hig_cell **to_refine = malloc(refine_cap * sizeof(hig_cell*));
             g_hash_table_remove_all(ref_set);
 
-            higcit_celliterator *it_bb = higcit_create_bounding_box(root_c, bbox_lo, bbox_hi);
+            higcit_celliterator *it_bb = higcit_create_bounding_box(root, bbox_lo, bbox_hi);
             while (!higcit_isfinished(it_bb)) {
                 hig_cell *neigh = higcit_getcell(it_bb);
                 if (hig_get_number_of_children(neigh) == 0) {
@@ -216,7 +213,7 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
             }
             higcit_destroy(it_bb);
 
-            if (refine_count == 0) break;
+            if (refine_count == 0) { free(to_refine); break; }
             for (int i = 0; i < refine_count; i++) {
                 int nc[DIM] = {2, 2};
                 hig_refine_uniform(to_refine[i], nc);
@@ -226,14 +223,14 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
     }
 
     // ==================================================================
-    // ETAPA B: ENGROSSAMENTO (max 4 passes)
+    // STAGE B: COARSENING (max 4 passes)
     // ==================================================================
     if (seed_count > 0 && num_levels > 0) {
         for (int pass = 0; pass < 4; pass++) {
             int merge_count = 0;
             hig_cell **parents_to_merge = malloc(merge_cap * sizeof(hig_cell*));
 
-            higcit_celliterator *it_all = higcit_create_all_higtree(root_c);
+            higcit_celliterator *it_all = higcit_create_all_higtree(root);
             while (!higcit_isfinished(it_all)) {
                 hig_cell *c = higcit_getcell(it_all);
                 int nc = hig_get_number_of_children(c);
@@ -267,7 +264,7 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
 
             if (merge_count == 0) { free(parents_to_merge); break; }
             for (int i = 0; i < merge_count; i++) {
-                // Remove children's cached levels pois serao removidos
+                // Drop cached levels of children about to be removed.
                 for (int k = 0; k < hig_get_number_of_children(parents_to_merge[i]); k++)
                     g_hash_table_remove(level_cache, hig_get_child(parents_to_merge[i], k));
                 hig_merge_children(parents_to_merge[i]);
@@ -280,144 +277,71 @@ hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
     g_hash_table_destroy(ref_set);
     if (seed_count > 0) free_seed_hash(&seed_hash);
     free(seeds);
+}
+
+// Build a fresh adapted tree (clone of the live mesh). Caller owns the result.
+hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
+{
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    hig_cell *root_o = sd_get_higtree(sdm, 0);
+    if (!root_o) return NULL;
+    hig_cell *root_c = hig_clone(root_o);
+    if (root_c) adapt_tree_core(ns, thresholds, root_c);
     return root_c;
 }
 
-// =====================================================================
-// Versao in-place (mesmas otimizacoes)
-// =====================================================================
-void higflow_refine_tree_inplace(higflow_solver *ns, real *thresholds) {
-    int num_levels = 0;
-    real thr_sq[10], thr_coarse_sq[10];
-    while (num_levels < 10 && thresholds[num_levels] >= 0) num_levels++;
-    for (int i = 0; i < num_levels; i++) {
-        thr_sq[i] = thresholds[i] * thresholds[i];
-        thr_coarse_sq[i] = (thresholds[i] + 0.005) * (thresholds[i] + 0.005);
-    }
-    real max_search = (num_levels > 0) ? thresholds[0] : 0.0;
-
+// Adapt the live mesh in place.
+void higflow_refine_tree_inplace(higflow_solver *ns, real *thresholds)
+{
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    mp_mapper *mp = sd_get_domain_mapper(sdm);
-    int myrank; MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-
     hig_cell *root = sd_get_higtree(sdm, 0);
-    if (!root) return;
+    if (root) adapt_tree_core(ns, thresholds, root);
+}
 
-    int seed_cap = 1000, seed_count = 0;
-    InterfaceSeedAdapt *seeds = malloc(seed_cap * sizeof(*seeds));
-    higcit_celliterator *it = sd_get_domain_celliterator(sdm);
-    while (!higcit_isfinished(it)) {
-        hig_cell *c = higcit_getcell(it);
-        int clid = mp_lookup(mp, hig_get_cid(c));
-        if (clid >= 0) {
-            real val;
-            if (ns->par.step == 0) {
-                Point xc, delta; hig_get_center(c, xc); hig_get_delta(c, delta);
-                val = ns->ed.mult.get_fracvol(xc, delta, ns->par.t);
-            } else {
-                val = dp_get_value(ns->ed.mult.dpfracvol, clid);
-            }
-            if (val > 0.001 && val < 0.999) {
-                if (seed_count >= seed_cap) { seed_cap *= 2; seeds = realloc(seeds, seed_cap * sizeof(*seeds)); }
-                hig_get_center(c, seeds[seed_count].center);
-                seed_count++;
+// =====================================================================
+// BC higtree refinement for AMR cases.
+// Registered via higflow_set_bc_refine_hook() so each boundary higtree
+// is refined in place to match the adjacent internal mesh before the
+// sim_boundary is created.  _bc_domain_root is set just before calling
+// higflow_initialize_boundaries_yaml() and cleared immediately after.
+// =====================================================================
+static hig_cell *_bc_domain_root = NULL;
+
+static int _bc_level(hig_cell *c) {
+    int l = 0;
+    while (c) { c = hig_get_parent(c); l++; }
+    return l;
+}
+
+static void _refine_bc_tree(hig_cell *bc_root, int bc_id) {
+    if (!_bc_domain_root) return;
+    const real eps = 1e-7;
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        higcit_celliterator *it = higcit_create_all_leaves(bc_root);
+        for (; !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *bc_leaf = higcit_getcell(it);
+            Point center; hig_get_center(bc_leaf, center);
+            Point q; q[0] = center[0]; q[1] = center[1];
+            if      (bc_id == 0) q[0] += eps;
+            else if (bc_id == 1) q[1] -= eps;
+            else if (bc_id == 2) q[0] -= eps;
+            else                 q[1] += eps;
+            hig_cell *dom = hig_get_cell_with_point(_bc_domain_root, q);
+            if (!dom) continue;
+            int bc_lev  = _bc_level(bc_leaf);
+            int dom_lev = _bc_level(dom);
+            if (dom_lev > bc_lev) {
+                int nc[DIM];
+                if (bc_id == 0 || bc_id == 2) { nc[0]=1; nc[1]=2; }
+                else                            { nc[0]=2; nc[1]=1; }
+                hig_refine_uniform(bc_leaf, nc);
+                changed = true;
+                higcit_destroy(it);
+                break;
             }
         }
-        higcit_nextcell(it);
+        if (!changed) higcit_destroy(it);
     }
-    higcit_destroy(it);
-
-    GHashTable *level_cache = g_hash_table_new(g_direct_hash, g_direct_equal);
-    GHashTable *ref_set     = g_hash_table_new(g_direct_hash, g_direct_equal);
-
-    Point bbox_lo = {DBL_MAX, DBL_MAX}, bbox_hi = {-DBL_MAX, -DBL_MAX};
-    for (int s = 0; s < seed_count; s++) {
-        for (int d = 0; d < DIM; d++) {
-            if (seeds[s].center[d] - max_search < bbox_lo[d]) bbox_lo[d] = seeds[s].center[d] - max_search;
-            if (seeds[s].center[d] + max_search > bbox_hi[d]) bbox_hi[d] = seeds[s].center[d] + max_search;
-        }
-    }
-
-    SeedHash seed_hash;
-    if (seed_count > 0) build_seed_hash(&seed_hash, seeds, seed_count, max_search + 0.005, max_search + 0.005, bbox_lo, bbox_hi);
-
-    int refine_cap = (seed_count > 0) ? seed_count * 4 : 1000;
-    int merge_cap  = (seed_count > 0) ? seed_count * 2 : 1000;
-
-    if (seed_count > 0 && num_levels > 0) {
-        for (int pass = 0; pass < num_levels + 1; pass++) {
-            int refine_count = 0;
-            hig_cell **to_refine = malloc(refine_cap * sizeof(hig_cell*));
-            g_hash_table_remove_all(ref_set);
-
-            higcit_celliterator *it_bb = higcit_create_bounding_box(root, bbox_lo, bbox_hi);
-            while (!higcit_isfinished(it_bb)) {
-                hig_cell *neigh = higcit_getcell(it_bb);
-                if (hig_get_number_of_children(neigh) == 0) {
-                    Point cn; hig_get_center(neigh, cn);
-                    real d2 = min_dist2_to_seeds(cn, seeds, &seed_hash);
-                    int target_level = 0;
-                    for (int l = num_levels - 1; l >= 0; l--)
-                        if (d2 <= thr_sq[l]) { target_level = l + 1; break; }
-                    if (target_level > 0) {
-                        int cl = get_cached_level(level_cache, neigh);
-                        if (cl < target_level && !g_hash_table_contains(ref_set, neigh)) {
-                            if (refine_count >= refine_cap) { refine_cap *= 2; to_refine = realloc(to_refine, refine_cap * sizeof(hig_cell*)); }
-                            to_refine[refine_count++] = neigh;
-                            g_hash_table_add(ref_set, neigh);
-                        }
-                    }
-                }
-                higcit_nextcell(it_bb);
-            }
-            higcit_destroy(it_bb);
-            if (refine_count == 0) break;
-            for (int i = 0; i < refine_count; i++) { int nc[DIM] = {2, 2}; hig_refine_uniform(to_refine[i], nc); }
-            free(to_refine);
-        }
-    }
-
-    if (seed_count > 0 && num_levels > 0) {
-        for (int pass = 0; pass < 4; pass++) {
-            int merge_count = 0;
-            hig_cell **parents_to_merge = malloc(merge_cap * sizeof(hig_cell*));
-            higcit_celliterator *it_all = higcit_create_all_higtree(root);
-            while (!higcit_isfinished(it_all)) {
-                hig_cell *c = higcit_getcell(it_all);
-                int nc = hig_get_number_of_children(c);
-                if (nc > 0) {
-                    int all_leaves = 1;
-                    for (int k = 0; k < nc; k++) { if (hig_get_number_of_children(hig_get_child(c, k)) > 0) { all_leaves = 0; break; } }
-                    if (all_leaves) {
-                        int plvl = get_cached_level(level_cache, c);
-                        int safe = 1;
-                        for (int k = 0; k < nc && safe; k++) {
-                            hig_cell *ch = hig_get_child(c, k); Point cch; hig_get_center(ch, cch);
-                            real d2 = min_dist2_to_seeds(cch, seeds, &seed_hash);
-                            real thr = (plvl < num_levels) ? thr_coarse_sq[plvl] : -1.0;
-                            if (d2 <= thr) safe = 0;
-                        }
-                        if (safe) {
-                            if (merge_count >= merge_cap) { merge_cap *= 2; parents_to_merge = realloc(parents_to_merge, merge_cap * sizeof(hig_cell*)); }
-                            parents_to_merge[merge_count++] = c;
-                        }
-                    }
-                }
-                higcit_nextcell(it_all);
-            }
-            higcit_destroy(it_all);
-            if (merge_count == 0) { free(parents_to_merge); break; }
-            for (int i = 0; i < merge_count; i++) {
-                for (int k = 0; k < hig_get_number_of_children(parents_to_merge[i]); k++)
-                    g_hash_table_remove(level_cache, hig_get_child(parents_to_merge[i], k));
-                hig_merge_children(parents_to_merge[i]);
-            }
-            free(parents_to_merge);
-        }
-    }
-
-    g_hash_table_destroy(level_cache);
-    g_hash_table_destroy(ref_set);
-    if (seed_count > 0) free_seed_hash(&seed_hash);
-    free(seeds);
 }

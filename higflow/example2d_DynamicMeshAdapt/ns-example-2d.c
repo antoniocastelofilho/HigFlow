@@ -7,54 +7,6 @@
 #include "ns-example-2d.h"
 #include <string.h>
 
-// -----------------------------------------------------------------------
-// BC higtree refinement for AMR cases.
-// Registered via higflow_set_bc_refine_hook() so each boundary higtree
-// is refined in place to match the adjacent internal mesh before the
-// sim_boundary is created.  _bc_domain_root is set just before calling
-// higflow_initialize_boundaries_yaml() and cleared immediately after.
-// -----------------------------------------------------------------------
-static hig_cell *_bc_domain_root = NULL;
-
-static int _bc_level(hig_cell *c) {
-    int l = 0;
-    while (c) { c = hig_get_parent(c); l++; }
-    return l;
-}
-
-static void _refine_bc_tree(hig_cell *bc_root, int bc_id) {
-    if (!_bc_domain_root) return;
-    const real eps = 1e-7;
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        higcit_celliterator *it = higcit_create_all_leaves(bc_root);
-        for (; !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *bc_leaf = higcit_getcell(it);
-            Point center; hig_get_center(bc_leaf, center);
-            Point q; q[0] = center[0]; q[1] = center[1];
-            if      (bc_id == 0) q[0] += eps;
-            else if (bc_id == 1) q[1] -= eps;
-            else if (bc_id == 2) q[0] -= eps;
-            else                 q[1] += eps;
-            hig_cell *dom = hig_get_cell_with_point(_bc_domain_root, q);
-            if (!dom) continue;
-            int bc_lev  = _bc_level(bc_leaf);
-            int dom_lev = _bc_level(dom);
-            if (dom_lev > bc_lev) {
-                int nc[DIM];
-                if (bc_id == 0 || bc_id == 2) { nc[0]=1; nc[1]=2; }
-                else                            { nc[0]=2; nc[1]=1; }
-                hig_refine_uniform(bc_leaf, nc);
-                changed = true;
-                higcit_destroy(it);
-                break;
-            }
-        }
-        if (!changed) higcit_destroy(it);
-    }
-}
-
 /************************************ user functions **************************************/
 
 #include "ns-user-functions-vof.c"
