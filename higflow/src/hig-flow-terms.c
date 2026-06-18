@@ -49,10 +49,7 @@ real higflow_gravity_term(higflow_solver *ns) {
 
     real value = 0.0;
     if (ns->contr.add_gravity == true) {
-        real value = 1.0/(ns->par.Fr*ns->par.Fr);
-        if (ns->contr.flowtype == MULTIPHASE) {
-            value /= ns->cc.dens;
-        }
+        value = 1.0/(ns->par.Fr*ns->par.Fr);
     }
     return value;
 }
