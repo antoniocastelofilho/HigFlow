@@ -2687,6 +2687,7 @@ real stn_mult_vector(sim_stencil *stn, real *v) {
 }
 
 void stn_destroy(sim_stencil *stn) {
+	if (stn == NULL) return;
 	free(stn->ids);
 	free(stn->vals);
 	free(stn);

@@ -1089,6 +1089,7 @@ real sfd_dp_interpolate(sim_facet_domain *sfd, distributed_property *dp,
 }
 
 void dp_destroy(distributed_property *dp) {
+	if (dp == NULL) return;
 	free(dp->values);
 	free(dp);
 }

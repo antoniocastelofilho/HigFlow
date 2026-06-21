@@ -258,6 +258,119 @@ void get_inlet_types(higflow_solver* ns) {
 real REFINE_THRESHOLDS[] = {0.05, 0.03, -1.0};
 
 #include "mesh_adapt_function.c"
+
+/*! \brief Rebuild a partially-initialized solver with an adapted mesh.
+ *
+ *  Assumes ns2 already has its controllers, external functions and
+ *  internal domains created (pressure/velocity/multiphase).  This
+ *  function builds a globally adapted tree, partitions it across the
+ *  MPI ranks with the load balancer, creates the partitioned domains,
+ *  stencils, distributed properties and boundaries.  The solver is
+ *  created only when `create_solver` is true; at step 0 the caller
+ *  initializes the properties analytically before creating it.
+ */
+static void higflow_rebuild_with_amr(higflow_solver *ns,
+                                     higflow_solver *ns2,
+                                     int myrank, int ntasks,
+                                     int cache, int order_center)
+{
+    (void)cache;
+    (void)ntasks;
+
+    // Global adapted tree identical on every rank.
+    hig_cell *root = higflow_make_global_adapted_tree(
+        ns, REFINE_THRESHOLDS, "mesh/__using/domain/ch-d.amr");
+
+    // Sanity check: every rank must see the same adapted tree.
+    long local_leaves = root ? hig_get_number_of_leaves(root) : 0;
+    long global_leaves;
+    MPI_Allreduce(&local_leaves, &global_leaves, 1, MPI_LONG, MPI_SUM,
+                  MPI_COMM_WORLD);
+    print0f("===> AMR: rank %d leaves=%ld total_leaves=%ld\n",
+            myrank, local_leaves, global_leaves);
+
+    // Uniform multiphase tree built from the same AMR file.
+    FILE *fd = fopen("mesh/__using/domain/ch-d.amr", "r");
+    higio_amr_info *mi = fd ? higio_read_amr_info(fd) : NULL;
+    if (fd) fclose(fd);
+    higio_amr_info *mi_mult = mi ? higflow_create_amr_info_mult(mi) : NULL;
+    hig_cell *mult_root = mi_mult ? higio_read_from_amr_info(mi_mult) : NULL;
+
+    // Partition graph and load balancer (group 0 = flow, group 1 = multiphase).
+    print0f("===> AMR: rank %d creating partition graph\n", myrank);
+    partition_graph *pg = pg_create(MPI_COMM_WORLD);
+    pg_set_fringe_size(pg, 5);
+    load_balancer *lb = lb_create(MPI_COMM_WORLD, 2);
+    if (myrank == 0 && root)
+        lb_add_input_tree(lb, root, true, 0);
+    if (myrank == 0 && mult_root)
+        lb_add_input_tree(lb, mult_root, true, 1);
+    print0f("===> AMR: rank %d calling lb_calc_partition\n", myrank);
+    lb_calc_partition(lb, pg);
+    print0f("===> AMR: rank %d lb_calc_partition done\n", myrank);
+
+    // Add the local trees returned by the LB to ns2's domains.
+    print0f("===> AMR: rank %d adding local trees to domains\n", myrank);
+    int numhigs0 = lb_get_num_local_trees_in_group(lb, 0);
+    for (int h = 0; h < numhigs0; h++) {
+        hig_cell *t = lb_get_local_tree_in_group(lb, h, 0);
+        sd_add_higtree(ns2->sdp, t);
+        sd_add_higtree(ns2->sdF, t);
+        if (ns2->ed.mult.contr.viscoelastic_either == true)
+            sd_add_higtree(ns2->ed.sdED, t);
+    }
+    int numhigs1 = lb_get_num_local_trees_in_group(lb, 1);
+    for (int h = 0; h < numhigs1; h++) {
+        hig_cell *t = lb_get_local_tree_in_group(lb, h, 1);
+        sd_add_higtree(ns2->ed.mult.sdmult, t);
+    }
+    lb_destroy(lb);
+
+    // Partitioned domains and stencils.
+    print0f("===> AMR: rank %d creating partitioned domains\n", myrank);
+    higflow_create_partitioned_domain(ns2, pg, order_center);
+    print0f("===> AMR: rank %d creating multiphase domain\n", myrank);
+    higflow_create_partitioned_domain_multiphase(ns2, pg, order_center);
+    print0f("===> AMR: rank %d creating stencils\n", myrank);
+    higflow_create_stencil(ns2);
+    higflow_create_stencil_multiphase(ns2);
+    if (ns2->ed.mult.contr.viscoelastic_either == true)
+        higflow_create_stencil_for_extra_domain(ns2);
+
+    // Distributed properties.
+    print0f("===> AMR: rank %d creating distributed properties\n", myrank);
+    higflow_create_distributed_properties(ns2);
+
+    // Boundaries refined to match the adapted internal mesh.
+    print0f("===> AMR: rank %d initializing boundaries\n", myrank);
+    _bc_domain_root = sd_get_higtree(psd_get_local_domain(ns2->psdp), 0);
+    higflow_set_bc_refine_hook(_refine_bc_tree);
+    higflow_initialize_boundaries_yaml(ns2);
+    higflow_set_bc_refine_hook(NULL);
+    _bc_domain_root = NULL;
+
+    // Solver creation is intentionally left to the caller.  Creating it
+    // here and again in main overwrites the solver handle and leaves the
+    // distributed properties mapped to the discarded solver.
+    print0f("===> AMR: rank %d creating solver\n", myrank);
+    higflow_create_solver(ns2);
+    print0f("===> AMR: rank %d solver created\n", myrank);
+}
+
+
+/*! \brief Recompute interface geometry on a newly rebuilt solver.
+ *
+ *  Must be called after the volume-fraction field has been filled
+ *  (analytical initialization at step 0 or interpolation during the
+ *  time loop).
+ */
+static void higflow_recompute_interface_geometry(higflow_solver *ns)
+{
+    higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
+    higflow_compute_distance_multiphase_2D(ns);
+    higflow_compute_plic_lines_2d(ns);
+}
+
 #endif
 
 real compute_total_fracvol(higflow_solver *ns) {
@@ -483,14 +596,14 @@ int main(int argc, char* argv[]) {
     print0f("=+=+ Creating and Initializing Distributed Properties =+=+=+=+=+=+=+=+=+=+=+=+=\n");
 
     // =====================================================
-    // INITIAL ADAPTATION BASED ON ANALYTICAL INTERFACE
+    // OPTIONAL STEP-0 AMR: rebuild ns on an adapted global mesh.
     // =====================================================
+    int amr_solver_ready = 0;
 #if ADAPT_ENABLED
     if (ns->par.step == 0) {
-        int order_center = 1;
-        int cache = 1;
-
         higflow_solver *ns2 = higflow_create();
+        memset(ns2, 0, sizeof(higflow_solver));
+
         higflow_load_data_file_names(argc, argv, ns2);
         higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
         higflow_set_external_functions(ns2,
@@ -512,36 +625,31 @@ int main(int argc, char* argv[]) {
                 ns2, calculate_m_user_multiphase);
         }
 
-        hig_cell *root = higflow_make_adapted_tree_params(ns, REFINE_THRESHOLDS);
+        higflow_rebuild_with_amr(ns, ns2, myrank, ntasks,
+                                 cache, order_center);
 
-        sd_add_higtree(ns2->sdp, root);
-        sd_add_higtree(ns2->sdF, root);
-        sd_add_higtree(ns2->ed.mult.sdmult, root);
-        if (ns2->ed.mult.contr.viscoelastic_either == true)
-            sd_add_higtree(ns2->ed.sdED, root);
-
-        partition_graph *pg = pg_create(MPI_COMM_WORLD);
-        pg_set_fringe_size(pg, 5);
-        load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
-        lb_destroy(lb);
-
-        higflow_create_partitioned_domain(ns2, pg, order_center);
-        higflow_create_partitioned_domain_multiphase(ns2, pg, order_center);
-
-        higflow_create_stencil(ns2);
-        higflow_create_stencil_multiphase(ns2);
-        if (ns2->ed.mult.contr.viscoelastic_either == true)
-            higflow_create_stencil_for_extra_domain(ns2);
-
+        // Copy runtime scalars, but keep ns2's own allocated strings.
+        char *nameprint = ns2->par.nameprint;
+        char *nameload = ns2->par.nameload;
+        char *namesave = ns2->par.namesave;
         ns2->par = ns->par;
-        ns2->contr = ns->contr;
-        ns = ns2;
+        ns2->par.nameprint = nameprint;
+        ns2->par.nameload = nameload;
+        ns2->par.namesave = namesave;
 
-        print0f("===> Initial analytic interface AMR applied\n");
+        higflow_solver *ns_old = ns;
+        ns = ns2;
+        amr_solver_ready = 1;
+
+        print0f("===> AMR: rank %d destroying old solver\n", myrank);
+        higflow_destroy(ns_old);
+        print0f("===> Initial AMR applied\n");
     }
 #endif
 
-    higflow_create_distributed_properties(ns);
+    if (!amr_solver_ready) {
+        higflow_create_distributed_properties(ns);
+    }
     higflow_print_vtk(ns, myrank);
     if (ns->par.step == 0) {
         higflow_initialize_distributed_properties(ns);
@@ -549,22 +657,23 @@ int main(int argc, char* argv[]) {
         print0f("=+= Total volume at step 0 = %lf =+=\n", v0);
     }
 
-
     // get inlet boundary types to set boundary conditions correctly
     get_inlet_types(ns);
 
-    print0f("=+=+ Initializing Boundaries =+=+\n");
+    if (!amr_solver_ready) {
+        print0f("=+=+ Initializing Boundaries =+=+\n");
 #if ADAPT_ENABLED
-    _bc_domain_root = sd_get_higtree(psd_get_local_domain(ns->psdp), 0);
-    higflow_set_bc_refine_hook(_refine_bc_tree);
+        _bc_domain_root = sd_get_higtree(psd_get_local_domain(ns->psdp), 0);
+        higflow_set_bc_refine_hook(_refine_bc_tree);
 #endif
-    higflow_initialize_boundaries_yaml(ns);
+        higflow_initialize_boundaries_yaml(ns);
 #if ADAPT_ENABLED
-    higflow_set_bc_refine_hook(NULL);
-    _bc_domain_root = NULL;
+        higflow_set_bc_refine_hook(NULL);
+        _bc_domain_root = NULL;
 #endif
+    }
 
-    if(ns->par.step > 0){
+    if (ns->par.step > 0 && !amr_solver_ready) {
         if (myrank == 0) {
             printf("*********************************************************************************\n");
             printf("*********************************************************************************\n");
@@ -576,7 +685,9 @@ int main(int argc, char* argv[]) {
     }
 
     print0f("=+=+ Creating Linear System Solvers =+=+=+=+=+=+=+=+=+=+=+=+=\n");
-    higflow_create_solver(ns);
+    if (!amr_solver_ready) {
+        higflow_create_solver(ns);
+    }
 
     MPI_Barrier(MPI_COMM_WORLD);
     print0f("=+=+ Saving Domain and Boundary Properties =+=+\n");
@@ -619,111 +730,72 @@ int main(int argc, char* argv[]) {
         solver_step(ns);
 
 #if ADAPT_ENABLED
-        if (ns->par.step % ADAPT_FREQ == 0) {
-              // real vol_before = compute_total_fracvol(ns);
-              // print0f("=+= Volume before interpolation = %16.10lf =+=\n", vol_before);
+        if (ns->par.step > 0 && ns->par.step % ADAPT_FREQ == 0) {
+            print0f("=+=+=+= Adaptive mesh refinement at step %d =+=+=+=\n",
+                    ns->par.step);
 
-              // Initializing Navier-Stokes solver
-              // Create Navier-Stokes solver
-              higflow_solver *ns2 = higflow_create();
+            // Create a fresh solver and rebuild it on an adapted global mesh.
+            higflow_solver *ns2 = higflow_create();
+            memset(ns2, 0, sizeof(higflow_solver));
 
-              // Inherit parameters and controllers from the old solver (avoids re-reading YAML)
-              ns2->par = ns->par;
-              ns2->contr = ns->contr;
-              ns2->sdp = ns->sdp;
-              ns2->sdF = ns->sdF;
+            // Load independent controllers; copy only runtime scalars so
+            // the old solver can be destroyed safely after the switch.
+            higflow_load_data_file_names(argc, argv, ns2);
+            higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
 
-              // set the external functions
-              higflow_set_external_functions(ns2, get_pressure, get_velocity, 
-                                            get_source_term, get_facet_source_term,
-                                            get_boundary_pressure, get_boundary_velocity,
-                                            get_boundary_source_term, get_boundary_facet_source_term); 
-              // Reset simulation domain
-              higflow_create_domain(ns2, cache, order_center); 
+            char *nameprint = ns2->par.nameprint;
+            char *nameload = ns2->par.nameload;
+            char *namesave = ns2->par.namesave;
+            ns2->par = ns->par;
+            ns2->par.nameprint = nameprint;
+            ns2->par.nameload = nameload;
+            ns2->par.namesave = namesave;
 
-              // // case MULTIPHASE:
-              higflow_create_domain_multiphase(ns2, cache, order_center, get_viscosity0, get_viscosity1, 
-                                              get_density0, get_density1, get_fracvol);
+            higflow_set_external_functions(ns2, get_pressure, get_velocity,
+                                           get_source_term, get_facet_source_term,
+                                           get_boundary_pressure, get_boundary_velocity,
+                                           get_boundary_source_term, get_boundary_facet_source_term);
+            higflow_create_domain(ns2, cache, order_center);
+            higflow_create_domain_multiphase(ns2, cache, order_center,
+                                             get_viscosity0, get_viscosity1,
+                                             get_density0, get_density1, get_fracvol);
 
-              if (ns2->ed.mult.contr.viscoelastic_either == true) {
-                  higflow_create_domain_multiphase_viscoelastic(ns2,
-                      get_tensor_multiphase, get_kernel,
-                      get_kernel_inverse, get_kernel_jacobian);
-                  higflow_define_user_function_multiphase_viscoelastic(
-                      ns2, calculate_m_user_multiphase);
-              }
+            if (ns2->ed.mult.contr.viscoelastic_either == true) {
+                higflow_create_domain_multiphase_viscoelastic(ns2,
+                    get_tensor_multiphase, get_kernel,
+                    get_kernel_inverse, get_kernel_jacobian);
+                higflow_define_user_function_multiphase_viscoelastic(
+                    ns2, calculate_m_user_multiphase);
+            }
 
-              // // Initialize the domain
-              // print0f("=+=+=+= Load Domain (ns2) =+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
-              //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
-              hig_cell *root = higflow_make_adapted_tree_params(ns, REFINE_THRESHOLDS);
+            higflow_rebuild_with_amr(ns, ns2, myrank, ntasks,
+                                     cache, order_center);
 
-              partition_graph *pg = pg_create(MPI_COMM_WORLD);
-              pg_set_fringe_size(pg, 5);
-              load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
-              lb_destroy(lb);
+            // Interpolate the old solution onto the new mesh.
+            print0f("===> AMR: rank %d interpolating velocity\n", myrank);
+            higflow_interpolate_velocity(ns, ns2);
+            print0f("===> AMR: rank %d interpolating all cells\n", myrank);
+            higflow_interpolate_all_cells(ns, ns2);
+            if (ns2->ed.mult.contr.viscoelastic_either == true) {
+                print0f("===> AMR: rank %d interpolating viscoelastic\n", myrank);
+                higflow_interpolate_viscoelastic_tensors(ns, ns2);
+            }
 
-              sd_add_higtree(ns2->sdp, root);
-              sd_add_higtree(ns2->sdF, root);
-              sd_add_higtree(ns2->ed.mult.sdmult, root);
-              if (ns2->ed.mult.contr.viscoelastic_either == true)
-                  sd_add_higtree(ns2->ed.sdED, root);
+            print0f("===> AMR: rank %d recomputing interface geometry\n", myrank);
+            higflow_recompute_interface_geometry(ns2);
 
-              // // Creating the partitioned sub-domain to simulation
-              higflow_create_partitioned_domain(ns2, pg, order_center);
-              higflow_create_partitioned_domain_multiphase(ns2, pg, order_center);
+            print0f("===> AMR: rank %d interpolating BCs\n", myrank);
+            higflow_interpolate_all_bcs(ns, ns2);
 
-              // Creating the stencil for properties interpolation
-              higflow_create_stencil(ns2);
-              higflow_create_stencil_multiphase(ns2);
-              if (ns2->ed.mult.contr.viscoelastic_either == true)
-                  higflow_create_stencil_for_extra_domain(ns2);
+            // Switch to the rebuilt solver and release the old one.
+            print0f("===> AMR: rank %d switching solvers\n", myrank);
+            higflow_solver *ns_old = ns;
+            ns = ns2;
 
-              // Creating distributed property  
-              print0f("=+=+=+= Creating distributed property (ns2) +=+=+=+=+=\n");
-              higflow_create_distributed_properties(ns2);
-
-              // Refine BC higtrees to match the adapted internal mesh before building boundaries
-              _bc_domain_root = root;
-              higflow_set_bc_refine_hook(_refine_bc_tree);
-              higflow_initialize_boundaries_yaml(ns2);
-              higflow_set_bc_refine_hook(NULL);
-              _bc_domain_root = NULL;
-
-              // Interpolar (3 chamadas fundidas em vez de 6+)
-              print0f("=+=+=+= Interpolation (ns2) +=+=+=+=+=\n");
-              higflow_interpolate_velocity(ns, ns2);
-              higflow_interpolate_all_cells(ns, ns2);
-              if (ns2->ed.mult.contr.viscoelastic_either == true)
-                  higflow_interpolate_viscoelastic_tensors(ns, ns2);
-
-              higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns2);
-              higflow_compute_distance_multiphase_2D(ns2);
-              higflow_compute_plic_lines_2d(ns2);
-
-              higflow_interpolate_all_bcs(ns, ns2);
-
-              //{
-              //    real vol_after = compute_total_fracvol(ns2);
-              //    print0f("=+= Volume after interpolation  = %16.10lf =+=\n", vol_after);
-              //    print0f("=+= Volume change               = %16.10lf =+=\n", vol_after - vol_before);
-              //}
-
-              higflow_create_solver(ns2); 
-
-              // Copy essential parameters from the old solver, then destroy it
-              ns2->par = ns->par;
-              ns2->contr = ns->contr;
-              higflow_destroy(ns);
-              ns = (higflow_solver *) ns2;
-
-              // Sync mappers so PETSc global IDs are consistent
-              psd_synced_mapper(ns->psdp); 
-              for(int dim = 0; dim < DIM; dim++) {
-                psfd_synced_mapper(ns->psfdu[dim]); 
-              }
-
-              // higflow_print_vtk(ns, myrank);
+            // Mappers were already synced during domain creation.
+            print0f("===> AMR: rank %d destroying old solver\n", myrank);
+            higflow_destroy(ns_old);
+            print0f("===> AMR: rank %d rebuild complete\n", myrank);
         }
 #endif
         /////////////////////////////////////////////////
@@ -765,7 +837,9 @@ int main(int argc, char* argv[]) {
     // ********************************************************
 
     // Destroy the Navier-Stokes object
+    print0f("===> Final: rank %d about to destroy ns\n", myrank);
     higflow_destroy(ns);
+    print0f("===> Final: rank %d ns destroyed\n", myrank);
     free_sim_residuals(sim_res);
     STOP_CLOCK(total);
     print0f("------------------------ total time = %lf s -----------------------\n", GET_NSEC_CLOCK(total) / 1.0e9);

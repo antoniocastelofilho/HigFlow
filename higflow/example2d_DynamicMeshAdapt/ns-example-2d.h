@@ -25,7 +25,7 @@
 #define ADAPT_ENABLED 1
 
 // adaptation frequency in time steps (set by setup.py via adapt_freq=)
-#define ADAPT_FREQ 5
+#define ADAPT_FREQ 1000
 
 // parameters for access in external functions
 physical_parameters* p_par;
@@ -68,5 +68,11 @@ DECL_CLOCK(iter_total)
 
 real func (Point p);
 real get_kernel(int dim, real lambda, real tol);
+
+// Build a globally adapted tree identical on all ranks.  Defined in
+// mesh_adapt_function.c (included from ns-example-2d.c).
+hig_cell *higflow_make_global_adapted_tree(higflow_solver *ns,
+                                           real *thresholds,
+                                           const char *amr_filename);
 
 #endif
