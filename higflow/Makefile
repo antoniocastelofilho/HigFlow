@@ -79,6 +79,7 @@ MODULES = \
 	vof-hf-padrao \
 	step-viscoelastic \
         step-viscoelastic-integral \
+	mittag-leffler \
 	step-electroosmotic \
 		step-electroosmotic-viscoelastic \
 		step-multiphase-electroosmotic \
