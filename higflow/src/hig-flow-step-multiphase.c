@@ -224,12 +224,10 @@ void higflow_compute_curvature_multiphase(higflow_solver *ns) {
 // Volume Fraction Transport Step with PLIC fractional step
 // *******************************************************************
 void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
+#if DIM == 2
    if (ns->par.step % 2) {
       higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
       higflow_plic_copy_fractionaux_to_fraction(ns);
-      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(ns);
-      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_adap(ns);
       higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
       higflow_compute_distance_multiphase_2D(ns);
       higflow_plic_advection_volume_fraction_y_direction(ns, 1);
@@ -237,15 +235,25 @@ void higflow_plic_advection_volume_fraction(higflow_solver *ns) {
    } else {
       higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
       higflow_plic_copy_fractionaux_to_fraction(ns);
-      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D(ns);
-      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira(ns);
-      //higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_elvira_adap(ns);
       higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
       higflow_compute_distance_multiphase_2D(ns);
       higflow_plic_advection_volume_fraction_x_direction(ns, 0);
       higflow_plic_copy_fractionaux_to_fraction(ns);
    }
-   // DEBUG_INSPECT(ns->par.step,%d);
+#elif DIM == 3
+    higflow_plic_advection_volume_fraction_x_direction_imp(ns, 0);
+    higflow_plic_copy_fractionaux_to_fraction(ns);
+    mehta(ns);
+    higflow_compute_curvature_interfacial_force_normal_multiphase_3D_HF_padrao(ns);
+    higflow_compute_distance_multiphase_3D(ns);
+    higflow_plic_advection_volume_fraction_y_direction_imp(ns, 1);
+    higflow_plic_copy_fractionaux_to_fraction(ns);
+    mehta(ns);
+    higflow_compute_curvature_interfacial_force_normal_multiphase_3D_HF_padrao(ns);
+    higflow_compute_distance_multiphase_3D(ns);
+    higflow_plic_advection_volume_fraction_z_direction(ns, 2);
+    higflow_plic_copy_fractionaux_to_fraction(ns);
+#endif
    // Sync the distributed pressure property
    dp_sync(ns->ed.mult.dpfracvol);
 }
@@ -419,6 +427,7 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
 // }
 
 // Fraction Correction  
+#if DIM == 2
 void fraction_correction_at_set(real *fracvol){
    if (FLT_EQ(*fracvol, 1.0)) {
       *fracvol = 1.0;
@@ -1333,7 +1342,6 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
         dp_sync(ns->ed.mult.dpfracvolaux);
   }
 }
-
 // Correction Normal
 void normal_correction_at_get(Point Normal) {
    for(int i=0;i<DIM;i++){
@@ -1342,6 +1350,7 @@ void normal_correction_at_get(Point Normal) {
       }
    }
 }
+#endif
 
 // *******************************************************************
 // Volume Fraction Transport Step for the Explicit Euler Method
@@ -1875,7 +1884,7 @@ void higflow_explicit_euler_intermediate_velocity_multiphase(higflow_solver *ns,
             // Interfacial force contribution
             rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 1) rhs -= higflow_gravity_term(ns);
+            if (dim == DIM-1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2060,7 +2069,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             // Interfacial tension contribution
             rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 1) rhs -= higflow_gravity_term(ns);
+            if (dim == DIM-1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2167,7 +2176,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(higfl
             // Interfacial tension contribution
             rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 1) rhs -= higflow_gravity_term(ns);
+            if (dim == DIM-1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2265,7 +2274,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             // Interfacial tension contribution
             rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 1) rhs -= higflow_gravity_term(ns);
+            if (dim == DIM-1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2354,7 +2363,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(higflow_solver 
             // Interfacial tension contribution
             rhs += higflow_interfacial_tension_term(ns);
             // Cell term contribution for the gravity
-            if (dim == 1) rhs -= higflow_gravity_term(ns);
+            if (dim == DIM-1) rhs -= higflow_gravity_term(ns);
             // Pressure term contribution
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
@@ -2427,17 +2436,19 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_calculate_source_term(ns);
     higflow_calculate_facet_source_term(ns);
 
-    // Calculate beta
-    //higflow_compute_beta_visc_multiphase(ns); //used to be uncommented
-    // Calculate S
-    //higflow_compute_S_visc_multiphase(ns); //used to be uncommented
     // Interpolate the viscosity and density
     higflow_compute_viscosity_multiphase(ns);
     higflow_compute_density_multiphase(ns);
     // Calculate the curvature, interfacial force and normal
+#if DIM == 2
     higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
     higflow_compute_distance_multiphase_2D(ns);
     higflow_compute_plic_lines_2d(ns);
+#elif DIM == 3
+    mehta(ns);
+    higflow_compute_curvature_interfacial_force_normal_multiphase_3D_HF_padrao(ns);
+    higflow_compute_distance_multiphase_3D(ns);
+#endif
 
     // Calculate the intermediate velocity
     switch (ns->contr.tempdiscrtype) {

@@ -1,0 +1,37 @@
+simulation_par:
+  numsteps: 4001
+  dt: 0.001
+  dts: 10.0
+  dtp: 1.0
+
+adimensional:
+  Re: 1.0
+  Fr: 1.0
+
+simulation_contr:
+  projtype: incremental
+  tempdiscrtype: semi_implicit_euler
+  spatialdiscrtype: second_order
+  convecdiscrtype: second_order
+  secondconvecdiscrtype: cubista
+  gravity: true
+
+flowphase: multiphase
+
+multiphase:
+  contr:
+    flowtype0: newtonian
+    flowtype1: newtonian
+    eoflow0: false
+    eoflow1: false
+    surf_tension: true
+  adimensional:
+    Ca: 3.57
+  phase0:
+    adimensional:
+      rho: 1.0
+      mu: 1.0
+  phase1:
+    adimensional:
+      rho: 0.1
+      mu: 0.1

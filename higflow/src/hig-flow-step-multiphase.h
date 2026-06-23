@@ -7,9 +7,14 @@
 
 #include "hig-flow-step.h"
 #include "hig-flow-vof-plic.h"
+#include "hig-flow-vof-plic-3D.h"
 #include "hig-flow-vof-9-cells.h"
 #include "hig-flow-vof-elvira.h"
 #include "hig-flow-vof-adap-hf.h"
+#include "hig-flow-vof-HF-3D.h"
+#include "hig-flow-vof-advection-3D.h"
+#include "hig-flow-vof-mehta.h"
+#include "hig-flow-vof-finite-difference-normal-curvature_3D.h"
 
 // *******************************************************************
 // Navier-Stokes Step

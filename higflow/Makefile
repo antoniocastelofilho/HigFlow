@@ -67,8 +67,16 @@ MODULES = \
 	step-multiphase \
 		step-multiphase-viscoelastic \
 	vof-plic \
+	vof-plic-3D \
 	vof-adap-hf \
 	vof-finite-difference-normal-curvature \
+	vof-finite-difference-normal-curvature_3D \
+	vof-HF-3D \
+	vof-advection-2D \
+	vof-advection-3D \
+	vof-mehta \
+	vof-shirani \
+	vof-hf-padrao \
 	step-viscoelastic \
         step-viscoelastic-integral \
 	step-electroosmotic \
