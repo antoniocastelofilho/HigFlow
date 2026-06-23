@@ -82,7 +82,10 @@ int main(int argc, char *argv[]) {
     higflow_save_all_boundaries_yaml(ns, myrank, ntasks);
     higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
     if (ns->par.step == 0) {
-        higflow_print_vtk(ns, myrank);
+        if (ntasks > 1)
+            higflow_print_vtk3D_parallel_single(ns, myrank, ntasks);
+        else
+            higflow_print_vtk(ns, myrank);
         ns->par.tp += ns->par.dtp; ns->par.frame++;
         higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
         higflow_save_properties(ns, myrank, ntasks);
@@ -97,7 +100,10 @@ int main(int argc, char *argv[]) {
         if (ns->par.step == step0) STOP_CLOCK(firstiter);
 
         if (ns->par.t >= ns->par.tp) {
-            higflow_print_vtk(ns, myrank);
+            if (ntasks > 1)
+                higflow_print_vtk3D_parallel_single(ns, myrank, ntasks);
+            else
+                higflow_print_vtk(ns, myrank);
             ns->par.tp += ns->par.dtp; ns->par.frame++;
         }
         if (ns->par.t >= ns->par.ts) {

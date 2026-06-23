@@ -67,6 +67,7 @@ void higflow_print_vtk3D_elastoviscoplastic(higflow_solver *ns, int rank);
 
 // Print the VTK file for vilusalize 3D
 void higflow_print_vtk3D_shear_thickening_suspensions(higflow_solver *ns, int rank);
+void higflow_print_vtk3D_parallel_single(higflow_solver *ns, int rank, int nprocs);
 // *******************************************************************
 // Navier-Stokes Load and Save
 // *******************************************************************

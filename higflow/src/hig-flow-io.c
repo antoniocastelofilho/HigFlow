@@ -2276,6 +2276,220 @@ void higflow_print_vtk2D_multiphase_parallel_single(higflow_solver *ns, int rank
     MPI_File_close(&f);
 }
 
+// Print the VTK file for visualize 3D - parallel single file
+void higflow_print_vtk3D_parallel_single(higflow_solver *ns, int rank, int nprocs) {
+    char vtkname[1024];
+    snprintf(vtkname, sizeof vtkname, "%s_%d.vtk", ns->par.nameprint, ns->par.frame);
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+
+    higcit_celliterator *it;
+    it = sd_get_domain_celliterator(sdp);
+    long numleafs = higcit_count_without_advancing(it);
+    long numleafs_global;
+    MPI_Allreduce(&numleafs, &numleafs_global, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+    long curr_file_ptr_pos = 0, proc_block_size, proc_offset;
+    char local_str[1024];
+    int local_str_size, e_max_size = 13;
+    long it_count;
+    long buff_count = min(numleafs, 1048576);
+    char *write_buff;
+
+    MPI_File f;
+    int openerr = MPI_File_open(MPI_COMM_WORLD, vtkname, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &f);
+    if(openerr != MPI_SUCCESS) {
+        printf("Error opening file %s\n", vtkname);
+        return;
+    }
+
+    // Header
+    sprintf(local_str, "# vtk DataFile Version 3.0\nhigtree\nASCII\nDATASET UNSTRUCTURED_GRID\n\nPOINTS %ld float\n",
+        8 * numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    // Points (8 vertices per hexahedron)
+    local_str_size = 8 * (3 * e_max_size + 4) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (; !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        sprintf(local_str, "%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n",
+            c->lowpoint[0],  c->lowpoint[1],  c->lowpoint[2],
+            c->highpoint[0], c->lowpoint[1],  c->lowpoint[2],
+            c->highpoint[0], c->highpoint[1], c->lowpoint[2],
+            c->lowpoint[0],  c->highpoint[1], c->lowpoint[2],
+            c->lowpoint[0],  c->lowpoint[1],  c->highpoint[2],
+            c->highpoint[0], c->lowpoint[1],  c->highpoint[2],
+            c->highpoint[0], c->highpoint[1], c->highpoint[2],
+            c->lowpoint[0],  c->highpoint[1], c->highpoint[2]);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count * local_str_size, proc_block_size);
+    higcit_destroy(it);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+
+    // Cells
+    sprintf(local_str, "\nCELLS %ld %ld\n", numleafs_global, 9 * numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    int num_leafs_cummulative;
+    MPI_Scan(&numleafs, &num_leafs_cummulative, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    num_leafs_cummulative -= numleafs;
+    char dummy_str[20];
+    sprintf(dummy_str, "%ld", 8 * (num_leafs_cummulative + numleafs));
+    int d_max_size = strlen(dummy_str);
+
+    local_str_size = (d_max_size * 8 + 10) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (long i = num_leafs_cummulative; i < num_leafs_cummulative + numleafs; i++) {
+        sprintf(local_str, "%d %ld %ld %ld %ld %ld %ld %ld %ld\n", 8,
+            8 * i, 8 * i + 1, 8 * i + 2, 8 * i + 3,
+            8 * i + 4, 8 * i + 5, 8 * i + 6, 8 * i + 7);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count * local_str_size, proc_block_size);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+
+    // Cell types
+    sprintf(local_str, "\nCELL_TYPES %ld\n", numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    local_str_size = 2 * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (long i = num_leafs_cummulative; i < num_leafs_cummulative + numleafs; i++) {
+        sprintf(local_str, "%d ", VTK_CELL_TYPE);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count * local_str_size, proc_block_size);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+
+    // Velocity (POINT_DATA)
+    sprintf(local_str, "\n\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 8 * numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    sim_facet_domain *sfdu2[DIM];
+    for (int d = 0; d < DIM; d++)
+        sfdu2[d] = psfd_get_local_domain(ns->psfdu[d]);
+
+    local_str_size = 8 * (3 * e_max_size + 4) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        Point p[8];
+        p[0][0] = c->lowpoint[0];  p[0][1] = c->lowpoint[1];  p[0][2] = c->lowpoint[2];
+        p[1][0] = c->highpoint[0]; p[1][1] = c->lowpoint[1];  p[1][2] = c->lowpoint[2];
+        p[2][0] = c->highpoint[0]; p[2][1] = c->highpoint[1]; p[2][2] = c->lowpoint[2];
+        p[3][0] = c->lowpoint[0];  p[3][1] = c->highpoint[1]; p[3][2] = c->lowpoint[2];
+        p[4][0] = c->lowpoint[0];  p[4][1] = c->lowpoint[1];  p[4][2] = c->highpoint[2];
+        p[5][0] = c->highpoint[0]; p[5][1] = c->lowpoint[1];  p[5][2] = c->highpoint[2];
+        p[6][0] = c->highpoint[0]; p[6][1] = c->highpoint[1]; p[6][2] = c->highpoint[2];
+        p[7][0] = c->lowpoint[0];  p[7][1] = c->highpoint[1]; p[7][2] = c->highpoint[2];
+        real v[8][DIM];
+        for (int d = 0; d < DIM; d++) {
+            mp_mapper *m = sfd_get_domain_mapper(sfdu2[d]);
+            for (int vp = 0; vp < 8; vp++)
+                v[vp][d] = compute_facet_value_at_point(sfdu2[d], ccenter, p[vp], 1.0, ns->dpu[d], ns->stn);
+        }
+        sprintf(local_str, "%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n%e %e %e\n",
+            v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2],
+            v[2][0], v[2][1], v[2][2], v[3][0], v[3][1], v[3][2],
+            v[4][0], v[4][1], v[4][2], v[5][0], v[5][1], v[5][2],
+            v[6][0], v[6][1], v[6][2], v[7][0], v[7][1], v[7][2]);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count * local_str_size, proc_block_size);
+    higcit_destroy(it);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+
+    // Pressure (CELL_DATA)
+    sprintf(local_str, "\nCELL_DATA %ld\nSCALARS p FLOAT\nLOOKUP_TABLE default\n", numleafs_global);
+    if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+    curr_file_ptr_pos += strlen(local_str);
+
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    local_str_size = (e_max_size + 1) * sizeof(char);
+    write_buff = (char *)malloc(buff_count * local_str_size);
+    proc_block_size = local_str_size * numleafs;
+    proc_offset = get_offset_cummulative(proc_block_size);
+    it_count = 0;
+
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real val = dp_get_value(ns->dpp, mp_lookup(mp, hig_get_cid(c)));
+        sprintf(local_str, "%e\n", val);
+        paddn_before_last(local_str, local_str_size);
+        update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+        it_count++;
+    }
+    write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count * local_str_size, proc_block_size);
+    higcit_destroy(it);
+    curr_file_ptr_pos += get_offset_sum(proc_block_size);
+    free(write_buff);
+
+    // FracVol (CELL_DATA, for multiphase)
+    if (ns->contr.flowtype == MULTIPHASE) {
+        sprintf(local_str, "\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n");
+        if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
+        curr_file_ptr_pos += strlen(local_str);
+
+        local_str_size = (e_max_size + 1) * sizeof(char);
+        write_buff = (char *)malloc(buff_count * local_str_size);
+        proc_block_size = local_str_size * numleafs;
+        proc_offset = get_offset_cummulative(proc_block_size);
+        it_count = 0;
+
+        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *c = higcit_getcell(it);
+            Point ccenter;
+            hig_get_center(c, ccenter);
+            real val = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+            sprintf(local_str, "%e\n", val);
+            paddn_before_last(local_str, local_str_size);
+            update_buffer_write(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count, local_str, local_str_size, it_count);
+            it_count++;
+        }
+        write_remainder(&f, curr_file_ptr_pos + proc_offset, write_buff, buff_count * local_str_size, proc_block_size);
+        higcit_destroy(it);
+        curr_file_ptr_pos += get_offset_sum(proc_block_size);
+        free(write_buff);
+    }
+
+    MPI_File_close(&f);
+}
 
 // Print the VTK file for visualize 2D PLIC Interface Lines
 void higflow_print_vtk2d_multiphase_plic_lines_serial_single(higflow_solver *ns, int rank, int nprocs) {
