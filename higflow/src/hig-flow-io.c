@@ -2370,7 +2370,7 @@ void higflow_print_vtk3D_parallel_single(higflow_solver *ns, int rank, int nproc
     if(rank == 0) MPI_File_write_at(f, curr_file_ptr_pos, local_str, strlen(local_str), MPI_CHAR, MPI_STATUS_IGNORE);
     curr_file_ptr_pos += strlen(local_str);
 
-    local_str_size = 2 * sizeof(char);
+    local_str_size = 3 * sizeof(char);
     write_buff = (char *)malloc(buff_count * local_str_size);
     proc_block_size = local_str_size * numleafs;
     proc_offset = get_offset_cummulative(proc_block_size);
