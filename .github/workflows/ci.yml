@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [PC_Daniel_Mesh, main]
+  pull_request:
+    branches: [main]
+
+env:
+  HIGTREE_DIR: ${{ github.workspace }}/higtree
+  HIGFLOW_DIR: ${{ github.workspace }}/higflow
+
+jobs:
+  lint:
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/antoniocastelofilho/HigFlow/higflow-ci:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Markdown lint
+        continue-on-error: true
+        run: markdownlint-cli2 AGENTS.md higflow/*/README.md || true
+      - name: C code style
+        continue-on-error: true
+        run: |
+          find . -name '*.c' -not -path '*/bibliotecas/*' \
+            -exec clang-format --dry-run -Werror --style=gnu {} + || true
+      - name: Python lint
+        continue-on-error: true
+        run: |
+          find . -name '*.py' -not -path '*/bibliotecas/*' \
+            -exec pylint --errors-only {} + || true
+
+  build-2d:
+    needs: lint
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/antoniocastelofilho/HigFlow/higflow-ci:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build 2D libraries
+        run: |
+          make -C $HIGTREE_DIR clean
+          make -C $HIGTREE_DIR DIM=2
+          make -C $HIGFLOW_DIR clean
+          make -C $HIGFLOW_DIR DIM=2
+      - name: Configure 2D test
+        run: |
+          sed -i 's/numsteps: [0-9]*/numsteps: 5/' \
+            $HIGFLOW_DIR/example2d_Newt/input/example-2d.load.par.contr.yaml
+          sed -i 's/dtp: [0-9.]*/dtp: 0.001/' \
+            $HIGFLOW_DIR/example2d_Newt/input/example-2d.load.par.contr.yaml
+      - name: Build and run 2D test
+        run: |
+          make -C $HIGFLOW_DIR/example2d_Newt clean
+          make -C $HIGFLOW_DIR/example2d_Newt
+          make -C $HIGFLOW_DIR/example2d_Newt run
+      - name: Mass conservation check
+        run: |
+          python3 ${{ github.workspace }}/ci/check_mass.py \
+            $HIGFLOW_DIR/example2d_Newt/VTKS/ --single-phase
+      - name: Reference check
+        run: |
+          python3 ${{ github.workspace }}/ci/check_reference.py \
+            $HIGFLOW_DIR/example2d_Newt/VTKS/ \
+            ${{ github.workspace }}/ci/reference/example2d_Newt.yaml
+
+  build-3d:
+    needs: lint
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/antoniocastelofilho/HigFlow/higflow-ci:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build 3D libraries
+        run: |
+          make -C $HIGTREE_DIR clean
+          make -C $HIGTREE_DIR DIM=3
+          make -C $HIGFLOW_DIR clean
+          make -C $HIGFLOW_DIR DIM=3
+      - name: Setup mesh for 3D test
+        run: |
+          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN \
+            MESH=rising_NN_20x20x60 setup_mesh
+      - name: Build and run 3D test
+        run: |
+          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN clean
+          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN
+          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN \
+            MESH=rising_NN_20x20x60 NP=1 \
+            IN="numsteps=5 dtp=0.001" run
+      - name: Mass conservation check
+        run: |
+          python3 ${{ github.workspace }}/ci/check_mass.py \
+            $HIGFLOW_DIR/example3d_RisingDrop_NN/output/*__rising_NN_20x20x60/vtk/
+      - name: Reference check
+        run: |
+          python3 ${{ github.workspace }}/ci/check_reference.py \
+            $HIGFLOW_DIR/example3d_RisingDrop_NN/output/*__rising_NN_20x20x60/vtk/ \
+            ${{ github.workspace }}/ci/reference/example3d_RisingDrop_NN.yaml
