@@ -248,6 +248,10 @@ file if it is a standing code or workflow convention.
     \| xargs -0 ...`).
 - When adding new directories, use `git add <dir>/<specific-file>` instead of
   `git add <dir>/` to avoid picking up build artifacts and media files.
+- **Commit messages** must be written in English with a detailed description
+  of the root cause, what was done, and verification results.  Follow the
+  structure: summary line, blank line, `Root cause`, `What was done`,
+  `Verification` sections.
 
 - **Dimension:** `DIM=2`/`DIM=3` via make variable or `-Ddim=` CMake
   variable. Source files are DIM-agnostic; compiled with `-DDIM=$(DIM)`.
