@@ -60,14 +60,14 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 		
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]+0.5*cdelta[dim];
-		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]-0.5*cdelta[dim];
-		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -89,19 +89,19 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0 && Normal[2]==0.0)){
 					Ar = fracvol*(cdelta[1]*cdelta[2]*ur*ns->par.dt);
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5*(cdelta[0]-ur*ns->par.dt)*Normal[0];
 					Delta_New[0] = ur*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -114,19 +114,19 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Ar = fracvol * (cdelta[1]*cdelta[2] * fabs(ur) * ns->par.dt);
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[0] - fabs(ur) * ns->par.dt)*Normal[0];
 					Delta_New[0] = fabs(ur)*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -147,19 +147,19 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[2]*cdelta[1] * ul * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5 * (cdelta[0] - ul * ns->par.dt) * Normal[0];
 					Delta_New[0] = ul*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -172,18 +172,18 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[2]*cdelta[1] * fabs(ul) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
 					Delta_New[0] = fabs(ul)*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -195,7 +195,7 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
 		}
 		
 		// Fraction
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		real fracvolaux;
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -266,14 +266,14 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]+0.5*cdelta[dim];
-		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]-0.5*cdelta[dim];
-		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		//printf("%lf\t", fracvol);
 
@@ -297,20 +297,20 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0 && Normal[2]==0.0)){
 					Ar = fracvol*cdelta[1]*cdelta[2]*ur*ns->par.dt;
 					real volume;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5*(cdelta[0]-ur*ns->par.dt)*Normal[0];
 					Delta_New[0] = ur*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -323,13 +323,13 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
@@ -337,7 +337,7 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 					real volume;
 				} else {
 //						printf("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n");
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 //						printf("d = %lf\n",d);
 					Delta_New[0] = fabs(ur)*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -360,20 +360,20 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[1]*cdelta[2] * ul * ns->par.dt;
 					real volume;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5 * (cdelta[0] - ul * ns->par.dt) * Normal[0];
 					Delta_New[0] = ul*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -386,19 +386,19 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[1]*cdelta[2] * fabs(ul) * ns->par.dt;
 					real volume;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
 					Delta_New[0] = fabs(ul)*ns->par.dt;
 					Delta_New[1] = cdelta[1];
@@ -410,7 +410,7 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
 		}
 
 		// Fraction
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		real fracvolaux;
 		fraction_correction_at_get_3D(&fracr);
@@ -483,14 +483,14 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 		
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]+0.5*cdelta[dim];
-		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]-0.5*cdelta[dim];
-		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -512,19 +512,19 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0 && Normal[2]==0.0)){
 					Ar = fracvol*(cdelta[0]*cdelta[2]*ur*ns->par.dt);
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5*(cdelta[1]-ur*ns->par.dt)*Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = ur*ns->par.dt;
@@ -537,19 +537,19 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1]+cdelta[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Ar = fracvol * (cdelta[0]*cdelta[2] * fabs(ur) * ns->par.dt);
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[1] - fabs(ur) * ns->par.dt)*Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = fabs(ur)*ns->par.dt;
@@ -570,19 +570,19 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1]-cdelta[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[2]*cdelta[0] * ul * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5 * (cdelta[1] - ul * ns->par.dt) * Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = ul*ns->par.dt;
@@ -595,18 +595,18 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[2]*cdelta[0] * fabs(ul) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[1] - fabs(ul) * ns->par.dt) * Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = fabs(ul)*ns->par.dt;
@@ -618,7 +618,7 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
 		}
 		
 		// Fraction
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		real fracvolaux;
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -688,14 +688,14 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]+0.5*cdelta[dim];
-		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]-0.5*cdelta[dim];
-		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -717,19 +717,19 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0  && Normal[2]==0.0)){
 					Ar = fracvol*cdelta[0]*cdelta[2]*ur*ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5*(cdelta[1]-ur*ns->par.dt)*Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = ur*ns->par.dt;
@@ -742,19 +742,19 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1]+cdelta[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Ar = fracvol *cdelta[0]*cdelta[2] * fabs(ur) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[1] - fabs(ur) * ns->par.dt)*Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = fabs(ur)*ns->par.dt;
@@ -775,19 +775,19 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1]-cdelta[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[0]* cdelta[2] * ul * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5 * (cdelta[1] - ul * ns->par.dt) * Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = ul*ns->par.dt;
@@ -800,18 +800,18 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol *cdelta[0]*cdelta[2] * fabs(ul) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[1] - fabs(ul) * ns->par.dt) * Normal[1];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = fabs(ul)*ns->par.dt;
@@ -823,7 +823,7 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 		}
 
 		// Fraction
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		real fracvolaux;
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -893,14 +893,14 @@ void higflow_plic_advection_volume_fraction_z_direction(higflow_solver *ns, int 
 		
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]+0.5*cdelta[dim];
-		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]-0.5*cdelta[dim];
-		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -922,19 +922,19 @@ void higflow_plic_advection_volume_fraction_z_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0 && Normal[2]==0.0)){
 					Ar = fracvol*(cdelta[0]*cdelta[1]*ur*ns->par.dt);
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5*(cdelta[2]-ur*ns->par.dt)*Normal[2];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -947,19 +947,19 @@ void higflow_plic_advection_volume_fraction_z_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2]+cdelta[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Ar = fracvol * (cdelta[0]*cdelta[1] * fabs(ur) * ns->par.dt);
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[2] - fabs(ur) * ns->par.dt)*Normal[2];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -980,19 +980,19 @@ void higflow_plic_advection_volume_fraction_z_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2]-cdelta[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[0]*cdelta[1] * ul * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5 * (cdelta[2] - ul * ns->par.dt) * Normal[2];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -1005,18 +1005,18 @@ void higflow_plic_advection_volume_fraction_z_direction(higflow_solver *ns, int 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[0]*cdelta[1] * fabs(ul) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[2] - fabs(ul) * ns->par.dt) * Normal[2];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -1028,7 +1028,7 @@ void higflow_plic_advection_volume_fraction_z_direction(higflow_solver *ns, int 
 		}
 		
 		// Fraction
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 		real fracvolaux;
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -1098,14 +1098,14 @@ void higflow_plic_advection_volume_fraction_z_direction_imp(higflow_solver *ns, 
 
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]+0.5*cdelta[dim];
-		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracr=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 		p[0]=ccenter[0];p[1]=ccenter[1];p[2]=ccenter[2];
 		p[dim]=p[dim]-0.5*cdelta[dim];
-		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracl=compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 		fraction_correction_at_get_3D(&fracr);
 		fraction_correction_at_get_3D(&fracl);
@@ -1127,19 +1127,19 @@ void higflow_plic_advection_volume_fraction_z_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if(fracvol==1.0 || fracvol==0.0 || (Normal[0]==0.0 && Normal[1]==0.0 && Normal[2]==0.0)){
 					Ar = fracvol*cdelta[1]*cdelta[0]*ur*ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5*(cdelta[2]-ur*ns->par.dt)*Normal[2];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -1152,19 +1152,19 @@ void higflow_plic_advection_volume_fraction_z_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2]+cdelta[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Ar = fracvol * cdelta[1]*cdelta[0] * fabs(ur) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
 					Delta_New[2] = fabs(ur)*ns->par.dt;
@@ -1185,19 +1185,19 @@ void higflow_plic_advection_volume_fraction_z_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2] - cdelta[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				// Fraction correction
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[1]*cdelta[0] * ul * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d - 0.5 * (cdelta[2] - ul * ns->par.dt) * Normal[2];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -1210,18 +1210,18 @@ void higflow_plic_advection_volume_fraction_z_direction_imp(higflow_solver *ns, 
 				p[1] = ccenter[1];
 				p[2] = ccenter[2];
 				// Normal
-				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+				Normal[0] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+				Normal[1] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+				Normal[2] = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 				// Correction of Normal
 				normal_correction_at_get(Normal);
 				// Fraction
-				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+				fracvol  = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 				fraction_correction_at_get_3D(&fracvol);
 				if (fracvol == 1.0 || fracvol == 0.0 || (Normal[0] == 0.0 && Normal[1] == 0.0 && Normal[2] == 0.0)) {
 					Al = fracvol * cdelta[1]*cdelta[0] * fabs(ul) * ns->par.dt;
 				} else {
-					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.mult.stn);
+					d = compute_value_at_point(sdp, ccenter, p, 1.0, ns->ed.mult.dpdistance, ns->ed.stn);
 					d = d + 0.5 * (cdelta[0] - fabs(ul) * ns->par.dt) * Normal[0];
 					Delta_New[0] = cdelta[0];
 					Delta_New[1] = cdelta[1];
@@ -1233,7 +1233,7 @@ void higflow_plic_advection_volume_fraction_z_direction_imp(higflow_solver *ns, 
 		}
 
 		// Fraction
-		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+		fracvol  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 
 		real fracvolaux;
 		fraction_correction_at_get_3D(&fracr);
@@ -1279,7 +1279,7 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
 		// Get the delta of the cell
 		Point cdelta;
 		hig_get_delta(c, cdelta);
-		real fracvolaux  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.mult.stn);
+		real fracvolaux  = compute_value_at_point(sdp, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.stn);
 		dp_set_value(ns->ed.mult.dpfracvol, clid, fracvolaux);
 	}
 	// Destroy the iterator

@@ -474,14 +474,10 @@ real (*get_fracvol)(Point center, Point delta, real t)) {
        //Sets the order of the interpolation to bhe used for the SD. 
        sd_set_interpolator_order(ns->ed.mult.sdmult, order);
 
-       if(ns->ed.mult.contr.viscoelastic_either == true){
-            // simulation domain (SD) extra domain
-            ns->ed.sdED = sd_create(NULL);
-            //reuse interpolation, 0 on, 1 off
-            sd_use_cache(ns->ed.sdED, cache);      
-            //Sets the order of the interpolation to bhe used for the SD. 
-            sd_set_interpolator_order(ns->ed.sdED, order);
-       }
+// Always create sdED for MULTIPHASE (needed by 3D VOF)
+       ns->ed.sdED = sd_create(NULL);
+       sd_use_cache(ns->ed.sdED, cache);
+       sd_set_interpolator_order(ns->ed.sdED, order);
 
        // function for the domain
        ns->ed.mult.get_viscosity0      = get_viscosity0;
@@ -925,12 +921,9 @@ void higflow_create_partitioned_domain_multiphase (higflow_solver *ns, partition
         // Synced mapper
         psd_synced_mapper(ns->ed.mult.psdmult);
 
-        if(ns->ed.mult.contr.viscoelastic_either == true) {
-            // Creating the partitioned sub-domain to simulation
-            ns->ed.psdED = psd_create(ns->ed.sdED, pg);
-            // Synced mapper
-            psd_synced_mapper(ns->ed.psdED);
-        }
+        // Always create psdED for MULTIPHASE (needed by 3D VOF)
+        ns->ed.psdED = psd_create(ns->ed.sdED, pg);
+        psd_synced_mapper(ns->ed.psdED);
     }
 }
 
@@ -1367,10 +1360,9 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
         if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
             sd_add_higtree(ns->ed.sdED, root);
         }
+        // Always add sdED for MULTIPHASE (needed by 3D VOF)
         if (ns->contr.flowtype == MULTIPHASE) {
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                sd_add_higtree(ns->ed.sdED, root);
-            }
+            sd_add_higtree(ns->ed.sdED, root);
         }
         if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
             sd_add_higtree(ns->ed.eo.sdEOphi, root);
@@ -1417,13 +1409,8 @@ void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *p
             // Add higtree for SDs
             sd_add_higtree(ns->sdp, root);
             sd_add_higtree(ns->sdF, root);
-            if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
+            if (ns->contr.flowtype != NEWTONIAN) {
                 sd_add_higtree(ns->ed.sdED, root);
-            }
-            if (ns->contr.flowtype == MULTIPHASE) {
-                if(ns->ed.mult.contr.viscoelastic_either == true) {
-                    sd_add_higtree(ns->ed.sdED, root);
-                }
             }
             if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
                 sd_add_higtree(ns->ed.eo.sdEOphi, root);

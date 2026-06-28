@@ -67,10 +67,8 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
         case MULTIPHASE:
             // Initialize multiphase domain
             higflow_create_partitioned_domain_multiphase(ns, pg, order);
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                // Creating the stencil for properties interpolation
-                higflow_create_stencil_for_extra_domain(ns);
-            }
+            // Always create extra domain stencil for MULTIPHASE (needed by 3D VOF)
+            higflow_create_stencil_for_extra_domain(ns);
             // Creating the stencil for properties interpolation
             higflow_create_stencil_multiphase(ns);
             break;
@@ -182,10 +180,8 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
         case MULTIPHASE:
             // Initialize multiphase domain
             higflow_create_partitioned_domain_multiphase(ns, pg, order);
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                // Creating the stencil for properties interpolation
-                higflow_create_stencil_for_extra_domain(ns);
-            }
+            // Always create extra domain stencil for MULTIPHASE (needed by 3D VOF)
+            higflow_create_stencil_for_extra_domain(ns);
             // Creating the stencil for properties interpolation
             higflow_create_stencil_multiphase(ns);
             break;

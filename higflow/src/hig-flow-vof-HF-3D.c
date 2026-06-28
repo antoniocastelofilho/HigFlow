@@ -25,7 +25,7 @@ int get_frac_vol_3D(sim_domain *sd, higflow_solver *ns, int dim,
 			Delta[0],Delta[1],Delta[2],Delta2[0],Delta2[1],Delta2[2]);
 			return -1;
 		} else {
-			*fracvol=compute_value_at_point(sd, Center, P, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			*fracvol=compute_value_at_point(sd, Center, P, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			fraction_correction_at_get_3D(fracvol);
 			return 1;
 		}
@@ -48,7 +48,7 @@ real direction_hf_x(sim_domain *sdp, higflow_solver *ns, Point center, Point del
 		int i = 0;
 		do {
 			p[1] = center[1] + (i*delta[1]-delta[1]);
-			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			hf_hor_dir += frac;
 			i++;
 		} while (i < 3);
@@ -63,7 +63,7 @@ real direction_hf_x(sim_domain *sdp, higflow_solver *ns, Point center, Point del
 		int i = 0;
 		do {
 			p[1] = center[1] + (i*delta[1]-delta[1]);
-			frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			hf_hor_esq += frac;
 			i++;
 		} while (i < 3);
@@ -87,7 +87,7 @@ real direction_hf_y(sim_domain *sdp, higflow_solver *ns, Point center, Point del
 		int i = 0;
 		do {
 			p[0] = center[0] + (i*delta[0]-delta[0]);
-			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			hf_ver_sup += frac;
 			i++;
 		} while (i < 3);
@@ -102,7 +102,7 @@ real direction_hf_y(sim_domain *sdp, higflow_solver *ns, Point center, Point del
 		int i = 0;
 		do {
 			p[0] = center[0] + (i*delta[0]-delta[0]);
-			frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			hf_ver_inf += frac;
 			i++;
 		} while (i < 3);
@@ -126,7 +126,7 @@ real direction_hf_z(sim_domain *sdp, higflow_solver *ns, Point center, Point del
 		int i = 0;
 		do {
 			p[0] = center[0] + (i*delta[0]-delta[0]);
-			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			hf_z_sup += frac;
 			i++;
 		} while (i < 3);
@@ -141,7 +141,7 @@ real direction_hf_z(sim_domain *sdp, higflow_solver *ns, Point center, Point del
 		int i = 0;
 		do {
 			p[0] = center[0] + (i*delta[0]-delta[0]);
-			frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			hf_z_inf += frac;
 			i++;
 		} while (i < 3);
@@ -374,7 +374,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_3D_HF_padrao(
 	if (ns->contr.flowtype == 2) {
 		real IF[DIM];
 		// Get the local sub-domain for the cells
-		sim_domain *sdp = psd_get_local_domain(ns->ed.mult.psdmult);
+		sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
 		
 		// Get the map for the domain properties
 		mp_mapper *mp = sd_get_domain_mapper(sdp);
@@ -403,7 +403,7 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_3D_HF_padrao(
 			p[0] = center[0];
 			p[1] = center[1];
 			p[2] = center[2];
-			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			
 
 //			arquivoFrac(NULL,p[0],p[1],frac);
@@ -426,9 +426,9 @@ void higflow_compute_curvature_interfacial_force_normal_multiphase_3D_HF_padrao(
 			//shirani_125_cells(sdp, ns, clid, center, p, delta);
 			//shirani_125_cells(ns);
 			//Point Normal;
-			//Normal[0] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-			//Normal[1] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-			//Normal[2] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+			//Normal[0] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+			//Normal[1] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+			//Normal[2] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 			//printf("%lf %lf %lf\n", Normal[0], Normal[1], Normal[2]);
 			//shirani_125_cells_curvature(sdp, ns, clid, center, p, delta);
 			

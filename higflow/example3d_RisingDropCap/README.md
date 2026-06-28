@@ -43,9 +43,13 @@ Total: 16 000 cells.  AMR (up to 2 levels) available by toggling
 | Fr | 1.0 | |
 | Eötvös | ~125 | Cap regime |
 | Morton | ~1.3 | |
-| ρ₀/ρ₁ | 0.001 / 1.0 | bubble / ambient |
-| μ₀/μ₁ | 0.01 / 1.0 | bubble / ambient |
+| ρ₀/ρ₁ | 1.0 / 0.001 | ambient / drop |
+| μ₀/μ₁ | 1.0 / 0.01 | ambient / drop |
 | Bubble | centre (0.5, 0.5, 0.5), r = 0.25 | |
+
+Phase indexing follows the solver mixing rule `x = (1−FracVol)·x₀ + FracVol·x₁`:
+the drop is the sphere where `FracVol = 1`, so it is **phase 1** (light), and
+the surrounding ambient is **phase 0** (heavy).  The light drop rises in +Y.
 
 ## Solver
 

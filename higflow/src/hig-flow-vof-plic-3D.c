@@ -501,7 +501,7 @@ void higflow_compute_distance_multiphase_3D(higflow_solver *ns) {
 	if (ns->contr.flowtype == 2) {
 		real IF[DIM];
 		// Get the local sub-domain for the cells
-		sim_domain *sdp = psd_get_local_domain(ns->ed.mult.psdmult);
+		sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
 
 		// Get the map for the domain properties
 		mp_mapper *mp = sd_get_domain_mapper(sdp);
@@ -528,19 +528,19 @@ void higflow_compute_distance_multiphase_3D(higflow_solver *ns) {
 			p[0] = center[0];
 			p[1] = center[1];
 			p[2] = center[2];
-			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			real frac = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			
 			Point Normal;
-			Normal[0] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
-			Normal[1] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.mult.stn);
-			Normal[2] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.mult.stn);
+			Normal[0] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[0], ns->ed.stn);
+			Normal[1] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[1], ns->ed.stn);
+			Normal[2] = compute_value_at_point(sdp, center, p, 1.0, ns->ed.mult.dpnormal[2], ns->ed.stn);
 						
 			real tol_n = 1e-8;
 			if (fabs(Normal[0]) < tol_n && fabs(Normal[1]) < tol_n && fabs(Normal[2]) < tol_n){
 				continue;
 			}
 			
-			//real frac = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+			//real frac = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->ed.stn);
 			real volume = frac*delta[0]*delta[1]*delta[2];
 			
 			real distance3D = distance_from_center_3D(Normal,delta,volume);
