@@ -7,14 +7,7 @@ include ../Makefile.common
 
 CC = mpicc
 
-# LibTorch additions
-CXX = mpicxx
 
-TORCH_INCLUDES = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
-TORCH_LIBS = -L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10
-
-#C++ ABI
-CXX_FLAGS = -D_GLIBCXX_USE_CXX11_ABI=1 $(OPTSOPT) -std=c++17
 
 
 #OPTSOPT += -g
@@ -37,7 +30,6 @@ CFLAGS+= $(shell pkg-config --cflags glib-2.0)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) #-fopenmp
 CFLAGS+=-I/usr/include/trilinos/
-CFLAGS+= $(TORCH_INCLUDES)
 
 LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5)
 LDFLAGS+= -L$(LIBPATH)
@@ -60,6 +52,11 @@ endif
 
 ifdef SOR
 LIBS += -lnuma -fopenmp
+endif
+
+ifdef NN_WEIGHTS
+CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
+LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
 endif
 
 DIM_EXFILES  = $(wildcard *-example-$(DIM)d.c)
@@ -89,19 +86,6 @@ endif
 	$(CC) $(CFLAGS) -DDIM=$(DIM) -c $< -o $@.o
 	+$(CC) $(LDFLAGS) $@.o -o $@ $(LIBS)
 
-
-#Rule to compile the C++ code with torch
-mlp.o: mlp-test/mlp.cpp
-	$(CXX) $(CXX_FLAGS) $(TORCH_INCLUDES) -c $< -o $@
-
-
-#Compiling with LibTorch
-%-example-$(DIM)d-torch : %-example-$(DIM)d.c mlp.o ../lib/libhig$(DIM)d.a
-ifndef DIM
-	$(error DIM no set)
-endif
-	$(CC) $(CFLAGS) -DDIM=$(DIM) -c $< -o $@.o
-	+$(CXX) $(LDFLAGS) $@.o mlp.o -o $@ $(LIBS) $(TORCH_LIBS)
 
 
 test : test-fast test-slow

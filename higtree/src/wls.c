@@ -5,6 +5,10 @@
 #include "Debug-c.h"
 #include "wls.h"
 
+#ifdef NN_WEIGHTS
+#include"nn-weights.h"
+#endif
+
 #define USE_MLS
 
 /****************************************************************************/
@@ -494,6 +498,12 @@ real wls_set_points_and_calc(wls_interpolator *wls, int numpts, Point pts[], Poi
 
 real wls_set_samples_and_calc(wls_interpolator *wls, int numpts, wls_item items[], const Point x, real w[])
 {
+	if(wls->type == NEURALNETWORK) {
+		nn_inference(numpts, items, wls->maxnumpts, w);
+		return 0.0;
+	}
+
+	
 	for (int i = 0; i < numpts; i++) {
 		_assembly_pts_matrix(wls->dim,wls->ord,numpts,wls->A[i], items[i].x);
 	}
