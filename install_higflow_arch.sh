@@ -4,7 +4,10 @@ sudo pacman -Syu --noconfirm --needed glib2 boost valgrind cmake gcc-fortran hdf
 echo 'Pacotes na AUR'
 yay -S --noconfirm  --needed hypre zoltan mpich 
 
+python -m venv venv
+source venv/bin/activate
 pip3 install wheel sphinx sphinx_rtd_theme sphinx-markdown-builder xdrlib3
+deactivate
 
 echo 'libfyaml lib'
 cd bibliotecas/
@@ -21,9 +24,11 @@ cd ../..
 echo 'Install petsc-3.23.6' 
 cd bibliotecas/
 wget https://aur.archlinux.org/cgit/aur.git/snapshot/petsc.tar.gz
+tar -vzxf petsc.tar.gz
 cd petsc/
 makepkg -si
 
+cd ../..
 echo "Compila HigTree"
 cd higtree/
 

@@ -3,7 +3,7 @@
 -include ${PETSC_DIR}/conf/variables
 -include ${PETSC_DIR}/lib/petsc-conf/petscvariables
 -include ${PETSC_DIR}/lib/petsc/conf/petscvariables
-include ../Makefile.common
+include ${HIGTREE_DIR}/Makefile.common
 
 CC = mpicc
 
@@ -39,7 +39,7 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -lhdf5 -ltrilinos_zoltan -lHYPRE_krylov
+LIBS+= -lm -lhdf5 -lzoltan -lHYPRE
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)
@@ -55,6 +55,7 @@ LIBS += -lnuma -fopenmp
 endif
 
 ifdef NN_WEIGHTS
+CFLAGS += -DNN_WEIGHTS
 CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
 LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
 endif
@@ -71,7 +72,7 @@ all :
 
 ex$(DIM)d : $(EXAMPLES)
 
-%-example-$(DIM)d : %-example-$(DIM)d.c ../lib/libhig$(DIM)d.a
+%-example-$(DIM)d : %-example-$(DIM)d.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 ifndef DIM
 	$(error DIM no set)
 endif
