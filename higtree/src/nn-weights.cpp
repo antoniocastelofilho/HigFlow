@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstring>
 
-// Variáveis globais em C++ puro
+// global  variables in pure C++
 torch::jit::script::Module mlp_module;
 bool model_loaded = false;
 
@@ -13,7 +13,7 @@ bool buffer_alocado = false;
 torch::Tensor _data_to_tensor(int numpts, wls_item items[], int max_n, int n_features) {
     int tensor_size = max_n * n_features;
     
-    // Aloca memória apenas na PRIMEIRA vez que rodar
+    // allocs memory only in the first time it runs
     if (!buffer_alocado) {
         buffer_global.resize(tensor_size, 0.0);
         buffer_alocado = true;
@@ -29,7 +29,7 @@ torch::Tensor _data_to_tensor(int numpts, wls_item items[], int max_n, int n_fea
         }
     }
 
-    // Cria o tensor apontando para o buffer global SEM CLONAR
+    // creates the tensor pointing to the global buffer without cloning
     return torch::from_blob(buffer_global.data(), {1, tensor_size}, torch::kFloat64);
 }
 
@@ -46,7 +46,6 @@ int _run_mlp_inference(torch::Tensor input_tensor, int max_n, real* output_weigh
         torch::Tensor output_tensor = mlp_module.forward(inputs).toTensor();
         output_tensor = output_tensor.contiguous();
 
-        // Corrigido: sizeof(real) em vez de sizeof(float)
         std::memcpy(output_weights, output_tensor.data_ptr<real>(), max_n * sizeof(real));
 
         return 0;
@@ -59,7 +58,7 @@ int _run_mlp_inference(torch::Tensor input_tensor, int max_n, real* output_weigh
 
 
 // =======================================================
-// INTERFACE C (O que o HiG-Flow vai efetivamente "ver")
+//                      C INTERFACE 
 // =======================================================
 extern "C" {
 
@@ -77,15 +76,14 @@ extern "C" {
         }
     }
 
-    // A função que estava no .h e que o C vai chamar por cada estêncil
     void nn_inference(int numpts, wls_item items[], int max_n, real w[]) {
         // Considerando as suas features (coordenadas x,y + dist), n_features = DIM + 1
         int n_features = DIM + 1; 
         
-        // 1. Gera o Tensor a partir dos dados do HiG-Flow
+        // 1. creates the Tensor from the HiG-Flow data
         torch::Tensor input = _data_to_tensor(numpts, items, max_n, n_features);
         
-        // 2. Roda a rede e coloca os resultados na matriz w[] do HiG-Flow
+        // 2. runs the inference
         _run_mlp_inference(input, max_n, w);
     }
 
