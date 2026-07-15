@@ -1,6 +1,7 @@
 echo 'Pacotes nos repos core e extra'
 sudo pacman -Syu --noconfirm --needed glib2 boost valgrind cmake gcc-fortran hdf5-openmpi openmpi autoconf automake libtool git make pkg-config libyaml
 
+#may need to install parMETIS separately if using cmake with version 4.x
 echo 'Pacotes na AUR'
 yay -S --noconfirm  --needed hypre zoltan mpich 
 
