@@ -37,14 +37,14 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -ltrinilos_zoltan -lHYPRE
-#LIBS+= -lm -lzoltan -lHYPRE
+#LIBS+= -lm -ltrinilos_zoltan -lHYPRE
+LIBS+= -lm -lzoltan -lHYPRE
 
 CC = mpicc
 AR = gcc-ar
 ANLIB = gcc-ranlib
 
-CXXSTANDARD = -std=gnu++11
+CXXSTANDARD = -std=gnu++14
 CSTANDARD = -std=gnu99
 
 ARCH = $(shell uname)
