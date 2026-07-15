@@ -10,14 +10,18 @@
 
 #include "mpi.h"
 
-//extern "C"
-//{
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 	#include "higtree-parallel.h"
 	#include "higtree-serialize.h"
 	#include "term-det.h"
 	#include "build-fringe.h"
 	#include "Debug-c.h"
-//}
+#ifdef __cplusplus
+}
+#endif
 
 namespace bg = boost::geometry;
 namespace bgi = boost::geometry::index;
