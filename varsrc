@@ -7,5 +7,15 @@ export LIBTORCH_DIR=$(pwd)/bibliotecas/libtorch
 export LD_LIBRARY_PATH=$(pwd)/bibliotecas/libtorch/lib
 
 #Petsc
-export PETSC_DIR=/opt/petsc/linux-c-opt
-export PETSC_ARCH=
+source /etc/os-release
+
+if [[ "$ID" == "ubuntu" ]]; then
+    export PETSC_DIR=$(pwd)/bibliotecas/petsc-3.14.0/x86_64
+    export PETSC_ARCH=arch-linux-c-debug
+elif [[ "$ID" == "arch" || "$ID" == "endeavouros" ]]; then
+    export PETSC_DIR=/opt/petsc/linux-c-opt
+    export PETSC_ARCH=
+else
+    echo "Distribuição desconhecida: $ID"
+    exit 1
+fi
