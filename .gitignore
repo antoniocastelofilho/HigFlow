@@ -3,6 +3,8 @@
 
 # Dir
 bibliotecas/
+html/
+latex/
 
 # files
 *.out
