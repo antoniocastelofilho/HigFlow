@@ -1,42 +1,42 @@
 % !TEX root = documentacao.tex
 
-\chapter{DocumentaÁ„o cientÌfica}
+\chapter{Documenta√ß√£o cient√≠fica}
 
-Este capÌtulo descreve os mÈtodos utilizados para resoluÁ„o numÈrica de
-equaÁıes diferenciais parciais (em especial as equaÁıes de Navier-Stokes) em
-uma malha hier·rquica do tipo ``HiG-tree''. S„o descritos detalhes sobre este
-tipo de malha, bem como os mÈtodos utilizados para discretizaÁ„o por diferenÁas
-finitas generalizadas e interpolaÁıes necess·rias entre os diferentes nÌveis de
-refinamento. Finalmente s„o apresentados os mecanismos necess·rios para a
-resoluÁ„o de uma equaÁ„o de Poisson em um domÌnio genÈrico.
+Este cap√≠tulo descreve os m√©todos utilizados para resolu√ß√£o num√©rica de
+equa√ß√µes diferenciais parciais (em especial as equa√ß√µes de Navier-Stokes) em
+uma malha hier√°rquica do tipo ``HiG-tree''. S√£o descritos detalhes sobre este
+tipo de malha, bem como os m√©todos utilizados para discretiza√ß√£o por diferen√ßas
+finitas generalizadas e interpola√ß√µes necess√°rias entre os diferentes n√≠veis de
+refinamento. Finalmente s√£o apresentados os mecanismos necess√°rios para a
+resolu√ß√£o de uma equa√ß√£o de Poisson em um dom√≠nio gen√©rico.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Malhas hier·rquicas}
+\section{Malhas hier√°rquicas}
 
-O desenvolvimento dos mÈtodos apresentados neste documento È baseado em uma
-malha cartesiana do tipo  hier·rquica, contendo elementos de tamanhos
-diferentes. De agora em diante, tais malhas ser„o denotadas como \texttt{HiG}
-(do inglÍs, \textit{``Hierarchical Grid''}) e a estrutura de dados utilizada
-para represent·-la ser· denominada \texttt{HiG-Tree}. Tal estrutura È baseada
-em subdivisıes espaciais recursivas arbitr·rias, e pode ser representada por um
-·rvore $m-$tree. Um exemplo cl·ssico deste tipo de malha s„o quadtree em 2D e
+O desenvolvimento dos m√©todos apresentados neste documento √© baseado em uma
+malha cartesiana do tipo  hier√°rquica, contendo elementos de tamanhos
+diferentes. De agora em diante, tais malhas ser√£o denotadas como \texttt{HiG}
+(do ingl√™s, \textit{``Hierarchical Grid''}) e a estrutura de dados utilizada
+para represent√°-la ser√° denominada \texttt{HiG-Tree}. Tal estrutura √© baseada
+em subdivis√µes espaciais recursivas arbitr√°rias, e pode ser representada por um
+√°rvore $m-$tree. Um exemplo cl√°ssico deste tipo de malha s√£o quadtree em 2D e
 octree em 3D.
 
-A malha \texttt{HiG} È baseada em uma matriz regular de elementos de mesmo
-tamanho, e, a partir destes, subdivisıes arbitr·rias podem ser definidas de
-forma recursiva, obtendo-se uma malha irregular (n„o-estruturada). Um exemplo
-desta malha e sua respectiva estrutura de ·rvore podem ser vistos na figura
+A malha \texttt{HiG} √© baseada em uma matriz regular de elementos de mesmo
+tamanho, e, a partir destes, subdivis√µes arbitr√°rias podem ser definidas de
+forma recursiva, obtendo-se uma malha irregular (n√£o-estruturada). Um exemplo
+desta malha e sua respectiva estrutura de √°rvore podem ser vistos na figura
 \ref{fig:exemplo_malha_1}. Apesar de o exemplo da figura
-\ref{fig:exemplo_malha_1} ser ilustrado em duas dimensıes, esta representaÁ„o È
-genÈrica o suficiente para ser utilizada em qualquer n˙mero de dimensıes.
+\ref{fig:exemplo_malha_1} ser ilustrado em duas dimens√µes, esta representa√ß√£o √©
+gen√©rica o suficiente para ser utilizada em qualquer n√∫mero de dimens√µes.
 
 \begin{figure}
 	\centering
 	\includegraphics[scale=0.55]{figuras/exemplo_malha_1.pdf} \\
 	\vspace*{1cm}
 	\includegraphics[scale=0.55]{figuras/exemplo_arvore_1.pdf}
-	\caption{Exemplo de uma malha tipo HiG e sua representaÁ„o na forma de ·rvore (HiG-Tree).}
+	\caption{Exemplo de uma malha tipo HiG e sua representa√ß√£o na forma de √°rvore (HiG-Tree).}
 	\label{fig:exemplo_malha_1}
 \end{figure}
 
@@ -44,23 +44,23 @@ genÈrica o suficiente para ser utilizada em qualquer n˙mero de dimensıes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{DiferenÁas finitas generalizadas}
+\section{Diferen√ßas finitas generalizadas}
 
-O mÈtodo adotado para discretizaÁ„o de equaÁıes diferenciais È o mÈtodo de
-dife\-ren\-Áas finitas. Tal mÈtodo È baseado na expans„o em sÈrie de Taylor da
-funÁ„o a ser aproximada e de suas derivadas, cuja omiss„o de termos de alta
-ordem desta sÈrie resulta em fÛrmulas adequadas para as aproximaÁıes.
+O m√©todo adotado para discretiza√ß√£o de equa√ß√µes diferenciais √© o m√©todo de
+dife\-ren\-√ßas finitas. Tal m√©todo √© baseado na expans√£o em s√©rie de Taylor da
+fun√ß√£o a ser aproximada e de suas derivadas, cuja omiss√£o de termos de alta
+ordem desta s√©rie resulta em f√≥rmulas adequadas para as aproxima√ß√µes.
 
-Um exemplo cl·ssico È a discretizaÁ„o de uma equaÁ„o de Poisson do tipo
+Um exemplo cl√°ssico √© a discretiza√ß√£o de uma equa√ß√£o de Poisson do tipo
 
 \[
 \nabla^2 u = f,
 \]
 
-com condiÁıes de contorno adequadas. Simplificando o domÌnio por um ret‚ngulo
-em um espaÁo de dimens„o dois $\Omega=[a,b]\times [c,d]$, e utilizando uma
-malha cartesiana regular (do tipo grid) com espaÁamentos $\delta x$ e $\delta y
-$, obtÈm-se a cl·ssica fÛrmula do laplaciano de 5 pontos, dada por
+com condi√ß√µes de contorno adequadas. Simplificando o dom√≠nio por um ret√¢ngulo
+em um espa√ßo de dimens√£o dois $\Omega=[a,b]\times [c,d]$, e utilizando uma
+malha cartesiana regular (do tipo grid) com espa√ßamentos $\delta x$ e $\delta y
+$, obt√©m-se a cl√°ssica f√≥rmula do laplaciano de 5 pontos, dada por
 
 \[
 \frac{u_{i+1,j} - 2 u_{i,j} + u_{i-1,j}}{\delta x^2} + \frac{u_{i,j+1} - 2 u_{i,j} + u_{i,j-1}}{\delta y^2} + \mathcal{O}(\delta x^2 + \delta y^2)= f_{i,j},
@@ -72,59 +72,59 @@ $, obtÈm-se a cl·ssica fÛrmula do laplaciano de 5 pontos, dada por
 \frac{U_{i+1,j} - 2 U_{i,j} + U_{i-1,j}}{\delta x^2} + \frac{U_{i,j+1} - 2 U_{i,j} + U_{i,j-1}}{\delta y^2} = f_{i,j},
 \]
 
-\noindent onde $U_{i,j}$ representa uma aproximaÁ„o para a funÁ„o $u_{i,j}$, avaliada em
+\noindent onde $U_{i,j}$ representa uma aproxima√ß√£o para a fun√ß√£o $u_{i,j}$, avaliada em
 $(x_i,y_j) = (a+i\delta x, b + j\delta y)$, e $f_{i,j} = f(x_i,y_j)$. Com esta
-fÛrmula, mais as condiÁıes de contorno, È possÌvel montar um sistema da forma
+f√≥rmula, mais as condi√ß√µes de contorno, √© poss√≠vel montar um sistema da forma
 
 \[
 L\mathbf{u} = \mathbf{f},
 \]
 
-\noindent cuja a soluÁ„o È o vetor de aproximaÁıes $\mathbf{u} = (U_{1,1},
-U_{1,2}, \dots)$ para a funÁ„o $u$ original, avaliada nos vÈrtices da malha
+\noindent cuja a solu√ß√£o √© o vetor de aproxima√ß√µes $\mathbf{u} = (U_{1,1},
+U_{1,2}, \dots)$ para a fun√ß√£o $u$ original, avaliada nos v√©rtices da malha
 cartesiana.
 
-Como visto na seÁ„o anterior, o objetivo È utilizar diferenÁas finitas em uma
-malha cartesiana irregular, ent„o tal aproximaÁ„o deve ser modificada, pois uma
-discretizaÁ„o por um laplaciano de 5 pontos resultaria o envolvimento de
-valores n„o conhecidos no interior da malha. Desta forma È preciso realizar um
-procedimento de interpolaÁ„o que seja genÈrico o suficiente para englobar
-qualquer configuraÁ„o de cÈlulas (como no exemplo da figura
-\ref{fig:exemplo_malha_1}), e que seja preciso o suficiente para n„o deteriorar
-a ordem de convergÍncia do mÈtodo numÈrico.
+Como visto na se√ß√£o anterior, o objetivo √© utilizar diferen√ßas finitas em uma
+malha cartesiana irregular, ent√£o tal aproxima√ß√£o deve ser modificada, pois uma
+discretiza√ß√£o por um laplaciano de 5 pontos resultaria o envolvimento de
+valores n√£o conhecidos no interior da malha. Desta forma √© preciso realizar um
+procedimento de interpola√ß√£o que seja gen√©rico o suficiente para englobar
+qualquer configura√ß√£o de c√©lulas (como no exemplo da figura
+\ref{fig:exemplo_malha_1}), e que seja preciso o suficiente para n√£o deteriorar
+a ordem de converg√™ncia do m√©todo num√©rico.
 
-Uma clara desvantagem da utilizaÁ„o de malhas irregulares como as
-exemplificadas anteriormente È que uma numeraÁ„o do tipo matricial $(i,j)$ n„o
-È mais possÌvel, sendo necess·ria a definiÁ„o de uma enumeraÁ„o dos nÛs v·lidos
-da malha. Tal enumeraÁ„o È fornecida pela estrutura \texttt{HiG-Tree}, contudo,
-diferentes formas de enumeraÁ„o podem ser implementadas, com impacto direto na
+Uma clara desvantagem da utiliza√ß√£o de malhas irregulares como as
+exemplificadas anteriormente √© que uma numera√ß√£o do tipo matricial $(i,j)$ n√£o
+√© mais poss√≠vel, sendo necess√°ria a defini√ß√£o de uma enumera√ß√£o dos n√≥s v√°lidos
+da malha. Tal enumera√ß√£o √© fornecida pela estrutura \texttt{HiG-Tree}, contudo,
+diferentes formas de enumera√ß√£o podem ser implementadas, com impacto direto na
 estrutura da matriz do sistema resultante, e consequentemente no desempenho dos
-mÈtodos numÈricos utilizados para resolvÍ-lo.
+m√©todos num√©ricos utilizados para resolv√™-lo.
 
 \begin{figure}
 	\centering
 	\def\svgscale{0.55}
 	\import{figuras/}{exemplo_interp_1.pdf_tex}
-	\caption{Exemplo de um estÍncil resultando em pontos a serem interpolados ($x_L$ e $x_B$).}
+	\caption{Exemplo de um est√™ncil resultando em pontos a serem interpolados ($x_L$ e $x_B$).}
 	\label{fig:exemplo_interp_1}
 \end{figure}
 
 Considere o caso ilustrado na figura \ref{fig:exemplo_interp_1}, onde um
-estÍncil de cinco pontos È utilizado para discretizar as derivadas no ponto
-$x_C$. … f·cil notar que, devido a configuraÁ„o irregular da malha, n„o existe
-nÛ da malha que armazene um valor de $u$ para os pontos $x_L$ e $x_B$, ou seja,
-n„o existem incÛgnitas $U_L$ e $U_B$ para o sistema linear. Neste exemplo, È
-necess·rio obter ent„o uma interpolaÁ„o dos nÛs vizinhos, pertencentes ‡ malha,
-mais prÛximos ‡s incÛgnitas n„o existentes. Digamos que uma interpolaÁ„o
-adequada resulte na seguinte express„o para $U_L$
+est√™ncil de cinco pontos √© utilizado para discretizar as derivadas no ponto
+$x_C$. √â f√°cil notar que, devido a configura√ß√£o irregular da malha, n√£o existe
+n√≥ da malha que armazene um valor de $u$ para os pontos $x_L$ e $x_B$, ou seja,
+n√£o existem inc√≥gnitas $U_L$ e $U_B$ para o sistema linear. Neste exemplo, √©
+necess√°rio obter ent√£o uma interpola√ß√£o dos n√≥s vizinhos, pertencentes √† malha,
+mais pr√≥ximos √†s inc√≥gnitas n√£o existentes. Digamos que uma interpola√ß√£o
+adequada resulte na seguinte express√£o para $U_L$
 
 \[
 U_L \approx w_1 U_{j_1} + w_2 U_{j_2} + \dots + w_n U_{j_n},
 \]
 
 sendo $U_{j_1}, U_{j_2}, \dots , U_{j_n}$ valores conhecidos na malha.
-Escrevendo a fÛrmula usual do laplaciano de 5 pontos para o ponto $x_C$,
-obtÈm-se uma equaÁ„o para $U_C$, a saber,
+Escrevendo a f√≥rmula usual do laplaciano de 5 pontos para o ponto $x_C$,
+obt√©m-se uma equa√ß√£o para $U_C$, a saber,
 
 \[
 \frac{U_{L} - 2 U_{C} + U_{R}}{\delta x^2} + \frac{U_{T} - 2 U_{C} + U_{B}}{\delta y^2} = f_{C},
@@ -142,46 +142,46 @@ a_L U_{L} + a_R U_{R} + a_T U_{T} + a_B U_{B} + a_C U_{C}  = f_{C},
 a_L = \frac{1}{\delta x^2}, \quad a_R = \frac{1}{\delta x^2}, \quad a_T = \frac{1}{\delta y^2}, \quad a_B = \frac{1}{\delta y^2}, \quad a_C = -\frac{2}{\delta x^2} - \frac{2}{\delta y^2}.
 \]
 
-Substituindo o valor interpolado de $U_L$ na equaÁ„o, obtÈm-se
+Substituindo o valor interpolado de $U_L$ na equa√ß√£o, obt√©m-se
 
 \[
 a_L \left( w_1 U_{j_1} + w_2 U_{j_2} + \dots + w_n U_{j_n} \right) + a_R U_{R} + a_T U_{T} + a_B U_{B} + a_C U_{C}  = f_{C},
 \]
 
-\noindent gerando-se novos coeficientes e uma equaÁ„o. Note que o mesmo deve
-ser feito para $U_B$, para que a equaÁ„o envolva finalmente somente valores
+\noindent gerando-se novos coeficientes e uma equa√ß√£o. Note que o mesmo deve
+ser feito para $U_B$, para que a equa√ß√£o envolva finalmente somente valores
 conhecidos da malha. Note que este processo pode ser repetido arbitrariamente
-para qualquer valor que ainda n„o esteja definido na malha, e que incÛgnitas
-repetidas podem ser agrupadas em um ˙nico coeficiente multiplicativo. Desta
-forma, obtÈm-se uma express„o que È uma combinaÁ„o linear formada somente por
-incÛgnitas verdadeiras, para valores definidos na malha, que define a equaÁ„o
-para a incÛgnita $U_C$ no sistema linear.
+para qualquer valor que ainda n√£o esteja definido na malha, e que inc√≥gnitas
+repetidas podem ser agrupadas em um √∫nico coeficiente multiplicativo. Desta
+forma, obt√©m-se uma express√£o que √© uma combina√ß√£o linear formada somente por
+inc√≥gnitas verdadeiras, para valores definidos na malha, que define a equa√ß√£o
+para a inc√≥gnita $U_C$ no sistema linear.
 
-A prÛxima seÁ„o explica como obter uma interpolaÁ„o que seja suficientemente
-genÈrica e precisa, e como obter os pesos $w_{j_1}, w_{j_2}, \dots , w_{j_n}$
-necess·rios.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{InterpolaÁıes}
+A pr√≥xima se√ß√£o explica como obter uma interpola√ß√£o que seja suficientemente
+gen√©rica e precisa, e como obter os pesos $w_{j_1}, w_{j_2}, \dots , w_{j_n}$
+necess√°rios.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{AproximaÁ„o polinomial}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Interpola√ß√µes}
 
-Um dos objetivo do mÈtodo descrito aqui È obter uma aproximaÁ„o para o valor de
-uma propriedade em um dado ponto $(x, y, z)$ em funÁ„o dos valores da
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Aproxima√ß√£o polinomial}
+
+Um dos objetivo do m√©todo descrito aqui √© obter uma aproxima√ß√£o para o valor de
+uma propriedade em um dado ponto $(x, y, z)$ em fun√ß√£o dos valores da
 propriedade em $m$ outros pontos $(x_1, y_1, z_1),..., (x_{m}, y_{m}, z_{m})$.
-Os valores nos $m$ pontos n„o s„o conhecidos a priori.  Denotamos o valor em um
-ponto $(x, y, z)$ por $P(x, y, z)$ um polinÙmio de grau no m·ximo $r$,
+Os valores nos $m$ pontos n√£o s√£o conhecidos a priori.  Denotamos o valor em um
+ponto $(x, y, z)$ por $P(x, y, z)$ um polin√¥mio de grau no m√°ximo $r$,
 
 $$
 P(x,y,z) = \alpha_{i_1,j_1,k_1}  x^{i_1} y^{j_1} z^{k_1} + \cdots +  \alpha_{i_n,j_n,k_n}  x^{i_n} y^{j_n} z^{k_n}=  c^t \alpha,
 $$
 
 \noindent onde $0 \leq i_s + j_s + k_s \leq r$, para $s = 1,\ldots,n$. Observe
-que poderia ser uma combinaÁ„o de funÁıes n„o polinomiais.
+que poderia ser uma combina√ß√£o de fun√ß√µes n√£o polinomiais.
 
-Assim, o mÈtodo deve obter os coeficientes $w_i$, para $1 \le i \le m$, de
+Assim, o m√©todo deve obter os coeficientes $w_i$, para $1 \le i \le m$, de
 forma que
 
 $$
@@ -235,19 +235,19 @@ $$
 w^t \; b = w^t \; A \; \alpha = c^t \; \alpha \;
 $$
 
-\noindent e uma soluÁ„o È dada por $w^t \; A = c^t$, ou
+\noindent e uma solu√ß√£o √© dada por $w^t \; A = c^t$, ou
 
 $$
 A^t \; w = c.
 $$
 
-\noindent Se $m \geq n$ e $A$ tem posto m·ximo $n$, $w$ pode ser obtido pelo
-mÈtodo dos mÌnimos quadrados.
+\noindent Se $m \geq n$ e $A$ tem posto m√°ximo $n$, $w$ pode ser obtido pelo
+m√©todo dos m√≠nimos quadrados.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{AproximaÁ„o pelo MÈtodo dos MÌnimos Quadrados}
+\subsection{Aproxima√ß√£o pelo M√©todo dos M√≠nimos Quadrados}
 
-Fazendo a decomposiÁ„o QR de $A$, temos:
+Fazendo a decomposi√ß√£o QR de $A$, temos:
 
 \begin{eqnarray*}
 A_{m \times n} &=& \left(
@@ -327,23 +327,23 @@ u_2 & = & 0 \\
 \right.
 $$
 
-\noindent DaÌ, resolvendo o sistema triangular inferior $R^t u_1 = c^t$, temos
+\noindent Da√≠, resolvendo o sistema triangular inferior $R^t u_1 = c^t$, temos
 $w = Q u$, com $u_2 = 0$.
 
-Resumindo, s„o dados $A$ e $c^t$ e queremos $w$, ent„o s„o feitos
-trÍs passos:
+Resumindo, s√£o dados $A$ e $c^t$ e queremos $w$, ent√£o s√£o feitos
+tr√™s passos:
 
 \begin{enumerate}
-\item Fazer a decomposiÁ„o QR de $A$, isto È, $A = Q \; R^*$;
+\item Fazer a decomposi√ß√£o QR de $A$, isto √©, $A = Q \; R^*$;
 \item Resolver o sistema triangular inferior $R^t u_1 = c^t$;
 \item Fazer $w = Q u$ com $u_2 = 0$.
 \end{enumerate}
 
-Observe que para o caso de $m=n$, a aproximaÁ„o polinomial $P$ ser· o polinÙmio
+Observe que para o caso de $m=n$, a aproxima√ß√£o polinomial $P$ ser√° o polin√¥mio
 interpolador.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{C·lculo dos coeficientes}
+\subsection{C√°lculo dos coeficientes}
 
 Seja
 
@@ -451,7 +451,7 @@ B^t_1 & B^t_2 \\
 $$
 
 \noindent Logo $Det(C) = \pm Det(R) = R_{1,1} \cdots R_{n,n}$, e se $A$ tem
-posto m·ximo $R_{i,i} \neq 0$ e
+posto m√°ximo $R_{i,i} \neq 0$ e
 
 $$
 C^t \; w = \left(
@@ -467,7 +467,7 @@ c \\
 \end{array} \right),
 $$
 
-\noindent tem soluÁ„o ˙nica.
+\noindent tem solu√ß√£o √∫nica.
 
 Se $m = n$, $C^t = A^t_1 = \left( a_1 \cdots a_n \right)$. Logo se $x = x_i (i
 = 1,\ldots,n)$ tem-se $c = a_i$ e $C^t  w = d$, segue que $A_1 w = c$ que
@@ -477,7 +477,7 @@ $$
 \left( a_1 \cdots a_i \cdots a_n \right) w = a_i,
 $$
 
-\noindent tem soluÁ„o $w_k = 1$ se $i = k$ e $w_k = 0$ se $i \neq k$.
+\noindent tem solu√ß√£o $w_k = 1$ se $i = k$ e $w_k = 0$ se $i \neq k$.
 
 Se $m > n$ e $x = x_i (i = 1,\ldots,n)$,
 
@@ -630,26 +630,26 @@ I & 0 \\
 Q^t \; e_i.
 $$
 
-%%\subsection{DiferenÁas Finitas Generalizadas}
+%%\subsection{Diferen√ßas Finitas Generalizadas}
 %%
-%%Considere a equaÁ„o
+%%Considere a equa√ß√£o
 %%$$
 %%f^{\prime \prime} (x) = g(x)
 %%$$
 %%em um intervalo $[a,b]$ com $f(a) = \alpha$ e $f(b) = \beta$.
 %%
-%%Se subdividirmos o intervalo $[a,b]$ em intervalos igualmente espaÁados $x_i = x_0 + i h$, $x_0 = a$ e $x_n = b$, uma discretizaÁ„o
-%%para a equaÁ„o acima utilizando diferenÁas finitas È dada por:
+%%Se subdividirmos o intervalo $[a,b]$ em intervalos igualmente espa√ßados $x_i = x_0 + i h$, $x_0 = a$ e $x_n = b$, uma discretiza√ß√£o
+%%para a equa√ß√£o acima utilizando diferen√ßas finitas √© dada por:
 %%$$
 %%\frac{f_{i-1} - 2 f_i + f_{i+1}}{h^2} = g_i
 %%$$
-%%este mÈtodo È um mÈtodo com erro local de truncamento da ordem de $h^2$, isto È,
+%%este m√©todo √© um m√©todo com erro local de truncamento da ordem de $h^2$, isto √©,
 %%$$
 %%\frac{f_{i-1} - 2 f_i + f_{i+1}}{h^2} - g_i  = f^{\prime \prime}(x_i) - g(x_i) + O(h^2)
 %%$$
 %%
-%%Caso o espaÁamento dos pontos n„o seja uniforme, podemos o mÈtodo dos mÌnimos quadrados para aproximar $f^*_{i-1} \sim f(x_i-h)$ e
-%%$f^*_{i+1} \sim f(x_i+h)$, isto È,
+%%Caso o espa√ßamento dos pontos n√£o seja uniforme, podemos o m√©todo dos m√≠nimos quadrados para aproximar $f^*_{i-1} \sim f(x_i-h)$ e
+%%$f^*_{i+1} \sim f(x_i+h)$, isto √©,
 %%$$
 %%f^*_{i-1} = \sum_{x_j \in V(x_{i}-h)} w_j f_j
 %%$$
@@ -657,7 +657,7 @@ $$
 %%f^*_{i+1} = \sum_{x_k \in V(x_{i}+h)} w_k f_k
 %%$$
 %%
-%%Se tomarmos os pontos na vizinhanÁa em n˙mero suficiente, temos que $f^*_{i-1} = f(x_i-h) + O(h^4)$ e $f^*_{i+1} = f(x_i+h) + O(h^4)$.
+%%Se tomarmos os pontos na vizinhan√ßa em n√∫mero suficiente, temos que $f^*_{i-1} = f(x_i-h) + O(h^4)$ e $f^*_{i+1} = f(x_i+h) + O(h^4)$.
 %%
 %%Assim temos que:
 %%$$
@@ -667,7 +667,7 @@ $$
 %%= \frac{f(x_i-h) - 2 f(x_i) + f(x_i+h)}{h^2} - g(x_i) + O(h^2) = f^{\prime \prime}(x_i) - g(x_i) + O(h^2)
 %%$$
 %%
-%%Desta forma o mÈtodo fica:
+%%Desta forma o m√©todo fica:
 %%$$
 %%f^*_{i-1} - 2 f_i + f^*_{i+1} = h^2 g_i
 %%$$
@@ -676,28 +676,28 @@ $$
 %%$$
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{InterpolaÁıes por MMQ com peso}
+\subsection{Interpola√ß√µes por MMQ com peso}
 
 Complementar com MMQ com peso.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Propriedades vari·veis}
+\section{Propriedades vari√°veis}
 
-O que muda para $\rho$ vari·vel.
+O que muda para $\rho$ vari√°vel.
 
 %%%%%%%%%%%%%%% LEANDRO  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{DistribuiÁ„o de vari·veis}
+\section{Distribui√ß√£o de vari√°veis}
 
-Com o objetivo de evitar o aparecimento de oscilaÁıes n„o fÌsicas nas
-simulaÁıes numÈricas, foram desenvolvidas tÈcnicas de distribuiÁ„o de vari·veis
-de forma deslocada, ou seja, pode-se atribuir vari·veis no centro da cÈlula, ou
-nas facetas da mesma. O esquema mais adotado pelos pesquisadores da ·rea de
-simulaÁ„o de escoamento de fluidos, quando se adota formulaÁ„o com vari·veis
-primitivas, em escoamentos incompressÌveis, È a distribuiÁ„o da press„o nos
-centros das cÈlulas, e das velocidades nas facetas da mesma, conforme pode ser
+Com o objetivo de evitar o aparecimento de oscila√ß√µes n√£o f√≠sicas nas
+simula√ß√µes num√©ricas, foram desenvolvidas t√©cnicas de distribui√ß√£o de vari√°veis
+de forma deslocada, ou seja, pode-se atribuir vari√°veis no centro da c√©lula, ou
+nas facetas da mesma. O esquema mais adotado pelos pesquisadores da √°rea de
+simula√ß√£o de escoamento de fluidos, quando se adota formula√ß√£o com vari√°veis
+primitivas, em escoamentos incompress√≠veis, √© a distribui√ß√£o da press√£o nos
+centros das c√©lulas, e das velocidades nas facetas da mesma, conforme pode ser
 visto na figura \ref{malha_deslocada}.
 
 \begin{figure}
@@ -708,182 +708,182 @@ visto na figura \ref{malha_deslocada}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Vari·veis no centro da cÈlula}
+\subsection{Vari√°veis no centro da c√©lula}
 
-A press„o, densidade, entalpia total, etc, s„o normalmente distribuÌdas nos
-centros das cÈlulas. A figura \ref{pressao_centro} ilustra a distribuiÁ„o da
-press„o em uma malha com 3 nÌveis de refinamento.
+A press√£o, densidade, entalpia total, etc, s√£o normalmente distribu√≠das nos
+centros das c√©lulas. A figura \ref{pressao_centro} ilustra a distribui√ß√£o da
+press√£o em uma malha com 3 n√≠veis de refinamento.
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/pressao_centro.pdf}
-	\caption{DistribuiÁ„o da Press„o no centro das cÈlulas.}
+	\caption{Distribui√ß√£o da Press√£o no centro das c√©lulas.}
 	\label{pressao_centro}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Vari·veis nas facetas da cÈlula}
+\subsection{Vari√°veis nas facetas da c√©lula}
 
-As vari·veis provenientes da decomposiÁ„o da velocidade em vetores ($u_i$) s„o
-distribuÌdas nas facetas das cÈlulas. A distribuiÁ„o da componente da
-velocidade $u_1$ em uma malha com 3 nÌveis de refinamento È apresentada na
-figura \ref{vel_u1} e a componente da velocidade $u_2$ nesta mesma malha È
+As vari√°veis provenientes da decomposi√ß√£o da velocidade em vetores ($u_i$) s√£o
+distribu√≠das nas facetas das c√©lulas. A distribui√ß√£o da componente da
+velocidade $u_1$ em uma malha com 3 n√≠veis de refinamento √© apresentada na
+figura \ref{vel_u1} e a componente da velocidade $u_2$ nesta mesma malha √©
 apresentada na figura \ref{vel_u2}.
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/vel_u1_faceta.pdf}
-	\caption{Componente da velocidade $u_1$ nas facetas da cÈlulas.}
+	\caption{Componente da velocidade $u_1$ nas facetas da c√©lulas.}
 	\label{vel_u1}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/vel_u2_faceta.pdf}
-	\caption{Componente da velocidade $u_2$ nas facetas da cÈlulas.}
+	\caption{Componente da velocidade $u_2$ nas facetas da c√©lulas.}
 	\label{vel_u2}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{C·lculo de derivadas espaciais}
+\section{C√°lculo de derivadas espaciais}
 
-Com a utilizaÁ„o da malha deslocada, temos que o c·lculo das derivadas
-espaciais de cada vari·vel distribuÌda em uma localizaÁ„o diferente tem uma
-forma diferente de c·lculo. Abaixo s„o apresentadas as variaÁıes possÌveis
-numa simulaÁ„o de escoamento.
+Com a utiliza√ß√£o da malha deslocada, temos que o c√°lculo das derivadas
+espaciais de cada vari√°vel distribu√≠da em uma localiza√ß√£o diferente tem uma
+forma diferente de c√°lculo. Abaixo s√£o apresentadas as varia√ß√µes poss√≠veis
+numa simula√ß√£o de escoamento.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Derivada primeira de $p$ na direÁ„o $x_i$} % dpdx ou dpdy
+\subsection{Derivada primeira de $p$ na dire√ß√£o $x_i$} % dpdx ou dpdy
 
-Neste caso a vari·vel È definida no centro da cÈlula e pretende-se calcular a
-derivada espacial na direÁ„o $x_i$, na faceta da cÈlula. A figura \ref{dpdx1}
-ilustra as possibilidades de c·lculo da derivada na posiÁ„o marcada com um $x$
-de uma vari·vel distribuÌda no centro da cÈlula na direÁ„o $x_1$. A forma
-equivalente para o c·lculo da derivada na direÁ„o $x_2$, È apresentada na
+Neste caso a vari√°vel √© definida no centro da c√©lula e pretende-se calcular a
+derivada espacial na dire√ß√£o $x_i$, na faceta da c√©lula. A figura \ref{dpdx1}
+ilustra as possibilidades de c√°lculo da derivada na posi√ß√£o marcada com um $x$
+de uma vari√°vel distribu√≠da no centro da c√©lula na dire√ß√£o $x_1$. A forma
+equivalente para o c√°lculo da derivada na dire√ß√£o $x_2$, √© apresentada na
 figura \ref{dpdx2}.
 
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/dpdx1.pdf}
-	\caption{Derivada de $p$ na direÁ„o $x_1$.}
+	\caption{Derivada de $p$ na dire√ß√£o $x_1$.}
 	\label{dpdx1}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/dpdx2.pdf}
-	\caption{Derivada de $p$ na direÁ„o $x_2$.}
+	\caption{Derivada de $p$ na dire√ß√£o $x_2$.}
 	\label{dpdx2}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Derivada primeira de $u_i$ na direÁ„o $x_i$} % dudx ou dvdy
+\subsection{Derivada primeira de $u_i$ na dire√ß√£o $x_i$} % dudx ou dvdy
 
-Nas equaÁıes de Navier-Stokes faz-se necess·rio o c·lculo das primeiras
-derivadas de vari·veis distribuÌdas nas facetas das cÈlulas. A figura
-\ref{du1dx1} ilustra o c·lculo da derivada na posiÁ„o marcada com um $x$ da
-componente $u_1$ na direÁ„o $x_1$. A malha adotada tem 3 nÌveis de refinamento
-para ilustrar as diversas possibilidades neste c·lculo.  O c·lculo da
-componente $u_2$ na direÁ„o $x_2$ e apresentado na figura \ref{du2dx2}.
+Nas equa√ß√µes de Navier-Stokes faz-se necess√°rio o c√°lculo das primeiras
+derivadas de vari√°veis distribu√≠das nas facetas das c√©lulas. A figura
+\ref{du1dx1} ilustra o c√°lculo da derivada na posi√ß√£o marcada com um $x$ da
+componente $u_1$ na dire√ß√£o $x_1$. A malha adotada tem 3 n√≠veis de refinamento
+para ilustrar as diversas possibilidades neste c√°lculo.  O c√°lculo da
+componente $u_2$ na dire√ß√£o $x_2$ e apresentado na figura \ref{du2dx2}.
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/du1dx1.pdf}
-	\caption{Derivada de $u_1$ na direÁ„o $x_1$.}
+	\caption{Derivada de $u_1$ na dire√ß√£o $x_1$.}
 	\label{du1dx1}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/du2dx2.pdf}
-	\caption{Derivada de $u_2$ na direÁ„o $x_2$.}
+	\caption{Derivada de $u_2$ na dire√ß√£o $x_2$.}
 	\label{du2dx2}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Derivada primeira de $u_i$ na direÁ„o $x_j$} % dudy ou dvdx
+\subsection{Derivada primeira de $u_i$ na dire√ß√£o $x_j$} % dudy ou dvdx
 
-A figura \ref{du1dx2} ilustra o c·lculo da derivada na posiÁ„o marcada com um
-$x$ da componente $u_1$ na direÁ„o $x_2$. O c·lculo da componente $u_2$ na
-direÁ„o $x_1$ e apresentado na figura \ref{du2dx2}.
+A figura \ref{du1dx2} ilustra o c√°lculo da derivada na posi√ß√£o marcada com um
+$x$ da componente $u_1$ na dire√ß√£o $x_2$. O c√°lculo da componente $u_2$ na
+dire√ß√£o $x_1$ e apresentado na figura \ref{du2dx1}.
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/du1dx2.pdf}
-	\caption{Derivada de $u_1$ na direÁ„o $x_2$.}
+	\caption{Derivada de $u_1$ na dire√ß√£o $x_2$.}
 	\label{du1dx2}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/du2dx1.pdf}
-	\caption{Derivada de $u_2$ na direÁ„o $x_1$.}
+	\caption{Derivada de $u_2$ na dire√ß√£o $x_1$.}
 	\label{du2dx1}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Derivada segunda de $u_i$ na direÁ„o $x_i$} % d2udx2 ou d2vdy2
+\subsection{Derivada segunda de $u_i$ na dire√ß√£o $x_i$} % d2udx2 ou d2vdy2
 
-O c·lculo da segunda derivada de vari·veis definidas nas facetas das cÈlulas
-s„o apresentadas nas figuras \ref{d2u1dx12} a \ref{d2u2dx12}. A posiÁ„o onde a
-derivada È calculada È marcada com um $x$. As diversas configuraÁıes dentro da
-malha com 3 nÌveis de refinamento s„o ilustradas.
+O c√°lculo da segunda derivada de vari√°veis definidas nas facetas das c√©lulas
+s√£o apresentadas nas figuras \ref{d2u1dx12} a \ref{d2u2dx12}. A posi√ß√£o onde a
+derivada √© calculada √© marcada com um $x$. As diversas configura√ß√µes dentro da
+malha com 3 n√≠veis de refinamento s√£o ilustradas.
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/d2u1dx12.pdf}
-	\caption{Derivada segunda de $u_1$ na direÁ„o $x_1$.}
+	\caption{Derivada segunda de $u_1$ na dire√ß√£o $x_1$.}
 	\label{d2u1dx12}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/d2u2dx22.pdf}
-	\caption{Derivada segunda de $u_2$ na direÁ„o $x_2$.}
+	\caption{Derivada segunda de $u_2$ na dire√ß√£o $x_2$.}
 	\label{d2u2dx22}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/d2u1dx22.pdf}
-	\caption{Derivada segunda de $u_1$ na direÁ„o $x_2$.}
+	\caption{Derivada segunda de $u_1$ na dire√ß√£o $x_2$.}
 	\label{d2u1dx22}
 \end{figure}
 
 \begin{figure}
 	\includegraphics[scale=1.0]{figuras/d2u2dx12.pdf}
-	\caption{Derivada segunda de $u_2$ na direÁ„o $x_1$.}
+	\caption{Derivada segunda de $u_2$ na dire√ß√£o $x_1$.}
 	\label{d2u2dx12}
 \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\section{ResoluÁ„o da equaÁ„o de Poisson - parte 1}
+%\section{Resolu√ß√£o da equa√ß√£o de Poisson - parte 1}
 %
-%Dada uma vari·vel $p(x,y)$ e um termo fonte $f(x,y)$ distribuÌdos no centro
-%das cÈlulas, pretende-se resolver a equaÁ„o de Poisson abaixo:
+%Dada uma vari√°vel $p(x,y)$ e um termo fonte $f(x,y)$ distribu√≠dos no centro
+%das c√©lulas, pretende-se resolver a equa√ß√£o de Poisson abaixo:
 %
 %\[
 %\nabla^2 p = \frac{\partial^2 p}{\partial x^2}+\frac{\partial^2 p}{\partial y^2} = f(x,y)
 %\]
 %
-%Esta equaÁ„o pode ser resolvida em um domÌnio com condiÁıes de contorno do tipo
+%Esta equa√ß√£o pode ser resolvida em um dom√≠nio com condi√ß√µes de contorno do tipo
 %Dirichlet e Neumann, que podem ser definidos separadamente
 %em cada contorno.
 %
 %\begin{figure}
 %	\includegraphics[scale=1.0]{figuras/cond_contorno.pdf}
-%	\caption{CondiÁ„o de contorno.}
+%	\caption{Condi√ß√£o de contorno.}
 %	\label{cond_cont}
 %\end{figure}
 %
 %
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\subsection{CondiÁ„o de contorno do tipo Dirichlet}
+%\subsection{Condi√ß√£o de contorno do tipo Dirichlet}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\subsection{CondiÁ„o de contorno do tipo Neumann}
+%\subsection{Condi√ß√£o de contorno do tipo Neumann}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\subsection{CondiÁ„o de contorno do tipo Robin}
+%\subsection{Condi√ß√£o de contorno do tipo Robin}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\subsection{Coeficientes da Matriz}
@@ -891,19 +891,19 @@ malha com 3 nÌveis de refinamento s„o ilustradas.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{ResoluÁ„o da equaÁ„o de Poisson}
+\section{Resolu√ß√£o da equa√ß√£o de Poisson}
 
-Dada uma vari·vel $p(x,y)$ distribuÌda no centro das cÈlulas e um campo de
-velocidade dado por $u^*(x,y)$, distribuÌdo nas facetas das cÈlulas,
-pretende-se resolver a equaÁ„o de Poisson abaixo:
+Dada uma vari√°vel $p(x,y)$ distribu√≠da no centro das c√©lulas e um campo de
+velocidade dado por $u^*(x,y)$, distribu√≠do nas facetas das c√©lulas,
+pretende-se resolver a equa√ß√£o de Poisson abaixo:
 
 \[
 \nabla^2 p = \nabla \cdot u^*
 \]
 
-Para analisar a convergÍncia do mÈtodo propıe-se um MÈtodo de SoluÁ„o
-Manufaturada (MMS - do inglÍs {\it Method of Manufactured Solution}) onde as
-componentes da velocidade s„o dadas por:
+Para analisar a converg√™ncia do m√©todo prop√µe-se um M√©todo de Solu√ß√£o
+Manufaturada (MMS - do ingl√™s {\it Method of Manufactured Solution}) onde as
+componentes da velocidade s√£o dadas por:
 
 \[
 u_1(x,y) = - sen(x) cos(y)
@@ -916,25 +916,25 @@ u_2(x,y) = - cos(x) sen(y)
 \]
 
 \noindent utilizando as componentes de velocidade acima descritas, em um
-domÌnio $0 \le x,y \le \pi$ teremos que a soluÁ„o desta equaÁ„o para a press„o
-$p$ È dada por:
+dom√≠nio $0 \le x,y \le \pi$ teremos que a solu√ß√£o desta equa√ß√£o para a press√£o
+$p$ √© dada por:
 
 \[
 p(x,y) = cos(x) cos(y)
 \]
 
-\noindent a adoÁ„o desta soluÁ„o garante que a condiÁ„o de contorno do tipo
-Neumann È aplicada em todos os contornos do domÌnio. Para se obter uma soluÁ„o
-˙nica, È fixado o valor da press„o em um ponto do contorno. Desta forma a
-soluÁ„o desta equaÁ„o È bem prÛxima ao que desejamos para aplicaÁ„o em
+\noindent a ado√ß√£o desta solu√ß√£o garante que a condi√ß√£o de contorno do tipo
+Neumann √© aplicada em todos os contornos do dom√≠nio. Para se obter uma solu√ß√£o
+√∫nica, √© fixado o valor da press√£o em um ponto do contorno. Desta forma a
+solu√ß√£o desta equa√ß√£o √© bem pr√≥xima ao que desejamos para aplica√ß√£o em
 Navier-Stokes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{SimulaÁ„o de escoamento incompressÌvel 2D}
+\section{Simula√ß√£o de escoamento incompress√≠vel 2D}
 
-A din‚mica de um escoamento bidimensional incompressÌvel de um ˙nico fluido sem
-transferÍncia de calor, pode ser modelado pelas equaÁıes de Navier-Stokes e da
+A din√¢mica de um escoamento bidimensional incompress√≠vel de um √∫nico fluido sem
+transfer√™ncia de calor, pode ser modelado pelas equa√ß√µes de Navier-Stokes e da
 continuidade dados abaixo:
 
 \begin{eqnarray}
@@ -943,29 +943,29 @@ continuidade dados abaixo:
 \frac{\partial u_i}{\partial x_i} &=& 0\label{massa},
 \end{eqnarray}
 
-\noindent onde $\nu$ È viscosidade cinem·tica, $\rho$ È a densidade, $u_i$ o
-componente da velocidade, $p$ È press„o, $t$ È o tempo, $x_i$ as coordenadas
+\noindent onde $\nu$ √© viscosidade cinem√°tica, $\rho$ √© a densidade, $u_i$ o
+componente da velocidade, $p$ √© press√£o, $t$ √© o tempo, $x_i$ as coordenadas
 espaciais e $s_i$ o termo fonte (gravidade, coriollis, etc.).
 
-Por razıes did·ticas, propıe-se inicialmente a utilizaÁ„o do mÈtodo de Euler
-explÌcito para avanÁar a Eq. (\ref{momento}) no tempo. O sistema de EDPs Eqs.
-(\ref{momento}) e (\ref{massa}) È resolvido utilizando o mÈtodo da projeÁ„o de
+Por raz√µes did√°ticas, prop√µe-se inicialmente a utiliza√ß√£o do m√©todo de Euler
+expl√≠cito para avan√ßar a Eq. (\ref{momento}) no tempo. O sistema de EDPs Eqs.
+(\ref{momento}) e (\ref{massa}) √© resolvido utilizando o m√©todo da proje√ß√£o de
 Chorin \cite{chorin1968} descrita abaixo.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{MÈtodo da projeÁ„o de Chorin}
+\subsection{M√©todo da proje√ß√£o de Chorin}
 
 Com o objetivo de se obter um campo de velocidade que respeite a continuidade,
-e como n„o h· uma equaÁ„o para a press„o $p$, as equaÁıes de Navier-Stokes (Eq.
+e como n√£o h√° uma equa√ß√£o para a press√£o $p$, as equa√ß√µes de Navier-Stokes (Eq.
 (\ref{momento})) podem ser discretizada da seguinte forma \cite{chorin1968}:
 
 \[
 \frac{u_i^* - u_i^n}{\Delta t} = - u_j^n \frac{\partial u_i^n}{\partial x_j} + \nu \frac{\partial^2 u_i^n}{\partial x_j^2} + s_i,
 \]
 
-\noindent onde o valor de $u_i^*$ È um valor intermedi·rio que dever· ser
-corrigido atravÈs da equaÁ„o:
+\noindent onde o valor de $u_i^*$ √© um valor intermedi√°rio que dever√° ser
+corrigido atrav√©s da equa√ß√£o:
 
 \[
 \frac{u_i^{n+1} - u_i^*}{\Delta t} = - \frac{1}{\rho} \frac{\partial p^{n+1}}{\partial x_i},
@@ -977,36 +977,36 @@ corrigido atravÈs da equaÁ„o:
 u_i^{n+1} = u_i^* - \Delta t \frac{1}{\rho} \frac{\partial p^{n+1}}{\partial x_i}.
 \]
 
-\noindent Para que isto funcione, pode-se obter a equaÁ„o de Poisson abaixo, que dever· ser
-resolvida para podermos avanÁar com a discretizaÁ„o temporal:
+\noindent Para que isto funcione, pode-se obter a equa√ß√£o de Poisson abaixo, que dever√° ser
+resolvida para podermos avan√ßar com a discretiza√ß√£o temporal:
 
 \[
 \frac{\partial^2 p^{n+1}}{\partial x_i^2} = \frac{\rho}{\Delta t} \frac{\partial u_i^*}{\partial x_i}
 \]
 
-Utilizando-se este mÈtodo obtÈm-se uma distribuiÁ„o de velocidade e press„o que
-respeitam a condiÁ„o de incompressibilidade. Desta forma pode-se realizar uma
-simulaÁ„o atÈ atingir-se o estado estacion·rio (quando as propriedades n„o
-variam mais com o tempo), ou atÈ que se atinja um determinado tempo ou mesmo um
-estado periÛdico no tempo.
+Utilizando-se este m√©todo obt√©m-se uma distribui√ß√£o de velocidade e press√£o que
+respeitam a condi√ß√£o de incompressibilidade. Desta forma pode-se realizar uma
+simula√ß√£o at√© atingir-se o estado estacion√°rio (quando as propriedades n√£o
+variam mais com o tempo), ou at√© que se atinja um determinado tempo ou mesmo um
+estado peri√≥dico no tempo.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{MÈtodo da soluÁ„o manufaturada}
+\subsection{M√©todo da solu√ß√£o manufaturada}
 
-Para verificaÁ„o do mÈtodo numÈrico que simula o escoamento bidimensional
-incompressÌvel propıe-se resolver o problema cl·ssico de fluxo laminar dentro
-de uma cavidade quadrada de dimensıes $0< x_1, x_2 < 1$, na qual a tampa se
-move. Para este caso, existe uma soluÁ„o analÌtica dada por
-\cite{shihetal1989}. As condiÁıes de contorno para as componentes de
-velocidades $u_i$ s„o do tipo Dirichlet, sendo nula em todos os pontos, exceto
+Para verifica√ß√£o do m√©todo num√©rico que simula o escoamento bidimensional
+incompress√≠vel prop√µe-se resolver o problema cl√°ssico de fluxo laminar dentro
+de uma cavidade quadrada de dimens√µes $0< x_1, x_2 < 1$, na qual a tampa se
+move. Para este caso, existe uma solu√ß√£o anal√≠tica dada por
+\cite{shihetal1989}. As condi√ß√µes de contorno para as componentes de
+velocidades $u_i$ s√£o do tipo Dirichlet, sendo nula em todos os pontos, exceto
 em $x_2=1$, onde temos:
 
 \[
  u_1(x_1,1)=16(x_1^4-2x_1^3+x_1^2).
 \]
 
-Um termo fonte $s_i$ est· presente somente na equaÁ„o da quantidade de movimento
-na direÁ„o $x_2$ e È dado como:
+Um termo fonte $s_i$ est√° presente somente na equa√ß√£o da quantidade de movimento
+na dire√ß√£o $x_2$ e √© dado como:
 
 \begin{eqnarray}
 s_1 &=& 0 \nonumber \\
@@ -1025,7 +1025,7 @@ s_2 &=& -8\nu[24F(x_1)+2f^{(1)}(x_1)g^{(2)}(x_2)+f^{(3)}(x_1)g(x_2)] \nonumber \
   G_1(x_2)&=&g(x_2)g^{(3)}(x_2)-g^{(1)}(x_2)g^{(2)}(x_2)=-24x_2^5+8x_2^3-4x_2\nonumber .
 \end{eqnarray}
 
-A soluÁ„o analÌtica È dada por
+A solu√ß√£o anal√≠tica √© dada por
 
 \begin{eqnarray}
    u(x_1, x_2) &=& 8f(x_1)g^{(1)}(x_2)=8(x_1^4 - 2x_1^3 + x_1^2)(4x_2^3 - 2x_2),\nonumber \\
@@ -1034,11 +1034,11 @@ A soluÁ„o analÌtica È dada por
                && 64F_2(x_1)\{g(x_2)g^{(2)}(x_2)-[g^{(1)}(x_2)]^2\}\nonumber .
 \end{eqnarray}
 
-Sabendo-se a soluÁ„o analÌtica do escoamento pode-se ent„o verificar o correto
-funcionamento do mesmo. AlÈm disto, caso sejam realizadas simulaÁıes com malhas
-com diferentes n˙meros de pontos, pode-se verificar a ordem de precis„o do
-cÛdigo como um todo.
+Sabendo-se a solu√ß√£o anal√≠tica do escoamento pode-se ent√£o verificar o correto
+funcionamento do mesmo. Al√©m disto, caso sejam realizadas simula√ß√µes com malhas
+com diferentes n√∫meros de pontos, pode-se verificar a ordem de precis√£o do
+c√≥digo como um todo.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%\section{Coment·rios finais}
+%\section{Coment√°rios finais}
