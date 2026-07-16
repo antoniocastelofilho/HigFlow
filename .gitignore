@@ -14,6 +14,9 @@ bibliotecas/
 *.dat
 *.fls
 *.fdb_latexmk
+*.bbl
+*.blg
+*.toc
 !CMakeLists.txt
 
 # Object files
