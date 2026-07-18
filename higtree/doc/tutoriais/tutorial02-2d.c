@@ -5,7 +5,8 @@
 #include "higtree.h"
 #include "higtree-io.h"
 
-int main(int argc, char *argv[]) {
+int main (int argc, char *argv[]) {
+    higtree_initialize(&argc, &argv);
 	Point lp, hp;
 	POINT_ASSIGN_SCALAR(lp, -1.0);
 	POINT_ASSIGN_SCALAR(hp, 1.0);
