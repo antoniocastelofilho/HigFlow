@@ -77,7 +77,7 @@ void set_dirichlet_boundary_conditions(sim_domain *sd) {
 			Point bccenter;
 			hig_get_center(bcell, bccenter);
 			int bcgid = mp_lookup(bm, hig_get_cid(bcell));
-			sb_set_value(bc, bcgid, f(bccenter));
+			sb_set_value(bc, bcgid, u(bccenter[0], bccenter[1]));
 		}
 		higcit_destroy(it);
 	}
@@ -220,7 +220,7 @@ int main(int argc,char *argv[]) {
 
 	
 	sd_use_cache(sd, 0);
-	init_mlp_model("../../nn_models/mlp_usable.pt");
+	init_mlp_model("../../nn_models/mlp_relativo.pt");
 	wls_set_type(sd->inter.wls, NEURALNETWORK);
 	printf("Testing with MLP interpolator\n");
 	printf("creating solver\n");

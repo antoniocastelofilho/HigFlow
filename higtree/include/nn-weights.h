@@ -16,7 +16,6 @@
 extern "C" {
 #endif
 
-// As assinaturas das nossas funções
    /** 
     * @brief Must executed in the beginning ofthe code.
     * Loads the mlp model to do the inference of the interpolation weights
@@ -30,7 +29,6 @@ extern "C" {
     * @param features_por_no number of feature per point (using 3 currently)
     * @param input_features a vector containing
     * @param output_weights vector containing the returned weights 
-    * @return 0 if there's no error, -1 if there's error
     */
    void nn_inference(int numpts, wls_item items[], int max_n, real w[]);
 

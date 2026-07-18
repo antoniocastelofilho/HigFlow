@@ -19,11 +19,9 @@ OPTSOPT += -O3 -flto -fno-fat-lto-objects -march=native -mtune=native -DNDEBUG
 endif
 
 
-ifdef NN_WEIGHTS
+
 CXXSTANDARD = -D_GLIBCXX_USE_CXX11_ABI=1 $(OPTSOPT) -std=c++17
-else
-CXXSTANDARD = -std=gnu++14
-endif
+
 CSTANDARD = -std=gnu99
 
 CFLAGS+= -Wall -Wno-unused-result -Wno-unused-variable
@@ -89,12 +87,10 @@ MODULES+= solver-sor
 CFLAGS+= -DUSE_SOR=1 -fopenmp
 endif
 
-ifdef NN_WEIGHTS
 MODULES+= nn-weights
 CFLAGS += -DNN_WEIGHTS
 CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
 LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
-endif
 
 # Prepend $(OBJPATH) to all objects
 OBJS = $(MODULES:%=$(OBJPATH)/%-$(DIM)d.o)
