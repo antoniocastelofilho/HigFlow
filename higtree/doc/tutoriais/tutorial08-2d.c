@@ -125,7 +125,6 @@ void inspect_norm_from_solver_result(solver *s, sim_domain *domain, mp_mapper *g
 
 
 int main(int argc, char *argv[]) {
-	int nc[DIM];
 	int size;
 	DEBUG_DIFF_TIME;
 	int myrank;
