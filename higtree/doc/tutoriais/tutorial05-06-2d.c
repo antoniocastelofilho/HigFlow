@@ -3,17 +3,13 @@
 
 
 //FOR TUTORIAL 5
-#include "coord.h"
-#include "higtree-iterator-internal.h"
 #include "higtree-iterator.h"
 #include "higtree.h"
 #include "higtree-io.h"
 #include "domain.h"
 #include "mapper.h"
-#include "utils.h"
 
 //FOR TUTORIAL 6
-#include "wls.h"
 #include "solver.h"
 
 #define DEBUG
@@ -28,7 +24,7 @@
 
 
 
-/* Variável global para seleção da função teste */
+/* Global variable for the selection of the test function */
 int func = 0;
 
 /**
@@ -199,52 +195,49 @@ int main (int argc, char *argv[]) {
     
 
 	/* Making the system matrix using finite difference */
-    for(int i=0; i < sd_get_num_higtrees(sd); i++) {
-        printf("processing higtree: %d\n", i);
-        hig_cell *root = sd_get_higtree(sd, i);
-        for(it = higcit_create_all_leaves(root); !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *c = higcit_getcell(it);
-            Point ccenter;
-            Point cdelta;
-            hig_get_center(c, ccenter);
-            real cx = ccenter[0];
-            real cy = ccenter[1];
-            hig_get_delta(c, cdelta);
-            real dx = cdelta[0];
-            real dy = cdelta[1];
-            dy *= 1.0;
 
-            /* Defines the points for a 5-point stencil*/
-            Point center = {cx     , cy     };
-            Point left   = {cx - dx, cy     };
-            Point right  = {cx + dx, cy     };
-            Point top    = {cx,      cy + dy};
-            Point bottom = {cx,      cy - dy};
+    for(it = sd_get_domain_celliterator(sd); !higcit_isfinished(it); higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        Point ccenter;
+        Point cdelta;
+        hig_get_center(c, ccenter);
+        real cx = ccenter[0];
+        real cy = ccenter[1];
+        hig_get_delta(c, cdelta);
+        real dx = cdelta[0];
+        real dy = cdelta[1];
+        dy *= 1.0;
 
-            /* Makes the discrete Laplacian stencil */
-            stn_reset(stn);
-            stn_set_rhs(stn, g(cx, cy));  // right side
-            
-            /* Coefficients of the finite difference scheme:
-            ∇²u ≈ (u_{i-1,j} + u_{i+1,j} - 2u_{i,j})/dx² + (u_{i,j-1} + u_{i,j+1} - 2u_{i,j})/dy² */
-            sd_get_stencil(sd, center, center, (-2.0/(dx*dx)-2.0/(dy*dy)), stn);  // Center
-            sd_get_stencil(sd, center, left,    (1.0/(dx*dx)),              stn);  // Left neighbor
-            sd_get_stencil(sd, center, right,   (1.0/(dx*dx)),              stn);  // Right neighbor
-            sd_get_stencil(sd, center, top,     (1.0/(dy*dy)),              stn);  // Top neighbor
-            sd_get_stencil(sd, center, bottom,  (1.0/(dy*dy)),              stn);  // Bottom neighbor
+        /* Defines the points for a 5-point stencil*/
+        Point center = {cx     , cy     };
+        Point left   = {cx - dx, cy     };
+        Point right  = {cx + dx, cy     };
+        Point top    = {cx,      cy + dy};
+        Point bottom = {cx,      cy - dy};
 
-            /* Adds line in the system matrix */
-            int *ids = stn_get_ids(stn);
-            real *vals = stn_get_vals(stn);
-            int numelems = stn_get_numelems(stn);
+        /* Makes the discrete Laplacian stencil */
+        stn_reset(stn);
+        stn_set_rhs(stn, g(cx, cy));  // right side
+        
+        /* Coefficients of the finite difference scheme:
+        ∇²u ≈ (u_{i-1,j} + u_{i+1,j} - 2u_{i,j})/dx² + (u_{i,j-1} + u_{i,j+1} - 2u_{i,j})/dy² */
+        sd_get_stencil(sd, center, center, (-2.0/(dx*dx)-2.0/(dy*dy)), stn);  // Center
+        sd_get_stencil(sd, center, left,    (1.0/(dx*dx)),              stn);  // Left neighbor
+        sd_get_stencil(sd, center, right,   (1.0/(dx*dx)),              stn);  // Right neighbor
+        sd_get_stencil(sd, center, top,     (1.0/(dy*dy)),              stn);  // Top neighbor
+        sd_get_stencil(sd, center, bottom,  (1.0/(dy*dy)),              stn);  // Bottom neighbor
 
-            int cgid = mp_lookup(mp, hig_get_cid(c));
-            slv_set_Ai(slv, cgid, numelems, ids, vals);
-            slv_set_bi(slv, cgid, stn_get_rhs(stn));
-        }
-        printf("done\n");
-        DEBUG_DIFF_TIME;
+        /* Adds line in the system matrix */
+        int *ids = stn_get_ids(stn);
+        real *vals = stn_get_vals(stn);
+        int numelems = stn_get_numelems(stn);
+
+        int cgid = mp_lookup(mp, hig_get_cid(c));
+        slv_set_Ai(slv, cgid, numelems, ids, vals);
+        slv_set_bi(slv, cgid, stn_get_rhs(stn));
     }
+    printf("done\n");
+    DEBUG_DIFF_TIME;
 	higcit_destroy(it);
 	
 	/* Mount and solve linear system */

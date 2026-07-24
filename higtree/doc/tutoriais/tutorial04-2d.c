@@ -1,8 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
 
-#include "coord.h"
-#include "higtree-iterator-internal.h"
 #include "higtree.h"
 #include "higtree-io.h"
 #include "higtree-iterator.h"
@@ -26,7 +24,9 @@ int main (int argc, char *argv[]) {
     POINT_ASSIGN_SCALAR(refine_point, 0.5);
     hig_cell *c = hig_get_cell_with_point(root, refine_point);
     hig_refine_uniform(c, nc);
-
+    FILE *fd = fopen("VTKS/tut04.vtk", "w");
+    higio_print_in_vtk2d(fd, root);
+    fclose(fd);
     
     higcit_celliterator *cit; /** creates a cell iterator */
     printf("centers of the cells:\n");
@@ -35,7 +35,8 @@ int main (int argc, char *argv[]) {
         hig_cell *ccell = higcit_getcell(cit); /** cell pointed by the iterator currently */
         Point center;
         hig_get_center(ccell, center); /** gets the center of the cell */
-        printf("(x= %.2f, y= %.2f)\n", center[0], center[1]);
+        int id = hig_get_cid(ccell);
+        printf("cell: %d \t(x= %.2f, y= %.2f)\n", id, center[0], center[1]);
     }
     /** deallocates iterator */
     higcit_destroy(cit);
@@ -47,15 +48,17 @@ int main (int argc, char *argv[]) {
     printf("\ncenters of the facets, \tdirection of the facet\n");
 
     /** Iterates through all the facets in all directions */
-    int interest_dimensions[2] = {0,1};
+    int interest_dimensions[2] = {1,1};
     for(fit = higfit_create_allfacets(cit, interest_dimensions); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
         hig_facet *f = higfit_getfacet(fit); /** gets the facet of the iterator */
         Point fcenter;
         hig_get_facet_center(f, fcenter); /** gets the coordinates of the facet center */
 
+        int dim = hig_get_facet_dim(f);
         int dir = hig_get_facet_dir(f);
+        int id = hig_get_fid(f);
 
-        printf("(x= %.2f, y= %.2f), \tdir = %d\n", fcenter[0], fcenter[1], dir);
+        printf("id: %d \t(x= %.2f, y= %.2f), \tdim: %d \tdir = %d\n", id, fcenter[0], fcenter[1], dim, dir);
     }
     
     /** deallocates iterator (already destroys cell iterator)*/

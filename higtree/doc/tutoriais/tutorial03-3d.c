@@ -1,6 +1,5 @@
 #include<stdio.h>
 
-#include "coord.h"
 #include "higtree-io.h"
 #include "higtree.h"
 
