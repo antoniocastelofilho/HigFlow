@@ -1,0 +1,9 @@
+var searchData=
+[
+  ['term_5fdet_5fdestroy_0',['term_det_destroy',['../term-det_8cpp.html#acb7e404528c209500b7f8c90f8d9a502',1,'term_det_destroy(TermDetection *td):&#160;term-det.cpp'],['../term-det_8h.html#acb7e404528c209500b7f8c90f8d9a502',1,'term_det_destroy(TermDetection *td):&#160;term-det.cpp']]],
+  ['term_5fdet_5finit_1',['term_det_init',['../term-det_8cpp.html#a8e78ff3e5ff5d5a7bf4394d78899d73d',1,'term_det_init(MPI_Comm comm):&#160;term-det.cpp'],['../term-det_8h.html#a8e78ff3e5ff5d5a7bf4394d78899d73d',1,'term_det_init(MPI_Comm comm):&#160;term-det.cpp']]],
+  ['term_5fdet_5fsend_5fasync_2',['term_det_send_async',['../term-det_8cpp.html#a4a34cccd83f989f9473921535cca93bb',1,'term_det_send_async(TermDetection *td, const void *buf, size_t size, int to):&#160;term-det.cpp'],['../term-det_8h.html#a4a34cccd83f989f9473921535cca93bb',1,'term_det_send_async(TermDetection *td, const void *buf, size_t size, int to):&#160;term-det.cpp']]],
+  ['term_5fdet_5fsend_5fasyncv_3',['term_det_send_asyncv',['../term-det_8cpp.html#ae177ad0f9ec5e0e6bf8fd2fbc224dec9',1,'term_det_send_asyncv(TermDetection *td, void const *const *bufs, const size_t *buf_sizes, int to):&#160;term-det.cpp'],['../term-det_8h.html#ae177ad0f9ec5e0e6bf8fd2fbc224dec9',1,'term_det_send_asyncv(TermDetection *td, void const *const *bufs, const size_t *buf_sizes, int to):&#160;term-det.cpp']]],
+  ['term_5fdet_5fwait_5ffor_5fmsg_4',['term_det_wait_for_msg',['../term-det_8cpp.html#a5c9a1a4b4afe001e22bbf7847c33fc2b',1,'term_det_wait_for_msg(TermDetection *td, int *from, int *msg_size, bool may_terminate):&#160;term-det.cpp'],['../term-det_8h.html#a5c9a1a4b4afe001e22bbf7847c33fc2b',1,'term_det_wait_for_msg(TermDetection *td, int *from, int *msg_size, bool may_terminate):&#160;term-det.cpp']]],
+  ['tree_5fgroup_5',['tree_group',['../struct___fringe_builder.html#a0852dd1141a5e084a53245ecff747af4',1,'_FringeBuilder']]]
+];

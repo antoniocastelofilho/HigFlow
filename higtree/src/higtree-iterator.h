@@ -71,7 +71,7 @@ void higfit_destroy(higfit_facetiterator *fit);
 //! Checks whether the facet iterator has already reached the last facet.
 int higfit_isfinished(higfit_facetiterator *fit);
 
-//! Counts how many facets is returned by the facet iterator.
+//! Counts how many facets is returned by the facet iterator. The iterator is advanced; thus, after calling this function, the iterator is finished.
 long higfit_count(higfit_facetiterator *fit);
 
 //! \brief Creates a facet iterator which return all facets of the cells returned by the cell iterator it, considering the dimensions of interest.

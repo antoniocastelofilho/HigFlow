@@ -254,8 +254,7 @@ void psfd_compute_sfbi(psim_facet_domain *psfd);
 int* psfd_stn_get_gids(psim_facet_domain *psfd, sim_stencil *stn);
 
 //! \brief Defines a distributed property. Which process contains only part of the values
-//! of the property in the cells owned by the that process. psd_sync_distributed_property and
-//! psfd_sync_distributed_property should be called to sync the values shared by
+//! of the property in the cells owned by the that process. dp_sync() should be called to sync the values shared by
 //! different nodes.
 typedef struct distributed_property {
 	_dp_shared *pdata;

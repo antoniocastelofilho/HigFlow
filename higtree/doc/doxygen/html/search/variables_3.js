@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['c_0',['c',['../structhigcit__basiciterator.html#a31f39ae37ece7faa60726ac6c18ac011',1,'higcit_basiciterator::c'],['../structhig__facet.html#a31f39ae37ece7faa60726ac6c18ac011',1,'hig_facet::c']]],
+  ['cdom_1',['cdom',['../structsim__facet__domain.html#accc62d274db1f247778dba1f6a0dca16',1,'sim_facet_domain']]],
+  ['cell_2',['cell',['../structhigcit__neighbours__extra.html#a24fd9e33baac3116ee83f6e5e583a51c',1,'higcit_neighbours_extra']]],
+  ['cell_5fprops_3',['cell_props',['../structxdmf__output.html#a98f09deba7e70952b057450193c984c7',1,'xdmf_output']]],
+  ['cells_4',['cells',['../structhigcit__bounding__box__extra.html#a1ad4949d4452e882eca009c5b9502a51',1,'higcit_bounding_box_extra::cells'],['../structhigcit__sorted__iterator__extra.html#a35653a043604d879c75abbd0158ce224',1,'higcit_sorted_iterator_extra::cells']]],
+  ['children_5',['children',['../structhig__cell.html#a3ddc0554fae12038f17b62315eeb8699',1,'hig_cell']]],
+  ['clone_6',['clone',['../structhigcit__basiciterator.html#a1099e00083e00a8ade31739bc03b4b23',1,'higcit_basiciterator::clone'],['../structhigfit__basicfacetiterator.html#a4bb6009df7d8c289f35d22769a726cf2',1,'higfit_basicfacetiterator::clone']]],
+  ['col_5fbuffer_7',['col_buffer',['../struct_mat.html#a43d674ff45993ba054b26c1c6fe44c77',1,'Mat']]],
+  ['col_5fids_8',['col_ids',['../structmat__prealloc.html#af6fea7caada3ecd8996a7bafdd6b2de0',1,'mat_prealloc']]],
+  ['comm_9',['comm',['../structpartition__graph.html#ab048c6f9fcbcfaa57ce68b00263dbebe',1,'partition_graph::comm'],['../struct_term_detection.html#ab048c6f9fcbcfaa57ce68b00263dbebe',1,'TermDetection::comm']]],
+  ['components_10',['components',['../struct__facet__prop.html#a77552de52d4b155678bd0b806acc5f59',1,'_facet_prop']]],
+  ['converged_11',['converged',['../structsolver.html#afcd780f72325f856f84ec1de84464211',1,'solver']]],
+  ['ctx_12',['ctx',['../struct__part__params.html#a73d3ae65acc176b70aa8bc0446dbc719',1,'_part_params']]],
+  ['cur_5fdepth_13',['cur_depth',['../structhigcit__breadth__first__extra.html#ab12f7354d81556073b7600577445f868',1,'higcit_breadth_first_extra']]],
+  ['curlevel_14',['curlevel',['../structhigcit__bounding__box__extra.html#aabd3fb9ce376aa38529cdee22199f4ed',1,'higcit_bounding_box_extra']]],
+  ['cvtable_15',['cvtable',['../struct__solver__centralized.html#afcf3158085260c7a82397c9744470b28',1,'_solver_centralized']]],
+  ['cwls_16',['cwls',['../structsim__domain.html#ad049b9588716ab558340c6d9ce61b830',1,'sim_domain']]]
+];
