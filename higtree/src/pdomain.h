@@ -63,7 +63,7 @@ partition_graph *pg_create(MPI_Comm comm);
 void pg_set_fringe_size(partition_graph *pg, unsigned fs);
 unsigned pg_get_fringe_size(partition_graph *pg);
 
-//! Retruns current MPI process rank relative to this partition MPI communicator group.
+//! Returns current MPI process rank relative to this partition MPI communicator group.
 int pg_get_rank(partition_graph *pg);
 
 //! Returns the number of MPI process in the whole partitioned domain.
@@ -72,7 +72,7 @@ int pg_get_numnodes(partition_graph *pg);
 //! Returns the number of neighbors of the local process.
 unsigned pg_get_num_neighbors(partition_graph *pg);
 
-//! Returng MPI communicator for the partition.
+//! Returns MPI communicator for the partition.
 MPI_Comm pg_get_MPI_comm(partition_graph *pg);
 
 void pg_destroy(partition_graph *pg);
