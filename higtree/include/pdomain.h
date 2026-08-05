@@ -63,7 +63,7 @@ partition_graph *pg_create(MPI_Comm comm);
 void pg_set_fringe_size(partition_graph *pg, unsigned fs);
 unsigned pg_get_fringe_size(partition_graph *pg);
 
-//! Retruns current MPI process rank relative to this partition MPI communicator group.
+//! Returns current MPI process rank relative to this partition MPI communicator group.
 int pg_get_rank(partition_graph *pg);
 
 //! Returns the number of MPI process in the whole partitioned domain.
@@ -72,7 +72,7 @@ int pg_get_numnodes(partition_graph *pg);
 //! Returns the number of neighbors of the local process.
 unsigned pg_get_num_neighbors(partition_graph *pg);
 
-//! Returng MPI communicator for the partition.
+//! Returns MPI communicator for the partition.
 MPI_Comm pg_get_MPI_comm(partition_graph *pg);
 
 void pg_destroy(partition_graph *pg);
@@ -254,8 +254,7 @@ void psfd_compute_sfbi(psim_facet_domain *psfd);
 int* psfd_stn_get_gids(psim_facet_domain *psfd, sim_stencil *stn);
 
 //! \brief Defines a distributed property. Which process contains only part of the values
-//! of the property in the cells owned by the that process. psd_sync_distributed_property and
-//! psfd_sync_distributed_property should be called to sync the values shared by
+//! of the property in the cells owned by the that process. dp_sync() should be called to sync the values shared by
 //! different nodes.
 typedef struct distributed_property {
 	_dp_shared *pdata;

@@ -20,7 +20,7 @@ endif
 
 
 
-CXXSTANDARD = -D_GLIBCXX_USE_CXX11_ABI=1 $(OPTSOPT) -std=c++17
+CXXSTANDARD = -std=gnu++14
 
 CSTANDARD = -std=gnu99
 
@@ -87,10 +87,10 @@ MODULES+= solver-sor
 CFLAGS+= -DUSE_SOR=1 -fopenmp
 endif
 
-MODULES+= nn-weights
-CFLAGS += -DNN_WEIGHTS
-CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
-LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
+# MODULES+= nn-weights
+# CFLAGS += -DNN_WEIGHTS
+# CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
+# LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
 
 # Prepend $(OBJPATH) to all objects
 OBJS = $(MODULES:%=$(OBJPATH)/%-$(DIM)d.o)

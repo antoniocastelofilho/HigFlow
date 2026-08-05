@@ -67,7 +67,7 @@ typedef struct hig_cell {
 } hig_cell;
 
 //! \brief hig_facet represents a facet in the mesh. <BR>
-//! Each facet is defined by a cell, a dimension and a direction (0 = left/bottom/back, 1 = right/top/front).
+//! Each facet is defined by a cell, a dimension (dimension of the facet's normal vector) and a direction (0 = left/bottom/back, 1 = right/top/front).
 typedef struct hig_facet {
 	hig_cell *c;
 	int dim;

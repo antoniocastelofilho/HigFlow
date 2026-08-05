@@ -7,6 +7,12 @@
 #include "point-mapper.h"
 #include "wls.h"
 
+/**
+ * @file domain.h
+ * @brief Contains the definitions and related functions of boundary conditions, domains, facet domains and stencils
+ */
+
+
 //! Type of boundary conditions.
 typedef enum bc_type {
 	DIRICHLET = 0,
@@ -127,7 +133,10 @@ typedef struct sim_facet_domain {
 	int dim;
 } sim_facet_domain;
 
-//! Creates a simulation domain.
+/**
+ * @brief Creates a simulation domain. Starts using cache, interpolator order set to 3 and tagged as owning it's HiG-Trees
+ * @param m if mapper is NULL, sd_create() also creates the mapper. Mapper assignment still needs to be done in some othe moment
+ */
 sim_domain *sd_create(mp_mapper *m);
 
 //! Adds a local domain HiG-tree to the SD.
@@ -154,16 +163,22 @@ void sd_set_trees_as_fringe(sim_domain *d, unsigned* trees_idx,
 void sd_set_trees_as_local_domain(sim_domain *d, unsigned* trees_idx,
 	unsigned trees_idx_size);
 
-//! Sets whether the SD is the owner of the HiG-Trees
+/**
+ * @brief Sets whether the SD is the owner of the HiG-Trees. If it is, then the HiG_Trees are also destroyed when using sd_destroy()
+ * @param is_own_hig 1 if it owns the HiG-Trees. 0 otherwise
+ */
 void sd_set_higtrees_ownership(sim_domain *d, int is_own_hig);
 
-//! Gets the bounding box of the locally controlled domain.
+/**
+ * @brief Gets the bounding box of the locally controlled domain
+ * @param[out] bbox the calculated bounding box for the domain
+ */
 void sd_get_domain_bounding_box(sim_domain *d, Rect *bbox);
 
 //! Adds a BC.
 void sd_add_boundary(sim_domain *d, sim_boundary *bc);
 
-//! Destroys the SD.
+//! Destroys the SD. BCs are destroyed even if the domain does not own it's HiG-Trees
 void sd_destroy(sim_domain *d);
 
 //! Gets the total number of HiG-Trees of the SD.
@@ -178,13 +193,15 @@ unsigned sd_get_num_local_higtrees(sim_domain *d);
 //! Gets the number of boundary conditions of the SD.
 int sd_get_num_bcs(sim_domain *d, int type);
 
-//! Creates the boundary conditions around the hig-tree rooted at root. The boundary conditions will be of the given type.
+/**
+ * @brief Creates and adds to the domain the 4 boundary conditions that surround the HiG-Tree rooted at root. The boundary conditions will be of the given type
+ */
 void sd_create_boundary(hig_cell *root, sim_domain *sd, int type);
 
 //! Gets the i-th BC of a given type.
 sim_boundary *sd_get_bc(sim_domain *d, int type, int i);
 
-//! Gets a cell iterator for the whole domain.
+//! Gets a cell iterator for the whole domain. Does not include the fringe cells.
 higcit_celliterator *sd_get_domain_celliterator(sim_domain *d);
 
 //! Gets a cell iterator for all BCs.
@@ -212,13 +229,25 @@ int sd_get_local_id(sim_domain *sd, hig_cell *c);
 //
 // This global id can be used to identify uniquely the cell inside
 // the solver. The higcell must be contained in the domain.
-int sd_get_global_id(sim_domain *sd, hig_cell *c);
+// int sd_get_global_id(sim_domain *sd, hig_cell *c); // <-- THIS FUNCTION DOESN'T HAVE AN IMPLEMENTATION
 
+/**
+ * @brief Looks through all the cells in the domain. If none of them contains @p x, returns NULL
+ */
 hig_cell *sd_get_cell_with_point(sim_domain *d, const Point x);
 
+/**
+ * @brief Sets if the domain uses or not the cache for the interpolation weights.
+ * @param v if 1, use cache. Doesn't use cache otherwise
+ */
 void sd_use_cache(sim_domain *d, int v);
 
 //! Creates a simulation facet domain (SFD).
+/**
+ * @brief Creates a simulation facet domain (SFD)
+ * @param m mapper of the SFD. Can be NULL
+ * @param dim sets the direction of the normal vector of the facets of this domain
+ */
 sim_facet_domain *sfd_create(mp_mapper *m, int dim);
 
 //! Uses the HiG-Trees of a SD (center domain) as HiG-Trees for the SFD.
@@ -227,7 +256,10 @@ void sfd_copy_higtrees_from_center_domain(sim_facet_domain *sfd, sim_domain *sd)
 //! Adds a HiG-Tree to the SFD.
 int sfd_add_higtree(sim_facet_domain *d, hig_cell *c);
 
-//! Sets whether the SFD is the owner of the HiG-Trees.
+/**
+ * @brief Sets whether the SFD is the owner of the HiG-Trees. If it is, then the HiG_Trees are also destroyed when using sd_destroy()
+ * @param is_own_hig 1 if it owns the HiG-Trees. 0 otherwise
+ */
 void sfd_set_higtrees_ownership(sim_facet_domain *d, int is_own_hig);
 
 //! Adds a boundary condition to the SFD.
@@ -257,12 +289,22 @@ int sfd_get_dim(sim_facet_domain *d);
 //! Gets the i-th BC of a given type.
 sim_boundary *sfd_get_bc(sim_facet_domain *d, int type, int i);
 
-//! Gets a facet iterator of all locally owned facets of the SFD.
+/**
+ * @brief Gets a facet iterator of all locally owned facets of the SFD
+ */
 higfit_facetiterator *sfd_get_domain_facetiterator(sim_facet_domain *d);
 
-//! Gets a facet iterator of all fringe facets of the SFD.
+
+/**
+ * @brief Gets a facet iterator of all fringe facets of the SFD
+ */
 higfit_facetiterator *sfd_get_fringe_facetiterator(sim_facet_domain *d);
 
+/**
+ * @brief Gets a facet iterator of locally owned facets of the SFD that belongs to HiG-Tree indexed by hig
+ * @param hig index of the desired HiG-Tree
+ * @param pos index of child inside the HiG-Tree
+ */
 higfit_facetiterator *sfd_get_facetiterator_for_block(sim_facet_domain *d, int hig, int pos);
 
 //! Gets a cell iterator of all BCs of the SFD.
@@ -294,10 +336,24 @@ void sfd_adjust_facet_ids(sim_facet_domain *d);
 
 void sfd_set_sfbi(sim_facet_domain *sfd, int i, sim_facet_block_info *sfbi);
 
+/**
+ * @brief returns the cell with point x
+ */
 hig_cell *sfd_get_cell_with_point(sim_facet_domain *d, Point x);
 
+/**
+ * @brief gets the facet in domain d with point x
+ * @param x Point
+ * @param[out] facet Returned facet. NULL if it doesn't find any facets with this point
+ * @return 1 if found a facet, 0 otherwise
+ */
 int sfd_get_facet_with_point(sim_facet_domain *d, Point x, hig_facet *facet);
 
+
+/**
+ * @brief Sets if the domain uses or not the cache for the interpolation weights.
+ * @param v if 1, use cache. Doesn't use cache otherwise
+ */
 void sfd_use_cache(sim_facet_domain *d, int v);
 
 //! \brief Defines the structure that keeps a stencil. A stencil has a set of

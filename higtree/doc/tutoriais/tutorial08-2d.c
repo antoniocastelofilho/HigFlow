@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 
+#include "domain.h"
 #include "utils.h"
 #include "higtree.h"
 #include "higtree-io.h"
@@ -236,7 +237,6 @@ int main(int argc, char *argv[]) {
 	DEBUG_DIFF_TIME;
 
 	DEBUG_INSPECT("solving...", %s);
-	int psize[2];
 	slv_solve(slv);
 	//MatView(slv->A, PETSC_VIEWER_STDOUT_WORLD);
 

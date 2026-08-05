@@ -22,7 +22,8 @@
 int wls_num_min_points (unsigned dim, int ord);
 
 //! Type of least square method.
-typedef enum {WLSMOVING, WLSSTATIC, NEURALNETWORK} wls_type;
+typedef enum {WLSMOVING, WLSSTATIC} wls_type;
+//typedef enum {WLSMOVING, WLSSTATIC, NEURALNETWORK} wls_type;
 
 //! Defines a single sample used for interpolation.
 typedef struct wls_item {

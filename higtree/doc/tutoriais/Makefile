@@ -52,9 +52,9 @@ LIBS += -lnuma -fopenmp
 endif
 
 #ifdef NN_WEIGHTS
-CFLAGS += -DNN_WEIGHTS
-CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
-LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
+# CFLAGS += -DNN_WEIGHTS
+# CFLAGS+= -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
+# LIBS+=-L$(LIBTORCH_DIR)/lib -ltorch -ltorch_cpu -lc10 #Torch libs
 #endif
 
 TUTFILES  = $(wildcard tutorial*.c)

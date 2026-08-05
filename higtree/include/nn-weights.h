@@ -15,7 +15,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
    /** 
     * @brief Must executed in the beginning ofthe code.
     * Loads the mlp model to do the inference of the interpolation weights
@@ -35,4 +34,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
 #endif // NN_WEIGHTS_H
