@@ -11,8 +11,9 @@ mkdir cases
 docker run --rm -v "$PWD/cases:/work" higflow:latest case example2d_Newt
 ```
 
-The first build takes 30 to 60 minutes, almost all of it compiling PETSc. It
-happens once. After that, starting a simulation takes seconds.
+The first build takes a few minutes, almost all of it compiling PETSc — six and
+a half minutes on sixteen cores, proportionally longer on fewer. It happens
+once. After that, starting a simulation takes seconds.
 
 ---
 
@@ -54,8 +55,9 @@ A container settles all of it once. The image is built with exactly one MPI, and
 every component in it was compiled against that one.
 
 The second reason is that it makes HigFlow usable on Windows, where it otherwise
-is not. See [the Windows guide](windows.md) for why a native Windows build is
-not viable.
+is not. A native Windows build is not viable — OpenMPI and libfyaml have no
+supported Windows port, and `CMakeLists.txt` requires `libnuma`, which exists
+only on Linux — so a container, or WSL2, is the whole story there.
 
 ## The three concepts you need
 
@@ -119,9 +121,14 @@ WSL2 backend is enabled in its settings, and `docker` then works from
 PowerShell. Note that Docker Desktop requires a paid subscription for large
 companies; it is free for personal use, education and small businesses.
 
-**Docker Engine inside WSL2** avoids that entirely and is lighter. You need a
-WSL2 distribution first — see [the Windows guide](windows.md) — and systemd
-enabled in it:
+**Docker Engine inside WSL2** avoids that entirely and is lighter. Install a
+WSL2 distribution first:
+
+```powershell
+wsl --install -d Ubuntu-22.04
+```
+
+then make sure systemd is enabled in it, which Docker's service needs:
 
 ```bash
 # inside WSL, as root
@@ -185,12 +192,17 @@ PETSc archive, compiled binaries, simulation output and the LaTeX manuals.
 
 The build has four stages, ordered by how often each one changes.
 
-| Stage | What it does | Roughly |
+Measured on sixteen cores; the PETSc stage is the one that scales with core
+count, so expect it to dominate more on a smaller machine.
+
+| Stage | What it does | Measured |
 |---|---|---|
-| `base` | Ubuntu 22.04 plus system packages | 2 min |
-| `petsc` | downloads and compiles PETSc 3.14.0 | 30–50 min |
-| `fyaml` | compiles libfyaml | 1 min |
-| `higflow` | compiles HigTree and HigFlow, 2D and 3D | 5–10 min |
+| `base` | Ubuntu 22.04 plus system packages | 27 s |
+| `petsc` | downloads and compiles PETSc 3.14.0 | 5 min 3 s |
+| `fyaml` | compiles libfyaml | 12 s |
+| `higflow` | compiles HigTree and HigFlow, 2D and 3D | 17 s |
+| | sending the build context | 14 s |
+| | **total** | **6 min 30 s** |
 
 The ordering matters. Docker caches each stage, and editing a `.c` file only
 invalidates the last one — so a rebuild after a source change takes minutes, not
@@ -436,7 +448,7 @@ everything was written inside the container and discarded when it exited.
 |---|---|
 | Base | Ubuntu 22.04 |
 | MPI | OpenMPI, from Ubuntu — the only MPI present, deliberately |
-| PETSc | 3.14.0, `--with-debugging=0`, shared libraries, HYPRE and fblaslapack downloaded by PETSc |
+| PETSc | 3.14.0, `--with-debugging=0`, shared libraries, built with the `mpicc`/`mpicxx`/`mpif90` wrappers; HYPRE and fblaslapack downloaded by PETSc |
 | HDF5 | Ubuntu's OpenMPI build |
 | Zoltan | Trilinos Zoltan, from Ubuntu |
 | libfyaml | built from the snapshot committed to the repository |
@@ -453,5 +465,9 @@ Paths inside:
 ```
 
 Environment already set: `PETSC_DIR`, `PETSC_ARCH`, `PETSC_EXTRA_LIB`,
-`HIGTREE_DIR`, `HIGFLOW_DIR`, `PKG_CONFIG_PATH`, `LD_LIBRARY_PATH`. There is no
-`source varsrc` step — the image does not need one.
+`HIGTREE_DIR`, `HIGFLOW_DIR`, `PKG_CONFIG_PATH`, `LD_LIBRARY_PATH`, `CPATH` and
+`LIBRARY_PATH`. There is no `source varsrc` step — the image does not need one.
+
+`CPATH` and `LIBRARY_PATH` carry the OpenMPI paths, because the example
+Makefiles compile with `gcc` rather than `mpicc` and would otherwise not find
+`mpi.h`. See [`containers/README.md`](../../containers/README.md) for why.
