@@ -66,6 +66,7 @@ University of São Paulo**.
 - [Citing HigFlow](#citing-higflow)
 - [Contributing](#contributing)
 - [Authors](#authors)
+- [People](#people)
 - [License](#license)
 
 ---
@@ -492,6 +493,55 @@ University of São Paulo**, under **Prof. Antonio Castelo Filho**.
 
 Contributors to this repository, as recorded in its commit history: Pedro Coimbra,
 Juniormar Organista, Daniel Garcia, Kainã, Johnatas, and Antonio Castelo Filho.
+
+That list is derived from `git shortlog`, so it is complete for anyone who has
+committed, and it needs nobody's permission to be accurate. The gallery below is the
+opposite: it is opt-in, and someone appears there only because they chose to.
+
+## People
+
+<!--
+  ─────────────────────────────────────────────────────────────────────────────
+  HOW TO ADD SOMEONE
+
+  1. Get their consent first. A photograph of an identifiable person is personal
+     data, and this page is public. docs/images/contributors/README.md has a
+     message you can send and the points it needs to cover.
+  2. Add a square image to docs/images/contributors/ — 400x400 px, .jpg, under
+     100 KB, named firstname-lastname.jpg.
+  3. Uncomment the <table> below and fill in one <td> per person.
+  4. Keep four <td> per <tr>, so the grid stays even on a narrow window.
+  5. Use the person's name as the alt text — it is what a screen reader
+     announces and what shows if the image fails to load.
+
+  If someone asks to be removed, delete their image and their <td> in the same
+  commit. No explanation needed from them, and none recorded here.
+  ─────────────────────────────────────────────────────────────────────────────
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="docs/images/contributors/firstname-lastname.jpg" width="100" alt="Firstname Lastname"><br>
+      <sub><b>Firstname Lastname</b></sub><br>
+      <sub>Role or affiliation</sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="docs/images/contributors/another-person.jpg" width="100" alt="Another Person"><br>
+      <sub><b>Another Person</b></sub><br>
+      <sub>Role or affiliation</sub>
+    </td>
+    <td align="center" width="25%"></td>
+    <td align="center" width="25%"></td>
+  </tr>
+</table>
+
+-->
+
+This gallery is being assembled. People are added as they agree to appear, and anyone
+listed can ask to be removed at any time.
+
+Adding someone: see [`docs/images/contributors/README.md`](docs/images/contributors/README.md)
+for the image requirements, the markup, and how to ask.
 
 ## License
 
