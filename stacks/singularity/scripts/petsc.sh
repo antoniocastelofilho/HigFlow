@@ -8,6 +8,7 @@ echo "*******************************************************"
 
 cd /bibliotecas
 if [ -d petsc-3.14.0 ]; then rm -rf petsc-3.14.0; fi
+bash /bibliotecas/fetch-petsc.sh
 tar -vzxf petsc-3.14.0.tar.gz
 cd petsc-3.14.0
 if ! ./configure --prefix=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 \
