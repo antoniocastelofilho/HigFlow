@@ -490,8 +490,8 @@ something substantial, to avoid duplicating an effort already under way.
 HigFlow is developed at the **Institute of Mathematical and Computer Sciences (ICMC),
 University of São Paulo**, under **Prof. Antonio Castelo Filho**.
 
-Contributors to this repository, from its commit history: Pedro Coimbra, Juniormar
-Organista, Daniel Garcia, Kainã Sousa, Johnatas, and Antonio Castelo Filho.
+Contributors to this repository, as recorded in its commit history: Pedro Coimbra,
+Juniormar Organista, Daniel Garcia, Kainã, Johnatas, and Antonio Castelo Filho.
 
 ## License
 
