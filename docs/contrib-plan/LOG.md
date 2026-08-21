@@ -15,7 +15,7 @@
 |---|---|---|---|
 | E00 — Ambiente de desenvolvimento | — | **pendente** | — |
 | E01 — Infraestrutura da contribuição | `juniormar/main` | **concluída** (falta `.mailmap`, que vai no PR de E07) | — |
-| E02 — README em inglês | — | pendente | — |
+| E02 — README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | não enviado |
 | E03 — Instalação Linux | — | pendente | — |
 | E04 — Containers | — | pendente | — |
 | E05 — Instalação Windows | — | pendente | — |
@@ -40,6 +40,82 @@
 | E24 — C++ nível 3 | — | pendente | — |
 | E25 — Arquitetura ML | — | pendente | — |
 | E26 — PoC ML | — | pendente | — |
+
+---
+
+## 2026-08-21 — E02: README em inglês
+
+**Etapa:** E02
+**Branch:** `juniormar/02-readme` (a partir de `master` em `f5eb580`) → merjada em `juniormar/main`
+
+### O que foi feito
+
+- `README.md` reescrito em inglês, 503 linhas, 12 seções
+- `README.pt-BR.md` preservado, com o bloco corrompido reparado
+- `docs/images/architecture.svg` — diagrama autoral das três camadas de software e dos
+  seis estágios do passo de tempo
+- Figuras existentes (`all_mesh.png`, `ghosts.png`, `wccmjet.png`) referenciadas **no
+  lugar**, sem duplicar binário na árvore
+
+### Commits (11)
+
+| SHA | Mensagem |
+|---|---|
+| `da50eac` | `docs: preserve the Portuguese README as README.pt-BR.md` |
+| `e730508` | `docs: repair corrupted sentence in the Portuguese README` |
+| `4a25ae7` | `docs(readme): add English overview and table of contents` |
+| `b2d1b33` | `docs(readme): document the constitutive model library` |
+| `5776b94` | `docs(readme): document the numerical methods` |
+| `69d9244` | `docs(readme): add architecture diagram` |
+| `21e4304` | `docs(readme): add architecture section with grid figures` |
+| `859e5fb` | `docs(readme): add gallery placeholder and installation instructions` |
+| `e5e988e` | `docs(readme): document how to run a case and what a case contains` |
+| `1523294` | `docs(readme): add layout, documentation index, citing, contributing and license` |
+| `a8a7c0d` | `docs(readme): use contributor names exactly as recorded in git history` |
+
+### Achados novos durante a redação
+
+1. **O esquema convectivo de segunda ordem degrada para primeira ordem na fronteira.**
+   `hig-flow-discret.c:131-138` rebaixa `SECOND_ORDER` para `FIRST_ORDER` quando o
+   estêncil cruza a fronteira. É escolha deliberada de robustez, mas afeta diretamente
+   a ordem de convergência observada — insumo importante para E11.
+
+2. **`ORDER4` é parseado mas nunca usado.** Aparece em `hig-flow-io.c:6229` e `:8015`
+   (leitura e escrita do YAML) e na declaração do enum. Nenhuma rotina de
+   discretização o consulta. Selecionar `forth_order` não produz esquema de quarta
+   ordem — produz silenciosamente segunda ordem.
+
+3. **Nenhuma referência bibliográfica no código.** `higtree/doc/biblio.bib` tem 398
+   entradas, nenhuma de reologia. A tabela de modelos do README traz as referências
+   canônicas onde a formulação é inequívoca, e declara a lacuna onde não é, em vez de
+   atribuir por suposição.
+
+### Correção feita durante a etapa
+
+Na primeira redação da seção Authors atribuí o sobrenome "Sousa" a um contribuidor
+cujo histórico registra apenas "Kainã". Corrigido em `a8a7c0d`; a lista agora reproduz
+exatamente o que o histórico registra.
+
+### Verificação
+
+- Todos os caminhos de imagem, links de arquivo e âncoras internas resolvem
+- Tabelas markdown bem formadas
+- SVG validado como XML e sem transbordo de geometria
+- Diff do PR contém apenas `README.md`, `README.pt-BR.md` e o SVG — o diretório
+  `docs/contrib-plan/` não vazou, como o modelo de branches previa
+
+### Pendências herdadas para etapas seguintes
+
+- Galeria com resultados reproduzíveis → **E06**
+- Instalador corrigido, hoje apenas sinalizado no README → **E03**
+- Seção de container → **E04**
+- `CITATION.cff` e `CONTRIBUTING.md`, hoje declarados ausentes no README → **E19**
+- Badges de CI reais → **E12**
+
+### Próxima sessão
+
+**E00** (WSL2) para desbloquear metade do roadmap, ou **E07** (higiene) que é PR
+pequeno e independente.
 
 ---
 
