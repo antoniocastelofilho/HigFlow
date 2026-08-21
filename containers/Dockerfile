@@ -10,10 +10,11 @@
 # build and corrected — see containers/README.md for what changed and why.
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage layout, ordered by how often each layer changes. PETSc takes 30–60
-# minutes to compile and almost never changes; the project sources change every
-# commit. Keeping them in separate stages means editing a .c file rebuilds
-# seconds of work, not an hour of it.
+# Stage layout, ordered by how often each layer changes. PETSc takes about five
+# minutes to compile on sixteen cores, proportionally longer on fewer, and almost
+# never changes; the project sources change every commit. Keeping them in
+# separate stages means editing a .c file rebuilds seconds of work rather than
+# the whole chain.
 #
 #   base     → system packages
 #   petsc    → PETSc, built from a checksum-verified release archive
@@ -21,11 +22,14 @@
 #   higflow  → the project
 # ─────────────────────────────────────────────────────────────────────────────
 
-# The tag is used rather than a digest. A digest pins the image exactly and is
-# the stronger choice for a release build; to switch, resolve the current one
+# Pinned by digest, not only by tag. The ubuntu:22.04 tag moves with every
+# security refresh, so two builds a month apart would otherwise start from
+# different filesystems. This is the digest the tag resolved to when the image
+# was last built and verified end to end.
+#
+# To move to a newer base, resolve the current digest and replace it here:
 #     docker buildx imagetools inspect ubuntu:22.04
-# and replace the line below with  FROM ubuntu:22.04@sha256:<digest> AS base
-FROM ubuntu:22.04 AS base
+FROM ubuntu:22.04@sha256:2edbbc5dc405e9612ba3584ce95480277e3eb374407b5505fe26f17df77c7dbc AS base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -93,14 +97,22 @@ RUN curl -fL --retry 3 -o petsc.tar.gz \
 # appears in install_higflow_ubuntu22 and in both existing Dockerfiles. PETSc's
 # configure rejects unrecognised options, so that typo aborts the build.
 #
-# --with-mpi-dir=/usr uses the OpenMPI installed above instead of downloading a
-# second one.
+# The MPI compiler wrappers are given directly rather than a --with-mpi-dir.
+# Debian and Ubuntu split OpenMPI across directories — headers under
+# /usr/lib/x86_64-linux-gnu/openmpi/include, Fortran bindings and modules
+# elsewhere — so neither /usr nor the openmpi prefix is a valid single MPI root.
+# Pointing at /usr makes PETSc record MPI_INCLUDE = -I/usr/include, which does
+# not contain mpi.h; pointing at the openmpi prefix makes configure fail with
+# "Fortran error! mpi_init() could not be located!". The wrappers know every
+# path, which is what they exist for.
 RUN cd "petsc-${PETSC_VERSION}" \
     && ./configure \
         --prefix=/opt/petsc \
         --with-debugging=0 \
         --with-shared-libraries=1 \
-        --with-mpi-dir=/usr \
+        --with-cc=mpicc \
+        --with-cxx=mpicxx \
+        --with-fc=mpif90 \
         --with-hdf5-dir=/usr/lib/x86_64-linux-gnu/hdf5/openmpi \
         --download-hypre \
         --download-fblaslapack \
@@ -161,6 +173,23 @@ ENV PETSC_DIR=/opt/petsc \
     PKG_CONFIG_PATH=/opt/libfyaml/lib/pkgconfig \
     LD_LIBRARY_PATH=/opt/petsc/lib:/opt/libfyaml/lib
 
+# CPATH and LIBRARY_PATH give plain gcc and ld the OpenMPI paths that the mpicc
+# wrapper would have added.
+#
+# This is not gratuitous: all eleven example Makefiles set `CC = gcc`, while
+# higflow/Makefile and higtree/Makefile set `CC = mpicc`. An example's only
+# source of the MPI include path is therefore $(PETSC_CC_INCLUDES), inherited
+# from PETSc.
+#
+# That explains a choice in the repository's install script that otherwise looks
+# simply wrong. --download-openmpi puts mpi.h inside the PETSc prefix, so
+# PETSC_CC_INCLUDES happens to cover it and the examples compile — by accident of
+# layout rather than by design. Using a system MPI removes the accident, so the
+# image supplies the paths explicitly instead. The underlying fix is for the
+# examples to compile with mpicc, as the libraries already do.
+ENV CPATH=/usr/lib/x86_64-linux-gnu/openmpi/include \
+    LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/openmpi/lib
+
 # A normal user, because OpenMPI refuses to run as root without
 # --allow-run-as-root, and because a container process writing into a mounted
 # host directory as root leaves files the host user cannot delete.
@@ -198,22 +227,32 @@ RUN cd higtree && make DIM=2 && make DIM=3
 # dimension with nothing to indicate it. `make clean` is no escape either: it
 # deletes $(HIGFLOW_LIBPATH)/*.a, taking the 2D library with it.
 #
-# So the objects are cleared by hand between dimensions and the 2D archive is
-# kept aside. The proper fix is to put the dimension in the object name, as
-# higtree already does; that belongs to the build-system change, not here.
+# So the objects are cleared by hand between dimensions and one archive is kept
+# aside. The proper fix is to put the dimension in the object name, as higtree
+# already does; that belongs to the build-system change, not here.
+#
+# The order — 3D first, 2D last — is not arbitrary either. The example Makefiles
+# link ../src/hig-flow-*.o directly rather than libhigflow<dim>d.a, so whichever
+# dimension is built last decides which examples can be compiled. Nine of the
+# eleven examples are 2D, so 2D is what is left in place, and .built-dim records
+# it so the entrypoint can rebuild when a 3D case is asked for.
 RUN cd higflow \
-    && make DIM=2 \
-    && cp lib/libhigflow2d.a /tmp/libhigflow2d.a \
-    && rm -f src/*.o \
     && make DIM=3 \
-    && cp /tmp/libhigflow2d.a lib/libhigflow2d.a \
-    && rm -f /tmp/libhigflow2d.a \
+    && cp lib/libhigflow3d.a /tmp/libhigflow3d.a \
+    && rm -f src/*.o \
+    && make DIM=2 \
+    && cp /tmp/libhigflow3d.a lib/libhigflow3d.a \
+    && rm -f /tmp/libhigflow3d.a \
+    && echo 2 > .built-dim \
     && ls -l lib/
 
 # /work is where a mounted host directory lands, so cases and their output stay
 # on the host and the container stays disposable.
+#
+# Deliberately not declared as a VOLUME: that makes Docker create an anonymous
+# volume whenever nothing is mounted there, and those accumulate silently for
+# anyone who forgets --rm. A bind mount works without it.
 WORKDIR /work
-VOLUME ["/work"]
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["help"]
