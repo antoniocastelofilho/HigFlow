@@ -18,8 +18,8 @@
 | E02 — README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | rascunho pronto |
 | E03 — Instalação Linux | — | pendente | — |
 | E04 — Containers | `juniormar/04-containers` | **concluída** (verificada de ponta a ponta) | rascunho pronto |
-| E05 — Instalação Windows | — | pendente | — |
-| E06 — Galeria de resultados | — | pendente | — |
+| E05 — Instalação Windows | `juniormar/05-install-windows` | **concluída** | — |
+| E06 — Galeria de resultados | `juniormar/06-gallery` + `06b` | **concluída** (8 figuras verificadas) | — |
 | E07 — Higiene do repositório | `juniormar/07-repo-hygiene` | **concluída** (merjada no tronco) | rascunho pronto |
 | E08 — Build unificado | — | pendente | — |
 | E09 — Correções pontuais | — | pendente | — |
@@ -41,6 +41,71 @@
 | E25 — Arquitetura ML | — | pendente | — |
 | E26 — PoC ML | — | pendente | — |
 | E27 — Galeria de pessoas | `juniormar/27-contributors` | **estrutura pronta** (aguarda consentimentos) | — |
+
+---
+
+## 2026-08-21 — E05 e E06: Windows e galeria
+
+**Branches:** `juniormar/05-install-windows` (de E04), `juniormar/06-gallery` (de E04),
+`juniormar/06b-readme-gallery` (do tronco) → todas merjadas em `juniormar/main`
+
+### E05 — guia Windows
+
+358 linhas, escritas a partir da instalação real, não de conselho genérico. Cobre as
+quatro surpresas que custaram tempo: a mensagem sobre WSL1 ser irrelevante, o
+`VirtualizationFirmwareEnabled: False` ser artefato de leitura, o `DefaultUid = 0`
+quando o setup não é concluído, e o `df -h /` reportar o tamanho máximo do disco
+virtual em vez do espaço livre real.
+
+### E06 — galeria
+
+8 figuras de 3 casos, todas reproduzíveis. Renderizador próprio (`tools/gallery/render.py`),
+sem ParaView: lê o VTK ASCII e desenha as células como estão.
+
+**Números verificados:**
+
+| Caso | Verificação | Resultado |
+|---|---|---|
+| Poiseuille | erro contra `u = u_max(1-y²)` | L₂ rel. **6,89×10⁻⁴** |
+| Poiseuille | gradiente de pressão | −3, batendo com −2μu_max/h² |
+| Poiseuille | vazão em 7 estações | constante em 5 partes em 10⁶ |
+| Contração | conservação de massa | 0,37% através de razão de área 4:1 |
+| Oldroyd-B | N₁ = τxx − τyy | máximo nas paredes, nulo na linha de centro |
+
+### O achado maior da etapa
+
+**Os dez casos versionados declaram `flowphase: singlephase` e `flowtype: newtonian`**,
+independentemente do nome e do que o driver chama. Onde o driver chama
+`higflow_solver_step()` isso é consistente; onde não, é fatal — o `flowtype` decide
+quais propriedades distribuídas o `hig-flow-kernel.c` aloca, então o passo viscoelástico
+ou multifásico desreferencia arrays nunca criados.
+
+| Caso | Como versionado | Trocando a linha |
+|---|---|---|
+| `example2d_Oldroyd` | SIGSEGV no passo 0 | roda completo — **corrigido aqui** |
+| `example2d_VOF` | SIGSEGV no passo 0 | ainda falha — **reportado, não corrigido** |
+
+Confirmei a causa empiricamente: com `flowtype: viscoelastic` o caso roda os 101 passos
+e o VTK passa a conter `TENSORS τₚ`, o tensor de tensão polimérica que antes nunca era
+alocado.
+
+### Correção que fiz de um diagnóstico meu
+
+Cheguei a concluir que o `flowtype: newtonian` tornava o caso Oldroyd newtoniano. Errado:
+o **driver** escolhe a física, chamando `higflow_solver_step_viscoelastic()` diretamente.
+O `flowtype` não escolhe o solver — ele decide a alocação. Verifiquei antes de escrever
+qualquer legenda.
+
+### Nota operacional
+
+O `/tmp` do WSL não sobrevive entre invocações — apagou logs e resultados duas vezes.
+Trabalho persistente vai em `/root/hf`.
+
+### Pendências
+
+- Figura multifásica: bloqueada pelo `example2d_VOF`
+- Os outros 6 casos com a mesma declaração não foram testados
+- `higflow:latest` fica na máquina; reconstruir leva 6min30s
 
 ---
 
