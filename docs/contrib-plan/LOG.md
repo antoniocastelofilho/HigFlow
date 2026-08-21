@@ -13,11 +13,11 @@
 
 | Etapa | Branch | Estado | PR |
 |---|---|---|---|
-| E00 — Ambiente de desenvolvimento | — | **pendente** | — |
+| E00 — Ambiente de desenvolvimento | — | **concluída** (WSL2 + Ubuntu 22.04 + Docker Engine 29.7.2) | — |
 | E01 — Infraestrutura da contribuição | `juniormar/main` | **concluída** (falta `.mailmap`, que vai no PR de E07) | — |
 | E02 — README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | rascunho pronto |
 | E03 — Instalação Linux | — | pendente | — |
-| E04 — Containers | — | pendente | — |
+| E04 — Containers | `juniormar/04-containers` | **concluída** (verificada de ponta a ponta) | rascunho pronto |
 | E05 — Instalação Windows | — | pendente | — |
 | E06 — Galeria de resultados | — | pendente | — |
 | E07 — Higiene do repositório | `juniormar/07-repo-hygiene` | **concluída** (merjada no tronco) | rascunho pronto |
@@ -41,6 +41,93 @@
 | E25 — Arquitetura ML | — | pendente | — |
 | E26 — PoC ML | — | pendente | — |
 | E27 — Galeria de pessoas | `juniormar/27-contributors` | **estrutura pronta** (aguarda consentimentos) | — |
+
+---
+
+## 2026-08-21 — E00 e E04: ambiente e containers
+
+**Etapas:** E00, E04
+**Branch:** `juniormar/04-containers` (a partir de `master`) → merjada em `juniormar/main`
+
+### Ambiente (E00)
+
+O WSL já estava completo — WSL 2.6.3.0, kernel 6.6.87.2-1, `WslService` rodando,
+hypervisor ativo. Faltava só a distro, que o usuário instalou. Não houve reinício.
+
+Dois pontos do ambiente que valem registro:
+
+- **`DefaultUid = 0`** — o setup inicial do Ubuntu não criou usuário normal, então
+  tudo roda como root. Isso quebrou o primeiro teste do container por permissão, e
+  também impede o OpenMPI de rodar sem `--allow-run-as-root`. Vale criar um usuário.
+- **Docker Engine instalado dentro do WSL**, não Docker Desktop. O `systemd` já
+  estava habilitado (`/etc/wsl.conf` com `[boot] systemd=true`), que é o requisito.
+  Sem licença, mais leve, e é o caminho documentado no guia.
+
+Validações que economizaram um build longo: `hdf5.pc` **existe** no Ubuntu 22.04
+(o Makefile chama `pkg-config ... hdf5`), headers do Zoltan em `/usr/include/trilinos`
+como o Makefile do higtree assume, e boost é header-only aqui — `libboost-dev` basta,
+não `libboost-all-dev`.
+
+### Container (E04)
+
+11 commits. Imagem multi-stage de 4 estágios, imagem de desenvolvimento, compose com
+7 serviços, definição Apptainer, `.dockerignore`, entrypoint e o guia de 473 linhas.
+
+**Medições:**
+
+| | |
+|---|---|
+| Build a frio | **6 min 30 s** (16 núcleos) — PETSc é 5 min 3 s |
+| Contexto enviado | **11,67 MB** de uma árvore de 96 MB |
+| Imagem | 299 MB de conteúdo, 1,34 GB em disco |
+| Rebuild após mudar fonte | 36 s |
+
+**Casos executados, saída no host:**
+
+| Caso | Ranks | Saída |
+|---|---|---|
+| `example2d_Newt` | 1 | 101 VTK, 166 MB |
+| `example2d_Newt` | 2 | 202 VTK, 166 MB |
+| `example3d_lid_driven` | 1 | 880 VTK, 509 MB (interrompido após verificar) |
+
+### Quatro defeitos novos, todos achados porque a imagem não construía ou não rodava
+
+1. **`higflow/Makefile:83` não põe a dimensão no nome do objeto.** Usa
+   `hig-flow-%.o`; o `higtree/Makefile:90` usa `%-$(DIM)d.o` corretamente. Logo
+   `make DIM=2 && make DIM=3` linka objetos 2D dentro de `libhigflow3d.a`. E
+   `make clean` não resolve: apaga `$(HIGFLOW_LIBPATH)/*.a`, levando a outra junto.
+
+2. **Os exemplos não podem ser movidos.** Todos os 11 incluem `../src/hig-flow-*.h`
+   e linkam `../src/hig-flow-*.o` diretamente, não `libhigflow<dim>d.a`. Copiar um
+   caso para fora de `higflow/` quebra a compilação. Somado ao defeito 1: os 9
+   exemplos 2D e os 2 exemplos 3D **não podem estar compiláveis ao mesmo tempo**.
+
+3. **Os exemplos compilam com `gcc`, não `mpicc`.** Os 11 usam `CC = gcc`; as duas
+   bibliotecas usam `CC = mpicc`. A única fonte de caminho de MPI do exemplo é o
+   `$(PETSC_CC_INCLUDES)`.
+
+   **Isso explica o `--download-openmpi` do instalador**, que eu tinha catalogado
+   como parte do problema dos três MPIs. É, em parte, contorno *deste* defeito: o
+   MPI próprio do PETSc põe `mpi.h` dentro do prefixo do PETSc, então o
+   `PETSC_CC_INCLUDES` cobre por acidente de layout. Apontar para um MPI de sistema
+   desfaz o acidente. E no Debian/Ubuntu não existe raiz única de MPI:
+   `--with-mpi-dir=/usr` grava include sem `mpi.h`, e o prefixo do OpenMPI faz o
+   configure falhar com `Fortran error! mpi_init() could not be located!`.
+
+4. **`.gitignore` bloqueando `docs/install/`** — o defeito previsto na E07,
+   atrapalhando de verdade: `git add docs/install/containers.md` não fez nada.
+
+### Correção de processo
+
+Três arquivos (`cases/.gitkeep`, `.gitignore`, `.dockerignore`) entraram no commit
+do Dockerfile porque já estavam no índice. Mensagem não batia com conteúdo, contra
+a própria regra de "um commit, uma ideia". Como nada havia sido enviado, refiz com
+`git reset --mixed` e separei em 4 commits limpos.
+
+### Próxima sessão
+
+**E05** (guia Windows) é a continuação natural — é o registro escrito da experiência
+E00 + E04. Ou **E06** (galeria), que agora está desbloqueada: a imagem roda os casos.
 
 ---
 
