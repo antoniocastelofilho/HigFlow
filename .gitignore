@@ -105,6 +105,12 @@ bibliotecas/libfyaml-master/
 *.fdb_latexmk
 *.fls
 
+# Scratch directory the container mounts at /work. Tracked only so that the
+# directory exists with the checkout user's ownership; anything produced in it
+# is output.
+cases/*
+!cases/.gitkeep
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Editors and tooling
 # ─────────────────────────────────────────────────────────────────────────────
