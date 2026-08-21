@@ -46,6 +46,10 @@ install/
 **/output/
 **/*.vtk
 
+# The host-side scratch directory mounted at /work. It is where results land,
+# so it grows; nothing in it belongs in the image.
+cases/
+
 # Documentation and figures — not needed to compile
 Manual_Euler/
 Manual_Git/
