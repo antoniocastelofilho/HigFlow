@@ -217,3 +217,37 @@ For multiphase flow, the volume-of-fluid method with:
 - Moving least-squares interpolation for values between refinement levels and at
   partition boundaries
 - Dimension is fixed at compile time — the build produces separate 2D and 3D libraries
+
+---
+
+## Architecture
+
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="HigFlow software layers and the stages of one projection-method time step" width="100%">
+</p>
+
+### The hierarchical grid
+
+HigTree represents the domain as a forest of cell trees. A region needing resolution is
+refined locally, so fine cells appear only where the physics demands them — around an
+interface, a stress boundary layer, or a re-entrant corner — while the rest of the
+domain stays coarse.
+
+<p align="center">
+  <img src="higtree/doc/figuras/all_mesh.png" alt="Refinement levels of a HigTree grid shown as separate stacked planes, with coloured regions marking the cells present at each level" width="360">
+</p>
+
+<p align="center"><em>Refinement levels of a HigTree grid, drawn as separate planes.
+Coloured regions mark the cells present at each level; the composed grid is their
+union.</em></p>
+
+Values are interpolated between levels, and across MPI partition boundaries, with
+moving least-squares stencils. Because the grid is staggered, a cell centre and its
+surrounding faces carry different quantities:
+
+<p align="center">
+  <img src="higtree/doc/figuras/ghosts.png" alt="A staggered grid patch showing cell-centred points in black and the interpolation points in red used at a refinement boundary" width="220">
+</p>
+
+<p align="center"><em>Cell-centred values in black; the points in red are where values
+must be reconstructed at a refinement boundary.</em></p>
