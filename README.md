@@ -419,3 +419,85 @@ Mesh files use a positional four-line format. For the channel domain:
 
 Reducing this overhead is active work: see the roadmap in
 [Contributing](#contributing).
+
+---
+
+## Repository layout
+
+```
+HigFlow/
+├── higtree/                grid library: cell trees, MPI decomposition, solver interface
+│   ├── src/                sources and headers
+│   ├── examples/           standalone HigTree programs and sample meshes
+│   ├── atf-tests/          unit tests
+│   ├── utilities/          mesh conversion, boundary checking, pre-processing scripts
+│   └── doc/                LaTeX documentation, Doxygen configuration, figures
+├── higflow/                solver library and example cases
+│   ├── src/                Navier-Stokes kernel, constitutive models, VOF, I/O
+│   ├── example2d_*/        two-dimensional cases
+│   ├── example3d_*/        three-dimensional cases
+│   └── doc/                tutorial
+├── cmake/                  Find modules for PETSc, Zoltan, BLAS, LAPACK
+├── stacks/singularity/     Apptainer/Singularity image definition
+├── etc/                    environment scripts
+├── Manual_Euler/           guide for the Euler cluster
+├── Manual_Git/             Git guide for the group
+├── CMakeLists.txt          top-level build
+├── varsrc                  environment variables
+└── install_higflow_ubuntu22
+```
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [`higflow/doc/HiG-Flow.tutorial`](higflow/doc/HiG-Flow.tutorial) | Module overview and the input file format (Portuguese) |
+| [`higtree/doc/usuario.tex`](higtree/doc/usuario.tex) | HigTree user guide (Portuguese) |
+| [`higtree/doc/cientifica.tex`](higtree/doc/cientifica.tex) | Discretisation and method derivations (Portuguese) |
+| [`higtree/doc/doxygen/`](higtree/doc/doxygen) | Doxygen configuration for the HigTree API |
+| [`Manual_Euler/`](Manual_Euler) | Running on the Euler cluster (Portuguese) |
+| [`Manual_Git/`](Manual_Git) | Git workflow for the group (Portuguese) |
+
+Parts of the tutorial predate the current code and describe models as unimplemented
+that have since been implemented. Where the two disagree, the enumerations in
+[`higflow/src/hig-flow-kernel.h`](higflow/src/hig-flow-kernel.h) are authoritative.
+
+## Citing HigFlow
+
+If HigFlow contributes to work you publish, please cite the project and the paper
+describing the method you used. A `CITATION.cff` file giving machine-readable citation
+metadata has not yet been added; until it is, contact the authors at ICMC/USP for the
+appropriate reference.
+
+## Contributing
+
+Contributions are welcome — bug reports, cases, documentation and code alike.
+
+There is no `CONTRIBUTING.md` yet. In the meantime:
+
+- Open an issue describing the problem before a large change, so it can be discussed
+  with the group
+- Keep pull requests focused on one subject
+- For anything touching discretisation or a constitutive model, say how you verified
+  that results did not change
+- Build and run at least one example in both 2D and 3D before submitting
+
+Several branches in this repository carry unmerged work. Check them before starting
+something substantial, to avoid duplicating an effort already under way.
+
+## Authors
+
+HigFlow is developed at the **Institute of Mathematical and Computer Sciences (ICMC),
+University of São Paulo**, under **Prof. Antonio Castelo Filho**.
+
+Contributors to this repository, from its commit history: Pedro Coimbra, Juniormar
+Organista, Daniel Garcia, Kainã Sousa, Johnatas, and Antonio Castelo Filho.
+
+## License
+
+**No license file is currently present in this repository.**
+
+Without one, the terms under which the code may be used, modified or redistributed are
+not defined, and default copyright applies. If you intend to use HigFlow in your own
+work, contact the authors. Adding an explicit license is a decision for the project
+owners; it is raised here because users need to know where they stand.
