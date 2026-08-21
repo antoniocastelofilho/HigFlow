@@ -141,3 +141,79 @@ Electro-osmosis can be combined with the viscoelastic and multiphase solvers.
 > each model. Where a model is listed without a reference, the implementation follows a
 > variant for which the authoritative source is best supplied by the original authors —
 > contributions completing this table are welcome.
+
+---
+
+## Numerical methods
+
+### Time integration
+
+| Scheme | Key | Type |
+|---|---|---|
+| Forward Euler | `explicit_euler` | explicit |
+| Runge–Kutta 2 | `explicit_rk2` | explicit |
+| Runge–Kutta 3 | `explicit_rk3` | explicit |
+| Backward Euler | `semi_implicit_euler` | semi-implicit in the diffusive term |
+| Crank–Nicolson | `semi_implicit_crank_nicolson` | semi-implicit in the diffusive term |
+| BDF2 | `semi_implicit_bdf2` | semi-implicit in the diffusive term |
+
+The semi-implicit schemes treat the viscous term implicitly and the convective term
+explicitly, so the time step remains subject to a convective stability limit.
+
+### Convective term
+
+| Scheme | Key | Notes |
+|---|---|---|
+| Central | `central` | second order, non-monotone |
+| First-order upwind | `first_order` | monotone, diffusive |
+| Second-order upwind | `second_order` | uses the high-resolution scheme below |
+
+When the second-order stencil crosses a boundary, the discretisation falls back to
+first order at that face. This is a deliberate choice for robustness, and it is worth
+keeping in mind when measuring convergence order near boundaries.
+
+High-resolution schemes for the second-order path:
+
+| Scheme | Key | Reference |
+|---|---|---|
+| CUBISTA | `cubista` | Alves, Oliveira &amp; Pinho (2003) |
+| QUICK | `quick` | Leonard (1979) |
+| Modified coefficient upwind | `modified_coefficient_upwind` | — |
+
+Constitutive equations are advected with either `upwind` or `cubista`, selected
+independently of the momentum equation.
+
+### Pressure–velocity coupling
+
+Projection method, in incremental (`incremental`) or non-incremental
+(`non_incremental`) form. The pressure Poisson equation is solved through HigTree's
+solver interface, which currently wraps:
+
+- **PETSc** — the default; Krylov method and preconditioner are chosen on the command
+  line, for example `-ksp_type bcgs -pc_type bjacobi`
+- **HYPRE** — algebraic multigrid
+- **ViennaCL** — GPU-accelerated iterative solvers, optional at build time
+- **SOR** — an OpenMP, NUMA-aware in-tree implementation, optional at build time
+
+### Spatial discretisation
+
+Second order (`second_order`) on the staggered grid. A fourth-order option
+(`forth_order`) is accepted by the configuration parser but is **not implemented** in
+the discretisation routines; selecting it does not produce a fourth-order scheme.
+
+### Interface tracking
+
+For multiphase flow, the volume-of-fluid method with:
+
+| Component | Methods |
+|---|---|
+| Interface reconstruction | PLIC — Youngs (1982); ELVIRA — Pilliod &amp; Puckett (2004) |
+| Curvature | adaptive height function; finite-difference normal and curvature |
+
+### Grid and parallelism
+
+- Hierarchical cell trees with local refinement, composed into a simulation domain
+- Domain decomposition across MPI ranks, with load balancing through Zoltan
+- Moving least-squares interpolation for values between refinement levels and at
+  partition boundaries
+- Dimension is fixed at compile time — the build produces separate 2D and 3D libraries
