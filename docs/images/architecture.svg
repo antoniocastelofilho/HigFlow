@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" role="img" aria-labelledby="t d">
+  <title id="t">HigFlow architecture and time step</title>
+  <desc id="d">Three software layers — HigFlow physics, HigTree grid and parallelism, and external dependencies — above a diagram of the six stages of one projection-method time step.</desc>
+
+  <defs>
+    <style>
+      .h  { font: 600 13px ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; letter-spacing:.08em; }
+      .lb { font: 700 15px ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .sm { font: 400 12.5px ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .pl { font: 500 12.5px ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .st { font: 600 13.5px ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      .no { font: 400 11.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    </style>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#8A97A4"/>
+    </marker>
+  </defs>
+
+  <rect width="960" height="560" fill="#F4F7FA"/>
+
+  <!-- ─────────────── layers ─────────────── -->
+  <text x="48" y="42" class="h" fill="#7C8B9A">SOFTWARE LAYERS</text>
+
+  <!-- HigFlow -->
+  <rect x="48" y="56" width="864" height="72" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+  <rect x="48" y="56" width="4" height="72" rx="2" fill="#BE7430"/>
+  <text x="72" y="83" class="lb" fill="#17222E">HigFlow</text>
+  <text x="72" y="103" class="sm" fill="#5B6B7C">the physics</text>
+  <g class="pl" fill="#3F4E5E">
+    <rect x="220" y="68" width="146" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="234" y="83">projection loop</text>
+    <rect x="376" y="68" width="176" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="390" y="83">constitutive models</text>
+    <rect x="562" y="68" width="150" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="576" y="83">volume of fluid</text>
+    <rect x="722" y="68" width="170" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="736" y="83">electro-osmotic coupling</text>
+    <rect x="220" y="96" width="126" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="234" y="111">discretisation</text>
+    <rect x="356" y="96" width="146" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="370" y="111">boundary conditions</text>
+    <rect x="512" y="96" width="126" height="22" rx="11" fill="#FAF0E4" stroke="#E8D3B8"/><text x="526" y="111">YAML and VTK I/O</text>
+  </g>
+
+  <!-- HigTree -->
+  <rect x="48" y="140" width="864" height="72" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+  <rect x="48" y="140" width="4" height="72" rx="2" fill="#4A8199"/>
+  <text x="72" y="167" class="lb" fill="#17222E">HigTree</text>
+  <text x="72" y="187" class="sm" fill="#5B6B7C">grid and parallelism</text>
+  <g class="pl" fill="#3F4E5E">
+    <rect x="220" y="152" width="180" height="22" rx="11" fill="#E7F0F4" stroke="#BCD5DF"/><text x="234" y="167">hierarchical cell trees</text>
+    <rect x="410" y="152" width="176" height="22" rx="11" fill="#E7F0F4" stroke="#BCD5DF"/><text x="424" y="167">MPI domain partition</text>
+    <rect x="596" y="152" width="176" height="22" rx="11" fill="#E7F0F4" stroke="#BCD5DF"/><text x="610" y="167">load balancing</text>
+    <rect x="220" y="180" width="216" height="22" rx="11" fill="#E7F0F4" stroke="#BCD5DF"/><text x="234" y="195">moving least-squares stencils</text>
+    <rect x="446" y="180" width="176" height="22" rx="11" fill="#E7F0F4" stroke="#BCD5DF"/><text x="460" y="195">linear solver interface</text>
+  </g>
+
+  <!-- dependencies -->
+  <rect x="48" y="224" width="864" height="56" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+  <rect x="48" y="224" width="4" height="56" rx="2" fill="#7A8B7E"/>
+  <text x="72" y="249" class="lb" fill="#17222E">Dependencies</text>
+  <text x="72" y="268" class="sm" fill="#5B6B7C">external</text>
+  <g class="no" fill="#4A5A6B">
+    <rect x="220" y="241" width="66" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="234" y="256">PETSc</text>
+    <rect x="296" y="241" width="70" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="310" y="256">HYPRE</text>
+    <rect x="376" y="241" width="56" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="390" y="256">MPI</text>
+    <rect x="442" y="241" width="74" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="456" y="256">Zoltan</text>
+    <rect x="526" y="241" width="62" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="540" y="256">HDF5</text>
+    <rect x="598" y="241" width="56" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="612" y="256">glib</text>
+    <rect x="664" y="241" width="80" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="678" y="256">libfyaml</text>
+    <rect x="754" y="241" width="86" height="22" rx="5" fill="#EDF1F0" stroke="#C9D4CE"/><text x="768" y="256">ViennaCL</text>
+  </g>
+
+  <!-- ─────────────── time step ─────────────── -->
+  <text x="48" y="330" class="h" fill="#7C8B9A">ONE TIME STEP — PROJECTION METHOD</text>
+
+  <g>
+    <!-- 1 -->
+    <rect x="48" y="346" width="128" height="86" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+    <text x="62" y="370" class="no" fill="#BE7430">01</text>
+    <text x="62" y="392" class="st" fill="#17222E">Boundary</text>
+    <text x="62" y="409" class="st" fill="#17222E">conditions</text>
+    <text x="62" y="425" class="sm" fill="#6B7A8B">applied</text>
+
+    <!-- 2 -->
+    <rect x="196" y="346" width="148" height="86" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+    <text x="210" y="370" class="no" fill="#BE7430">02</text>
+    <text x="210" y="392" class="st" fill="#17222E">Constitutive</text>
+    <text x="210" y="409" class="st" fill="#17222E">model</text>
+    <text x="210" y="425" class="sm" fill="#6B7A8B">polymer stress τ</text>
+
+    <!-- 3 -->
+    <rect x="364" y="346" width="148" height="86" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+    <text x="378" y="370" class="no" fill="#BE7430">03</text>
+    <text x="378" y="392" class="st" fill="#17222E">Intermediate</text>
+    <text x="378" y="409" class="st" fill="#17222E">velocity</text>
+    <text x="378" y="425" class="sm" fill="#6B7A8B">momentum, no ∇p</text>
+
+    <!-- 4 -->
+    <rect x="532" y="346" width="148" height="86" rx="8" fill="#FFFFFF" stroke="#4A8199" stroke-width="1.5"/>
+    <text x="546" y="370" class="no" fill="#4A8199">04</text>
+    <text x="546" y="392" class="st" fill="#17222E">Pressure</text>
+    <text x="546" y="409" class="st" fill="#17222E">Poisson</text>
+    <text x="546" y="425" class="sm" fill="#6B7A8B">PETSc / HYPRE</text>
+
+    <!-- 5 -->
+    <rect x="700" y="346" width="128" height="86" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+    <text x="714" y="370" class="no" fill="#BE7430">05</text>
+    <text x="714" y="392" class="st" fill="#17222E">Projection</text>
+    <text x="714" y="409" class="sm" fill="#6B7A8B">divergence-free</text>
+    <text x="714" y="425" class="sm" fill="#6B7A8B">velocity</text>
+
+    <!-- 6 -->
+    <rect x="848" y="346" width="64" height="86" rx="8" fill="#FFFFFF" stroke="#CBD6E0"/>
+    <text x="862" y="370" class="no" fill="#BE7430">06</text>
+    <text x="862" y="392" class="st" fill="#17222E">VTK</text>
+    <text x="862" y="409" class="sm" fill="#6B7A8B">every</text>
+    <text x="862" y="425" class="sm" fill="#6B7A8B">dtp</text>
+
+    <!-- arrows -->
+    <line x1="180" y1="389" x2="192" y2="389" stroke="#8A97A4" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="348" y1="389" x2="360" y2="389" stroke="#8A97A4" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="516" y1="389" x2="528" y2="389" stroke="#8A97A4" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="684" y1="389" x2="696" y2="389" stroke="#8A97A4" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="832" y1="389" x2="844" y2="389" stroke="#8A97A4" stroke-width="1.5" marker-end="url(#ar)"/>
+  </g>
+
+  <!-- loop back -->
+  <path d="M764,436 L764,470 L112,470 L112,438" fill="none" stroke="#8A97A4" stroke-width="1.5"
+        stroke-dasharray="4 4" marker-end="url(#ar)"/>
+  <rect x="378" y="459" width="182" height="22" rx="11" fill="#F4F7FA"/>
+  <text x="392" y="474" class="sm" fill="#6B7A8B">advance t, repeat to final step</text>
+
+  <text x="48" y="514" class="sm" fill="#6B7A8B">Step 04 dominates the cost. Multiphase runs insert interface reconstruction and</text>
+  <text x="48" y="532" class="sm" fill="#6B7A8B">curvature between 01 and 02; electro-osmotic runs add a potential solve before 03.</text>
+</svg>
