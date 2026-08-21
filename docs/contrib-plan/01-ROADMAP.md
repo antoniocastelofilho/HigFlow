@@ -58,6 +58,7 @@ BLOCO B — CÓDIGO E BUILD
   E16  Gerador de malha .amr               ┘
 
 BLOCO C — DOCUMENTAÇÃO E DIVULGAÇÃO
+  E27  Galeria de pessoas (opt-in)
   E17  Doxygen e documentação de API
   E18  Tradução completa PT → EN
   E19  Governança do projeto
@@ -85,6 +86,7 @@ BLOCO E — MACHINE LEARNING (longo prazo)
 | E14 | E13 | Driver unificado consome os templates do scaffolding |
 | E15 | E14 | Expressões substituem as funções `get_*` do driver |
 | E22–E24 | E11 | Só se refatora numérica com rede de proteção |
+| E27 | E02 | Edita o README reescrito |
 | E26 | E25 | — |
 
 **Todas as demais etapas são independentes** e podem ser executadas em qualquer ordem.
@@ -940,6 +942,48 @@ byte ou equivalente semanticamente.
 
 ---
 
+## E27 — Galeria de pessoas (opt-in)
+
+**Branch:** `juniormar/27-contributors` (a partir de `juniormar/02-readme`) · **PR:** "Add opt-in People gallery"
+
+**Objetivo:** seção final do README com foto e nome de quem contribuiu.
+
+**Depende de:** E02 (edita o README reescrito).
+
+### Por que é uma seção separada de Authors
+
+As duas respondem perguntas diferentes, e misturá-las causaria dano:
+
+| | Authors | People |
+|---|---|---|
+| Origem | `git shortlog` | escolha da pessoa |
+| Completude | total para quem commitou | só quem consentiu |
+| Precisa de permissão | não | **sim** |
+| Sair da lista | não se aplica | a qualquer momento, sem justificar |
+
+Foto de pessoa identificável é dado pessoal numa página pública. Quem não quiser
+aparecer continua creditado em Authors, que vem do histórico e não depende de ninguém.
+
+### O que foi entregue
+
+- Seção `## People` no README, com a `<table>` pronta e **comentada**
+- `docs/images/contributors/README.md` — requisitos de imagem, markup, e o texto de
+  pedido de consentimento com os quatro pontos que ele precisa deixar concretos
+- Requisitos de peso: 400×400 px, `.jpg`, abaixo de 100 KB. O repositório acabou de
+  perder 76 MB em E07; uma dúzia de fotos sem otimizar devolveria parte disso
+
+### O que **não** foi feito
+
+Nenhuma foto foi adicionada. Nenhum nome foi inserido na grade. O preenchimento é
+manual, feito pelo autor da contribuição depois de obter consentimento de cada pessoa.
+
+### Pendência antes do PR
+
+A seção precisa estar preenchida — ou removida — antes de o PR de E02 ou de E27 subir.
+Uma seção "sendo montada" num README de upstream fica pela metade.
+
+---
+
 ## E17 — Doxygen e documentação de API
 
 **Branch:** `juniormar/17-api-docs` · **PR:** "Add Doxygen configuration and API documentation build"
@@ -1242,10 +1286,10 @@ rede pequena.
 | 0 — Fundação | E00–E01 | 0 | Baixo |
 | A — Apresentação | E02–E06 | 5 | Médio-alto |
 | B — Código e build | E07–E16 | 10 | Alto |
-| C — Documentação | E17–E20 | 4+ | Médio |
+| C — Documentação | E17–E20, E27 | 5+ | Médio |
 | D — C++ | E21–E24 | 4 | Alto |
 | E — ML | E25–E26 | 2 | Médio |
-| **Total** | **27** | **~25** | — |
+| **Total** | **28** | **~26** | — |
 
 ### Sugestão de ordem para as primeiras sessões
 

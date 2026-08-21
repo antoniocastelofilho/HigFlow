@@ -40,6 +40,7 @@
 | E24 — C++ nível 3 | — | pendente | — |
 | E25 — Arquitetura ML | — | pendente | — |
 | E26 — PoC ML | — | pendente | — |
+| E27 — Galeria de pessoas | `juniormar/27-contributors` | **estrutura pronta** (aguarda consentimentos) | — |
 
 ---
 
