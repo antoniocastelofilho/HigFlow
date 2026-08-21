@@ -70,5 +70,12 @@ bibliotecas/
 **/output/**
 
 # Cmake version dirs
-**build**
-**install**
+#
+# Anchored to the repository root and matched as directories. As `**build**`
+# and `**install**`, these matched any path containing the substring anywhere:
+# higtree/src/build-fringe.cpp, which is a compiled source file, and anything
+# under docs/install/, which is where the installation guides live.
+/build/
+/build-*/
+/install/
+/cmake-build-*/
