@@ -350,3 +350,72 @@ practical notes:
   `/mnt/c/`. Compilation across the Windows filesystem boundary is substantially slower.
 - Your Linux files are reachable from Windows Explorer at `\wsl$\Ubuntu-22.04\home\`,
   so ParaView installed on Windows can open the VTK files directly.
+
+---
+
+## Running your first case
+
+The lightest case is planar Poiseuille flow in a 2D channel.
+
+```bash
+cd higflow/example2d_Newt
+make clean && make
+make run
+```
+
+`make run` creates the output directories and launches:
+
+```
+mpirun -n 1 ./ns-example \
+    input/example-2d.load \
+    output/newt.save \
+    VTKS/newt.print \
+    -ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10
+```
+
+The three positional arguments are base names: where to read the case from, where to
+write restart data, and where to write visualisation output. Everything after them is
+passed straight to PETSc, so the Krylov method, preconditioner and tolerances are set
+on the command line rather than in the configuration file.
+
+Run in parallel with `make run NP=4`. Resume an interrupted run with
+`make run RESTART=1`, which reads from `output/` instead of `input/`.
+
+Results land in `VTKS/` as `.vtk` files, one per output frame, readable in ParaView or
+VisIt.
+
+### Anatomy of a case
+
+A case directory contains:
+
+```
+example2d_Newt/
+├── ns-example-2d.c                        driver: boundary and initial conditions in C
+├── ns-example-2d.h
+├── Makefile
+├── input/
+│   ├── example-2d.load.domain.yaml        which mesh files form the domain
+│   ├── example-2d.load.bc.yaml            boundary identifiers, types and mesh files
+│   ├── example-2d.load.par.contr.yaml     physical parameters and method selection
+│   └── example-2d.load.init.yaml          starting step, time and frame
+└── amrs/
+    ├── domain/ch-d-0.amr                  the domain mesh
+    └── bc/ch-bc-{0..3}.amr                one mesh per boundary
+```
+
+The four YAML files come to a little over 400 lines, of which the parameter file alone
+is 261 — it carries the parameters of every constitutive model, not only the one in
+use. Boundary profiles are C functions in the driver, so changing an inlet profile
+means editing C and recompiling.
+
+Mesh files use a positional four-line format. For the channel domain:
+
+```
+0.0 8.0 -1.0 1.0      domain extent: xmin xmax ymin ymax
+1                     number of refinement levels
+0.05 0.05 1           cell size in x and y
+1 1 160 40            first cell index and cell count per direction
+```
+
+Reducing this overhead is active work: see the roadmap in
+[Contributing](#contributing).
