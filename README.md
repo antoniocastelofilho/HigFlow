@@ -67,3 +67,77 @@ University of São Paulo**.
 - [Contributing](#contributing)
 - [Authors](#authors)
 - [License](#license)
+
+---
+
+## Physical models
+
+Every model below is selected from the case configuration file. No recompilation is
+needed to switch between models within the same flow family.
+
+### Flow families
+
+| Family | Configuration key | Description |
+|---|---|---|
+| Newtonian | `newtonian` | Constant viscosity |
+| Generalised Newtonian | `generalized_newtonian` | Shear-rate dependent viscosity |
+| Viscoelastic — differential | `viscoelastic` | Evolution equation for the conformation or stress tensor |
+| Viscoelastic — integral | `viscoelastic_integral` | Stress as an integral over deformation history |
+| Viscoelastic — variable viscosity | `viscoelastic_var_viscosity` | Coupled to a structural parameter |
+| Shear banding | `shear_banding` | Two-species network scission |
+| Elastoviscoplastic | `elastoviscoplastic` | Yield stress with elastic response below yield |
+| Suspensions | `suspensions` | Dense shear-thickening suspensions |
+| Multiphase | `multiphase` | Volume-of-fluid interface tracking |
+
+### Differential viscoelastic models
+
+| Model | Key | Parameters | Reference |
+|---|---|---|---|
+| Oldroyd-B | `oldroyd_b` | `De`, `beta` | Oldroyd (1950) |
+| Giesekus | `giesekus` | `De`, `beta`, `alpha` | Giesekus (1982) |
+| Linear PTT | `lptt` | `De`, `beta`, `epsilon`, `xi` | Phan-Thien &amp; Tanner (1977) |
+| Generalised PTT | `gptt` | `De`, `beta`, `epsilon`, `xi`, `alpha_gptt`, `beta_gptt` | Ferrás et al. (2019) |
+| FENE-P | `fene_p` | `De`, `beta`, `L2` | Bird, Dotson &amp; Johnson (1980) |
+| e-FENE | `e_fene` | `De`, `beta`, `L2`, `lambda`, `E` | charged dumbbell variant |
+| User-defined | `user_set` | — | supplied by the case |
+
+The generalised PTT model evaluates the Mittag-Leffler function
+`E_{α,β}`, which reduces to the exponential PTT for `α = β = 1`.
+
+### Integral viscoelastic models
+
+| Model | Key | Damping function |
+|---|---|---|
+| K-BKZ | `kbkz` | `psm` (Papanastasiou–Scriven–Macosko) or `ucm` |
+| Fractional K-BKZ | `kbkz_fractional` | fractional Maxwell model |
+
+K-BKZ after Kaye (1962) and Bernstein, Kearsley &amp; Zapas (1963). The relaxation
+spectrum is supplied as arrays of moduli `a` and relaxation times `lambda`.
+
+### Structural, yielding and suspension models
+
+| Group | Available models |
+|---|---|
+| Thixotropic | `bmp`, `bmp_solvent`, `mbm`, `nm_taup`, `nm_t` |
+| Shear banding | `vcm`, `mvcm` — two-species network scission |
+| Elastoviscoplastic | `oldroyd_b_bingham`, `oldroyd_b_hb`, `lptt_bingham`, `eptt_bingham`, `general_saramito` |
+| Suspensions | `gw`, `gw_wc`, `gw_wc_if`, user-defined |
+
+The BMP family follows Bautista et al. (1999); the VCM model follows Vasquez, McKinley
+&amp; Cook (2007); the elastoviscoplastic family follows Saramito (2007, 2009).
+
+### Electro-osmotic models
+
+| Model | Key | Description |
+|---|---|---|
+| Poisson–Nernst–Planck | `pnp` | Full ion transport |
+| Poisson–Boltzmann | `pb` | Equilibrium ion distribution |
+| Debye–Hückel | `pbdh` | Linearised Poisson–Boltzmann |
+| Debye–Hückel, analytic | `pbdh_analytic` | Closed-form potential |
+
+Electro-osmosis can be combined with the viscoelastic and multiphase solvers.
+
+> **A note on references.** The citations above identify the standard formulation of
+> each model. Where a model is listed without a reference, the implementation follows a
+> variant for which the authoritative source is best supplied by the original authors —
+> contributions completing this table are welcome.
