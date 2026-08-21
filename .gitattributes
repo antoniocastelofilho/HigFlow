@@ -1,0 +1,6 @@
+# Minimal line-ending protection for the contribution tooling.
+# The full, project-wide .gitattributes is delivered in stage E07.
+#
+# Shell scripts must keep LF: a CRLF shebang fails on Linux with
+# "bad interpreter: /usr/bin/env bash^M".
+*.sh text eol=lf
