@@ -1,8 +1,8 @@
 This directory exists so that the compose services and the documented
 `docker run -v "$PWD/cases:/work"` have somewhere to mount.
 
-If it did not exist, Docker would create it — owned by root, because the daemon
-runs as root — and the container, which runs as uid 1000, could not write into
+If it did not exist, Docker would create it - owned by root, because the daemon
+runs as root - and the container, which runs as uid 1000, could not write into
 it. The run would fail with a permission error whose cause is several steps
 removed from its message.
 

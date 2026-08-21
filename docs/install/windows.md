@@ -1,6 +1,6 @@
 # Running HigFlow on Windows
 
-HigFlow runs on Windows through WSL2 — a real Linux kernel, not an emulation
+HigFlow runs on Windows through WSL2 - a real Linux kernel, not an emulation
 layer. Everything below was done on Windows 11 and the timings are measured, not
 estimated.
 
@@ -21,8 +21,8 @@ are not obvious.
 - [Setting up WSL2](#setting-up-wsl2)
 - [Two things the first-run setup gets wrong](#two-things-the-first-run-setup-gets-wrong)
 - [Where to put the repository](#where-to-put-the-repository)
-- [Path A — Docker, for running](#path-a--docker-for-running)
-- [Path B — native build in WSL, for developing](#path-b--native-build-in-wsl-for-developing)
+- [Path A - Docker, for running](#path-a--docker-for-running)
+- [Path B - native build in WSL, for developing](#path-b--native-build-in-wsl-for-developing)
 - [Viewing results in ParaView on Windows](#viewing-results-in-paraview-on-windows)
 - [Editing code from Windows](#editing-code-from-windows)
 - [Disk and memory](#disk-and-memory)
@@ -43,7 +43,7 @@ This is a limitation with specific causes, not an omission:
 | Zoltan (Trilinos) | Buildable, laborious |
 | PETSc | Buildable through MSYS2, laborious |
 
-The code itself is close to portable — three POSIX-only headers across 176,000
+The code itself is close to portable - three POSIX-only headers across 176,000
 lines, no `fork`, no nested functions. It is the dependency stack that does not
 cross over.
 
@@ -52,7 +52,7 @@ so the Linux build is the real build.
 
 ## Which path to take
 
-| | Path A — Docker | Path B — native in WSL |
+| | Path A - Docker | Path B - native in WSL |
 |---|---|---|
 | Just want to run simulations | ✅ | |
 | Want to modify the solver | | ✅ |
@@ -82,7 +82,7 @@ wsl --install -d Ubuntu-22.04
 ```
 
 That downloads roughly 500 MB and opens a shell. **No restart is needed when the
-runtime is already installed** — a restart is only required when WSL itself is
+runtime is already installed** - a restart is only required when WSL itself is
 being enabled for the first time.
 
 ### Two messages that look like problems and are not
@@ -124,7 +124,7 @@ and look unrelated:
 
 - **OpenMPI refuses to run as root.** Any parallel run fails.
 - **Files written into a mounted directory are owned by root**, so the container,
-  which runs as uid 1000, cannot write there — and the error you see is a bare
+  which runs as uid 1000, cannot write there - and the error you see is a bare
   permission denied several steps from the cause.
 
 Fix it once:
@@ -147,8 +147,8 @@ This choice has a real cost attached.
 
 | Location | From Windows | Compile speed |
 |---|---|---|
-| `~/HigFlow` inside WSL | via `\\wsl$\Ubuntu-22.04\home\...` | fast — native ext4 |
-| `/mnt/c/dev/HigFlow` | directly, it *is* a Windows folder | slow — every file access crosses a translation layer |
+| `~/HigFlow` inside WSL | via `\\wsl$\Ubuntu-22.04\home\...` | fast - native ext4 |
+| `/mnt/c/dev/HigFlow` | directly, it *is* a Windows folder | slow - every file access crosses a translation layer |
 
 Compiling 176,000 lines across `/mnt/c` is noticeably slower than on the WSL
 filesystem, and the gap widens with the number of small files, which is exactly
@@ -163,13 +163,13 @@ cd HigFlow
 ```
 
 Windows programs can still reach those files at
-`\\wsl$\Ubuntu-22.04\home\yourname\HigFlow` — paste that into Explorer's address
+`\\wsl$\Ubuntu-22.04\home\yourname\HigFlow` - paste that into Explorer's address
 bar, and pin it.
 
 Keeping the repository under `/mnt/c` is a reasonable choice if you mainly edit
 documents and rarely compile. Just know why builds feel slow when they do.
 
-## Path A — Docker, for running
+## Path A - Docker, for running
 
 Two ways to get Docker, and the choice matters.
 
@@ -194,7 +194,7 @@ and from PowerShell as `wsl docker ...`.
 
 **Docker Desktop** integrates with Windows so `docker` works directly in
 PowerShell, and gives you a GUI. It is heavier, and requires a paid subscription
-for large companies — free for personal use, education and small business.
+for large companies - free for personal use, education and small business.
 
 Either way, from the repository:
 
@@ -207,13 +207,13 @@ Measured on sixteen cores: 6 min 30 s to build, of which PETSc is 5 min. Running
 the Newtonian case afterwards produced 101 VTK files. The full guide, including
 parallel runs and clusters, is in [containers.md](containers.md).
 
-## Path B — native build in WSL, for developing
+## Path B - native build in WSL, for developing
 
 Inside the Ubuntu shell, follow the Linux instructions. In short:
 
 ```bash
 sudo apt update
-# install the dependencies — see the Linux guide
+# install the dependencies - see the Linux guide
 source varsrc
 cd higtree && make DIM=2 && make DIM=3
 cd ../higflow && make DIM=2
@@ -249,7 +249,7 @@ uses your GPU properly, and opens WSL files without any copying:
 1. Install ParaView from [paraview.org](https://www.paraview.org/download/)
 2. File → Open
 3. Paste `\\wsl$\Ubuntu-22.04\home\yourname\HigFlow\cases\example2d_Newt\VTKS`
-4. ParaView groups the numbered `.vtk` files into a single time series — select
+4. ParaView groups the numbered `.vtk` files into a single time series - select
    the group, not an individual file, so you can animate
 
 The VTK files HigFlow writes are ASCII `UNSTRUCTURED_GRID`, which both ParaView
@@ -271,7 +271,7 @@ Any Windows editor can also open `\\wsl$\...` directly, at the cost of the same
 filesystem translation that slows compilation.
 
 **Set your line endings before committing anything.** Git for Windows defaults
-to `core.autocrlf=true`, which checks shell scripts out with CRLF — and a CRLF
+to `core.autocrlf=true`, which checks shell scripts out with CRLF - and a CRLF
 shebang fails on Linux with a message that names the interpreter, not the cause:
 
 ```
@@ -298,7 +298,7 @@ df -h /mnt/c
 
 Budget roughly 10 GB: the Ubuntu image, the PETSc build, HigFlow, and the
 container image at about 1.3 GB. Simulation output is separate and can be large
-— the 3D lid-driven case wrote 509 MB of VTK before being stopped.
+- the 3D lid-driven case wrote 509 MB of VTK before being stopped.
 
 WSL's virtual disk grows but does not shrink on its own. To reclaim space after
 deleting files inside it, run `Optimize-VHD` from an elevated PowerShell, or
@@ -313,7 +313,7 @@ memory=8GB
 processors=8
 ```
 
-Then `wsl --shutdown` and reopen. Give it at least 4 GB — the PETSc build is
+Then `wsl --shutdown` and reopen. Give it at least 4 GB - the PETSc build is
 killed by the out-of-memory reaper below that.
 
 ## Troubleshooting
@@ -333,7 +333,7 @@ start.
 **Compiling is very slow.** The repository is under `/mnt/c`. Clone into `~`
 instead.
 
-**`mpirun` refuses to run as root.** No normal user was created — see
+**`mpirun` refuses to run as root.** No normal user was created - see
 [above](#two-things-the-first-run-setup-gets-wrong).
 
 **Antivirus makes builds crawl.** Real-time scanning inspects every object file.

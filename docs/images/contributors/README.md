@@ -3,7 +3,7 @@
 Photographs used by the **People** section of the top-level `README.md`.
 
 A photograph of an identifiable person is personal data. Nothing goes in this
-directory without that person's explicit, informed consent — see
+directory without that person's explicit, informed consent - see
 [Getting consent](#getting-consent) below.
 
 ## Image requirements
@@ -11,10 +11,10 @@ directory without that person's explicit, informed consent — see
 | | |
 |---|---|
 | **Aspect** | Square. Crop before committing; the README cannot crop for you |
-| **Source size** | 400 × 400 px — displayed at 100 px, so this stays sharp on high-density screens |
+| **Source size** | 400 × 400 px - displayed at 100 px, so this stays sharp on high-density screens |
 | **Format** | `.jpg` for photographs, `.png` only if the image genuinely needs transparency |
 | **File size** | **Under 100 KB.** 60–80 KB is comfortable at this resolution |
-| **Filename** | `firstname-lastname.jpg`, lowercase, ASCII, hyphens for spaces — `antonio-castelo-filho.jpg` |
+| **Filename** | `firstname-lastname.jpg`, lowercase, ASCII, hyphens for spaces - `antonio-castelo-filho.jpg` |
 | **Content** | A head-and-shoulders photograph. Any image the person is happy to have on a public page is fine |
 
 Keep the files small. The repository just shed 76 MB of tracked build output;
@@ -23,7 +23,7 @@ a dozen unoptimised photographs would quietly put a slice of it back.
 To resize and compress:
 
 ```bash
-# ImageMagick — crop to a centred square, resize, compress
+# ImageMagick - crop to a centred square, resize, compress
 magick input.jpg -gravity center -crop 1:1 +repage -resize 400x400 -quality 82 \
     docs/images/contributors/firstname-lastname.jpg
 ```
@@ -69,7 +69,7 @@ message that covers it:
 > photograph you would like used, or tell me to take one from somewhere. You can
 > ask me to remove it at any time and I will, no explanation needed.
 >
-> If you would rather not, that is completely fine — your name stays in the
+> If you would rather not, that is completely fine - your name stays in the
 > Authors list either way, which comes from the commit history.
 
 Points worth keeping in that message:
@@ -83,7 +83,7 @@ Points worth keeping in that message:
 - **That declining costs them nothing.** The Authors list is derived from git
   history and is unaffected.
 
-Record who agreed and when, somewhere outside this repository — an email thread
+Record who agreed and when, somewhere outside this repository - an email thread
 or a message log is enough. If someone asks to be removed, delete the image and
 the table cell in the same commit.
 
@@ -101,6 +101,6 @@ people to ask; it is **not** a list of people who have consented.
 | 4 | Johnatas |
 | 3 | Antonio Castelo Filho |
 
-Contributors who worked on the project without committing directly — advisors,
-students whose work was merged by someone else, people credited in the papers —
+Contributors who worked on the project without committing directly - advisors,
+students whose work was merged by someone else, people credited in the papers -
 will not show up here. Ask around before assuming this list is complete.

@@ -81,7 +81,7 @@ class Grid:
     """A 2D unstructured grid of quadrilaterals with its point and cell data.
 
     HigFlow writes velocity as POINT_DATA and pressure as CELL_DATA in the same
-    file, so the two have different lengths — 25 600 against 6 400 for the
+    file, so the two have different lengths - 25 600 against 6 400 for the
     channel case. The points are not shared between cells either: each cell
     carries its own four corners, so a "point" field is really a value per cell
     corner. `as_cell` collapses one to a per-cell value by averaging the four.
@@ -131,7 +131,7 @@ class Grid:
             for name, arr in store.items():
                 if getattr(arr, "ndim", 0) == 3 and arr.shape[1:] == (3, 3):
                     return name, self.as_cell(name)
-        raise KeyError("no 3x3 tensor field in this file — is it a viscoelastic run?")
+        raise KeyError("no 3x3 tensor field in this file - is it a viscoelastic run?")
 
     def first_normal_stress_difference(self):
         """N1 = tau_xx - tau_yy.
@@ -228,7 +228,7 @@ def _titles(ax, title, subtitle=""):
 
     Offsets are in points rather than axes fractions. A field plot with
     `set_aspect("equal")` on a long thin domain has a very short axes box, and a
-    fractional offset there collapses to a couple of pixels — which is how the
+    fractional offset there collapses to a couple of pixels - which is how the
     first version of these figures ended up printing the subtitle on top of the
     title.
     """

@@ -13,43 +13,43 @@
 
 | Etapa | Branch | Estado | PR |
 |---|---|---|---|
-| E00 — Ambiente de desenvolvimento | — | **concluída** (WSL2 + Ubuntu 22.04 + Docker Engine 29.7.2) | — |
-| E01 — Infraestrutura da contribuição | `juniormar/main` | **concluída** (falta `.mailmap`, que vai no PR de E07) | — |
-| E02 — README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | rascunho pronto |
-| E03 — Instalação Linux | — | pendente | — |
-| E04 — Containers | `juniormar/04-containers` | **concluída** (verificada de ponta a ponta) | rascunho pronto |
-| E05 — Instalação Windows | `juniormar/05-install-windows` | **concluída** | — |
-| E06 — Galeria de resultados | `juniormar/06-gallery` + `06b` | **concluída** (8 figuras verificadas) | — |
-| E07 — Higiene do repositório | `juniormar/07-repo-hygiene` | **concluída** (merjada no tronco) | rascunho pronto |
-| E08 — Build unificado | — | pendente | — |
-| E09 — Correções pontuais | — | pendente | — |
-| E10 — Flags numéricas | — | pendente | — |
-| E11 — Verificação numérica | — | pendente | — |
-| E12 — Integração contínua | — | pendente | — |
-| E13 — Runner: scaffolding | — | pendente | — |
-| E14 — Runner: driver unificado | — | pendente | — |
-| E15 — Runner: expressões | — | pendente | — |
-| E16 — Gerador de malha | — | pendente | — |
-| E17 — Doxygen | — | pendente | — |
-| E18 — Tradução | — | pendente | — |
-| E19 — Governança | — | pendente | — |
-| E20 — Divulgação | — | pendente | — |
-| E21 — Plano C++ | — | pendente | — |
-| E22 — C++ nível 1 | — | pendente | — |
-| E23 — C++ nível 2 | — | pendente | — |
-| E24 — C++ nível 3 | — | pendente | — |
-| E25 — Arquitetura ML | — | pendente | — |
-| E26 — PoC ML | — | pendente | — |
-| E27 — Galeria de pessoas | `juniormar/27-contributors` | **estrutura pronta** (aguarda consentimentos) | — |
+| E00 - Ambiente de desenvolvimento | - | **concluída** (WSL2 + Ubuntu 22.04 + Docker Engine 29.7.2) | - |
+| E01 - Infraestrutura da contribuição | `juniormar/main` | **concluída** (falta `.mailmap`, que vai no PR de E07) | - |
+| E02 - README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | rascunho pronto |
+| E03 - Instalação Linux | - | pendente | - |
+| E04 - Containers | `juniormar/04-containers` | **concluída** (verificada de ponta a ponta) | rascunho pronto |
+| E05 - Instalação Windows | `juniormar/05-install-windows` | **concluída** | - |
+| E06 - Galeria de resultados | `juniormar/06-gallery` + `06b` | **concluída** (8 figuras verificadas) | - |
+| E07 - Higiene do repositório | `juniormar/07-repo-hygiene` | **concluída** (merjada no tronco) | rascunho pronto |
+| E08 - Build unificado | - | pendente | - |
+| E09 - Correções pontuais | - | pendente | - |
+| E10 - Flags numéricas | - | pendente | - |
+| E11 - Verificação numérica | - | pendente | - |
+| E12 - Integração contínua | - | pendente | - |
+| E13 - Runner: scaffolding | - | pendente | - |
+| E14 - Runner: driver unificado | - | pendente | - |
+| E15 - Runner: expressões | - | pendente | - |
+| E16 - Gerador de malha | - | pendente | - |
+| E17 - Doxygen | - | pendente | - |
+| E18 - Tradução | - | pendente | - |
+| E19 - Governança | - | pendente | - |
+| E20 - Divulgação | - | pendente | - |
+| E21 - Plano C++ | - | pendente | - |
+| E22 - C++ nível 1 | - | pendente | - |
+| E23 - C++ nível 2 | - | pendente | - |
+| E24 - C++ nível 3 | - | pendente | - |
+| E25 - Arquitetura ML | - | pendente | - |
+| E26 - PoC ML | - | pendente | - |
+| E27 - Galeria de pessoas | `juniormar/27-contributors` | **estrutura pronta** (aguarda consentimentos) | - |
 
 ---
 
-## 2026-08-21 — E05 e E06: Windows e galeria
+## 2026-08-21 - E05 e E06: Windows e galeria
 
 **Branches:** `juniormar/05-install-windows` (de E04), `juniormar/06-gallery` (de E04),
 `juniormar/06b-readme-gallery` (do tronco) → todas merjadas em `juniormar/main`
 
-### E05 — guia Windows
+### E05 - guia Windows
 
 358 linhas, escritas a partir da instalação real, não de conselho genérico. Cobre as
 quatro surpresas que custaram tempo: a mensagem sobre WSL1 ser irrelevante, o
@@ -57,7 +57,7 @@ quatro surpresas que custaram tempo: a mensagem sobre WSL1 ser irrelevante, o
 quando o setup não é concluído, e o `df -h /` reportar o tamanho máximo do disco
 virtual em vez do espaço livre real.
 
-### E06 — galeria
+### E06 - galeria
 
 8 figuras de 3 casos, todas reproduzíveis. Renderizador próprio (`tools/gallery/render.py`),
 sem ParaView: lê o VTK ASCII e desenha as células como estão.
@@ -76,14 +76,14 @@ sem ParaView: lê o VTK ASCII e desenha as células como estão.
 
 **Os dez casos versionados declaram `flowphase: singlephase` e `flowtype: newtonian`**,
 independentemente do nome e do que o driver chama. Onde o driver chama
-`higflow_solver_step()` isso é consistente; onde não, é fatal — o `flowtype` decide
+`higflow_solver_step()` isso é consistente; onde não, é fatal - o `flowtype` decide
 quais propriedades distribuídas o `hig-flow-kernel.c` aloca, então o passo viscoelástico
 ou multifásico desreferencia arrays nunca criados.
 
 | Caso | Como versionado | Trocando a linha |
 |---|---|---|
-| `example2d_Oldroyd` | SIGSEGV no passo 0 | roda completo — **corrigido aqui** |
-| `example2d_VOF` | SIGSEGV no passo 0 | ainda falha — **reportado, não corrigido** |
+| `example2d_Oldroyd` | SIGSEGV no passo 0 | roda completo - **corrigido aqui** |
+| `example2d_VOF` | SIGSEGV no passo 0 | ainda falha - **reportado, não corrigido** |
 
 Confirmei a causa empiricamente: com `flowtype: viscoelastic` o caso roda os 101 passos
 e o VTK passa a conter `TENSORS τₚ`, o tensor de tensão polimérica que antes nunca era
@@ -93,12 +93,12 @@ alocado.
 
 Cheguei a concluir que o `flowtype: newtonian` tornava o caso Oldroyd newtoniano. Errado:
 o **driver** escolhe a física, chamando `higflow_solver_step_viscoelastic()` diretamente.
-O `flowtype` não escolhe o solver — ele decide a alocação. Verifiquei antes de escrever
+O `flowtype` não escolhe o solver - ele decide a alocação. Verifiquei antes de escrever
 qualquer legenda.
 
 ### Nota operacional
 
-O `/tmp` do WSL não sobrevive entre invocações — apagou logs e resultados duas vezes.
+O `/tmp` do WSL não sobrevive entre invocações - apagou logs e resultados duas vezes.
 Trabalho persistente vai em `/root/hf`.
 
 ### Pendências
@@ -109,19 +109,19 @@ Trabalho persistente vai em `/root/hf`.
 
 ---
 
-## 2026-08-21 — E00 e E04: ambiente e containers
+## 2026-08-21 - E00 e E04: ambiente e containers
 
 **Etapas:** E00, E04
 **Branch:** `juniormar/04-containers` (a partir de `master`) → merjada em `juniormar/main`
 
 ### Ambiente (E00)
 
-O WSL já estava completo — WSL 2.6.3.0, kernel 6.6.87.2-1, `WslService` rodando,
+O WSL já estava completo - WSL 2.6.3.0, kernel 6.6.87.2-1, `WslService` rodando,
 hypervisor ativo. Faltava só a distro, que o usuário instalou. Não houve reinício.
 
 Dois pontos do ambiente que valem registro:
 
-- **`DefaultUid = 0`** — o setup inicial do Ubuntu não criou usuário normal, então
+- **`DefaultUid = 0`** - o setup inicial do Ubuntu não criou usuário normal, então
   tudo roda como root. Isso quebrou o primeiro teste do container por permissão, e
   também impede o OpenMPI de rodar sem `--allow-run-as-root`. Vale criar um usuário.
 - **Docker Engine instalado dentro do WSL**, não Docker Desktop. O `systemd` já
@@ -130,7 +130,7 @@ Dois pontos do ambiente que valem registro:
 
 Validações que economizaram um build longo: `hdf5.pc` **existe** no Ubuntu 22.04
 (o Makefile chama `pkg-config ... hdf5`), headers do Zoltan em `/usr/include/trilinos`
-como o Makefile do higtree assume, e boost é header-only aqui — `libboost-dev` basta,
+como o Makefile do higtree assume, e boost é header-only aqui - `libboost-dev` basta,
 não `libboost-all-dev`.
 
 ### Container (E04)
@@ -142,7 +142,7 @@ não `libboost-all-dev`.
 
 | | |
 |---|---|
-| Build a frio | **6 min 30 s** (16 núcleos) — PETSc é 5 min 3 s |
+| Build a frio | **6 min 30 s** (16 núcleos) - PETSc é 5 min 3 s |
 | Contexto enviado | **11,67 MB** de uma árvore de 96 MB |
 | Imagem | 299 MB de conteúdo, 1,34 GB em disco |
 | Rebuild após mudar fonte | 36 s |
@@ -179,7 +179,7 @@ não `libboost-all-dev`.
    `--with-mpi-dir=/usr` grava include sem `mpi.h`, e o prefixo do OpenMPI faz o
    configure falhar com `Fortran error! mpi_init() could not be located!`.
 
-4. **`.gitignore` bloqueando `docs/install/`** — o defeito previsto na E07,
+4. **`.gitignore` bloqueando `docs/install/`** - o defeito previsto na E07,
    atrapalhando de verdade: `git add docs/install/containers.md` não fez nada.
 
 ### Correção de processo
@@ -191,19 +191,19 @@ a própria regra de "um commit, uma ideia". Como nada havia sido enviado, refiz 
 
 ### Próxima sessão
 
-**E05** (guia Windows) é a continuação natural — é o registro escrito da experiência
+**E05** (guia Windows) é a continuação natural - é o registro escrito da experiência
 E00 + E04. Ou **E06** (galeria), que agora está desbloqueada: a imagem roda os casos.
 
 ---
 
-## 2026-08-21 — E07: higiene do repositório
+## 2026-08-21 - E07: higiene do repositório
 
 **Etapa:** E07
 **Branch:** `juniormar/07-repo-hygiene` (a partir de `master`) → merjada em `juniormar/main`
 
 ### Resultado
 
-**Árvore versionada: 1.507 arquivos / 95,3 MB → 1.406 arquivos / 18,6 MB — redução de 76,7 MB (80%).**
+**Árvore versionada: 1.507 arquivos / 95,3 MB → 1.406 arquivos / 18,6 MB - redução de 76,7 MB (80%).**
 
 ### Commits (12)
 
@@ -236,14 +236,14 @@ E00 + E04. Ou **E06** (galeria), que agora está desbloqueada: a imagem roda os 
    `build-fringe.cpp` é compilado pelos dois sistemas de build. Sobrevive apenas por ter
    sido commitado antes da regra existir. A mesma regra engole
    `install_higflow_arch.sh` (da branch `PC_ImproveDocumentation`) e qualquer coisa sob
-   `docs/install/` — exatamente onde E03 e E05 vão escrever.
+   `docs/install/` - exatamente onde E03 e E05 vão escrever.
 
 2. **`contr.flowtype` é saída de grep.** 2.721 linhas do tipo
    `hig-flow-bc.c:126:    if (ns->contr...`, resultado de uma busca redirecionada para
    um arquivo com o nome do termo buscado. Cópia idêntica em `src_hugo/old/`.
 
 3. **Havia 14 binários ELF versionados, não 11.** Faltavam três cópias de
-   `generate_amr` em `example2d_VOF*/amrs/` — com `generate_amr.c` ao lado.
+   `generate_amr` em `example2d_VOF*/amrs/` - com `generate_amr.c` ao lado.
 
 4. **Saída 3D dentro de exemplo 2D.** `example2d_Newt/output/example-3d.save.pres` e
    `.vel` não podem ter sido produzidos pelo caso que acompanham.
@@ -280,9 +280,9 @@ antes                                     depois
 ### Decisões deliberadamente não tomadas
 
 - **`src_hugo/` intocado.** 2,4 MB de cópia paralela da árvore, com diretório cujo nome
-  contém espaços. É trabalho de outro pesquisador — vira pergunta no PR, não remoção.
+  contém espaços. É trabalho de outro pesquisador - vira pergunta no PR, não remoção.
 - **Histórico não reescrito.** Restam ~160 MB no histórico (`.avi` de 45 MB, VTKs de 38
-  e 20 MB, árvore `atf-0.15/`). `git filter-repo` quebraria todos os clones — fica
+  e 20 MB, árvore `atf-0.15/`). `git filter-repo` quebraria todos os clones - fica
   registrado para os donos decidirem.
 - **`libfyaml-master.zip` mantido.** Snapshot de `master`, não release taggeada; trocar
   por download exige escolher uma versão, o que muda contra o que o projeto compila.
@@ -298,7 +298,7 @@ bloco C++.
 
 ---
 
-## 2026-08-21 — E02: README em inglês
+## 2026-08-21 - E02: README em inglês
 
 **Etapa:** E02
 **Branch:** `juniormar/02-readme` (a partir de `master` em `f5eb580`) → merjada em `juniormar/main`
@@ -307,7 +307,7 @@ bloco C++.
 
 - `README.md` reescrito em inglês, 503 linhas, 12 seções
 - `README.pt-BR.md` preservado, com o bloco corrompido reparado
-- `docs/images/architecture.svg` — diagrama autoral das três camadas de software e dos
+- `docs/images/architecture.svg` - diagrama autoral das três camadas de software e dos
   seis estágios do passo de tempo
 - Figuras existentes (`all_mesh.png`, `ghosts.png`, `wccmjet.png`) referenciadas **no
   lugar**, sem duplicar binário na árvore
@@ -333,12 +333,12 @@ bloco C++.
 1. **O esquema convectivo de segunda ordem degrada para primeira ordem na fronteira.**
    `hig-flow-discret.c:131-138` rebaixa `SECOND_ORDER` para `FIRST_ORDER` quando o
    estêncil cruza a fronteira. É escolha deliberada de robustez, mas afeta diretamente
-   a ordem de convergência observada — insumo importante para E11.
+   a ordem de convergência observada - insumo importante para E11.
 
 2. **`ORDER4` é parseado mas nunca usado.** Aparece em `hig-flow-io.c:6229` e `:8015`
    (leitura e escrita do YAML) e na declaração do enum. Nenhuma rotina de
    discretização o consulta. Selecionar `forth_order` não produz esquema de quarta
-   ordem — produz silenciosamente segunda ordem.
+   ordem - produz silenciosamente segunda ordem.
 
 3. **Nenhuma referência bibliográfica no código.** `higtree/doc/biblio.bib` tem 398
    entradas, nenhuma de reologia. A tabela de modelos do README traz as referências
@@ -356,7 +356,7 @@ exatamente o que o histórico registra.
 - Todos os caminhos de imagem, links de arquivo e âncoras internas resolvem
 - Tabelas markdown bem formadas
 - SVG validado como XML e sem transbordo de geometria
-- Diff do PR contém apenas `README.md`, `README.pt-BR.md` e o SVG — o diretório
+- Diff do PR contém apenas `README.md`, `README.pt-BR.md` e o SVG - o diretório
   `docs/contrib-plan/` não vazou, como o modelo de branches previa
 
 ### Pendências herdadas para etapas seguintes
@@ -374,7 +374,7 @@ pequeno e independente.
 
 ---
 
-## 2026-08-20 — Análise e planejamento
+## 2026-08-20 - Análise e planejamento
 
 **Etapa:** E01
 **Branch:** `juniormar/main` (criada a partir de `master` em `f5eb580`)
@@ -417,7 +417,7 @@ pequeno e independente.
    `.clang-format`. Decisão: propor a licença no PR, deixando a escolha aos donos.
 
 4. **`-Ofast` contradiz o próprio código.** A flag implica `-ffinite-math-only`, que
-   autoriza o compilador a assumir que `Inf` e `NaN` nunca ocorrem — mas
+   autoriza o compilador a assumir que `Inf` e `NaN` nunca ocorrem - mas
    `hig-flow-step-electroosmotic.c:923,932` usa `INFINITY` como sentinela em laço de
    convergência, e a detecção de divergência depende de comparar `NaN`. É problema
    metodológico, não apenas de engenharia.
@@ -431,7 +431,7 @@ pequeno e independente.
 
 ### Pendências desta etapa
 
-- `.mailmap` — escrito no PR de E07, onde faz sentido junto com `.editorconfig` e
+- `.mailmap` - escrito no PR de E07, onde faz sentido junto com `.editorconfig` e
   `.gitattributes`
 
 ### Verificação de estado ao fim da sessão

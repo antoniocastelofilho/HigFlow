@@ -12,7 +12,7 @@ describes the files themselves and the decisions behind them.
 | `apptainer.def` | HPC image, bootstrapped from the Docker image |
 | `entrypoint.sh` | Command dispatch inside the container |
 | `.gitattributes` | Forces LF on everything copied into an image |
-| `../.dockerignore` | Build-context exclusions — lives at the repository root |
+| `../.dockerignore` | Build-context exclusions - lives at the repository root |
 
 Build from the repository root, never from this directory:
 
@@ -64,7 +64,7 @@ the context: `COPY` of anything from the repository would tie the PETSc layer to
 the repository's contents, and every source edit would trigger a full rebuild of
 it.
 
-libfyaml goes the other way — it *is* copied from the context. The committed
+libfyaml goes the other way - it *is* copied from the context. The committed
 `libfyaml-master.zip` is a snapshot of upstream `master`, not a tagged release,
 so cloning `master` at build time would give a different revision than the one
 the project is known to build against. 451 KB is a fair price for that
@@ -77,8 +77,8 @@ negligible.
 steps.
 
 This repository is a live demonstration of why. `CMakeLists.txt` and the
-Makefiles each list a different set of source files — `hig-flow-timestep.c` is
-in one, `hig-flow-vof-elvira.c` in the other — so neither builds the whole
+Makefiles each list a different set of source files - `hig-flow-timestep.c` is
+in one, `hig-flow-vof-elvira.c` in the other - so neither builds the whole
 project, and two people using two build methods end up with binaries that have
 different features. A second, hand-maintained container recipe would drift the
 same way, and the drift would be invisible until someone's cluster run behaved
@@ -98,7 +98,7 @@ symlink the repository's install script creates. The fix is to link `-lHYPRE`.
 **`higflow/Makefile:83` omits the dimension from object names.** It uses
 `hig-flow-%.o`, while `higtree/Makefile:90` correctly uses `%-$(DIM)d.o`. So
 `make DIM=2 && make DIM=3` in `higflow/` finds the `DIM=2` objects up to date and
-links them into `libhigflow3d.a` — an archive carrying the wrong dimension with
+links them into `libhigflow3d.a` - an archive carrying the wrong dimension with
 nothing to indicate it. `make clean` is no way out either: it deletes
 `$(HIGFLOW_LIBPATH)/*.a`, taking the other library with it.
 
@@ -117,8 +117,8 @@ cannot both be buildable at the same time.
 
 The image handles this by building 3D first and 2D last, so the objects left in
 place suit the nine 2D examples, and recording the dimension in
-`higflow/.built-dim`. The entrypoint reads that marker and rebuilds the objects —
-a few seconds — when a 3D case is requested. Cases are built and run where they
+`higflow/.built-dim`. The entrypoint reads that marker and rebuilds the objects -
+a few seconds - when a 3D case is requested. Cases are built and run where they
 live, with only `VTKS`, `DATA` and `output` symlinked into the mounted `/work`,
 so output reaches the host without the case having to move.
 
@@ -134,7 +134,7 @@ inherited from PETSc's `petscvariables`.
 This turns out to explain a choice in the original install script that looks
 simply wrong. `--download-openmpi` makes PETSc build its own MPI into the PETSc
 prefix, so `mpi.h` lands in `/opt/petsc/include` and `PETSC_CC_INCLUDES` picks it
-up. The examples then compile — by accident of layout rather than by design.
+up. The examples then compile - by accident of layout rather than by design.
 Point PETSc at a system OpenMPI instead, and the accident stops working:
 
 ```
@@ -150,8 +150,8 @@ splits OpenMPI's Fortran bindings and modules out of it, so PETSc's configure
 fails with `Fortran error! mpi_init() could not be located!`. There is no single
 directory that is the MPI root on these distributions.
 
-The image therefore does two things. PETSc is configured with the wrappers —
-`--with-cc=mpicc --with-cxx=mpicxx --with-fc=mpif90` — which know every path.
+The image therefore does two things. PETSc is configured with the wrappers -
+`--with-cc=mpicc --with-cxx=mpicxx --with-fc=mpif90` - which know every path.
 And `CPATH` and `LIBRARY_PATH` are set in the image so that plain `gcc` and `ld`
 see the same directories the wrapper would have added, without any Makefile being
 modified. The underlying fix is for the examples to compile with `mpicc`, as the

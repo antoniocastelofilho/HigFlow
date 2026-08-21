@@ -1,4 +1,4 @@
-# PR draft — E02
+# PR draft - E02
 
 **Branch:** `juniormar/02-readme` → `antoniocastelofilho/HigFlow:master`
 **Title:** `Rewrite README in English with project overview, model reference and quick start`
@@ -29,9 +29,9 @@ sleep 5alizar um dos passos anterior você já pode utilizar o sistema!
 
 ## Changes
 
-- **`README.md`** — rewritten in English, 12 sections
-- **`README.pt-BR.md`** — the Portuguese text, with the corrupted sentence repaired
-- **`docs/images/architecture.svg`** — a diagram of the three software layers and the
+- **`README.md`** - rewritten in English, 12 sections
+- **`README.pt-BR.md`** - the Portuguese text, with the corrupted sentence repaired
+- **`docs/images/architecture.svg`** - a diagram of the three software layers and the
   six stages of one projection-method time step
 
 Existing figures in `higtree/doc/figuras/` are referenced in place, so no binary is
@@ -76,7 +76,7 @@ Included because a user needs them, and phrased factually:
 
 The first two are corrected in a follow-up change to the installer; the README flags
 them so users are not stranded meanwhile. The third is stated because users need to
-know where they stand — the choice of licence is left entirely to the owners.
+know where they stand - the choice of licence is left entirely to the owners.
 
 ### On the absence of a native Windows build
 

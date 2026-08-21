@@ -1,7 +1,7 @@
-# HigFlow — Roadmap de Contribuição
+# HigFlow - Roadmap de Contribuição
 
 > Documento de trabalho interno da contribuição de **Juniormar Organista**.
-> Português por ser material de decisão pessoal. **Não integra Pull Requests** —
+> Português por ser material de decisão pessoal. **Não integra Pull Requests** -
 > tudo que sobe para o upstream é em inglês.
 >
 > Análise que fundamenta este plano: [`00-ANALISE.md`](00-ANALISE.md).
@@ -17,8 +17,8 @@
 | Ambiente local | **WSL2 + Ubuntu 22.04 agora**, Docker Desktop numa etapa posterior para validar a imagem |
 | Licença | **Propor no PR**, deixando a decisão final aos donos |
 | Branches | **Tronco `juniormar/main` + uma sub-branch por etapa**, cada uma um PR independente |
-| Simplificação de uso | **Runner genérico com expressões em YAML** — sem recompilar para mudar fronteira |
-| Limpeza do repositório | **Remover do HEAD, preservar histórico** — sem reescrita de SHAs |
+| Simplificação de uso | **Runner genérico com expressões em YAML** - sem recompilar para mudar fronteira |
+| Limpeza do repositório | **Remover do HEAD, preservar histórico** - sem reescrita de SHAs |
 | Idioma | **Tudo em inglês**, incluindo tradução do material existente em português |
 | C++ | **Planejar os 3 níveis agora**, decidir o nível de execução depois |
 | CI | **Completo, com testes de regressão numérica** |
@@ -34,18 +34,18 @@ autoral direto.
 ## Mapa das etapas
 
 ```
-BLOCO 0 — FUNDAÇÃO (local, não vira PR)
+BLOCO 0 - FUNDAÇÃO (local, não vira PR)
   E00  Ambiente de desenvolvimento
   E01  Infraestrutura da contribuição
 
-BLOCO A — APRESENTAÇÃO
+BLOCO A - APRESENTAÇÃO
   E02  README em inglês (v1)          ──┐
-  E03  Manual de instalação — Linux     │
+  E03  Manual de instalação - Linux     │
   E04  Containers (Docker + Apptainer)  ├─→ E06
-  E05  Manual de instalação — Windows   │
+  E05  Manual de instalação - Windows   │
   E06  Galeria de resultados + README v2 ┘
 
-BLOCO B — CÓDIGO E BUILD
+BLOCO B - CÓDIGO E BUILD
   E07  Higiene do repositório
   E08  Build unificado
   E09  Correções de defeitos pontuais
@@ -57,22 +57,22 @@ BLOCO B — CÓDIGO E BUILD
   E15  Runner: avaliador de expressões     │
   E16  Gerador de malha .amr               ┘
 
-BLOCO C — DOCUMENTAÇÃO E DIVULGAÇÃO
+BLOCO C - DOCUMENTAÇÃO E DIVULGAÇÃO
   E27  Galeria de pessoas (opt-in)
   E17  Doxygen e documentação de API
   E18  Tradução completa PT → EN
   E19  Governança do projeto
   E20  Divulgação
 
-BLOCO D — MIGRAÇÃO C++   (requer E11 concluída)
+BLOCO D - MIGRAÇÃO C++   (requer E11 concluída)
   E21  Plano de migração
-  E22  Nível 1 — compilar como C++
-  E23  Nível 2 — RAII
-  E24  Nível 3 — templates e tipos fortes
+  E22  Nível 1 - compilar como C++
+  E23  Nível 2 - RAII
+  E24  Nível 3 - templates e tipos fortes
 
-BLOCO E — MACHINE LEARNING (longo prazo)
+BLOCO E - MACHINE LEARNING (longo prazo)
   E25  Arquitetura de ML no HigFlow
-  E26  Prova de conceito — inferência MLP em C++ puro
+  E26  Prova de conceito - inferência MLP em C++ puro
 ```
 
 ### Grafo de dependências reais
@@ -87,19 +87,19 @@ BLOCO E — MACHINE LEARNING (longo prazo)
 | E15 | E14 | Expressões substituem as funções `get_*` do driver |
 | E22–E24 | E11 | Só se refatora numérica com rede de proteção |
 | E27 | E02 | Edita o README reescrito |
-| E26 | E25 | — |
+| E26 | E25 | - |
 
 **Todas as demais etapas são independentes** e podem ser executadas em qualquer ordem.
 
 ---
 
-# BLOCO 0 — FUNDAÇÃO
+# BLOCO 0 - FUNDAÇÃO
 
 Trabalho local de preparação. Não gera Pull Request.
 
 ---
 
-## E00 — Ambiente de desenvolvimento
+## E00 - Ambiente de desenvolvimento
 
 **Objetivo:** ter uma máquina capaz de compilar, executar e depurar o HigFlow.
 
@@ -116,7 +116,7 @@ Docker ausente, WSL2 sem distribuição, `make` ausente. Nada do projeto compila
    ```
 2. Configurar usuário, `apt update && apt upgrade`
 3. Instalar o conjunto mínimo de build e validar cada dependência isoladamente,
-   registrando o que funciona e o que falha — esse registro é insumo direto de E03
+   registrando o que funciona e o que falha - esse registro é insumo direto de E03
 4. Decidir e documentar a localização do repositório: manter em `/mnt/c/dev/HigFlow`
    (acesso do Windows, I/O lento) ou clonar em `~/HigFlow` no sistema de arquivos do WSL
    (rápido, mas duas cópias). **Recomendação:** clonar dentro do WSL para trabalho de
@@ -126,7 +126,7 @@ Docker ausente, WSL2 sem distribuição, `make` ausente. Nada do projeto compila
 
 ### Entregáveis
 - Ambiente funcional
-- `docs/contrib-plan/notas/E00-ambiente.md` — registro do que foi instalado, versões,
+- `docs/contrib-plan/notas/E00-ambiente.md` - registro do que foi instalado, versões,
   o que falhou e como foi contornado
 
 ### Critério de aceitação
@@ -138,7 +138,7 @@ Baixo, mas com espera longa: a compilação do PETSc leva de 30 a 90 minutos.
 
 ---
 
-## E01 — Infraestrutura da contribuição
+## E01 - Infraestrutura da contribuição
 
 **Objetivo:** montar o esqueleto de trabalho e a ferramenta de verificação de estado.
 
@@ -149,8 +149,8 @@ Baixo, mas com espera longa: a compilação do PETSc leva de 30 a 90 minutos.
 1. Branch `juniormar/main` criada *(feito)*
 2. Dossiê de análise *(feito)*
 3. Este roadmap *(feito)*
-4. `02-GIT-WORKFLOW.md` — modelo de branches, convenção de commits, fluxo de PR
-5. `tools/contrib/status.sh` — ferramenta de verificação de estado. Responde, num único
+4. `02-GIT-WORKFLOW.md` - modelo de branches, convenção de commits, fluxo de PR
+5. `tools/contrib/status.sh` - ferramenta de verificação de estado. Responde, num único
    comando:
    - em que branch estamos e o que há de não commitado
    - quais etapas têm branch criada, quais têm commits, quais foram merjadas no tronco
@@ -158,7 +158,7 @@ Baixo, mas com espera longa: a compilação do PETSc leva de 30 a 90 minutos.
    - o que o `origin` tem e o `upstream` não (candidatos a PR)
    - o que o `upstream` ganhou desde o último `fetch` (risco de conflito)
    - estado de cada PR aberto, se o `gh` estiver disponível
-6. `docs/contrib-plan/LOG.md` — diário de execução, uma entrada por sessão de trabalho
+6. `docs/contrib-plan/LOG.md` - diário de execução, uma entrada por sessão de trabalho
 7. `.mailmap` consolidando as 4 identidades git
 
 ### Entregáveis
@@ -173,19 +173,19 @@ panorama legível sem depender de rede.
 
 ---
 
-# BLOCO A — APRESENTAÇÃO
+# BLOCO A - APRESENTAÇÃO
 
 O bloco que o usuário pediu para vir primeiro. Objetivo: tornar o projeto atraente,
 instalável e compreensível para quem chega de fora.
 
 ---
 
-## E02 — README em inglês (versão 1)
+## E02 - README em inglês (versão 1)
 
 **Branch:** `juniormar/02-readme` · **PR:** "Rewrite README in English with project overview and quick start"
 
-**Objetivo:** substituir o README atual — que está em português, contém um bloco de
-texto corrompido e não mostra o que o código faz — por um documento que apresente o
+**Objetivo:** substituir o README atual - que está em português, contém um bloco de
+texto corrompido e não mostra o que o código faz - por um documento que apresente o
 projeto.
 
 **Depende de:** nada. Usa figuras já existentes em `higtree/doc/figuras`; as imagens de
@@ -204,15 +204,15 @@ resultados reais entram em E06.
 ┌ Logo / banner + badges (build, licença, DOI, versão)
 ├ Uma frase: o que é o HigFlow
 ├ Figura de destaque (em E06 vira resultado real; agora, malha AMR)
-├ Features — tabela de modelos constitutivos e métodos numéricos
-├ Quick start — três caminhos:
+├ Features - tabela de modelos constitutivos e métodos numéricos
+├ Quick start - três caminhos:
 │    · Docker (uma linha)
 │    · Linux nativo
 │    · Windows via WSL2
-├ Running your first case — Poiseuille 2D do início ao VTK
-├ Gallery — grade de resultados (placeholders até E06)
-├ Documentation — links para manuais, API, tutoriais
-├ Project structure — o que é higtree, o que é higflow
+├ Running your first case - Poiseuille 2D do início ao VTK
+├ Gallery - grade de resultados (placeholders até E06)
+├ Documentation - links para manuais, API, tutoriais
+├ Project structure - o que é higtree, o que é higflow
 ├ Citing HigFlow
 ├ Contributing
 ├ Authors and acknowledgements
@@ -222,7 +222,7 @@ resultados reais entram em E06.
 ### Tarefas
 1. Redigir o README em inglês
 2. Corrigir toda a informação factualmente errada, cruzando com o que funcionou em E00
-3. Tabela de modelos constitutivos com a referência bibliográfica de cada um —
+3. Tabela de modelos constitutivos com a referência bibliográfica de cada um -
    é o que distingue o HigFlow de um CFD genérico
 4. Badges apontando para os workflows que E12 vai criar (placeholders até lá)
 5. Preservar o conteúdo em português como `README.pt-BR.md` nesta etapa; a tradução
@@ -240,7 +240,7 @@ faz, se serve para o problema dele, e qual comando executar primeiro.
 
 ---
 
-## E03 — Manual de instalação — Linux nativo
+## E03 - Manual de instalação - Linux nativo
 
 **Branch:** `juniormar/03-install-linux` · **PR:** "Rewrite Linux installation: idempotent script, correct PETSc flags, verification step"
 
@@ -264,7 +264,7 @@ Partir desses arquivos e creditar Pedro Coimbra.
 | `export` que não persiste | Gerar um `env.sh` versionável e instruir o `source` |
 | `sudo ./configure` | Construir como usuário, `sudo` só no `make install` |
 | `chmod 777` | `chmod 755` |
-| `pip3` global | `venv`, ou remover — as dependências de Sphinx não são necessárias para compilar |
+| `pip3` global | `venv`, ou remover - as dependências de Sphinx não são necessárias para compilar |
 | Symlink `libHYPRE.so` | Investigar a causa; resolver via `pkg-config` ou `-L` correto |
 | `varsrc` contraditório | Gerar `varsrc` **a partir** do que o instalador de fato instalou |
 | `$(pwd)` em `varsrc` | Resolver o caminho do próprio script (`${BASH_SOURCE[0]}`) |
@@ -272,7 +272,7 @@ Partir desses arquivos e creditar Pedro Coimbra.
 ### Tarefas adicionais
 1. **Idempotência:** rodar duas vezes não pode quebrar nada, e a segunda execução deve
    pular o que já está pronto
-2. **Detecção de distribuição:** Ubuntu 22.04, Ubuntu 24.04, Debian, Arch, Fedora —
+2. **Detecção de distribuição:** Ubuntu 22.04, Ubuntu 24.04, Debian, Arch, Fedora -
    ao menos detectar e avisar quando não suportada, em vez de falhar de forma obscura
 3. **Etapa de verificação:** ao final, compilar e rodar o caso Newtoniano, e reportar
    sucesso ou falha explicitamente. Hoje o script termina com "THE END" mesmo se tudo
@@ -295,11 +295,11 @@ MPI do sistema.
 
 ---
 
-## E04 — Containers
+## E04 - Containers
 
 **Branch:** `juniormar/04-containers` · **PR:** "Add reproducible Docker and Apptainer images with multi-stage build"
 
-**Objetivo:** tornar `docker run` o caminho recomendado — nenhuma dependência para
+**Objetivo:** tornar `docker run` o caminho recomendado - nenhuma dependência para
 instalar, funciona igual em Windows, Linux e macOS.
 
 **Depende de:** E00. Docker Desktop é instalado no início desta etapa.
@@ -331,24 +331,24 @@ containers/
 | `--with-debubbing=yes` | `--with-debugging=0` |
 | Cabeçalho "OpenFOAM-9 + Python 3.10" | Descrever a imagem real |
 | `FROM ubuntu_petsc3.14:v01` | Multi-stage real, um único `docker build` |
-| Ausência de `.dockerignore` | Criar — evita 78 MB de artefatos entrarem na imagem |
+| Ausência de `.dockerignore` | Criar - evita 78 MB de artefatos entrarem na imagem |
 | `chmod 777` | `chmod 755`, usuário não-root |
 | Sem versões fixadas | Fixar `FROM ubuntu:22.04@sha256:...` e as versões críticas |
 
 ### Melhorias além da correção
 1. **Cache de camadas ordenado** por volatilidade: PETSc antes do código-fonte. Alterar
    uma linha de C não deve recompilar o PETSc
-2. **Volume para dados:** `docker run -v $PWD/cases:/work` — casos e saídas ficam no
+2. **Volume para dados:** `docker run -v $PWD/cases:/work` - casos e saídas ficam no
    host, o container é descartável
 3. **Suporte MPI:** documentar `--cap-add=SYS_PTRACE` e `--shm-size`, necessários para
    OpenMPI dentro de container
-4. **Imagem multi-arquitetura** (`amd64` e `arm64`) — Apple Silicon e clusters ARM
+4. **Imagem multi-arquitetura** (`amd64` e `arm64`) - Apple Silicon e clusters ARM
 5. **Publicação** no GitHub Container Registry via workflow de E12
 6. **Apptainer/Singularity** para clusters HPC (onde Docker não roda por política de
    segurança): converter `stacks/singularity/higflow_image.def`, corrigindo o caminho
    relativo quebrado em `%post` e o `cp` para `/pacotes` inexistente
 
-### Guia detalhado — `docs/install/containers.md`
+### Guia detalhado - `docs/install/containers.md`
 O usuário pediu explicação detalhada de containers. O documento cobre:
 - O que é um container e por que resolve o problema do HigFlow especificamente
 - Diferença entre imagem, container e volume, na prática deste projeto
@@ -375,11 +375,11 @@ Alto. É a etapa de maior valor por unidade de esforço do bloco.
 
 ---
 
-## E05 — Manual de instalação — Windows
+## E05 - Manual de instalação - Windows
 
 **Branch:** `juniormar/05-install-windows` · **PR:** "Add Windows installation guide (WSL2 and Docker Desktop)"
 
-**Objetivo:** documentar o uso em Windows — hoje inexistente.
+**Objetivo:** documentar o uso em Windows - hoje inexistente.
 
 **Depende de:** E00 (WSL2) e E04 (Docker). É o registro escrito da experiência real
 dessas duas etapas.
@@ -393,17 +393,17 @@ caminhos que funcionam, em vez de prometer algo que quebraria.
 
 ### Conteúdo
 
-1. **Caminho A — Docker Desktop** (recomendado para usar)
+1. **Caminho A - Docker Desktop** (recomendado para usar)
    - Instalação, backend WSL2, requisitos de hardware
    - Executar um caso, onde os arquivos aparecem no Windows
    - ParaView no Windows lendo VTKs gerados no container
-2. **Caminho B — WSL2 + Ubuntu** (recomendado para desenvolver)
+2. **Caminho B - WSL2 + Ubuntu** (recomendado para desenvolver)
    - `wsl --install -d Ubuntu-22.04`
    - Onde clonar: `/home/user/` versus `/mnt/c/` e o impacto real de I/O
    - Integração com VS Code via extensão WSL
    - Depuração com gdb dentro do WSL
    - Acesso aos arquivos do Linux pelo Explorer via `\\wsl$\`
-3. **Caminho C — MSYS2** — documentado como **não suportado**, com a justificativa
+3. **Caminho C - MSYS2** - documentado como **não suportado**, com a justificativa
    técnica, para que ninguém perca tempo tentando
 4. Solução de problemas específicos de Windows: virtualização desabilitada na BIOS,
    consumo de memória do WSL (`.wslconfig`), antivírus interferindo na compilação,
@@ -412,7 +412,7 @@ caminhos que funcionam, em vez de prometer algo que quebraria.
 ### Melhorias de código que esta etapa justifica
 Duas correções pequenas que ampliam a portabilidade e entram no PR de E09:
 - `numactl` deixa de ser `REQUIRED` no CMake, tornando-se opcional junto com
-  `solver-sor` — beneficia também macOS e clusters sem libnuma
+  `solver-sor` - beneficia também macOS e clusters sem libnuma
 - `ftime()` → `clock_gettime(CLOCK_MONOTONIC, ...)`
 
 ### Entregáveis
@@ -424,11 +424,11 @@ documento.
 
 ---
 
-## E06 — Galeria de resultados e README v2
+## E06 - Galeria de resultados e README v2
 
 **Branch:** `juniormar/06-gallery` · **PR:** "Add results gallery with reproducible cases and figures"
 
-**Objetivo:** o pedido central — README com imagens de problemas resolvidos pelo próprio código.
+**Objetivo:** o pedido central - README com imagens de problemas resolvidos pelo próprio código.
 
 **Depende de:** E04. Sem ambiente que compile e execute, não há imagens.
 
@@ -436,7 +436,7 @@ documento.
 
 | # | Caso | Por quê | Custo |
 |---|---|---|---|
-| 1 | **Poiseuille 2D** (`example2d_Newt`) | Solução analítica conhecida — a figura mostra numérico versus analítico sobrepostos. Serve de vitrine **e** de teste de validação em E11 | Minutos |
+| 1 | **Poiseuille 2D** (`example2d_Newt`) | Solução analítica conhecida - a figura mostra numérico versus analítico sobrepostos. Serve de vitrine **e** de teste de validação em E11 | Minutos |
 | 2 | **Contração 4:1 viscoelástica** (Oldroyd-B / GPTT) | Benchmark clássico de reologia computacional. Vórtice de canto visível. É o que diferencia o HigFlow de um CFD genérico | Horas |
 | 3 | **VOF multifásico** (bolha ou dam break) | Visualmente o mais forte. Interface deformável, campo de fração volumétrica. Candidato a GIF animado no topo do README | Horas |
 | 4 | **Malha AMR e decomposição de domínio** | Mostra o diferencial arquitetural do higtree: refinamento hierárquico e partição MPI. Há figuras base em `higtree/doc/figuras` | Baixo |
@@ -444,7 +444,7 @@ documento.
 ### Tarefas
 
 1. Executar cada caso no container, registrando parâmetros exatos e tempo de execução
-2. Pós-processar em ParaView; salvar o **state file** `.pvsm` junto com a figura —
+2. Pós-processar em ParaView; salvar o **state file** `.pvsm` junto com a figura -
    é o que torna a figura reproduzível por terceiros
 3. Script `tools/gallery/render.py` (pvpython) que regenera todas as figuras a partir
    dos VTKs, sem interação manual
@@ -467,18 +467,18 @@ Toda figura do README é regenerável por um terceiro a partir do repositório, 
 comando documentado. **Nenhuma imagem sem procedência.**
 
 ### Risco
-Os casos 2 e 3 podem não convergir com os parâmetros versionados — os defeitos de
+Os casos 2 e 3 podem não convergir com os parâmetros versionados - os defeitos de
 build (§4.2 do dossiê) sugerem que nem todos os exemplos estão em estado funcional.
 Se um caso falhar, é achado de bug, não fracasso da etapa: vira issue no upstream, o
 que também é contribuição.
 
 ---
 
-# BLOCO B — CÓDIGO E BUILD
+# BLOCO B - CÓDIGO E BUILD
 
 ---
 
-## E07 — Higiene do repositório
+## E07 - Higiene do repositório
 
 **Branch:** `juniormar/07-repo-hygiene` · **PR:** "Remove build artifacts and vendored archives from tracking; add editor and attribute configuration"
 
@@ -493,16 +493,16 @@ que também é contribuição.
 | 11 binários `ns-example` / `ns-complex-3d` | ~40 MB | `.gitignore` |
 | `bibliotecas/petsc-3.14.0.tar.gz` | 37 MB | Download com verificação de checksum no instalador |
 | `bibliotecas/libfyaml-master.zip` | 451 KB | Clone do repositório oficial, tag fixada |
-| `higflow/src.zip` | 779 KB | — |
-| `higflow/src/.hig-flow-kernel.h.swp` | 16 KB | — |
+| `higflow/src.zip` | 779 KB | - |
+| `higflow/src/.hig-flow-kernel.h.swp` | 16 KB | - |
 | 7 arquivos `*_old.c` / `*.old.c` | 689 KB | Preservados no histórico git; `git log --follow` os recupera |
-| `higflow/include/`, `higtree/include/` | — | São cópias geradas por `cp src/*.h`. Passam a ser geradas no build |
-| `higflow/include/hig-flow-step-multifase.h` | — | Órfão, grafia antiga |
+| `higflow/include/`, `higtree/include/` | - | São cópias geradas por `cp src/*.h`. Passam a ser geradas no build |
+| `higflow/include/hig-flow-step-multifase.h` | - | Órfão, grafia antiga |
 | VTKs e `.dat` de saída versionados | ~6 MB | `.gitignore` |
 
 ### Decisão sobre `src_hugo/`
 2,4 MB de cópia paralela da árvore, com um diretório cujo nome contém espaços.
-**Não remover unilateralmente** — é trabalho de outro pesquisador. Abrir issue
+**Não remover unilateralmente** - é trabalho de outro pesquisador. Abrir issue
 perguntando se pode ir para uma branch de arquivo, e tratar a resposta como decisão dos
 donos. Registrar a pergunta no PR.
 
@@ -518,7 +518,7 @@ donos. Registrar a pergunta no PR.
 
 ### O que **não** será feito
 `git filter-repo` para remover os 45 MB de `.avi` e os VTKs de 38 MB do histórico.
-Reescreveria todos os SHAs e quebraria os clones de todos os colaboradores — inaceitável
+Reescreveria todos os SHAs e quebraria os clones de todos os colaboradores - inaceitável
 num PR para repositório com autores ativos. Fica registrado como recomendação a ser
 executada pelos donos, se decidirem.
 
@@ -531,11 +531,11 @@ necessário para compilar.
 
 ---
 
-## E08 — Build unificado
+## E08 - Build unificado
 
 **Branch:** `juniormar/08-build-system` · **PR:** "Unify build: single canonical CMake configuration"
 
-**Objetivo:** eliminar a divergência entre CMake e Makefile — hoje a raiz da maior
+**Objetivo:** eliminar a divergência entre CMake e Makefile - hoje a raiz da maior
 parte das dificuldades de compilação.
 
 **Depende de:** nada (mas E00 ajuda a validar).
@@ -568,10 +568,10 @@ com CTest para E11 e é o que o CI de E12 vai consumir.
 | `numactl REQUIRED` | Opcional, acoplado a `solver-sor` |
 
 ### Melhorias estruturais
-1. **Uma lista de fontes, uma só vez** — arquivo `sources.cmake` incluído por ambos os
+1. **Uma lista de fontes, uma só vez** - arquivo `sources.cmake` incluído por ambos os
    sistemas enquanto o Makefile existir. Impossibilita nova divergência
 2. **Alvos exportados:** `HigFlow::higtree`, `HigFlow::higflow`, com
-   `target_include_directories` público — projetos externos consomem com
+   `target_include_directories` público - projetos externos consomem com
    `find_package(HigFlow)`
 3. `compile_commands.json` habilitado por padrão
 4. **Presets** (`CMakePresets.json`): `debug`, `release`, `release-reproducible`,
@@ -592,12 +592,12 @@ tocam Makefiles. Fazer `git fetch upstream` e conferir imediatamente antes de ab
 
 ---
 
-## E09 — Correções de defeitos pontuais
+## E09 - Correções de defeitos pontuais
 
 **Branch:** `juniormar/09-defect-fixes` · **PR:** "Fix debug macro leakage, format-string bug, and obsolete time API"
 
 **Objetivo:** corrigir os defeitos catalogados C1–C11. Cada um é pequeno, isolado e
-individualmente revisável — o formato ideal de PR.
+individualmente revisável - o formato ideal de PR.
 
 **Depende de:** nada.
 
@@ -605,15 +605,15 @@ individualmente revisável — o formato ideal de PR.
 
 | # | Correção | Nota |
 |---|---|---|
-| C1 | Remover `#define DEBUG` de `hig-flow-kernel.h:18` | Passa a ser controlado pelo build. **Atenção:** pode revelar código que dependia silenciosamente do caminho de debug — verificar cada `DEBUG_*` afetado |
+| C1 | Remover `#define DEBUG` de `hig-flow-kernel.h:18` | Passa a ser controlado pelo build. **Atenção:** pode revelar código que dependia silenciosamente do caminho de debug - verificar cada `DEBUG_*` afetado |
 | C2 | `Debug-c.h`: mover as `static` do cabeçalho para uma unidade de tradução, expondo por `extern` | A pilha de debug passa a funcionar como projetada |
 | C3 | `DEBUG_WARNING(x)` → `fprintf(debugfd, "%s", x)` | Fecha o format string bug |
 | C4 | `DEBUG_ASSERT`: `*(int*)NULL = 0` → `abort()` | Remove o comportamento indefinido |
 | C5 | `ftime()` → `clock_gettime(CLOCK_MONOTONIC, ...)` | Também remove `<sys/timeb.h>`; ganho de portabilidade |
 | C7 | `real x[DIM]={INFINITY}` → laço de inicialização ou `{INFINITY, INFINITY, INFINITY}` | 6 declarações. Defeito dormente mas real |
 | C11 | `include/` gerado deixa de ser versionado | Feito em E07; aqui, garantir que o build gere |
-| — | `numactl` opcional | Justificado por E05 |
-| — | `ns-exemple-3d.c` → `ns-example-3d.c` | Typo em nome de arquivo versionado |
+| - | `numactl` opcional | Justificado por E05 |
+| - | `ns-exemple-3d.c` → `ns-example-3d.c` | Typo em nome de arquivo versionado |
 
 ### Fora do escopo desta etapa
 - C8 (função de 1.580 linhas) → refatoração natural em E14
@@ -622,12 +622,12 @@ individualmente revisável — o formato ideal de PR.
 
 ### Critério de aceitação
 Suíte de E11 passa antes e depois, com resultados numericamente idênticos. Se algum
-resultado mudar, é sinal de que o comportamento dependia de um defeito — investigar
+resultado mudar, é sinal de que o comportamento dependia de um defeito - investigar
 antes de prosseguir.
 
 ---
 
-## E10 — Flags numéricas e reprodutibilidade
+## E10 - Flags numéricas e reprodutibilidade
 
 **Branch:** `juniormar/10-numerics-flags` · **PR:** "Replace -Ofast with -O3 and make architecture flags configurable"
 
@@ -639,7 +639,7 @@ Idealmente E11 antes, para medir o efeito.
 
 ### O problema em uma frase
 `-Ofast` implica `-ffinite-math-only`, que autoriza o compilador a assumir que `Inf` e
-`NaN` nunca ocorrem — mas o código **usa `INFINITY` como sentinela** em laços de
+`NaN` nunca ocorrem - mas o código **usa `INFINITY` como sentinela** em laços de
 convergência (`hig-flow-step-electroosmotic.c:923,932`;
 `hig-flow-step-multiphase-electroosmotic.c:561,569`), e a detecção de divergência
 depende de comparar `NaN`.
@@ -650,18 +650,18 @@ depende de comparar `NaN`.
 |---|---|
 | `-Ofast` em todos os alvos | `-O3` como padrão |
 | `-ffast-math` implícito | Somente sob `-DHIGFLOW_FAST_MATH=ON`, documentado, com aviso de que invalida a detecção de divergência |
-| `-march=native` fixo | `HIGFLOW_ARCH` configurável; padrão `-mtune=generic`. `native` continua disponível e continua sendo o recomendado para produção — mas como escolha consciente |
+| `-march=native` fixo | `HIGFLOW_ARCH` configurável; padrão `-mtune=generic`. `native` continua disponível e continua sendo o recomendado para produção - mas como escolha consciente |
 | Sem modo reproduzível | Preset `release-reproducible` com `-O2 -ffp-contract=off`, sem flags específicas de arquitetura |
 | `-Werror` com `-Ofast` nos exemplos | `-Werror` apenas em CI |
 
 ### Tarefas de medição
 1. Rodar o caso Poiseuille com `-Ofast` e com `-O3`: comparar resultado numérico e
-   tempo de execução. **Documentar o custo real** — se `-O3` for significativamente mais
+   tempo de execução. **Documentar o custo real** - se `-O3` for significativamente mais
    lento, é informação que o maintainer precisa para decidir
 2. Verificar se algum resultado publicado do grupo depende de `-Ofast`; em caso
    afirmativo, registrar no PR
 3. Substituir `pow(x,2)` por `x*x` nos caminhos quentes (83 chamadas com expoente
-   inteiro literal) — sob `-Ofast` o GCC fazia parte disso automaticamente; ao remover
+   inteiro literal) - sob `-Ofast` o GCC fazia parte disso automaticamente; ao remover
    a flag, a otimização precisa ser explícita
 4. Documentar em `docs/numerics/floating-point.md` as garantias de ponto flutuante que
    o projeto oferece
@@ -676,7 +676,7 @@ produzir resultados publicáveis. Apresentar com medição, não com argumento t
 
 ---
 
-## E11 — Suíte de verificação numérica
+## E11 - Suíte de verificação numérica
 
 **Branch:** `juniormar/11-verification` · **PR:** "Add numerical verification suite with method of manufactured solutions"
 
@@ -705,17 +705,17 @@ em CFD acadêmico e um diferencial real para o projeto.
 
 Escolhe-se `u`, `v`, `p` suaves; substitui-se nas equações de Navier–Stokes; o resíduo
 vira termo-fonte. A solução exata é conhecida por construção, para qualquer modelo.
-Refina-se a malha e mede-se a ordem de convergência observada — que deve coincidir com
+Refina-se a malha e mede-se a ordem de convergência observada - que deve coincidir com
 a ordem formal do esquema.
 
 Isto verifica **o que está implementado**, não o que se acredita ter implementado. Se o
-esquema CUBISTA declara 2ª ordem e o MMS mede 1,3, há um defeito — e essa é exatamente
+esquema CUBISTA declara 2ª ordem e o MMS mede 1,3, há um defeito - e essa é exatamente
 a classe de defeito que passa despercebida por anos num código de pesquisa.
 
 **3. Leis de conservação**
 - Massa: `∇·u` em norma discreta deve permanecer em nível de erro de máquina
 - Massa em VOF: soma da fração volumétrica constante no tempo
-  (a branch `PC_Daniel_Mesh` corrigiu exatamente isso — vale confrontar)
+  (a branch `PC_Daniel_Mesh` corrigiu exatamente isso - vale confrontar)
 - Energia cinética em escoamento sem forçamento e sem viscosidade
 
 **4. Regressão**
@@ -733,7 +733,7 @@ e ao CI de E12.
 
 ### Critério de aceitação
 `ctest` roda a suíte completa. Ordem de convergência medida documentada para cada
-esquema temporal e convectivo. **Toda discrepância vira issue no upstream** — o que já
+esquema temporal e convectivo. **Toda discrepância vira issue no upstream** - o que já
 é contribuição científica ao projeto.
 
 ### Esforço
@@ -742,12 +742,12 @@ E06 e E12), MMS depois.
 
 ---
 
-## E12 — Integração contínua
+## E12 - Integração contínua
 
 **Branch:** `juniormar/12-ci` · **PR:** "Add GitHub Actions: build matrix, verification suite, container publishing"
 
 **Objetivo:** validação automática de cada PR. **É o argumento mais forte que existe
-para um maintainer aceitar contribuições** — prova objetiva de que nada quebrou.
+para um maintainer aceitar contribuições** - prova objetiva de que nada quebrou.
 
 **Depende de:** E11 (o que executar) e E04 (onde executar).
 
@@ -763,7 +763,7 @@ para um maintainer aceitar contribuições** — prova objetiva de que nada queb
 | `codeql.yml` | agendado | Análise estática de segurança |
 
 ### Detalhes
-- Cache das camadas Docker e do build do PETSc — sem isso cada execução leva mais de uma hora
+- Cache das camadas Docker e do build do PETSc - sem isso cada execução leva mais de uma hora
 - Timeout e limite de concorrência (recurso gratuito é finito)
 - Badges no README apontando para os workflows reais
 - `ccache` no container de CI
@@ -774,7 +774,7 @@ a suíte tem poder de detecção real, e não apenas passa sempre.
 
 ---
 
-## E13 — Runner: scaffolding
+## E13 - Runner: scaffolding
 
 **Branch:** `juniormar/13-scaffolding` · **PR:** "Add case scaffolding tool"
 
@@ -795,7 +795,7 @@ higflow new my-case --model oldroyd-b --dim 2 --template channel
 ```
 
 Gera a estrutura completa a partir de templates, com os valores padrão do modelo
-escolhido e **apenas** as seções de YAML relevantes — não as 261 linhas com todos os
+escolhido e **apenas** as seções de YAML relevantes - não as 261 linhas com todos os
 modelos.
 
 ### Templates iniciais
@@ -810,7 +810,7 @@ Python 3 (já é dependência do projeto), sem bibliotecas externas além da std
 
 ---
 
-## E14 — Runner: driver unificado
+## E14 - Runner: driver unificado
 
 **Branch:** `juniormar/14-unified-driver` · **PR:** "Add unified solver driver replacing per-case main()"
 
@@ -824,7 +824,7 @@ Python 3 (já é dependência do projeto), sem bibliotecas externas além da std
 2. Um único executável `higflow-solver` que carrega tudo do YAML
 3. Os exemplos passam a fornecer **apenas** as funções de física realmente específicas
 4. Sub-comandos: `higflow run`, `higflow validate`, `higflow info`, `higflow mesh`
-5. **`higflow validate`** — validação do YAML com mensagem de erro compreensível
+5. **`higflow validate`** - validação do YAML com mensagem de erro compreensível
    apontando linha e campo. Hoje um YAML malformado produz falha obscura em tempo de
    execução
 6. Fatiar `higflow_load_all_controllers_and_parameters_yaml()` (defeito C8: 1.580
@@ -840,11 +840,11 @@ atuais (verificado pela suíte de E11).
 
 ---
 
-## E15 — Runner: avaliador de expressões
+## E15 - Runner: avaliador de expressões
 
 **Branch:** `juniormar/15-expressions` · **PR:** "Add runtime expression evaluation for boundary and initial conditions"
 
-**Objetivo:** o alvo final da simplificação — **mudar uma condição de fronteira sem
+**Objetivo:** o alvo final da simplificação - **mudar uma condição de fronteira sem
 recompilar**.
 
 **Depende de:** E14.
@@ -893,7 +893,7 @@ compilada, com sobrecarga de tempo abaixo de 1%.
 
 ---
 
-## E16 — Gerador de malha
+## E16 - Gerador de malha
 
 **Branch:** `juniormar/16-mesh-generator` · **PR:** "Add mesh generation from declarative description"
 
@@ -929,7 +929,7 @@ mesh:
 - `higflow mesh --preview` exporta VTK da malha para inspeção visual antes de simular
 - Aproveitar `higtree/utilities/preProcessing/scripts-python/` e
   `meshConverter/dat_to_amr.py`, que já existem e estão subutilizados
-- Documentar o formato `.amr` formalmente — `upstream/Kaina` tem um commit
+- Documentar o formato `.amr` formalmente - `upstream/Kaina` tem um commit
   "amr documentation" a ser confrontado e creditado
 
 ### Critério de aceitação
@@ -938,11 +938,11 @@ byte ou equivalente semanticamente.
 
 ---
 
-# BLOCO C — DOCUMENTAÇÃO E DIVULGAÇÃO
+# BLOCO C - DOCUMENTAÇÃO E DIVULGAÇÃO
 
 ---
 
-## E27 — Galeria de pessoas (opt-in)
+## E27 - Galeria de pessoas (opt-in)
 
 **Branch:** `juniormar/27-contributors` (a partir de `juniormar/02-readme`) · **PR:** "Add opt-in People gallery"
 
@@ -967,7 +967,7 @@ aparecer continua creditado em Authors, que vem do histórico e não depende de 
 ### O que foi entregue
 
 - Seção `## People` no README, com a `<table>` pronta e **comentada**
-- `docs/images/contributors/README.md` — requisitos de imagem, markup, e o texto de
+- `docs/images/contributors/README.md` - requisitos de imagem, markup, e o texto de
   pedido de consentimento com os quatro pontos que ele precisa deixar concretos
 - Requisitos de peso: 400×400 px, `.jpg`, abaixo de 100 KB. O repositório acabou de
   perder 76 MB em E07; uma dúzia de fotos sem otimizar devolveria parte disso
@@ -979,17 +979,17 @@ manual, feito pelo autor da contribuição depois de obter consentimento de cada
 
 ### Pendência antes do PR
 
-A seção precisa estar preenchida — ou removida — antes de o PR de E02 ou de E27 subir.
+A seção precisa estar preenchida - ou removida - antes de o PR de E02 ou de E27 subir.
 Uma seção "sendo montada" num README de upstream fica pela metade.
 
 ---
 
-## E17 — Doxygen e documentação de API
+## E17 - Doxygen e documentação de API
 
 **Branch:** `juniormar/17-api-docs` · **PR:** "Add Doxygen configuration and API documentation build"
 
 **Depende de:** nada. **Trabalho prévio:** `upstream/Kaina` tem commits de Doxygen e um
-grafo de dependências — partir dali e creditar.
+grafo de dependências - partir dali e creditar.
 
 ### Tarefas
 1. `Doxyfile` na raiz, unificando `higtree` e `higflow` (hoje há
@@ -1007,7 +1007,7 @@ compreensíveis sem ler o fonte.
 
 ---
 
-## E18 — Tradução completa PT → EN
+## E18 - Tradução completa PT → EN
 
 **Branch:** `juniormar/18-translation` · **PR:** "Translate documentation to English"
 
@@ -1015,9 +1015,9 @@ compreensíveis sem ler o fonte.
 
 **Depende de:** E02 e E17 (não traduzir o que ainda vai ser reescrito).
 
-### Escopo — decisão registrada
-Foi decidido traduzir **inclusive o material existente**. O risco foi apontado — é o
-maior diff do plano e a maior chance de rejeição — e a decisão foi mantida. Mitigação:
+### Escopo - decisão registrada
+Foi decidido traduzir **inclusive o material existente**. O risco foi apontado - é o
+maior diff do plano e a maior chance de rejeição - e a decisão foi mantida. Mitigação:
 fatiar em PRs pequenos e independentes, para que a rejeição de um não derrube os demais.
 
 ### Inventário
@@ -1036,7 +1036,7 @@ fatiar em PRs pequenos e independentes, para que a rejeição de um não derrube
 - Traduzir **e atualizar**: o tutorial afirma que o viscoelástico está "em
   implementação", o que é falso há anos
 - Terminologia técnica consistente com a literatura de reologia computacional
-- Manter as versões PT-BR ao lado (`*.pt-BR.*`) — o grupo é brasileiro
+- Manter as versões PT-BR ao lado (`*.pt-BR.*`) - o grupo é brasileiro
 - 18f e 18g são os mais arriscados (diff enorme, ruído em `git blame`). Executar por
   último e, se houver resistência, abandonar sem prejuízo do resto
 
@@ -1045,7 +1045,7 @@ Nenhum documento voltado ao usuário exige português para ser compreendido.
 
 ---
 
-## E19 — Governança do projeto
+## E19 - Governança do projeto
 
 **Branch:** `juniormar/19-governance` · **PR:** "Add contribution guidelines, citation metadata, and license proposal"
 
@@ -1073,12 +1073,12 @@ Opções a apresentar, com o trade-off de cada uma:
 | Licença | Implicação |
 |---|---|
 | **GPL-3.0** | Derivados permanecem abertos. Comum em software científico (FEniCS, deal.II). Impede uso em produto proprietário |
-| **BSD-3-Clause** | Permissiva. Adotada por PETSc — dependência direta do projeto. Maximiza adoção industrial |
+| **BSD-3-Clause** | Permissiva. Adotada por PETSc - dependência direta do projeto. Maximiza adoção industrial |
 | **LGPL-3.0** | Meio-termo: uso como biblioteca em software fechado, modificações da biblioteca permanecem abertas |
 | **Apache-2.0** | Permissiva com cláusula de patentes |
 
 Recomendação a registrar no PR: **BSD-3-Clause**, por coerência com o PETSc e por
-maximizar adoção — mas o texto do PR deixa claro que é sugestão, e que a escolha cabe
+maximizar adoção - mas o texto do PR deixa claro que é sugestão, e que a escolha cabe
 ao Prof. Castelo e coautores.
 
 ### Critério de aceitação
@@ -1087,7 +1087,7 @@ visível de maturidade do projeto.
 
 ---
 
-## E20 — Divulgação
+## E20 - Divulgação
 
 **Branch:** `juniormar/20-outreach` · **PR:** parcialmente fora do repositório
 
@@ -1101,15 +1101,15 @@ visível de maturidade do projeto.
    `multiphase-flow`, `non-newtonian`
 2. Descrição e website do repositório
 3. Social preview (imagem de card para redes sociais)
-4. `docs/publications.md` — trabalhos que usaram o HigFlow, com DOI. Prova de uso real
+4. `docs/publications.md` - trabalhos que usaram o HigFlow, com DOI. Prova de uso real
    e é o que atrai novos usuários acadêmicos
 5. Release com tag semântica e notas
 
 ### Ações fora do repositório (requerem aprovação dos donos)
-1. **Zenodo** — integração GitHub/Zenodo dá DOI a cada release. Torna o software citável
-2. **JOSS** (*Journal of Open Source Software*) — submissão. Revisão por pares, gera
+1. **Zenodo** - integração GitHub/Zenodo dá DOI a cada release. Torna o software citável
+2. **JOSS** (*Journal of Open Source Software*) - submissão. Revisão por pares, gera
    publicação citável. Requisitos: licença OSI, documentação, testes, guia de
-   contribuição — exatamente E19, E11, E17
+   contribuição - exatamente E19, E11, E17
 3. Listagem em diretórios de software científico (CFD Online, awesome-cfd)
 4. Apresentação no grupo de pesquisa
 
@@ -1118,29 +1118,29 @@ As conquistas relevantes decorrem naturalmente do trabalho, e não de ação esp
 
 | Conquista | Como se obtém |
 |---|---|
-| **Pull Shark** | 2 / 16 / 128 PRs merjados. Este plano prevê ~20 PRs — a estratégia de PRs pequenos e independentes maximiza a chance de merge |
+| **Pull Shark** | 2 / 16 / 128 PRs merjados. Este plano prevê ~20 PRs - a estratégia de PRs pequenos e independentes maximiza a chance de merge |
 | **Quickdraw** | Fechar issue ou PR em menos de 5 minutos |
 | **Galaxy Brain** | 2 / 8 / 16 respostas aceitas em Discussions |
 | **Starstruck** | 16+ estrelas num repositório próprio |
-| **Pair Extraordinaire** | Commits com co-autoria (útil ao incorporar trabalho de Pedro Coimbra e Kainã — o `Co-authored-by` é o crédito formal correto) |
+| **Pair Extraordinaire** | Commits com co-autoria (útil ao incorporar trabalho de Pedro Coimbra e Kainã - o `Co-authored-by` é o crédito formal correto) |
 
 O ponto principal: **PRs pequenos e revisáveis são merjados; PRs gigantes ficam
 parados**. A estratégia de branch por etapa serve tanto à qualidade quanto a isso.
 
 ---
 
-# BLOCO D — MIGRAÇÃO C → C++
+# BLOCO D - MIGRAÇÃO C → C++
 
 **Pré-requisito absoluto: E11 concluída.** Sem verificação numérica, qualquer conversão
 é aposta.
 
 Avaliação de viabilidade em §7 do dossiê: a conversão é substancialmente mais tratável
-do que o tamanho do código sugere — **1 colisão de palavra reservada**, 42 `malloc` sem
+do que o tamanho do código sugere - **1 colisão de palavra reservada**, 42 `malloc` sem
 cast, 71 VLAs.
 
 ---
 
-## E21 — Plano de migração
+## E21 - Plano de migração
 
 **Branch:** `juniormar/21-cpp-plan` · **PR:** documento apenas
 
@@ -1158,12 +1158,12 @@ Conforme decidido, o nível de execução é escolhido depois de ler este docume
    flutuante (promoção de tipos, ordem de avaliação, `<cmath>` versus `<math.h>` em
    sobrecargas de `float`/`double`)
 6. Decisão sobre padrão: C++17 (amplo suporte em compiladores de cluster) versus C++20
-   (concepts, `std::span` — mas GCC de cluster costuma ser antigo). **Recomendação:
+   (concepts, `std::span` - mas GCC de cluster costuma ser antigo). **Recomendação:
    C++17**
 
 ---
 
-## E22 — Nível 1: compilar como C++
+## E22 - Nível 1: compilar como C++
 
 **Branch:** `juniormar/22-cpp-level1` · **PR:** "Make codebase compile as C++ without semantic changes"
 
@@ -1172,7 +1172,7 @@ Conforme decidido, o nível de execução é escolhido depois de ler este docume
 ### Trabalho
 | Item | Volume |
 |---|---|
-| `lbal.c:1189` — identificador `new` | 1 |
+| `lbal.c:1189` - identificador `new` | 1 |
 | Casts explícitos em `malloc`/`calloc`/`realloc` | 42 |
 | VLAs → `std::vector` ou `std::array` | 71 |
 | Inicializador designado | 1 |
@@ -1185,12 +1185,12 @@ idêntico, verificado pela suíte de E11. Se mudar, reverter e investigar.
 
 ---
 
-## E23 — Nível 2: RAII
+## E23 - Nível 2: RAII
 
 **Branch:** `juniormar/23-cpp-level2` · **PR:** "Introduce RAII for resource management"
 
 ### Trabalho
-1. **Eliminar os 308 `exit()`** — biblioteca não termina o processo do chamador.
+1. **Eliminar os 308 `exit()`** - biblioteca não termina o processo do chamador.
    Substituir por exceções ou `expected`
 2. Encapsular em tipos com destrutor: `FILE*`, comunicadores MPI, objetos PETSc
    (`Vec`, `Mat`, `KSP`), alocações de malha
@@ -1202,17 +1202,17 @@ Fim dos vazamentos, código testável unitariamente, erros propagáveis em vez d
 
 ---
 
-## E24 — Nível 3: tipos fortes e templates
+## E24 - Nível 3: tipos fortes e templates
 
 **Branch:** `juniormar/24-cpp-level3` · **PR:** "Parameterize dimension as template; introduce strong types"
 
 ### Trabalho
 1. **`DIM` como parâmetro de template**, não macro de compilação. Elimina a necessidade
    de `libhig2d.a` e `libhig3d.a` separadas e a compilação dupla (defeito P3)
-2. Tipos fortes: `Point`, `Tensor`, `CellId`, `FacetId` — hoje todos `real[]` ou `int`,
+2. Tipos fortes: `Point`, `Tensor`, `CellId`, `FacetId` - hoje todos `real[]` ou `int`,
    sem verificação
 3. `std::span` para as travessias de malha
-4. Hierarquia de modelos constitutivos com interface comum — hoje cada modelo é um
+4. Hierarquia de modelos constitutivos com interface comum - hoje cada modelo é um
    arquivo de 2 a 3,7 mil linhas com estrutura repetida
 
 ### Cuidado
@@ -1221,13 +1221,13 @@ constante.
 
 ---
 
-# BLOCO E — MACHINE LEARNING
+# BLOCO E - MACHINE LEARNING
 
 Projeto de longo prazo. Exploratório.
 
 ---
 
-## E25 — Arquitetura de ML no HigFlow
+## E25 - Arquitetura de ML no HigFlow
 
 **Branch:** `juniormar/25-ml-design` · **PR:** documento apenas
 
@@ -1238,14 +1238,14 @@ Projeto de longo prazo. Exploratório.
 ### Conteúdo do documento
 1. Auditoria do que existe em `upstream/Kaina`: o que `nn-weights.cpp` faz, como os
    modelos são consumidos, por que LibTorch foi removido (provável: peso da dependência
-   e dificuldade de build em cluster — exatamente o problema que este plano combate)
+   e dificuldade de build em cluster - exatamente o problema que este plano combate)
 2. **Onde ML faz sentido no HigFlow**, com fundamentação:
 
 | Aplicação | Fundamentação | Maturidade |
 |---|---|---|
 | Fechamento de modelo constitutivo | Aprender a relação tensão–deformação a partir de dados experimentais, para fluidos sem modelo analítico adequado | Pesquisa ativa na literatura |
 | Escolha adaptativa de passo de tempo | Prever o maior `dt` estável, substituindo heurística de CFL conservadora | Aplicável |
-| Precondicionador aprendido | Acelerar a convergência do solver de pressão — o gargalo dominante | Pesquisa recente |
+| Precondicionador aprendido | Acelerar a convergência do solver de pressão - o gargalo dominante | Pesquisa recente |
 | Critério de refinamento AMR | Prever onde refinar, em vez de gradiente heurístico | Bom encaixe com higtree |
 | Modelo substituto (*surrogate*) | Prever resultado sem simular, para varredura de parâmetros | Alto valor prático |
 
@@ -1258,7 +1258,7 @@ Projeto de longo prazo. Exploratório.
 
 ---
 
-## E26 — Prova de conceito
+## E26 - Prova de conceito
 
 **Branch:** `juniormar/26-ml-poc` · **PR:** "Add standalone MLP inference module"
 
@@ -1283,22 +1283,22 @@ rede pequena.
 
 | Bloco | Etapas | PRs | Esforço relativo |
 |---|---|---|---|
-| 0 — Fundação | E00–E01 | 0 | Baixo |
-| A — Apresentação | E02–E06 | 5 | Médio-alto |
-| B — Código e build | E07–E16 | 10 | Alto |
-| C — Documentação | E17–E20, E27 | 5+ | Médio |
-| D — C++ | E21–E24 | 4 | Alto |
-| E — ML | E25–E26 | 2 | Médio |
-| **Total** | **28** | **~26** | — |
+| 0 - Fundação | E00–E01 | 0 | Baixo |
+| A - Apresentação | E02–E06 | 5 | Médio-alto |
+| B - Código e build | E07–E16 | 10 | Alto |
+| C - Documentação | E17–E20, E27 | 5+ | Médio |
+| D - C++ | E21–E24 | 4 | Alto |
+| E - ML | E25–E26 | 2 | Médio |
+| **Total** | **28** | **~26** | - |
 
 ### Sugestão de ordem para as primeiras sessões
 
-1. **E01** — fechar a infraestrutura (workflow, ferramenta de status, `.mailmap`)
-2. **E02** — README v1: entrega visível imediata, sem depender de ambiente
-3. **E00** — ambiente WSL2 em paralelo (a compilação do PETSc roda sozinha)
-4. **E07** — higiene: PR pequeno, fácil de aceitar, efeito grande
-5. **E04** — containers: a etapa de maior valor por esforço
-6. **E06** — galeria: fecha o bloco de apresentação com o README completo
+1. **E01** - fechar a infraestrutura (workflow, ferramenta de status, `.mailmap`)
+2. **E02** - README v1: entrega visível imediata, sem depender de ambiente
+3. **E00** - ambiente WSL2 em paralelo (a compilação do PETSc roda sozinha)
+4. **E07** - higiene: PR pequeno, fácil de aceitar, efeito grande
+5. **E04** - containers: a etapa de maior valor por esforço
+6. **E06** - galeria: fecha o bloco de apresentação com o README completo
 
 A partir daí, qualquer ordem. Cada etapa é autocontida.
 

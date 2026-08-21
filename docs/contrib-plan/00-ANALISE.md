@@ -1,8 +1,8 @@
-# HigFlow — Dossiê de Análise Técnica
+# HigFlow - Dossiê de Análise Técnica
 
 > Documento de trabalho interno da contribuição de **Juniormar Organista**.
 > Escrito em português por ser material de decisão pessoal. **Não integra nenhum
-> Pull Request para o upstream** — todo artefato que sobe para o upstream é em inglês.
+> Pull Request para o upstream** - todo artefato que sobe para o upstream é em inglês.
 >
 > Base da análise: commit `f5eb580` (`master`, sincronizada com `upstream/master`).
 > Data da análise: 2026-08-20.
@@ -32,8 +32,8 @@ propriedades escalares no centro da célula, velocidades nas faces.
 | Viscoelástico integral | K-BKZ, K-BKZ fracionário (amortecimento PSM/UCM) |
 | Viscosidade variável / tixotropia | BMP, BMP-solvent, MBM, NM-taup, NM-t |
 | Shear banding | VCM (two-species) |
-| Elastoviscoplástico | — |
-| Suspensões shear-thickening | — |
+| Elastoviscoplástico | - |
+| Suspensões shear-thickening | - |
 | Multifásico | VOF com PLIC, ELVIRA, altura-função adaptativa, curvatura por diferenças finitas |
 | Eletro-osmótico | Poisson–Nernst–Planck, Poisson–Boltzmann; acoplado a viscoelástico e a multifásico |
 
@@ -98,7 +98,7 @@ você corretamente. É a correção de maior retorno por esforço de todo este d
 
 ---
 
-## 3. Estado do upstream — trabalho paralelo não merjado
+## 3. Estado do upstream - trabalho paralelo não merjado
 
 `master` está sincronizada com `upstream/master`, mas existem **quatro branches ativas**
 no upstream que nunca foram integradas:
@@ -108,15 +108,15 @@ no upstream que nunca foram integradas:
 | `Kaina` | **2026-08-05** | 72 | Doxygen, 9 tutoriais com imagens, grafo de dependências, documentação do formato `.amr`, `nn-weights.cpp` (inferência MLP), modelos `.pt`, remoção da dependência LibTorch |
 | `PC_Daniel_Mesh` | 2026-06-28 | 75 | Correção de conservação de massa em VOF 3D multifásico |
 | `Daniel` | 2025-11-04 | 7 | VOF/PLIC, `hig-flow-step`, `hig-flow-terms` |
-| `PC_ImproveDocumentation` | 2025-10-31 | — | `conteiner/Dockerfile`, `conteiner/Dockerfile.petsc`, `install_higflow_ubuntu22.sh`, `install_higflow_arch.sh`, READMEs de `higflow/` e `higtree/src/` |
-| `Castelo` | 2023-05-12 | — | Ajustes de Makefile |
-| `VersionUpdateOnGithub` | 2021-06-21 | — | Energia cinética |
-| `new_order_multiphase_functions` | 2022-03-18 | — | Reordenação multifásico |
+| `PC_ImproveDocumentation` | 2025-10-31 | - | `conteiner/Dockerfile`, `conteiner/Dockerfile.petsc`, `install_higflow_ubuntu22.sh`, `install_higflow_arch.sh`, READMEs de `higflow/` e `higtree/src/` |
+| `Castelo` | 2023-05-12 | - | Ajustes de Makefile |
+| `VersionUpdateOnGithub` | 2021-06-21 | - | Energia cinética |
+| `new_order_multiphase_functions` | 2022-03-18 | - | Reordenação multifásico |
 
 **Consequência estratégica:** container, manual de instalação e ML em C++ já têm
 trabalho iniciado. A decisão tomada foi **construir em cima dando crédito**, corrigindo
 os defeitos reais do material existente. Isso posiciona a contribuição como
-"consertei e completei", não "refiz por cima" — o que é decisivo num repositório
+"consertei e completei", não "refiz por cima" - o que é decisivo num repositório
 acadêmico com autores ativos.
 
 ### 3.1 Defeitos no material de container existente (`PC_ImproveDocumentation`)
@@ -125,14 +125,14 @@ Auditoria de `conteiner/Dockerfile.petsc`:
 
 | # | Defeito | Severidade |
 |---|---|---|
-| 1 | `echo '. $HOME/.varsrc"' >> $HOME/.bashrc` — **aspa desbalanceada** gravada no `.bashrc`; todo shell subsequente do container falha ao interpretar | **Crítico** |
-| 2 | `--with-debubbing=yes` — typo de `--with-debugging`; o `configure` do PETSc aborta em opção desconhecida | **Crítico** |
-| 3 | Cabeçalho diz `# Dockerfile to build Ubuntu22.04x64 + OpenFOAM-9 + Python 3.10` — copiado de outro projeto, não descreve a imagem | Cosmético |
-| 4 | `FROM ubuntu_petsc3.14:v01` — tag manual, não é multi-stage; exige o usuário construir e taguear na ordem certa sem que nada documente isso | Alto |
+| 1 | `echo '. $HOME/.varsrc"' >> $HOME/.bashrc` - **aspa desbalanceada** gravada no `.bashrc`; todo shell subsequente do container falha ao interpretar | **Crítico** |
+| 2 | `--with-debubbing=yes` - typo de `--with-debugging`; o `configure` do PETSc aborta em opção desconhecida | **Crítico** |
+| 3 | Cabeçalho diz `# Dockerfile to build Ubuntu22.04x64 + OpenFOAM-9 + Python 3.10` - copiado de outro projeto, não descreve a imagem | Cosmético |
+| 4 | `FROM ubuntu_petsc3.14:v01` - tag manual, não é multi-stage; exige o usuário construir e taguear na ordem certa sem que nada documente isso | Alto |
 | 5 | `chmod 777 libfyaml-master` | Médio |
-| 6 | `COPY . "$HOME/HigFlow/"` sem `.dockerignore` — o tarball de 37 MB e os binários de 40 MB entram na camada permanentemente | Alto |
+| 6 | `COPY . "$HOME/HigFlow/"` sem `.dockerignore` - o tarball de 37 MB e os binários de 40 MB entram na camada permanentemente | Alto |
 | 7 | `ENV HOME "/home/hig_user/"` com barra final → caminhos viram `/home/hig_user//HigFlow` | Cosmético |
-| 8 | Nenhuma versão fixada (`apt-get install` sem pin, `FROM ubuntu:22.04` sem digest) — build não reprodutível | Médio |
+| 8 | Nenhuma versão fixada (`apt-get install` sem pin, `FROM ubuntu:22.04` sem digest) - build não reprodutível | Médio |
 
 ---
 
@@ -145,15 +145,15 @@ Cada item abaixo foi verificado diretamente no fonte, com arquivo e linha.
 | # | Local | Defeito |
 |---|---|---|
 | B1 | `CMakeLists.txt` | **Não existe comando `project()`.** CMake opera em modo degradado |
-| B2 | `CMakeLists.txt:11` | `if(${debug})` — sem `-Ddebug=...` na linha de comando isto expande para `if()`, erro de configuração. O mesmo em `if(NOT ${prefix} STREQUAL "")` |
-| B3 | `CMakeLists.txt:5-6` | `-DDIM=${dim}` — sem `-Ddim=N` compila com `-DDIM=` (vazio) |
-| B4 | `CMakeLists.txt:29-33` | `find_package(BLAS)` e `find_package(LAPACK)` gravam em `MFSIM_DEPENDENCIES` — **variável de outro projeto (MFSim), jamais usada**. BLAS e LAPACK são localizados e silenciosamente descartados |
+| B2 | `CMakeLists.txt:11` | `if(${debug})` - sem `-Ddebug=...` na linha de comando isto expande para `if()`, erro de configuração. O mesmo em `if(NOT ${prefix} STREQUAL "")` |
+| B3 | `CMakeLists.txt:5-6` | `-DDIM=${dim}` - sem `-Ddim=N` compila com `-DDIM=` (vazio) |
+| B4 | `CMakeLists.txt:29-33` | `find_package(BLAS)` e `find_package(LAPACK)` gravam em `MFSIM_DEPENDENCIES` - **variável de outro projeto (MFSim), jamais usada**. BLAS e LAPACK são localizados e silenciosamente descartados |
 | B5 | `CMakeLists.txt:13-14` | `-march=native -mtune=native -flto=8 -fno-strict-aliasing` aparecem apenas em `add_link_options`, **não** em `add_compile_options`. As flags que mais importam em tempo de compilação não são aplicadas |
-| B6 | `CMakeLists.txt:110,113` | `include(.../CMakeLists.txt)` em vez de `add_subdirectory()` — anti-padrão; escopo de variáveis vaza entre módulos |
-| B7 | `higflow/Makefile:40` | `-ltrinilos_zoltan` — typo de `trilinos`. O `example*/Makefile` grafa correto, o da biblioteca não |
-| B8 | `higflow/Makefile:45` vs `:92` | Define `ANLIB = gcc-ranlib` mas invoca `$(RANLIB)`. Usa-se o `ranlib` padrão do sistema, não o do GCC — o índice do arquivo `.a` fica inconsistente com objetos LTO |
+| B6 | `CMakeLists.txt:110,113` | `include(.../CMakeLists.txt)` em vez de `add_subdirectory()` - anti-padrão; escopo de variáveis vaza entre módulos |
+| B7 | `higflow/Makefile:40` | `-ltrinilos_zoltan` - typo de `trilinos`. O `example*/Makefile` grafa correto, o da biblioteca não |
+| B8 | `higflow/Makefile:45` vs `:92` | Define `ANLIB = gcc-ranlib` mas invoca `$(RANLIB)`. Usa-se o `ranlib` padrão do sistema, não o do GCC - o índice do arquivo `.a` fica inconsistente com objetos LTO |
 | B9 | `higtree/Makefile:76,80` | `build-fringe` listado **duas vezes** em `MODULES` |
-| B10 | `higtree/Makefile:31-33` | `-I/usr/include/trilinos`, `-I/usr/include/hypre`, `-I/usr/include/petsc` hardcoded — quebra fora de Debian/Ubuntu |
+| B10 | `higtree/Makefile:31-33` | `-I/usr/include/trilinos`, `-I/usr/include/hypre`, `-I/usr/include/petsc` hardcoded - quebra fora de Debian/Ubuntu |
 | B11 | CMake vs Makefile | **Compilam conjuntos diferentes de fontes.** Detalhe em §4.2 |
 
 #### 4.2 Divergência entre os dois sistemas de build
@@ -177,45 +177,45 @@ de build obtêm binários com funcionalidades diferentes. Isso é a raiz de boa 
 dificuldade relatada de "fazer o projeto funcionar".
 
 Nota adicional: `mittag-leffler` é dependência do modelo GPTT, que é oferecido no YAML
-de exemplo — quem compila via `Makefile` não tem esse símbolo.
+de exemplo - quem compila via `Makefile` não tem esse símbolo.
 
 ### 4.3 Instalação e ambiente
 
 | # | Local | Defeito |
 |---|---|---|
 | I1 | `install_higflow_ubuntu22` | Sem shebang, sem `set -euo pipefail`, sem verificação de erro entre etapas |
-| I2 | idem | `--with-debubbing=yes` — typo; PETSc aborta |
-| I3 | idem | `--PETSC_ARCH=x86_64` — na sintaxe do PETSc é `PETSC_ARCH=` sem hífens |
+| I2 | idem | `--with-debubbing=yes` - typo; PETSc aborta |
+| I3 | idem | `--PETSC_ARCH=x86_64` - na sintaxe do PETSc é `PETSC_ARCH=` sem hífens |
 | I4 | idem | Instala `openmpi-bin` + `libopenmpi-dev` **e** `mpich` **e** ainda pede `--download-openmpi` ao PETSc: três MPIs concorrentes no mesmo sistema |
-| I5 | idem | `export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/libfyaml.pc` — a variável espera **diretório**, recebe caminho de arquivo |
+| I5 | idem | `export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/libfyaml.pc` - a variável espera **diretório**, recebe caminho de arquivo |
 | I6 | idem | O `export` anterior (`.../bibliotecas/hypre/`) é sobrescrito pelo seguinte, e nenhum dos dois sobrevive ao fim do script (não é `source`) |
-| I7 | idem | `sudo ./configure` no PETSc — a árvore de build fica propriedade do root |
+| I7 | idem | `sudo ./configure` no PETSc - a árvore de build fica propriedade do root |
 | I8 | idem | `sudo chmod 777 libfyaml-master` |
 | I9 | idem | `pip3 install` global; em Ubuntu ≥23 falha com `externally-managed-environment` |
 | I10 | idem | Cria symlink `libHYPRE.so → libHYPRE_krylov.so`, contornando um problema de linkagem em vez de resolvê-lo |
-| I11 | `varsrc` | `PETSC_DIR=$(pwd)/bibliotecas/petsc-3.14.0/x86_64` com `PETSC_ARCH=arch-linux-c-debug` — **contradiz** o instalador, que instala em `/opt/petsc-3.14.0-openmnpi-hypre-hdf5` com `PETSC_ARCH=x86_64`. Seguir o README à risca não produz um ambiente funcional |
-| I12 | `varsrc` | `$(pwd)` — só funciona se o `source` for feito da raiz do repositório |
-| I13 | `README.md` | Bloco corrompido: `"Após re./configure --prefix=... ; sleep 5alizar um dos passos anterior"` — um comando foi colado no meio da palavra "realizar" |
-| I14 | `stacks/singularity/scripts/petsc.sh:31` | `cp configure.log /pacotes/.` — diretório `/pacotes` nunca é criado |
+| I11 | `varsrc` | `PETSC_DIR=$(pwd)/bibliotecas/petsc-3.14.0/x86_64` com `PETSC_ARCH=arch-linux-c-debug` - **contradiz** o instalador, que instala em `/opt/petsc-3.14.0-openmnpi-hypre-hdf5` com `PETSC_ARCH=x86_64`. Seguir o README à risca não produz um ambiente funcional |
+| I12 | `varsrc` | `$(pwd)` - só funciona se o `source` for feito da raiz do repositório |
+| I13 | `README.md` | Bloco corrompido: `"Após re./configure --prefix=... ; sleep 5alizar um dos passos anterior"` - um comando foi colado no meio da palavra "realizar" |
+| I14 | `stacks/singularity/scripts/petsc.sh:31` | `cp configure.log /pacotes/.` - diretório `/pacotes` nunca é criado |
 | I15 | `higflow_image.def` | `%post` chama `./scripts/pip.sh` com caminho relativo; o diretório de trabalho em `%post` não é a raiz |
 
-### 4.4 Código — correção
+### 4.4 Código - correção
 
 | # | Local | Defeito | Impacto |
 |---|---|---|---|
 | C1 | `higflow/src/hig-flow-kernel.h:18` | `#define DEBUG` **incondicional** num cabeçalho público | Todo TU que inclui o kernel entra no caminho de debug, independentemente de `NDEBUG`. Anula o modo otimizado |
-| C2 | `higtree/src/Debug-c.h:9-13` | `static struct timeb __lasttime; static int __debug_flag[100];` **definidos em cabeçalho** | Uma cópia privada por unidade de tradução. `DEBUG_PUSH`/`DEBUG_POP` numa TU não são vistos por outra — a pilha de debug não funciona como projetada |
+| C2 | `higtree/src/Debug-c.h:9-13` | `static struct timeb __lasttime; static int __debug_flag[100];` **definidos em cabeçalho** | Uma cópia privada por unidade de tradução. `DEBUG_PUSH`/`DEBUG_POP` numa TU não são vistos por outra - a pilha de debug não funciona como projetada |
 | C3 | `higtree/src/Debug-c.h:32` | `#define DEBUG_WARNING(x) {fprintf(debugfd, x);}` | **Format string bug.** Qualquer `%` na mensagem lê a pilha |
 | C4 | `higtree/src/Debug-c.h:41` | `DEBUG_ASSERT` termina com `*(int *)NULL = 0;` | Comportamento indefinido deliberado em vez de `abort()`. Com otimização o compilador pode eliminar o caminho inteiro |
 | C5 | `higtree/src/Debug-c.h:5` | `#include <sys/timeb.h>` / `ftime()` | Removido do POSIX.1-2008, marcado obsoleto no glibc. **Bloqueia portabilidade** |
 | C6 | Todos os `Makefile` e `CMakeLists.txt` | `-Ofast` | Implica `-ffast-math` → `-ffinite-math-only`, que autoriza o compilador a **assumir que Inf e NaN nunca ocorrem**. Ver §4.5 |
 | C7 | `hig-flow-step-electroosmotic.c:1809` etc. | `real u_min[DIM]={INFINITY}` | Inicializa **apenas o elemento 0**; os demais recebem `0.0`. Atualmente as linhas de uso estão comentadas (defeito dormente), mas o idioma está presente em 6 declarações |
-| C8 | `hig-flow-io.c:6114–7696` | `higflow_load_all_controllers_and_parameters_yaml()` — **~1.580 linhas numa única função** | Intestável, irrevisável |
+| C8 | `hig-flow-io.c:6114–7696` | `higflow_load_all_controllers_and_parameters_yaml()` - **~1.580 linhas numa única função** | Intestável, irrevisável |
 | C9 | Global | 308 chamadas a `exit()` em biblioteca | Uma biblioteca não deve terminar o processo do chamador. Impede tratamento de erro e testes unitários |
 | C10 | Global | 306 chamadas a `fopen()` | Auditoria de verificação de retorno pendente |
 | C11 | `higflow/include/`, `higtree/include/` | Cópias geradas por `cp src/*.h` **versionadas** | `higtree/include/domain.h` e `solver-petsc.h` **já divergiram** do fonte. `higflow/include/hig-flow-step-multifase.h` é órfão (grafia antiga em português) |
 
-### 4.5 A questão do `-Ofast` — análise numérica
+### 4.5 A questão do `-Ofast` - análise numérica
 
 `-Ofast` = `-O3` + `-ffast-math` + `-fallow-store-data-races` + relaxamentos adicionais.
 De `-ffast-math` decorre `-ffinite-math-only`, que informa ao compilador que nenhum
@@ -232,7 +232,7 @@ real max_psi_res_global = INFINITY;
 
 `INFINITY` é usado como sentinela para garantir que o laço execute ao menos uma
 iteração. Sob `-ffinite-math-only` o compilador está autorizado a tratar a comparação
-como se o operando não pudesse ser infinito — o laço pode ser reordenado ou eliminado.
+como se o operando não pudesse ser infinito - o laço pode ser reordenado ou eliminado.
 O comportamento passa a depender de versão do compilador e nível de inline.
 
 Consequências, em ordem de gravidade:
@@ -254,12 +254,12 @@ documentada; `-march=native` nunca como padrão, e sim `-mtune=generic` com
 `-march` configurável; e uma opção de build reproduzível com
 `-ffp-contract=off`.
 
-### 4.6 Código — desempenho
+### 4.6 Código - desempenho
 
 | # | Achado | Detalhe |
 |---|---|---|
 | P1 | **292 chamadas a `pow()`**, das quais 83 com expoente inteiro literal | 47× `pow(x,2)`, 35× `pow(x,2.0)`, 1× `pow(x,3.0)`, 3× `pow(x,4.0)`. Em caminho quente, `x*x` é ordens de grandeza mais rápido. Sob `-Ofast` o GCC converte parte, mas isso deixa a otimização refém de uma flag que precisa ser removida (§4.5) |
-| P2 | 81 literais de tolerância hardcoded | 42× `1.0e-14`, 18× `1.0e-3`, 6× `1.0e-4`, 4× `1.0e-10`, 3× `1.0e-6`, 3× `1.0e-16` — dispersos, não configuráveis, não documentados |
+| P2 | 81 literais de tolerância hardcoded | 42× `1.0e-14`, 18× `1.0e-3`, 6× `1.0e-4`, 4× `1.0e-10`, 3× `1.0e-6`, 3× `1.0e-16` - dispersos, não configuráveis, não documentados |
 | P3 | Compilação dupla obrigatória | `-DDIM=2` e `-DDIM=3` geram bibliotecas separadas (`libhig2d.a`, `libhig3d.a`). A dimensão é constante de compilação, não parâmetro de execução |
 | P4 | `hig-flow-io.c` com 10.187 linhas | Recompilação integral a cada alteração de I/O |
 
@@ -267,20 +267,20 @@ documentada; `-march=native` nunca como padrão, e sim `-mtune=generic` com
 
 | Item | Tamanho | Situação |
 |---|---|---|
-| `bibliotecas/petsc-3.14.0.tar.gz` | **37 MB** | Versionado. `bibliotecas/` está no `.gitignore` — adicionado **depois** do commit, portanto sem efeito |
+| `bibliotecas/petsc-3.14.0.tar.gz` | **37 MB** | Versionado. `bibliotecas/` está no `.gitignore` - adicionado **depois** do commit, portanto sem efeito |
 | `bibliotecas/libfyaml-master.zip` | 451 KB | Idem |
 | 11 binários ELF `ns-example`/`ns-complex-3d` | **~40 MB** | Executáveis compilados, versionados |
 | `higflow/src.zip` | 779 KB | Snapshot do próprio diretório, versionado |
 | `higflow/src/.hig-flow-kernel.h.swp` | 16 KB | Arquivo de swap do vim |
 | 7 arquivos `*_old.c` / `*.old.c` | 689 KB | Código morto |
-| `higflow/src/src_hugo/` | ~2,4 MB | Cópia paralela de toda a árvore, incluindo `Modifications of files viscoelastic flows with variable viscosity/` — **nome de diretório com espaços**, que quebra Makefiles e scripts ingênuos |
+| `higflow/src/src_hugo/` | ~2,4 MB | Cópia paralela de toda a árvore, incluindo `Modifications of files viscoelastic flows with variable viscosity/` - **nome de diretório com espaços**, que quebra Makefiles e scripts ingênuos |
 | `higflow/src/contr.flowtype` | 266 KB | Dados no diretório de fontes |
 | `Attic/hig-flow-kernel.h` | 24 KB | Cabeçalho antigo |
 | No histórico | 45 MB | `example2d_ElectroOsmotic/animation.avi` |
 | No histórico | 38 MB + 20 MB | VTKs de saída de VOF |
 | No histórico | ~30 MB | Árvore completa de `atf-0.15/` com binários de teste |
 
-`.gitignore` ignora `*.txt`, `*.dat` e `*.vtk` globalmente — o que também mascara
+`.gitignore` ignora `*.txt`, `*.dat` e `*.vtk` globalmente - o que também mascara
 arquivos legítimos e é a razão de 35 `.dat` e 16 `.vtk` estarem versionados
 (entraram antes da regra).
 
@@ -288,10 +288,10 @@ arquivos legítimos e é a razão de 35 `.dat` e 16 `.vtk` estarem versionados
 
 | Arquivo | Situação |
 |---|---|
-| `LICENSE` | **Ausente** — status jurídico das contribuições é indefinido |
+| `LICENSE` | **Ausente** - status jurídico das contribuições é indefinido |
 | `CONTRIBUTING.md` | Ausente |
 | `CODE_OF_CONDUCT.md` | Ausente |
-| `CITATION.cff` | Ausente — impede citação automática do software |
+| `CITATION.cff` | Ausente - impede citação automática do software |
 | `CHANGELOG.md` | Ausente |
 | `.editorconfig` | Ausente |
 | `.clang-format` | Ausente |
@@ -302,7 +302,7 @@ arquivos legítimos e é a razão de 35 `.dat` e 16 `.vtk` estarem versionados
 
 ---
 
-## 5. O atrito de uso — medição
+## 5. O atrito de uso - medição
 
 Este é o problema central relatado: "tem que gerar muita coisa para poder rodar um caso".
 
@@ -310,7 +310,7 @@ Este é o problema central relatado: "tem que gerar muita coisa para poder rodar
 
 | Artefato | Volume |
 |---|---|
-| `input/<caso>.load.par.contr.yaml` | **261 linhas** — contém os parâmetros de **todos** os modelos, mesmo os não usados |
+| `input/<caso>.load.par.contr.yaml` | **261 linhas** - contém os parâmetros de **todos** os modelos, mesmo os não usados |
 | `input/<caso>.load.bc.yaml` | **150 linhas** |
 | `input/<caso>.load.domain.yaml` | 5 linhas |
 | `input/<caso>.load.init.yaml` | 6 linhas |
@@ -383,7 +383,7 @@ complexo exige dezenas desses arquivos escritos à mão.
 | `__attribute__` do GCC | 4 |
 | Funções aninhadas (extensão GCC) | 0 |
 | `system()` / `fork()` / `popen()` | 0 |
-| VLAs (arrays de tamanho variável) | 71 — sobretudo em **parâmetros** de função |
+| VLAs (arrays de tamanho variável) | 71 - sobretudo em **parâmetros** de função |
 
 ### 6.2 O que realmente bloqueia
 
@@ -401,7 +401,7 @@ O obstáculo não é o código: é a pilha de dependências.
 | **libnuma (`numactl`)** | **Exclusivo de Linux. Sem equivalente.** Exigido pelo `CMakeLists.txt` (`PKG_CHECK_MODULES(NUMACTL REQUIRED numa)`) e usado por `higtree/src/solver-sor.c` |
 
 `libnuma` é `REQUIRED` no CMake, portanto **a configuração falha em Windows antes de
-compilar uma única linha** — mesmo que todo o resto estivesse disponível.
+compilar uma única linha** - mesmo que todo o resto estivesse disponível.
 
 ### 6.3 Conclusão
 
@@ -409,7 +409,7 @@ O caminho correto para Windows é **WSL2 e containers**, não porte nativo. Um p
 MSYS2 seria meses de trabalho para um resultado frágil e de manutenção cara. As duas
 melhorias que valem a pena no código são:
 
-1. Tornar `numactl` opcional no CMake (`solver-sor` já é opcional no Makefile) — o que
+1. Tornar `numactl` opcional no CMake (`solver-sor` já é opcional no Makefile) - o que
    também beneficia macOS e clusters sem libnuma.
 2. Substituir `ftime()` por `clock_gettime(CLOCK_MONOTONIC, ...)`, que é POSIX moderno
    e tem equivalente trivial em qualquer plataforma.
@@ -432,7 +432,7 @@ pré-requisito de qualquer etapa que envolva execução ou geração de figuras.
 
 ---
 
-## 7. Migração C → C++ — avaliação de viabilidade
+## 7. Migração C → C++ - avaliação de viabilidade
 
 A conversão é **substancialmente mais tratável do que o tamanho do código sugere**.
 
@@ -440,19 +440,19 @@ A conversão é **substancialmente mais tratável do que o tamanho do código su
 |---|---|---|
 | Palavras reservadas de C++ usadas como identificador | **1** (`struct _local_neighbor *new` em `lbal.c:1189`) | Trivial |
 | `malloc`/`calloc`/`realloc` sem cast explícito | 42 | Mecânico |
-| VLAs | 71 (majoritariamente parâmetros) | Moderado — `std::vector` ou `span` |
-| Literais compostos | 0 | — |
-| `restrict` | 0 | — |
-| `_Generic`, `_Static_assert`, `_Atomic` | 0 | — |
+| VLAs | 71 (majoritariamente parâmetros) | Moderado - `std::vector` ou `span` |
+| Literais compostos | 0 | - |
+| `restrict` | 0 | - |
+| `_Generic`, `_Static_assert`, `_Atomic` | 0 | - |
 | Inicializadores designados | 1 | Trivial |
 
 Ou seja: o **Nível 1** (fazer tudo compilar como C++ sem mudar semântica) é uma tarefa
 mecânica de dias, não de meses. O trabalho real está nos níveis seguintes:
 
-- **Nível 2 — RAII:** eliminar as 308 chamadas a `exit()`, encapsular `FILE*`,
+- **Nível 2 - RAII:** eliminar as 308 chamadas a `exit()`, encapsular `FILE*`,
   ponteiros de MPI, objetos PETSc e alocações em tipos com destrutor. Elimina
   vazamentos e torna o código testável.
-- **Nível 3 — tipos e templates:** `DIM` como parâmetro de template em vez de macro
+- **Nível 3 - tipos e templates:** `DIM` como parâmetro de template em vez de macro
   de compilação, eliminando a necessidade de duas bibliotecas separadas; tipos fortes
   para `Point`, tensores e índices, hoje todos `real[]` ou `int`.
 
@@ -463,7 +463,7 @@ resultados.
 
 ---
 
-## 8. Síntese — prioridades por impacto
+## 8. Síntese - prioridades por impacto
 
 | Prioridade | Item | Justificativa |
 |---|---|---|

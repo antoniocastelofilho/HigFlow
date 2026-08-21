@@ -39,7 +39,7 @@ head2() { printf '\n%s%s%s\n' "$B" "$1" "$R"; hr; }
 has_ref()  { git rev-parse --verify --quiet "$1" >/dev/null 2>&1; }
 count()    { git rev-list --count "$1" 2>/dev/null || echo "?"; }
 
-printf '%s%sHigFlow — contribution status%s   %s\n' "$B" "$CYN" "$R" "$(date '+%Y-%m-%d %H:%M')"
+printf '%s%sHigFlow - contribution status%s   %s\n' "$B" "$CYN" "$R" "$(date '+%Y-%m-%d %H:%M')"
 
 # ── 1. working tree ────────────────────────────────────────────────────────────
 head2 "1. Working tree"
@@ -188,10 +188,10 @@ if command -v gh >/dev/null 2>&1; then
             --template '{{range .}}{{printf "  #%-5v %-10v %-30v %v\n" .number .state .headRefName .title}}{{end}}' \
             2>/dev/null || printf '%s  could not query (no access to upstream?)%s\n' "$DIM" "$R"
     else
-        printf '%s  gh present but not authenticated — run: gh auth login%s\n' "$DIM" "$R"
+        printf '%s  gh present but not authenticated - run: gh auth login%s\n' "$DIM" "$R"
     fi
 else
-    printf '%s  gh not installed — pull request state unavailable%s\n' "$DIM" "$R"
+    printf '%s  gh not installed - pull request state unavailable%s\n' "$DIM" "$R"
 fi
 
 # ── 8. repository weight ───────────────────────────────────────────────────────

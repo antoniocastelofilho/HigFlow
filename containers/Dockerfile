@@ -1,4 +1,4 @@
-# HigFlow — reproducible build image
+# HigFlow - reproducible build image
 #
 # Ubuntu 22.04, OpenMPI, PETSc 3.14.0, libfyaml, Zoltan, HDF5.
 #
@@ -7,7 +7,7 @@
 #
 # Based on conteiner/Dockerfile and conteiner/Dockerfile.petsc by Pedro Coimbra
 # on the PC_ImproveDocumentation branch. Restructured into a real multi-stage
-# build and corrected — see containers/README.md for what changed and why.
+# build and corrected - see containers/README.md for what changed and why.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage layout, ordered by how often each layer changes. PETSc takes about five
@@ -98,9 +98,9 @@ RUN curl -fL --retry 3 -o petsc.tar.gz \
 # configure rejects unrecognised options, so that typo aborts the build.
 #
 # The MPI compiler wrappers are given directly rather than a --with-mpi-dir.
-# Debian and Ubuntu split OpenMPI across directories — headers under
+# Debian and Ubuntu split OpenMPI across directories - headers under
 # /usr/lib/x86_64-linux-gnu/openmpi/include, Fortran bindings and modules
-# elsewhere — so neither /usr nor the openmpi prefix is a valid single MPI root.
+# elsewhere - so neither /usr nor the openmpi prefix is a valid single MPI root.
 # Pointing at /usr makes PETSc record MPI_INCLUDE = -I/usr/include, which does
 # not contain mpi.h; pointing at the openmpi prefix makes configure fail with
 # "Fortran error! mpi_init() could not be located!". The wrappers know every
@@ -183,7 +183,7 @@ ENV PETSC_DIR=/opt/petsc \
 #
 # That explains a choice in the repository's install script that otherwise looks
 # simply wrong. --download-openmpi puts mpi.h inside the PETSc prefix, so
-# PETSC_CC_INCLUDES happens to cover it and the examples compile — by accident of
+# PETSC_CC_INCLUDES happens to cover it and the examples compile - by accident of
 # layout rather than by design. Using a system MPI removes the accident, so the
 # image supplies the paths explicitly instead. The underlying fix is for the
 # examples to compile with mpicc, as the libraries already do.
@@ -217,7 +217,7 @@ WORKDIR ${HIGFLOW_ROOT}
 
 # DIM is a compile-time macro, so 2D and 3D are genuinely separate archives.
 #
-# higtree names its objects with the dimension — `%-$(DIM)d.o`, Makefile:90 —
+# higtree names its objects with the dimension - `%-$(DIM)d.o`, Makefile:90 -
 # so building one after the other is correct.
 RUN cd higtree && make DIM=2 && make DIM=3
 
@@ -231,7 +231,7 @@ RUN cd higtree && make DIM=2 && make DIM=3
 # aside. The proper fix is to put the dimension in the object name, as higtree
 # already does; that belongs to the build-system change, not here.
 #
-# The order — 3D first, 2D last — is not arbitrary either. The example Makefiles
+# The order - 3D first, 2D last - is not arbitrary either. The example Makefiles
 # link ../src/hig-flow-*.o directly rather than libhigflow<dim>d.a, so whichever
 # dimension is built last decides which examples can be compiled. Nine of the
 # eleven examples are 2D, so 2D is what is left in place, and .built-dim records

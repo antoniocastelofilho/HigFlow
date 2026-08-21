@@ -1,5 +1,5 @@
-# Scripts copied into the image must keep LF. Checked out with CRLF — which is
-# what git does on Windows when core.autocrlf=true and nothing says otherwise —
+# Scripts copied into the image must keep LF. Checked out with CRLF - which is
+# what git does on Windows when core.autocrlf=true and nothing says otherwise -
 # the shebang becomes "#!/usr/bin/env bash\r" and the container fails to start
 # with "bad interpreter: /usr/bin/env bash^M".
 #

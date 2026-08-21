@@ -34,7 +34,7 @@ upstream/master ──●──────────────────�
 
 | Branch | Origem | Destino | Papel |
 |---|---|---|---|
-| `master` | `upstream/master` | — | Espelho do upstream. **Nunca receber commits.** |
+| `master` | `upstream/master` | - | Espelho do upstream. **Nunca receber commits.** |
 | `juniormar/main` | `master` | nenhum | Tronco de integração local. Reúne o planejamento e o merge de todas as etapas. Permite ver o estado combinado do trabalho |
 | `juniormar/NN-slug` | **`master`** | PR para `upstream/master` | Uma etapa, um PR. Contém **apenas** os commits daquela etapa |
 
@@ -44,7 +44,7 @@ As branches de etapa saem de **`master`**, não de `juniormar/main`.
 
 Motivo: `juniormar/main` contém o diretório `docs/contrib-plan/`, que é material de
 trabalho pessoal e não deve aparecer em nenhum PR. Ramificando de `master`, cada branch
-de etapa contém exclusivamente o que pertence àquela etapa — o diff do PR é limpo por
+de etapa contém exclusivamente o que pertence àquela etapa - o diff do PR é limpo por
 construção, sem necessidade de `cherry-pick` ou rebase interativo na hora de enviar.
 
 `juniormar/main` recebe o merge de cada etapa concluída, apenas para consulta local do
@@ -63,7 +63,7 @@ git checkout -b juniormar/06-gallery
 
 No GitHub, o PR de E06 é aberto **contra a branch de E04** enquanto E04 estiver
 pendente. Depois que E04 for merjada no upstream, o PR de E06 é reapontado para
-`master` — o GitHub faz isso automaticamente ao detectar o merge da base.
+`master` - o GitHub faz isso automaticamente ao detectar o merge da base.
 
 ---
 
@@ -107,7 +107,7 @@ Formato Conventional Commits, em inglês.
 ```
 <tipo>(<escopo>): <assunto no imperativo, minúscula, sem ponto final>
 
-<corpo: o porquê, não o quê — o diff já mostra o quê>
+<corpo: o porquê, não o quê - o diff já mostra o quê>
 
 <rodapé: Refs, Co-authored-by>
 ```
@@ -161,7 +161,7 @@ dropped.
 2. **Muitos commits pequenos**, conforme solicitado. Um PR de 15 commits legíveis é
    revisado; um de 1 commit gigante, não
 3. **Nunca mencionar ferramentas de IA** em nenhuma parte do commit
-4. **Sem `Co-authored-by` automático.** Usar apenas para crédito real de pessoas —
+4. **Sem `Co-authored-by` automático.** Usar apenas para crédito real de pessoas -
    por exemplo, ao incorporar trabalho de `PC_ImproveDocumentation` ou `Kaina`
 5. O corpo explica **por que**, incluindo o defeito concreto que motivou a mudança.
    Num repositório acadêmico, o revisor precisa entender a motivação sem ter feito a
@@ -221,8 +221,8 @@ Isso é correção de atribuição e é o que torna a contribuição bem recebid
 1. Branch atual, alterações não commitadas
 2. Quais etapas do roadmap têm branch, quais têm commits, quais foram integradas ao tronco
 3. O que existe localmente e **não** foi enviado ao `origin`
-4. O que o `origin` tem e o `upstream` não — candidatos a PR
-5. O que o `upstream` ganhou desde o último `fetch` — risco de conflito
+4. O que o `origin` tem e o `upstream` não - candidatos a PR
+5. O que o `upstream` ganhou desde o último `fetch` - risco de conflito
 6. Estado dos PRs abertos, se o `gh` estiver autenticado
 
 Executar sempre **antes** de iniciar uma etapa e **antes** de abrir um PR.
@@ -276,5 +276,5 @@ commit.
 | Qualquer menção a ferramentas de IA | Decisão registrada |
 
 O diretório `docs/contrib-plan/` só existe em `juniormar/main`. Como as branches de
-etapa saem de `master`, ele nunca aparece em um PR — a proteção é estrutural, não
+etapa saem de `master`, ele nunca aparece em um PR - a proteção é estrutural, não
 depende de lembrar.

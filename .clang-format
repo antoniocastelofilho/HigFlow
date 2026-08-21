@@ -27,8 +27,8 @@ BreakBeforeBraces: Attached
 PointerAlignment: Right
 DerivePointerAlignment: false
 
-# No column limit. Line length is already sane — median 39, 90th percentile
-# 79 — and setting a limit would let clang-format rewrap untouched lines,
+# No column limit. Line length is already sane - median 39, 90th percentile
+# 79 - and setting a limit would let clang-format rewrap untouched lines,
 # turning a one-line change into a paragraph-sized diff.
 ColumnLimit: 0
 

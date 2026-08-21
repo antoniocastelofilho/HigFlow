@@ -50,7 +50,7 @@ install/
 # so it grows; nothing in it belongs in the image.
 cases/
 
-# Documentation and figures — not needed to compile
+# Documentation and figures - not needed to compile
 Manual_Euler/
 Manual_Git/
 docs/images/

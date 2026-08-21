@@ -1,4 +1,4 @@
-# PR draft — E07
+# PR draft - E07
 
 **Branch:** `juniormar/07-repo-hygiene` → `antoniocastelofilho/HigFlow:master`
 **Title:** `Remove build artefacts from tracking and fix .gitignore patterns that match sources`
@@ -31,7 +31,7 @@ $ git check-ignore --no-index -v install_higflow_arch.sh
 ```
 
 `build-fringe.cpp` is compiled by both build systems. It survives only because it was
-committed before the rule existed — deleting and re-adding it would silently drop it.
+committed before the rule existed - deleting and re-adding it would silently drop it.
 The same rule swallows `install_higflow_arch.sh` from the `PC_ImproveDocumentation`
 branch, and anything under `docs/install/`.
 
@@ -42,7 +42,7 @@ why the file needed a `!CMakeLists.txt` exception to undo part of its own damage
 
 | Item | Size |
 |---|---|
-| 14 ELF binaries — 11 solver executables, 3 copies of `generate_amr` | 37.2 MB |
+| 14 ELF binaries - 11 solver executables, 3 copies of `generate_amr` | 37.2 MB |
 | `bibliotecas/petsc-3.14.0.tar.gz` | 37.8 MB |
 | 7 superseded `*_old.c` files plus `Attic/hig-flow-kernel.h` | 713 KB |
 | `higflow/src.zip` | 779 KB |
@@ -54,7 +54,7 @@ why the file needed a `!CMakeLists.txt` exception to undo part of its own damage
 Notes on three of these:
 
 - **`contr.flowtype`** is not a configuration file despite the extension. It is 2,721
-  lines of grep output — a search for the string `contr.flowtype` redirected into a
+  lines of grep output - a search for the string `contr.flowtype` redirected into a
   file named after the search term. An identical copy sits in `src_hugo/old/`.
 - **The generated `include/` directories have already drifted from `src/`.**
   `higtree/include/domain.h` lacks the `const` added to `sd_get_cell_with_point`;
@@ -75,7 +75,7 @@ Both mirrors were confirmed to serve an archive of exactly the committed size. T
 script is idempotent and is called from `install_higflow_ubuntu22` and the Singularity
 `petsc.sh`.
 
-`libfyaml-master.zip` is deliberately left in place — it is a snapshot of upstream
+`libfyaml-master.zip` is deliberately left in place - it is a snapshot of upstream
 `master` rather than a tagged release, so no stable URL reproduces it. Replacing it
 means choosing a release to pin to, which changes the library the project builds
 against; that is a maintainer decision, not cleanup.
@@ -158,11 +158,11 @@ so removing it is not the contributor's call. **Should it move to a branch, or s
 
 **2. Two decisions about the git history were deliberately not taken.** The history
 still contains a 45 MB `.avi`, VTK outputs of 38 MB and 20 MB, and a full `atf-0.15/`
-tree with test binaries — roughly 160 MB that `git filter-repo` would remove. That
+tree with test binaries - roughly 160 MB that `git filter-repo` would remove. That
 rewrites every SHA and breaks every existing clone and branch, so it is not something a
 contributor should do by pull request. Flagged for the owners to decide.
 
 **3. `install/` is ignored** because `CMakeLists.txt` sets `INSTALL_PATH` to
 `<source>/install` when no prefix is given. Installation *scripts* therefore need a
-different location — `scripts/install/` — or they land in an ignored directory. Noted
+different location - `scripts/install/` - or they land in an ignored directory. Noted
 in the `.gitignore` comment.

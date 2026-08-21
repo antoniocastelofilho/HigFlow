@@ -1,4 +1,4 @@
-# PR draft — E04
+# PR draft - E04
 
 **Branch:** `juniormar/04-containers` → `antoniocastelofilho/HigFlow:master`
 **Title:** `Add reproducible container images for desktop and HPC`
@@ -7,8 +7,8 @@
 
 ## Summary
 
-A single `docker build` produces a working HigFlow — PETSc, OpenMPI, HDF5,
-Zoltan, libfyaml and the compiled libraries — with nothing installed on the host.
+A single `docker build` produces a working HigFlow - PETSc, OpenMPI, HDF5,
+Zoltan, libfyaml and the compiled libraries - with nothing installed on the host.
 The same image converts to an Apptainer `.sif` for clusters. Adds a container
 guide written for someone who has not used containers before.
 
@@ -25,7 +25,7 @@ itself: a run hangs, or produces different numbers on more than one rank, and it
 looks like a solver bug.
 
 `install_higflow_ubuntu22` installs `openmpi-bin`, `libopenmpi-dev` **and**
-`mpich`, then asks PETSc to `--download-openmpi` on top of both — three MPI
+`mpich`, then asks PETSc to `--download-openmpi` on top of both - three MPI
 stacks whose `mpicc`, `mpirun` and `libmpi.so` compete on `PATH` and in the
 linker.
 
@@ -54,12 +54,12 @@ docs/install/containers.md  the guide
 | PETSc configure | `--with-debubbing=yes` | `--with-debugging=0`. PETSc rejects unrecognised options, so the typo aborts the build |
 | `.bashrc` | `echo '. $HOME/.varsrc"' >> $HOME/.bashrc` | Environment set with `ENV`. The unbalanced quote wrote a broken line into `.bashrc`, breaking every later shell in the container |
 | MPI | OpenMPI and MPICH from apt, plus `--download-openmpi` | One MPI; PETSc pointed at the system OpenMPI |
-| Stages | `FROM ubuntu_petsc3.14:v01` — a tag to build and name by hand from a second Dockerfile, in an undocumented order | One `docker build` |
+| Stages | `FROM ubuntu_petsc3.14:v01` - a tag to build and name by hand from a second Dockerfile, in an undocumented order | One `docker build` |
 | Context | no `.dockerignore` | present, at the repository root |
 | Permissions | `chmod 777` | a normal user owning what it needs |
 | Header | "Ubuntu22.04x64 + OpenFOAM-9 + Python 3.10" | describes this image |
-| Boost | `libboost-all-dev` | `libboost-dev` — only `boost/geometry` and `boost/numeric/ublas` are used, both header-only |
-| `$HOME` | `"/home/hig_user/"` — trailing slash producing `//` in derived paths | no trailing slash |
+| Boost | `libboost-all-dev` | `libboost-dev` - only `boost/geometry` and `boost/numeric/ublas` are used, both header-only |
+| `$HOME` | `"/home/hig_user/"` - trailing slash producing `//` in derived paths | no trailing slash |
 | PETSc source | 37 MB archive copied from the context | downloaded during the build, verified against its SHA-256 |
 
 `stacks/singularity/higflow_image.def` could not build as written either: `%post`
@@ -76,7 +76,7 @@ because the image would not build or would not run a case.
 **`higflow/Makefile:83` omits the dimension from object file names.** It uses
 `hig-flow-%.o`, while `higtree/Makefile:90` correctly uses `%-$(DIM)d.o`. So
 `make DIM=2 && make DIM=3` in `higflow/` finds the `DIM=2` objects up to date and
-links them into `libhigflow3d.a` — an archive carrying the wrong dimension with
+links them into `libhigflow3d.a` - an archive carrying the wrong dimension with
 nothing to indicate it. `make clean` is no escape: it deletes
 `$(HIGFLOW_LIBPATH)/*.a`, taking the other library with it. The image clears the
 objects by hand between dimensions and keeps one archive aside.
@@ -95,7 +95,7 @@ MPI include path is therefore `$(PETSC_CC_INCLUDES)`.
 
 This explains something in `install_higflow_ubuntu22` that had looked purely
 wrong. `--download-openmpi` puts `mpi.h` inside the PETSc prefix, so
-`PETSC_CC_INCLUDES` happens to cover it and the examples compile — by accident of
+`PETSC_CC_INCLUDES` happens to cover it and the examples compile - by accident of
 layout. Point PETSc at a system MPI and the accident stops working:
 `pdomain.h:5:10: fatal error: mpi.h: No such file or directory`. On Debian and
 Ubuntu there is no single MPI root either: `--with-mpi-dir=/usr` records an
@@ -145,7 +145,7 @@ sixteen cores.
 | HigFlow, both dimensions | 6 s |
 | build context transfer | 14 s |
 
-Context sent to the daemon: **11.67 MB**, from a 96 MB tree — the rest excluded
+Context sent to the daemon: **11.67 MB**, from a 96 MB tree - the rest excluded
 by `.dockerignore`. Image: 299 MB of content, 1.34 GB on disk.
 
 **Libraries.** All four archives produced, and the two HigFlow ones differ,
@@ -164,7 +164,7 @@ libhigflow3d.a    2669766   sha256 6ab832ef…
 | Case | Ranks | Output |
 |---|---|---|
 | `example2d_Newt` | 1 | 101 VTK files, 166 MB |
-| `example2d_Newt` | 2 | 202 VTK files, 166 MB — one per rank per frame |
+| `example2d_Newt` | 2 | 202 VTK files, 166 MB - one per rank per frame |
 | `example3d_lid_driven` | 1 | 880 VTK files, 509 MB, stopped once verified |
 
 The 3D case exercised the object rebuild path, reporting
