@@ -173,7 +173,13 @@ ENV HIGFLOW_ROOT=/opt/higflow \
     HIGFLOW_DIR=/opt/higflow/higflow
 
 COPY containers/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod 0755 /usr/local/bin/entrypoint.sh
+# The carriage returns are stripped as well as the mode being set. containers/
+# has a .gitattributes forcing LF, but that only helps a clone that has it;
+# an archive download, a copy through a Windows share, or an editor saving with
+# CRLF would still leave "#!/usr/bin/env bash\r" here, and the container would
+# fail to start with "bad interpreter: /usr/bin/env bash^M".
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
+    && chmod 0755 /usr/local/bin/entrypoint.sh
 
 COPY --chown=higflow:higflow . ${HIGFLOW_ROOT}
 
