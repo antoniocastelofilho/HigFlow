@@ -251,3 +251,102 @@ surrounding faces carry different quantities:
 
 <p align="center"><em>Cell-centred values in black; the points in red are where values
 must be reconstructed at a refinement boundary.</em></p>
+
+---
+
+## Gallery
+
+<p align="center">
+  <img src="higtree/doc/figuras/wccmjet.png" alt="Vertical jet coloured by velocity magnitude, showing a coherent core that breaks into turbulent structures downstream" width="330">
+</p>
+
+<p align="center"><em>Jet, coloured by velocity magnitude. Figure from the project's
+existing documentation.</em></p>
+
+> This section is being expanded with a set of cases that ship with the repository —
+> Poiseuille flow validated against its analytical solution, a 4:1 viscoelastic
+> contraction, and a multiphase volume-of-fluid case — each with the exact command that
+> reproduces it and the visualisation state file used to render it.
+
+---
+
+## Installation
+
+HigFlow targets Linux. It depends on an MPI stack, PETSc and a set of scientific
+libraries; the sections below cover a native Linux build and the route for Windows
+users.
+
+### Dependencies
+
+| Dependency | Purpose | Ubuntu package |
+|---|---|---|
+| MPI (OpenMPI) | parallelism | `openmpi-bin`, `libopenmpi-dev` |
+| PETSc | linear solvers | built from source |
+| HYPRE | algebraic multigrid | `libhypre-dev` |
+| Zoltan | load balancing | `libtrilinos-zoltan-dev` |
+| HDF5 (parallel) | binary output | `libhdf5-openmpi-dev` |
+| glib-2.0 | data structures | `libglib2.0-dev` |
+| libfyaml | YAML parsing | built from source |
+| Boost | headers | `libboost-all-dev` |
+| BLAS / LAPACK | dense linear algebra | via PETSc or system |
+| ViennaCL | GPU solvers, optional | — |
+| libnuma | NUMA-aware SOR solver, optional | `libnuma-dev` |
+
+### Linux
+
+Install the system packages, then build PETSc and libfyaml. The repository ships
+`install_higflow_ubuntu22`, which walks through these steps on Ubuntu 22.04.
+
+> **Before running the bundled installer**, read it. It installs three MPI
+> implementations side by side, passes `--with-debubbing=yes` to PETSc's `configure`
+> — not a recognised option — and sets `PKG_CONFIG_PATH` to a file rather than a
+> directory. A corrected installer is in preparation.
+
+With the dependencies in place, set the environment and build:
+
+```bash
+source varsrc
+```
+
+`varsrc` exports `HIGTREE_DIR`, `HIGFLOW_DIR`, `PETSC_DIR` and `PETSC_ARCH`. It must be
+sourced from the repository root, and **its `PETSC_DIR` must match where PETSc was
+actually installed** — the committed value does not match what the bundled installer
+produces.
+
+Build the grid library for both dimensions, then the solver library:
+
+```bash
+cd higtree && make clean && make DIM=2 && make DIM=3
+```
+
+```bash
+cd ../higflow && source ../etc/higflow-env-mak.sh && make clean && make DIM=2
+```
+
+Alternatively, build with CMake from the repository root. Both `dim` and `debug` must
+be supplied — the configuration fails without them:
+
+```bash
+cmake -B build -Ddim=2 -Ddebug=0 -Wno-dev && cmake --build build
+```
+
+### Windows
+
+There is no native Windows build, and this is a deliberate limitation rather than an
+omission: the solver depends on OpenMPI and libfyaml, neither of which has a supported
+Windows port, and the CMake configuration requires `libnuma`, which exists only on
+Linux.
+
+Use **WSL2**, which gives a real Linux environment on Windows:
+
+```bash
+wsl --install -d Ubuntu-22.04
+```
+
+Restart when prompted, then follow the Linux instructions inside the Ubuntu shell. Two
+practical notes:
+
+- Clone the repository **inside** the WSL filesystem (`~/HigFlow`) rather than under
+  `/mnt/c/`. Compilation across the Windows filesystem boundary is substantially slower.
+- Your Linux files are reachable from Windows Explorer at `\wsl$\Ubuntu-22.04\home\`,
+  so ParaView installed on Windows can open the VTK files directly.
