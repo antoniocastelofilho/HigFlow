@@ -15,12 +15,12 @@
 |---|---|---|---|
 | E00 — Ambiente de desenvolvimento | — | **pendente** | — |
 | E01 — Infraestrutura da contribuição | `juniormar/main` | **concluída** (falta `.mailmap`, que vai no PR de E07) | — |
-| E02 — README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | não enviado |
+| E02 — README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | rascunho pronto |
 | E03 — Instalação Linux | — | pendente | — |
 | E04 — Containers | — | pendente | — |
 | E05 — Instalação Windows | — | pendente | — |
 | E06 — Galeria de resultados | — | pendente | — |
-| E07 — Higiene do repositório | — | pendente | — |
+| E07 — Higiene do repositório | `juniormar/07-repo-hygiene` | **concluída** (merjada no tronco) | rascunho pronto |
 | E08 — Build unificado | — | pendente | — |
 | E09 — Correções pontuais | — | pendente | — |
 | E10 — Flags numéricas | — | pendente | — |
@@ -40,6 +40,108 @@
 | E24 — C++ nível 3 | — | pendente | — |
 | E25 — Arquitetura ML | — | pendente | — |
 | E26 — PoC ML | — | pendente | — |
+
+---
+
+## 2026-08-21 — E07: higiene do repositório
+
+**Etapa:** E07
+**Branch:** `juniormar/07-repo-hygiene` (a partir de `master`) → merjada em `juniormar/main`
+
+### Resultado
+
+**Árvore versionada: 1.507 arquivos / 95,3 MB → 1.406 arquivos / 18,6 MB — redução de 76,7 MB (80%).**
+
+### Commits (12)
+
+| SHA | Assunto |
+|---|---|
+| `65aea28` | 14 binários ELF destrackeados (37,2 MB) |
+| `1d8bf6b` | Tarball do PETSc → `fetch-petsc.sh` com verificação SHA-256 (37,8 MB) |
+| `eb23e6a` | `src.zip`, `.swp`, `contr.flowtype` |
+| `33466e2` | 7 `*_old.c` + `Attic/` (713 KB) |
+| `2673acb` | `include/` gerados (62 arquivos) |
+| `e6a654d` | `.gitignore` reescrito |
+| `d61de31` | Saídas de simulação versionadas (20 arquivos, 1,7 MB) |
+| `4fc6ceb` | `.gitattributes` |
+| `09da0ee` | `.mailmap` |
+| `a425bb8` | `.editorconfig` |
+| `efd69fa` | `.clang-format` (raiz + higtree) |
+| `c067502` | `bibliotecas/README.md` |
+
+### Achados novos
+
+1. **`**build**` e `**install**` no `.gitignore` casam com qualquer caminho contendo a
+   substring.** Fora das três formas especiais (`**/`, `/**`, `/**/`), asteriscos
+   consecutivos colapsam para um só. Consequência verificada:
+
+   ```
+   git check-ignore --no-index -v higtree/src/build-fringe.cpp
+   .gitignore:73:**build**  higtree/src/build-fringe.cpp
+   ```
+
+   `build-fringe.cpp` é compilado pelos dois sistemas de build. Sobrevive apenas por ter
+   sido commitado antes da regra existir. A mesma regra engole
+   `install_higflow_arch.sh` (da branch `PC_ImproveDocumentation`) e qualquer coisa sob
+   `docs/install/` — exatamente onde E03 e E05 vão escrever.
+
+2. **`contr.flowtype` é saída de grep.** 2.721 linhas do tipo
+   `hig-flow-bc.c:126:    if (ns->contr...`, resultado de uma busca redirecionada para
+   um arquivo com o nome do termo buscado. Cópia idêntica em `src_hugo/old/`.
+
+3. **Havia 14 binários ELF versionados, não 11.** Faltavam três cópias de
+   `generate_amr` em `example2d_VOF*/amrs/` — com `generate_amr.c` ao lado.
+
+4. **Saída 3D dentro de exemplo 2D.** `example2d_Newt/output/example-3d.save.pres` e
+   `.vel` não podem ter sido produzidos pelo caso que acompanham.
+
+5. **Os dois lados do projeto têm convenções de indentação opostas.** Medido:
+   `higflow/src` 98% espaços, `higtree/src` 89% tabs. Por isso dois `.clang-format`, com
+   o de `higtree/` herdando o da raiz e sobrescrevendo só a indentação.
+
+### O `.mailmap` funcionou
+
+De 4º lugar com 49 commits para **1º lugar com 128 commits**:
+
+```
+antes                                     depois
+  69  Pedro Coimbra                        128  Juniormar Organista
+  49  juniormar                             69  Pedro Coimbra
+  40  Daniel Garcia                         40  Daniel Garcia
+  38  Juniormar Organista <usp.br>          28  Kainã
+  27  Juniormar Organista <alumni>           4  Johnatas
+  23  kainaas                                3  Antonio Castelo Filho
+  13  juniormarorganista
+   5  Kainã
+   1  Juniormar Organista <gmail>
+```
+
+### Verificação
+
+- 26 módulos do `higflow/Makefile`, 29 do `higtree/Makefile`, todas as fontes dos dois
+  `CMakeLists.txt` e todos os drivers de exemplo continuam versionados
+- Nenhum arquivo versionado é casado pelo novo `.gitignore`
+- `bash -n` passa nos três scripts tocados
+- Cópias removidas da working tree confirmadas byte-idênticas aos blobs antes de apagar
+
+### Decisões deliberadamente não tomadas
+
+- **`src_hugo/` intocado.** 2,4 MB de cópia paralela da árvore, com diretório cujo nome
+  contém espaços. É trabalho de outro pesquisador — vira pergunta no PR, não remoção.
+- **Histórico não reescrito.** Restam ~160 MB no histórico (`.avi` de 45 MB, VTKs de 38
+  e 20 MB, árvore `atf-0.15/`). `git filter-repo` quebraria todos os clones — fica
+  registrado para os donos decidirem.
+- **`libfyaml-master.zip` mantido.** Snapshot de `master`, não release taggeada; trocar
+  por download exige escolher uma versão, o que muda contra o que o projeto compila.
+
+### Rascunhos de PR prontos
+
+`docs/contrib-plan/pr-drafts/E02-readme.md` e `E07-repo-hygiene.md`.
+
+### Próxima sessão
+
+**E00** (WSL2) continua sendo o gargalo: bloqueia E03, E04, E05, E06, E11, E12 e todo o
+bloco C++.
 
 ---
 
