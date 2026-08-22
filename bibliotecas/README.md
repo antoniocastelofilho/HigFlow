@@ -28,7 +28,7 @@ extracting.
 
 `libfyaml-master.zip` is still committed. It is a snapshot of the upstream
 `master` branch rather than a tagged release, so there is no stable URL that
-would reproduce this exact archive — replacing it with a download means also
+would reproduce this exact archive - replacing it with a download means also
 choosing a release version to pin to, and that changes which library the
 project builds against. That is a dependency decision for the maintainers, not
 a cleanup, so the file stays until it is made.

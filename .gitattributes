@@ -17,7 +17,7 @@ varsrc        text eol=lf
 install_*     text eol=lf
 TUM_*         text eol=lf
 
-# Binary — never diff, never normalise
+# Binary - never diff, never normalise
 *.png    binary
 *.jpg    binary
 *.jpeg   binary
