@@ -11,22 +11,22 @@ upstream   https://github.com/antoniocastelofilho/HigFlow.git   (leitura; reposi
 origin     https://github.com/juniormarorganista/HigFlow.git    (seu fork; escrita)
 ```
 
-Fluxo dos Pull Requests: `origin/juniormar/NN-slug` → `upstream/master`.
+Fluxo dos Pull Requests: `origin/juniormar/NN-slug` para `upstream/master`.
 
 ---
 
 ## 2. Topologia das branches
 
 ```
-upstream/master ──●───────────────────────────────────────────────►
+upstream/master ──●-----------------------------------------------►
                   │
                   ├── juniormar/02-readme ──●──●──●──┐   PR #1
                   │                                  │
                   ├── juniormar/04-containers ─●──●──┤   PR #2
                   │                                  │
-                  ├── juniormar/07-repo-hygiene ─●───┤   PR #3
+                  ├── juniormar/07-repo-hygiene ─●---┤   PR #3
                   │                                  │
-                  └── juniormar/main ◄───────────────┘
+                  └── juniormar/main ◄---------------┘
                         (integração local; nunca vira PR)
 ```
 

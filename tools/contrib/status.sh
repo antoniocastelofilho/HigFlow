@@ -33,7 +33,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null)" || {
     echo "not inside a git repository" >&2; exit 1
 }
 
-hr() { printf '%s\n' "────────────────────────────────────────────────────────────────────────"; }
+hr() { printf '%s\n' "------------------------------------------------------------------------"; }
 head2() { printf '\n%s%s%s\n' "$B" "$1" "$R"; hr; }
 
 has_ref()  { git rev-parse --verify --quiet "$1" >/dev/null 2>&1; }
@@ -41,7 +41,7 @@ count()    { git rev-list --count "$1" 2>/dev/null || echo "?"; }
 
 printf '%s%sHigFlow - contribution status%s   %s\n' "$B" "$CYN" "$R" "$(date '+%Y-%m-%d %H:%M')"
 
-# ── 1. working tree ────────────────────────────────────────────────────────────
+# 1. working tree
 head2 "1. Working tree"
 
 CUR=$(git rev-parse --abbrev-ref HEAD)
@@ -60,7 +60,7 @@ fi
 STASH=$(git stash list | wc -l | tr -d ' ')
 [ "$STASH" -gt 0 ] && printf 'stashes       %s%s%s\n' "$YEL" "$STASH" "$R"
 
-# ── 2. remotes ─────────────────────────────────────────────────────────────────
+# 2. remotes
 head2 "2. Remotes"
 
 git remote -v | awk '$3=="(fetch)"{printf "%-10s %s\n", $1, $2}'
@@ -76,7 +76,7 @@ else
     printf '\n%s(run with --fetch to refresh remote state)%s\n' "$DIM" "$R"
 fi
 
-# ── 3. roadmap stages ──────────────────────────────────────────────────────────
+# 3. roadmap stages
 head2 "3. Roadmap stages"
 
 if ! has_ref "$TRUNK"; then
@@ -87,7 +87,7 @@ BASE="master"
 has_ref "$BASE" || BASE="$UPSTREAM_MAIN"
 
 printf '%-28s %7s %7s %7s  %s\n' "BRANCH" "COMMITS" "PUSHED" "MERGED" "LAST COMMIT"
-printf '%s\n' "$DIM────────────────────────────────────────────────────────────────────────$R"
+printf '%s\n' "$DIM------------------------------------------------------------------------$R"
 
 FOUND=0
 while IFS= read -r br; do
@@ -121,7 +121,7 @@ if has_ref "$TRUNK"; then
     printf '\n%-28s %7s commits ahead of %s\n' "$TRUNK" "$(count "$BASE..$TRUNK")" "$BASE"
 fi
 
-# ── 4. not yet pushed ──────────────────────────────────────────────────────────
+# 4. not yet pushed
 head2 "4. Local work not on origin"
 
 ANY=0
@@ -138,7 +138,7 @@ done < <(git for-each-ref --format='%(refname:short)' refs/heads)
 
 [ "$ANY" -eq 0 ] && printf '%severything local is on origin%s\n' "$GRN" "$R"
 
-# ── 5. pull request candidates ─────────────────────────────────────────────────
+# 5. pull request candidates
 head2 "5. Pull request candidates (on origin, not in upstream/master)"
 
 ANY=0
@@ -155,7 +155,7 @@ done < <(git for-each-ref --format='%(refname:short)' refs/remotes/origin || tru
 
 [ "$ANY" -eq 0 ] && printf '%snone%s\n' "$DIM" "$R"
 
-# ── 6. upstream drift ──────────────────────────────────────────────────────────
+# 6. upstream drift
 head2 "6. Upstream drift (conflict risk)"
 
 if has_ref "$UPSTREAM_MAIN"; then
@@ -177,7 +177,7 @@ for b in Kaina PC_Daniel_Mesh Daniel PC_ImproveDocumentation Castelo; do
     fi
 done
 
-# ── 7. pull requests ───────────────────────────────────────────────────────────
+# 7. pull requests
 head2 "7. Pull requests"
 
 if command -v gh >/dev/null 2>&1; then
@@ -194,7 +194,7 @@ else
     printf '%s  gh not installed - pull request state unavailable%s\n' "$DIM" "$R"
 fi
 
-# ── 8. repository weight ───────────────────────────────────────────────────────
+# 8. repository weight
 head2 "8. Repository weight"
 
 WT=$(du -sh --exclude=.git . 2>/dev/null | cut -f1)

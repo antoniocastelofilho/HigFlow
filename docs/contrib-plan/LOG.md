@@ -47,7 +47,7 @@
 ## 2026-08-21 - E05 e E06: Windows e galeria
 
 **Branches:** `juniormar/05-install-windows` (de E04), `juniormar/06-gallery` (de E04),
-`juniormar/06b-readme-gallery` (do tronco) → todas merjadas em `juniormar/main`
+`juniormar/06b-readme-gallery` (do tronco) para todas merjadas em `juniormar/main`
 
 ### E05 - guia Windows
 
@@ -112,7 +112,7 @@ Trabalho persistente vai em `/root/hf`.
 ## 2026-08-21 - E00 e E04: ambiente e containers
 
 **Etapas:** E00, E04
-**Branch:** `juniormar/04-containers` (a partir de `master`) → merjada em `juniormar/main`
+**Branch:** `juniormar/04-containers` (a partir de `master`) para merjada em `juniormar/main`
 
 ### Ambiente (E00)
 
@@ -199,18 +199,18 @@ E00 + E04. Ou **E06** (galeria), que agora está desbloqueada: a imagem roda os 
 ## 2026-08-21 - E07: higiene do repositório
 
 **Etapa:** E07
-**Branch:** `juniormar/07-repo-hygiene` (a partir de `master`) → merjada em `juniormar/main`
+**Branch:** `juniormar/07-repo-hygiene` (a partir de `master`) para merjada em `juniormar/main`
 
 ### Resultado
 
-**Árvore versionada: 1.507 arquivos / 95,3 MB → 1.406 arquivos / 18,6 MB - redução de 76,7 MB (80%).**
+**Árvore versionada: 1.507 arquivos / 95,3 MB para 1.406 arquivos / 18,6 MB - redução de 76,7 MB (80%).**
 
 ### Commits (12)
 
 | SHA | Assunto |
 |---|---|
 | `65aea28` | 14 binários ELF destrackeados (37,2 MB) |
-| `1d8bf6b` | Tarball do PETSc → `fetch-petsc.sh` com verificação SHA-256 (37,8 MB) |
+| `1d8bf6b` | Tarball do PETSc para `fetch-petsc.sh` com verificação SHA-256 (37,8 MB) |
 | `eb23e6a` | `src.zip`, `.swp`, `contr.flowtype` |
 | `33466e2` | 7 `*_old.c` + `Attic/` (713 KB) |
 | `2673acb` | `include/` gerados (62 arquivos) |
@@ -301,7 +301,7 @@ bloco C++.
 ## 2026-08-21 - E02: README em inglês
 
 **Etapa:** E02
-**Branch:** `juniormar/02-readme` (a partir de `master` em `f5eb580`) → merjada em `juniormar/main`
+**Branch:** `juniormar/02-readme` (a partir de `master` em `f5eb580`) para merjada em `juniormar/main`
 
 ### O que foi feito
 
@@ -361,11 +361,11 @@ exatamente o que o histórico registra.
 
 ### Pendências herdadas para etapas seguintes
 
-- Galeria com resultados reproduzíveis → **E06**
-- Instalador corrigido, hoje apenas sinalizado no README → **E03**
-- Seção de container → **E04**
-- `CITATION.cff` e `CONTRIBUTING.md`, hoje declarados ausentes no README → **E19**
-- Badges de CI reais → **E12**
+- Galeria com resultados reproduzíveis para **E06**
+- Instalador corrigido, hoje apenas sinalizado no README para **E03**
+- Seção de container para **E04**
+- `CITATION.cff` e `CONTRIBUTING.md`, hoje declarados ausentes no README para **E19**
+- Badges de CI reais para **E12**
 
 ### Próxima sessão
 
@@ -447,7 +447,7 @@ working tree          99 MB
 
 ### Próxima sessão
 
-Sugestão registrada no roadmap: **E01 concluída → E02 (README v1)** como entrega
+Sugestão registrada no roadmap: **E01 concluída para E02 (README v1)** como entrega
 visível imediata, com **E00 (WSL2)** em paralelo, já que a compilação do PETSc roda
 sozinha por 30 a 90 minutos.
 

@@ -408,7 +408,7 @@ already provides a normal user; this happens when `--user 0:0` is passed or a
 derived image switches back to root.
 
 **The build is killed partway through PETSc.** Out of memory. Docker Desktop
-defaults to a fraction of your RAM - raise it to at least 4 GB in Settings →
+defaults to a fraction of your RAM - raise it to at least 4 GB in Settings to
 Resources. On WSL2, create `%UserProfile%\.wslconfig`:
 
 ```ini

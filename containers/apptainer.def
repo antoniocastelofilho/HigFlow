@@ -6,7 +6,6 @@
 # mounts $HOME and the scheduler's directories by default - which is why it is
 # what shared machines allow.
 #
-# ─────────────────────────────────────────────────────────────────────────────
 # This definition bootstraps from the Docker image rather than repeating its
 # build steps.
 #
@@ -16,7 +15,6 @@
 # get binaries with different features. A second, hand-maintained container
 # recipe would drift the same way. There is one recipe - containers/Dockerfile
 # - and this file consumes it.
-# ─────────────────────────────────────────────────────────────────────────────
 #
 # Build, from an image in the local Docker daemon:
 #

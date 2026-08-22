@@ -41,7 +41,7 @@ BLOCO 0 - FUNDAÇÃO (local, não vira PR)
 BLOCO A - APRESENTAÇÃO
   E02  README em inglês (v1)          ──┐
   E03  Manual de instalação - Linux     │
-  E04  Containers (Docker + Apptainer)  ├─→ E06
+  E04  Containers (Docker + Apptainer)  ├─para E06
   E05  Manual de instalação - Windows   │
   E06  Galeria de resultados + README v2 ┘
 
@@ -53,14 +53,14 @@ BLOCO B - CÓDIGO E BUILD
   E11  Suíte de verificação numérica     ──┐
   E12  Integração contínua                 │
   E13  Runner: scaffolding                 │
-  E14  Runner: driver unificado            ├─→ pré-requisito do BLOCO D
+  E14  Runner: driver unificado            ├─para pré-requisito do BLOCO D
   E15  Runner: avaliador de expressões     │
   E16  Gerador de malha .amr               ┘
 
 BLOCO C - DOCUMENTAÇÃO E DIVULGAÇÃO
   E27  Galeria de pessoas (opt-in)
   E17  Doxygen e documentação de API
-  E18  Tradução completa PT → EN
+  E18  Tradução completa PT para EN
   E19  Governança do projeto
   E20  Divulgação
 
@@ -85,7 +85,7 @@ BLOCO E - MACHINE LEARNING (longo prazo)
 | E12 | E11, E04 | CI executa a suíte dentro do container |
 | E14 | E13 | Driver unificado consome os templates do scaffolding |
 | E15 | E14 | Expressões substituem as funções `get_*` do driver |
-| E22–E24 | E11 | Só se refatora numérica com rede de proteção |
+| E22-E24 | E11 | Só se refatora numérica com rede de proteção |
 | E27 | E02 | Edita o README reescrito |
 | E26 | E25 | - |
 
@@ -252,7 +252,7 @@ faz, se serve para o problema dele, e qual comando executar primeiro.
 script para `install_higflow_ubuntu22.sh` e adicionou `install_higflow_arch.sh`.
 Partir desses arquivos e creditar Pedro Coimbra.
 
-### Defeitos a corrigir (I1–I12 do dossiê)
+### Defeitos a corrigir (I1-I12 do dossiê)
 
 | Defeito | Correção |
 |---|---|
@@ -413,7 +413,7 @@ caminhos que funcionam, em vez de prometer algo que quebraria.
 Duas correções pequenas que ampliam a portabilidade e entram no PR de E09:
 - `numactl` deixa de ser `REQUIRED` no CMake, tornando-se opcional junto com
   `solver-sor` - beneficia também macOS e clusters sem libnuma
-- `ftime()` → `clock_gettime(CLOCK_MONOTONIC, ...)`
+- `ftime()` para `clock_gettime(CLOCK_MONOTONIC, ...)`
 
 ### Entregáveis
 `docs/install/windows.md`, seção Windows no README, `.gitattributes` tratando CRLF
@@ -523,7 +523,7 @@ num PR para repositório com autores ativos. Fica registrado como recomendação
 executada pelos donos, se decidirem.
 
 ### Efeito medido
-Working tree: 99 MB → ~21 MB. Clone raso (`--depth 1`): ~78 MB mais leve.
+Working tree: 99 MB para ~21 MB. Clone raso (`--depth 1`): ~78 MB mais leve.
 
 ### Critério de aceitação
 `git clone --depth 1` e o build continua funcionando: nenhum arquivo removido era
@@ -551,7 +551,7 @@ descontinuação, para não quebrar o fluxo de quem já os usa. Motivos: CMake j
 no cluster com Lmod, gera `compile_commands.json` (clangd, análise estática), integra
 com CTest para E11 e é o que o CI de E12 vai consumir.
 
-### Correções (B1–B11 do dossiê)
+### Correções (B1-B11 do dossiê)
 
 | Defeito | Correção |
 |---|---|
@@ -596,7 +596,7 @@ tocam Makefiles. Fazer `git fetch upstream` e conferir imediatamente antes de ab
 
 **Branch:** `juniormar/09-defect-fixes` · **PR:** "Fix debug macro leakage, format-string bug, and obsolete time API"
 
-**Objetivo:** corrigir os defeitos catalogados C1–C11. Cada um é pequeno, isolado e
+**Objetivo:** corrigir os defeitos catalogados C1-C11. Cada um é pequeno, isolado e
 individualmente revisável - o formato ideal de PR.
 
 **Depende de:** nada.
@@ -607,18 +607,18 @@ individualmente revisável - o formato ideal de PR.
 |---|---|---|
 | C1 | Remover `#define DEBUG` de `hig-flow-kernel.h:18` | Passa a ser controlado pelo build. **Atenção:** pode revelar código que dependia silenciosamente do caminho de debug - verificar cada `DEBUG_*` afetado |
 | C2 | `Debug-c.h`: mover as `static` do cabeçalho para uma unidade de tradução, expondo por `extern` | A pilha de debug passa a funcionar como projetada |
-| C3 | `DEBUG_WARNING(x)` → `fprintf(debugfd, "%s", x)` | Fecha o format string bug |
-| C4 | `DEBUG_ASSERT`: `*(int*)NULL = 0` → `abort()` | Remove o comportamento indefinido |
-| C5 | `ftime()` → `clock_gettime(CLOCK_MONOTONIC, ...)` | Também remove `<sys/timeb.h>`; ganho de portabilidade |
-| C7 | `real x[DIM]={INFINITY}` → laço de inicialização ou `{INFINITY, INFINITY, INFINITY}` | 6 declarações. Defeito dormente mas real |
+| C3 | `DEBUG_WARNING(x)` para `fprintf(debugfd, "%s", x)` | Fecha o format string bug |
+| C4 | `DEBUG_ASSERT`: `*(int*)NULL = 0` para `abort()` | Remove o comportamento indefinido |
+| C5 | `ftime()` para `clock_gettime(CLOCK_MONOTONIC, ...)` | Também remove `<sys/timeb.h>`; ganho de portabilidade |
+| C7 | `real x[DIM]={INFINITY}` para laço de inicialização ou `{INFINITY, INFINITY, INFINITY}` | 6 declarações. Defeito dormente mas real |
 | C11 | `include/` gerado deixa de ser versionado | Feito em E07; aqui, garantir que o build gere |
 | - | `numactl` opcional | Justificado por E05 |
-| - | `ns-exemple-3d.c` → `ns-example-3d.c` | Typo em nome de arquivo versionado |
+| - | `ns-exemple-3d.c` para `ns-example-3d.c` | Typo em nome de arquivo versionado |
 
 ### Fora do escopo desta etapa
-- C8 (função de 1.580 linhas) → refatoração natural em E14
-- C9 (308 `exit()`) → é trabalho de RAII, vai para E23
-- C10 (306 `fopen()`) → auditoria própria; abrir issue separada
+- C8 (função de 1.580 linhas) para refatoração natural em E14
+- C9 (308 `exit()`) para é trabalho de RAII, vai para E23
+- C10 (306 `fopen()`) para auditoria própria; abrir issue separada
 
 ### Critério de aceitação
 Suíte de E11 passa antes e depois, com resultados numericamente idênticos. Se algum
@@ -806,7 +806,7 @@ modelos.
 Python 3 (já é dependência do projeto), sem bibliotecas externas além da stdlib.
 
 ### Critério de aceitação
-`higflow new` → `make` → `make run` produz VTK, sem edição manual de arquivo algum.
+`higflow new` para `make` para `make run` produz VTK, sem edição manual de arquivo algum.
 
 ---
 
@@ -832,7 +832,7 @@ Python 3 (já é dependência do projeto), sem bibliotecas externas além da std
    validação seja implementável
 
 ### Redução esperada
-Driver de 280 linhas → cerca de 30, contendo só física.
+Driver de 280 linhas para cerca de 30, contendo só física.
 
 ### Critério de aceitação
 Os 11 exemplos existentes rodam pelo driver unificado com resultados **idênticos** aos
@@ -1007,7 +1007,7 @@ compreensíveis sem ler o fonte.
 
 ---
 
-## E18 - Tradução completa PT → EN
+## E18 - Tradução completa PT para EN
 
 **Branch:** `juniormar/18-translation` · **PR:** "Translate documentation to English"
 
@@ -1082,7 +1082,7 @@ maximizar adoção - mas o texto do PR deixa claro que é sugestão, e que a esc
 ao Prof. Castelo e coautores.
 
 ### Critério de aceitação
-A aba "Insights → Community Standards" do GitHub fica completa. É um indicador
+A aba "Insights para Community Standards" do GitHub fica completa. É um indicador
 visível de maturidade do projeto.
 
 ---
@@ -1129,7 +1129,7 @@ parados**. A estratégia de branch por etapa serve tanto à qualidade quanto a i
 
 ---
 
-# BLOCO D - MIGRAÇÃO C → C++
+# BLOCO D - MIGRAÇÃO C para C++
 
 **Pré-requisito absoluto: E11 concluída.** Sem verificação numérica, qualquer conversão
 é aposta.
@@ -1174,10 +1174,10 @@ Conforme decidido, o nível de execução é escolhido depois de ler este docume
 |---|---|
 | `lbal.c:1189` - identificador `new` | 1 |
 | Casts explícitos em `malloc`/`calloc`/`realloc` | 42 |
-| VLAs → `std::vector` ou `std::array` | 71 |
+| VLAs para `std::vector` ou `std::array` | 71 |
 | Inicializador designado | 1 |
 | `extern "C"` nos cabeçalhos públicos | 163 cabeçalhos |
-| Renomear `.c` → `.cpp` | 167 arquivos, gradual |
+| Renomear `.c` para `.cpp` | 167 arquivos, gradual |
 
 ### Regra inegociável
 **Nenhuma mudança semântica.** Cada arquivo convertido produz resultado numérico
@@ -1243,7 +1243,7 @@ Projeto de longo prazo. Exploratório.
 
 | Aplicação | Fundamentação | Maturidade |
 |---|---|---|
-| Fechamento de modelo constitutivo | Aprender a relação tensão–deformação a partir de dados experimentais, para fluidos sem modelo analítico adequado | Pesquisa ativa na literatura |
+| Fechamento de modelo constitutivo | Aprender a relação tensão-deformação a partir de dados experimentais, para fluidos sem modelo analítico adequado | Pesquisa ativa na literatura |
 | Escolha adaptativa de passo de tempo | Prever o maior `dt` estável, substituindo heurística de CFL conservadora | Aplicável |
 | Precondicionador aprendido | Acelerar a convergência do solver de pressão - o gargalo dominante | Pesquisa recente |
 | Critério de refinamento AMR | Prever onde refinar, em vez de gradiente heurístico | Bom encaixe com higtree |
@@ -1283,12 +1283,12 @@ rede pequena.
 
 | Bloco | Etapas | PRs | Esforço relativo |
 |---|---|---|---|
-| 0 - Fundação | E00–E01 | 0 | Baixo |
-| A - Apresentação | E02–E06 | 5 | Médio-alto |
-| B - Código e build | E07–E16 | 10 | Alto |
-| C - Documentação | E17–E20, E27 | 5+ | Médio |
-| D - C++ | E21–E24 | 4 | Alto |
-| E - ML | E25–E26 | 2 | Médio |
+| 0 - Fundação | E00-E01 | 0 | Baixo |
+| A - Apresentação | E02-E06 | 5 | Médio-alto |
+| B - Código e build | E07-E16 | 10 | Alto |
+| C - Documentação | E17-E20, E27 | 5+ | Médio |
+| D - C++ | E21-E24 | 4 | Alto |
+| E - ML | E25-E26 | 2 | Médio |
 | **Total** | **28** | **~26** | - |
 
 ### Sugestão de ordem para as primeiras sessões

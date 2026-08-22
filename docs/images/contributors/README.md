@@ -13,7 +13,7 @@ directory without that person's explicit, informed consent - see
 | **Aspect** | Square. Crop before committing; the README cannot crop for you |
 | **Source size** | 400 × 400 px - displayed at 100 px, so this stays sharp on high-density screens |
 | **Format** | `.jpg` for photographs, `.png` only if the image genuinely needs transparency |
-| **File size** | **Under 100 KB.** 60–80 KB is comfortable at this resolution |
+| **File size** | **Under 100 KB.** 60-80 KB is comfortable at this resolution |
 | **Filename** | `firstname-lastname.jpg`, lowercase, ASCII, hyphens for spaces - `antonio-castelo-filho.jpg` |
 | **Content** | A head-and-shoulders photograph. Any image the person is happy to have on a public page is fine |
 

@@ -131,7 +131,7 @@ Auditoria de `conteiner/Dockerfile.petsc`:
 | 4 | `FROM ubuntu_petsc3.14:v01` - tag manual, não é multi-stage; exige o usuário construir e taguear na ordem certa sem que nada documente isso | Alto |
 | 5 | `chmod 777 libfyaml-master` | Médio |
 | 6 | `COPY . "$HOME/HigFlow/"` sem `.dockerignore` - o tarball de 37 MB e os binários de 40 MB entram na camada permanentemente | Alto |
-| 7 | `ENV HOME "/home/hig_user/"` com barra final → caminhos viram `/home/hig_user//HigFlow` | Cosmético |
+| 7 | `ENV HOME "/home/hig_user/"` com barra final para caminhos viram `/home/hig_user//HigFlow` | Cosmético |
 | 8 | Nenhuma versão fixada (`apt-get install` sem pin, `FROM ubuntu:22.04` sem digest) - build não reprodutível | Médio |
 
 ---
@@ -192,7 +192,7 @@ de exemplo - quem compila via `Makefile` não tem esse símbolo.
 | I7 | idem | `sudo ./configure` no PETSc - a árvore de build fica propriedade do root |
 | I8 | idem | `sudo chmod 777 libfyaml-master` |
 | I9 | idem | `pip3 install` global; em Ubuntu ≥23 falha com `externally-managed-environment` |
-| I10 | idem | Cria symlink `libHYPRE.so → libHYPRE_krylov.so`, contornando um problema de linkagem em vez de resolvê-lo |
+| I10 | idem | Cria symlink `libHYPRE.so para libHYPRE_krylov.so`, contornando um problema de linkagem em vez de resolvê-lo |
 | I11 | `varsrc` | `PETSC_DIR=$(pwd)/bibliotecas/petsc-3.14.0/x86_64` com `PETSC_ARCH=arch-linux-c-debug` - **contradiz** o instalador, que instala em `/opt/petsc-3.14.0-openmnpi-hypre-hdf5` com `PETSC_ARCH=x86_64`. Seguir o README à risca não produz um ambiente funcional |
 | I12 | `varsrc` | `$(pwd)` - só funciona se o `source` for feito da raiz do repositório |
 | I13 | `README.md` | Bloco corrompido: `"Após re./configure --prefix=... ; sleep 5alizar um dos passos anterior"` - um comando foi colado no meio da palavra "realizar" |
@@ -208,9 +208,9 @@ de exemplo - quem compila via `Makefile` não tem esse símbolo.
 | C3 | `higtree/src/Debug-c.h:32` | `#define DEBUG_WARNING(x) {fprintf(debugfd, x);}` | **Format string bug.** Qualquer `%` na mensagem lê a pilha |
 | C4 | `higtree/src/Debug-c.h:41` | `DEBUG_ASSERT` termina com `*(int *)NULL = 0;` | Comportamento indefinido deliberado em vez de `abort()`. Com otimização o compilador pode eliminar o caminho inteiro |
 | C5 | `higtree/src/Debug-c.h:5` | `#include <sys/timeb.h>` / `ftime()` | Removido do POSIX.1-2008, marcado obsoleto no glibc. **Bloqueia portabilidade** |
-| C6 | Todos os `Makefile` e `CMakeLists.txt` | `-Ofast` | Implica `-ffast-math` → `-ffinite-math-only`, que autoriza o compilador a **assumir que Inf e NaN nunca ocorrem**. Ver §4.5 |
+| C6 | Todos os `Makefile` e `CMakeLists.txt` | `-Ofast` | Implica `-ffast-math` para `-ffinite-math-only`, que autoriza o compilador a **assumir que Inf e NaN nunca ocorrem**. Ver §4.5 |
 | C7 | `hig-flow-step-electroosmotic.c:1809` etc. | `real u_min[DIM]={INFINITY}` | Inicializa **apenas o elemento 0**; os demais recebem `0.0`. Atualmente as linhas de uso estão comentadas (defeito dormente), mas o idioma está presente em 6 declarações |
-| C8 | `hig-flow-io.c:6114–7696` | `higflow_load_all_controllers_and_parameters_yaml()` - **~1.580 linhas numa única função** | Intestável, irrevisável |
+| C8 | `hig-flow-io.c:6114-7696` | `higflow_load_all_controllers_and_parameters_yaml()` - **~1.580 linhas numa única função** | Intestável, irrevisável |
 | C9 | Global | 308 chamadas a `exit()` em biblioteca | Uma biblioteca não deve terminar o processo do chamador. Impede tratamento de erro e testes unitários |
 | C10 | Global | 306 chamadas a `fopen()` | Auditoria de verificação de retorno pendente |
 | C11 | `higflow/include/`, `higtree/include/` | Cópias geradas por `cp src/*.h` **versionadas** | `higtree/include/domain.h` e `solver-petsc.h` **já divergiram** do fonte. `higflow/include/hig-flow-step-multifase.h` é órfão (grafia antiga em português) |
@@ -343,8 +343,8 @@ Tamanho dos drivers por exemplo:
 
 Os 11 drivers repetem:
 
-- O mesmo `main()`: `higflow_initialize` → `higflow_create` → carregar YAML → registrar
-  funções externas → criar domínio → criar solver → laço temporal → destruir.
+- O mesmo `main()`: `higflow_initialize` para `higflow_create` para carregar YAML para registrar
+  funções externas para criar domínio para criar solver para laço temporal para destruir.
   Cerca de 120 linhas idênticas em todos.
 - As mesmas 10 funções `get_*`: `get_pressure`, `get_velocity`, `get_source_term`,
   `get_facet_source_term`, `get_viscosity`, `get_boundary_pressure`,
@@ -432,11 +432,11 @@ pré-requisito de qualquer etapa que envolva execução ou geração de figuras.
 
 ---
 
-## 7. Migração C → C++ - avaliação de viabilidade
+## 7. Migração C para C++ - avaliação de viabilidade
 
 A conversão é **substancialmente mais tratável do que o tamanho do código sugere**.
 
-| Incompatibilidade C→C++ | Ocorrências | Esforço |
+| Incompatibilidade CparaC++ | Ocorrências | Esforço |
 |---|---|---|
 | Palavras reservadas de C++ usadas como identificador | **1** (`struct _local_neighbor *new` em `lbal.c:1189`) | Trivial |
 | `malloc`/`calloc`/`realloc` sem cast explícito | 42 | Mecânico |
@@ -475,7 +475,7 @@ resultados.
 | 6 | Runner genérico com expressões | Transforma 700+ linhas por caso em ~30 |
 | 7 | Suíte de verificação numérica + CI | Pré-requisito de qualquer refatoração segura |
 | 8 | Limpeza do repositório | 78 MB de artefatos versionados |
-| 9 | Correções pontuais (C1–C11) | Baixo custo, alto valor de revisão |
+| 9 | Correções pontuais (C1-C11) | Baixo custo, alto valor de revisão |
 | 10 | Documentação, tradução, Doxygen | Alcance internacional |
 | 11 | Migração C++ | Depende de 7 estar pronto |
 | 12 | Módulo ML | Exploratório |

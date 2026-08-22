@@ -184,7 +184,7 @@ High-resolution schemes for the second-order path:
 Constitutive equations are advected with either `upwind` or `cubista`, selected
 independently of the momentum equation.
 
-### Pressure–velocity coupling
+### Pressure-velocity coupling
 
 Projection method, in incremental (`incremental`) or non-incremental
 (`non_incremental`) form. The pressure Poisson equation is solved through HigTree's
@@ -519,7 +519,6 @@ opposite: it is opt-in, and someone appears there only because they chose to.
 ## People
 
 <!--
-  ─────────────────────────────────────────────────────────────────────────────
   HOW TO ADD SOMEONE
 
   1. Get their consent first. A photograph of an identifiable person is personal
@@ -534,7 +533,6 @@ opposite: it is opt-in, and someone appears there only because they chose to.
 
   If someone asks to be removed, delete their image and their <td> in the same
   commit. No explanation needed from them, and none recorded here.
-  ─────────────────────────────────────────────────────────────────────────────
 
 <table>
   <tr>

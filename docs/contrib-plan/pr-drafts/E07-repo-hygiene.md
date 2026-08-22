@@ -1,6 +1,6 @@
 # PR draft - E07
 
-**Branch:** `juniormar/07-repo-hygiene` → `antoniocastelofilho/HigFlow:master`
+**Branch:** `juniormar/07-repo-hygiene` para `antoniocastelofilho/HigFlow:master`
 **Title:** `Remove build artefacts from tracking and fix .gitignore patterns that match sources`
 
 ---
@@ -146,7 +146,7 @@ Only display names and addresses are mapped; no commit is rewritten.
 - Removed working-tree copies were confirmed byte-identical to their tracked blobs
   before deletion
 
-Tracked tree: **1507 files / 95.3 MB → 1406 files / 18.6 MB**.
+Tracked tree: **1507 files / 95.3 MB para 1406 files / 18.6 MB**.
 
 ## Notes for reviewers
 

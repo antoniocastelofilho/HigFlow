@@ -1,6 +1,4 @@
-# ─────────────────────────────────────────────────────────────────────────────
 # Build output
-# ─────────────────────────────────────────────────────────────────────────────
 # Anchored to the repository root and matched as directories. The previous
 # patterns were `**build**` and `**install**`, which match any path containing
 # those substrings anywhere - including higtree/src/build-fringe.cpp, which is
@@ -63,9 +61,7 @@ higflow/example*/amrs/generate_amr
 *.gcno
 *.gcov
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Simulation output
-# ─────────────────────────────────────────────────────────────────────────────
 # Scoped to the directories the examples write into, rather than ignoring
 # *.vtk, *.dat and *.txt everywhere. The global patterns hid legitimate files
 # and forced a `!CMakeLists.txt` exception to undo part of the damage.
@@ -76,9 +72,7 @@ higflow/example*/*.save*
 higflow/example*/*.print*
 higflow/example*/matrix
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Third-party archives
-# ─────────────────────────────────────────────────────────────────────────────
 # The directory itself is tracked: it holds fetch-petsc.sh. Only the downloaded
 # and extracted contents are ignored.
 bibliotecas/*.tar.gz
@@ -92,9 +86,7 @@ bibliotecas/libfyaml-master/
 *.sif
 *.simg
 
-# ─────────────────────────────────────────────────────────────────────────────
 # LaTeX intermediates
-# ─────────────────────────────────────────────────────────────────────────────
 *.aux
 *.log
 *.toc
@@ -111,9 +103,7 @@ bibliotecas/libfyaml-master/
 cases/*
 !cases/.gitkeep
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Editors and tooling
-# ─────────────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp

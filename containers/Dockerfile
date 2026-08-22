@@ -9,18 +9,16 @@
 # on the PC_ImproveDocumentation branch. Restructured into a real multi-stage
 # build and corrected - see containers/README.md for what changed and why.
 #
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage layout, ordered by how often each layer changes. PETSc takes about five
 # minutes to compile on sixteen cores, proportionally longer on fewer, and almost
 # never changes; the project sources change every commit. Keeping them in
 # separate stages means editing a .c file rebuilds seconds of work rather than
 # the whole chain.
 #
-#   base     → system packages
-#   petsc    → PETSc, built from a checksum-verified release archive
-#   fyaml    → libfyaml
-#   higflow  → the project
-# ─────────────────────────────────────────────────────────────────────────────
+#   base     the system packages
+#   petsc    PETSc, built from a checksum-verified release archive
+#   fyaml    libfyaml
+#   higflow  the project
 
 # Pinned by digest, not only by tag. The ubuntu:22.04 tag moves with every
 # security refresh, so two builds a month apart would otherwise start from
@@ -43,8 +41,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # mpich, and then asks PETSc to --download-openmpi on top, leaving three MPI
 # stacks whose mpicc, mpirun and libmpi.so compete on PATH and in the linker.
 # A binary compiled against one and launched by another fails in ways that look
-# like application bugs. This image installs OpenMPI only, and PETSc is pointed
-# at it with --with-mpi-dir.
+# like application bugs. This image installs OpenMPI only, and PETSc is built
+# with its compiler wrappers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         gfortran \
@@ -73,9 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # PETSc
-# ─────────────────────────────────────────────────────────────────────────────
 FROM base AS petsc
 
 ARG PETSC_VERSION=3.14.0
@@ -137,9 +133,7 @@ RUN if [ -f /opt/petsc/lib/libHYPRE.so ] && [ ! -e /opt/petsc/lib/libHYPRE_krylo
     fi
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # libfyaml
-# ─────────────────────────────────────────────────────────────────────────────
 FROM base AS fyaml
 
 WORKDIR /tmp/build
@@ -159,9 +153,7 @@ RUN unzip -q libfyaml-master.zip \
     && cd / && rm -rf /tmp/build
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # HigFlow
-# ─────────────────────────────────────────────────────────────────────────────
 FROM base AS higflow
 
 COPY --from=petsc /opt/petsc /opt/petsc

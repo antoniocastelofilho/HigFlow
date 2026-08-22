@@ -1,6 +1,6 @@
 # PR draft - E02
 
-**Branch:** `juniormar/02-readme` → `antoniocastelofilho/HigFlow:master`
+**Branch:** `juniormar/02-readme` para `antoniocastelofilho/HigFlow:master`
 **Title:** `Rewrite README in English with project overview, model reference and quick start`
 
 ---

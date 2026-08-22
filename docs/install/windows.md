@@ -54,8 +54,8 @@ so the Linux build is the real build.
 
 | | Path A - Docker | Path B - native in WSL |
 |---|---|---|
-| Just want to run simulations | ✅ | |
-| Want to modify the solver | | ✅ |
+| Just want to run simulations | yes | |
+| Want to modify the solver | | yes |
 | Setup effort | one build, ~7 min | dependencies, ~30 min |
 | Rebuild after editing a `.c` | rebuild image, ~40 s | `make`, seconds |
 | Debugger | needs the development image | works directly |
@@ -247,7 +247,7 @@ Install ParaView on **Windows**, not inside WSL. A Windows ParaView is faster,
 uses your GPU properly, and opens WSL files without any copying:
 
 1. Install ParaView from [paraview.org](https://www.paraview.org/download/)
-2. File → Open
+2. File to Open
 3. Paste `\\wsl$\Ubuntu-22.04\home\yourname\HigFlow\cases\example2d_Newt\VTKS`
 4. ParaView groups the numbered `.vtk` files into a single time series - select
    the group, not an individual file, so you can animate

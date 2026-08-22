@@ -29,7 +29,7 @@ from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 from matplotlib.ticker import MaxNLocator
 
-# ── design tokens ────────────────────────────────────────────────────────────
+# design tokens
 # The two categorical hues were checked with the palette validator: chroma above
 # the gray floor, adjacent-pair separation ΔE 23.0 under protanopia and 29.2 for
 # normal vision, contrast above 3:1 against the surface.
@@ -76,7 +76,7 @@ plt.rcParams.update(
 )
 
 
-# ── VTK reader ───────────────────────────────────────────────────────────────
+# VTK reader
 class Grid:
     """A 2D unstructured grid of quadrilaterals with its point and cell data.
 
@@ -213,7 +213,7 @@ def read_vtk(path: str) -> Grid:
     return Grid(points, cells, point_data, cell_data)
 
 
-# ── figures ──────────────────────────────────────────────────────────────────
+# figures
 def _style_axes(ax, xlabel, ylabel):
     ax.set_xlabel(xlabel, color=MUTED, fontsize=8.5)
     ax.set_ylabel(ylabel, color=MUTED, fontsize=8.5)

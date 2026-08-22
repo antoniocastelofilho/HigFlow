@@ -1,6 +1,6 @@
 # PR draft - E04
 
-**Branch:** `juniormar/04-containers` → `antoniocastelofilho/HigFlow:master`
+**Branch:** `juniormar/04-containers` para `antoniocastelofilho/HigFlow:master`
 **Title:** `Add reproducible container images for desktop and HPC`
 
 ---
@@ -204,7 +204,7 @@ using two build methods get binaries with different features. A second
 hand-maintained container recipe would drift the same way.
 
 **3. Publishing the image is not included.** A GitHub Actions workflow that
-builds and pushes to `ghcr.io` would let users skip the 30–50 minute PETSc
+builds and pushes to `ghcr.io` would let users skip the 30-50 minute PETSc
 compile entirely, and belongs with the CI change rather than here.
 
 **4. The base image is pinned by tag, not digest.** A digest pins exactly and is
