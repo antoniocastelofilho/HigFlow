@@ -23,7 +23,7 @@ law, the numbers are stated.
 
 ## Plane Poiseuille flow
 
-`higflow/example2d_Newt` — a channel of length 8 and half-height 1, 160 × 40
+`higflow/example2d_Newt` - a channel of length 8 and half-height 1, 160 × 40
 cells, Re = 1, parabolic inlet profile.
 
 <p align="center">
@@ -31,7 +31,7 @@ cells, Re = 1, parabolic inlet profile.
 </p>
 
 The flow is fully developed: the profile is the same at every station. The
-pressure field shows why — a constant streamwise gradient is what drives it.
+pressure field shows why - a constant streamwise gradient is what drives it.
 
 <p align="center">
   <img src="images/gallery/poiseuille-pressure.png" alt="Pressure in the same channel, falling linearly from inlet to outlet with no variation across the channel" width="100%">
@@ -75,7 +75,7 @@ x =  7.775   Q = 1.998702
 ```
 
 Constant to five parts in 10⁶ along the channel, and 0.065 % below the exact
-value — consistent with the profile error above.
+value - consistent with the profile error above.
 
 ```bash
 docker run --rm -v "$PWD/cases:/work" higflow:latest case example2d_Newt
@@ -87,7 +87,7 @@ python3 tools/gallery/render.py --input cases/example2d_Newt/VTKS \
 
 ## Planar 4:1 contraction
 
-`higflow/example2d_Newt_contraction` — upstream channel of half-height 4
+`higflow/example2d_Newt_contraction` - upstream channel of half-height 4
 narrowing to 1 at x = 0, 160 × 80 cells over two domain blocks and eight
 boundary patches, Re = 1.
 
@@ -101,7 +101,7 @@ boundary patches, Re = 1.
 
 This is the benchmark geometry of computational rheology. Here it runs
 Newtonian, which is the reference case the viscoelastic results are read
-against — the corner vortex that grows with Deborah number is the phenomenon of
+against - the corner vortex that grows with Deborah number is the phenomenon of
 interest, and it needs the viscoelastic solver.
 
 **Mass is conserved through the contraction.** The volumetric flow rate, at four
@@ -136,7 +136,7 @@ python3 tools/gallery/render.py --input cases/example2d_Newt_contraction/VTKS \
 
 ## Oldroyd-B viscoelastic channel
 
-`higflow/example2d_Oldroyd` — the same channel, with the Oldroyd-B constitutive
+`higflow/example2d_Oldroyd` - the same channel, with the Oldroyd-B constitutive
 model. De = 1.0, β = 0.5, Re = 1.
 
 > **This case did not run before this change.** It crashed with a segmentation
@@ -153,7 +153,7 @@ difference between the two fluids is in the stress, not the kinematics.
 
 So the figure worth showing is the **first normal stress difference**,
 N₁ = τ_xx − τ_yy. It is identically zero for a Newtonian fluid, and non-zero for
-a viscoelastic one — it is the quantity the model exists to produce.
+a viscoelastic one - it is the quantity the model exists to produce.
 
 <p align="center">
   <img src="images/gallery/oldroyd-n1.png" alt="First normal stress difference in the viscoelastic channel: positive bands along both walls, near zero along the centreline, with a startup transient near the inlet" width="100%">
@@ -162,7 +162,7 @@ a viscoelastic one — it is the quantity the model exists to produce.
 The structure is what Oldroyd-B gives in steady shear: N₁ grows with the square
 of the shear rate, so it is largest at the walls and vanishes on the centreline,
 where the shear rate is zero. The negative region near the inlet is a startup
-transient — this run reaches only t = 0.1.
+transient - this run reaches only t = 0.1.
 
 ```bash
 docker run --rm -v "$PWD/cases:/work" higflow:latest case example2d_Oldroyd
@@ -186,13 +186,13 @@ were never created.
 
 | Case | As shipped | After changing the one line |
 |---|---|---|
-| `example2d_Oldroyd` | SIGSEGV at step 0 | runs to completion — **fixed here** |
-| `example2d_VOF` | SIGSEGV at step 0 | still fails — **not fixed** |
+| `example2d_Oldroyd` | SIGSEGV at step 0 | runs to completion - **fixed here** |
+| `example2d_VOF` | SIGSEGV at step 0 | still fails - **not fixed** |
 
 `example2d_VOF` needs more than a configuration change, so it is reported rather
-than patched. The remaining cases — `example2d_Gptt`, `example2d_KBKZ`,
+than patched. The remaining cases - `example2d_Gptt`, `example2d_KBKZ`,
 `example2d_BMP`, `example2d_VOF_Gptt`, `example2d_VOF_Oldroyd`,
-`example3d_complex` — carry the same declaration and were not tested here.
+`example3d_complex` - carry the same declaration and were not tested here.
 
 That is why this gallery has no multiphase figure. A volume-of-fluid case is the
 most visually striking thing this solver can produce, and it will be added as
@@ -216,7 +216,7 @@ python3 tools/gallery/render.py --input cases/example2d_Newt/VTKS \
 ```
 
 `render.py --help` lists the rest. It parses the ASCII VTK files directly and
-draws the quadrilateral cells as they are — no interpolation, no resampling, no
+draws the quadrilateral cells as they are - no interpolation, no resampling, no
 VTK library and no display, so it runs unchanged in CI.
 
 ### A note on the colour maps
@@ -225,5 +225,5 @@ The scalar fields use single-hue sequential ramps, and the signed ones a
 diverging ramp with a neutral midpoint. Deliberately not a rainbow: a rainbow
 map invents contours where a field is smooth and flattens them where it is not,
 so features appear that the solver never produced. The two-colour pair in the
-validation plot was checked for colour-vision separation — ΔE 23 under
-protanopia — rather than chosen by eye.
+validation plot was checked for colour-vision separation - ΔE 23 under
+protanopia - rather than chosen by eye.

@@ -29,7 +29,7 @@ from matplotlib.collections import PolyCollection
 from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 from matplotlib.ticker import MaxNLocator
 
-# ── design tokens ────────────────────────────────────────────────────────────
+# design tokens
 # The two categorical hues were checked with the palette validator: chroma above
 # the gray floor, adjacent-pair separation ΔE 23.0 under protanopia and 29.2 for
 # normal vision, contrast above 3:1 against the surface.
@@ -76,12 +76,12 @@ plt.rcParams.update(
 )
 
 
-# ── VTK reader ───────────────────────────────────────────────────────────────
+# VTK reader
 class Grid:
     """A 2D unstructured grid of quadrilaterals with its point and cell data.
 
     HigFlow writes velocity as POINT_DATA and pressure as CELL_DATA in the same
-    file, so the two have different lengths — 25 600 against 6 400 for the
+    file, so the two have different lengths - 25 600 against 6 400 for the
     channel case. The points are not shared between cells either: each cell
     carries its own four corners, so a "point" field is really a value per cell
     corner. `as_cell` collapses one to a per-cell value by averaging the four.
@@ -131,7 +131,7 @@ class Grid:
             for name, arr in store.items():
                 if getattr(arr, "ndim", 0) == 3 and arr.shape[1:] == (3, 3):
                     return name, self.as_cell(name)
-        raise KeyError("no 3x3 tensor field in this file — is it a viscoelastic run?")
+        raise KeyError("no 3x3 tensor field in this file - is it a viscoelastic run?")
 
     def first_normal_stress_difference(self):
         """N1 = tau_xx - tau_yy.
@@ -213,7 +213,7 @@ def read_vtk(path: str) -> Grid:
     return Grid(points, cells, point_data, cell_data)
 
 
-# ── figures ──────────────────────────────────────────────────────────────────
+# figures
 def _style_axes(ax, xlabel, ylabel):
     ax.set_xlabel(xlabel, color=MUTED, fontsize=8.5)
     ax.set_ylabel(ylabel, color=MUTED, fontsize=8.5)
@@ -228,7 +228,7 @@ def _titles(ax, title, subtitle=""):
 
     Offsets are in points rather than axes fractions. A field plot with
     `set_aspect("equal")` on a long thin domain has a very short axes box, and a
-    fractional offset there collapses to a couple of pixels — which is how the
+    fractional offset there collapses to a couple of pixels - which is how the
     first version of these figures ended up printing the subtitle on top of the
     title.
     """
