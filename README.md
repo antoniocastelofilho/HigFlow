@@ -44,9 +44,9 @@ University of São Paulo**.
 
 ## Problems it is built for
 
-- **Viscoelastic flow** through contractions, expansions and channels — corner
+- **Viscoelastic flow** through contractions, expansions and channels - corner
   vortices, stress boundary layers, high Weissenberg number behaviour
-- **Free-surface and two-phase flow** — bubbles, droplets, dam break, jet breakup
+- **Free-surface and two-phase flow** - bubbles, droplets, dam break, jet breakup
 - **Shear banding** in wormlike micellar solutions
 - **Thixotropic and elastoviscoplastic** materials with evolving microstructure
 - **Electro-osmotic flow** in microchannels, including electrolyte transport coupled to
@@ -82,9 +82,9 @@ needed to switch between models within the same flow family.
 |---|---|---|
 | Newtonian | `newtonian` | Constant viscosity |
 | Generalised Newtonian | `generalized_newtonian` | Shear-rate dependent viscosity |
-| Viscoelastic — differential | `viscoelastic` | Evolution equation for the conformation or stress tensor |
-| Viscoelastic — integral | `viscoelastic_integral` | Stress as an integral over deformation history |
-| Viscoelastic — variable viscosity | `viscoelastic_var_viscosity` | Coupled to a structural parameter |
+| Viscoelastic - differential | `viscoelastic` | Evolution equation for the conformation or stress tensor |
+| Viscoelastic - integral | `viscoelastic_integral` | Stress as an integral over deformation history |
+| Viscoelastic - variable viscosity | `viscoelastic_var_viscosity` | Coupled to a structural parameter |
 | Shear banding | `shear_banding` | Two-species network scission |
 | Elastoviscoplastic | `elastoviscoplastic` | Yield stress with elastic response below yield |
 | Suspensions | `suspensions` | Dense shear-thickening suspensions |
@@ -100,7 +100,7 @@ needed to switch between models within the same flow family.
 | Generalised PTT | `gptt` | `De`, `beta`, `epsilon`, `xi`, `alpha_gptt`, `beta_gptt` | Ferrás et al. (2019) |
 | FENE-P | `fene_p` | `De`, `beta`, `L2` | Bird, Dotson &amp; Johnson (1980) |
 | e-FENE | `e_fene` | `De`, `beta`, `L2`, `lambda`, `E` | charged dumbbell variant |
-| User-defined | `user_set` | — | supplied by the case |
+| User-defined | `user_set` | - | supplied by the case |
 
 The generalised PTT model evaluates the Mittag-Leffler function
 `E_{α,β}`, which reduces to the exponential PTT for `α = β = 1`.
@@ -120,7 +120,7 @@ spectrum is supplied as arrays of moduli `a` and relaxation times `lambda`.
 | Group | Available models |
 |---|---|
 | Thixotropic | `bmp`, `bmp_solvent`, `mbm`, `nm_taup`, `nm_t` |
-| Shear banding | `vcm`, `mvcm` — two-species network scission |
+| Shear banding | `vcm`, `mvcm` - two-species network scission |
 | Elastoviscoplastic | `oldroyd_b_bingham`, `oldroyd_b_hb`, `lptt_bingham`, `eptt_bingham`, `general_saramito` |
 | Suspensions | `gw`, `gw_wc`, `gw_wc_if`, user-defined |
 
@@ -140,7 +140,7 @@ Electro-osmosis can be combined with the viscoelastic and multiphase solvers.
 
 > **A note on references.** The citations above identify the standard formulation of
 > each model. Where a model is listed without a reference, the implementation follows a
-> variant for which the authoritative source is best supplied by the original authors —
+> variant for which the authoritative source is best supplied by the original authors -
 > contributions completing this table are welcome.
 
 ---
@@ -179,22 +179,22 @@ High-resolution schemes for the second-order path:
 |---|---|---|
 | CUBISTA | `cubista` | Alves, Oliveira &amp; Pinho (2003) |
 | QUICK | `quick` | Leonard (1979) |
-| Modified coefficient upwind | `modified_coefficient_upwind` | — |
+| Modified coefficient upwind | `modified_coefficient_upwind` | - |
 
 Constitutive equations are advected with either `upwind` or `cubista`, selected
 independently of the momentum equation.
 
-### Pressure–velocity coupling
+### Pressure-velocity coupling
 
 Projection method, in incremental (`incremental`) or non-incremental
 (`non_incremental`) form. The pressure Poisson equation is solved through HigTree's
 solver interface, which currently wraps:
 
-- **PETSc** — the default; Krylov method and preconditioner are chosen on the command
+- **PETSc** - the default; Krylov method and preconditioner are chosen on the command
   line, for example `-ksp_type bcgs -pc_type bjacobi`
-- **HYPRE** — algebraic multigrid
-- **ViennaCL** — GPU-accelerated iterative solvers, optional at build time
-- **SOR** — an OpenMP, NUMA-aware in-tree implementation, optional at build time
+- **HYPRE** - algebraic multigrid
+- **ViennaCL** - GPU-accelerated iterative solvers, optional at build time
+- **SOR** - an OpenMP, NUMA-aware in-tree implementation, optional at build time
 
 ### Spatial discretisation
 
@@ -208,7 +208,7 @@ For multiphase flow, the volume-of-fluid method with:
 
 | Component | Methods |
 |---|---|
-| Interface reconstruction | PLIC — Youngs (1982); ELVIRA — Pilliod &amp; Puckett (2004) |
+| Interface reconstruction | PLIC - Youngs (1982); ELVIRA - Pilliod &amp; Puckett (2004) |
 | Curvature | adaptive height function; finite-difference normal and curvature |
 
 ### Grid and parallelism
@@ -217,7 +217,7 @@ For multiphase flow, the volume-of-fluid method with:
 - Domain decomposition across MPI ranks, with load balancing through Zoltan
 - Moving least-squares interpolation for values between refinement levels and at
   partition boundaries
-- Dimension is fixed at compile time — the build produces separate 2D and 3D libraries
+- Dimension is fixed at compile time - the build produces separate 2D and 3D libraries
 
 ---
 
@@ -230,8 +230,8 @@ For multiphase flow, the volume-of-fluid method with:
 ### The hierarchical grid
 
 HigTree represents the domain as a forest of cell trees. A region needing resolution is
-refined locally, so fine cells appear only where the physics demands them — around an
-interface, a stress boundary layer, or a re-entrant corner — while the rest of the
+refined locally, so fine cells appear only where the physics demands them - around an
+interface, a stress boundary layer, or a re-entrant corner - while the rest of the
 domain stays coarse.
 
 <p align="center">
@@ -264,9 +264,9 @@ must be reconstructed at a refinement boundary.</em></p>
 <p align="center"><em>Jet, coloured by velocity magnitude. Figure from the project's
 existing documentation.</em></p>
 
-> This section is being expanded with a set of cases that ship with the repository —
+> This section is being expanded with a set of cases that ship with the repository -
 > Poiseuille flow validated against its analytical solution, a 4:1 viscoelastic
-> contraction, and a multiphase volume-of-fluid case — each with the exact command that
+> contraction, and a multiphase volume-of-fluid case - each with the exact command that
 > reproduces it and the visualisation state file used to render it.
 
 ---
@@ -290,7 +290,7 @@ users.
 | libfyaml | YAML parsing | built from source |
 | Boost | headers | `libboost-all-dev` |
 | BLAS / LAPACK | dense linear algebra | via PETSc or system |
-| ViennaCL | GPU solvers, optional | — |
+| ViennaCL | GPU solvers, optional | - |
 | libnuma | NUMA-aware SOR solver, optional | `libnuma-dev` |
 
 ### Linux
@@ -300,7 +300,7 @@ Install the system packages, then build PETSc and libfyaml. The repository ships
 
 > **Before running the bundled installer**, read it. It installs three MPI
 > implementations side by side, passes `--with-debubbing=yes` to PETSc's `configure`
-> — not a recognised option — and sets `PKG_CONFIG_PATH` to a file rather than a
+> - not a recognised option - and sets `PKG_CONFIG_PATH` to a file rather than a
 > directory. A corrected installer is in preparation.
 
 With the dependencies in place, set the environment and build:
@@ -311,7 +311,7 @@ source varsrc
 
 `varsrc` exports `HIGTREE_DIR`, `HIGFLOW_DIR`, `PETSC_DIR` and `PETSC_ARCH`. It must be
 sourced from the repository root, and **its `PETSC_DIR` must match where PETSc was
-actually installed** — the committed value does not match what the bundled installer
+actually installed** - the committed value does not match what the bundled installer
 produces.
 
 Build the grid library for both dimensions, then the solver library:
@@ -325,7 +325,7 @@ cd ../higflow && source ../etc/higflow-env-mak.sh && make clean && make DIM=2
 ```
 
 Alternatively, build with CMake from the repository root. Both `dim` and `debug` must
-be supplied — the configuration fails without them:
+be supplied - the configuration fails without them:
 
 ```bash
 cmake -B build -Ddim=2 -Ddebug=0 -Wno-dev && cmake --build build
@@ -405,7 +405,7 @@ example2d_Newt/
 ```
 
 The four YAML files come to a little over 400 lines, of which the parameter file alone
-is 261 — it carries the parameters of every constitutive model, not only the one in
+is 261 - it carries the parameters of every constitutive model, not only the one in
 use. Boundary profiles are C functions in the driver, so changing an inlet profile
 means editing C and recompiling.
 
@@ -472,7 +472,7 @@ appropriate reference.
 
 ## Contributing
 
-Contributions are welcome — bug reports, cases, documentation and code alike.
+Contributions are welcome - bug reports, cases, documentation and code alike.
 
 There is no `CONTRIBUTING.md` yet. In the meantime:
 
@@ -501,22 +501,20 @@ opposite: it is opt-in, and someone appears there only because they chose to.
 ## People
 
 <!--
-  ─────────────────────────────────────────────────────────────────────────────
   HOW TO ADD SOMEONE
 
   1. Get their consent first. A photograph of an identifiable person is personal
      data, and this page is public. docs/images/contributors/README.md has a
      message you can send and the points it needs to cover.
-  2. Add a square image to docs/images/contributors/ — 400x400 px, .jpg, under
+  2. Add a square image to docs/images/contributors/ - 400x400 px, .jpg, under
      100 KB, named firstname-lastname.jpg.
   3. Uncomment the <table> below and fill in one <td> per person.
   4. Keep four <td> per <tr>, so the grid stays even on a narrow window.
-  5. Use the person's name as the alt text — it is what a screen reader
+  5. Use the person's name as the alt text - it is what a screen reader
      announces and what shows if the image fails to load.
 
   If someone asks to be removed, delete their image and their <td> in the same
   commit. No explanation needed from them, and none recorded here.
-  ─────────────────────────────────────────────────────────────────────────────
 
 <table>
   <tr>
