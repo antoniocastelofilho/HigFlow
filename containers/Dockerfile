@@ -41,8 +41,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # mpich, and then asks PETSc to --download-openmpi on top, leaving three MPI
 # stacks whose mpicc, mpirun and libmpi.so compete on PATH and in the linker.
 # A binary compiled against one and launched by another fails in ways that look
-# like application bugs. This image installs OpenMPI only, and PETSc is pointed
-# at it with --with-mpi-dir.
+# like application bugs. This image installs OpenMPI only, and PETSc is built
+# with its compiler wrappers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         gfortran \
