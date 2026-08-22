@@ -40,7 +40,7 @@ Notes
   Nothing written outside it survives the container.
 
   The container runs as uid 1000. If the directory you mount is owned by a
-  different user, it cannot write there — run with --user "$(id -u):$(id -g)"
+  different user, it cannot write there - run with --user "$(id -u):$(id -g)"
   or chown the directory.
 
   MPI inside a container needs shared memory. If a parallel run dies with an

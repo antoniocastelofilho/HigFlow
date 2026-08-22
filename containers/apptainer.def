@@ -1,12 +1,11 @@
-# HigFlow — Apptainer/Singularity image for HPC clusters
+# HigFlow - Apptainer/Singularity image for HPC clusters
 #
 # Clusters usually refuse to run Docker: the daemon runs as root and any user
 # who can reach it can become root on the node. Apptainer (formerly Singularity)
 # runs unprivileged, keeps the user's own identity inside the container, and
-# mounts $HOME and the scheduler's directories by default — which is why it is
+# mounts $HOME and the scheduler's directories by default - which is why it is
 # what shared machines allow.
 #
-# ─────────────────────────────────────────────────────────────────────────────
 # This definition bootstraps from the Docker image rather than repeating its
 # build steps.
 #
@@ -14,16 +13,15 @@
 # in two places: CMakeLists.txt and the Makefiles list different source files,
 # so neither builds the whole project and two people using two build methods
 # get binaries with different features. A second, hand-maintained container
-# recipe would drift the same way. There is one recipe — containers/Dockerfile
-# — and this file consumes it.
-# ─────────────────────────────────────────────────────────────────────────────
+# recipe would drift the same way. There is one recipe - containers/Dockerfile
+# - and this file consumes it.
 #
 # Build, from an image in the local Docker daemon:
 #
 #     docker build -f containers/Dockerfile -t higflow:latest .
 #     apptainer build higflow.sif containers/apptainer.def
 #
-# Or straight from a registry, with no Docker involved — replace the header
+# Or straight from a registry, with no Docker involved - replace the header
 # below with:
 #
 #     Bootstrap: docker
@@ -35,7 +33,7 @@ Bootstrap: docker-daemon
 From: higflow:latest
 
 %labels
-    Description  HigFlow — incompressible Newtonian, viscoelastic and multiphase flow solver
+    Description  HigFlow - incompressible Newtonian, viscoelastic and multiphase flow solver
     Upstream     https://github.com/antoniocastelofilho/HigFlow
 
 %environment
@@ -86,6 +84,6 @@ From: higflow:latest
 
         apptainer exec --bind /opt/mpi:/opt/mpi ...
 
-    Ask the site's support what they expect — every cluster answers this
+    Ask the site's support what they expect - every cluster answers this
     differently, and getting it wrong shows up as a run that works on one node
     and hangs on two.

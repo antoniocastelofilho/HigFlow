@@ -1,4 +1,4 @@
-# HigFlow — development image
+# HigFlow - development image
 #
 #     docker build -f containers/Dockerfile.dev -t higflow:dev .
 #

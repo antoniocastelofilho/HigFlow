@@ -1,4 +1,4 @@
-# HigFlow — compose services
+# HigFlow - compose services
 #
 # Run from the REPOSITORY ROOT:
 #     docker compose -f containers/docker-compose.yml run --rm shell

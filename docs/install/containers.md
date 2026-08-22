@@ -1,7 +1,7 @@
 # Running HigFlow in a container
 
 This is the shortest path to a working HigFlow. It needs one tool installed and
-nothing else — no PETSc build, no MPI configuration, no environment variables.
+nothing else - no PETSc build, no MPI configuration, no environment variables.
 
 ```bash
 git clone https://github.com/antoniocastelofilho/HigFlow.git
@@ -11,7 +11,7 @@ mkdir cases
 docker run --rm -v "$PWD/cases:/work" higflow:latest case example2d_Newt
 ```
 
-The first build takes a few minutes, almost all of it compiling PETSc — six and
+The first build takes a few minutes, almost all of it compiling PETSc - six and
 a half minutes on sixteen cores, proportionally longer on fewer. It happens
 once. After that, starting a simulation takes seconds.
 
@@ -41,7 +41,7 @@ here is that HigFlow's dependency stack is the hardest part of using it.
 
 A native build needs PETSc compiled from source, one MPI implementation
 consistently used by every component, HDF5 built against that same MPI, Zoltan
-from Trilinos, glib, and libfyaml — which has no distribution package and must
+from Trilinos, glib, and libfyaml - which has no distribution package and must
 be built from a source snapshot. These have to agree with each other. A binary
 compiled against one MPI and launched by another does not report "wrong MPI"; it
 hangs, or produces wrong numbers on more than one rank, and the failure looks
@@ -55,9 +55,9 @@ A container settles all of it once. The image is built with exactly one MPI, and
 every component in it was compiled against that one.
 
 The second reason is that it makes HigFlow usable on Windows, where it otherwise
-is not. A native Windows build is not viable — OpenMPI and libfyaml have no
+is not. A native Windows build is not viable - OpenMPI and libfyaml have no
 supported Windows port, and `CMakeLists.txt` requires `libnuma`, which exists
-only on Linux — so a container, or WSL2, is the whole story there.
+only on Linux - so a container, or WSL2, is the whole story there.
 
 ## The three concepts you need
 
@@ -184,7 +184,7 @@ From the repository root, not from `containers/`:
 docker build -f containers/Dockerfile -t higflow:latest .
 ```
 
-The trailing `.` is the build context — the directory Docker sends to the
+The trailing `.` is the build context - the directory Docker sends to the
 daemon. The root `.dockerignore` keeps out what the image does not need: the
 PETSc archive, compiled binaries, simulation output and the LaTeX manuals.
 
@@ -205,7 +205,7 @@ count, so expect it to dominate more on a smaller machine.
 | | **total** | **6 min 30 s** |
 
 The ordering matters. Docker caches each stage, and editing a `.c` file only
-invalidates the last one — so a rebuild after a source change takes minutes, not
+invalidates the last one - so a rebuild after a source change takes minutes, not
 an hour. This is why the Dockerfile downloads PETSc rather than copying it from
 the repository: a change to any file in the context would otherwise invalidate
 the PETSc layer.
@@ -232,7 +232,7 @@ docker run --rm -v "$PWD/cases:/work" higflow:latest case example2d_Newt
 ```
 
 This copies `example2d_Newt` out of the image into `cases/`, builds it, and runs
-it. Everything — the binary, the VTK output, the restart files — ends up in
+it. Everything - the binary, the VTK output, the restart files - ends up in
 `cases/example2d_Newt/` on your machine.
 
 List what is available:
@@ -286,7 +286,7 @@ them; on Docker Desktop it is whatever the settings allow, which is worth
 checking before concluding that HigFlow scales badly.
 
 Two limits worth knowing. There is no point running more ranks than you have
-physical cores — MPI ranks spin while waiting, so oversubscribing makes a
+physical cores - MPI ranks spin while waiting, so oversubscribing makes a
 simulation slower, not faster. And a single container is a single machine: to
 run across several nodes you need Apptainer and the cluster's scheduler, covered
 below.
@@ -379,7 +379,7 @@ srun apptainer exec higflow.sif \
 **The one thing that will catch you on a multi-node run is MPI compatibility.**
 The image carries OpenMPI from Ubuntu 22.04. Within a single node that is all
 that matters. Across nodes, the container's MPI has to work with the host's
-interconnect drivers — InfiniBand or Omni-Path — and if it cannot, it silently
+interconnect drivers - InfiniBand or Omni-Path - and if it cannot, it silently
 falls back to TCP or hangs. Ask the site's support what they expect; some bind
 the host MPI into the container, others provide a matching module. Every cluster
 answers this differently, and the symptom is a job that works on one node and
@@ -407,7 +407,7 @@ already provides a normal user; this happens when `--user 0:0` is passed or a
 derived image switches back to root.
 
 **The build is killed partway through PETSc.** Out of memory. Docker Desktop
-defaults to a fraction of your RAM — raise it to at least 4 GB in Settings →
+defaults to a fraction of your RAM - raise it to at least 4 GB in Settings to
 Resources. On WSL2, create `%UserProfile%\.wslconfig`:
 
 ```ini
@@ -422,7 +422,7 @@ using space and reclaim it:
 
 ```bash
 docker system df
-docker system prune -a      # deletes unused images — you will rebuild
+docker system prune -a      # deletes unused images - you will rebuild
 ```
 
 Building HigFlow needs roughly 10 GB free while it runs, and the finished image
@@ -435,7 +435,7 @@ from `containers/` instead of the repository root. The context must be the root:
 **`exec /usr/local/bin/entrypoint.sh: no such file or directory`, but the file
 is clearly there.** The script has Windows line endings, so the kernel is
 looking for an interpreter named `/usr/bin/env bash\r`. The Dockerfile strips
-carriage returns during the build, so this means something reintroduced them —
+carriage returns during the build, so this means something reintroduced them -
 check `git config core.autocrlf` and that `containers/.gitattributes` survived
 your checkout.
 
@@ -447,12 +447,12 @@ everything was written inside the container and discarded when it exited.
 | | |
 |---|---|
 | Base | Ubuntu 22.04 |
-| MPI | OpenMPI, from Ubuntu — the only MPI present, deliberately |
+| MPI | OpenMPI, from Ubuntu - the only MPI present, deliberately |
 | PETSc | 3.14.0, `--with-debugging=0`, shared libraries, built with the `mpicc`/`mpicxx`/`mpif90` wrappers; HYPRE and fblaslapack downloaded by PETSc |
 | HDF5 | Ubuntu's OpenMPI build |
 | Zoltan | Trilinos Zoltan, from Ubuntu |
 | libfyaml | built from the snapshot committed to the repository |
-| Boost | headers only — the code uses `geometry` and `ublas`, both header-only |
+| Boost | headers only - the code uses `geometry` and `ublas`, both header-only |
 | HigFlow | HigTree and HigFlow compiled for both 2D and 3D, plus every example case |
 
 Paths inside:
@@ -461,12 +461,12 @@ Paths inside:
 /opt/higflow      the repository, built
 /opt/petsc        PETSc install prefix
 /opt/libfyaml     libfyaml install prefix
-/work             working directory — mount your host directory here
+/work             working directory - mount your host directory here
 ```
 
 Environment already set: `PETSC_DIR`, `PETSC_ARCH`, `PETSC_EXTRA_LIB`,
 `HIGTREE_DIR`, `HIGFLOW_DIR`, `PKG_CONFIG_PATH`, `LD_LIBRARY_PATH`, `CPATH` and
-`LIBRARY_PATH`. There is no `source varsrc` step — the image does not need one.
+`LIBRARY_PATH`. There is no `source varsrc` step - the image does not need one.
 
 `CPATH` and `LIBRARY_PATH` carry the OpenMPI paths, because the example
 Makefiles compile with `gcc` rather than `mpicc` and would otherwise not find
