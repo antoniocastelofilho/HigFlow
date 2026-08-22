@@ -57,8 +57,6 @@ every component in it was compiled against that one.
 The second reason is that it makes HigFlow usable on Windows, where it otherwise
 is not. A native Windows build is not viable - OpenMPI and libfyaml have no
 supported Windows port, and `CMakeLists.txt` requires `libnuma`, which exists
-is not. A native Windows build is not viable - OpenMPI and libfyaml have no
-supported Windows port, and `CMakeLists.txt` requires `libnuma`, which exists
 only on Linux - so a container, or WSL2, is the whole story there. See
 [the Windows guide](windows.md).
 
