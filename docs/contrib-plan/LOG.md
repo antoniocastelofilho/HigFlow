@@ -15,12 +15,12 @@
 |---|---|---|---|
 | E00 - Ambiente de desenvolvimento | - | **concluída** (WSL2 + Ubuntu 22.04 + Docker Engine 29.7.2) | - |
 | E01 - Infraestrutura da contribuição | `juniormar/main` | **concluída** (falta `.mailmap`, que vai no PR de E07) | - |
-| E02 - README em inglês | `juniormar/02-readme` | **concluída** (merjada no tronco) | rascunho pronto |
+| E02 - README em inglês | `juniormar/pr2-readme` | **enviada** | [#4](https://github.com/antoniocastelofilho/HigFlow/pull/4) |
 | E03 - Instalação Linux | - | pendente | - |
-| E04 - Containers | `juniormar/04-containers` | **concluída** (verificada de ponta a ponta) | rascunho pronto |
-| E05 - Instalação Windows | `juniormar/05-install-windows` | **concluída** | - |
-| E06 - Galeria de resultados | `juniormar/06-gallery` + `06b` | **concluída** (8 figuras verificadas) | - |
-| E07 - Higiene do repositório | `juniormar/07-repo-hygiene` | **concluída** (merjada no tronco) | rascunho pronto |
+| E04 - Containers | `juniormar/pr3-containers` | **enviada** | [#5](https://github.com/antoniocastelofilho/HigFlow/pull/5) |
+| E05 - Instalação Windows | `juniormar/pr4-windows-guide` | **enviada** | [#6](https://github.com/antoniocastelofilho/HigFlow/pull/6) |
+| E06 - Galeria de resultados | `juniormar/pr5-gallery` | **enviada** | [#7](https://github.com/antoniocastelofilho/HigFlow/pull/7) |
+| E07 - Higiene do repositório | `juniormar/pr1-repo-hygiene` | **enviada** | [#3](https://github.com/antoniocastelofilho/HigFlow/pull/3) |
 | E08 - Build unificado | - | pendente | - |
 | E09 - Correções pontuais | - | pendente | - |
 | E10 - Flags numéricas | - | pendente | - |
@@ -40,7 +40,85 @@
 | E24 - C++ nível 3 | - | pendente | - |
 | E25 - Arquitetura ML | - | pendente | - |
 | E26 - PoC ML | - | pendente | - |
-| E27 - Galeria de pessoas | `juniormar/27-contributors` | **estrutura pronta** (aguarda consentimentos) | - |
+| E27 - Galeria de pessoas | dobrada na `pr2-readme` | **estrutura enviada** (aguarda consentimentos) | [#4](https://github.com/antoniocastelofilho/HigFlow/pull/4) |
+
+---
+
+## 2026-08-22 - Revisão de escrita e envio dos pull requests
+
+### Revisão de escrita
+
+Você removeu os travessões no tronco; restavam outros padrões que a skill de escritor
+proíbe e que eu não tinha tratado:
+
+| Padrão | Ocorrências | Destino |
+|---|---|---|
+| Régua de caixa `─` em comentário | 2.692 | removida; o rótulo vira comentário simples |
+| Seta `→` como conectivo | 56 | vira palavra |
+| Meia-risca em intervalo | 35 | vira hífen |
+| Emoji em tabela | 2 | vira "yes" |
+| Travessão nas branches de etapa | 27 a 465 por branch | vira hífen |
+
+Preservado por ser notação, não decoração: a meia-risca entre nomes de pessoas
+diferentes (Navier-Stokes, Poisson-Nernst-Planck, Crank-Nicolson), os sinais de
+multiplicação e menos, e os glifos que desenham árvore de diretório.
+
+O SVG da arquitetura precisou de tratamento à parte: meu corretor pulava `.svg` por
+extensão, e os travessões ali são texto renderizado, visível dentro da figura.
+
+### Reestruturação das branches
+
+A topologia anterior era um campo minado. A 05 e a 06 carregavam os arquivos da 04, a
+06b carregava tudo, e a 04 e a 07 disputavam o `.gitignore`. Sobreposições medidas:
+
+```
+07 x 04    .gitignore
+07 x 06b   118 arquivos
+02 x 27    README.md, README.pt-BR.md, architecture.svg
+04 x 05    11 arquivos
+```
+
+Refeitas como cadeia estritamente linear, cada uma sobre a anterior. Isso elimina
+conflito por construção, que era a exigência.
+
+```
+master
+ -> pr1-repo-hygiene      13 commits   118 arquivos
+ -> pr2-readme            14 commits     4 arquivos
+ -> pr3-containers        13 commits    11 arquivos
+ -> pr4-windows-guide      4 commits     2 arquivos
+ -> pr5-gallery            5 commits    12 arquivos
+```
+
+Dois commits caíram no rebase por terem virado redundantes: o que ancorava os padrões
+do `.gitignore`, já feito pela pr1, e um `style` idêntico ao de baixo.
+
+### Verificação antes de enviar
+
+- Ponta da cadeia idêntica ao tronco em todo arquivo que sobe: nenhuma divergência
+- Nenhum caractere proibido em nenhuma das cinco branches
+- Cada branch aplica limpo sobre a anterior (`git merge-tree`)
+- `upstream/master` continua em `f5eb580`, sem drift
+- Sintaxe: entrypoint, render.py, compose e SVG
+- `.gitignore` mantém semântica em onze caminhos-sonda; nada versionado virou ignorado
+
+### Pull requests
+
+| PR | Título | Estado |
+|---|---|---|
+| [#3](https://github.com/antoniocastelofilho/HigFlow/pull/3) | Remove build artefacts from tracking | MERGEABLE |
+| [#4](https://github.com/antoniocastelofilho/HigFlow/pull/4) | Rewrite README in English | MERGEABLE |
+| [#5](https://github.com/antoniocastelofilho/HigFlow/pull/5) | Add reproducible container images | MERGEABLE |
+| [#6](https://github.com/antoniocastelofilho/HigFlow/pull/6) | Add a Windows installation guide | MERGEABLE |
+| [#7](https://github.com/antoniocastelofilho/HigFlow/pull/7) | Add results gallery, fix example2d_Oldroyd | MERGEABLE |
+
+Limitação conhecida do modelo empilhado entre forks: o GitHub não aceita como base uma
+branch que só existe no fork, então os cinco apontam para `master` e o diff de cada um
+inclui os anteriores até que sejam merjados. Isso está dito no corpo de cada PR.
+
+Duas correções pegas na revisão final: um parágrafo duplicado no guia de container,
+criado pela resolução de conflito, e um comentário no Dockerfile que ainda descrevia o
+PETSc configurado com `--with-mpi-dir` depois da troca para os wrappers.
 
 ---
 
