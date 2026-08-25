@@ -1,5 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<string.h>
+#include<errno.h>
 
 #include "utils.h"
 #include "higtree.h"
@@ -25,7 +27,7 @@ real f(Point p) {
 		case 1:	return 5.0;
 	}
 	printf("undefined function! Should be in 0..4\n");
-	exit(0);
+	exit(1);
 }
 
 real g(Point p) {
@@ -36,6 +38,8 @@ real g(Point p) {
 		case 0: return -3.0*sin(x)*cos(y)*sin(z);
 		case 1: return 0.0;
 	}
+	printf("undefined function! Should be in 0..4\n");
+	exit(1);
 }
 #elif DIM == 2
 #define PI 3.1415926535897932385
@@ -48,7 +52,7 @@ real f(Point p) {
 		case 2:	return 5.0;
 	}
 	printf("undefined function! Should be in 0..4\n");
-	exit(0);
+	exit(1);
 }
 
 real g(Point p) {
@@ -59,6 +63,8 @@ real g(Point p) {
 		case 1: return -2.0*sin(x)*cos(y);
 		case 2: return 0.0;
 	}
+	printf("undefined function! Should be in 0..4\n");
+	exit(1);
 }
 #else
 #error "Invalid DIM value!"
@@ -68,12 +74,16 @@ real dfdy(real x, real y) {
 	switch(func) {
 		case 0: return -sin(x)*sin(y);
 	}
+	printf("undefined function! Should be in 0..4\n");
+	exit(1);
 }
 
 real dfdx(real x, real y) {
 	switch(func) {
 		case 0: return cos(x)*cos(y);
 	}
+	printf("undefined function! Should be in 0..4\n");
+	exit(1);
 }
 
 const char * f_str() {
@@ -127,7 +137,7 @@ void writevtk(psim_domain *psd, int myrank) {
 	higcit_destroy(it);
 }
 
-void inspect_norm_from_solver_result(solver *s, sim_domain *domain, mp_mapper *global_mapper)
+void inspect_norm_from_solver_result(solver *s, sim_domain *domain, mp_mapper *local_mapper)
 {
 	const size_t domainsize = slv_get_local_size(s);
 	real fval[domainsize];
@@ -139,7 +149,7 @@ void inspect_norm_from_solver_result(solver *s, sim_domain *domain, mp_mapper *g
 	for(it = sd_get_domain_celliterator(domain); !higcit_isfinished(it); higcit_nextcell(it)) {
 		hig_cell *cell = higcit_getcell(it);
 		Point center;
-		int fgid = mp_lookup(global_mapper, hig_get_cid(cell));
+		int fgid = mp_lookup(local_mapper, hig_get_cid(cell));
 		hig_get_center(cell, center);
 		fval[fgid] = f(center);
 	}
@@ -153,28 +163,38 @@ void inspect_norm_from_solver_result(solver *s, sim_domain *domain, mp_mapper *g
 			fval[i] -= fval2[i];
 		}
 	}
-	real norm_inf, norm_1, norm_2;
-
-	norm_1 = 0.0;
-	norm_2 = 0.0;
-	norm_inf = 0.0;
+	// Somas parciais: cobrem apenas o subdominio deste rank.
+	real local_1 = 0.0, local_sq = 0.0, local_inf = 0.0;
 	for(size_t i = 0; i < domainsize; ++i)
 	{
 		real abs = fabs(fval[i]);
-		if(abs > norm_inf)
-			norm_inf = abs;
-		norm_1 += abs;
-		norm_2 += abs*abs;
+		if(abs > local_inf)
+			local_inf = abs;
+		local_1  += abs;
+		local_sq += abs*abs;
 	}
-	norm_2 = sqrt(norm_2);
 
+	// Cada rank possui so uma parte do dominio, entao as normas so tem
+	// significado depois de combinadas.  Sem esta reducao o valor impresso
+	// depende de como a malha foi particionada, e nao do erro da solucao.
+	real norm_1, norm_2, norm_inf;
+	MPI_Reduce(&local_1,   &norm_1,   1, MPI_HIGREAL, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&local_sq,  &norm_2,   1, MPI_HIGREAL, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(&local_inf, &norm_inf, 1, MPI_HIGREAL, MPI_MAX, 0, MPI_COMM_WORLD);
+
+	int myrank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+	if(myrank != 0)
+		return;
+
+	norm_2 = sqrt(norm_2);   // a raiz so depois de somar todas as parcelas
+
+	DEBUG_INSPECT(norm_1, %g);
 	DEBUG_INSPECT(norm_2, %g);
 	DEBUG_INSPECT(norm_inf, %g);
 }
 
 int main(int argc, char *argv[]) {
-	int nc[DIM];
-	int size;
 	DEBUG_DIFF_TIME;
 	int myrank;
 	int ntasks;
@@ -184,10 +204,22 @@ int main(int argc, char *argv[]) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 	MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
 
+	if (argc < 2) {
+		if (myrank == 0) {
+			fprintf(stderr, "uso: %s <malha.amr>\n", argv[0]);
+		}
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
+
 	partition_graph *pg = pg_create(MPI_COMM_WORLD);
 	psim_domain *psd;
 
 	FILE *fd = fopen(argv[1], "r");
+	if (fd == NULL) {
+		fprintf(stderr, "%s: nao foi possivel abrir '%s': %s\n",
+		        argv[0], argv[1], strerror(errno));
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
 	hig_cell *root = higio_read_from_amr(fd);
 	fclose(fd);
 
@@ -293,13 +325,12 @@ int main(int argc, char *argv[]) {
 	DEBUG_DIFF_TIME;
 
 	DEBUG_INSPECT("solving...", %s);
-	int psize[2];
 	slv_solve(slv);
 	//MatView(slv->A, PETSC_VIEWER_STDOUT_WORLD);
 
-	if(myrank == 0) {
-		inspect_norm_from_solver_result(slv, local_domain, m);
-	}
+	// Coletiva: todos os ranks precisam entrar na reducao das normas.
+	// Apenas o rank 0 imprime o resultado.
+	inspect_norm_from_solver_result(slv, local_domain, m);
 
 	pg_destroy(pg);
 	sd_destroy(local_domain);
