@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 
 	Point low, high;
 
-	const int maxpts = 2 * DIM * wls_num_min_points(2);
+	const int maxpts = 2 * DIM * wls_num_min_points(DIM, 2);
 	Point pts[maxpts];
 	real w[maxpts];
 	uniqueid gids[maxpts];
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
 
 	DEBUG_DIFF_TIME;
 
-	wls_interpolator *wls = wls_create(2, maxpts);
+	wls_interpolator *wls = wls_create(DIM, 2, maxpts);
 
 	for(it = higcit_create_all_leaves(root); !higcit_isfinished(it); higcit_nextcell(it)) {
 		hig_cell *c = higcit_getcell(it);

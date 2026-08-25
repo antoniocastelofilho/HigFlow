@@ -133,12 +133,12 @@ int __calc_num_points_aux(int order) {
                         return 45;
                 }
         }
-        return 2 * DIM * wls_num_min_points(order);
+        return 2 * DIM * wls_num_min_points(DIM, order);
 }
 
 wls_interpolator * __sd_create_wls_interpolator_aux(sim_domain *d, int maxpts) {
 	if (d->inter.wls == NULL) {
-		d->inter.wls = wls_create(d->inter.order, maxpts);
+		d->inter.wls = wls_create(DIM, d->inter.order, maxpts);
 	}
 	return d->inter.wls;
 }
