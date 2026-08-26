@@ -229,10 +229,7 @@ For multiphase flow, the volume-of-fluid method with:
 
 ### The hierarchical grid
 
-HigTree represents the domain as a forest of cell trees. A region needing resolution is
-refined locally, so fine cells appear only where the physics demands them - around an
-interface, a stress boundary layer, or a re-entrant corner - while the rest of the
-domain stays coarse.
+HigTree represents the domain as a forest of cell trees. A region needing resolution is refined locally, so fine cells appear only where the physics demands them - around an interface, a stress boundary layer, or a re-entrant corner - while the rest of the domain stays coarse.
 
 <p align="center">
   <img src="higtree/doc/figuras/all_mesh.png" alt="Refinement levels of a HigTree grid shown as separate stacked planes, with coloured regions marking the cells present at each level" width="360">
@@ -257,17 +254,38 @@ must be reconstructed at a refinement boundary.</em></p>
 
 ## Gallery
 
+Every figure below comes from a case that ships with this repository, run in the
+container and rendered by [`tools/gallery/render.py`](tools/gallery/render.py). The
+full set, with the command that reproduces each one, is in
+[`docs/gallery.md`](docs/gallery.md).
+
+**Plane Poiseuille flow, validated against the exact solution.** Relative L₂ error
+6.89 × 10⁻⁴; the flow rate holds to five parts in 10⁶ along the channel, and the
+pressure gradient matches −2μu_max/h² exactly.
+
 <p align="center">
-  <img src="higtree/doc/figuras/wccmjet.png" alt="Vertical jet coloured by velocity magnitude, showing a coherent core that breaks into turbulent structures downstream" width="330">
+  <img src="docs/images/gallery/poiseuille-validation.png" alt="Computed velocity at cell centres lying on the exact parabolic profile, beside the pointwise difference of order 1e-3" width="100%">
 </p>
 
-<p align="center"><em>Jet, coloured by velocity magnitude. Figure from the project's
-existing documentation.</em></p>
+**Planar 4:1 contraction**, the benchmark geometry of computational rheology. Mass is
+conserved to 0.37 % across the fourfold change in area.
 
-> This section is being expanded with a set of cases that ship with the repository -
-> Poiseuille flow validated against its analytical solution, a 4:1 viscoelastic
-> contraction, and a multiphase volume-of-fluid case - each with the exact command that
-> reproduces it and the visualisation state file used to render it.
+<p align="center">
+  <img src="docs/images/gallery/contraction-speed.png" alt="Velocity magnitude through a 4 to 1 planar contraction: slow broad flow upstream accelerating into a fast narrow jet downstream" width="100%">
+</p>
+
+**Oldroyd-B viscoelastic flow.** The velocity field looks much like the Newtonian one -
+the difference is in the stress. The first normal stress difference N₁ = τ_xx − τ_yy is
+identically zero for a Newtonian fluid, and here rises at the walls where the shear rate
+is highest and vanishes on the centreline, as steady shear requires.
+
+<p align="center">
+  <img src="docs/images/gallery/oldroyd-n1.png" alt="First normal stress difference in the viscoelastic channel: positive bands along both walls, near zero along the centreline" width="100%">
+</p>
+
+<p align="center"><em>Two of the ten shipped cases crash on their first time step; one is
+fixed and one reported in <a href="docs/gallery.md#what-is-not-here-yet">the gallery</a>,
+which is why there is no multiphase figure yet.</em></p>
 
 ---
 
