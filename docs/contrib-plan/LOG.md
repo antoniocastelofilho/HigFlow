@@ -44,6 +44,42 @@
 
 ---
 
+## 2026-08-26 - Consolidação num pull request único
+
+Pedido: um PR só, saindo da `juniormar/main`, em vez dos cinco encadeados.
+
+Levantei o custo antes de fazer: um PR de 144 arquivos raramente é revisado por inteiro
+por um maintainer acadêmico, e quatro merges a menos não contam para a conquista Pull
+Shark. A decisão foi mantida, então segui.
+
+| Antes | Agora |
+|---|---|
+| #3 a #7, cinco PRs encadeados | **#8**, um PR de `juniormar/main` |
+| diff cumulativo, 118 a 144 arquivos | 144 arquivos, MERGEABLE |
+
+Os cinco foram fechados com comentário apontando para o #8 e dizendo que nada se perde:
+as branches continuam e todo commit está lá dentro. Fechados, não deletados, então dá
+para reabrir se os donos preferirem revisar em partes.
+
+### Consequência a acompanhar
+
+Com o PR saindo direto da `juniormar/main`, **todo commit novo nessa branch entra
+automaticamente no #8**. A E11 em diante vai crescer dentro dele em vez de virar PR
+próprio.
+
+Sob um modelo de contribuição única isso é coerente. Se em algum momento fizer sentido
+separar de novo, o caminho é cortar uma branch-instantâneo da `main` no estado atual,
+apontar o #8 para ela, e deixar a `main` seguir livre.
+
+### Corpo do PR
+
+Escrito para ser lido por quem não acompanhou nada disso: o que tem, o que foi medido, a
+única mudança de código e o que ela revelou, e uma seção final com as quatro decisões
+deixadas explicitamente para os donos (o `src_hugo/`, a reescrita de histórico, a
+menção à licença no README, e as lacunas da tabela de referências).
+
+---
+
 ## 2026-08-22 - Reorganização do modelo de branches
 
 O modelo anterior era o inverso do pedido: a `juniormar/main` era um tronco de
