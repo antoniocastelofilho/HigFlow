@@ -708,7 +708,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
         else { //Return upwind value at boundary
             vbar = vr;
             if (vbar > 0.0) conv1 = vbar * nc;
-            else                 conv1 = vbar * nc;
+            else                 conv1 = vbar * nr;
             vbar = vl;
             if (vbar > 0.0) conv2 = vbar * nl;
             else                 conv2 = vbar * nc;
@@ -760,7 +760,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
             if (vbar > 0.0) conv1 = vbar * nc;
             else                 conv1 = vbar * nr;
             vbar = vl;
-            if (vbar > 0.0) conv2 = vbar * nc;
+            if (vbar > 0.0) conv2 = vbar * nl;
             else                 conv2 = vbar * nc;
             return ((conv1 - conv2) / cdelta[dim]);
         }

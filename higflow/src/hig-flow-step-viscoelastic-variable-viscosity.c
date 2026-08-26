@@ -6,6 +6,11 @@
 
 #include "hig-flow-step-viscoelastic-variable-viscosity.h"
 #include "hig-flow-mittag-leffler.h"
+
+// Copia local identica a de hig-flow-step-viscoelastic.c.  Mantida static para
+// nao exportar um terceiro simbolo global com o mesmo nome (violacao de ODR e
+// erro de simbolo duplicado ao linkar dois destes modulos juntos).
+static void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt);
 // *******************************************************************
 // Constitutive Equations
 // *******************************************************************
@@ -481,7 +486,7 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
         }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
-                else                 conv1 = vbar[dim]*kc;
+                else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
@@ -534,7 +539,7 @@ real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_pro
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
                 else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kc;
+                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
                 return ((conv1 - conv2)/cdelta[dim]); 
         } 
@@ -1836,7 +1841,7 @@ void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], 
 }
 
 // Calculate the matrix product
-void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt) {
+static void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt) {
     real I[DIM][DIM];
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
@@ -2340,7 +2345,7 @@ real higflow_convective_BMP_structural_parameter_term_cubista(higflow_solver *ns
         }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
-                else                 conv1 = vbar[dim]*kc;
+                else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
@@ -2393,7 +2398,7 @@ real higflow_convective_BMP_structural_parameter_term_cubista(higflow_solver *ns
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
                 else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kc;
+                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
                 return ((conv1 - conv2)/cdelta[dim]); 
         } 

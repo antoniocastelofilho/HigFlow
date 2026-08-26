@@ -1271,7 +1271,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
         else { //Return upwind value at boundary
             vbar = vr;
             if (vbar > 0.0) conv1 = vbar * kc;
-            else                 conv1 = vbar * kc;
+            else                 conv1 = vbar * kr;
             vbar = vl;
             if (vbar > 0.0) conv2 = vbar * kl;
             else                 conv2 = vbar * kc;
@@ -1323,7 +1323,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
             if (vbar > 0.0) conv1 = vbar * kc;
             else                 conv1 = vbar * kr;
             vbar = vl;
-            if (vbar > 0.0) conv2 = vbar * kc;
+            if (vbar > 0.0) conv2 = vbar * kl;
             else                 conv2 = vbar * kc;
             return ((conv1 - conv2) / cdelta[dim]);
         }
