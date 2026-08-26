@@ -44,6 +44,66 @@
 
 ---
 
+## 2026-08-22 - Reorganização do modelo de branches
+
+O modelo anterior era o inverso do pedido: a `juniormar/main` era um tronco de
+integração que nunca virava PR, e as branches de etapa saíam da `master`. O pedido é
+que a `juniormar/main` seja a branch principal, base das etapas e origem dos PRs.
+
+A tensão a resolver: se as etapas saem da `main`, tudo que está nela entra no diff de
+todo PR, e ali estavam as 2.400 linhas de planejamento em português.
+
+**Decidido:** o planejamento vai para `juniormar/notes`, que nunca é base de nada. A
+`juniormar/main` fica limpa.
+
+### O que mudou
+
+| Branch | Antes | Agora |
+|---|---|---|
+| `juniormar/main` | tronco com planejamento, histórico divergente da cadeia | sai da `master`, cresce por merge de cada etapa, sem planejamento |
+| `juniormar/notes` | não existia | só `docs/contrib-plan/` e `tools/contrib/` |
+| as cinco de PR | cadeia linear da `master` | **inalteradas** |
+
+### As branches de PR não precisaram mudar
+
+Elas já eram cadeia linear saindo da `master`. Se a `main` começa na `master` e cresce
+por merge de cada etapa, "a etapa saiu da main" e "a etapa saiu da anterior" descrevem
+o mesmo commit. O modelo novo já estava satisfeito pelas branches; o que estava fora do
+lugar era a própria `main`.
+
+Consequência prática: **nenhum force-push, e os PRs #3 a #7 intocados.** Confirmado que
+os cinco continuam MERGEABLE e que local e origin apontam para o mesmo commit.
+
+### Verificação
+
+- `juniormar/main` reconstruída merjando pr1 a pr5 em ordem, todas limpas
+- Conteúdo da `main` idêntico ao da ponta da cadeia: nenhuma divergência
+- 1.430 arquivos versionados, zero de `contrib-plan` ou `tools/contrib`
+- `juniormar/notes` com 8 arquivos, só o planejamento
+- Histórico das notas preservado: 62 commits, e revisões anteriores ainda têm os
+  arquivos de projeto
+
+### Dois tropeços no caminho
+
+O primeiro `git rm` em massa quebrou no caminho `src_hugo/Modifications of files
+viscoelastic flows with variable viscosity/`, que tem espaços, e a remoção ficou pela
+metade. Refeito limpando o índice inteiro e trazendo de volta só os dois diretórios.
+
+Depois disso o checkout para a `main` abortou: os arquivos de projeto tinham virado
+untracked na `notes` e seriam sobrescritos. Antes de limpar, conferi que os 494
+untracked estavam todos na árvore da `main`, com uma exceção que era um `.pyc` de
+cache.
+
+### Onde fica a ferramenta de status
+
+`tools/contrib/status.sh` vive na `notes`. Para rodar sem trocar de branch:
+
+```bash
+git show juniormar/notes:tools/contrib/status.sh | bash
+```
+
+---
+
 ## 2026-08-22 - Revisão de escrita e envio dos pull requests
 
 ### Revisão de escrita
