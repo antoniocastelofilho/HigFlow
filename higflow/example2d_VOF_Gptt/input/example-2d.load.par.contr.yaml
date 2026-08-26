@@ -15,7 +15,7 @@ simulation_contr:
   convecdiscrtype: second_order            # central, first_order or second_order
   secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick
 
-flowphase: singlephase                    # singlephase or multiphase
+flowphase: multiphase                    # singlephase or multiphase
 
 ###########################################################################################################################   
 
@@ -99,7 +99,7 @@ multiphase:
 
   viscoelastic:
     contr:
-      model0: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
+      model0: gptt                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       model1: lptt                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       discrtype: explicit               # explicit or implicit
       convecdiscrtype: cubista          # upwind or cubista
