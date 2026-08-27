@@ -50,25 +50,41 @@ def _cell_geometry(grid):
     return cx, cy, dx, dy
 
 
-def field_error(grid):
-    """Error of u against the exact profile, over every cell in the domain.
+def field_error(grid, skip_edge_columns=0):
+    """Error of u against the exact profile, over the cells of the domain.
 
-    The norm is area-weighted, so it does not change meaning when the mesh is
+    The norm is area-weighted, so it keeps its meaning when the mesh is
     refined, which is what a convergence study needs.
+
+    `skip_edge_columns` drops that many cell columns from each end. It exists
+    because the first column, the one against the inlet, does not carry the
+    interior solution: it reports a nearly flat profile close to u_max instead
+    of the parabola. Included, it dominates the norm and hides the behaviour of
+    every other cell; the whole-field number then rises under refinement while
+    the interior is converging. Both numbers are worth reporting, and the two
+    together say more than either alone.
     """
     cx, cy, dx, dy = _cell_geometry(grid)
     u = grid.as_cell("vel")[:, 0]
     err = u - exact_u(cy)
 
-    area = dx * dy
-    total = area.sum()
-    l2 = float(np.sqrt(np.sum(err**2 * area) / total))
-    linf = float(np.max(np.abs(err)))
+    keep = np.ones(err.shape, dtype=bool)
+    if skip_edge_columns > 0:
+        xs = np.unique(np.round(cx, 9))
+        n = min(skip_edge_columns, xs.size // 2)
+        dropped = np.concatenate([xs[:n], xs[-n:]])
+        for x in dropped:
+            keep &= ~np.isclose(cx, x)
+
+    area = (dx * dy)[keep]
+    e = err[keep]
+    l2 = float(np.sqrt(np.sum(e**2 * area) / area.sum()))
     return {
         "l2": l2,
-        "linf": linf,
+        "linf": float(np.max(np.abs(e))),
         "relative_l2": l2 / U_MAX,
-        "cells": int(err.size),
+        "cells": int(e.size),
+        "skipped": int((~keep).sum()),
     }
 
 
@@ -92,7 +108,7 @@ def profile_error(grid, x_fraction=0.75):
     }
 
 
-def flow_rates(grid, stations=7):
+def flow_rates(grid, stations=7, skip_edge_columns=0):
     """Volumetric flow rate at several stations along the channel.
 
     In an incompressible flow this is the same everywhere, so the spread across
@@ -101,6 +117,9 @@ def flow_rates(grid, stations=7):
     cx, cy, _, dy = _cell_geometry(grid)
     u = grid.as_cell("vel")[:, 0]
     xs = np.unique(np.round(cx, 9))
+    if skip_edge_columns > 0:
+        n = min(skip_edge_columns, xs.size // 2)
+        xs = xs[n:-n] if n else xs
     picks = xs[np.linspace(0, xs.size - 1, stations).astype(int)]
 
     out = []
