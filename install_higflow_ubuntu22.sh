@@ -54,6 +54,7 @@ cd ../..
 
 echo 'Install:= petsc-3_14_0 ...' 
 cd bibliotecas/
+bash fetch-petsc.sh
 tar -vzxf petsc-3.14.0.tar.gz
 cd petsc-3.14.0/ 
 sudo ./configure --prefix=/opt/petsc-3.14.0-openmnpi-hypre-hdf5 --PETSC_ARCH=x86_64 --download-openmpi --download-hdf5 --download-hypre --download-fblaslapack --with-debubbing=yes --with-cc=gcc --with-cxx=g++ --with-fc=gfortran

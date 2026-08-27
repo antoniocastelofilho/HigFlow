@@ -1,0 +1,89 @@
+# HigFlow - Apptainer/Singularity image for HPC clusters
+#
+# Clusters usually refuse to run Docker: the daemon runs as root and any user
+# who can reach it can become root on the node. Apptainer (formerly Singularity)
+# runs unprivileged, keeps the user's own identity inside the container, and
+# mounts $HOME and the scheduler's directories by default - which is why it is
+# what shared machines allow.
+#
+# This definition bootstraps from the Docker image rather than repeating its
+# build steps.
+#
+# The repository already demonstrates what happens when one thing is described
+# in two places: CMakeLists.txt and the Makefiles list different source files,
+# so neither builds the whole project and two people using two build methods
+# get binaries with different features. A second, hand-maintained container
+# recipe would drift the same way. There is one recipe - containers/Dockerfile
+# - and this file consumes it.
+#
+# Build, from an image in the local Docker daemon:
+#
+#     docker build -f containers/Dockerfile -t higflow:latest .
+#     apptainer build higflow.sif containers/apptainer.def
+#
+# Or straight from a registry, with no Docker involved - replace the header
+# below with:
+#
+#     Bootstrap: docker
+#     From: ghcr.io/<owner>/higflow:latest
+#
+# Then copy the single .sif file to the cluster. It needs nothing else.
+
+Bootstrap: docker-daemon
+From: higflow:latest
+
+%labels
+    Description  HigFlow - incompressible Newtonian, viscoelastic and multiphase flow solver
+    Upstream     https://github.com/antoniocastelofilho/HigFlow
+
+%environment
+    export HIGFLOW_ROOT=/opt/higflow
+    export HIGTREE_DIR=/opt/higflow/higtree
+    export HIGFLOW_DIR=/opt/higflow/higflow
+    export PETSC_DIR=/opt/petsc
+    export PETSC_ARCH=
+    export PETSC_EXTRA_LIB=-lmpi
+    export PKG_CONFIG_PATH=/opt/libfyaml/lib/pkgconfig
+    export LD_LIBRARY_PATH=/opt/petsc/lib:/opt/libfyaml/lib:${LD_LIBRARY_PATH}
+
+%runscript
+    exec /usr/local/bin/entrypoint.sh "$@"
+
+%help
+    HigFlow, containerised for HPC.
+
+    Inspect the image:
+
+        apptainer run higflow.sif info
+
+    Run a case. Unlike Docker, Apptainer mounts your current directory and
+    $HOME by default, so no volume flag is needed:
+
+        cd my-case
+        apptainer run higflow.sif case example2d_Newt 4
+
+    Under Slurm, let the scheduler place the ranks and give each one the
+    container, rather than launching mpirun inside a single container:
+
+        #!/bin/bash
+        #SBATCH --nodes=2
+        #SBATCH --ntasks-per-node=16
+        #SBATCH --time=04:00:00
+
+        module load apptainer          # or singularity, per your site
+        srun apptainer exec higflow.sif \
+            /opt/higflow/higflow/example2d_Newt/ns-example \
+            input/example-2d.load output/run.save VTKS/run.print \
+            -ksp_type bcgs -pc_type bjacobi
+
+    One caveat worth knowing before you debug it the hard way: MPI must match.
+    The image carries OpenMPI from Ubuntu 22.04, and a multi-node run needs
+    that to be compatible with the host's MPI and its interconnect drivers.
+    Within one node it does not matter. Across nodes, if the cluster uses
+    InfiniBand or Omni-Path, bind the host MPI in instead:
+
+        apptainer exec --bind /opt/mpi:/opt/mpi ...
+
+    Ask the site's support what they expect - every cluster answers this
+    differently, and getting it wrong shows up as a run that works on one node
+    and hangs on two.
