@@ -128,27 +128,44 @@ measurement gets.
 ## The inlet column
 
 The numbers above exclude one cell column at each end. That is not a
-convenience, and it is worth stating plainly.
+convenience, and it is worth stating plainly what is being excluded and why.
 
-**The cell column against the inlet does not carry the interior solution.** It
-reports a nearly flat profile close to u_max rather than the parabola:
+**The column against the inlet is an artefact of the VTK output, not of the
+solution.** HigFlow writes velocity as POINT_DATA, so `hig-flow-io.c`
+interpolates the staggered facet values to the four corners of every cell with
+`compute_facet_value_at_point`. For a cell against the inlet, two of those four
+corners lie exactly on the boundary plane x = 0, where that interpolation has
+only a one-sided stencil to work with.
+
+Measuring the two sides of those same cells separately settles it:
 
 ```
-  80 x 20, first column at x = 0.05
-    y = -0.95   u = 0.676   exact 0.146
-    y = -0.85   u = 1.415   exact 0.416
-    y = -0.75   u = 1.479   exact 0.656
-    y = -0.65   u = 1.479   exact 0.866
+  corners at x = 0.0500, one cell in    error 9.42e-05
+  corners at x = 0.0000, on the inlet   error 2.56e+00
 ```
 
-Two consequences follow.
+The two pairs belong to the same cells and are computed from the same facet
+values. If the solution in the first cell were wrong, both pairs would be
+wrong. Only the pair on the boundary is, and it reaches 2.70 against a u_max of
+1.5, which no solution of this problem attains:
 
-Its flow rate is wrong by a wide margin, so the spread along the channel reads
-42.7 % when that column is counted and 1.5e-05 when it is not.
+```
+  y_corner    u at x = 0    u at x = 0.05    exact
+   -0.9500       2.7043           0.1463    0.1463
+   -0.9000       2.7043           0.2850    0.2850
+   -0.8500       2.5731           0.4162    0.4163
+```
+
+Every other column is clean on both sides, at 7.4e-04 in mid-channel.
+
+Two consequences follow for anything that reads these files. The cell average
+of four corners mixes the bad pair with the good one, so the first column's
+flow rate is wrong by a wide margin: the spread along the channel reads 42.7 %
+with that column and 1.5e-05 without it.
 
 And it dominates the norm badly enough to invert the convergence study. Over
 the whole field the measured order is 0.19 and the error rises between the two
-coarsest meshes, because the anomaly grows with refinement while everything
+coarsest meshes, because the artefact grows with refinement while everything
 else shrinks:
 
 ```
@@ -161,13 +178,15 @@ else shrinks:
 
 Read only the left-hand columns and the scheme looks first order at best. Read
 the right-hand ones and it is exactly second order. The difference is one
-column of cells out of 320.
+column of corner values that the solver never uses.
 
-What has not been established is whether the solver computes a wrong value
-there or writes a wrong one to the VTK file. Distinguishing those needs a look
-at the field before it is written, which the checks here do not do. Both checks
-and convergence study are therefore gated on the interior, and the whole-field
-number is reported next to it rather than hidden.
+This is worth fixing at the source, by giving the corner interpolation the
+boundary condition instead of letting it extrapolate. That is a change to the
+output path of every case rather than to the tests, so it is not made here.
+Until it is, the checks and the convergence study are gated on the interior,
+`verify.py check` prints the two-sided measurement above so the reason is
+visible in the output, and the whole-field number is reported next to the
+interior one rather than hidden.
 
 ## Files
 

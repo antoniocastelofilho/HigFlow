@@ -111,13 +111,24 @@ def cmd_check(args):
 
     print("  PASS")
     if whole["l2"] > inner["l2"] * 5:
+        b = channel.boundary_corner_error(grid)
         print()
-        print("  Note, not a failure: the cell column against the inlet does not carry")
-        print("  the interior solution. It reports a nearly flat profile close to u_max")
-        print(f"  instead of the parabola, which is why the whole-field L2 is")
-        print(f"  {whole['l2'] / inner['l2']:.0f} times the interior one and the flow rate spread reaches")
-        print(f"  {q_all['relative_spread']:.1%} when that column is included. The checks above are")
-        print("  gated on the interior, where the discretisation is what is being tested.")
+        print("  Note, not a failure: the whole-field L2 above is "
+              f"{whole['l2'] / inner['l2']:.0f} times the interior")
+        print(f"  one, and the flow rate spread reaches {q_all['relative_spread']:.1%} once the column against")
+        print("  the inlet is counted. That column is an artefact of how the VTK file is")
+        print("  written, not of the solution:")
+        print()
+        print(f"    corners at x = {b['x_one_cell_in']:.4f}, one cell in    "
+              f"error {b['error_one_cell_in']:.2e}")
+        print(f"    corners at x = {b['x_on_boundary']:.4f}, on the inlet   "
+              f"error {b['error_on_boundary']:.2e}")
+        print()
+        print("  Both belong to the same cells and come from the same facet values. Only")
+        print("  the pair lying on the boundary plane is wrong, and it reaches "
+              f"{b['worst_value']:.2f}")
+        print(f"  against a u_max of {b['u_max']:.1f}, which no solution of this problem attains.")
+        print("  The checks above are gated on the interior for that reason.")
     return 0
 
 

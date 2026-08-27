@@ -167,3 +167,35 @@ def observed_order(h_values, errors):
             continue
         pairs.append(float(np.log(e[i] / e[i + 1]) / np.log(h[i] / h[i + 1])))
     return {"h": h.tolist(), "errors": e.tolist(), "orders": pairs}
+
+
+def boundary_corner_error(grid):
+    """Compare the two corners of each first-column cell against the exact profile.
+
+    HigFlow writes velocity as POINT_DATA by interpolating the staggered facet
+    values to the four corners of every cell, in `compute_facet_value_at_point`.
+    For a cell against the inlet, two of those corners lie exactly on the
+    boundary plane, where the interpolation stencil is one-sided.
+
+    This measures the two sides separately. They belong to the same cells and
+    are computed from the same facet values, so if the solution there were
+    wrong both would be wrong. If only the side on the boundary is wrong, the
+    interpolation is, and the interior solution is not.
+    """
+    poly = grid.polygons
+    u = grid.point_data["vel"][grid.cells][:, :, 0]
+    cx = poly[:, :, 0].mean(axis=1)
+    first = np.isclose(cx, np.unique(np.round(cx, 9))[0])
+
+    p, uu = poly[first], u[first]
+    # Corners 0 and 3 sit at x = low, corners 1 and 2 at x = high.
+    on_boundary = np.abs(uu[:, [0, 3]] - exact_u(p[:, [0, 3], 1])).max()
+    one_cell_in = np.abs(uu[:, [1, 2]] - exact_u(p[:, [1, 2], 1])).max()
+    return {
+        "x_on_boundary": float(p[0, 0, 0]),
+        "x_one_cell_in": float(p[0, 1, 0]),
+        "error_on_boundary": float(on_boundary),
+        "error_one_cell_in": float(one_cell_in),
+        "worst_value": float(np.abs(uu[:, [0, 3]]).max()),
+        "u_max": U_MAX,
+    }
