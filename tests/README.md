@@ -75,6 +75,50 @@ formula, the flow rate is a conservation law the discretisation should satisfy
 whatever the profile looks like, and the pressure gradient comes from the
 momentum balance rather than from the boundary condition.
 
+## What runs without the solver
+
+`tests/verification/selftest.py` checks the suite against things that are true
+by construction, and needs nothing but Python and numpy:
+
+```bash
+python3 tests/verification/selftest.py
+```
+
+```
+  14 passed, 0 failed, 0 skipped, of 14
+```
+
+It exists because a wrong error measure would report a wrong convergence order
+just as confidently as a right one, and nothing else here would notice. So the
+closed-form flow rate is checked against the integral it stands for, the
+pressure gradient against the second derivative of the profile, the order
+estimator against synthetic sequences whose order is known, the mesh generator
+against the mesh that ships with the example, and the reader and the error
+measures against a VTK file written by the test itself.
+
+The mesh check is worth singling out: the generator has to reproduce the
+shipped 160 x 40 meshes exactly, otherwise a convergence study would be
+comparing the solver against itself on a different problem.
+
+It is also the only part of the suite that can run on every push, which is what
+the continuous integration below is built around.
+
+## Continuous integration
+
+`.github/workflows/verification.yml` has two jobs, on different triggers
+because they cost very different amounts.
+
+| | Runs on | Takes |
+|---|---|---|
+| `selftest` | every push and pull request | seconds |
+| `channel` | pushes to the main branches, pull requests, on demand | tens of minutes |
+
+`channel` builds the container and runs the solver. PETSc alone accounts for
+most of that, so the image build is cached by layer; the first three of the
+four stages change rarely. The run output is uploaded as an artifact whether it
+passes or fails, since the failing run is the one worth looking at. A pull
+request labelled `docs-only` skips it.
+
 ## Steady state comes first
 
 ```bash
@@ -194,6 +238,7 @@ interior one rather than hidden.
 |---|---|
 | `run_verification.sh` | runs the case and checks it; the entry point for CI |
 | `CMakeLists.txt` | registers the checks as CTest tests |
+| `verification/selftest.py` | checks on the suite itself, no solver needed |
 | `verification/channel.py` | the exact solution and the error measures |
 | `verification/verify.py` | `transient`, `check` and `order` |
 | `verification/channel_mesh.py` | writes channel meshes at any resolution |

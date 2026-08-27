@@ -30,6 +30,13 @@ if(NOT HAVE_NUMPY EQUAL 0)
     message(WARNING "numpy not found for ${Python3_EXECUTABLE}; the verification tests will not run")
 endif()
 
+# Needs neither a run nor the container, so it is always registered. It checks
+# the measures themselves: a wrong error norm would report a wrong convergence
+# order as confidently as a right one, and nothing else here would notice.
+add_test(NAME verification_selftest
+         COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/verification/selftest.py")
+set_tests_properties(verification_selftest PROPERTIES LABELS "verification")
+
 # HIGFLOW_VTKS points at the output of a run that has already happened. Without
 # it the whole-case test runs the case itself, which needs the container.
 set(HIGFLOW_VTKS "" CACHE PATH "VTKS directory of an existing run of example2d_Newt")
