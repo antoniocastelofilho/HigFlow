@@ -10,6 +10,45 @@ bash tests/run_verification.sh
 
 Exits non-zero when a check fails.
 
+## Through CTest
+
+`tests/CMakeLists.txt` registers the same checks as CTest tests. It is a
+standalone configuration, so it needs nothing from the project's own build:
+
+```bash
+cmake -S tests -B build-tests
+ctest --test-dir build-tests --output-on-failure
+```
+
+Configured that way, one test runs: it builds the container, runs the case and
+checks it. Point it at a run that already exists and it registers two faster
+ones instead, and a third if the convergence meshes are also on disk:
+
+```bash
+cmake -S tests -B build-tests \
+    -DHIGFLOW_VTKS=<VTKS dir> \
+    -DHIGFLOW_ORDER_RUNS="40=<dir>;80=<dir>;160=<dir>;320=<dir>"
+```
+
+```
+    Start 1: channel_steady_state
+1/3 Test #1: channel_steady_state .............   Passed    1.20 sec
+    Start 2: channel_exact_solution
+2/3 Test #2: channel_exact_solution ...........   Passed    0.49 sec
+    Start 3: channel_convergence_order
+3/3 Test #3: channel_convergence_order ........   Passed    0.75 sec
+
+100% tests passed, 0 tests failed out of 3
+```
+
+The slow ones carry the `slow` label, so `ctest -L verification -LE slow`
+selects the checks that run in a couple of seconds.
+
+The configuration is deliberately separate from the two build systems the
+project already has, which compile different source sets. Choosing between them
+is its own change; once there is one, `add_subdirectory(tests)` from the root
+picks these up unchanged.
+
 ## What is checked
 
 The case is `higflow/example2d_Newt`: a channel of length 8 and half-height 1,
@@ -135,6 +174,7 @@ number is reported next to it rather than hidden.
 | | |
 |---|---|
 | `run_verification.sh` | runs the case and checks it; the entry point for CI |
+| `CMakeLists.txt` | registers the checks as CTest tests |
 | `verification/channel.py` | the exact solution and the error measures |
 | `verification/verify.py` | `transient`, `check` and `order` |
 | `verification/channel_mesh.py` | writes channel meshes at any resolution |
