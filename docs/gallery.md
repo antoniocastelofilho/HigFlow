@@ -62,7 +62,7 @@ length 8 that is a total drop of 24, so the deviation from the mean should span
 ±12. The colour bar above spans −12 to +12.
 
 **The flow rate.** ∫u dy across the channel should be 2.0 exactly. Measured at
-seven stations:
+seven stations in the interior:
 
 ```
 x =  0.175   Q = 1.998711
@@ -74,8 +74,17 @@ x =  5.975   Q = 1.998703
 x =  7.775   Q = 1.998702
 ```
 
-Constant to five parts in 10⁶ along the channel, and 0.065 % below the exact
-value - consistent with the profile error above.
+Constant to five parts in 10⁶ across those stations, and 0.065 % below the
+exact value, which is consistent with the profile error above.
+
+The word interior is doing work in that sentence. The single cell column
+against the inlet is not included, and it does not behave like the rest: it
+reports a nearly flat profile close to u_max rather than the parabola, and its
+flow rate is wrong by enough that the spread along the channel reads 42.7 %
+when it is counted. Whether the solver computes a wrong value there or writes a
+wrong one to the file has not been established. The interior, which is
+everything from the second column on, holds the conservation law to five parts
+in a million.
 
 ```bash
 docker run --rm -v "$PWD/cases:/work" higflow:latest case example2d_Newt
