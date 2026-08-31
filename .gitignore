@@ -1,18 +1,3 @@
-# .gitignore — organizado por categoria
-# Padroes preexistentes foram preservados; excecoes (!) ficam no fim,
-# onde o gitignore garante que prevalecem.
-
-# Ferramentas de IA — nunca versionar
-.claude/
-.cline/
-.codex/
-.cursor/
-.worktrees/
-AGENTS.md
-CLAUDE.local.md
-CLAUDE.md
-GEMINI.md
-
 # Python
 *.pyc
 /build/
@@ -111,5 +96,4 @@ bibliotecas/libfyaml-master/
 *.simg
 .clangd/
 
-# Excecoes — mantidas por ultimo: no gitignore o ultimo padrao que casa vence
 !cases/.gitkeep
