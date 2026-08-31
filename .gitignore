@@ -1,74 +1,99 @@
-# Prerequisites
-*.d
+# Python
+*.pyc
+/build/
+__pycache__/
 
-# Dir
-bibliotecas/
+# Dados, modelos e saidas
+DATA/
+cases/*
+output/
 
-# files
-*.out
-*.log
-*.gz
+# LaTeX
 *.aux
-*.vtk
-*.txt
-*.dat
-!CMakeLists.txt
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.synctex.gz
+*.toc
 
-# Object files
+# Node e frontend
+.cache/
+
+# Compilados e binarios
+*.a
+*.dll
+*.dylib
+*.exe
+*.lib
 *.o
-*.ko
 *.obj
-*.elf
+*.pdb
+*.so
+CMakeCache.txt
+CMakeFiles/
 
-# Linker output
+# Bancos de dados locais
+Thumbs.db
+
+# IDEs e editores
+*.swo
+*.swp
+*~
+.idea/
+.vscode/
+
+# Sistema operacional
+.DS_Store
+
+# Logs e temporarios
+*.log
+
+# Especifico do projeto
+/build-*/
+/cmake-build-*/
+/install/
+cmake_install.cmake
+compile_commands.json
+/higtree/include/
+/higflow/include/
+/higtree/lib/
+/higflow/lib/
+*.ko
+*.elf
+*.lo
+*.la
+*.so.*
+*.gch
+*.pch
+*.d
 *.ilk
 *.map
 *.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
 *.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-
-# Vscode
-.vscode*
-
-# Singularity images
+*.su
+*.dSYM/
+higflow/example*/ns-example
+higflow/example*/ns-example-2d
+higflow/example*/ns-example-3d
+higflow/example*/ns-complex-3d
+higflow/example*/amrs/generate_amr
+*.gcda
+*.gcno
+*.gcov
+VTKS/
+higflow/example*/*.save*
+higflow/example*/*.print*
+higflow/example*/matrix
+bibliotecas/*.tar.gz
+bibliotecas/*.tar.bz2
+bibliotecas/*.part
+bibliotecas/*.bad
+bibliotecas/petsc-*/
+bibliotecas/libfyaml-master/
 *.sif
+*.simg
+.clangd/
 
-# Outputs
-**/output/**
-
-# Cmake version dirs
-**build**
-**install**
+!cases/.gitkeep

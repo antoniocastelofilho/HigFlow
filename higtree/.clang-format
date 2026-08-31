@@ -1,0 +1,9 @@
+# HigTree is tab-indented: 8368 tab-indented lines against 954 space-indented,
+# the inverse of higflow/. Everything else is inherited from the root
+# .clang-format, including ColumnLimit: 0 and the note that this file
+# describes the existing style rather than authorising a bulk reformat.
+
+BasedOnStyle: InheritParentConfig
+UseTab: Always
+TabWidth: 4
+IndentWidth: 4

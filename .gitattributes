@@ -1,0 +1,45 @@
+# Line endings
+#
+# Only files that break when checked out with CRLF are forced to LF. C sources
+# are deliberately left alone: marking them `text` would renormalise the whole
+# tree on the next checkout and bury real changes under a whitespace diff.
+#
+# A CRLF shebang fails on Linux with "bad interpreter: /usr/bin/env bash^M",
+# and make treats a trailing CR as part of the recipe.
+*.sh          text eol=lf
+*.py          text eol=lf
+*.def         text eol=lf
+Makefile      text eol=lf
+Makefile.*    text eol=lf
+Dockerfile    text eol=lf
+Dockerfile.*  text eol=lf
+varsrc        text eol=lf
+install_*     text eol=lf
+TUM_*         text eol=lf
+
+# Binary - never diff, never normalise
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.pdf    binary
+*.eps    binary
+*.zip    binary
+*.gz     binary
+*.tar    binary
+*.sif    binary
+*.blend  binary
+*.pt     binary
+*.vtk    binary
+
+# Language statistics: keep vendored and generated content out of the
+# repository language breakdown, so GitHub reports what the project is
+# actually written in.
+bibliotecas/**   linguist-vendored
+Manual_Euler/**  linguist-documentation
+Manual_Git/**    linguist-documentation
+*/doc/**         linguist-documentation
+docs/**          linguist-documentation
+
+# Treat .amr mesh files as text so they diff readably
+*.amr   text
