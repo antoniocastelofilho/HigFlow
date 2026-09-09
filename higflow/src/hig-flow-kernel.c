@@ -19,10 +19,14 @@ higflow_solver *higflow_create (void) {
 // Destroy the NS object
 void higflow_destroy (higflow_solver *ns) {
     // Destroy the distributed properties
-    // Pressure
-    dp_destroy(ns->dpp);
-    // Pressure difference
-    dp_destroy(ns->ddeltap);
+    if(ns->contr.equation != VISCOUS_BURGERS &&
+       ns->contr.equation != INVISCID_BURGERS &&
+       ns->contr.equation != HEAT) {
+        // Pressure
+        dp_destroy(ns->dpp);
+        // Pressure difference
+        dp_destroy(ns->dpdeltap);
+    }
     for(int dim = 0; dim < DIM; dim++) {
         // Final velocity
         dp_destroy(ns->dpu[dim]);
@@ -43,7 +47,7 @@ void higflow_destroy (higflow_solver *ns) {
             for (int i = 0; i < DIM; i++)
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.gn.dpD[i][j]);
+                    dp_destroy(ns->ed.gn.dpDu[i][j]);
                 }
             // Destroy the stencil for extra domains
             stn_destroy(ns->ed.stn);
@@ -63,7 +67,7 @@ void higflow_destroy (higflow_solver *ns) {
                 dp_destroy(ns->ed.mult.dpnormal[i]);
                 // // Tensor terms destroy
                 // for (int j = 0; j < DIM; j++) {
-                //     dp_destroy(ns->ed.mult.dpD[i][j]);
+                //     dp_destroy(ns->ed.mult.dpDu[i][j]);
                 //     dp_destroy(ns->ed.mult.dpS[i][j]);
                 //     // dp_destroy(ns->ed.mult.dpS0[i][j]);
                 //     // dp_destroy(ns->ed.mult.dpS1[i][j]);
@@ -76,8 +80,8 @@ void higflow_destroy (higflow_solver *ns) {
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         // Tensor terms destroy
-                        dp_destroy(ns->ed.ve.dpD[i][j]);
-                        dp_destroy(ns->ed.ve.dpS[i][j]);
+                        dp_destroy(ns->ed.ve.dpDu[i][j]);
+                        dp_destroy(ns->ed.ve.dpTaup[i][j]);
                         dp_destroy(ns->ed.ve.dpKernel[i][j]);
                     }
                 }
@@ -92,9 +96,9 @@ void higflow_destroy (higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.ve.dpD[i][j]);
-                    // dp_destroy(ns->ed.ve.dpD_prev[i][j]);
-                    dp_destroy(ns->ed.ve.dpS[i][j]);
+                    dp_destroy(ns->ed.ve.dpDu[i][j]);
+                    // dp_destroy(ns->ed.ve.dpDu_prev[i][j]);
+                    dp_destroy(ns->ed.ve.dpTaup[i][j]);
                     dp_destroy(ns->ed.ve.dpKernel[i][j]);
                 }
             }
@@ -106,7 +110,7 @@ void higflow_destroy (higflow_solver *ns) {
            for (int i = 0; i < DIM; i++) {
                for (int j = 0; j < DIM; j++) {
                    // Tensor terms destroy
-                   dp_destroy(ns->ed.im.dpD[i][j]);
+                   dp_destroy(ns->ed.im.dpDu[i][j]);
                    dp_destroy(ns->ed.im.dpS[i][j]);
                    for (int k = 0; k <= NDT; k++) {
                        dp_destroy(ns->ed.im.dpB[k][i][j]);
@@ -126,7 +130,7 @@ void higflow_destroy (higflow_solver *ns) {
             for (int i = 0; i < DIM; i++)
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.vevv.dpD[i][j]);
+                    dp_destroy(ns->ed.vevv.dpDu[i][j]);
                     dp_destroy(ns->ed.vevv.dpS[i][j]);
                     dp_destroy(ns->ed.vevv.dpKernel[i][j]);
                 }
@@ -150,14 +154,16 @@ void higflow_destroy (higflow_solver *ns) {
                         dp_destroy(ns->ed.vesb.dpB[i][j]);
                     }
                 //Destroy the solvers of nA and nB    
-                slv_destroy(ns->ed.vesb.slvnA);
-                slv_destroy(ns->ed.vesb.slvnB);    
+                if(ns->ed.vesb.contr.nAnBdiscrtype == IMPLICIT) {
+                    slv_destroy(ns->ed.vesb.slvnA);
+                    slv_destroy(ns->ed.vesb.slvnB);    
+                }
             }
             //Destroy the deformation and polymeric tensors
             for (int i = 0; i < DIM; i++)
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.vesb.dpD[i][j]);
+                    dp_destroy(ns->ed.vesb.dpDu[i][j]);
                     dp_destroy(ns->ed.vesb.dpS[i][j]);
                 }
             // Destroy the stencil for extra domains
@@ -168,7 +174,7 @@ void higflow_destroy (higflow_solver *ns) {
             for (int i = 0; i < DIM; i++)
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.vepl.dpD[i][j]);
+                    dp_destroy(ns->ed.vepl.dpDu[i][j]);
                     dp_destroy(ns->ed.vepl.dpS[i][j]);
                     dp_destroy(ns->ed.vepl.dpKernel[i][j]);
                 }
@@ -184,7 +190,7 @@ void higflow_destroy (higflow_solver *ns) {
             for (int i = 0; i < DIM; i++)
                 for (int j = 0; j < DIM; j++) {
                     // Tensor terms destroy
-                    dp_destroy(ns->ed.stsp.dpD[i][j]);
+                    dp_destroy(ns->ed.stsp.dpDu[i][j]);
                     dp_destroy(ns->ed.stsp.dpS[i][j]);
                     dp_destroy(ns->ed.stsp.dpA[i][j]);
                 }
@@ -201,13 +207,22 @@ void higflow_destroy (higflow_solver *ns) {
         dp_destroy(ns->ed.eo.dppsi);
         dp_destroy(ns->ed.eo.dpnplus);
         dp_destroy(ns->ed.eo.dpnminus);
+        dp_destroy(ns->ed.eo.dpnplus_aux);
+        dp_destroy(ns->ed.eo.dpnminus_aux);
         dp_destroy(ns->ed.eo.dpnplus_temp);
         dp_destroy(ns->ed.eo.dpnminus_temp);
         // Destroy the solver for potential psi 
         slv_destroy(ns->ed.eo.slvpsi);
         slv_destroy(ns->ed.eo.slvphi);
-        slv_destroy(ns->ed.eo.slvnplus);
-        slv_destroy(ns->ed.eo.slvnminus);
+
+        eo_controllers *eo_contr;
+        if(ns->contr.flowtype == MULTIPHASE) eo_contr = &(ns->ed.mult.eo.contr);
+        else eo_contr = &(ns->ed.eo.contr);
+        
+        if (eo_contr->tempdiscrtype == SEMI_IMPLICIT_EULER || eo_contr->tempdiscrtype == SEMI_IMPLICIT_CN || eo_contr->tempdiscrtype == SEMI_IMPLICIT_BDF2) {
+            slv_destroy(ns->ed.eo.slvnplus);
+            slv_destroy(ns->ed.eo.slvnminus);
+        }
         // Destroy the stencils
         stn_destroy(ns->ed.eo.stnphi);
         stn_destroy(ns->ed.eo.stnpsi);
@@ -219,13 +234,15 @@ void higflow_destroy (higflow_solver *ns) {
     // Destroy the stencil for source force
     stn_destroy(ns->stnF);
     // Destroy the solver for pressure
-    slv_destroy(ns->slvp);
+    if(ns->contr.equation != VISCOUS_BURGERS && ns->contr.equation != INVISCID_BURGERS && ns->contr.equation != HEAT)
+        slv_destroy(ns->slvp);
     // Destroy the solver for the velocity
-    if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER || ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN || ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2) {
-        for (int i = 0; i < DIM; i++) {
-            slv_destroy(ns->slvu[i]);
+    if(ns->contr.equation != INVISCID_EULER && ns->contr.equation != INVISCID_BURGERS)
+        if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER || ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN || ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2) {
+            for (int i = 0; i < DIM; i++) {
+                slv_destroy(ns->slvu[i]);
+            }
         }
-    }
 }
 
 // *******************************************************************
@@ -247,25 +264,29 @@ void higflow_initialize(int *argc, char **argv[], int *myrank, int *ntasks) {
 
 // Create the linear system solvers
 void higflow_create_solver(higflow_solver *ns) {
-    // Get the localdomainsize for cell center
-    int localdomainsize = psd_get_local_domain_size(ns->psdp);
-    // Creates a solver for pressure
-    ns->slvp            = slv_create(SOLVER_ANY, psd_get_first_id(ns->psdp), localdomainsize);
-    // Set the maximum of non zeros 
-    slv_set_maxnonzeros(ns->slvp, 800);
+    int localdomainsize;
+    if(ns->contr.equation != VISCOUS_BURGERS && ns->contr.equation != INVISCID_BURGERS && ns->contr.equation != HEAT) {
+        // Get the localdomainsize for cell center
+        localdomainsize = psd_get_local_domain_size(ns->psdp);
+        // Creates a solver for pressure
+        ns->slvp            = slv_create(SOLVER_ANY, psd_get_first_id(ns->psdp), localdomainsize);
+        // Set the maximum of non zeros 
+        slv_set_maxnonzeros(ns->slvp, 800);
+    }
     // Create the solver for the implicit methods
-    if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER || ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN || ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2) {
-        for (int dim = 0; dim < DIM; dim++) {
-            // Get the localdomainsize for facet center
-            localdomainsize = psfd_get_local_domain_size(ns->psfdu[dim]);
-            // Creates a solver for velocity
-            ns->slvu[dim]   = slv_create(SOLVER_ANY, psfd_get_first_id(ns->psfdu[dim]), localdomainsize);
-            // Set the maximum of non zeros 
-            slv_set_maxnonzeros(ns->slvu[dim], 800);
+    if(ns->contr.equation != INVISCID_EULER && ns->contr.equation != INVISCID_BURGERS) {
+        if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER || ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN || ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2) {
+            for (int dim = 0; dim < DIM; dim++) {
+                // Get the localdomainsize for facet center
+                localdomainsize = psfd_get_local_domain_size(ns->psfdu[dim]);
+                // Creates a solver for velocity
+                ns->slvu[dim]   = slv_create(SOLVER_ANY, psfd_get_first_id(ns->psfdu[dim]), localdomainsize);
+                // Set the maximum of non zeros 
+                slv_set_maxnonzeros(ns->slvu[dim], 800);
+            }
         }
     }
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
-
         // Get the localdomainsize for cell center
         int localdomainsizepsi = psd_get_local_domain_size(ns->ed.eo.psdEOpsi);
         // Creates a solver for pressure
@@ -278,56 +299,70 @@ void higflow_create_solver(higflow_solver *ns) {
         ns->ed.eo.slvphi            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOphi), localdomainsizephi);
         // Set the maximum of non zeros 
         slv_set_maxnonzeros(ns->ed.eo.slvphi, 800);
-        // Get the localdomainsize for cell center
-        int localdomainsizenplus = psd_get_local_domain_size(ns->ed.eo.psdEOnplus);
-        // Creates a solver for pressure
-        ns->ed.eo.slvnplus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnplus), localdomainsizenplus);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.eo.slvnplus, 800);
-        // Get the localdomainsize for cell center
-        int localdomainsizenminus = psd_get_local_domain_size(ns->ed.eo.psdEOnminus);
-        // Creates a solver for pressure
-        ns->ed.eo.slvnminus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnminus), localdomainsizenminus);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.eo.slvnminus, 800);
+
+        eo_controllers *eo_contr;
+        if(ns->contr.flowtype == MULTIPHASE) eo_contr = &(ns->ed.mult.eo.contr);
+        else eo_contr = &(ns->ed.eo.contr);
+        
+        if (eo_contr->tempdiscrtype == SEMI_IMPLICIT_EULER || eo_contr->tempdiscrtype == SEMI_IMPLICIT_CN || eo_contr->tempdiscrtype == SEMI_IMPLICIT_BDF2) {
+            // Get the localdomainsize for cell center
+            int localdomainsizenplus = psd_get_local_domain_size(ns->ed.eo.psdEOnplus);
+            // Creates a solver for pressure
+            ns->ed.eo.slvnplus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnplus), localdomainsizenplus);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.eo.slvnplus, 800);
+            // Get the localdomainsize for cell center
+            int localdomainsizenminus = psd_get_local_domain_size(ns->ed.eo.psdEOnminus);
+            // Creates a solver for pressure
+            ns->ed.eo.slvnminus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnminus), localdomainsizenminus);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.eo.slvnminus, 800);
+        }
     }
     if (ns->ed.nn_contr.rheotype == VCM) {
-        // Get the localdomainsize for cell center
-        int localdomainsizenA = psd_get_local_domain_size(ns->ed.vesb.psdSBnA);
-        // Creates a solver for nA
-        ns->ed.vesb.slvnA            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnA), localdomainsizenA);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.vesb.slvnA, 800);
-        // Get the localdomainsize for cell center
-        int localdomainsizenB = psd_get_local_domain_size(ns->ed.vesb.psdSBnB);
-        // Creates a solver for nB
-        ns->ed.vesb.slvnB            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnB), localdomainsizenB);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.vesb.slvnB, 800);
+        if(ns->ed.vesb.contr.nAnBdiscrtype == IMPLICIT) {
+            // Get the localdomainsize for cell center
+            int localdomainsizenA = psd_get_local_domain_size(ns->ed.vesb.psdSBnA);
+            // Creates a solver for nA
+            ns->ed.vesb.slvnA            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnA), localdomainsizenA);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.vesb.slvnA, 800);
+            // Get the localdomainsize for cell center
+            int localdomainsizenB = psd_get_local_domain_size(ns->ed.vesb.psdSBnB);
+            // Creates a solver for nB
+            ns->ed.vesb.slvnB            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnB), localdomainsizenB);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.vesb.slvnB, 800);
+        }
     }
 }
 
 // Realloc the linear system solvers
 void higflow_realloc_solver(higflow_solver *ns) {
-    // Destroy the solver for pressure
-    slv_destroy(ns->slvp);
-    // Get the localdomainsize for cell center
-    int localdomainsize = psd_get_local_domain_size(ns->psdp);
-    // Creates a solver for pressure
-    ns->slvp            = slv_create(SOLVER_ANY, psd_get_first_id(ns->psdp), localdomainsize);
-    // Set the maximum of non zeros 
-    slv_set_maxnonzeros(ns->slvp, 800);
+    int localdomainsize;
+    if(ns->contr.equation != VISCOUS_BURGERS && ns->contr.equation != INVISCID_BURGERS && ns->contr.equation != HEAT) {
+        // Destroy the solver for pressure
+        slv_destroy(ns->slvp);
+        // Get the localdomainsize for cell center
+        localdomainsize = psd_get_local_domain_size(ns->psdp);
+        // Creates a solver for pressure
+        ns->slvp            = slv_create(SOLVER_ANY, psd_get_first_id(ns->psdp), localdomainsize);
+        // Set the maximum of non zeros 
+        slv_set_maxnonzeros(ns->slvp, 800);
+    }
     // Realloc the solver for the implicit methods
-    if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER || ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN || ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2) {
-        for (int dim = 0; dim < DIM; dim++) {
-            // Destroy the solver for the velocity
-            slv_destroy(ns->slvu[dim]);
-            // Get the localdomainsize for facet center
-            localdomainsize = psfd_get_local_domain_size(ns->psfdu[dim]);
-            // Creates a solver for velocity
-            ns->slvu[dim]   = slv_create(SOLVER_ANY, psfd_get_first_id(ns->psfdu[dim]), localdomainsize);
-            // Set the maximum of non zeros 
-            slv_set_maxnonzeros(ns->slvu[dim], 800);
+    if(ns->contr.equation != INVISCID_EULER && ns->contr.equation != INVISCID_BURGERS) {
+        if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER || ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN || ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2) {
+            for (int dim = 0; dim < DIM; dim++) {
+                // Destroy the solver for the velocity
+                slv_destroy(ns->slvu[dim]);
+                // Get the localdomainsize for facet center
+                localdomainsize = psfd_get_local_domain_size(ns->psfdu[dim]);
+                // Creates a solver for velocity
+                ns->slvu[dim]   = slv_create(SOLVER_ANY, psfd_get_first_id(ns->psfdu[dim]), localdomainsize);
+                // Set the maximum of non zeros 
+                slv_set_maxnonzeros(ns->slvu[dim], 800);
+            }
         }
     }
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
@@ -348,36 +383,45 @@ void higflow_realloc_solver(higflow_solver *ns) {
         ns->ed.eo.slvphi            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOpsi), localdomainsizephi);
         // Set the maximum of non zeros 
         slv_set_maxnonzeros(ns->ed.eo.slvphi, 800);
-        // Destroy the solver for pressure
-        slv_destroy(ns->ed.eo.slvnplus);
-        // Get the localdomainsize for cell center
-        int localdomainsizenplus = psd_get_local_domain_size(ns->ed.eo.psdEOnplus);
-        // Creates a solver for pressure
-        ns->ed.eo.slvnplus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnplus), localdomainsizenplus);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.eo.slvnplus, 800);
-        // Destroy the solver for pressure
-        slv_destroy(ns->ed.eo.slvnminus);
-        // Get the localdomainsize for cell center
-        int localdomainsizenminus = psd_get_local_domain_size(ns->ed.eo.psdEOnminus);
-        // Creates a solver for pressure
-        ns->ed.eo.slvnminus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnminus), localdomainsizenminus);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.eo.slvnminus, 800);
+
+        eo_controllers *eo_contr;
+        if(ns->contr.flowtype == MULTIPHASE) eo_contr = &(ns->ed.mult.eo.contr);
+        else eo_contr = &(ns->ed.eo.contr);
+        
+        if (eo_contr->tempdiscrtype == SEMI_IMPLICIT_EULER || eo_contr->tempdiscrtype == SEMI_IMPLICIT_CN || eo_contr->tempdiscrtype == SEMI_IMPLICIT_BDF2) {
+            // Destroy the solver for pressure
+            slv_destroy(ns->ed.eo.slvnplus);
+            // Get the localdomainsize for cell center
+            int localdomainsizenplus = psd_get_local_domain_size(ns->ed.eo.psdEOnplus);
+            // Creates a solver for pressure
+            ns->ed.eo.slvnplus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnplus), localdomainsizenplus);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.eo.slvnplus, 800);
+            // Destroy the solver for pressure
+            slv_destroy(ns->ed.eo.slvnminus);
+            // Get the localdomainsize for cell center
+            int localdomainsizenminus = psd_get_local_domain_size(ns->ed.eo.psdEOnminus);
+            // Creates a solver for pressure
+            ns->ed.eo.slvnminus            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.eo.psdEOnminus), localdomainsizenminus);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.eo.slvnminus, 800);
+        }
     }
     if (ns->ed.nn_contr.rheotype == VCM) {
-        // Get the localdomainsize for cell center
-        int localdomainsizenA = psd_get_local_domain_size(ns->ed.vesb.psdSBnA);
-        // Creates a solver for nA
-        ns->ed.vesb.slvnA            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnA), localdomainsizenA);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.vesb.slvnA, 800);
-        // Get the localdomainsize for cell center
-        int localdomainsizenB = psd_get_local_domain_size(ns->ed.vesb.psdSBnB);
-        // Creates a solver for nB
-        ns->ed.vesb.slvnB            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnB), localdomainsizenB);
-        // Set the maximum of non zeros 
-        slv_set_maxnonzeros(ns->ed.vesb.slvnB, 800);
+        if(ns->ed.vesb.contr.nAnBdiscrtype == IMPLICIT) {
+            // Get the localdomainsize for cell center
+            int localdomainsizenA = psd_get_local_domain_size(ns->ed.vesb.psdSBnA);
+            // Creates a solver for nA
+            ns->ed.vesb.slvnA            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnA), localdomainsizenA);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.vesb.slvnA, 800);
+            // Get the localdomainsize for cell center
+            int localdomainsizenB = psd_get_local_domain_size(ns->ed.vesb.psdSBnB);
+            // Creates a solver for nB
+            ns->ed.vesb.slvnB            = slv_create(SOLVER_ANY, psd_get_first_id(ns->ed.vesb.psdSBnB), localdomainsizenB);
+            // Set the maximum of non zeros 
+            slv_set_maxnonzeros(ns->ed.vesb.slvnB, 800);
+        }
     }
 }
 
@@ -430,14 +474,10 @@ real (*get_fracvol)(Point center, Point delta, real t)) {
        //Sets the order of the interpolation to bhe used for the SD. 
        sd_set_interpolator_order(ns->ed.mult.sdmult, order);
 
-       if(ns->ed.mult.contr.viscoelastic_either == true){
-            // simulation domain (SD) extra domain
-            ns->ed.sdED = sd_create(NULL);
-            //reuse interpolation, 0 on, 1 off
-            sd_use_cache(ns->ed.sdED, cache);      
-            //Sets the order of the interpolation to bhe used for the SD. 
-            sd_set_interpolator_order(ns->ed.sdED, order);
-       }
+// Always create sdED for MULTIPHASE (needed by 3D VOF)
+       ns->ed.sdED = sd_create(NULL);
+       sd_use_cache(ns->ed.sdED, cache);
+       sd_set_interpolator_order(ns->ed.sdED, order);
 
        // function for the domain
        ns->ed.mult.get_viscosity0      = get_viscosity0;
@@ -881,12 +921,9 @@ void higflow_create_partitioned_domain_multiphase (higflow_solver *ns, partition
         // Synced mapper
         psd_synced_mapper(ns->ed.mult.psdmult);
 
-        if(ns->ed.mult.contr.viscoelastic_either == true) {
-            // Creating the partitioned sub-domain to simulation
-            ns->ed.psdED = psd_create(ns->ed.sdED, pg);
-            // Synced mapper
-            psd_synced_mapper(ns->ed.psdED);
-        }
+        // Always create psdED for MULTIPHASE (needed by 3D VOF)
+        ns->ed.psdED = psd_create(ns->ed.sdED, pg);
+        psd_synced_mapper(ns->ed.psdED);
     }
 }
 
@@ -1019,7 +1056,7 @@ void higflow_create_distributed_properties_generalized_newtonian(higflow_solver 
          // Distributed property for non newtonian tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.gn.dpD[i][j] = psd_create_property(ns->ed.psdED);
+                  ns->ed.gn.dpDu[i][j] = psd_create_property(ns->ed.psdED);
               }
          }
     }
@@ -1050,7 +1087,7 @@ void higflow_create_distributed_properties_multiphase(higflow_solver *ns) {
         }
         // for (int i = 0; i < DIM; i++) {
         //     for (int j = 0; j < DIM; j++) {
-        //         ns->ed.mult.dpD[i][j]       = psd_create_property(ns->ed.psdED);
+        //         ns->ed.mult.dpDu[i][j]       = psd_create_property(ns->ed.psdED);
         //         ns->ed.mult.dpS[i][j]       = psd_create_property(ns->ed.psdED);
         //         // ns->ed.mult.dpS0[i][j]      = psd_create_property(ns->ed.psdED);
         //         // ns->ed.mult.dpS1[i][j]      = psd_create_property(ns->ed.psdED);
@@ -1067,8 +1104,8 @@ void higflow_create_distributed_properties_multiphase_viscoelastic(higflow_solve
         if(ns->ed.mult.contr.viscoelastic_either == true) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
-                    ns->ed.ve.dpD[i][j]       = psd_create_property(ns->ed.psdED);
-                    ns->ed.ve.dpS[i][j]       = psd_create_property(ns->ed.psdED);
+                    ns->ed.ve.dpDu[i][j]       = psd_create_property(ns->ed.psdED);
+                    ns->ed.ve.dpTaup[i][j]       = psd_create_property(ns->ed.psdED);
                     ns->ed.ve.dpKernel[i][j] = psd_create_property(ns->ed.psdED);
                 }
             }
@@ -1083,9 +1120,9 @@ void higflow_create_distributed_properties_viscoelastic(higflow_solver *ns) {
          // Distributed property for viscoelastic tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.ve.dpD[i][j]      = psd_create_property(ns->ed.psdED);
-                //   ns->ed.ve.dpD_prev[i][j] = psd_create_property(ns->ed.psdED);
-                  ns->ed.ve.dpS[i][j]      = psd_create_property(ns->ed.psdED);
+                  ns->ed.ve.dpDu[i][j]      = psd_create_property(ns->ed.psdED);
+                //   ns->ed.ve.dpDu_prev[i][j] = psd_create_property(ns->ed.psdED);
+                  ns->ed.ve.dpTaup[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.ve.dpKernel[i][j] = psd_create_property(ns->ed.psdED);
               }
          }
@@ -1099,7 +1136,7 @@ void higflow_create_distributed_properties_viscoelastic_integral(higflow_solver 
          // Distributed property for viscoelastic tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.im.dpD[i][j] = psd_create_property(ns->ed.psdED);
+                  ns->ed.im.dpDu[i][j] = psd_create_property(ns->ed.psdED);
                   ns->ed.im.dpS[i][j] = psd_create_property(ns->ed.psdED);
                   for (int k = 0; k <= NDT; k++)
                       ns->ed.im.dpB[k][i][j] = psd_create_property(ns->ed.psdED);
@@ -1118,6 +1155,8 @@ void higflow_create_distributed_properties_electroosmotic(higflow_solver *ns) {
         ns->ed.eo.dppsi      = psd_create_property(ns->ed.eo.psdEOpsi);
         ns->ed.eo.dpnplus    = psd_create_property(ns->ed.eo.psdEOnplus);
         ns->ed.eo.dpnminus   = psd_create_property(ns->ed.eo.psdEOnminus);
+        ns->ed.eo.dpnplus_aux = psd_create_property(ns->ed.eo.psdEOnplus);
+        ns->ed.eo.dpnminus_aux = psd_create_property(ns->ed.eo.psdEOnminus);
         ns->ed.eo.dpnplus_temp = psd_create_property(ns->ed.eo.psdEOnplus);
         ns->ed.eo.dpnminus_temp = psd_create_property(ns->ed.eo.psdEOnminus);
     }
@@ -1136,7 +1175,7 @@ void higflow_create_distributed_properties_viscoelastic_variable_viscosity(higfl
          // Distributed property for viscoelastic tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.vevv.dpD[i][j]      = psd_create_property(ns->ed.psdED);
+                  ns->ed.vevv.dpDu[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.vevv.dpS[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.vevv.dpKernel[i][j] = psd_create_property(ns->ed.psdED);
               }
@@ -1150,7 +1189,7 @@ void higflow_create_distributed_properties_viscoelastic_shear_banding(higflow_so
     if (ns->contr.flowtype == SHEAR_BANDING) {
         for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.vesb.dpD[i][j]      = psd_create_property(ns->ed.psdED);
+                  ns->ed.vesb.dpDu[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.vesb.dpS[i][j]      = psd_create_property(ns->ed.psdED);
               }
         }
@@ -1178,7 +1217,7 @@ void higflow_create_distributed_properties_elastoviscoplastic(higflow_solver *ns
          // Distributed property for viscoelastic tensor 
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.vepl.dpD[i][j]      = psd_create_property(ns->ed.psdED);
+                  ns->ed.vepl.dpDu[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.vepl.dpS[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.vepl.dpKernel[i][j] = psd_create_property(ns->ed.psdED);
               }
@@ -1200,7 +1239,7 @@ void higflow_create_distributed_properties_shear_thickening_suspension(higflow_s
          // Distributed property for tensors
          for (int i = 0; i < DIM; i++) {
               for (int j = 0; j < DIM; j++) {
-                  ns->ed.stsp.dpD[i][j]      = psd_create_property(ns->ed.psdED);
+                  ns->ed.stsp.dpDu[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.stsp.dpS[i][j]      = psd_create_property(ns->ed.psdED);
                   ns->ed.stsp.dpA[i][j]      = psd_create_property(ns->ed.psdED);
               }
@@ -1210,10 +1249,16 @@ void higflow_create_distributed_properties_shear_thickening_suspension(higflow_s
 
 // Create the distributed properties for NS object
 void higflow_create_distributed_properties(higflow_solver *ns) {
-    // Distributed property for pressure 
-    ns->dpp     = psd_create_property(ns->psdp);
-    // Distributed property for pressure difference 
-    ns->ddeltap = psd_create_property(ns->psdp);
+     
+    if(ns->contr.equation != VISCOUS_BURGERS &&
+       ns->contr.equation != INVISCID_BURGERS &&
+       ns->contr.equation != HEAT) {
+        // Distributed property for pressure 
+        ns->dpp     = psd_create_property(ns->psdp);
+        // Distributed property for pressure difference
+        ns->dpdeltap = psd_create_property(ns->psdp);
+    }
+    
     // Distributed property for source term 
     ns->dpF     = psd_create_property(ns->psdF);
     // Distributed property for facets
@@ -1315,10 +1360,9 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
         if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
             sd_add_higtree(ns->ed.sdED, root);
         }
+        // Always add sdED for MULTIPHASE (needed by 3D VOF)
         if (ns->contr.flowtype == MULTIPHASE) {
-            if(ns->ed.mult.contr.viscoelastic_either == true) {
-                sd_add_higtree(ns->ed.sdED, root);
-            }
+            sd_add_higtree(ns->ed.sdED, root);
         }
         if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
             sd_add_higtree(ns->ed.eo.sdEOphi, root);
@@ -1365,13 +1409,8 @@ void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *p
             // Add higtree for SDs
             sd_add_higtree(ns->sdp, root);
             sd_add_higtree(ns->sdF, root);
-            if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
+            if (ns->contr.flowtype != NEWTONIAN) {
                 sd_add_higtree(ns->ed.sdED, root);
-            }
-            if (ns->contr.flowtype == MULTIPHASE) {
-                if(ns->ed.mult.contr.viscoelastic_either == true) {
-                    sd_add_higtree(ns->ed.sdED, root);
-                }
             }
             if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
                 sd_add_higtree(ns->ed.eo.sdEOphi, root);
@@ -1446,7 +1485,7 @@ void __higflow_readstring(char s[], int max, FILE *file) {
    char letra = fgetc(file);
    if ((letra == '\n') && (i == 0)) {
             printf("=+=+=+ Erro na leitura do string =+=+=+\n");
-            exit(1);
+            MPI_Abort(MPI_COMM_WORLD, 1);
    }
    if (letra == '\n') break;
    s[i] = letra;

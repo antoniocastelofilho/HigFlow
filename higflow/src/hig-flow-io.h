@@ -36,10 +36,19 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank);
 
 void higflow_print_vtk2D_multiphase(higflow_solver *ns, int rank);
 
+// Print the VTK file for visualize 2D PLIC Interface Lines
+void higflow_print_vtk2d_multiphase_plic_lines(higflow_solver *ns, int rank);
+
 // Print a single vtk file for vilusalize 2d
 void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nprocs);
 
 void higflow_print_vtk2D_multiphase_parallel_single(higflow_solver *ns, int rank, int nprocs);
+
+// Print the VTK file for visualize 2D PLIC Interface Lines
+void higflow_print_vtk2d_multiphase_plic_lines_serial_single(higflow_solver *ns, int rank, int nprocs);
+
+// Print the VTK file for visualize 2D PLIC Interface Lines
+void higflow_print_vtk2d_multiphase_plic_lines_parallel_single(higflow_solver *ns, int rank, int nprocs);
 
 // Print the VTK 3D file for vilusalize
 void higflow_print_vtk3D(higflow_solver *ns, int rank); 
@@ -58,6 +67,7 @@ void higflow_print_vtk3D_elastoviscoplastic(higflow_solver *ns, int rank);
 
 // Print the VTK file for vilusalize 3D
 void higflow_print_vtk3D_shear_thickening_suspensions(higflow_solver *ns, int rank);
+void higflow_print_vtk3D_parallel_single(higflow_solver *ns, int rank, int nprocs);
 // *******************************************************************
 // Navier-Stokes Load and Save
 // *******************************************************************
@@ -194,7 +204,7 @@ void higflow_save_viscoelastic_integral_parameters(higflow_solver *ns, int myran
 void higflow_load_viscoelastic_integral_controllers(higflow_solver *ns, int myrank); 
 
 // Saving the viscoelastic integral controllers
-void higflow_save_viscoelastic_integral_controllers(higflow_solver *ns, int myrank);
+void higflow_save_viscoelastic_integral_controllers(higflow_solver *ns, int myrank); 
 
 // Loading the controllers for non-newtonian flows
 void higflow_load_non_newtonian_controllers(higflow_solver *ns, int myrank);

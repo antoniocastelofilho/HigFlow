@@ -24,6 +24,18 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
 //Semi-implicit ionic transport equation for nminus
 void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver *ns);
 
+//Semi-implicit ionic transport equation for nplus
+void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus(higflow_solver *ns); 
+
+//Semi-implicit ionic transport equation for nminus
+void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus(higflow_solver *ns);
+
+//Semi-implicit ionic transport equation for nplus
+void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus(higflow_solver *ns); 
+
+//Semi-implicit ionic transport equation for nminus
+void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus(higflow_solver *ns);
+
 // Time step of ionic transport equation for n+
 void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns); 
 

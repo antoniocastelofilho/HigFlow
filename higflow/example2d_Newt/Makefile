@@ -7,7 +7,7 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = gcc
+CC = mpicc
 
 DIM=2
 
@@ -21,7 +21,7 @@ ifdef DEBUG
 	DEBUG_DESC = "gdb debug"
 else
 	OPTSOPT = -flto=8 -fno-fat-lto-objects
-	CFLAGS+= -march=native -mtune=native -Ofast -Werror
+	CFLAGS+= -march=native -mtune=native -O3 -Werror
 	DEBUG_DESC = "No Debugging/Optimized"
 endif
 
@@ -36,7 +36,7 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -ltrilinos_zoltan -lHYPRE_krylov
+LIBS+= -lm -ltrilinos_zoltan -lHYPRE
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)
@@ -57,7 +57,7 @@ endif
 OBJ1 = ns-example-2d.o 
 OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
 OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
-OBJ1 += ../src/hig-flow-res.o
+OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
@@ -69,7 +69,7 @@ run:
 	mkdir -p VTKS || true
 	mkdir -p DATA || true
 	mkdir -p output || true
-	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example \
+	mpirun -use-hwthread-cpus -n 1 $(GDB_FLAG) ./ns-example \
 		$(LOAD_PATH) \
 		output/newt.save \
 		VTKS/newt.print \

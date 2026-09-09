@@ -97,30 +97,30 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         if ((FLT_EQ(fracvol, 0.0) && flowtype0 != VISCOELASTIC) ||
             (FLT_EQ(fracvol, 1.0) && flowtype1 != VISCOELASTIC)) {
             for (int i = 0; i < DIM; i++) {
-                dp_set_value(ns->ed.ve.dpS[i][i], clid, 1.0); // dpS is used to set dpKernel after the cell loop
+                dp_set_value(ns->ed.ve.dpTaup[i][i], clid, 1.0); // dpS is used to set dpKernel after the cell loop
                 for (int j = i + 1; j < DIM; j++) {
-                    dp_set_value(ns->ed.ve.dpS[i][j], clid, 0.0);
-                    dp_set_value(ns->ed.ve.dpS[j][i], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpTaup[i][j], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpTaup[j][i], clid, 0.0);
                 }
             }
             continue;
         }
 
         // Get the velocity derivative tensor Du, S and Kernel tensor
-        real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
+        real Du[DIM][DIM], T[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
         // Get the S tensor trace
         real trS = 0.0;
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 // Get Du
-                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[i][j], ns->ed.stn);
                 // Get S
-                S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                T[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
                 // Get Kernel
                 Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 KernelCopy[i][j] = Kernel[i][j];
             }
-            trS += S[i][i];
+            trS += T[i][i];
         }
 
         // Eige-values and eige-vectors of A
@@ -157,7 +157,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         // Calculate the matrix MM for the model
         real MM0[DIM][DIM], MM1[DIM][DIM];
         real MM[DIM][DIM], M_aux[DIM][DIM];
-        if (flowtype0 == VISCOELASTIC && FLT_LT(fracvol, 1.0)) {
+        if (flowtype0 == VISCOELASTIC) {
             // Phase 0
             switch (model0) {
                 case USERSET: // User Model
@@ -189,7 +189,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 for (int j = 0; j < DIM; j++)
                     MM0[i][j] = 0.0;
         }
-        if (flowtype1 == VISCOELASTIC && FLT_GT(fracvol, 0.0)) {
+        if (flowtype1 == VISCOELASTIC) {
             // Phase 1
             switch (model1) {
                 case USERSET: // User Model
@@ -265,9 +265,9 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 //     if (flowtype1 != VISCOELASTIC) kernel = (1.0 - fracvol) * kernel + fracvol * (id);
                 // }
                 // Store the Kernel
-                dp_set_value(ns->ed.ve.dpS[i][j], clid, kernel);
+                dp_set_value(ns->ed.ve.dpTaup[i][j], clid, kernel);
                 if (i != j) {
-                    dp_set_value(ns->ed.ve.dpS[j][i], clid, kernel);
+                    dp_set_value(ns->ed.ve.dpTaup[j][i], clid, kernel);
                 }
             }
         }
@@ -277,12 +277,14 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            dp_sync(ns->ed.ve.dpS[i][j]);
+            dp_sync(ns->ed.ve.dpTaup[i][j]);
         }
     }
     // Store the Kernel Tensor
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
+            real Kmax = -1.0e16;
+            real Kmin =  1.0e16;
             for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
                 // Get the cell
                 hig_cell *c = higcit_getcell(it);
@@ -292,16 +294,24 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 Point ccenter;
                 hig_get_center(c, ccenter);
                 // Get the S tensor and store in Kernel
-                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
 
                 if (j>=i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
                 // Store Kernel
                 dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S);
+
+                if (S > Kmax) Kmax = S;
+                if (S < Kmin) Kmin = S;
             }
             // Destroy the iterator
             higcit_destroy(it);
 
             if (j>=i) UPDATE_RESIDUALS(ns, ns->residuals->Kernel[i][j])
+
+            real Kmin_global, Kmax_global;
+            MPI_Allreduce(&Kmin, &Kmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+            MPI_Allreduce(&Kmax, &Kmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+            //print0f("===> %d %d: Kmin = %15.10lf <===> Kmax = %15.10lf <===\n",i,j,Kmin_global,Kmax_global);
         }
     }
 
@@ -368,30 +378,30 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         if ((FLT_EQ(fracvol, 0.0) && flowtype0 != VISCOELASTIC) ||
             (FLT_EQ(fracvol, 1.0) && flowtype1 != VISCOELASTIC)) {
             for (int i = 0; i < DIM; i++) {
-                dp_set_value(ns->ed.ve.dpS[i][i], clid, 1.0);
+                dp_set_value(ns->ed.ve.dpTaup[i][i], clid, 1.0);
                 for (int j = i + 1; j < DIM; j++) {
-                    dp_set_value(ns->ed.ve.dpS[i][j], clid, 0.0);
-                    dp_set_value(ns->ed.ve.dpS[j][i], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpTaup[i][j], clid, 0.0);
+                    dp_set_value(ns->ed.ve.dpTaup[j][i], clid, 0.0);
                 }
             }
             continue;
         }
 
         // Get the velocity derivative tensor Du, S and Kernel tensor
-        real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
+        real Du[DIM][DIM], T[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
         // Get the S tensor trace
         real trS = 0.0;
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
                 // Get Du
-                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[i][j], ns->ed.stn);
                 // Get S
-                S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                T[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
                 // Get Kernel
                 Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 KernelCopy[i][j] = Kernel[i][j];
             }
-            trS += S[i][i];
+            trS += T[i][i];
         }
 
         // Eige-values and eige-vectors of A
@@ -550,9 +560,9 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 //     if (flowtype1 != VISCOELASTIC) kernel = (1.0 - fracvol) * kernel + fracvol * (id);
                 // }
                 // Set the value of kernel
-                dp_set_value(ns->ed.ve.dpS[i][j], clid, kernel);
+                dp_set_value(ns->ed.ve.dpTaup[i][j], clid, kernel);
                 if (i != j) {
-                    dp_set_value(ns->ed.ve.dpS[j][i], clid, kernel);
+                    dp_set_value(ns->ed.ve.dpTaup[j][i], clid, kernel);
                 }
             }
         }  
@@ -562,7 +572,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
-            dp_sync(ns->ed.ve.dpS[i][j]);
+            dp_sync(ns->ed.ve.dpTaup[i][j]);
         }
     }
     // Store the Kernel Tensor
@@ -577,7 +587,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
                 Point ccenter;
                 hig_get_center(c, ccenter);
                 // Get the S tensor and store in Kernel
-                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+                real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
 
                 if (j >= i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
 
@@ -649,7 +659,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                 (FLT_EQ(fracvol, 1.0) && flowtype1 != VISCOELASTIC)) {
                 for (int i = 0; i < DIM; i++)
                     for (int j = 0; j < DIM; j++)
-                        dp_set_value(ns->ed.ve.dpS[i][j], clid, 0.0);
+                        dp_set_value(ns->ed.ve.dpTaup[i][j], clid, 0.0);
                 continue;
             }
             
@@ -658,7 +668,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[i][j], ns->ed.stn);
                     // Get Kernel
                     Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpKernel[i][j], ns->ed.stn);
                 }
@@ -667,7 +677,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
             real R[DIM][DIM], lambda[DIM];
             hig_flow_jacobi(Kernel, lambda, R);
             // Calculate the Inverse Kernel tansformation matrix
-            real B[DIM][DIM], S[DIM][DIM];
+            real B[DIM][DIM], T[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = i+1; j < DIM; j++) {
                     B[i][j] = 0.0;
@@ -685,13 +695,13 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                 switch (ns->ed.mult.ve.contr.model0) {
                     case LPTT: ;///////////////////////////////////// LPTT
                         xi0 = ns->ed.mult.ve.par0.xi;
-                        fA = 1.0;
-                        a  = 1.0;
+                        fA0 = 1.0;
+                        a0  = 1.0;
                         break;
                     case GPTT: ;///////////////////////////////////// GPTT
                         xi0 = ns->ed.mult.ve.par0.xi;
-                        fA = 1.0;
-                        a  = 1.0;
+                        fA0 = 1.0;
+                        a0  = 1.0;
                         break;
                     case FENE_P: ;///////////////////////////////////// FENE-P
                         real L2 = ns->ed.mult.ve.par0.L2_fene;
@@ -712,6 +722,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         fA0 = b_fene/(b_fene-trA) - E*sqrt(b_fene)*exp(-sqrt(trA)/lambda_fene)*(1.0/(trA*lambda_fene)+1/(trA*sqrt(trA)));
                         a0  = 1.0;
                         xi0 = 0.0;
+                        break;
                     default: ///////////////////////////////////// Outros
                         fA0 = 1.0;
                         a0  = 1.0;
@@ -727,13 +738,13 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                 switch (ns->ed.mult.ve.contr.model1) {
                     case LPTT: ;///////////////////////////////////// LPTT
                         xi1 = ns->ed.mult.ve.par1.xi;
-                        fA = 1.0;
-                        a  = 1.0;
+                        fA1 = 1.0;
+                        a1  = 1.0;
                         break;
                     case GPTT: ;///////////////////////////////////// GPTT
                         xi1 = ns->ed.mult.ve.par1.xi;
-                        fA = 1.0;
-                        a  = 1.0;
+                        fA1 = 1.0;
+                        a1  = 1.0;
                         break;
                     case 4: ;///////////////////////////////////// FENE-P
                         real L2 = ns->ed.mult.ve.par1.L2_fene;
@@ -754,6 +765,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         fA1 = b_fene/(b_fene-trA) - E*sqrt(b_fene)*exp(-sqrt(trA)/lambda_fene)*(1.0/(trA*lambda_fene)+1/(trA*sqrt(trA)));
                         a1  = 1.0;
                         xi1 = 0.0;
+                        break;
                     default: ///////////////////////////////////// Outros
                         fA1 = 1.0;
                         a1  = 1.0;
@@ -776,18 +788,12 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
             visc = higflow_interp_visc_multiphase_viscoelastic(visc0, visc1, fracvol);
             xi = higflow_interp_xi_multiphase_viscoelastic(xi0, xi1, fracvol);
 
-            real T[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     T[i][j] = (1.0-beta)*visc*(fA*A[i][j]-a*(i==j))/(Re*De*(1.0-xi));  
-                    // BSD : -mu_pDu + mu_s(Du^T) -> second term is added in discret due to interpolation problems with Du^t 
-                    S[i][j] = T[i][j] -(1.0-beta)*visc*Du[i][j]/Re;
-                    // NO BSD : + mu_s(Du^T) -> thisterm is added in discret due to interpolation problems with Du^t 
-                    // S[i][j] = T[i][j];
-
                     if (T[i][j] > Tmax[i][j]) Tmax[i][j] = T[i][j];
                     if (T[i][j] < Tmin[i][j]) Tmin[i][j] = T[i][j];
-                    dp_set_value(ns->ed.ve.dpS[i][j], clid, S[i][j]);
+                    dp_set_value(ns->ed.ve.dpTaup[i][j], clid, T[i][j]);
                 }
             }
         }
@@ -805,7 +811,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
         // Sync the distributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
-                dp_sync(ns->ed.ve.dpS[i][j]);
+                dp_sync(ns->ed.ve.dpTaup[i][j]);
             }
         }
     }
@@ -886,49 +892,5 @@ void higflow_solver_step_multiphase_viscoelastic(higflow_solver* ns) {
     // Calculate the elastic tensor to be used in the momentum equation
     higflow_compute_polymeric_tensor_multiphase_viscoelastic(ns);
 
-    // Boundary conditions and source terms
-    higflow_boundary_condition_for_velocity(ns);
-    higflow_boundary_condition_for_pressure(ns);
-    higflow_boundary_condition_for_cell_source_term(ns);
-    higflow_boundary_condition_for_facet_source_term(ns);
-    higflow_calculate_source_term(ns);
-    higflow_calculate_facet_source_term(ns);
-    
-    // Interpolate the viscosity and density
-    higflow_compute_viscosity_multiphase(ns);
-    higflow_compute_density_multiphase(ns);
-    // Calculate the curvature, interfacial force and normal
-    higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
-    higflow_compute_distance_multiphase_2D(ns);
-    higflow_compute_plic_lines_2d(ns);
-
-    // Calculate the intermediate velocity
-    switch (ns->contr.tempdiscrtype) {
-        case EXPLICIT_EULER:
-            higflow_explicit_euler_intermediate_velocity_multiphase(ns, ns->dpu, ns->dpustar);
-            break;
-        case EXPLICIT_RK2:
-            higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase(ns);
-            break;
-        case EXPLICIT_RK3:
-            higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase(ns);
-            break;
-        case SEMI_IMPLICIT_EULER:
-            higflow_semi_implicit_euler_intermediate_velocity_multiphase(ns);
-            break;
-        case SEMI_IMPLICIT_CN:
-            higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase(ns);
-            break;
-        case SEMI_IMPLICIT_BDF2:
-            higflow_semi_implicit_bdf2_intermediate_velocity_multiphase(ns);
-            break;
-    }
-
-    // Projection
-    higflow_pressure_multiphase(ns);
-    higflow_final_velocity_multiphase(ns);
-    higflow_final_pressure(ns);
-
-    // Calculate the volume fraction
-    higflow_plic_advection_volume_fraction(ns);
+    higflow_solver_step_multiphase(ns);
 }

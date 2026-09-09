@@ -1,0 +1,30 @@
+# CI image: PETSc 3.14.0 + linting tools
+FROM ubuntu_petsc3.14:v01
+
+SHELL ["/bin/bash", "-c"]
+
+USER root
+
+RUN apt-get update && apt-get install -y \
+    clang-format \
+    python3-pip \
+    python3-yaml \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install markdownlint-cli2 pylint ruamel.yaml --break-system-packages
+
+USER hig_user
+
+# PETSc was configured with --prefix=/opt/petsc-3.14.0; detect arch
+RUN export PETSC_DIR=/opt/petsc-3.14.0 && \
+    export PETSC_ARCH=$(ls /opt/petsc-3.14.0/lib/petsc/ 2>/dev/null || echo "") && \
+    echo "export PETSC_DIR=$PETSC_DIR" >> $HOME/.bashrc && \
+    echo "export PETSC_ARCH=$PETSC_ARCH" >> $HOME/.bashrc && \
+    echo "export HIGTREE_DIR=\$HOME/HigFlow/higtree" >> $HOME/.bashrc && \
+    echo "export HIGFLOW_DIR=\$HOME/HigFlow/higflow" >> $HOME/.bashrc
+
+ENV PETSC_DIR=/opt/petsc-3.14.0
+ENV PETSC_ARCH=
+ENV HIGTREE_DIR=/home/hig_user/HigFlow/higtree
+ENV HIGFLOW_DIR=/home/hig_user/HigFlow/higflow

@@ -7,7 +7,7 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = gcc
+CC = mpicc
 
 DIM=2
 
@@ -36,7 +36,7 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -ltrilinos_zoltan -lHYPRE_krylov
+LIBS+= -lm -ltrilinos_zoltan -lHYPRE
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)

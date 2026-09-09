@@ -3,7 +3,6 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<stdarg.h>
-#include<hdf5.h>
 
 #include "Debug-c.h"
 #include "utils.h"
@@ -568,7 +567,12 @@ void higio_close_hdf5(higio_hdf5* ctx)
 	free(ctx);
 }
 
-static const hsize_t chunk_size = 64*1024;
+static hsize_t chunk_size = 1024*64;
+
+void higio_set_chunk_size(hsize_t size)
+{
+	chunk_size = size;
+}
 
 void higio_write_tree_hdf5(higio_hdf5* ctx, const char* path, hig_cell* root)
 {

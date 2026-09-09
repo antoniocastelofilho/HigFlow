@@ -1,0 +1,497 @@
+
+#include "higtree.h"
+#include "higtree-io.h"
+#include "higtree-iterator.h"
+#include "pdomain.h"
+#include "utils.h"
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <glib.h>
+#include <float.h>
+#include <mpi.h>
+
+typedef struct { Point center; } InterfaceSeedAdapt;
+
+static real dist_sq_c(Point p1, Point p2) {
+    real d = 0.0;
+    for (int i = 0; i < DIM; i++) d += (p1[i]-p2[i])*(p1[i]-p2[i]);
+    return d;
+}
+
+// --- Cell level cache (O(1) lookup, avoids walking to the root every time) ---
+static int get_cached_level(GHashTable *cache, hig_cell *c) {
+    if (c == NULL) return -1;
+    gpointer val = g_hash_table_lookup(cache, c);
+    if (val != NULL) return GPOINTER_TO_INT(val);
+    int level = 0;
+    hig_cell *p = hig_get_parent(c);
+    while (p != NULL) { level++; p = hig_get_parent(p); }
+    level--;
+    g_hash_table_insert(cache, c, GINT_TO_POINTER(level));
+    return level;
+}
+
+// --- 2D spatial hash for fast neighbour-seed queries ---
+typedef struct {
+    int nx, ny;
+    real bin_w, bin_h, ox, oy;
+    int *start;   // size nx*ny+1 (offset into seeds array)
+    int *seeds;   // flat array of seed indices per bin
+} SeedHash;
+
+static void build_seed_hash(SeedHash *sh, InterfaceSeedAdapt *seeds, int n,
+                             real bin_w, real bin_h, Point lo, Point hi)
+{
+    real sx = hi[0] - lo[0], sy = hi[1] - lo[1];
+    sh->nx = (int)ceil(sx / bin_w); if (sh->nx < 1) sh->nx = 1;
+    sh->ny = (int)ceil(sy / bin_h); if (sh->ny < 1) sh->ny = 1;
+    sh->bin_w = bin_w; sh->bin_h = bin_h;
+    sh->ox = lo[0]; sh->oy = lo[1];
+
+    int nb = sh->nx * sh->ny;
+    int *cnt = calloc(nb, sizeof(int));
+    for (int s = 0; s < n; s++) {
+        int bx = (int)((seeds[s].center[0] - lo[0]) / bin_w);
+        int by = (int)((seeds[s].center[1] - lo[1]) / bin_h);
+        if (bx < 0) bx = 0; if (bx >= sh->nx) bx = sh->nx - 1;
+        if (by < 0) by = 0; if (by >= sh->ny) by = sh->ny - 1;
+        cnt[by * sh->nx + bx]++;
+    }
+    sh->start = malloc((nb + 1) * sizeof(int));
+    int offset = 0;
+    for (int i = 0; i < nb; i++) { sh->start[i] = offset; offset += cnt[i]; }
+    sh->start[nb] = offset;
+    sh->seeds = malloc(n * sizeof(int));
+    int *pos = malloc(nb * sizeof(int));
+    memcpy(pos, sh->start, nb * sizeof(int));
+    for (int s = 0; s < n; s++) {
+        int bx = (int)((seeds[s].center[0] - lo[0]) / bin_w);
+        int by = (int)((seeds[s].center[1] - lo[1]) / bin_h);
+        if (bx < 0) bx = 0; if (bx >= sh->nx) bx = sh->nx - 1;
+        if (by < 0) by = 0; if (by >= sh->ny) by = sh->ny - 1;
+        sh->seeds[pos[by * sh->nx + bx]++] = s;
+    }
+    free(pos); free(cnt);
+}
+
+static void free_seed_hash(SeedHash *sh) {
+    free(sh->start); free(sh->seeds); memset(sh, 0, sizeof(*sh));
+}
+
+// Smallest squared distance from a point p to any seed, via the spatial hash.
+static real min_dist2_to_seeds(Point p, InterfaceSeedAdapt *seeds,
+                                SeedHash *sh)
+{
+    int bx = (int)((p[0] - sh->ox) / sh->bin_w);
+    int by = (int)((p[1] - sh->oy) / sh->bin_h);
+    real d2_min = DBL_MAX;
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            int cx = bx + dx, cy = by + dy;
+            if (cx < 0 || cx >= sh->nx || cy < 0 || cy >= sh->ny) continue;
+            int idx = cy * sh->nx + cx;
+            for (int i = sh->start[idx]; i < sh->start[idx + 1]; i++) {
+                real d2 = dist_sq_c(p, seeds[sh->seeds[i]].center);
+                if (d2 < d2_min) d2_min = d2;
+            }
+        }
+    }
+    return d2_min;
+}
+
+// =====================================================================
+// Collect interface seeds from the local multiphase domain.
+// Returns a malloc'd array and writes its length to *out_count.
+// At step 0 the analytical fracvol is used; afterwards the distributed
+// property is read.
+// =====================================================================
+static InterfaceSeedAdapt *collect_interface_seeds_local(
+    higflow_solver *ns, int *out_count)
+{
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    mp_mapper *mp = sd_get_domain_mapper(sdm);
+
+    int seed_cap = 1000;
+    int seed_count = 0;
+    InterfaceSeedAdapt *seeds = malloc(seed_cap * sizeof(*seeds));
+
+    higcit_celliterator *it = sd_get_domain_celliterator(sdm);
+    while (!higcit_isfinished(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid < 0) {
+            higcit_nextcell(it);
+            continue;
+        }
+
+        real val;
+        if (ns->par.step == 0) {
+            Point xc, delta;
+            hig_get_center(c, xc);
+            hig_get_delta(c, delta);
+            val = ns->ed.mult.get_fracvol(xc, delta, ns->par.t);
+        } else {
+            val = dp_get_value(ns->ed.mult.dpfracvol, clid);
+        }
+
+        if (val > 0.001 && val < 0.999) {
+            if (seed_count >= seed_cap) {
+                seed_cap *= 2;
+                seeds = realloc(seeds, seed_cap * sizeof(*seeds));
+            }
+            hig_get_center(c, seeds[seed_count].center);
+            seed_count++;
+        }
+        higcit_nextcell(it);
+    }
+    higcit_destroy(it);
+
+    *out_count = seed_count;
+    return seeds;
+}
+
+// =====================================================================
+// Gather interface seeds from all MPI ranks into a single global array.
+// Every rank ends up with the same seed set.  Caller frees the result.
+// =====================================================================
+static InterfaceSeedAdapt *gather_seeds_mpi(InterfaceSeedAdapt *local,
+                                            int local_count,
+                                            int *out_total)
+{
+    int ntasks;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+
+    int *counts = malloc(ntasks * sizeof(int));
+    int *disps  = malloc(ntasks * sizeof(int));
+    MPI_Allgather(&local_count, 1, MPI_INT, counts, 1, MPI_INT,
+                  MPI_COMM_WORLD);
+
+    int total = 0;
+    for (int r = 0; r < ntasks; r++) total += counts[r];
+    for (int r = 0, d = 0; r < ntasks; r++) {
+        disps[r] = d;
+        d += counts[r];
+    }
+
+    InterfaceSeedAdapt *global = NULL;
+    if (total > 0) {
+        global = malloc(total * sizeof(*global));
+        int sz = (int)sizeof(InterfaceSeedAdapt);
+        int *byte_counts = malloc(ntasks * sizeof(int));
+        int *byte_disps  = malloc(ntasks * sizeof(int));
+        for (int r = 0; r < ntasks; r++) {
+            byte_counts[r] = counts[r] * sz;
+            byte_disps[r]  = disps[r] * sz;
+        }
+        MPI_Allgatherv(local, local_count * sz, MPI_BYTE,
+                       global, byte_counts, byte_disps, MPI_BYTE,
+                       MPI_COMM_WORLD);
+        free(byte_counts);
+        free(byte_disps);
+    }
+
+    free(counts);
+    free(disps);
+    *out_total = total;
+    return global;
+}
+
+// =====================================================================
+// Adapt a tree given an explicit set of interface seeds.
+// Refines cells near any seed and coarsens those far away.
+// =====================================================================
+static void adapt_tree_with_seeds(real *thresholds, hig_cell *root,
+                                  InterfaceSeedAdapt *seeds, int seed_count)
+{
+    int num_levels = 0;
+    real thr_sq[10], thr_coarse_sq[10];
+    while (num_levels < 10 && thresholds[num_levels] >= 0) num_levels++;
+    for (int i = 0; i < num_levels; i++) {
+        thr_sq[i] = thresholds[i] * thresholds[i];
+        thr_coarse_sq[i] = (thresholds[i] + 0.005) *
+                           (thresholds[i] + 0.005);
+    }
+    real max_search = (num_levels > 0) ? thresholds[0] : 0.0;
+
+    GHashTable *level_cache = g_hash_table_new(g_direct_hash,
+                                                g_direct_equal);
+    GHashTable *ref_set     = g_hash_table_new(g_direct_hash,
+                                                g_direct_equal);
+
+    Point bbox_lo = {DBL_MAX, DBL_MAX};
+    Point bbox_hi = {-DBL_MAX, -DBL_MAX};
+    for (int s = 0; s < seed_count; s++) {
+        for (int d = 0; d < DIM; d++) {
+            if (seeds[s].center[d] - max_search < bbox_lo[d])
+                bbox_lo[d] = seeds[s].center[d] - max_search;
+            if (seeds[s].center[d] + max_search > bbox_hi[d])
+                bbox_hi[d] = seeds[s].center[d] + max_search;
+        }
+    }
+
+    SeedHash seed_hash;
+    if (seed_count > 0) {
+        real bh = max_search + 0.005;
+        build_seed_hash(&seed_hash, seeds, seed_count, bh, bh,
+                        bbox_lo, bbox_hi);
+    }
+
+    int refine_cap = (seed_count > 0) ? seed_count * 4 : 1000;
+    int merge_cap  = (seed_count > 0) ? seed_count * 2 : 1000;
+
+    // STAGE A: REFINEMENT
+    if (seed_count > 0 && num_levels > 0) {
+        for (int pass = 0; pass < num_levels + 1; pass++) {
+            int refine_count = 0;
+            hig_cell **to_refine = malloc(refine_cap * sizeof(hig_cell*));
+            g_hash_table_remove_all(ref_set);
+
+            higcit_celliterator *it_bb =
+                higcit_create_bounding_box(root, bbox_lo, bbox_hi);
+            while (!higcit_isfinished(it_bb)) {
+                hig_cell *neigh = higcit_getcell(it_bb);
+                if (hig_get_number_of_children(neigh) == 0) {
+                    Point cn;
+                    hig_get_center(neigh, cn);
+                    real d2 = min_dist2_to_seeds(cn, seeds, &seed_hash);
+                    int target_level = 0;
+                    for (int l = num_levels - 1; l >= 0; l--) {
+                        if (d2 <= thr_sq[l]) {
+                            target_level = l + 1;
+                            break;
+                        }
+                    }
+                    if (target_level > 0) {
+                        int cl = get_cached_level(level_cache, neigh);
+                        if (cl < target_level &&
+                            !g_hash_table_contains(ref_set, neigh)) {
+                            if (refine_count >= refine_cap) {
+                                refine_cap *= 2;
+                                to_refine = realloc(to_refine,
+                                    refine_cap * sizeof(hig_cell*));
+                            }
+                            to_refine[refine_count++] = neigh;
+                            g_hash_table_add(ref_set, neigh);
+                        }
+                    }
+                }
+                higcit_nextcell(it_bb);
+            }
+            higcit_destroy(it_bb);
+
+            if (refine_count == 0) {
+                free(to_refine);
+                break;
+            }
+            for (int i = 0; i < refine_count; i++) {
+                int nc[DIM] = {2, 2};
+                hig_refine_uniform(to_refine[i], nc);
+            }
+            free(to_refine);
+        }
+    }
+
+    // STAGE B: COARSENING
+    if (seed_count > 0 && num_levels > 0) {
+        for (int pass = 0; pass < 4; pass++) {
+            int merge_count = 0;
+            hig_cell **parents_to_merge =
+                malloc(merge_cap * sizeof(hig_cell*));
+
+            higcit_celliterator *it_all =
+                higcit_create_all_higtree(root);
+            while (!higcit_isfinished(it_all)) {
+                hig_cell *c = higcit_getcell(it_all);
+                int nc = hig_get_number_of_children(c);
+                if (nc > 0) {
+                    int all_leaves = 1;
+                    for (int k = 0; k < nc; k++) {
+                        if (hig_get_number_of_children(
+                                hig_get_child(c, k)) > 0) {
+                            all_leaves = 0;
+                            break;
+                        }
+                    }
+                    if (all_leaves) {
+                        int plvl = get_cached_level(level_cache, c);
+                        int safe = 1;
+                        for (int k = 0; k < nc && safe; k++) {
+                            hig_cell *ch = hig_get_child(c, k);
+                            Point cch;
+                            hig_get_center(ch, cch);
+                            real d2 = min_dist2_to_seeds(cch, seeds,
+                                                         &seed_hash);
+                            real thr = (plvl < num_levels)
+                                           ? thr_coarse_sq[plvl]
+                                           : -1.0;
+                            if (d2 <= thr) safe = 0;
+                        }
+                        if (safe) {
+                            if (merge_count >= merge_cap) {
+                                merge_cap *= 2;
+                                parents_to_merge = realloc(
+                                    parents_to_merge,
+                                    merge_cap * sizeof(hig_cell*));
+                            }
+                            parents_to_merge[merge_count++] = c;
+                        }
+                    }
+                }
+                higcit_nextcell(it_all);
+            }
+            higcit_destroy(it_all);
+
+            if (merge_count == 0) {
+                free(parents_to_merge);
+                break;
+            }
+            for (int i = 0; i < merge_count; i++) {
+                int nc = hig_get_number_of_children(parents_to_merge[i]);
+                for (int k = 0; k < nc; k++)
+                    g_hash_table_remove(level_cache,
+                        hig_get_child(parents_to_merge[i], k));
+                hig_merge_children(parents_to_merge[i]);
+            }
+            free(parents_to_merge);
+        }
+    }
+
+    g_hash_table_destroy(level_cache);
+    g_hash_table_destroy(ref_set);
+    if (seed_count > 0) free_seed_hash(&seed_hash);
+}
+
+// =====================================================================
+// Backwards-compatible wrapper: collect seeds from the local domain and
+// adapt the given tree.  Used by the serial and in-place paths.
+// =====================================================================
+static void adapt_tree_core(higflow_solver *ns, real *thresholds,
+                            hig_cell *root)
+{
+    int seed_count = 0;
+    InterfaceSeedAdapt *seeds = collect_interface_seeds_local(ns,
+                                                              &seed_count);
+    adapt_tree_with_seeds(thresholds, root, seeds, seed_count);
+    free(seeds);
+}
+
+// Build a fresh adapted tree (clone of the live mesh). Caller owns the result.
+hig_cell *higflow_make_adapted_tree_params(higflow_solver *ns, real *thresholds)
+{
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    hig_cell *root_o = sd_get_higtree(sdm, 0);
+    if (!root_o) return NULL;
+    hig_cell *root_c = hig_clone(root_o);
+    if (root_c) adapt_tree_core(ns, thresholds, root_c);
+    return root_c;
+}
+
+// Adapt the live mesh in place.
+void higflow_refine_tree_inplace(higflow_solver *ns, real *thresholds)
+{
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    hig_cell *root = sd_get_higtree(sdm, 0);
+    if (root) adapt_tree_core(ns, thresholds, root);
+}
+
+// =====================================================================
+// Build a globally adapted tree identical on all ranks.
+//
+// Reads the original AMR file (identical on every rank), gathers the
+// interface seeds from all ranks, and adapts the tree with the same
+// seed set everywhere.  The returned tree can be passed to the load
+// balancer for parallel partitioning.
+// =====================================================================
+hig_cell *higflow_make_global_adapted_tree(higflow_solver *ns,
+                                           real *thresholds,
+                                           const char *amr_filename)
+{
+    int myrank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+
+    FILE *fd = fopen(amr_filename, "r");
+    if (!fd) {
+        if (myrank == 0)
+            fprintf(stderr, "Cannot open AMR file %s\n", amr_filename);
+        return NULL;
+    }
+    higio_amr_info *mi = higio_read_amr_info(fd);
+    fclose(fd);
+    if (!mi) return NULL;
+
+    hig_cell *root = higio_read_from_amr_info(mi);
+    higio_amr_info_destroy(mi);
+    if (!root) return NULL;
+
+    int local_count = 0;
+    InterfaceSeedAdapt *local_seeds =
+        collect_interface_seeds_local(ns, &local_count);
+
+    int global_count = 0;
+    InterfaceSeedAdapt *global_seeds =
+        gather_seeds_mpi(local_seeds, local_count, &global_count);
+    free(local_seeds);
+
+    adapt_tree_with_seeds(thresholds, root, global_seeds, global_count);
+
+    int leaves_after = 0;
+    higcit_celliterator *it = higcit_create_all_leaves(root);
+    for (; !higcit_isfinished(it); higcit_nextcell(it)) leaves_after++;
+    higcit_destroy(it);
+
+    print0f("===> AMR: seeds=%d leaves=%d\n",
+            global_count, leaves_after);
+
+    free(global_seeds);
+    return root;
+}
+
+// =====================================================================
+// BC higtree refinement for AMR cases.
+// Registered via higflow_set_bc_refine_hook() so each boundary higtree
+// is refined in place to match the adjacent internal mesh before the
+// sim_boundary is created.  _bc_domain_root is set just before calling
+// higflow_initialize_boundaries_yaml() and cleared immediately after.
+// =====================================================================
+static hig_cell *_bc_domain_root = NULL;
+
+static int _bc_level(hig_cell *c) {
+    int l = 0;
+    while (c) { c = hig_get_parent(c); l++; }
+    return l;
+}
+
+static void _refine_bc_tree(hig_cell *bc_root, int bc_id) {
+    if (!_bc_domain_root) return;
+    const real eps = 1e-7;
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        higcit_celliterator *it = higcit_create_all_leaves(bc_root);
+        for (; !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *bc_leaf = higcit_getcell(it);
+            Point center; hig_get_center(bc_leaf, center);
+            Point q; q[0] = center[0]; q[1] = center[1];
+            if      (bc_id == 0) q[0] += eps;
+            else if (bc_id == 1) q[1] -= eps;
+            else if (bc_id == 2) q[0] -= eps;
+            else                 q[1] += eps;
+            hig_cell *dom = hig_get_cell_with_point(_bc_domain_root, q);
+            if (!dom) continue;
+            int bc_lev  = _bc_level(bc_leaf);
+            int dom_lev = _bc_level(dom);
+            if (dom_lev > bc_lev) {
+                int nc[DIM];
+                if (bc_id == 0 || bc_id == 2) { nc[0]=1; nc[1]=2; }
+                else                            { nc[0]=2; nc[1]=1; }
+                hig_refine_uniform(bc_leaf, nc);
+                changed = true;
+                higcit_destroy(it);
+                break;
+            }
+        }
+        if (!changed) higcit_destroy(it);
+    }
+}

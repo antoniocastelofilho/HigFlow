@@ -1,0 +1,50 @@
+bc:
+  number_bc: 4
+  bc0:
+    id: 0
+    path: mesh/__using/bc/ch-bc-0.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value
+  bc1:
+    id: 1
+    path: mesh/__using/bc/ch-bc-1.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value
+  bc2:
+    id: 2
+    path: mesh/__using/bc/ch-bc-2.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value
+  bc3:
+    id: 3
+    path: mesh/__using/bc/ch-bc-3.amr
+    pressure:
+      type: neumann
+      value_type: fixed_value
+    velocity_0:
+      type: dirichlet
+      value_type: fixed_value
+    velocity_1:
+      type: dirichlet
+      value_type: fixed_value

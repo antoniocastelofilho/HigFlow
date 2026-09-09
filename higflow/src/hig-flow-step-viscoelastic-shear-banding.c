@@ -46,7 +46,7 @@ void higflow_compute_polymeric_tensor_shear_banding(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
                     A[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
                     // Get conformation tensor of specie B
@@ -137,7 +137,7 @@ void higflow_compute_viscoelastic_shear_banding_cA_VCM(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
                     A[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
                 }
@@ -314,7 +314,7 @@ void higflow_explicit_euler_conformation_tensor_A(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
@@ -534,7 +534,7 @@ void higflow_explicit_euler_conformation_tensor_B(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
@@ -739,7 +739,7 @@ void higflow_implicit_euler_conformation_tensor_A(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
@@ -988,7 +988,7 @@ void higflow_implicit_euler_conformation_tensor_B(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpS[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
@@ -1980,7 +1980,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nA(higflow_solver *
             //for (int i = 0; i < DIM; i++) {
             //    for (int j = 0; j < DIM; j++) {
                     // Get Du
-            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
             //        A[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
             //    }
@@ -2106,7 +2106,7 @@ void higflow_explicit_euler_shear_banding_transport_equation_nB(higflow_solver *
             //for (int i = 0; i < DIM; i++) {
             //    for (int j = 0; j < DIM; j++) {
                     // Get Du
-            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
             //        A[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
             //    }
@@ -2228,7 +2228,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
             //for (int i = 0; i < DIM; i++) {
             //    for (int j = 0; j < DIM; j++) {
                     // Get Du
-            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
             //        A[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
             //    }
@@ -2337,7 +2337,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nA(higflow_solver *
         //Load property from solver
         dp_slv_load_from_solver(ns->ed.vesb.dpnA, ns->ed.vesb.slvnA);
         // Syncing the distributed property
-        dp_sync(ns->ed.vesb.dpnA);
+        //dp_sync(ns->ed.vesb.dpnA); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -2383,7 +2383,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *
             //for (int i = 0; i < DIM; i++) {
             //    for (int j = 0; j < DIM; j++) {
                     // Get Du
-            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpD[i][j], ns->ed.stn);
+            //        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpDu[i][j], ns->ed.stn);
                     // Get conformation tensor of specie A
             //        A[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vesb.dpA[i][j], ns->ed.stn);
             //    }
@@ -2489,7 +2489,7 @@ void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *
         //Load property from solver
         dp_slv_load_from_solver(ns->ed.vesb.dpnB, ns->ed.vesb.slvnB);
         // Syncing the distributed property
-        dp_sync(ns->ed.vesb.dpnB);
+        //dp_sync(ns->ed.vesb.dpnB); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -2945,20 +2945,9 @@ void higflow_semi_implicit_euler_intermediate_velocity_shear_banding(higflow_sol
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -3049,20 +3038,9 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_banding(hi
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -3154,20 +3132,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solv
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real uaux = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpuaux[dim], flid, uaux);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpuaux[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpuaux[dim]);
+        //dp_sync(ns->dpuaux[dim]); // already called from dp_slv_load_from_solver
     }
     // Second Stage of Tr-BDF2
     // Looping for the velocity
@@ -3245,20 +3212,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solv
         // Get the solution of linear system
         //Vec *vecu = slv_get_solution_vec(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-	    int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], flid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 

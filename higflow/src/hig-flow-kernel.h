@@ -80,6 +80,8 @@ typedef struct higflow_compcell{
     real    d2ndx2;
     // Psi at the center
     real    psicell;
+    // Extra diffusive term when non-uniform viscosity is present
+    real    d2vdx2[DIM];
     // Viscosity at left cell
     real    viscl[DIM];
     // Viscosity at right cell
@@ -88,6 +90,8 @@ typedef struct higflow_compcell{
     real    curv;
     // Interfacial Force
     real    IF;
+    // Volume fraction
+    real    fvol;
     // Central density number
     real nABcell;
     // First order density number derivative
@@ -149,6 +153,15 @@ typedef struct higflow_parameters{
     char   nameres[1024];
 } higflow_parameters;
 
+typedef enum equation_type{
+    NAVIER_STOKES = 0,
+    INVISCID_EULER = 1,
+    STOKES = 2,
+    VISCOUS_BURGERS = 3,
+    INVISCID_BURGERS = 4,
+    HEAT = 5,
+} equation_type;
+
 typedef enum projection_type{
     NON_INCREMENTAL = 0,
     INCREMENTAL = 1
@@ -195,6 +208,8 @@ typedef enum secondconvecdiscr_type{
 
 // Methods controllers for simulation data structure
 typedef struct higflow_controllers{
+    // Equation type: 0 Navier-Stokes, 1 Inviscid Euler, 2 Stokes, 3 Viscous Burgers, 4 Inviscid Burgers, 5 Heat
+    equation_type   equation;
     // Projection type: 0 non incremental, 1 incremental
     projection_type   projtype;
     // Model type: 0 Newtonian, 1 Generalized Newtonian, 2 Multifase, 3 Viscoelastic
@@ -211,6 +226,8 @@ typedef struct higflow_controllers{
     secondconvecdiscr_type   secondconvecdiscrtype;
     // Desingualrization controllers for the pressure: 0 no desing. and 1 desing.
     int   desingpressure; 
+    // Add gravity force
+    int add_gravity;
 } higflow_controllers;
 
 // Methods controllers for simulation data structure
@@ -236,7 +253,7 @@ typedef struct higflow_functions{
 // Domains and distributed properties for generalized newtonian
 typedef struct higflow_gen_newtonian{
     // Distributed property for velocity derivative tensor 
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // Distributed property for viscosity 
     distributed_property *dpvisc;
     // Function to get the viscosity
@@ -322,6 +339,8 @@ typedef struct eo_parameters{
     real   Pe;
     // External electric field
     real   Ex;
+    // Reference permittivity (Can be used by the user or not)
+    real   perm;
 } eo_parameters;
 
 typedef enum eo_model_type{
@@ -342,6 +361,9 @@ typedef struct eo_controllers{
     int    is_phibc_timedependent; // if boundary conditions are time dependent - determines if laplace equation should be solved again
     int    is_psibc_timedependent; // if boundary conditions are time dependent - determines if poisson equation should be solved again
                                   // only relevant for poisson-boltzmann and poisson-boltzmann-debye huckel
+    int    max_inner_iter; // maximum number of inner iterations for PNP
+    real   inner_tol; // tolerance for inner iterations for PNP
+    int    is_perm_uniform; // if permittivity is uniform
 } eo_controllers;
 
 // Domains and distributed properties for electro-osmotic
@@ -380,6 +402,10 @@ typedef struct higflow_electroosmotic{
     distributed_property *dpnplus;
     // Distributed property for negative charge concentration 
     distributed_property *dpnminus;
+    // Distributed property for positive charge concentration - for use in BDF-2
+    distributed_property *dpnplus_aux;
+    // Distributed property for negative charge concentration - for use in BDF-2
+    distributed_property *dpnminus_aux;
     // Distributed property for positive charge concentration - temporary dp for inner iterations of PNP
     distributed_property *dpnplus_temp;
     // Distributed property for negative charge concentration - temporary dp for inner iterations of PNP
@@ -462,11 +488,11 @@ typedef struct higflow_viscoelastic{
     // Viscoelastic parameters
     ve_parameters        par;
     // Distributed property for velocity derivative tensor 
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // // Distributed property for velocity derivative tensor previous (used for e-FENE)
-    // distributed_property *dpD_prev[DIM][DIM];
+    // distributed_property *dpDu_prev[DIM][DIM];
     // Distributed property for polymeric tensor 
-    distributed_property *dpS[DIM][DIM];
+    distributed_property *dpTaup[DIM][DIM];
     // Distributed property for kernel tensor 
     distributed_property *dpKernel[DIM][DIM];
     // Function to get the tensor
@@ -550,7 +576,7 @@ typedef struct higflow_viscoelastic_integral{
     // Distributed property for velocity derivative tensor 
     distributed_property *dpB[NDT+1][DIM][DIM];
     // Distributed property for velocity derivative tensor 
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // Distributed property for polymeric tensor 
     distributed_property *dpS[DIM][DIM];
     // Function to get the tensor
@@ -627,7 +653,7 @@ typedef struct higflow_viscoelastic_variable_viscosity
     // Function to get the structural parameter
     real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma); 
     // Distributed property for velocity derivative tensor
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // Distributed property for polymeric tensor
     distributed_property *dpS[DIM][DIM];
     // Distributed property for kernel tensor
@@ -712,7 +738,7 @@ typedef struct higflow_viscoelastic_shear_banding
     // Distributed property for concentration of specie B cB
     distributed_property *dpcB;
     // Distributed property for velocity derivative tensor
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // Distributed property for polymeric tensor
     distributed_property *dpS[DIM][DIM];
     // Distributed property for conformation tensor of specie A
@@ -794,7 +820,7 @@ typedef struct higflow_elastoviscoplastic
     // Elastoviscoplastic parameters
     vepl_parameters par;
     // Distributed property for velocity derivative tensor
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // Distributed property for polymeric tensor
     distributed_property *dpS[DIM][DIM];
     // Distributed property for kernel tensor
@@ -874,7 +900,7 @@ typedef struct higflow_shear_thickening_suspension
     // Distributed property for volume fraction
     distributed_property *dpphi;
     // Distributed property for velocity derivative tensor
-    distributed_property *dpD[DIM][DIM];
+    distributed_property *dpDu[DIM][DIM];
     // Distributed property for polymeric tensor S = tau -2 (eta_0)D
     distributed_property *dpS[DIM][DIM];
     // Distributed property for microstructure tensor (A = <nn>)
@@ -992,7 +1018,7 @@ typedef struct higflow_multiphase_viscoelastic{
     ve_parameters    par0;
     ve_parameters    par1;
     // Distributed property for velocity derivative tensor 
-    // distributed_property *dpD[DIM][DIM];
+    // distributed_property *dpDu[DIM][DIM];
     // // Distributed property for beta viscoelastic
     // distributed_property *dpbeta;
     // Distributed property for S viscoelastic - Momento
@@ -1027,9 +1053,16 @@ typedef struct higflow_multiphase_viscoelastic{
 } higflow_multiphase_viscoelastic;
 
 
-typedef struct mult_parameters{
+typedef struct mult_surf_parameters{
     // Capillary number
     real Ca;
+} mult_surf_parameters;
+
+typedef struct mult_parameters{
+    // Reference density (can be used or not by the user)
+    real rho;
+    // Reference viscosity (can be used or not by the user)
+    real mu;
 } mult_parameters;
 
 typedef struct mult_controllers{
@@ -1047,6 +1080,8 @@ typedef struct mult_controllers{
     // Controllers - set whenever either phase is
     // electro-osmotic
     int eoflow_either;
+
+    int add_surface_tension;
 } mult_controllers;
 
 typedef Point Line[2];
@@ -1064,8 +1099,12 @@ typedef struct higflow_multiphase{
     higflow_multiphase_electroosmotic eo;
     // Mult controllers
     mult_controllers      contr;
+    // Mult surface parameters
+    mult_surf_parameters       spar;
     // Mult parameters
-    mult_parameters       par;
+    mult_parameters       par0;
+    // Mult parameters
+    mult_parameters       par1;
     // Distributed property for viscosity
     distributed_property *dpvisc;
     // Distributed property for density 
@@ -1178,7 +1217,7 @@ typedef struct higflow_solver {
     // Distributed property for pressure 
     distributed_property       *dpp;
     // Distributed property for pressure difference
-    distributed_property       *ddeltap;
+    distributed_property       *dpdeltap;
     // Disttibuted property for source term 
     distributed_property       *dpF;
     // Distributed properties from facets in the domain 

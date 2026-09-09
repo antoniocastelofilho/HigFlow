@@ -1,8 +1,8 @@
 simulation_par:
-  numsteps: 1001                    # The Maximum Number of Steps 
-  dt: 0.001                         # The Time spacing 
-  dts: 0.01                         # The Time spacing for saving data (output) 
-  dtp: 0.01                         # The Time spacing for saving VTKs
+  numsteps: 100000                  # The Maximum Number of Steps 
+  dt: 0.005                         # The Time spacing 
+  dts: 0.5                          # The Time spacing for saving data (output) 
+  dtp: 0.5                          # The Time spacing for saving VTKs
 
 adimensional:
   Re: 1.0                             # The Reynolds Number  Re = ρUH/μ
@@ -30,7 +30,7 @@ singlephase:
     contr:
       model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # upwind or cubista
+      convecdiscrtype: cubista       # central or cubista
     adimensional:
       De: 1.0                        # Deborah Number         De = λU/H
       beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
@@ -56,7 +56,7 @@ singlephase:
     contr:
       model: kbkz            # kbkz or kbkz_fractional
       discrtype: explicit               # explicit (only)
-      convecdiscrtype: cubista          # upwind or cubista
+      convecdiscrtype: cubista          # central or cubista
     adimensional:
       De: 0.2                           # Deborah Number
     damping:
@@ -81,7 +81,7 @@ singlephase:
     contr:
       model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt or user_set
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # upwind or cubista
+      convecdiscrtype: cubista       # central or cubista
     adimensional:
       De: 1.0                        # Deborah Number         De = λU/H
       beta: 0.5                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
@@ -98,7 +98,7 @@ singlephase:
       alpha: 0.2                     # mobility factor
     thixotropic:
       structpdiscrtype: explicit            # explicit or implicit
-      structpconvecdiscrtype: cubista       # upwind or cubista
+      structpconvecdiscrtype: cubista       # central or cubista
       structparmodel: bmp            # bmp, bmp_solvent, mbm, nm_taup or nm_t
       Lambda: 1.0                    # structural relaxation parameter
       Phi: 0.1                       # thixotropic ratio parameter
@@ -107,13 +107,13 @@ singlephase:
   shear_banding:
     contr:
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # upwind or cubista
+      convecdiscrtype: cubista       # central or cubista
     adimensional:
       De: 10.0                        # Deborah Number         De = λU/H
       beta: 0.01                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
     vcm:
       nAnBdiscrtype: explicit            # explicit or implicit
-      nAnBconvecdiscrtype: cubista       # upwind or cubista
+      nAnBconvecdiscrtype: cubista       # central or cubista
       DeA: 1.9                           # Deborah Number of specie A DeA = lambda_A*(U0/L)
       epsilon: 6.27e-4                           # Ratio of relaxation parameters epsilon = lambda_B/lambda_A
       PeA: 1000.0                        # Péclet number of species A PeA = UH/Da
@@ -126,7 +126,7 @@ singlephase:
     contr:
       model: oldroyd_b_bingham               # oldroyd_b_bingham, oldroyd_b_hb, lptt_bingham, eptt_bingham or general_saramito
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # upwind or cubista
+      convecdiscrtype: cubista       # central or cubista
     adimensional:
       De: 1.0                        # Deborah Number         De = λU/H
       beta: 0.01                      # The beta solvent ratio β = µ_s/(µ_s + µ_p) = µ_s/µ_0
@@ -145,7 +145,7 @@ singlephase:
     contr:
       model: gw                      # gw, gw_wc, gw_wc_if or userset
       discrtype: explicit            # explicit or implicit
-      convecdiscrtype: cubista       # upwind or cubista
+      convecdiscrtype: cubista       # central or cubista
     dimensional:
       alpha: 2.4                        # lubrification forces coefficient
       eta0:  1.0                        # solvent viscosity eta_0
@@ -158,7 +158,7 @@ singlephase:
       Pic: 0.5                          # critical particle pressure
     gw_wc_if:
       volfracdiscrtype: explicit            # explicit or implicit
-      volfracconvecdiscrtype: cubista       # upwind or cubista
+      volfracconvecdiscrtype: cubista       # central or cubista
       chij1: 0.267                        # extremal jamming point 1
       chij2: 0.217                        # extremal jamming point 2
       X0:  2.4                          # direct interparticle forces
@@ -176,7 +176,7 @@ singlephase:
       Ex: 20.0               # dϕ/dx - adimensionalized applied field differential per unit distance
     model_pnp:
       tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
-      convecdiscrtype: cubista                      # upwind or cubista
+      convecdiscrtype: cubista                      # central or cubista
       Pe: 12.5                                      # Péclet number  Pe = UH/D
 
 ###############################################################################################################      
@@ -195,7 +195,7 @@ multiphase:
       model0: oldroyd_b                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       model1: lptt                 # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set (ignored if newtonian)
       discrtype: explicit               # explicit or implicit
-      convecdiscrtype: cubista          # upwind or cubista
+      convecdiscrtype: cubista          # central or cubista
     phase0:      # (all ignored if newtonian)
       adimensional:
         De: 1.0                         # Deborah Number         De = λU/H
@@ -244,7 +244,7 @@ multiphase:
       model: pnp    # (for all phases) pnp, pb (not working yet), pbdh  
     model_pnp:
       tempdiscrtype: semi_implicit_euler            # explicit_euler or semi_implicit_euler
-      convecdiscrtype: cubista                      # upwind or cubista
+      convecdiscrtype: cubista                      # central or cubista
     phase0:      # (all ignored if not electroosmotic)
       adimensional:
         alpha: 2.35                                 # ratio of electric energy to thermal energy  α = ezζ_0/k_bT

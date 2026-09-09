@@ -54,17 +54,17 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                     }
                     dudx = compute_facet_dudxc(cdelta, dim2, 0.5, ul, ul, ur);
                     if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
-                        dp_set_value(ns->ed.gn.dpD[dim][dim2], clid, dudx);
+                        dp_set_value(ns->ed.gn.dpDu[dim][dim2], clid, dudx);
                     }
                     else if (ns->contr.flowtype == MULTIPHASE) {
                         if (ns->ed.mult.contr.viscoelastic_either == true)
-                            dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
+                            dp_set_value(ns->ed.ve.dpDu[dim][dim2], clid, dudx);
                     }
                     else if (ns->contr.flowtype == VISCOELASTIC) {
-                        dp_set_value(ns->ed.ve.dpD[dim][dim2], clid, dudx);
+                        dp_set_value(ns->ed.ve.dpDu[dim][dim2], clid, dudx);
                     }
                     else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
-                        dp_set_value(ns->ed.im.dpD[dim][dim2], clid, dudx);
+                        dp_set_value(ns->ed.im.dpDu[dim][dim2], clid, dudx);
                     }
                 }
             }
@@ -75,17 +75,17 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
         for (int dim = 0; dim < DIM; dim++) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {
                 if (ns->contr.flowtype == GENERALIZED_NEWTONIAN) {
-                    dp_sync(ns->ed.gn.dpD[dim][dim2]);
+                    dp_sync(ns->ed.gn.dpDu[dim][dim2]);
                 }
                 else if (ns->contr.flowtype == MULTIPHASE) {
                     if (ns->ed.mult.contr.viscoelastic_either == true)
-                        dp_sync(ns->ed.ve.dpD[dim][dim2]);
+                        dp_sync(ns->ed.ve.dpDu[dim][dim2]);
                 }
                 else if (ns->contr.flowtype == VISCOELASTIC) {
-                    dp_sync(ns->ed.ve.dpD[dim][dim2]);
+                    dp_sync(ns->ed.ve.dpDu[dim][dim2]);
                 }
                 else if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
-                    dp_sync(ns->ed.im.dpD[dim][dim2]);
+                    dp_sync(ns->ed.im.dpDu[dim][dim2]);
                 }
             }
         }
@@ -122,7 +122,7 @@ void higflow_compute_viscosity_gn(higflow_solver *ns) {
             for (int dim = 0; dim < DIM; dim++) {
                 for (int dim2 = 0; dim2 < DIM; dim2++) {
                     // Get Du
-                    Du[dim][dim2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.gn.dpD[dim][dim2], ns->ed.stn);
+                    Du[dim][dim2] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.gn.dpDu[dim][dim2], ns->ed.stn);
                 }
             }
             // Calculate the rate of deformation tensor
@@ -201,6 +201,8 @@ void higflow_explicit_euler_intermediate_velocity_gen_newt(higflow_solver *ns, d
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution
             rhs += higflow_diffusive_term(ns, fdelta);
+            // Extra diffusive term contribution
+            rhs += higflow_extra_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
             real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
@@ -377,6 +379,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Difusive term contribution (acrescentado)
             //rhs += higflow_diffusive_term(ns, fdelta);
+            // Extra diffusive term contribution
+            rhs += higflow_extra_diffusive_term(ns, fdelta);
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
@@ -428,20 +432,9 @@ void higflow_semi_implicit_euler_intermediate_velocity_gen_newt(higflow_solver *
         // Get the solution of linear system
 
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -480,6 +473,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
             real rhs = 0.0;
             // Diffusive term term contribution
             rhs += 0.5 * higflow_diffusive_term(ns, fdelta);
+            // Extra diffusive term contribution
+            rhs += higflow_extra_diffusive_term(ns, fdelta);
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Pressure term contribution
@@ -535,20 +530,9 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_gen_newt(higflow
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -591,6 +575,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             rhs -= higflow_pressure_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
+            // Extra diffusive term contribution
+            rhs += higflow_extra_diffusive_term(ns, fdelta);
             // Total contribuition terms times delta t
             rhs *= 0.5*ns->par.dt;
             // Difusive term contribution
@@ -641,20 +627,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real uaux = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpuaux[dim], flid, uaux);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpuaux[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpuaux[dim]);
+        //dp_sync(ns->dpuaux[dim]); // already called from dp_slv_load_from_solver
     }
     //Second Stage of Tr-BDF2
     // Looping for the velocity
@@ -684,6 +659,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
             rhs -= higflow_pressure_term(ns);
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
+            // Extra diffusive term contribution
+            rhs += higflow_extra_diffusive_term(ns, fdelta);
             // Total contribuition terms times delta t
             rhs *= 1.0/3.0*ns->par.dt;
             rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
@@ -734,20 +711,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_gen_newt(higflow_solver *n
         // Get the solution of linear system
         //Vec *vecu = slv_get_solution_vec(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 

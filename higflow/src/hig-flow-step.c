@@ -46,6 +46,12 @@ void remove_pressure_singularity(higflow_solver *ns, solver *slvp) {
 
 // Navier-Stokes pressure using the projection method
 void higflow_pressure(higflow_solver *ns) {
+    if(ns->contr.equation == VISCOUS_BURGERS ||
+       ns->contr.equation == INVISCID_BURGERS ||
+       ns->contr.equation == HEAT) {
+        return;
+    }
+
     real uoutflow;
     // Get the local sub-domain for the cells
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
@@ -54,6 +60,7 @@ void higflow_pressure(higflow_solver *ns) {
     for(int dim = 0; dim < DIM; dim++) {
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
     }
+    mp_mapper *m = sd_get_domain_mapper(sdp);
     // aqui é pra remover
     remove_pressure_singularity(ns, ns->slvp);
     // Loop for each cell
@@ -67,6 +74,7 @@ void higflow_pressure(higflow_solver *ns) {
         // Get the delta of the cell
         Point cdelta;
         hig_get_delta(c, cdelta);
+        int clid    = mp_lookup(m, hig_get_cid(c));
         // Calculate the divergence of the intermediate velocity
         real sumdudx = 0.0;
         for(int dim = 0; dim < DIM; dim++) {
@@ -125,9 +133,9 @@ void higflow_pressure(higflow_solver *ns) {
     // Solve the linear system
     slv_solve(ns->slvp);
     // Set the solver solution in the pressure ou pressure difference distributed property
-    distributed_property *dp = (ns->contr.projtype == INCREMENTAL) ? ns->ddeltap : ns->dpp;
+    distributed_property *dp = (ns->contr.projtype == INCREMENTAL) ? ns->dpdeltap : ns->dpp;
     dp_slv_load_from_solver(dp, ns->slvp);
-    dp_sync(dp);
+    //dp_sync(dp); // already called from dp_slv_load_from_solver
 }
 
 // Navier-Stokes outflow for u velocity
@@ -240,6 +248,12 @@ void set_outflow(psim_facet_domain *psfdu, distributed_property *dpu, real alpha
 
 // Navier-Stokes final velocity using the projection method
 void higflow_final_velocity(higflow_solver *ns) {
+    if(ns->contr.equation == VISCOUS_BURGERS ||
+       ns->contr.equation == INVISCID_BURGERS ||
+       ns->contr.equation == HEAT) {
+        return;
+    }
+
     // Get the local sub-domain
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
@@ -268,9 +282,9 @@ void higflow_final_velocity(higflow_solver *ns) {
             real pl, pr;
             if (ns->contr.projtype == INCREMENTAL) {
                 // Get the pressure in the left cell
-                pl    = compute_center_p_left(sdp, fcenter, fdelta, dim, 0.5, ns->ddeltap, ns->stn);
+                pl    = compute_center_p_left(sdp, fcenter, fdelta, dim, 0.5, ns->dpdeltap, ns->stn);
                 // Get the pressure in the right cell
-                pr    = compute_center_p_right(sdp, fcenter, fdelta, dim, 0.5, ns->ddeltap, ns->stn);
+                pr    = compute_center_p_right(sdp, fcenter, fdelta, dim, 0.5, ns->dpdeltap, ns->stn);
             } else {
                 // Get the pressure in the left cell
                 pl    = compute_center_p_left(sdp, fcenter, fdelta, dim, 0.5, ns->dpp, ns->stn);
@@ -309,6 +323,12 @@ void higflow_final_velocity(higflow_solver *ns) {
 
 // Navier-Stokes final pressure using the projection method
 void higflow_final_pressure(higflow_solver *ns) {
+    if(ns->contr.equation == VISCOUS_BURGERS ||
+       ns->contr.equation == INVISCID_BURGERS ||
+       ns->contr.equation == HEAT) {
+        return;
+    }
+
     // Projection method
     if (ns->contr.projtype == INCREMENTAL) {
         // Incremental projection method
@@ -326,7 +346,7 @@ void higflow_final_pressure(higflow_solver *ns) {
             // Get the pressure in the distributed pressure property
             real p      = dp_get_value(ns->dpp, clid);
             // Get the pressure difference in the distributed difference pressure property
-            real deltap = dp_get_value(ns->ddeltap, clid);
+            real deltap = dp_get_value(ns->dpdeltap, clid);
             // Calculate the final pressure
             real newp   = p + deltap;
             // Set the final pressure in the distributed pressure property
@@ -456,6 +476,11 @@ void higflow_boundary_condition_for_velocity(higflow_solver *ns) {
 
 // Apply the boundary condition for the pressure
 void higflow_boundary_condition_for_pressure(higflow_solver *ns) {
+    if(ns->contr.equation == VISCOUS_BURGERS ||
+       ns->contr.equation == INVISCID_BURGERS ||
+       ns->contr.equation == HEAT) {
+        return;
+    }
     // Facet iterator
     higcit_celliterator *it;
     // Get the local sub-domain
@@ -799,13 +824,13 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
 
     // Looping for the velocity
     for (int dim = 0; dim < DIM; dim++) {
-   // Get the map of domain
+        // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
         for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
             // Get the facet cell identifier
             hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
+            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
             hig_get_facet_center(f, fcenter);
@@ -854,12 +879,12 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
             real *vals = stn_get_vals(ns->stn);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->stn);
-       int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
+            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
             // Set the right side of solver linear system
             slv_set_bi(ns->slvu[dim], fgid, stn_get_rhs(ns->stn));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
-        }
+            }
         // Destroy the iterator
         higfit_destroy(fit);
         // Assemble the solver
@@ -867,20 +892,9 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -969,20 +983,9 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity(higflow_solver *
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -1072,20 +1075,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns) {
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real uaux = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpuaux[dim], flid, uaux);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpuaux[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpuaux[dim]);
+        //dp_sync(ns->dpuaux[dim]); // already called from dp_slv_load_from_solver
     }
     // Second Stage of Tr-BDF2
     // Looping for the velocity
@@ -1161,20 +1153,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns) {
         // Get the solution of linear system
         //Vec *vecu = slv_get_solution_vec(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -1205,152 +1186,52 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar = vr;
     if (vbar > 0.0) {
-        if (FLT_EQ(kr, kl)) {
-            conv1 = vbar * kc;
-        }
+        if (FLT_EQ(kr, kl)) conv1 = vbar * kc;
         else {
             fi = (kc - kl) / (kr - kl);
-            if ((fi <= 0.0) || (fi >= 1.0)) {
-                conv1 = vbar * kc;
-            }
+            if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * kc;
             else {
-                if (fi < b) {
-                    if (incell_l == 1)                    conv1 = vbar * (a * kc - c * kl);
-                    else                                  conv1 = vbar * kc;
-                }
-                if ((fi >= b) && (fi <= c)) {
-                    if ((incell_l == 1) && (incell_r == 1)) conv1 = vbar * (c * kc + b * kr - d * kl);
-                    else                                  conv1 = vbar * kc;
-                }
-                if (fi > c) {
-                    if (incell_r == 1)                    conv1 = vbar * (e * kc + c * kr);
-                    else                                  conv1 = vbar * kc;
-                }
-
+                if (fi < b)                 conv1 = vbar * (a * kc - c * kl);
+                if ((fi >= b) && (fi <= c)) conv1 = vbar * (c * kc + b * kr - d * kl);
+                if (fi > c)                 conv1 = vbar * (e * kc + c * kr);
             }
         }
-        //v1bar < 0.0
     }
-    else {
-        if ((incell_r == 1) && (incell_rr == 1)) {
-            if (FLT_EQ(kc, krr)) {
-                conv1 = vbar * kr;
-            }
+    else { //v1bar < 0.0
+        if (FLT_EQ(kc, krr)) conv1 = vbar * kr; 
+        else {
+            fi = (kr - krr) / (kc - krr);
+            if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * kr;
             else {
-                fi = (kr - krr) / (kc - krr);
-                if ((fi <= 0.0) || (fi >= 1.0)) {
-                    conv1 = vbar * kr;
-                }
-                else {
-                    if (fi < b)
-                        conv1 = vbar * (a * kr - c * krr);
-                    if ((fi >= b) && (fi <= c))
-                        conv1 = vbar * (c * kr + b * kc - d * krr);
-                    if (fi > c)
-                        conv1 = vbar * (c * kc + e * kr);
-                }
+                if (fi < b)                 conv1 = vbar * (a * kr - c * krr);
+                if ((fi >= b) && (fi <= c)) conv1 = vbar * (c * kr + b * kc - d * krr);
+                if (fi > c)                 conv1 = vbar * (c * kc + e * kr);
             }
         }
-        else if ((incell_r == 1) && (incell_rr == 0)) { 
-            if (FLT_EQ(kc, krr)) {
-                conv1 = vbar * kr;
-            }
-            else {
-                fi = (kr - krr) / (kc - krr);
-                if ((fi <= 0.0) || (fi >= 1.0)) {
-                    conv1 = vbar * kr;
-                }
-                else {
-                    if (fi <= c)
-                        conv1 = vbar * kr;
-                    if (fi > c)
-                        conv1 = vbar * (c * kc + e * kr);
-                }
-            }
-        }
-        else { //Return upwind value at boundary
-            vbar = vr;
-            if (vbar > 0.0) conv1 = vbar * kc;
-            else                 conv1 = vbar * kc;
-            vbar = vl;
-            if (vbar > 0.0) conv2 = vbar * kl;
-            else                 conv2 = vbar * kc;
-            return ((conv1 - conv2) / cdelta[dim]);
-        }
-
     }
     // Get the velocity  v2bar(i-1/2,j) in the facet center
     vbar = vl;
     if (vbar > 0.0) {
-        if ((incell_l == 1) && (incell_ll == 1)) {
-            if (FLT_EQ(kc, kll)) {
-                conv2 = vbar * kl;
-            }
+        if (FLT_EQ(kc, kll)) conv2 = vbar * kl;
+        else {
+            fi = (kl - kll) / (kc - kll);
+            if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * kl;
             else {
-                fi = (kl - kll) / (kc - kll);
-                if ((fi <= 0.0) || (fi >= 1.0)) {
-                    conv2 = vbar * kl;
-                }
-                else {
-                    if (fi < b)
-                        conv2 = vbar * (a * kl - c * kll);
-                    if ((fi >= b) && (fi <= c))
-                        conv2 = vbar * (b * kc + c * kl - d * kll);
-                    if (fi > c)
-                        conv2 = vbar * (c * kc + e * kl);
-                }
+                if (fi < b)                 conv2 = vbar * (a * kl - c * kll);
+                if ((fi >= b) && (fi <= c)) conv2 = vbar * (b * kc + c * kl - d * kll);
+                if (fi > c)                 conv2 = vbar * (c * kc + e * kl);
             }
-        }
-        else if ((incell_l == 1) && (incell_ll == 0)) {
-            if (FLT_EQ(kc, kll)) {
-                conv2 = vbar * kl;
-            }
-            else {
-                fi = (kl - kll) / (kc - kll);
-                if ((fi <= 0.0) || (fi >= 1.0)) {
-                    conv2 = vbar * kl;
-                }
-                else {
-                    if (fi <= c)
-                        conv2 = vbar * kl;
-                    if (fi > c)
-                        conv2 = vbar * (c * kc + e * kl);
-                }
-            }
-        }
-        else { //Return upwind value at boundary
-            vbar = vr;
-            if (vbar > 0.0) conv1 = vbar * kc;
-            else                 conv1 = vbar * kr;
-            vbar = vl;
-            if (vbar > 0.0) conv2 = vbar * kc;
-            else                 conv2 = vbar * kc;
-            return ((conv1 - conv2) / cdelta[dim]);
         }
     }
-    else {
-        //v2bar < 0.0 
-        if (FLT_EQ(kl, kr)) {
-            conv2 = vbar * kc;
-        }
+    else { //v2bar < 0.0 
+        if (FLT_EQ(kl, kr)) conv2 = vbar * kc;
         else {
             fi = (kc - kr) / (kl - kr);
-            if ((fi <= 0.0) || (fi >= 1.0)) {
-                conv2 = vbar * kc;
-            }
+            if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * kc;
             else {
-                if (fi < b) {
-                    if (incell_r == 1)                    conv2 = vbar * (a * kc - c * kr);
-                    else                                  conv2 = vbar * kc;
-                }
-                if ((fi >= b) && (fi <= c)) {
-                    if ((incell_l == 1) && (incell_r == 1)) conv2 = vbar * (c * kc + b * kl - d * kr);
-                    else                                  conv2 = vbar * kc;
-                }
-                if (fi > c) {
-                    if (incell_l == 1)                    conv2 = vbar * (e * kc + c * kl);
-                    else                                  conv2 = vbar * kc;
-                }
+                if (fi < b)                 conv2 = vbar * (a * kc - c * kr);
+                if ((fi >= b) && (fi <= c)) conv2 = vbar * (c * kc + b * kl - d * kr);
+                if (fi > c)                 conv2 = vbar * (e * kc + c * kl);
             }
         }
     }
@@ -1372,7 +1253,7 @@ void higflow_solver_step(higflow_solver *ns) {
     higflow_calculate_source_term(ns);
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
-    
+
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
         case EXPLICIT_EULER:
@@ -1400,6 +1281,7 @@ void higflow_solver_step(higflow_solver *ns) {
            higflow_semi_implicit_bdf2_intermediate_velocity(ns);
            break;
     }
+
     // Set outflow for ustar velocity 
     //higflow_outflow_ustar_step(ns);
     // Calculate the pressure

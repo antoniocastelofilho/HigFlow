@@ -48,7 +48,7 @@ void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
                 }
@@ -139,7 +139,7 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
                     // Get Kernel
                     Kernel[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpKernel[i][j], ns->ed.stn);
                 }
@@ -244,7 +244,7 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
                     // Get Kernel
@@ -612,7 +612,7 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
                     // Get Kernel
@@ -1041,20 +1041,9 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic_variable_vis
         // Get the solution of linear system
 
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -1147,20 +1136,9 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_var
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -1251,20 +1229,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real uaux = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpuaux[dim], flid, uaux);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpuaux[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpuaux[dim]);
+        //dp_sync(ns->dpuaux[dim]); // already called from dp_slv_load_from_solver
     }
     //Second Stage of Tr-BDF2
     // Looping for the velocity
@@ -1333,20 +1300,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
         // Get the solution of linear system
         //Vec *vecu = slv_get_solution_vec(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -1900,7 +1856,7 @@ void higflow_compute_viscosity_user_model_vevv(higflow_solver *ns) {
             for (int dim = 0; dim < DIM; dim++) {
                 for (int dim2 = 0; dim2 < DIM; dim2++) {
                     // Get Du
-                    Du[dim][dim2] = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[dim][dim2], ns->ed.stn);
+                    Du[dim][dim2] = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[dim][dim2], ns->ed.stn);
                 }
             }
             // Calculate the rate of deformation tensor
@@ -2012,7 +1968,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
                 }
@@ -2180,19 +2136,31 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
         //}
         //Printing the min and max elastic + solvent stress tensor values
         for (int i = 0; i < DIM; i++) {
-            for (int j = 0; j < DIM; j++) {
+            for (int j = i; j < DIM; j++) {
                 // Printing the min and max tensor
-                printf("===> %d %d: TSmin = %lf <===> TSmax = %lf <===\n",i,j,TSmin[i][j],TSmax[i][j]);
+                real Tsmin_global, Tsmax_global;
+                MPI_Allreduce(&TSmin[i][j], &Tsmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+                MPI_Allreduce(&TSmax[i][j], &Tsmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+                print0f("===> %d %d: TSmin = %lf <===> TSmax = %lf <===\n",i,j,Tsmin_global,Tsmax_global);
             }
         }
         //Printing the min and max TD values
-        printf("===> TDmin = %lf <===> TDmax = %lf <===\n", TDmin, TDmax);
+        real TDmin_global, TDmax_global;
+        MPI_Allreduce(&TDmin, &TDmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&TDmax, &TDmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> TDmin = %lf <===> TDmax = %lf <===\n", TDmin_global, TDmax_global);
         //Printing the min and max shear rate values
         //printf("===> qmin = %lf <===> qmax = %lf <===\n", qmin, qmax);
         //Printing the min and max viscosity values
-        printf("===> etamin = %lf <===> etamax = %lf <===\n", etamin, etamax);
+        real etamin_global, etamax_global;
+        MPI_Allreduce(&etamin, &etamin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&etamax, &etamax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> etamin = %lf <===> etamax = %lf <===\n", etamin, etamax);
         //Printing the min and max structural parameter values
-        printf("===> spmin = %lf <===> spmax = %lf <===\n", spmin, spmax);
+        real spmin_global, spmax_global;
+        MPI_Allreduce(&spmin, &spmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&spmax, &spmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> spmin = %lf <===> spmax = %lf <===\n", spmin_global, spmax_global);
         //Printing the min and max RHS values
         //printf("===> RHSmin = %lf <===> RHSmax = %lf <===\n", RHSmin, RHSmax);
         // Destroy the iterator
@@ -2489,7 +2457,7 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
                     // Get S
                     S[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
                 }
@@ -2623,19 +2591,31 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
         //}
         //Printing the min and max elastic + solvent stress tensor values
         for (int i = 0; i < DIM; i++) {
-            for (int j = 0; j < DIM; j++) {
+            for (int j = i; j < DIM; j++) {
                 // Printing the min and max tensor
-                printf("===> %d %d: TSmin = %lf <===> TSmax = %lf <===\n",i,j,TSmin[i][j],TSmax[i][j]);
+                real Tsmin_global, Tsmax_global;
+                MPI_Allreduce(&TSmin[i][j], &Tsmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+                MPI_Allreduce(&TSmax[i][j], &Tsmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+                print0f("===> %d %d: TSmin = %lf <===> TSmax = %lf <===\n",i,j,Tsmin_global,Tsmax_global);
             }
         }
         //Printing the min and max TD values
-        printf("===> TDmin = %lf <===> TDmax = %lf <===\n", TDmin, TDmax);
+        real TDmin_global, TDmax_global;
+        MPI_Allreduce(&TDmin, &TDmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&TDmax, &TDmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> TDmin = %lf <===> TDmax = %lf <===\n", TDmin_global, TDmax_global);
         //Printing the min and max shear rate values
         //printf("===> qmin = %lf <===> qmax = %lf <===\n", qmin, qmax);
         //Printing the min and max viscosity values
-        printf("===> etamin = %lf <===> etamax = %lf <===\n", etamin, etamax);
+        real etamin_global, etamax_global;
+        MPI_Allreduce(&etamin, &etamin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&etamax, &etamax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> etamin = %lf <===> etamax = %lf <===\n", etamin, etamax);
         //Printing the min and max structural parameter values
-        printf("===> spmin = %lf <===> spmax = %lf <===\n", spmin, spmax);
+        real spmin_global, spmax_global;
+        MPI_Allreduce(&spmin, &spmin_global, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(&spmax, &spmax_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        print0f("===> spmin = %lf <===> spmax = %lf <===\n", spmin_global, spmax_global);
         //Printing the min and max RHS values
         //printf("===> RHSmin = %lf <===> RHSmax = %lf <===\n", RHSmin, RHSmax);
         // Destroy the iterator

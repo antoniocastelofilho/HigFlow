@@ -168,10 +168,12 @@ sim_domain *psd_get_local_domain(psim_domain *psd);
 //! Gets the partition graph.
 partition_graph *psd_get_partition_graph(psim_domain *psd);
 
-//! Syncs the mapper of all subdomains, so that the ids of all cells shared by different subdomains are assigned to the respective global ids.
+//! Syncs the mapper of all subdomains, so that the ids of all cells shared by
+//different subdomains are assigned to the respective global ids.
 void psd_synced_mapper(psim_domain *psd);
 
-//! Syncs the mapper of all subdomains, so that the ids of all facets shared by different subdomains are assigned to the respective global ids.
+//! Syncs the mapper of all subdomains, so that the ids of all facets shared by
+//different subdomains are assigned to the respective global ids.
 void psd_facet_synced_mapper(partition_graph *pt, hig_cell *root, int dim, mp_mapper *m, Point lp, Point hp, int rank, int size, int *firstid, int *numlocalelems, int *numglobalelems);
 
 //! Sets the local subdomain.
