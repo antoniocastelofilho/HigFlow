@@ -135,3 +135,11 @@ higflow/example*/ns-example
 higflow/example*/ns-example-2d
 higflow/example*/ns-exemple-3d
 higflow/example*/ns-complex-3d
+
+# AI assistant config and memory (local-only, never commit)
+.agents/
+.claude/
+.opencode/
+skills-lock.json
+graphify-out/
+**/graphify-out/

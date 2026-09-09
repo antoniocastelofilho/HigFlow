@@ -1,5 +1,0 @@
-domain:
-   number_domains: 1
-   domain0:
-      id: 0
-      path: mesh/__using/domain/ch-d.amr

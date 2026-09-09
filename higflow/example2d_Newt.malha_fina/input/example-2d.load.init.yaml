@@ -1,6 +1,0 @@
-init_par:
-   step: 0                            #*** The Initial Step of the Simulation ***
-   t: 0.0                             #*** The Initial Time of the Simulation ***
-   frame: 0                           #*** The Initial Frame of the Simulation *** 
-   ts: 0.0                            #*** The Last Time the Simulation Was Saved ***
-   tp: 0.0                            #*** The Last Time the Preview File Was Written ***
