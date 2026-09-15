@@ -136,6 +136,11 @@ higflow/example*/ns-example-2d
 higflow/example*/ns-exemple-3d
 higflow/example*/ns-complex-3d
 
+# Duplicated source/artifact trees and local inspection outputs (never track)
+higflow/higflow/
+higflow/higflow_aquisson_3d/
+inspection_outputs/
+
 # AI assistant config and memory (local-only, never commit)
 .agents/
 .claude/
