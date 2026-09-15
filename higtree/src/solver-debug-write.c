@@ -52,7 +52,7 @@ solver * _slv_create_debug_write(size_t start, size_t size)
 	_solver_centralized *s;
 
 	if(rank == 0) {
-		s = malloc(sizeof(_solver_centralized));
+		s = (_solver_centralized *) malloc(sizeof(_solver_centralized));
 		_solver_centralized_init_master(s, start, size, &vtable);
 	} else {
 		s = _solver_centralized_create_slave(start, size);

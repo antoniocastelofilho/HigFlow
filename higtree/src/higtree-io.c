@@ -1345,7 +1345,7 @@ static void _xdmf_write_h5_grid(higio_hdf5 *ctx, sim_domain *sd,
 	real (*buff_points)[DIM];
 	ALLOC_INFER(buff_points, chunk_size);
 
-	PPoint p = malloc(sizeof(Point));
+	PPoint p = (PPoint) malloc(sizeof(Point));
 	GHashTable *points;
 	points = g_hash_table_new_full(_point_hash, _point_equal, free, NULL);
 	gsize points_ids = 0;
@@ -1398,7 +1398,7 @@ static void _xdmf_write_h5_grid(higio_hdf5 *ctx, sim_domain *sd,
 				}
 				curr_id = points_ids++;
 				g_hash_table_insert(points, p, GSIZE_TO_POINTER(curr_id));
-				p = malloc(sizeof(Point));
+				p = (PPoint) malloc(sizeof(Point));
 			}
 			buff_cells[idx_cells][idxmap[i%4] + 4 * (i/4)] = curr_id;
 		}
@@ -1470,7 +1470,7 @@ xdmf_output *xdmf_init(const char* file_prefix, sim_domain* sd)
 	// TODO: treat no local file names
 	assert((DIM == 2 || DIM == 3) && "XDMF write is implemented only in 'normal' dimensions!");
 
-	xdmf_output *ret = calloc(1, sizeof *ret);
+	xdmf_output *ret = (xdmf_output *) calloc(1, sizeof *ret);
 	ret->str_buf_size = strlen(file_prefix) + 100;
 	ret->file_prefix = strdup(file_prefix);
 	char *last_slash = rindex(ret->file_prefix, '/');
@@ -1509,7 +1509,7 @@ void xdmf_register_cell_property(xdmf_output *ctx, const char* prop_name,
 	size_t num_components, distributed_property *dp, ...)
 {
 	assert(num_components >= 1);
-	struct _cell_prop *new_prop = malloc(sizeof(*new_prop) + num_components * sizeof(distributed_property *));
+	struct _cell_prop *new_prop = (struct _cell_prop *) malloc(sizeof(*new_prop) + num_components * sizeof(distributed_property *));
 
 	new_prop->num_components = num_components;
 	new_prop->prop_name = strdup(prop_name);
@@ -1532,7 +1532,7 @@ _xdmf_create_facet_property(xdmf_output *ctx, const char* prop_name,
 	size_t num_components)
 {
 	assert(num_components >= 1);
-	struct _facet_prop *new_prop = malloc(sizeof(*new_prop) + num_components * sizeof(struct _facet_prop_component));
+	struct _facet_prop *new_prop = (struct _facet_prop *) malloc(sizeof(*new_prop) + num_components * sizeof(struct _facet_prop_component));
 
 	new_prop->num_components = num_components;
 	new_prop->prop_name = strdup(prop_name);

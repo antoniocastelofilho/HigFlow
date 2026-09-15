@@ -425,7 +425,7 @@ typedef struct {
 
 static PetscErrorCode singular_converged_ctx_destroy(void *ctx)
 {
-	singular_converged_ctx *c = ctx;
+	singular_converged_ctx *c = (singular_converged_ctx *) ctx;
 	PetscErrorCode ret = KSPConvergedDefaultDestroy(c->default_ctx);
 	free(c);
 	return ret;
@@ -434,7 +434,7 @@ static PetscErrorCode singular_converged_ctx_destroy(void *ctx)
 static PetscErrorCode singular_converged(KSP ksp, PetscInt n,
 	PetscReal rnorm, KSPConvergedReason *reason, void *ctx)
 {
-	singular_converged_ctx *c = ctx;
+	singular_converged_ctx *c = (singular_converged_ctx *) ctx;
 	PetscErrorCode ret = KSPConvergedDefault(ksp, n, rnorm, reason, c->default_ctx);
 
 	if(*reason == 0) {

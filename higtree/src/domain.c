@@ -405,10 +405,10 @@ _get_new_wls_item(unsigned maxpts, _wls_item_list *items, real fdist)
 		REALLOC_INFER(items->ptr, items->total_size);
 	}
 
-	wls_item *new = &items->ptr[items->numpts++];
-	new->dist = fdist;
+	wls_item *novo_item = &items->ptr[items->numpts++];
+	novo_item->dist = fdist;
 
-	return new;
+	return novo_item;
 }
 
 static void
@@ -432,13 +432,13 @@ search_cells_in_tree_box(hig_cell *root, mp_mapper *m, CPPoint x, Rect *box,
 			// A new point found to be included in the WLS
 			real dist = co_distance(x, center);
 
-			wls_item *new =
+			wls_item *novo_item =
 				_get_new_wls_item(maxpts, items, dist);
-			if(new) {
-				new->id = cid;
-				new->bcpoint = sb;
-				new->type = type;
-				POINT_ASSIGN(new->x, center);
+			if(novo_item) {
+				novo_item->id = cid;
+				novo_item->bcpoint = sb;
+				novo_item->type = type;
+				POINT_ASSIGN(novo_item->x, center);
 			}
 		}
 	}
@@ -1990,7 +1990,7 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 static void
 cell_search_box(void *param, CPPoint x, Rect *box, _wls_item_list *items)
 {
-	sim_domain *d = param;
+	sim_domain *d = (sim_domain *) param;
 	mp_mapper *m = sd_get_domain_mapper(d);
 
 	for(int k = 0; k < d->numhigtrees; k++) {
@@ -2004,7 +2004,7 @@ static bool
 cell_find_in_center(void *param, CPPoint x, real alpha, point_location *in_domain,
 	sim_stencil *stn)
 {
-	sim_domain *d = param;
+	sim_domain *d = (sim_domain *) param;
 
 	*in_domain = OUTSIDE_DOMAIN;
 	for(int i = 0; i < d->numhigtrees; i++) {
@@ -2138,7 +2138,7 @@ void sfd_adjust_facet_ids(sim_facet_domain *sfd) {
 static void
 facet_search_box(void *param, CPPoint x, Rect *box, _wls_item_list *items)
 {
-	sim_facet_domain* sfd = param;
+	sim_facet_domain* sfd = (sim_facet_domain *) param;
 	higfit_facetiterator *fit;
 
 	sim_domain *d = sfd->cdom;
@@ -2164,12 +2164,12 @@ facet_search_box(void *param, CPPoint x, Rect *box, _wls_item_list *items)
 				// A new point found to be included in the WLS
 				real fdist = co_distance(x, fcenter);
 
-				wls_item *new =
+				wls_item *novo_item =
 					_get_new_wls_item(maxpts, items, fdist);
-				if(new) {
-					new->id = fid;
-					new->type = 0;
-					POINT_ASSIGN(new->x, fcenter);
+				if(novo_item) {
+					novo_item->id = fid;
+					novo_item->type = 0;
+					POINT_ASSIGN(novo_item->x, fcenter);
 				}
 			}
 		}
@@ -2181,7 +2181,7 @@ static bool
 facet_find_in_center(void *param, CPPoint x, real alpha,
 	point_location *in_domain, sim_stencil *stn)
 {
-	sim_facet_domain *sfd = param;
+	sim_facet_domain *sfd = (sim_facet_domain *) param;
 	sim_domain *d = sfd->cdom;
 
 	*in_domain = OUTSIDE_DOMAIN;

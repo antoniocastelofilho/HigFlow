@@ -349,14 +349,14 @@ wls_interpolator * wls_create(unsigned dim, int ord, int maxnumpts)
 
 	// Random number seed for poly coefs,
 	// Merkle root of Bitcoin Block 0:
-	const char seed[] = {
+	const unsigned char seed[] = {
 		0x4a, 0x5e, 0x1e, 0x4b, 0xaa, 0xb8, 0x9f,
 		0x3a, 0x32, 0x51, 0x8a, 0x88, 0xc3, 0x1b,
 		0xc8, 0x7f, 0x61, 0x8f, 0x76, 0x67, 0x3e,
 		0x2c, 0xc7, 0x7a, 0xb2, 0x12, 0x7b, 0x7a,
 		0xfd, 0xed, 0xa3, 0x3b
 	};
-	RNG *rng = rng_create(seed, sizeof seed);
+	RNG *rng = rng_create((const char *)seed, sizeof seed);
 	wls->poly_coefs = wls_allocvreal(n);
 	for(int i = 0; i < n; ++i) {
 		wls->poly_coefs[i] = rng_uniform(rng, -1.0, 1.0);

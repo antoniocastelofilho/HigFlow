@@ -34,10 +34,10 @@ static void set_Ai(solver *cs, int i, int numjs, const int *j, const real *v)
 
 	if(numjs > s->A_sizes[i]) {
 		free(s->A_cols_cpu[i]);
-		s->A_cols_cpu[i] = malloc(numjs * sizeof(unsigned int));
+		s->A_cols_cpu[i] = (unsigned int *) malloc(numjs * sizeof(unsigned int));
 
 		free(s->A_vals_cpu[i]);
-		s->A_vals_cpu[i] = malloc(numjs * sizeof(real));
+		s->A_vals_cpu[i] = (real *) malloc(numjs * sizeof(real));
 	}
 	s->A_sizes[i] = numjs;
 
@@ -133,11 +133,11 @@ static void master_assemble_matrix(struct solver *cs)
 	unsigned int *col_buffer;
 	real *coefs;
 
-	row_jumper = malloc((s->master->total_size+1) * sizeof(unsigned int));
+	row_jumper = (unsigned int *) malloc((s->master->total_size+1) * sizeof(unsigned int));
 	row_jumper[0] = 0;
 
 	// Get the start point for remote rows
-	MPI_Request *reqs = malloc(2 * (num_procs-1) * sizeof(MPI_Request));
+	MPI_Request *reqs = (MPI_Request *) malloc(2 * (num_procs-1) * sizeof(MPI_Request));
 	for(int i = 1; i < num_procs; ++i) {
 		_solver_centralized_split *psplit = &psplits[i-1];
 		MPI_Irecv(&row_jumper[psplit->start+1], psplit->size, MPI_UNSIGNED, i, INT_EXCHANGE_TAG, MPI_COMM_WORLD, &reqs[i-1]);
@@ -176,8 +176,8 @@ static void master_assemble_matrix(struct solver *cs)
 	}
 
 	// Receive the bulk data (coefficients and colums)
-	col_buffer = malloc(total_elems * sizeof(unsigned int));
-	coefs = malloc(total_elems * sizeof(real));
+	col_buffer = (unsigned int *) malloc(total_elems * sizeof(unsigned int));
+	coefs = (real *) malloc(total_elems * sizeof(real));
 	for(int i = 1; i < num_procs; ++i) {
 		size_t reqi = 2*(i-1);
 		_solver_centralized_split *elems = &proc_elems[i];
@@ -222,7 +222,7 @@ static void master_assemble_rhs(struct solver *cs)
 {
 	_solver_centralized *s = scast(cs);
 
-	real* rhs = malloc(s->master->total_size * sizeof(real));
+	real* rhs = (real *) malloc(s->master->total_size * sizeof(real));
 
 	master_vector_assemble(s, rhs, s->B_cpu);
 	s->cvtable->set_full_b(s, rhs);
@@ -270,15 +270,15 @@ static void master_solve(struct solver *cs)
 static void slave_assemble_matrix(struct solver *cs)
 {
 	_solver_centralized *s = scast(cs);
-	unsigned int *row_jumper = malloc(s->local.size * sizeof(unsigned int));
+	unsigned int *row_jumper = (unsigned int *) malloc(s->local.size * sizeof(unsigned int));
 
 	local_row_size_assemble(s, row_jumper);
 	MPI_Request req[3];
 	MPI_Isend(row_jumper, s->local.size, MPI_UNSIGNED, 0, INT_EXCHANGE_TAG, MPI_COMM_WORLD, &req[0]);
 
 	size_t elem_count = row_jumper[s->local.size-1];
-	unsigned int *col_buffer = malloc(elem_count * sizeof(unsigned int));
-	real *coefs = malloc(elem_count * sizeof(real));
+	unsigned int *col_buffer = (unsigned int *) malloc(elem_count * sizeof(unsigned int));
+	real *coefs = (real *) malloc(elem_count * sizeof(real));
 	local_row_assemble(s, col_buffer, coefs);
 
 	MPI_Isend(col_buffer, elem_count, MPI_UNSIGNED, 0, INT_EXCHANGE_TAG, MPI_COMM_WORLD, &req[1]);
@@ -378,11 +378,11 @@ static const _solver_vtable slave_vtable = {
 
 static void _solver_centralized_init(_solver_centralized *slv, size_t start, size_t size, const _solver_centralized_vtable *internal_vtable)
 {
-	slv->A_sizes = calloc(size, sizeof(size_t));
-	slv->A_cols_cpu = calloc(size, sizeof(unsigned int*));
-	slv->A_vals_cpu = calloc(size, sizeof(real*));
-	slv->B_cpu = calloc(size, sizeof(real));
-	slv->X_cpu = calloc(size, sizeof(real));
+	slv->A_sizes = (size_t *) calloc(size, sizeof(size_t));
+	slv->A_cols_cpu = (unsigned int * *) calloc(size, sizeof(unsigned int*));
+	slv->A_vals_cpu = (real * *) calloc(size, sizeof(real*));
+	slv->B_cpu = (real *) calloc(size, sizeof(real));
+	slv->X_cpu = (real *) calloc(size, sizeof(real));
 
 	slv->local.size = size;
 	slv->local.start = start;
@@ -410,12 +410,12 @@ void _solver_centralized_init_master(_solver_centralized *slv, size_t start, siz
 	int num_procs;
 	MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
 	_solver_centralized_master *master_data;
-	master_data = slv->master = malloc(sizeof(_solver_centralized_master)
+	master_data = slv->master = (_solver_centralized_master *) malloc(sizeof(_solver_centralized_master)
 			+ (num_procs-1) * sizeof(_solver_centralized_split));
 
-	master_data->procs_order = malloc(num_procs * sizeof(int));
+	master_data->procs_order = (int *) malloc(num_procs * sizeof(int));
 
-	MPI_Request *reqs = malloc((num_procs-1) * sizeof(MPI_Request));
+	MPI_Request *reqs = (MPI_Request *) malloc((num_procs-1) * sizeof(MPI_Request));
 	for(int i = 1; i < num_procs; ++i) {
 		MPI_Irecv(master_data->all[i-1].serial, 2, MPI_UNSIGNED,
 				i, INT_EXCHANGE_TAG, MPI_COMM_WORLD, &reqs[i-1]);
@@ -431,7 +431,7 @@ void _solver_centralized_init_master(_solver_centralized *slv, size_t start, siz
 		order[i].proc_id = i;
 	}
 	master_data->total_size = total_size;
-	master_data->solution = malloc(total_size * sizeof(real));
+	master_data->solution = (real *) malloc(total_size * sizeof(real));
 
 	order[0].start = slv->local.start;
 	order[0].proc_id = 0;
@@ -453,7 +453,7 @@ static const _solver_centralized_vtable internal_slave_vtable = {
 
 _solver_centralized* _solver_centralized_create_slave(size_t start, size_t size)
 {
-	_solver_centralized* slv = malloc(sizeof(_solver_centralized));
+	_solver_centralized* slv = (_solver_centralized *) malloc(sizeof(_solver_centralized));
 	_solver_centralized_init(slv, start, size, &internal_slave_vtable);
 
 	slv->s.vtable = &slave_vtable;

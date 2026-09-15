@@ -307,7 +307,7 @@ static size_t _cell_sub_counter(void *ign, hig_cell* tree, int lo[DIM], int hi[D
 static size_t _cell_get_ids(void *fdata, hig_cell* tree,
 	int lo[DIM], int hi[DIM], int *eids)
 {
-	psim_domain *psd = fdata;
+	psim_domain *psd = (psim_domain *) fdata;
 	higcit_celliterator *it;
 	mp_mapper *mp = sd_get_domain_mapper(psd->localdomain);
 
@@ -332,7 +332,7 @@ static size_t _cell_get_ids(void *fdata, hig_cell* tree,
 
 static size_t _facet_sub_counter(void *fdata, hig_cell *tree, int *lo, int *hi)
 {
-	psim_facet_domain *psfd = fdata;
+	psim_facet_domain *psfd = (psim_facet_domain *) fdata;
 	size_t size = 0;
 	higfit_facetiterator *fit;
 
@@ -355,7 +355,7 @@ static size_t _facet_sub_counter(void *fdata, hig_cell *tree, int *lo, int *hi)
 
 static size_t _facet_get_ids(void *fdata, hig_cell *tree, int *lo, int *hi, int *ids)
 {
-	psim_facet_domain *psfd = fdata;
+	psim_facet_domain *psfd = (psim_facet_domain *) fdata;
 	higcit_celliterator *it;
 	higfit_facetiterator *fit;
 

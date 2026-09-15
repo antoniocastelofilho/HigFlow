@@ -200,7 +200,7 @@ static int _out_group_cmp(struct _lb_output_tree *a, struct _lb_output_tree *b)
 
 static unsigned _create_proc_list(void *procs, unsigned count, size_t size, size_t total_procs, int **ret_procs)
 {
-	uint8_t *ptr = procs;
+	uint8_t *ptr = (uint8_t *) procs;
 
 	int last_p = -1;
 	unsigned num_procs = 0;
@@ -224,7 +224,7 @@ static unsigned _create_proc_list(void *procs, unsigned count, size_t size, size
 
 	// Free unused part of the vector
 	if(ret_procs)
-		*ret_procs = realloc(*ret_procs, num_procs * sizeof(int));
+		*ret_procs = (int *) realloc(*ret_procs, num_procs * sizeof(int));
 
 	return num_procs;
 }
@@ -471,7 +471,7 @@ _try_merge_tree_list(
 	// Put all merged in a single list
 	memcpy(&next_merged[next_merged_count], merged, num_merged * sizeof *merged);
 	next_merged_count += num_merged;
-	next_merged = realloc(next_merged, next_merged_count * sizeof *next_merged);
+	next_merged = (struct _lb_output_tree *) realloc(next_merged, next_merged_count * sizeof *next_merged);
 
 	// Test if recursion end
 	if(num_unmerged) {
@@ -817,7 +817,7 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 						to_exp = &to_export[++k];
 					}
 				}
-				nodes = realloc(nodes, new_count * sizeof *nodes);
+				nodes = (hig_cell * *) realloc(nodes, new_count * sizeof *nodes);
 
 				// Adapt the actual hig_cell structure to fit the changes
 				if(new_count == 0) {
@@ -920,7 +920,7 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 				// won't use realloc here, because I am not
 				// interested in keeping old data in the buffer
 				free(elem_buf);
-				elem_buf = malloc(elem_count);
+				elem_buf = (hig_serial_tree *) malloc(elem_count);
 			}
 
 			// Now we asynchronously receive the trees' elements,
@@ -1017,7 +1017,7 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 						assert(mergeable_count <= mergeable_size);
 						if(mergeable_count >= mergeable_size) {
 							mergeable_size = 1 + mergeable_size * 2;
-							mergeable = realloc(mergeable,
+							mergeable = (struct _lb_output_tree *) realloc(mergeable,
 								mergeable_size * sizeof *mergeable);
 						}
 						mergeable[mergeable_count++] = ctx->output[i];
@@ -1040,7 +1040,7 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 					// Add the new tree to the output list
 					if(ctx->num_out_higs >= output_size) {
 						output_size = 1 + output_size * 2;
-						ctx->output = realloc(ctx->output,
+						ctx->output = (struct _lb_output_tree *) realloc(ctx->output,
 							output_size * sizeof *ctx->output);
 					}
 					ctx->output[ctx->num_out_higs].tree = ntree;
@@ -1077,7 +1077,7 @@ _parallel_partition_and_distribute_trees(load_balancer *ctx)
 		}
 
 		assert(output_size >= ctx->num_out_higs);
-		ctx->output = realloc(ctx->output, ctx->num_out_higs * sizeof *ctx->output);
+		ctx->output = (struct _lb_output_tree *) realloc(ctx->output, ctx->num_out_higs * sizeof *ctx->output);
 	}
 	Zoltan_Destroy(&zz);
 }
@@ -1088,7 +1088,7 @@ _proc_conn_add_touching(struct _proc_conectivity *pc, int neighbor_rank, Rect *i
 	if(pc->num_neighbors >= pc->max_neighbors) {
 		assert(pc->num_neighbors == pc->max_neighbors);
 		pc->max_neighbors = pc->max_neighbors * 2 + 5;
-		pc->neighbors = realloc(pc->neighbors, pc->max_neighbors);
+		pc->neighbors = (__typeof__(pc->neighbors)) realloc(pc->neighbors, pc->max_neighbors);
 	}
 
 	unsigned n = pc->num_neighbors++;
@@ -1463,7 +1463,7 @@ static void send_portal_side(load_balancer *ctx, allocator *alc,
 	struct serialized_portal_isection *buf;
 	const size_t bufsize = (sizeof *buf)
 		+ lp->side_count[side] * sizeof buf->isects[0];
-	buf = allocator_alloc(alc, bufsize);
+	buf = (struct serialized_portal_isection *) allocator_alloc(alc, bufsize);
 
 	buf->portal_gid = lp->portal_gid;
 	buf->side = side;
@@ -1767,7 +1767,7 @@ _parallel_extend_fringe(load_balancer *ctx, partition_graph *pg)
 		int from;
 		int msg_size;
 		struct _search_work *work;
-		while((work = term_det_wait_for_msg(td, &from, &msg_size, true))) {
+		while((work = (struct _search_work *) term_det_wait_for_msg(td, &from, &msg_size, true))) {
 			size_t count = (msg_size - sizeof *work) / sizeof work->sstarts[0];
 
 			// Get proc idx, if geometrically connected:
