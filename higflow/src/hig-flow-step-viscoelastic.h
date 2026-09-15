@@ -7,6 +7,8 @@
 #ifndef HIG_FLOW_STEP_VISCOELASTIC
 #define HIG_FLOW_STEP_VISCOELASTIC
 
+#include "hig-flow-linear-algebra.h"
+
 #include "hig-flow-step-generalized-newtonian.h"
 #include "hig-flow-mittag-leffler.h"
 
@@ -36,7 +38,6 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
 void higflow_solver_step_viscoelastic(higflow_solver *ns); 
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
-void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]); 
 
 // Calculate the matrix product
 void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
@@ -87,7 +88,6 @@ void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][
 void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);
 
 // Solve linear system for constitutive equation
-void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DIM+1], real x[DIM*DIM] ); 
 
 // //Calculate convective tensor term CUBISTA
 // real hig_flow_convective_tensor_term_cubista(distributed_property *dpu, sim_facet_domain *sfdu, sim_stencil *stn, distributed_property *dpK, sim_domain *sdED, sim_stencil *stnED, real kc, Point ccenter, Point cdelta, int dim);

@@ -7,6 +7,8 @@
 #ifndef HIG_FLOW_STEP_SHEAR_THICKENING_SUSPENSION
 #define HIG_FLOW_STEP_SHEAR_THICKENING_SUSPENSION
 
+#include "hig-flow-linear-algebra.h"
+
 #include "hig-flow-step-generalized-newtonian.h"
 
 // *******************************************************************
@@ -35,7 +37,6 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_shear_thickening_suspensio
 void higflow_solver_step_shear_thickening_suspensions(higflow_solver *ns); 
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
-void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]); 
 
 // Calculate the matrix product
 void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
@@ -80,7 +81,6 @@ void hig_flow_evolution_equation_microstructure_tensor_rhs (real beta, real phi,
 void hig_flow_implicit_evolution_equation_microstructure_tensor_rhs (real beta, real phi, real A[DIM][DIM], real E_C[DIM][DIM], real TrEC, real KD[DIM][DIM], real FOM[DIM][DIM][DIM][DIM], real LP[DIM][DIM], real EP[DIM][DIM], real RHS[DIM][DIM]);
 
 // Solve linear system for constitutive equation
-void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DIM+1], real x[DIM*DIM] ); 
 
 //Calculate convective tensor term CUBISTA
 real hig_flow_convective_tensor_A_term_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdp, sim_stencil *stn, real K[DIM][DIM], Point ccenter, Point cdelta, int dim, int i, int j);

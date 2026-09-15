@@ -64,6 +64,7 @@ OBJ1 += ../src/hig-flow-vof-elvira.o
 OBJ1 += ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-mittag-leffler.o   
 OBJ1 += ../src/hig-flow-step-multiphase-viscoelastic.o
 OBJ1 += ../src/hig-flow-res.o
+OBJ1 += ../src/hig-flow-linear-algebra.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)

@@ -7,6 +7,8 @@
 #ifndef HIG_FLOW_STEP_ELASTOVISCOPLASTIC
 #define HIG_FLOW_STEP_ELASTOVISCOPLASTIC
 
+#include "hig-flow-linear-algebra.h"
+
 #include "hig-flow-step-generalized-newtonian.h"
 
 // *******************************************************************
@@ -35,7 +37,6 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_elastoviscoplastic(higflow
 void higflow_solver_step_elastoviscoplastic(higflow_solver *ns); 
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
-void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]); 
 
 // Calculate the matrix product
 void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
@@ -79,7 +80,6 @@ void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccente
 void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);
 
 // Solve linear system for constitutive equation
-void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DIM+1], real x[DIM*DIM] ); 
 
 //Calculate convective tensor term CUBISTA
 real hig_flow_convective_tensor_term_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdp, sim_stencil *stn, real K[DIM][DIM], Point ccenter, Point cdelta, int dim, int i, int j);

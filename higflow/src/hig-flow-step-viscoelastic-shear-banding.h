@@ -7,6 +7,8 @@
 #ifndef HIG_FLOW_STEP_VISCOELASTIC_SHEAR_BANDING
 #define HIG_FLOW_STEP_VISCOELASTIC_SHEAR_BANDING
 
+#include "hig-flow-linear-algebra.h"
+
 #include "hig-flow-step-generalized-newtonian.h"
 
 // *******************************************************************
@@ -41,7 +43,6 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) ;
 
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
-void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]); 
 
 // Calculate the matrix product
 void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
@@ -62,7 +63,6 @@ void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM][DIM*DIM+1], real Omega[D
 //void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real OmegaT[DIM][DIM], real dt);
 
 // Solve linear system for constitutive equation
-void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DIM+1], real x[DIM*DIM] ); 
 
 
 //Viscoelastic fluids with shear-banding functions

@@ -7,6 +7,8 @@
 #ifndef HIG_FLOW_STEP_VISCOELASTIC_VARIABLE_VISCOSITY
 #define HIG_FLOW_STEP_VISCOELASTIC_VARIABLE_VISCOSITY
 
+#include "hig-flow-linear-algebra.h"
+
 #include "hig-flow-step-generalized-newtonian.h"
 
 // *******************************************************************
@@ -39,10 +41,8 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns);
 //********************************************************************
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
-void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]);
 
 // Calculate the eige-value and eige-vectors using the Jacobi method
-void hig_flow_jacobi(real A[DIM][DIM], real d[DIM], real V[DIM][DIM]); 
 
 // Calculate the matrix product
 void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
@@ -86,7 +86,6 @@ void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccente
 void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);
 
 // Solve linear system for constitutive equation
-void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DIM+1], real x[DIM*DIM] ); 
 
 // Constitutive Equation Step for the Explicit Euler Method
 void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_solver *ns);

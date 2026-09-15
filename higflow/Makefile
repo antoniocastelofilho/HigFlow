@@ -53,6 +53,7 @@ ifeq ($(ARCH), Linux)
 endif
 
 MODULES = \
+	linear-algebra \
 	kernel \
 	io \
 	ic \
