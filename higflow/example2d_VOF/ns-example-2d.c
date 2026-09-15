@@ -45,7 +45,7 @@ void Intersec(Point p0, Point p1, real f0, real f1, Point p) {
 	return;
 }
 
-real volume_convex_facet(int n, real P[n][DIM]) {
+real volume_convex_facet(int n, real P[][DIM]) {
 	real area   = 0.0;
 	real altura = 0.0;
 	for (int i = 0; i< n-1; i++) {
@@ -185,6 +185,7 @@ real square_case_13(Point center, Point delta, Point p0, Point p1, Point p2, Poi
 			return value;
 		}
 	}
+	return value;
 }
 
 real square_case_22(Point center, Point delta, Point p0, Point p1, Point p2, Point p3, real f0, real f1, real f2, real f3){

@@ -86,7 +86,7 @@ void Intersec(Point p0, Point p1, real f0, real f1, Point p) {
 	return;
 }
 
-real volume_convex_facet(int n, real P[n][DIM]) {
+real volume_convex_facet(int n, real P[][DIM]) {
 	real area   = 0.0;
 	real altura = 0.0;
 	for (int i = 0; i< n-1; i++) {
@@ -226,6 +226,7 @@ real square_case_13(Point center, Point delta, Point p0, Point p1, Point p2, Poi
 			return value;
 		}
 	}
+	return value;
 }
 
 real square_case_22(Point center, Point delta, Point p0, Point p1, Point p2, Point p3, real f0, real f1, real f2, real f3){
@@ -461,10 +462,12 @@ real get_boundary_velocity(int id, Point center, int dim, real t) {
 	case 1:
 		switch (dim) {
 		case 0: ;
+			{
 			real fxt = 8.0*(1.0 + tanh(8.0*t-4))*x*x*(1.0-x)*(1.0-x);
 			value = fxt;
 			//value = 1.0;
 			break;
+			}
 		case 1:
 			value = 0.0;
 			break;

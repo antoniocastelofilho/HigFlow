@@ -496,7 +496,7 @@ void fill_column_string(const char *literal, char *str, size_t size) {
 }*/
 
 
-void write_residual_normgroup(residual_normgroup *resn, char *nameres_dp, char *resn_name, real t, int step) {
+void write_residual_normgroup(residual_normgroup *resn, const char *nameres_dp, const char *resn_name, real t, int step) {
     char nameres_dp_resn[1024];
     strcpy(nameres_dp_resn, nameres_dp);
     strcat(nameres_dp_resn, resn_name);

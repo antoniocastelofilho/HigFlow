@@ -11,7 +11,7 @@ CC = gcc
 
 DIM=2
 
-STANDARDS = -std=gnu99
+STANDARDS = -x c++ -std=gnu++17
 
 CFILE = ns-example-2d
 

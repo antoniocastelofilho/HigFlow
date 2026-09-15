@@ -40,12 +40,12 @@ LIBS+= $(PETSC_EXTRA_LIB)
 LIBS+= -lm -ltrinilos_zoltan -lHYPRE
 #LIBS+= -lm -lzoltan -lHYPRE
 
-CC = mpicc
+CC = mpic++
 AR = gcc-ar
 ANLIB = gcc-ranlib
 
-CXXSTANDARD = -std=gnu++11
-CSTANDARD = -std=gnu99
+CXXSTANDARD = -std=gnu++17
+CSTANDARD = -x c++ -std=gnu++17
 
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)

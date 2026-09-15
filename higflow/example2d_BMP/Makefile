@@ -13,7 +13,7 @@ CC = gcc
 DIM=2
 
 OPTSOPT = -O3 -march=native -mtune=native -flto=8 -fno-fat-lto-objects -Werror
-STANDARDS = -std=gnu99
+STANDARDS = -x c++ -std=gnu++17
 
 CFLAGS+= $(shell pkg-config --cflags glib-2.0 hdf5) -Werror
 CFLAGS+= $(PETSC_CC_INCLUDES)

@@ -5,7 +5,7 @@
 -include ${PETSC_DIR}/lib/petsc/conf/petscvariables
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = mpicc
+CC = mpic++
 
 #OPTSOPT += -g
 
@@ -21,7 +21,7 @@ ifdef PROFILE
 CFLAGS += -fprofile-arcs -ftest-coverage
 endif
 
-STANDARDS = -std=gnu99
+STANDARDS = -x c++ -std=gnu++17
 
 CFLAGS+= $(shell pkg-config --cflags glib-2.0 hdf5)
 CFLAGS+= $(PETSC_CC_INCLUDES)

@@ -1,8 +1,6 @@
 #include <mpi.h>
 
-extern "C" {
 #include "term-det.h"
-}
 
 #include <cstring>
 #include <cassert>

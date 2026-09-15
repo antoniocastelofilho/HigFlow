@@ -122,7 +122,7 @@ int psd_get_global_id(psim_domain *psd, hig_cell *c)
 	return psd_lid_to_gid(psd, sd_get_local_id(psd->localdomain, c));
 }
 
-inline int psd_lid_to_gid(psim_domain *psd, int localid)
+int psd_lid_to_gid(psim_domain *psd, int localid)
 {
 	return psd->dp_data.gid_map[localid];
 }
@@ -1137,7 +1137,7 @@ int psfd_get_global_id(psim_facet_domain *psfd, hig_facet *f)
 	return psfd_lid_to_gid(psfd, sfd_get_local_id(psfd->localdomain, f));
 }
 
-inline int psfd_lid_to_gid(psim_facet_domain *psfd, int localid)
+int psfd_lid_to_gid(psim_facet_domain *psfd, int localid)
 {
 	return psfd->dp_data.gid_map[localid];
 }

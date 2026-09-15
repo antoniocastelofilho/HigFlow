@@ -1,8 +1,6 @@
 #include <random>
 
-extern "C" {
 #include "rng.h"
-}
 
 struct RNG
 {

@@ -7,7 +7,7 @@ include Makefile.common
 TARGET=libhig$(DIM)d.a
 DEFINES=-DDIM=$(DIM)
 
-CC = mpicc
+CC = mpic++
 CXX = mpic++
 AR = gcc-ar
 RANLIB = gcc-ranlib
@@ -18,8 +18,8 @@ else
 OPTSOPT += -O3 -flto -fno-fat-lto-objects -march=native -mtune=native -DNDEBUG
 endif
 
-CXXSTANDARD = -std=gnu++14
-CSTANDARD = -std=gnu99
+CXXSTANDARD = -std=gnu++17
+CSTANDARD = -x c++ -std=gnu++17
 
 CFLAGS+= -Wall -Wno-unused-result -Wno-unused-variable
 CFLAGS+=$(OPTSOPT) $(DEFINES)

@@ -7,11 +7,11 @@
 # HigTree common
 include ${HIGTREE_DIR}/Makefile.common
 
-CC = mpicc
+CC = mpic++
 
 DIM=2
 
-STANDARDS = -std=gnu99
+STANDARDS = -x c++ -std=gnu++17
 
 CFILE = ns-example-2d
 

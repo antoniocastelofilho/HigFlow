@@ -6456,7 +6456,7 @@ void higflow_save_properties(higflow_solver *ns, int myrank, int ntasks) {
 }
 
 
-static void parse_yaml_sequence(struct fy_document *fyd, char *path, real *arr, int arr_len, char *name) {
+static void parse_yaml_sequence(struct fy_document *fyd, const char *path, real *arr, int arr_len, const char *name) {
     struct fy_node *flow_seq = fy_node_by_path(fy_document_root(fyd), path,-1, FYNWF_PTR_DEFAULT);
     int seq_len = fy_node_sequence_item_count(flow_seq);
     if(seq_len != arr_len) {

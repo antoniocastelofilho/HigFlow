@@ -11,10 +11,8 @@
 #include <iostream>
 #include <mpi.h>
 
-extern "C" {
 #include "solver-centralized.h"
 solver *_slv_create_viennacl(size_t start, size_t size);
-}
 
 typedef viennacl::compressed_matrix<real> GPUMatrix;
 typedef viennacl::vector<real> GPUVector;
