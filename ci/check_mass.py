@@ -74,7 +74,11 @@ def main():
             print(f"{os.path.basename(f)}: no FracVol field")
             continue
         total, count = result
-        fracvol_by_step[step] = total
+        # Acumula: em paralelo ha um arquivo por rank no mesmo passo, e cada um
+        # traz apenas a parcela do seu subdominio.  Atribuir em vez de somar
+        # deixaria so a parcela do ultimo rank lido, que varia de passo para
+        # passo e aparece como massa nao conservada sem que ela tenha mudado.
+        fracvol_by_step[step] = fracvol_by_step.get(step, 0.0) + total
         print(f"{os.path.basename(f)}: sum_fracvol={total:.6f}, cells={count}")
 
     if not fracvol_by_step:

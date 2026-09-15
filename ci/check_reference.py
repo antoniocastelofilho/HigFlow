@@ -142,23 +142,27 @@ def parse_vtk(filename):
         if d["count"] > 0:
             d["mean"] = d["sum"] / d["count"]
         del d["sum"]
-        del d["count"]
+        # "count" fica: a agregacao entre ranks precisa dele para ponderar
 
     if data["p"]["count"] > 0:
         data["p"]["mean"] = data["p"]["sum"] / data["p"]["count"]
     del data["p"]["sum"]
-    del data["p"]["count"]
 
     return data
 
 
-def metrics_close(a, b, tol=0.001):
+def metrics_close(a, b, tol=0.001, scale=0.0):
     """Return True if a and b are within relative tolerance."""
     if a is None and b is None:
         return True
     if a is None or b is None:
         return False
-    denom = max(abs(a), abs(b), 1e-16)
+    # A escala do campo entra no denominador.  Sem ela, uma grandeza que vale
+    # zero por simetria -- a media de u numa cavidade, por exemplo -- e' comparada
+    # contra ela mesma, e o ruido de somatorio entre particoes vira erro de
+    # centenas por cento.  Com ela, o criterio passa a ser "a diferenca e'
+    # pequena perto da amplitude do campo", que e' o que se quer verificar.
+    denom = max(abs(a), abs(b), abs(scale), 1e-16)
     return abs(a - b) / denom < tol
 
 
@@ -167,21 +171,27 @@ def compare_data(current, reference, case_name, tol=0.001):
     report = []
     passed = True
 
+    def amplitude(d):
+        lo, hi = d.get("min"), d.get("max")
+        return abs(hi - lo) if lo is not None and hi is not None else 0.0
+
     # Compare vel components
     for comp in ["u", "v", "w"]:
+        scale = amplitude(reference.get("vel", {}).get(comp, {}))
         for metric in ["min", "max", "mean"]:
             v_cur = current.get("vel", {}).get(comp, {}).get(metric)
             v_ref = reference.get("vel", {}).get(comp, {}).get(metric)
-            if not metrics_close(v_cur, v_ref, tol):
+            if not metrics_close(v_cur, v_ref, tol, scale):
                 passed = False
                 report.append(
                     f"  vel.{comp}.{metric}: current={v_cur}, ref={v_ref}")
 
     # Compare pressure
+    p_scale = amplitude(reference.get("p", {}))
     for metric in ["min", "max", "mean"]:
         v_cur = current.get("p", {}).get(metric)
         v_ref = reference.get("p", {}).get(metric)
-        if not metrics_close(v_cur, v_ref, tol):
+        if not metrics_close(v_cur, v_ref, tol, p_scale):
             passed = False
             report.append(f"  p.{metric}: current={v_cur}, ref={v_ref}")
 
@@ -250,10 +260,16 @@ def main():
     def agg_max(arr, key):
         return max(d[key] for d in arr if d[key] is not None)
     def agg_mean(arr, key):
-        vals = [d[key] for d in arr if d[key] is not None]
-        if not vals:
+        # Media ponderada pelo numero de celulas de cada rank.  A media simples
+        # das medias so coincide com a media global quando a particao e' exata;
+        # com blocos de tamanhos diferentes ela varia com o numero de processos
+        # e a referencia passa a falhar sem que a fisica tenha mudado.
+        pairs = [(d[key], d.get("count", 1)) for d in arr
+                 if d[key] is not None and d.get("count", 1) > 0]
+        if not pairs:
             return None
-        return sum(vals) / len(vals)
+        total = sum(c for _, c in pairs)
+        return sum(v * c for v, c in pairs) / total
 
     result = {}
     result["vel"] = {}

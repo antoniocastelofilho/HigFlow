@@ -223,11 +223,11 @@ void print_tensor(higflow_solver *ns, int myrank, int i, int j, int dimprint1, r
             // Get the velocity derivative tensor Du and the Kernel tensor
             real Du[DIM][DIM];
             // Get Du
-            Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-            Du[j][i] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[j][i], ns->ed.stn);
+            Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[i][j], ns->ed.stn);
+            Du[j][i] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[j][i], ns->ed.stn);
             // Get T tensor
             real D  = 0.5*(Du[i][j]+Du[j][i]);
-            real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+            real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
             real T = S + 2.0*(1-beta)*D/Re; 
             //Print polymeric stress data file
             if ((fabs(ccenter[dimprint1] - pprint1) < 0.5*cdelta[dimprint1]) &&
@@ -313,11 +313,11 @@ void print_tensor_at_point(higflow_solver *ns, FILE *fd, int i, int j, real time
             // Get the velocity derivative tensor Du and the Kernel tensor
             real Du[DIM][DIM];
             // Get Du
-            Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[i][j], ns->ed.stn);
-            Du[j][i] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpD[j][i], ns->ed.stn);
+            Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[i][j], ns->ed.stn);
+            Du[j][i] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpDu[j][i], ns->ed.stn);
             // Get T tensor
             real D  = 0.5*(Du[i][j]+Du[j][i]);
-            real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpS[i][j], ns->ed.stn);
+            real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
             real T = S + 2.0*(1-beta)*D/Re; 
             //Print polymeric stress data file
             if ((fabs(ccenter[0] - pprint1) < 0.5*cdelta[0]) &&
