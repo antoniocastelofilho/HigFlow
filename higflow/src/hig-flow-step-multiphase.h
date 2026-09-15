@@ -60,7 +60,6 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns);
 void hig_flow_derivative_fracvol_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real FVcenter, real dfracvoldx[DIM]); 
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell_multiphase (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
 
 // *******************************************************************
 // Calculate convective term CUBISTA for volume fraction

@@ -91,4 +91,9 @@ void higflow_computational_cell_bousinessq_term_momentum_equation(higflow_solver
 //Computational cell used to calculate the terms needed to solve the energy equation
 void higflow_computational_cell_energy_equation(higflow_solver *ns, sim_domain *sdT, int clid, Point ccenter, Point cdelta, int dim, distributed_property *dpT);
 
+
+// Velocidade no centro da celula: media das velocidades nas faces esquerda
+// e direita de cada direcao.
+void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]);
+
 #endif

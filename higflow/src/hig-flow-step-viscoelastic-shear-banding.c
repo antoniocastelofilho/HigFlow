@@ -1644,18 +1644,6 @@ void hig_flow_implicit_conformation_tensor_B_VCM_rhs (real DeA, real DeB, real B
 }
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]) {
-    for (int dim = 0; dim < DIM; dim++) {
-        // Verity if is in facet
-        int infacet;
-        // Get the velocity in the left facet center
-        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Get the velocity in the right facet center
-        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Setting the velocity at cell center
-        u[dim]  = 0.5*(ul + ur);
-    }
-}
 
 // Get the derivative of conformation tensor A
 void hig_flow_derivative_tensor_A_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Acenter, real dAdx[DIM]) {

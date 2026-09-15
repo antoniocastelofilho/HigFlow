@@ -66,7 +66,6 @@ void hig_flow_calculate_m_lptt_bingham (higflow_solver *ns, real tr, real lambda
 void hig_flow_calculate_m_eptt_bingham(higflow_solver *ns, real tr, real lambda[DIM],  real M[DIM][DIM], real R[DIM][DIM], real M_aux[DIM][DIM], real tol, real smallTD, real SD); 
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
 
 // Get the derivative of Kernel 
 void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Kcenter, real dKdx[DIM]); 

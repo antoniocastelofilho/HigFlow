@@ -434,7 +434,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
                 // Calculate RHS = Omega Kernel - Kernel Omega + 2BB + MM/De
                 // Get the velocity at cell center 
                 real u[DIM], dBdx[DIM], RHS[DIM][DIM];
-                hig_flow_velocity_at_center_cell_integral(ns, ccenter, cdelta, u);
+                hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
                 // Solving the Constitutive Equation using the Euler Method
                 hig_flow_b_rhs(B, Du, RHS);
                 for (int i = 0; i < DIM; i++) {
@@ -1424,18 +1424,6 @@ void hig_flow_b_rhs (real B[DIM][DIM], real Du[DIM][DIM], real RHS[DIM][DIM]) {
 
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell_integral (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]) {
-    for (int dim = 0; dim < DIM; dim++) {
-        // Verity if is in facet
-        int infacet;
-        // Get the velocity in the left facet center
-        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Get the velocity in the right facet center
-        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Setting the velocity at cell center
-        u[dim]  = 0.5*(ul + ur);
-    }
-}
 
 // Get the derivative of B tensor 
 void hig_flow_derivative_b_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int k, int i, int j, real Bcenter, real dBdx[DIM]) {

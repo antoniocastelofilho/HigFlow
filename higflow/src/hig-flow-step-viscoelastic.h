@@ -73,7 +73,6 @@ void hig_flow_calculate_m_fene_p (real lambda[DIM], real jlambda[DIM],real M_aux
 void hig_flow_calculate_m_e_fene (real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
 
 // Get the derivative of Kernel 
 void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Kcenter, real dKdx[DIM]); 

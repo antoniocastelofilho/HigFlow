@@ -1815,11 +1815,11 @@ void higflow_explicit_euler_intermediate_velocity_electroosmotic(higflow_solver 
 // *******************************************************************
 // Navier-Stokes Step for the Second Order Explicit Runge-Kutta Method
 // *******************************************************************
-void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow_solver *ns) {
+void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow_solver *ns, higflow_euler_velocity_step euler) {
     // Calculate the auxiliar velocity by the explicit Euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpuaux);
+    euler(ns, ns->dpu, ns->dpuaux);
     // Calculate the star velocity by the explicit euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpuaux, ns->dpustar);
+    euler(ns, ns->dpuaux, ns->dpustar);
     // Calculate the order 2 Runge-Kutta method using the euler method
     // Get the local sub-domain
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
@@ -1860,11 +1860,11 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow
 // *******************************************************************
 // Navier-Stokes Step for third Order Explicit Runge-Kutta Method
 // *******************************************************************
-void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow_solver *ns) {
+void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow_solver *ns, higflow_euler_velocity_step euler) {
     // Calculate the auxiliar velocity by the explicit euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpuaux);
+    euler(ns, ns->dpu, ns->dpuaux);
     // Calculate the second stage velocity by the explicit euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpuaux, ns->dpustar);
+    euler(ns, ns->dpuaux, ns->dpustar);
     // Calculate the order 2 Runge-Kutta method using the euler method
     // Get the local sub-domain
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
@@ -1901,7 +1901,7 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow
         dp_sync(ns->dpuaux[dim]);
     }
     // Calculate the order 2 Runge-Kutta method using the euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpuaux, ns->dpustar);
+    euler(ns, ns->dpuaux, ns->dpustar);
     // Loop for each dimension
     for(int dim = 0; dim < DIM; dim++) {
         // Get the local partitioned domain for facets
@@ -2533,10 +2533,10 @@ void higflow_solver_step_electroosmotic(higflow_solver *ns) {
         higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpustar);
         break;
     case EXPLICIT_RK2:
-        higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(ns);
+        higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_electroosmotic);
         break;
     case EXPLICIT_RK3:
-        higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(ns);
+        higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_electroosmotic);
         break;
     case SEMI_IMPLICIT_EULER:
         higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(ns);

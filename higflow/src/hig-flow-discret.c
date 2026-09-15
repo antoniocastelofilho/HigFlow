@@ -1179,3 +1179,17 @@ void higflow_computational_cell_volume_fraction_suspensions(higflow_solver *ns, 
 		break;
 	}
 }
+
+
+void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]) {
+    for (int dim = 0; dim < DIM; dim++) {
+        // Verity if is in facet
+        int infacet;
+        // Get the velocity in the left facet center
+        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+        // Get the velocity in the right facet center
+        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+        // Setting the velocity at cell center
+        u[dim]  = 0.5*(ul + ur);
+    }
+}

@@ -26,7 +26,6 @@ void hig_flow_b_rhs (real B[DIM][DIM], real Du[DIM][DIM], real RHS[DIM][DIM]);
 
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell_integral (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
 
 // Get the derivative of B tensor 
 void hig_flow_derivative_b_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int k, int i, int j, real Bcenter, real dBdx[DIM]); 

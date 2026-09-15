@@ -9,66 +9,6 @@ real area_correction_at_get(Point delta, real area){
    return area;
 }
 
-void _elvira_vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux){
-   int status;
-   real fracvol, fracvol_aux;
-   Point pp, ppt, ppb;
-   *aux  = 0;
-   // Vertical Up
-   status = get_frac_vol(sdm, ns, 1, center, p, delta, &fracvol);
-   if (status != 1) {
-      if (status == -1) {
-         //printf("Up - Vertical cells with different sizes \n");
-      } else {
-         //printf("Up - Vertical cell out of domain \n");
-      }
-      return;
-   }
-   pp[0] = p[0];
-   *vertical = fracvol;
-   int i = 0;
-   do { i++;
-      pp[1] = center[1] + i * delta[1];
-      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
-      if (status == 1) {
-         *vertical += fracvol;
-      } else if (status == 0) {
-         //printf("Up - Vertical cell out of domain \n");
-         return;
-      } else {
-         //printf("Up - Vertical cells with different sizes \n");
-         return;
-      }
-   } while (i < 1 && status == 1);
-   fracvol_aux = fracvol;
-   ppt[0] = pp[0]; 
-   ppt[1] = pp[1] + 0.5*delta[1]; 
-   real fracvol_top = fracvol;             
-   // Vertical Down
-   i = 0;
-   do { i++;
-      pp[1] = p[1] - i * delta[1];
-      status = get_frac_vol(sdm, ns, 1, center, pp, delta, &fracvol);
-      if (status == 1) {
-         *vertical += fracvol;
-      } else if (status == 0) {
-         //printf("Down - Vertical cell out of domain \n");
-         return;
-      } else {
-         //printf("Down - Vertical cells with different sizes \n");
-         return;
-      }
-   } while (i < 1 && status == 1);
-   if (fracvol == fracvol_aux) {
-      //printf("The phases are not different \n");
-      //return;
-   }
-   if (fracvol == 1.0 && fracvol_top == 0.0) {
-      *aux = -1;
-   } else {
-      *aux = 1;
-   }
-}
 
 void elvira_vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *vertical, int *aux){
    int status;
@@ -131,67 +71,6 @@ void elvira_vertical_collumn(sim_domain *sdm, higflow_solver *ns, Point center, 
    }
 }
 
-void _elvira_horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux){
-   int status;
-   real fracvol, fracvol_aux;
-   Point pp, ppr, ppl;
-   *aux=0;
-   // Horizontal Right
-   status = get_frac_vol(sdm, ns, 0, center, p, delta, &fracvol);
-   if (status != 1) {
-      if (status == -1) {
-         //printf("Right - Horizontal cells with different sizes \n");
-      } else {
-         //printf("Right - Horizontal cell out of domain \n");
-      }
-      return;
-   }
-   pp[1] = p[1];
-   *horizontal = fracvol;
-   int i = 0;
-   do { i++;
-      pp[0] = center[0] + i*delta[0];
-      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
-      if (status == 1) {
-         *horizontal += fracvol;
-      } else if (status == 0) {
-         //printf("Right - Horizontal cell out of domain \n");
-         return;
-      } else {
-         //printf("Right - Horizontal cells with different sizes \n");
-         return;
-      }
-   } while (i < 1 && status == 1);
-   fracvol_aux = fracvol;
-   ppr[0]=pp[0] + 0.5*delta[0];
-   ppr[1]=pp[1];
-   real fracvol_right = fracvol;
-   // Horizontal Left
-   i = 0;
-   // fracvol_aux = 0;
-   do { i++;
-      pp[0] = p[0] - i*delta[0];
-      status = get_frac_vol(sdm, ns, 0, center, pp, delta, &fracvol);
-      if (status == 1) {
-         *horizontal += fracvol;
-      } else if (status == 0) {
-         //printf("Left - Horizontal cell out of domain \n");
-         return;
-      } else {
-         //printf("Left - Horizontal cells with different sizes \n");
-         return;
-      }
-   } while (i < 1 && status == 1);
-   if (fracvol == fracvol_aux){
-      //printf("The phases are not different:\n");
-      //return;
-   }
-   if (fracvol == 1.0 && fracvol_right == 0.0) {
-      *aux = -1;
-   } else {
-      *aux = 1;
-   }
-}
 
 void elvira_horizontal_row(sim_domain *sdm, higflow_solver *ns, Point center, Point p, Point delta, real *horizontal, int *aux){
    int status;
@@ -390,25 +269,7 @@ void elvira_horizontal_row_adap(sim_domain *sdm, higflow_solver *ns, Point cente
    }
 }
 
-real real_max_vec_elvira(real *vec,int n){
-   real max = vec[1];
-   for(int i=1;i<n;i++){
-      if(vec[i]>max){
-         max=vec[i];
-      }
-   }
-   return max;
-}
 
-real real_min_vec_elvira(real *vec,int n){
-   real min = vec[1];
-   for(int i=1;i<n;i++){
-      if(vec[i]<min){
-         min=vec[i];
-      }
-   }
-   return min;
-}
 
 void real_times_vec_elvira(real c,real *vec,int n){
    for(int i=0;i<n;i++){
@@ -437,13 +298,13 @@ void set_common_orig_vertical_elvira(real *V,int auxv,real *origv,int n,real dy)
    real orig;
    real cons[n],delta[n];
    if(auxv>0){
-      orig=real_max_vec_elvira(origv,n);
+      orig=real_max_vec(origv,n);
       set_vec_elvira(orig,cons,n);
       vec_minus_vec_elvira(cons,origv,delta,n);
       real_times_vec_elvira(1/dy,delta,n);
       vec_plus_vec_elvira(V,delta,V,n);
    } else {
-      orig=real_min_vec_elvira(origv,n);
+      orig=real_min_vec(origv,n);
       set_vec_elvira(-orig,cons,n);
       vec_plus_vec_elvira(cons,origv,delta,n);
       real_times_vec_elvira(1/dy,delta,n);
@@ -455,13 +316,13 @@ void set_common_orig_horizontal_elvira(real *H,int auxh,real *origh,int n,real d
    real orig;
    real cons[n],delta[n];
    if(auxh>0){
-      orig=real_max_vec_elvira(origh,n);
+      orig=real_max_vec(origh,n);
       set_vec_elvira(orig,cons,n);
       vec_minus_vec_elvira(cons,origh,delta,n);
       real_times_vec_elvira(1/dx,delta,n);
       vec_plus_vec_elvira(H,delta,H,n);
    } else {
-      orig=real_min_vec_elvira(origh,n);
+      orig=real_min_vec(origh,n);
       set_vec_elvira(-orig,cons,n);
       vec_plus_vec_elvira(cons,origh,delta,n);
       real_times_vec_elvira(1/dx,delta,n);

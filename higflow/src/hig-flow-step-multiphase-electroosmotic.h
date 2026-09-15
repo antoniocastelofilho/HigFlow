@@ -44,9 +44,7 @@ void higflow_calculate_multiphase_electroosmotic_source_term( higflow_solver *ns
 
 void higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]);
 
-void higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns);
 
-void higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns);
 
 void higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns);
 

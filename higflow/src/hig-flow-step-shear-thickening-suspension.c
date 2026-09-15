@@ -1985,7 +1985,7 @@ void higflow_implicit_euler_evolution_equation_microstructure_tensor(higflow_sol
             }
             // Calculate de kronecker product Omega*I - I*Omega
             // Omega = Du
-            hig_flow_kernel_system_matrix_shear_thickening_suspensions(w, Omega, dt);
+            hig_flow_kernel_system_matrix(w, Omega, dt);
             // Solve the linear system
             hig_flow_solve_system_constitutive_equation(DIM * DIM, w, bS);
             // Get the solution of linear system
@@ -2952,20 +2952,6 @@ void hig_flow_implicit_evolution_equation_microstructure_tensor_rhs(real beta, r
 }
 
 // Get the velocity at cell center
-void hig_flow_velocity_at_center_cell(higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM])
-{
-    for (int dim = 0; dim < DIM; dim++)
-    {
-        // Verity if is in facet
-        int infacet;
-        // Get the velocity in the left facet center
-        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Get the velocity in the right facet center
-        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Setting the velocity at cell center
-        u[dim] = 0.5 * (ul + ur);
-    }
-}
 
 // Get the derivative of microstructure tensor A
 void hig_flow_derivative_tensor_A_at_center_cell(higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Acenter, real dAdx[DIM])
@@ -2996,40 +2982,6 @@ void hig_flow_derivative_tensor_A_at_center_cell(higflow_solver *ns, Point ccent
 // Gauss elimination to solve the constitutive equation
 
 // Calculate the matrix product
-void hig_flow_kernel_system_matrix_shear_thickening_suspensions(real w[DIM * DIM][DIM * DIM + 1], real Omega[DIM][DIM], real dt)
-{
-    real I[DIM][DIM];
-    for (int i = 0; i < DIM; i++)
-    {
-        for (int j = 0; j < DIM; j++)
-        {
-            I[i][j] = 0.0;
-            if (i == j)
-                I[i][j] = 1.0;
-        }
-    }
-    for (int i = 0; i < DIM; i++)
-    {
-        for (int j = i; j < DIM; j++)
-        {
-            for (int k = 0; k < DIM; k++)
-            {
-                for (int l = 0; l < DIM; l++)
-                {
-                    if (i == j)
-                    {
-                        w[i * DIM + k][j * DIM + l] = I[k][l] - dt * Omega[k][l] - dt * Omega[i][i] * I[k][l];
-                    }
-                    else
-                    {
-                        w[i * DIM + k][j * DIM + l] = dt * Omega[j][i] * I[k][l];
-                        w[j * DIM + l][i * DIM + k] = -dt * Omega[j][i] * I[k][l];
-                    }
-                }
-            }
-        }
-    }
-}
 
 // Get the derivative of the volume fraction
 void hig_flow_derivative_volfrac_at_center_cell(higflow_solver *ns, Point ccenter, Point cdelta, real ncenter, real dndx[DIM])

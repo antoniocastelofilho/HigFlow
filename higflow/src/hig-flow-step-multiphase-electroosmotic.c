@@ -1625,125 +1625,10 @@ void higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(higf
 // *******************************************************************
 // Navier-Stokes Step for the Second Order Explicit Runge-Kutta Method
 // *******************************************************************
-void higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns) {
-    // Calculate the auxiliar velocity by the explicit Euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpuaux);
-    // Calculate the star velocity by the explicit euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpuaux, ns->dpustar);
-    // Calculate the order 2 Runge-Kutta method using the euler method
-    // Get the local sub-domain
-    sim_domain *sdp = psd_get_local_domain(ns->psdp);
-    sim_facet_domain *sfdu[DIM];
-    // Loop for each dimension
-    higfit_facetiterator *fit;
-    for(int dim = 0; dim < DIM; dim++) {
-        // Get the local partitioned domain for facets
-        sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        // Get the map of the distributd properties in the facets
-        mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
-        // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            // Get the center of the facet
-            Point fcenter;
-            hig_get_facet_center(f, fcenter);
-            // Get the delta of the facet
-            Point fdelta;
-            hig_get_facet_delta(f, fdelta);
-            // Get the intermediate velocity
-            real u     = dp_get_value(ns->dpu[dim], flid);
-            real ustar = dp_get_value(ns->dpustar[dim], flid);
-            // Compute the intermediate velocity
-            real urk2  = 0.5*(u + ustar);
-            // Set the final velocity in the distributed velocity property
-            dp_set_value(ns->dpustar[dim], flid, urk2);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
-        // Sync the distributed velocity property
-        dp_sync(ns->dpustar[dim]);
-    }
-}
 
 // *******************************************************************
 // Navier-Stokes Step for third Order Explicit Runge-Kutta Method
 // *******************************************************************
-void higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns) {
-    // Calculate the auxiliar velocity by the explicit euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpu, ns->dpuaux);
-    // Calculate the second stage velocity by the explicit euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpuaux, ns->dpustar);
-    // Calculate the order 2 Runge-Kutta method using the euler method
-    // Get the local sub-domain
-    sim_domain *sdp = psd_get_local_domain(ns->psdp);
-    sim_facet_domain *sfdu[DIM];
-    // Loop for each dimension
-    higfit_facetiterator *fit;
-    for(int dim = 0; dim < DIM; dim++) {
-        // Get the local partitioned domain for facets
-        sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        // Get the map of the distributd properties in the facets
-        mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
-        // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            // Get the center of the facet
-            Point fcenter;
-            hig_get_facet_center(f, fcenter);
-            // Get the delta of the facet
-            Point fdelta;
-            hig_get_facet_delta(f, fdelta);
-            // Get the intermediate velocity
-            real u     = dp_get_value(ns->dpu[dim], flid);
-            real ustar = dp_get_value(ns->dpustar[dim], flid);
-            // Compute the intermediate velocity
-            real urk3  = 0.75*u + 0.25*ustar;
-            // Set the final velocity in the distributed velocity property
-            dp_set_value(ns->dpuaux[dim], flid, urk3);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
-        // Sync the distributed velocity property
-        dp_sync(ns->dpuaux[dim]);
-    }
-    // Calculate the order 2 Runge-Kutta method using the euler method
-    higflow_explicit_euler_intermediate_velocity_electroosmotic(ns, ns->dpuaux, ns->dpustar);
-    // Loop for each dimension
-    for(int dim = 0; dim < DIM; dim++) {
-        // Get the local partitioned domain for facets
-        sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        // Get the map of the distributd properties in the facets
-        mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
-        // Loop for each facet
-    // Calculate the third stage velocity by the explicit euler method
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            // Get the center of the facet
-            Point fcenter;
-            hig_get_facet_center(f, fcenter);
-            // Get the delta of the facet
-            Point fdelta;
-            hig_get_facet_delta(f, fdelta);
-            // Get the intermediate velocity
-            real u     = dp_get_value(ns->dpu[dim], flid);
-            real ustar = dp_get_value(ns->dpustar[dim], flid);
-            // Compute the intermediate velocity
-            real urk3  = u/3.0 + 2.0*ustar/3.0;
-            // Set the final velocity in the distributed velocity property
-            dp_set_value(ns->dpustar[dim], flid, urk3);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
-        // Sync the distributed velocity property
-        dp_sync(ns->dpustar[dim]);
-    }
-}
 
 // *******************************************************************
 // Navier-Stokes Step for the Implicit Euler Method
@@ -2256,10 +2141,10 @@ void higflow_solver_step_multiphase_electroosmotic(higflow_solver *ns) {
         higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(ns, ns->dpu, ns->dpustar);
         break;
     case EXPLICIT_RK2:
-        higflow_explicit_runge_kutta_2_intermediate_velocity_multiphase_electroosmotic(ns);
+        higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_electroosmotic);
         break;
     case EXPLICIT_RK3:
-        higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase_electroosmotic(ns);
+        higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_electroosmotic);
         break;
     case SEMI_IMPLICIT_EULER:
         higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic(ns);

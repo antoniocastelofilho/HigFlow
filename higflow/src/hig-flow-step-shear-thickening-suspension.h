@@ -6,6 +6,7 @@
 
 #ifndef HIG_FLOW_STEP_SHEAR_THICKENING_SUSPENSION
 #define HIG_FLOW_STEP_SHEAR_THICKENING_SUSPENSION
+#include "hig-flow-viscoelastic-kernel.h"
 
 #include "hig-flow-linear-algebra.h"
 
@@ -64,13 +65,11 @@ void hig_flow_calculate_double_dot_product_tensors (real M[DIM][DIM], real FOM[D
 real hig_flow_calculate_jamming_coordinate_chi (real A[DIM][DIM], real E_C[DIM][DIM]);
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
 
 // Get the derivative of microstructure tensor A
 void hig_flow_derivative_tensor_A_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Acenter, real dAdx[DIM]);
 
 // Calculate the matrix product
-void hig_flow_kernel_system_matrix_shear_thickening_suspensions (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt);
 
 // Calculate RHS = A*Du + (Du)^T * A- 2*(Du)^T : <pppp> - beta*( E_E:<pppp> + (phi/15)*(2*E_C+Tr(E_C)*KD) )
 void hig_flow_evolution_equation_microstructure_tensor_rhs (real beta, real phi, real A[DIM][DIM], real DU[DIM][DIM], real E_C[DIM][DIM], real TrEC, real KD[DIM][DIM], real FOM[DIM][DIM][DIM][DIM], real LP[DIM][DIM], real EP[DIM][DIM], real RHS[DIM][DIM]);

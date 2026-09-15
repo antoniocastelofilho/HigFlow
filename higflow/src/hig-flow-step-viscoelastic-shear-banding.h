@@ -15,7 +15,6 @@
 // *******************************************************************
 
 // Get velocity at center cell
-void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]); 
 
 // Navier-Stokes Step for the Explicit Euler Method
 void higflow_explicit_euler_intermediate_velocity_viscoelastic_shear_banding(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 

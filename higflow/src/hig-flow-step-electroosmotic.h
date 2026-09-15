@@ -67,10 +67,16 @@ void higflow_electroosmotic_phi(higflow_solver *ns);
 void higflow_explicit_euler_intermediate_velocity_electroosmotic(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 
 
 // Navier-Stokes Step for the Second Order Explicit Runge-Kutta Method
-void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow_solver *ns); 
+
+// Passo de Euler usado por dentro dos estagios Runge-Kutta.  E' parametro
+// porque o solver multifasico reaproveita estes RK; hoje ambos passam a
+// versao monofasica, que e' o comportamento historico.
+typedef void (*higflow_euler_velocity_step)(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]);
+
+void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow_solver *ns, higflow_euler_velocity_step euler); 
 
 // Navier-Stokes Step for third Order Explicit Runge-Kutta Method
-void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow_solver *ns); 
+void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow_solver *ns, higflow_euler_velocity_step euler); 
 
 // Navier-Stokes Step for the Implicit Euler Method
 void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_solver *ns); 

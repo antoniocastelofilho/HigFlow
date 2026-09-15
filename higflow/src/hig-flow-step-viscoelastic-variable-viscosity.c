@@ -1568,18 +1568,6 @@ void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  
 }
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]) {
-    for (int dim = 0; dim < DIM; dim++) {
-        // Verity if is in facet
-        int infacet;
-        // Get the velocity in the left facet center
-        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Get the velocity in the right facet center
-        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Setting the velocity at cell center
-        u[dim]  = 0.5*(ul + ur);
-    }
-}
 
 // Get the derivative of Kernel 
 void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Kcenter, real dKdx[DIM]) {

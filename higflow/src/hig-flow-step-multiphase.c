@@ -1387,7 +1387,7 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
        volume_old += fracvol*volcell;
        // Get the velocity at cell center 
        real u[DIM], dfracvoldx[DIM];
-       hig_flow_velocity_at_center_cell_multiphase(ns, ccenter, cdelta, u);
+       hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
        // Solving the Transport Equation using the Euler Method
        // Right hand side equation
        real rhs = 0.0;
@@ -1455,18 +1455,6 @@ void higflow_explicit_euler_volume_fraction(higflow_solver *ns) {
 }
 
 // Get the velocity at cell center 
-void hig_flow_velocity_at_center_cell_multiphase (higflow_solver *ns, Point ccenter, Point cdelta, real u[DIM]) {
-    for (int dim = 0; dim < DIM; dim++) {
-        // Verity if is in facet
-        int infacet;
-        // Get the velocity in the left facet center
-        real ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Get the velocity in the right facet center
-        real ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-        // Setting the velocity at cell center
-        u[dim]  = 0.5*(ul + ur);
-    }
-}
 
 // Get the derivative of Kernel 
 void hig_flow_derivative_fracvol_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real FVcenter, real dfracvoldx[DIM]) {
