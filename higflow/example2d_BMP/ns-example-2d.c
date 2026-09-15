@@ -512,78 +512,104 @@ real Calculaerro(higflow_solver *ns, int myrank, real new, real old) {
 
 // calculates u the velocity
 real calc_u(higflow_solver *ns, int myrank, int dim, real Px, real Py) {
-        // Get the local sub-domain
-        sim_domain *sdp = psd_get_local_domain(ns->psdp);
-        // Get the local partitioned domain for facets
-        sim_facet_domain *sfdu[DIM];
-        sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        Point P;
-	    P[0] = Px;
-        P[1] = Py;
-        real u = compute_facet_value_at_point(sfdu[dim],P,P,1.0,ns->dpu[dim],ns->stn); 
-        
-    return u;
+    sim_facet_domain *sfdu = psfd_get_local_domain(ns->psfdu[dim]);
+    mp_mapper *mu = sfd_get_domain_mapper(sfdu);
+    Point P;
+    P[0] = Px;
+    P[1] = Py;
+    real u = -INFINITY;
+    hig_facet *f, f_dummy;
+	f = &f_dummy;
+    if(sfd_get_facet_with_point(sfdu, P, f) != 0) {
+        int flid = mp_lookup(mu, hig_get_fid(f));
+        // even if the cell of the facet belongs to the local domain, the facet may not
+        if(flid >= 0) // NOT the case in which it is to the left of the first non-fringe facet
+            u = compute_facet_value_at_point(sfdu,P,P,1.0,ns->dpu[dim],ns->stn); 
+    }
+    // send the u value to all other processes
+    real u_global;
+    MPI_Allreduce(&u, &u_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return u_global;
 }
 
 //calculates the viscosity
 real calc_eta(higflow_solver *ns, int myrank, int dim, real Px, real Py) {
-        // Get the local sub-domain
-        sim_domain *sdp = psd_get_local_domain(ns->ed.vevv.psdVisc);
-        // Get the local partitioned domain for facets
-        sim_facet_domain *sfdu[DIM];
-        sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        Point P;
-	    P[0] = Px;
-        P[1] = Py;
-        real eta = compute_value_at_point(ns->ed.vevv.sdVisc, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
-    return eta;
+    // Get the local sub-domain
+    sim_domain *sd = psd_get_local_domain(ns->ed.vevv.psdVisc);
+    // Get the local partitioned domain for facets
+    Point P;
+    P[0] = Px;
+    P[1] = Py;
+    real eta = -INFINITY;
+    if(sd_get_cell_with_point(sd, P))
+        eta = compute_value_at_point(sd, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
+    // send the eta value to all other processes
+    real eta_global;
+    MPI_Allreduce(&eta, &eta_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return eta_global;
 }
 
 // calculates the elastic stress tensor
 real calc_tau(higflow_solver *ns, int myrank, int i, int j, real Px, real Py) {
-        // Get the constants
-        real Re    = ns->par.Re;
-        real De    = ns->ed.vevv.par.De;
-        real beta  = ns->ed.vevv.par.beta;
-        // Get the local sub-domain for the cells
-        sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        Point P;
-	    P[0] = Px;
-        P[1] = Py;
+    // Get the constants
+    real Re    = ns->par.Re;
+    real De    = ns->ed.vevv.par.De;
+    real beta  = ns->ed.vevv.par.beta;
+    // Get the local sub-domain for the cells
+    sim_domain *sdED = psd_get_local_domain(ns->ed.psdED);
+    Point P;
+    P[0] = Px;
+    P[1] = Py;
+    real tau = -INFINITY;
+    if(sd_get_cell_with_point(sdED, P)) {
         // Get the velocity derivative tensor Du and the Kernel tensor
         real Du[DIM][DIM];
         // Get Du
-        Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-        Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[j][i], ns->ed.stn);
+        Du[i][j] = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+        Du[j][i] = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpD[j][i], ns->ed.stn);
         // Get T tensor
         real D  = 0.5*(Du[i][j]+Du[j][i]);
-        real S = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
+        real S = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
         //Get the viscosity value
         //real eta = compute_value_at_point(ns->ed.vevv.sdVisc, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
         //real tau = S + 2.0*(1.0-beta)*eta*D/Re -2.0*beta/Re*D;
-        real tau = S + 2.0*(1.0-beta)*(D/Re);
-        
-    return tau;
+        tau = S + 2.0*(1.0-beta)*(D/Re);
+    }
+    // send the tau value to all other processes
+    real tau_global;
+    MPI_Allreduce(&tau, &tau_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return tau_global;
 }
 
 // Print the velocity
 void print_velocity(higflow_solver *ns, int myrank, int dim, real x, int np, real yf, real yl, real dy) {
     char filename[1024];
     //snprintf(filename,sizeof filename,"Profiles/Velocities/velocity_%d_%d_%d.dat",dim,myrank,ns->par.frame);
-    snprintf(filename,sizeof filename,"Profiles/Velocities/velocity_%d_%d_%d_%d.dat",dim,myrank,np,ns->par.frame);
-    FILE *fd = fopen(filename, "w");
+    snprintf(filename,sizeof filename,"Profiles/Velocities/velocity_%d_%d_%d.dat",dim,np,ns->par.frame);
+    FILE *fd;
+    if(myrank == 0) fd = fopen(filename, "w");
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(myrank != 0) fd = fopen(filename, "a");
     if (fd != NULL) {
-        // Get the local sub-domain
-        sim_domain *sdp = psd_get_local_domain(ns->psdp);
         // Get the local partitioned domain for facets
         sim_facet_domain *sfdu[DIM];
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+        mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         Point P;
 	    P[0] = x;
 	    for (real y = yf; y <= yl; y += dy) {
             P[1] = y;
-            real u = compute_facet_value_at_point(sfdu[dim],P,P,1.0,ns->dpu[dim],ns->stn); 
-            fprintf(fd,"%16.10lf %16.10lf %16.10lf %16.10lf \n",y,x,ns->par.t,u);
+            hig_facet *f, f_dummy;
+	        f = &f_dummy;
+            if(sfd_get_facet_with_point(sfdu[dim], P, f) != 0) {
+                int flid = mp_lookup(mu, hig_get_fid(f));
+                // even if the cell of the facet belongs to the local domain, the facet may not
+                if(flid >= 0) { // NOT the case in which it is to the left of the first non-fringe facet
+                    real u = compute_facet_value_at_point(sfdu[dim],P,P,1.0,ns->dpu[dim],ns->stn); 
+                    fprintf(fd,"%16.10lf %16.10lf %16.10lf %16.10lf \n",y,x,ns->par.t,u);
+                }
+            }
+            MPI_Barrier(MPI_COMM_WORLD); // be careful - super slow, especially if dy is small
         }
         // Destroy the iterator
         fclose(fd);
@@ -596,8 +622,11 @@ void print_velocity(higflow_solver *ns, int myrank, int dim, real x, int np, rea
 // Print the velocity
 void print_viscosity(higflow_solver *ns, int myrank, real x, int np, real yf, real yl, real dy) {
     char filename[1024];
-    snprintf(filename,sizeof filename,"Profiles/Viscosities/viscosity_%d_%d_%d.dat",myrank,np,ns->par.frame);
-    FILE *fd = fopen(filename, "w");
+    snprintf(filename,sizeof filename,"Profiles/Viscosities/viscosity_%d_%d.dat",np,ns->par.frame);
+    FILE *fd;
+    if(myrank == 0) fd = fopen(filename, "w");
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(myrank != 0) fd = fopen(filename, "a");
     if (fd != NULL) {
         // Get the local sub-domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.vevv.psdVisc);
@@ -605,8 +634,11 @@ void print_viscosity(higflow_solver *ns, int myrank, real x, int np, real yf, re
 	    P[0] = x;
 	    for (real y = yf; y <= yl; y += dy) {
             P[1] = y;
-            real eta = compute_value_at_point(ns->ed.vevv.sdVisc, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
-            fprintf(fd,"%16.10lf %16.10lf %16.10lf %16.10lf \n",y,x,ns->par.t,eta);
+            if(sd_get_cell_with_point(sdp, P)) {
+                real eta = compute_value_at_point(ns->ed.vevv.sdVisc, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
+                fprintf(fd,"%16.10lf %16.10lf %16.10lf %16.10lf \n",y,x,ns->par.t,eta);
+            }
+            MPI_Barrier(MPI_COMM_WORLD); // be careful - super slow, especially if dy is small
         }
         // Destroy the iterator
         fclose(fd);
@@ -618,11 +650,14 @@ void print_viscosity(higflow_solver *ns, int myrank, real x, int np, real yf, re
 
 
 // Print the Polymeric Tensor
-real print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, int np, real yf, real yl, real dy) {
+void print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, int np, real yf, real yl, real dy) {
     char filename[1024];
     //snprintf(filename,sizeof filename,"Profiles/Tensors/T_%d_%d_%d_%d.dat",i,j,myrank,ns->par.frame);
-    snprintf(filename,sizeof filename,"Profiles/Tensors/T_%d_%d_%d_%d_%d.dat",i,j,myrank,np,ns->par.frame);
-    FILE *fd = fopen(filename, "w");
+    snprintf(filename,sizeof filename,"Profiles/Tensors/T_%d_%d_%d_%d.dat",i,j,np,ns->par.frame);
+    FILE *fd;
+    if(myrank == 0) fd = fopen(filename, "w");
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(myrank != 0) fd = fopen(filename, "a");
     //real max=0.0;
      if (fd != NULL) {
         // Get the constants
@@ -635,19 +670,22 @@ real print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, int np, 
 	    P[0] = x;
         for (real y = yf; y <= yl; y += dy) {
             P[1] = y;
-            // Get the velocity derivative tensor Du and the Kernel tensor
-            real Du[DIM][DIM];
-            // Get Du
-            Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-            Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[j][i], ns->ed.stn);
-            // Get T tensor
-            real D  = 0.5*(Du[i][j]+Du[j][i]);
-            real S = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
-            //Get the viscosity value
-            //real eta = compute_value_at_point(ns->ed.vevv.sdVisc, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
-            //real T = S + 2.0*(1.0-beta)*eta*D/Re -(2.0*beta/Re)*D; 
-            real T = S + 2.0*(1.0-beta)*D/Re;
-	        fprintf(fd,"%16.10lf %16.10lf %16.10lf %16.10lf \n",y,x,ns->par.t,T);
+            if(sd_get_cell_with_point(sdp, P)) {
+                // Get the velocity derivative tensor Du and the Kernel tensor
+                real Du[DIM][DIM];
+                // Get Du
+                Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
+                Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[j][i], ns->ed.stn);
+                // Get T tensor
+                real D  = 0.5*(Du[i][j]+Du[j][i]);
+                real S = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
+                //Get the viscosity value
+                //real eta = compute_value_at_point(ns->ed.vevv.sdVisc, P, P, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
+                //real T = S + 2.0*(1.0-beta)*eta*D/Re -(2.0*beta/Re)*D; 
+                real T = S + 2.0*(1.0-beta)*D/Re;
+                fprintf(fd,"%16.10lf %16.10lf %16.10lf %16.10lf \n",y,x,ns->par.t,T);
+            }
+            MPI_Barrier(MPI_COMM_WORLD); // be careful - super slow, especially if dy is small
 	    }
         // Loop for each cell
         fclose(fd);
@@ -688,7 +726,7 @@ int main (int argc, char *argv[]) {
         get_boundary_pressure,  get_boundary_velocity,
         get_boundary_source_term, get_boundary_facet_source_term); 
     // Set the order of the interpolation to be used in the SD. 
-    int order_center = 3;
+    int order_center = 2;
     int order_facet = 2;
     // Set the cache: Reuse interpolation, 0 on, 1 off
     int cache = 1;
@@ -753,7 +791,7 @@ int main (int argc, char *argv[]) {
         //printf("===> Ux BMP model =%lf <===\n", Ux);
         // Print the step
         if (myrank == 0) 
-            printf("===> Step:        %7d <====> t     = %15.10lf <===\n", step, ns->par.t);
+            printf("=================> Step:        %7d <====> t     = %15.10lf <======================\n", step, ns->par.t);
             //printf("===> Step:        %7d <====> tdim  = %15.10lf seg <===\n", step, (ns->par.t)*0.06);
         // Start the first step time
         if (step == step0)  START_CLOCK(firstiter); 
@@ -814,10 +852,10 @@ int main (int argc, char *argv[]) {
          real erro_Celc3_Txy= Calculaerro(ns, myrank, Celc3_Txy, Celc3_Txyold);
           
         //Calculation of the errors
-         printf("===> Errors ===>   Ux  : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_u, erro_Celc2_u, erro_Celc3_u);
-         printf("===> Errors ===>   eta  : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_eta, erro_Celc2_eta, erro_Celc3_eta);
-         printf("===> Errors ===> Txx : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txx, erro_Celc2_Txx, erro_Celc3_Txx);
-         printf("===> Errors ===> Txy : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txy, erro_Celc2_Txy, erro_Celc3_Txy);
+         print0f("===> Errors ===>   Ux  : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_u, erro_Celc2_u, erro_Celc3_u);
+         print0f("===> Errors ===>   eta  : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_eta, erro_Celc2_eta, erro_Celc3_eta);
+         print0f("===> Errors ===> Txx : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txx, erro_Celc2_Txx, erro_Celc3_Txx);
+         print0f("===> Errors ===> Txy : Cel1 = %15.10lf <=> Cel2 = %15.10lf <=> Cel3 = %15.10lf  <===\n",erro_Celc1_Txy, erro_Celc2_Txy, erro_Celc3_Txy);
 
         
         // Time update 

@@ -15,11 +15,11 @@ ifdef DEBUG
 	DEBUG_DESC = "gdb debug"
 else
 	OPTSOPT = -flto=8 -fno-fat-lto-objects
-	CFLAGS+= -march=native -mtune=native -Ofast
+	CFLAGS+= -march=native -mtune=native -O3 
 	DEBUG_DESC = "No Debugging/Optimized"	
 endif
 
-CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml)
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml hdf5)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
 
@@ -37,7 +37,7 @@ LIBS+= -lhig$(DIM)d
 LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
 LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
-LIBS+= -lm -ltrinilos_zoltan -lHYPRE_krylov
+LIBS+= -lm -ltrinilos_zoltan -lHYPRE
 #LIBS+= -lm -lzoltan -lHYPRE
 
 CC = mpicc
@@ -67,10 +67,19 @@ MODULES = \
 	step-multiphase \
 		step-multiphase-viscoelastic \
 	vof-plic \
+	vof-plic-3D \
 	vof-adap-hf \
 	vof-finite-difference-normal-curvature \
+	vof-finite-difference-normal-curvature_3D \
+	vof-HF-3D \
+	vof-advection-2D \
+	vof-advection-3D \
+	vof-mehta \
+	vof-shirani \
+	vof-hf-padrao \
 	step-viscoelastic \
         step-viscoelastic-integral \
+	mittag-leffler \
 	step-electroosmotic \
 		step-electroosmotic-viscoelastic \
 		step-multiphase-electroosmotic \

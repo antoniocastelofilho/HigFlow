@@ -144,11 +144,11 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
          // Compute dudxl at facet center
          ns->cc.dudxl[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ns->cc.ufacet, ul[dim2], ur[dim2]);
          
-         // Get the velocity in the right facet center
-         urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet_rr);
-         // Get the velocity in the left facet center
-         ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet_ll);
          if (ns->cc.convec_type == SECOND_ORDER) {
+            // Get the velocity in the right right facet center
+            urr[dim2]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet_rr);
+            // Get the velocity in the left left facet center
+            ull[dim2]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet_ll);
             if (ns->contr.secondconvecdiscrtype == QUICK) {
                // Compute dudxrr at facet center
                ns->cc.dudxrr[dim2]  = compute_facet_dudxr(fdelta, dim2, 1.0, ur[dim2], ns->cc.ufacet, urr[dim2]);
@@ -156,99 +156,97 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                ns->cc.dudxll[dim2]  = compute_facet_dudxl(fdelta, dim2, 1.0, ul[dim2], ull[dim2], ns->cc.ufacet);
                // Compute terms for second order upwind CUBISTA
             }else if (ns->contr.secondconvecdiscrtype == CUBISTA){
-               // Get the velocity in the left facet center
-               ul[dim]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet_l);
-               // Get the velocity in the left facet center
-               ull[dim]  = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet_ll);
-               //Changes to central scheme if there is a outside boundary cell
-               if (infacet_l == 0)  {
-                  ns->cc.convec_type = FIRST_ORDER;
-               }
-               // Get the velocity in the right facet center
-               ur[dim]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, dpu[dim], ns->stn, &infacet_r);
-               // Get the velocity in the right facet center
-               urr[dim]  = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 2.0, dpu[dim], ns->stn, &infacet_rr);
-               //Changes to central scheme if there is a outside boundary cell
-               if (infacet_r == 0)  {
-                  ns->cc.convec_type = FIRST_ORDER;
-               }
-               // Get the velocity v1bar(i+1/2,j+1/2) in the facet center
-               ns->cc.vc[dim2]  = compute_facet_u_right(sfdu[dim2], fcenter, fdelta, dim2, 0.5, dpu[dim2], ns->stn, &infacet);
-               if (ns->cc.vc[dim2] > 0.0){
-                  if (FLT_EQ(ur[dim], ul[dim])){
-                     conv1 = ns->cc.vc[dim2]*ns->cc.ufacet;
+               real vbar;
+               real pc  = ns->cc.ufacet;
+               real pl  = ul[dim2];
+               real pll = ull[dim2];
+               real pr  = ur[dim2];
+               real prr = urr[dim2];
+               
+               if (dim == dim2) // Get the velocity v1bar(i+1/2,j+1/2) at cell center
+                  vbar = 0.5*(ur[dim2] + pc);
+               else  // Get the velocity v1bar(i,j+1) at point
+                  vbar = compute_facet_u_2_right(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
+
+               if (vbar > 0.0){ // pr is upstream, pl is downstream
+                  if (FLT_EQ(pr, pl)){
+                     conv1 = vbar*pc;
                   }else {
-                     fi = (ns->cc.ufacet - ul[dim])/(ur[dim] - ul[dim]);
+                     fi = (pc - pl)/(pr - pl);
                      if ((fi <= 0.0) || (fi >= 1.0)) {
-                        conv1 = ns->cc.vc[dim2]*ns->cc.ufacet;
+                        conv1 = vbar*pc;
                      }else {
                         if (fi < b)
-                           conv1 = ns->cc.vc[dim2]*(a*ns->cc.ufacet - c*ul[dim]);
+                           conv1 = vbar*(a*pc - c*pl);
                         if ((fi >= b) && (fi <= c))
-                           conv1 = ns->cc.vc[dim2]*(c*ns->cc.ufacet + b*ur[dim] -d*ul[dim]);
+                           conv1 = vbar*(c*pc + b*pr -d*pl);
                         if (fi > c)
-                           conv1 = ns->cc.vc[dim2]*(e*ns->cc.ufacet + c*ur[dim]);
+                           conv1 = vbar*(e*pc + c*pr);
                      }
                   }
-                  //v1bar < 0.0
+                  //v1bar < 0.0 -> pc is upstream, prr is downstream
                }else {
-                  if (FLT_EQ(ns->cc.ufacet, urr[dim])){
-                     conv1 = ns->cc.vc[dim2]*ur[dim];
+                  if (FLT_EQ(pc, prr)){
+                     conv1 = vbar*pr;
                   } else {
-                     fi = (ur[dim]-urr[dim])/(ns->cc.ufacet -urr[dim]);
+                     fi = (pr-prr)/(pc - prr);
                      if ((fi <= 0.0) || (fi >= 1.0)) {
-                        conv1 = ns->cc.vc[dim2]*ur[dim];
+                        conv1 = vbar*pr;
                      }else {
                         if (fi < b)
-                           if(infacet_rr == 1)  conv1 = ns->cc.vc[dim2]*(a*ur[dim] - c*urr[dim]);
-                           else                 conv1 = ns->cc.vc[dim2]*ur[dim];
+                           if(infacet_rr == 1)  conv1 = vbar*(a*pr - c*prr);
+                           else                 conv1 = vbar*pr;
                         if ((fi >= b) && (fi <= c))
-                           if(infacet_rr == 1)  conv1 = ns->cc.vc[dim2]*(c*ur[dim] + b*ns->cc.ufacet -d*urr[dim]);
-                           else                 conv1 = ns->cc.vc[dim2]*ur[dim];
+                           if(infacet_rr == 1)  conv1 = vbar*(c*pr + b*pc -d*prr);
+                           else                 conv1 = vbar*pr;
                         if (fi > c)
-                           conv1 = ns->cc.vc[dim2]*(c*ns->cc.ufacet + e*ur[dim]);
+                           conv1 = vbar*(c*pc + e*pr);
                      }
                   }
                }
-               // Get the velocity  v2bar(i+1/2,j-1/2) in the facet center
-               ns->cc.vc[dim2]  = compute_facet_u_left(sfdu[dim2], fcenter, fdelta, dim2, 0.5, dpu[dim2], ns->stn, &infacet);
-               if (ns->cc.vc[dim2] > 0.0){
-                  if (FLT_EQ(ns->cc.ufacet, ull[dim])) {
-                     conv2 = ns->cc.vc[dim2]*ul[dim];
+               
+               if (dim == dim2) // Get the velocity  v2bar(i+1/2,j-1/2) at cell center
+                  vbar  = 0.5*(ul[dim2] + pc); 
+               else  // Get the velocity  vbar(i,j-1) at point
+                  vbar = compute_facet_u_2_left(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
+               
+               if (vbar > 0.0){ // pc is upstream, pll is downstream
+                  if (FLT_EQ(pc, pll)) {
+                     conv2 = vbar*pl;
                   }else {
-                     fi = (ul[dim] - ull[dim])/(ns->cc.ufacet-ull[dim]);
+                     fi = (pl - pll)/(pc-pll);
                      if ((fi <= 0.0) || (fi >= 1.0)) {
-                        conv2 = ns->cc.vc[dim2]*ul[dim];
+                        conv2 = vbar*pl;
                      }else {
                         if (fi < b)
-                           if (infacet_ll == 1)  conv2 = ns->cc.vc[dim2]*(a*ul[dim] - c*ull[dim]);
-                           else                  conv2 = ns->cc.vc[dim2]*ul[dim];
+                           if (infacet_ll == 1)  conv2 = vbar*(a*pl - c*pll);
+                           else                  conv2 = vbar*pl;
                         if ((fi >= b) && (fi <= c))
-                           if (infacet_ll == 1)  conv2 = ns->cc.vc[dim2]*(b*ns->cc.ufacet + c*ul[dim] - d*ull[dim]);
-                           else                  conv2 = ns->cc.vc[dim2]*ul[dim];
+                           if (infacet_ll == 1)  conv2 = vbar*(b*pc + c*pl - d*pll);
+                           else                  conv2 = vbar*pl;
                         if (fi > c)
-                           conv2 = ns->cc.vc[dim2]*(c*ns->cc.ufacet + e*ul[dim]);
+                           conv2 = vbar*(c*pc + e*pl);
                      }
                   }
                }else {
-                  //v2bar < 0.0
-                  if (FLT_EQ(ul[dim], ur[dim])) {
-                     conv2 = ns->cc.vc[dim2]*ns->cc.ufacet;
+                  //v2bar < 0.0 -> pl is upstream, pr is downstream
+                  if (FLT_EQ(pl, pr)) {
+                     conv2 = vbar*pc;
                   }else {
-                     fi = (ns->cc.ufacet - ur[dim])/(ul[dim] - ur[dim]);
+                     fi = (pc - pr)/(pl - pr);
                      if ((fi <= 0.0) || (fi >= 1.0)) {
-                        conv2 = ns->cc.vc[dim2]*ns->cc.ufacet;
+                        conv2 = vbar*pc;
                      }else {
                         if (fi < b)
-                           conv2 = ns->cc.vc[dim2]*(a*ns->cc.ufacet - c*ur[dim]);
+                           conv2 = vbar*(a*pc - c*pr);
                         if ((fi >= b) && (fi <= c))
-                           conv2 = ns->cc.vc[dim2]*(b*ul[dim] + c*ns->cc.ufacet - d*ur[dim]);
+                           conv2 = vbar*(b*pl + c*pc - d*pr);
                         if (fi > c)
-                           conv2 = ns->cc.vc[dim2]*(c*ul[dim] + e*ns->cc.ufacet);
+                           conv2 = vbar*(c*pl + e*pc);
                      }
                   }
                }
-               ns->cc.vc[dim2] = ((conv1-conv2)/fdelta[dim]);
+               ns->cc.vc[dim2] = ((conv1-conv2)/fdelta[dim2]);
             }
          }
          // Newtonian
@@ -274,11 +272,14 @@ void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, si
       // ns->cc.viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.gn.dpvisc, ns->ed.stn);
       for (int dim2 = 0; dim2 < DIM; dim2++) {
          real viscl, viscr;
+         real dviscdxj;
          if(dim2==dim){
             // Get the cell viscosity in the left cell
             viscl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.gn.dpvisc, ns->ed.stn);
             // Get the cell viscosity in the right cell
             viscr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.gn.dpvisc, ns->ed.stn);
+
+            dviscdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, viscl, viscr);
          } else {
             Point p1,p2,p3,p4,p3_,p4_;
             
@@ -303,28 +304,36 @@ void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, si
             
             viscl=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3_ + 1.0/v4_);
             viscr=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3  + 1.0/v4);
+
+            dviscdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, viscl, viscr);
          }
          ns->cc.viscl[dim2] = viscl;
          ns->cc.viscr[dim2] = viscr;
 
          // Compute multiphase viscous term
          ns->cc.du2dx2[dim2] = 0.0;
-         real duidxjl, duidxjr;
-         if(dim2==dim) {
-            duidxjl = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.gn.dpD[dim][dim2], ns->ed.stn);
-            duidxjr = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.gn.dpD[dim][dim2], ns->ed.stn);
-            ns->cc.du2dx2[dim2] += compute_dpdx_at_point(fdelta, dim2, 0.5, ns->cc.viscl[dim2]*duidxjl, ns->cc.viscr[dim2]*duidxjr);
-         } else {
-            duidxjl = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.gn.dpD[dim][dim2], ns->ed.stn);
-            duidxjr = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.gn.dpD[dim][dim2], ns->ed.stn);
-            ns->cc.du2dx2[dim2] += compute_dpdx_at_point(fdelta, dim2, 1.0, ns->cc.viscl[dim2]*duidxjl, ns->cc.viscr[dim2]*duidxjr);
+         real uc, ul, ur;
+         int infacet;
+         ul = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, ns->dpu[dim], ns->stn, &infacet);
+         ur = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, ns->dpu[dim], ns->stn, &infacet);
+         uc = ns->cc.ufacet;
+
+         ns->cc.du2dx2[dim2] += (viscl*ul - (viscl + viscr)*uc + viscr)/(fdelta[dim2]*fdelta[dim2]); // div(mu Du)
+        
+         // Extra term div(muDu^t) = Du^t*mu |||| div(Du^t) has to be omitted because of interpolation issues 
+         real dujdxi, vl, vr;
+         if (dim == dim2) {
+            vl = compute_facet_u_left(sfdu[dim2], fcenter, fdelta, dim, 1.0, ns->dpu[dim2], ns->stn, &infacet);
+            vr = compute_facet_u_right(sfdu[dim2], fcenter, fdelta, dim, 1.0, ns->dpu[dim2], ns->stn, &infacet);
+            dujdxi = compute_facet_dudxc(fdelta, dim, 1.0, uc, vl, vr); // uc is not used ayway
          }
-         // Extra term div(muDu^t) = Du^t*mu |||| div(Du^t) has to be omitted because of interpolation issues
-         real dviscdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, viscl, viscr);
-         real dujdxil = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.gn.dpD[dim2][dim], ns->ed.stn);
-         real dujdxir = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim, 0.5, ns->ed.gn.dpD[dim2][dim], ns->ed.stn);
-         real dujdxi = 0.5*(dujdxil + dujdxir);
-         ns->cc.du2dx2[dim2] += dujdxi*dviscdxj;
+         else {
+            vl = compute_facet_u_2_left(sfdu[dim2], fcenter, fdelta, dim2, dim, 1.0, ns->dpu[dim2], ns->stn);
+            vr = compute_facet_u_2_right(sfdu[dim2], fcenter, fdelta, dim2, dim, 1.0, ns->dpu[dim2], ns->stn);
+            dujdxi = compute_facet_dudxc(fdelta, dim, 0.5, uc, vl, vr); // uc is not used ayway
+         }
+         
+         ns->cc.d2vdx2[dim2] = dujdxi*dviscdxj;
         
       }
       break;
@@ -336,7 +345,7 @@ void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, si
 void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
    // Set the computational cell
    higflow_computational_cell(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
-   real  Sl[DIM], Sr[DIM];
+   real Re = ns->par.Re;
    int infacet_l, infacet_r;
    real  rhol, rhor, curvl, curvr;
    // Spatial discretization
@@ -358,6 +367,9 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
       real fracl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
       // Get the cell fraction in the right cell
       real fracr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+      
+      ns->cc.fvol = 0.5*(fracl + fracr);
+      
       real curvaux = 0.0;
       //if (((0.0 < fracr)&&(fracr < 1.0)) || ((0.0 < fracl)&&(fracl < 1.0))){
       real wwi   = fracr*(1.0 - fracr);
@@ -389,35 +401,43 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 
       for (int dim2 = 0; dim2 < DIM; dim2++) {
          real viscl, viscr;
+         real dviscdxj;
+         Point p1,p2,p3,p4,p3_,p4_;
+         real v1,v2,v3,v4,v3_,v4_;
          if(dim2==dim){
             // Get the cell viscosity in the left cell
             viscl = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
             // Get the cell viscosity in the right cell
             viscr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpvisc, ns->ed.mult.stn);
+
+            dviscdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, viscl, viscr);      
          } else {
-            Point p1,p2,p3,p4,p3_,p4_;
-            
+            // p1 and p2 in facet center
             POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
-            
+            // p1 and p2 in cell center
             p1[dim]=p1[dim]-0.5*fdelta[dim];p2[dim]=p2[dim]+0.5*fdelta[dim];
-            
+            // copy p1 and p2 in p3 and p4
             POINT_ASSIGN(p3, p1);POINT_ASSIGN(p4, p2);
             POINT_ASSIGN(p3_, p1);POINT_ASSIGN(p4_, p2);
-            
+            // p3 and p4 in cell center
             p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
             p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
+
             
-            real v1=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-            real v2=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            v1=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p1,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            v2=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p2,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
             
-            real v3=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-            real v4=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            v3=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            v4=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
             
-            real v3_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
-            real v4_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            v3_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p3_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
+            v4_=compute_value_at_point(ns->ed.mult.sdmult,fcenter,p4_,1.0,ns->ed.mult.dpvisc,ns->ed.mult.stn);
             
             viscl=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3_ + 1.0/v4_);
             viscr=4.0 / (1.0/v1 + 1.0/v2 + 1.0/v3  + 1.0/v4);
+
+            dviscdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, viscl, viscr);
+
          }
          ns->cc.viscl[dim2] = viscl;
          ns->cc.viscr[dim2] = viscr;
@@ -429,80 +449,79 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
          ul = compute_facet_u_left(sfdu[dim], fcenter, fdelta, dim2, 1.0, ns->dpu[dim], ns->stn, &infacet);
          ur = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, ns->dpu[dim], ns->stn, &infacet);
          uc = ns->cc.ufacet;
-         ns->cc.du2dx2[dim2] += (viscl*ul - (viscl + viscr)*uc + viscr)/(fdelta[dim2]*fdelta[dim2]);
+
+         ns->cc.du2dx2[dim2] += (viscl*ul - (viscl + viscr)*uc + viscr*ur)/(fdelta[dim2]*fdelta[dim2]); // div(mu Du)
         
          // Extra term div(muDu^t) = Du^t*mu |||| div(Du^t) has to be omitted because of interpolation issues 
+         real dujdxi, vl, vr;
          if (dim == dim2) {
-            ul = compute_facet_u_left(sfdu[dim2], fcenter, fdelta, dim, 1.0, ns->dpu[dim2], ns->stn, &infacet);
-            ur = compute_facet_u_right(sfdu[dim2], fcenter, fdelta, dim, 1.0, ns->dpu[dim2], ns->stn, &infacet);
+            vl = compute_facet_u_left(sfdu[dim2], fcenter, fdelta, dim, 1.0, ns->dpu[dim2], ns->stn, &infacet);
+            vr = compute_facet_u_right(sfdu[dim2], fcenter, fdelta, dim, 1.0, ns->dpu[dim2], ns->stn, &infacet);
+            dujdxi = compute_facet_dudxc(fdelta, dim, 1.0, uc, vl, vr); // uc is not used ayway
          }
          else {
-            ul = compute_facet_u_2_left(sfdu[dim2], fcenter, fdelta, dim2, dim, 1.0, ns->dpu[dim2], ns->stn);
-            ur = compute_facet_u_2_right(sfdu[dim2], fcenter, fdelta, dim2, dim, 1.0, ns->dpu[dim2], ns->stn);
+            vl = compute_facet_u_2_left(sfdu[dim2], fcenter, fdelta, dim2, dim, 1.0, ns->dpu[dim2], ns->stn);
+            vr = compute_facet_u_2_right(sfdu[dim2], fcenter, fdelta, dim2, dim, 1.0, ns->dpu[dim2], ns->stn);
+            dujdxi = compute_facet_dudxc(fdelta, dim, 0.5, uc, vl, vr); // uc is not used ayway
          }
-         real dujdxi = compute_facet_dudxc(fdelta, dim2, 1.0, uc, ul, ur);
-         real dviscdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, viscl, viscr);
-         ns->cc.du2dx2[dim2] += dujdxi*dviscdxj;
+         
+         ns->cc.d2vdx2[dim2] = dujdxi*dviscdxj;
          
          if(ns->ed.mult.contr.viscoelastic_either == true) {
+            real Sl[DIM], Sr[DIM];
+            real vs1, vs2, vs3, vs4, vs3_, vs4_;
             real beta0 = ns->ed.mult.ve.par0.beta;
             real beta1 = ns->ed.mult.ve.par1.beta;
             real visc_sl, visc_sr;
+            real dvisc_sdxj;
             if(dim2==dim) {
                // Get the cell viscosity in the left cell
                real fracvoll = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                Point pl; POINT_ASSIGN(pl, fcenter);
-               pl[dim2] = fcenter[dim2] - fdelta[dim2];
+               pl[dim2] = fcenter[dim2] - 0.5*fdelta[dim2];
                real visc_sl0 = beta0 * ns->ed.mult.get_viscosity0(pl, ns->par.t);
                real visc_sl1 = beta1 * ns->ed.mult.get_viscosity1(pl, ns->par.t);
                visc_sl = (1.0 - fracvoll) * visc_sl0 + fracvoll * visc_sl1;
                // Get the cell viscosity in the right cell
                real fracvolr = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim2, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                Point pr; POINT_ASSIGN(pr, fcenter);
-               pr[dim2] = fcenter[dim2] + fdelta[dim2];
+               pr[dim2] = fcenter[dim2] + 0.5*fdelta[dim2];
                real visc_sr0 = beta0 * ns->ed.mult.get_viscosity0(pr, ns->par.t);
                real visc_sr1 = beta1 * ns->ed.mult.get_viscosity1(pr, ns->par.t);
                visc_sr = (1.0 - fracvolr) * visc_sr0 + fracvolr * visc_sr1;
+
+               dvisc_sdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, visc_sl, visc_sr);
             } else {
-               real fvol;
-               Point p1,p2,p3,p4,p3_,p4_;
-               // p1 and p2 in facet center
-               POINT_ASSIGN(p1, fcenter);POINT_ASSIGN(p2, fcenter);
-               // p1 and p2 in cell center
-               p1[dim]=p1[dim]-0.5*fdelta[dim];p2[dim]=p2[dim]+0.5*fdelta[dim];
-               // copy p1 and p2 in p3 and p4
-               POINT_ASSIGN(p3, p1);POINT_ASSIGN(p4, p2);
-               POINT_ASSIGN(p3_, p1);POINT_ASSIGN(p4_, p2);
-               // p3 and p4 in cell center
-               p3[dim2]=p3[dim2]+fdelta[dim2];p4[dim2]=p4[dim2]+fdelta[dim2];
-               p3_[dim2]=p3_[dim2]-fdelta[dim2];p4_[dim2]=p4_[dim2]-fdelta[dim2];
+               real fvol1, fvol2, fvol3, fvol4, fvol3_, fvol4_;
                // viscosity 
                real vs10 = beta0 * ns->ed.mult.get_viscosity0(p1, ns->par.t);
                real vs11 = beta1 * ns->ed.mult.get_viscosity1(p1, ns->par.t);
-               fvol = compute_value_at_point(ns->ed.mult.sdmult, p1, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-               real vs1 = (1.0 - fvol) * vs10 + fvol * vs11;
+               fvol1 = compute_value_at_point(ns->ed.mult.sdmult, p1, p1, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               vs1 = (1.0 - fvol1) * vs10 + fvol1 * vs11;
                real vs20 = beta0 * ns->ed.mult.get_viscosity0(p2, ns->par.t);
                real vs21 = beta1 * ns->ed.mult.get_viscosity1(p2, ns->par.t);
-               fvol = compute_value_at_point(ns->ed.mult.sdmult, p2, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-               real vs2 = (1.0 - fvol) * vs20 + fvol * vs21;
+               fvol2 = compute_value_at_point(ns->ed.mult.sdmult, p2, p2, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               vs2 = (1.0 - fvol2) * vs20 + fvol2 * vs21;
                real vs30 = beta0 * ns->ed.mult.get_viscosity0(p3, ns->par.t);
                real vs31 = beta1 * ns->ed.mult.get_viscosity1(p3, ns->par.t);
-               fvol = compute_value_at_point(ns->ed.mult.sdmult, p3, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-               real vs3 = (1.0 - fvol) * vs30 + fvol * vs31;
+               fvol3 = compute_value_at_point(ns->ed.mult.sdmult, p3, p3, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               vs3 = (1.0 - fvol3) * vs30 + fvol3 * vs31;
                real vs40 = beta0 * ns->ed.mult.get_viscosity0(p4, ns->par.t);
                real vs41 = beta1 * ns->ed.mult.get_viscosity1(p4, ns->par.t);
-               fvol = compute_value_at_point(ns->ed.mult.sdmult, p4, p4, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-               real vs4 = (1.0 - fvol) * vs40 + fvol * vs41;
+               fvol4 = compute_value_at_point(ns->ed.mult.sdmult, p4, p4, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               vs4 = (1.0 - fvol4) * vs40 + fvol4 * vs41;
                real vs3_0 = beta0 * ns->ed.mult.get_viscosity0(p3_, ns->par.t);
                real vs3_1 = beta1 * ns->ed.mult.get_viscosity1(p3_, ns->par.t);
-               fvol = compute_value_at_point(ns->ed.mult.sdmult, p3_, p3_, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-               real vs3_ = (1.0 - fvol) * vs3_0 + fvol * vs3_1;
+               fvol3_ = compute_value_at_point(ns->ed.mult.sdmult, p3_, p3_, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               vs3_ = (1.0 - fvol3_) * vs3_0 + fvol3_ * vs3_1;
                real vs4_0 = beta0 * ns->ed.mult.get_viscosity0(p4_, ns->par.t);
                real vs4_1 = beta1 * ns->ed.mult.get_viscosity1(p4_, ns->par.t);
-               fvol = compute_value_at_point(ns->ed.mult.sdmult, p4_, p4_, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-               real vs4_ = (1.0 - fvol) * vs4_0 + fvol * vs4_1;
+               fvol4_ = compute_value_at_point(ns->ed.mult.sdmult, p4_, p4_, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+               vs4_ = (1.0 - fvol4_) * vs4_0 + fvol4_ * vs4_1;
                visc_sl = 4.0/(1.0/vs1+1.0/vs2+1.0/vs3_+1.0/vs4_);
                visc_sr = 4.0/(1.0/vs1+1.0/vs2+1.0/vs3+1.0/vs4);
+
+               dvisc_sdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, visc_sl, visc_sr);
             }
 
             // NO BSD
@@ -512,23 +531,35 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
             // Compute the viscoelastic contribution
             if (dim2 == dim) {
                // Get the tensor in the left cell
-               Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               real Dul        = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               Sl[dim2] -= (viscl - visc_sl)*Dul/Re; // BSD
                // Get the tensor in the right cell
-               Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               real Dur         = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               Sr[dim2] -= (viscr - visc_sr)*Dur/Re; // BSD
+
                // Compute the tensor derivative
                ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 0.5, Sl[dim2], Sr[dim2]);
             } else {
+               // real Du1 = compute_value_at_point(ns->ed.sdED, p1, p1, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               // real Du2 = compute_value_at_point(ns->ed.sdED, p2, p2, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               real Du3 = compute_value_at_point(ns->ed.sdED, p3, p3, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               real Du4 = compute_value_at_point(ns->ed.sdED, p4, p4, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               real Du3_ = compute_value_at_point(ns->ed.sdED, p3_, p3_, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               real Du4_ = compute_value_at_point(ns->ed.sdED, p4_, p4_, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
                // Get the tensor in the left cell
-               Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               Sl[dim2] -= 0.5*((v3_-vs3_)*Du3_+(v4_-vs4_)*Du4_)/Re; // BSD
                // Get the tensor in the right cell
-               Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               Sr[dim2] -= 0.5*((v3-vs3)*Du3+(v4-vs4)*Du4)/Re; // BSD
                // Compute the tensor derivative
                ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
             }
 
             // Extra term div(mu_sDu^t) = Du^t*mu_s |||| div(Du^t) has to be omitted because of interpolation issues 
-            real dvisc_sdxj = compute_dpdx_at_point(fdelta, dim2, 0.5, visc_sl, visc_sr);
-            ns->cc.dSdx[dim2] += dujdxi*dvisc_sdxj;
+            ns->cc.d2vdx2[dim2] += dujdxi*(dvisc_sdxj - dviscdxj);
          }
          
       }
@@ -541,7 +572,9 @@ void higflow_computational_cell_multiphase(higflow_solver *ns, sim_domain *sdp, 
 void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
    // Set the computational cell
    higflow_computational_cell(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
-   real  Sl[DIM], Sr[DIM];
+   real  Sl[DIM], Sr[DIM], Dul[DIM], Dur[DIM];
+   real beta = ns->ed.ve.par.beta;
+   real Re = ns->par.Re;
    // Spatial discretization
    switch (ns->contr.spatialdiscrtype) {
    // Second order
@@ -550,16 +583,24 @@ void higflow_computational_cell_viscoelastic(higflow_solver *ns, sim_domain *sdp
          // Compute the viscoelastic contribution
          if (dim2 == dim) {
             // Get the tensor in the left cell
-            Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+            Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+            Dul[dim2]         = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+            Sl[dim2] -= (1.0-beta)*Dul[dim2]/Re; // BSD
             // Get the tensor in the right cell
-            Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+            Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+            Dur[dim2]         = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+            Sr[dim2] -= (1.0-beta)*Dur[dim2]/Re; // BSD
             // Compute the tensor derivative
             ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 0.5, Sl[dim2], Sr[dim2]);
          } else {
             // Get the tensor in the left cell
-            Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+            Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+            Dul[dim2]         = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+            Sl[dim2] -= (1.0-beta)*Dul[dim2]/Re; // BSD
             // Get the tensor in the right cell
-            Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+            Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+            Dur[dim2]         = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+            Sr[dim2] -= (1.0-beta)*Dur[dim2]/Re; // BSD
             // Compute the tensor derivative
             ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
          }
@@ -630,7 +671,8 @@ void higflow_computational_cell_shear_banding_VCM_model(higflow_solver *ns, sim_
 void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *sdp, sim_facet_domain *sfdu[DIM], int flid, Point fcenter, Point fdelta, int dim, distributed_property *dpu[DIM]) {
   // Set the computational cell
    higflow_computational_cell(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
-   real  Sl[DIM], Sr[DIM];
+   real  Sl[DIM], Sr[DIM], Dul[DIM], Dur[DIM];
+   real Re = ns->par.Re;
    // Spatial discretization
    switch (ns->contr.spatialdiscrtype) {
    // Second order
@@ -639,20 +681,29 @@ void higflow_computational_cell_electroosmotic(higflow_solver *ns, sim_domain *s
       ns->cc.Feo   = compute_facet_value_at_point(ns->ed.eo.sfdEOFeo[dim], fcenter, fcenter, 1.0, ns->ed.eo.dpFeo[dim], ns->ed.eo.stnpsi);
 
       if (ns->contr.flowtype == VISCOELASTIC){
+         real beta = ns->ed.ve.par.beta;
          // Compute the viscoelastic contribution
          for (int dim2 = 0; dim2 < DIM; dim2++) {
             if (dim2 == dim) {
                // Get the tensor in the left cell
-               Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sl[dim2]          = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               Dul[dim2]         = compute_center_p_left(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               Sl[dim2] -= (1.0-beta)*Dul[dim2]/Re; // BSD
                // Get the tensor in the right cell
-               Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sr[dim2]          = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               Dur[dim2]         = compute_center_p_right(ns->ed.sdED, fcenter, fdelta, dim2, 0.5, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               Sr[dim2] -= (1.0-beta)*Dur[dim2]/Re; // BSD
                // Compute the tensor derivative
                ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 0.5, Sl[dim2], Sr[dim2]);
             } else {
                // Get the tensor in the left cell
-               Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               Dul[dim2]         = compute_center_p_left_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               Sl[dim2] -= (1.0-beta)*Dul[dim2]/Re; // BSD
                // Get the tensor in the right cell
-               Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpS[dim][dim2], ns->ed.stn);
+               Sr[dim2]          = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpTaup[dim][dim2], ns->ed.stn);
+               Dur[dim2]         = compute_center_p_right_2(ns->ed.sdED, fcenter, fdelta, dim, dim2, 1.0, ns->ed.ve.dpDu[dim][dim2], ns->ed.stn);
+               Sr[dim2] -= (1.0-beta)*Dur[dim2]/Re; // BSD
                // Compute the tensor derivative
                ns->cc.dSdx[dim2] = compute_dpdx_at_point(fdelta, dim2, 1.0, Sl[dim2], Sr[dim2]);
             }
@@ -699,7 +750,17 @@ void higflow_computational_cell_electroosmotic_ionic(higflow_solver *ns, sim_dom
       //            ns->cc.d2phidx2 = compute_facet_du2dx2(cdelta, dim, 1.0, phic, phil, phir);
       ns->cc.d2phidx2 = 0.0;
       // // Get psi in the cell center
-      // ns->cc.psicell = psic;
+      ns->cc.psicell = psic;
+
+      real nll   = compute_center_p_left(sdn, ccenter, cdelta, dim, 2.0, dpn, stnn);
+      real nrr   = compute_center_p_right(sdn, ccenter, cdelta, dim, 2.0, dpn, stnn);
+      real psill = compute_center_p_left(ns->ed.eo.sdEOpsi, ccenter, cdelta, dim, 2.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
+      real psirr = compute_center_p_right(ns->ed.eo.sdEOpsi, ccenter, cdelta, dim, 2.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
+      ns->cc.dndx     = 1.0/(12*cdelta[dim]) * (nll - 8*nl + 8*nr - nrr);
+      ns->cc.dpsidx   = 1.0/(12*cdelta[dim]) * (psill - 8*psil + 8*psir - psirr);
+      ns->cc.d2ndx2   = 1.0/(12*cdelta[dim]*cdelta[dim]) * (-nll+16*nl-30*nc+16*nr-nrr);
+      ns->cc.d2psidx2 = 1.0/(12*cdelta[dim]*cdelta[dim]) * (-psill+16*psil-30*psic+16*psir-psirr);
+
 
       ul = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet_l);
       ur = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet_r);
@@ -959,7 +1020,7 @@ void higflow_computational_cell_volume_fraction_suspensions(higflow_solver *ns, 
 			for (int j = 0; j < DIM; j++)
 			{
 				// Get Du
-				Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpD[i][j], ns->ed.stn);
+				Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpDu[i][j], ns->ed.stn);
 			}
 		}
 		// Rate of strain tensor E
@@ -1013,24 +1074,24 @@ void higflow_computational_cell_volume_fraction_suspensions(higflow_solver *ns, 
 
 				// Get the tensor in the left cell
 				Sl0[dim2] = compute_center_p_left(ns->ed.sdED, p, cdelta, dim2, 0.5, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// DU1l[dim2] 		  = compute_center_p_left(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// DU12l[dim2]       =  compute_center_p_left(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
-				// DU1ll[dim2] 	  = compute_center_p_left(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// DU1l[dim2] 		  = compute_center_p_left(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// DU12l[dim2]       =  compute_center_p_left(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
+				// DU1ll[dim2] 	  = compute_center_p_left(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// Sl[dim2]         += 1.0*(ns->ed.stsp.par.eta0)*(DU1l[dim2]);
 				// Sl[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*(DU1ll[dim2]+DU12l[dim2]);
 				// DEBUG_INSPECT(Sl[0], %lf);
 				//  Get the tensor in the right cell
 				Sr0[dim2] = compute_center_p_right(ns->ed.sdED, p, cdelta, dim2, 0.5, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// DU1r[dim2] 		  = compute_center_p_right(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// DU12r[dim2]       = compute_center_p_right(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
-				// DU1rr[dim2] 	  = compute_center_p_right(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// DU1r[dim2] 		  = compute_center_p_right(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// DU12r[dim2]       = compute_center_p_right(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
+				// DU1rr[dim2] 	  = compute_center_p_right(ns->ed.sdED, ccenter, cdelta, dim2, 0.5, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// Sr[dim2]         += 1.0*(ns->ed.stsp.par.eta0)*DU1r[dim2];
 				// Sr[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*(DU1rr[dim2]+DU12r[dim2]);
 				// DEBUG_INSPECT(Sr[0], %lf);
 
 				// Sc[dim2] 		  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// real DUc          = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// real DUc1         = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// real DUc          = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// real DUc1         = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// DEBUG_INSPECT(Sc, %lf);
 				// Sc 		         += 1.0*(ns->ed.stsp.par.eta0)*DUc;
 				// Sc 		         += 2.0*(ns->ed.stsp.par.eta0)*(DUc1+DUc);
@@ -1062,33 +1123,33 @@ void higflow_computational_cell_volume_fraction_suspensions(higflow_solver *ns, 
 				p1[dim] = ccenter[dim] + cdelta[dim];
 				// Get the tensor in the left cell
 				// Sl[dim2]          = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// DU1l[dim2]        = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
+				// DU1l[dim2]        = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
 				Sl1[dim2] = compute_center_p_left_2(ns->ed.sdED, p1, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// DU1l[dim2]        = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// DU12l[dim2]       = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
-				// DU1ll[dim2]       = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// DU1l[dim2]        = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// DU12l[dim2]       = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
+				// DU1ll[dim2]       = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// Sl[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*(DU1l[dim2]+DU12l[dim2]);
 				// Sl[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*DU1ll[dim2];
 				//  Get the tensor in the right cell
 				Sr1[dim2] = compute_center_p_right_2(ns->ed.sdED, p1, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// DU1r[dim2]        = compute_center_p_right_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// DU12r[dim2]        = compute_center_p_right_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
-				// DU1rr[dim2]       = compute_center_p_right_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// DU1r[dim2]        = compute_center_p_right_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// DU12r[dim2]        = compute_center_p_right_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
+				// DU1rr[dim2]       = compute_center_p_right_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// Sr[dim2]         += 1.0*(ns->ed.stsp.par.eta0)*DU1r[dim2];
 				// Sr[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*(DU1rr[dim2]+DU12r[dim2]);
 				//  Compute the tensor derivative
 				dTdxr1[dim2] = compute_dpdx_at_point(cdelta, dim2, 1.0, Sl1[dim2], Sr1[dim2]);
 				// real Sc 		  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// real DUc          = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// real DUc1         = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// real DUc          = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// real DUc1         = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// Sc 		         += 1.0*(ns->ed.stsp.par.eta0)*DUc;
 
 				// Sc 		         += 2.0*(ns->ed.stsp.par.eta0)*DUc1;
 				p1[dim] = ccenter[dim] - cdelta[dim];
 				Sll1[dim2] = compute_center_p_left_2(ns->ed.sdED, p1, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpS[dim][dim2], ns->ed.stn);
-				// DU1l[dim2]        = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim][dim2], ns->ed.stn);
-				// DU12l[dim2]       = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
-				// DU1ll[dim2]       = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpD[dim2][dim], ns->ed.stn);
+				// DU1l[dim2]        = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim][dim2], ns->ed.stn);
+				// DU12l[dim2]       = compute_center_p_left_2_r(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
+				// DU1ll[dim2]       = compute_center_p_left_2(ns->ed.sdED, ccenter, cdelta, dim, dim2, 1.0, ns->ed.stsp.dpDu[dim2][dim], ns->ed.stn);
 				// Sl[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*(DU1l[dim2]+DU12l[dim2]);
 				// Sl[dim2]         += 2.0*(ns->ed.stsp.par.eta0)*DU1ll[dim2];
 				//  Get the tensor in the right cell

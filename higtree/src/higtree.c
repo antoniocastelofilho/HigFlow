@@ -749,3 +749,16 @@ int hig_get_facet_with_point(hig_cell *root, int dim, const Point x, hig_facet *
 	}
 	return 0;
 }
+
+
+// Pseudocódigo para a nova rotina de adaptatividade no HigFlow
+// void hig_adapt_dynamic(hig_cell *root, scalar *fields, real *tolerances, int maxlevel) {
+//     // 1. Iterar sobre todas as células-folha (hig_cell)
+//     // 2. Para cada campo (field) e tolerância (tolerance):
+//     //    a. Calcular o coeficiente de wavelet (ou métrica de erro similar)
+//     //    b. Se o erro > tolerance E level < maxlevel:
+//     //       - Marcar a célula para refinamento
+//     // 3. Executar o refinamento:
+//     //    - Se marcada, chamar hig_refine_uniform(cell, numcells)
+//     // 4. Interpolar os valores dos campos nas novas células criadas.
+// }

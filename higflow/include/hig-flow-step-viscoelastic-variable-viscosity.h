@@ -81,7 +81,7 @@ void hig_flow_velocity_at_center_cell (higflow_solver *ns, Point ccenter, Point 
 void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, int i, int j, real Kcenter, real dKdx[DIM]); 
 
 // Calculate the kronecker product 
-void hig_flow_kernel_system_matrix (real w[DIM*DIM+1][DIM*DIM+1], real Omega[DIM][DIM], real dt);
+void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt);
 
 // Calculate RHS = 2B * M/De
 void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);

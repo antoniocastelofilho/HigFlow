@@ -30,7 +30,8 @@ long higcit_count_without_advancing(higcit_celliterator *it);
 //! Creates an iterator which returns all leaves (i.e., cells without children) of the hig-tree rooted at c.
 higcit_celliterator *higcit_create_all_leaves(hig_cell *c);
 
-//! Creates an iterator which returns all leaves which intersect with the bounding box defined by lowpoint and highpoint.
+//! Creates an iterator which returns all leaves which intersect with the
+//bounding box defined by lowpoint and highpoint.
 higcit_celliterator *higcit_create_bounding_box(hig_cell *cell, const Point lowpoint, const Point highpoint);
 
 //! Creates an iterator which returns all leaves which touch the cell, i.e., its neighbours.
@@ -39,7 +40,8 @@ higcit_celliterator *higcit_create_neighbours(hig_cell *cell);
 //! Creates an iterator which returns all cells returned by the iterator itin and for that the function f returns true.
 higcit_celliterator *higcit_create_filter(higcit_celliterator *itin, higcit_filter_func f, void *data);
 
-//! Creates an iterator which returns all cells of the higtree rooted at c, regardless if it is a leaf or not.
+//! Creates an iterator which returns all cells of the higtree rooted at c,
+//regardless if it is a leaf or not.
 higcit_celliterator *higcit_create_all_higtree(hig_cell *c);
 
 //! Creates an iterator which returns all cells of the higtree rooted at c at breadth-first order.

@@ -23,7 +23,8 @@ typedef struct higcit_basiciterator {
 	higcit_clonefunc clone;
 } higcit_basiciterator;
 
-//! A cell iterator contains a basic iterator plus a set of extra information, which depends on the iterator type.
+//! A cell iterator contains a basic iterator plus a set of extra information,
+//which depends on the iterator type.
 typedef struct higcit_celliterator {
 	higcit_basiciterator bi;
 	void *ex;
