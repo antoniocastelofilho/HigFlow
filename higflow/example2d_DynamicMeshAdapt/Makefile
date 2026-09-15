@@ -108,6 +108,7 @@ OBJ1 += ../src/hig-flow-step-multiphase-viscoelastic.o
 OBJ1 += ../src/hig-flow-step-multiphase-electroosmotic.o ../src/hig-flow-step-multiphase-electroosmotic-viscoelastic.o
 OBJ1 += utilities-2d.o
 OBJ1 += ../src/hig-flow-linear-algebra.o
+OBJ1 += ../src/hig-flow-viscoelastic-kernel.o
 
 $(CFILE): $(OBJ1)
 	@$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)

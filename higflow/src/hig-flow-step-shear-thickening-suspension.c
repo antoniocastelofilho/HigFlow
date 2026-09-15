@@ -2738,42 +2738,8 @@ void higflow_solver_step_shear_thickening_suspensions(higflow_solver *ns)
 // Calculate the eige-value and eige-vectors using the Jacobi method
 
 // Calculate the matrix product
-void hig_flow_matrix_product(real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM])
-{
-    for (int i = 0; i < DIM; i++)
-    {
-        for (int j = 0; j < DIM; j++)
-        {
-            B[i][j] = 0.0;
-            for (int k = 0; k < DIM; k++)
-            {
-                for (int l = 0; l < DIM; l++)
-                {
-                    B[i][j] += R[k][i] * A[k][l] * R[l][j];
-                }
-            }
-        }
-    }
-}
 
 // Calculate the matrix product transpose
-void hig_flow_matrix_transpose_product(real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM])
-{
-    for (int i = 0; i < DIM; i++)
-    {
-        for (int j = 0; j < DIM; j++)
-        {
-            B[i][j] = 0.0;
-            for (int k = 0; k < DIM; k++)
-            {
-                for (int l = 0; l < DIM; l++)
-                {
-                    B[i][j] += R[i][k] * A[k][l] * R[j][l];
-                }
-            }
-        }
-    }
-}
 
 // Step function 1
 real step_function_1(real l)

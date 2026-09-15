@@ -54,6 +54,7 @@ endif
 
 MODULES = \
 	linear-algebra \
+	viscoelastic-kernel \
 	kernel \
 	io \
 	ic \

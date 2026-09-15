@@ -45,10 +45,8 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) ;
 // Calculate the eige-value and eige-vectors using the Jacobi method
 
 // Calculate the matrix product
-void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
 
 // Calculate the matrix product transpose
-void hig_flow_matrix_transpose_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
 
 // Calculate the Omega matrix
 void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small);

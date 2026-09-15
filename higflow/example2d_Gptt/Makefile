@@ -60,6 +60,7 @@ OBJ1+= ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/
 OBJ1+= ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoelastic.o ../src/hig-flow-mittag-leffler.o
 OBJ1+= ../src/hig-flow-res.o 
 OBJ1 += ../src/hig-flow-linear-algebra.o
+OBJ1 += ../src/hig-flow-viscoelastic-kernel.o
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)

@@ -1557,32 +1557,8 @@ real higflow_computational_cell_conformation_tensor_B_shear_banding_VCM_model(hi
 // Calculate the eige-value and eige-vectors using the Jacobi method
 
 // Calculate the matrix product
-void hig_flow_matrix_product (real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]) {
-    for (int i = 0; i < DIM; i++) {
-        for (int j = 0; j < DIM; j++) {
-            B[i][j] = 0.0;
-            for (int k = 0; k < DIM; k++) {
-                for (int l = 0; l < DIM; l++) {
-                    B[i][j] += R[k][i]*A[k][l]*R[l][j];
-                }
-            }
-        }
-    }
-}
 
 // Calculate the matrix product transpose
-void hig_flow_matrix_transpose_product (real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]) {
-    for (int i = 0; i < DIM; i++) {
-        for (int j = 0; j < DIM; j++) {
-            B[i][j] = 0.0;
-            for (int k = 0; k < DIM; k++) {
-                for (int l = 0; l < DIM; l++) {
-                    B[i][j] += R[i][k]*A[k][l]*R[j][l];
-                }
-            }
-        }
-    }
-}
 
 // Calculate the Omega matrix
 void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small) {

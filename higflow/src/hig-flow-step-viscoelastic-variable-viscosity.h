@@ -6,6 +6,7 @@
 
 #ifndef HIG_FLOW_STEP_VISCOELASTIC_VARIABLE_VISCOSITY
 #define HIG_FLOW_STEP_VISCOELASTIC_VARIABLE_VISCOSITY
+#include "hig-flow-viscoelastic-kernel.h"
 
 #include "hig-flow-linear-algebra.h"
 
@@ -45,13 +46,10 @@ void higflow_solver_step_viscoelastic_variable_viscosity(higflow_solver *ns);
 // Calculate the eige-value and eige-vectors using the Jacobi method
 
 // Calculate the matrix product
-void hig_flow_matrix_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
 
 // Calculate the matrix product transpose
-void hig_flow_matrix_transpose_product( real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]); 
 
 // Calculate RHS = OK - KO + 2B * M/De
-void hig_flow_kernel_rhs (real De, real K[DIM][DIM], real O[DIM][DIM], real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]); 
 
 // Calculate the Kernel matrix
 void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real Kernel[DIM][DIM], real tol); 
@@ -83,7 +81,6 @@ void hig_flow_derivative_kernel_at_center_cell (higflow_solver *ns, Point ccente
 // Calculate the kronecker product 
 
 // Calculate RHS = 2B * M/De
-void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);
 
 // Solve linear system for constitutive equation
 

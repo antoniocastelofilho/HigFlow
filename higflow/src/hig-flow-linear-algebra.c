@@ -135,3 +135,30 @@ void hig_flow_solve_system_constitutive_equation ( int n, real A[DIM*DIM][DIM*DI
         x[i] = (A[i][n] - s)/ A[i][i];
     }
 }
+
+
+void hig_flow_matrix_product (real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]) {
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            B[i][j] = 0.0;
+            for (int k = 0; k < DIM; k++) {
+                for (int l = 0; l < DIM; l++) {
+                    B[i][j] += R[k][i]*A[k][l]*R[l][j];
+                }
+            }
+        }
+    }
+}
+
+void hig_flow_matrix_transpose_product (real A[DIM][DIM], real R[DIM][DIM], real B[DIM][DIM]) {
+    for (int i = 0; i < DIM; i++) {
+        for (int j = 0; j < DIM; j++) {
+            B[i][j] = 0.0;
+            for (int k = 0; k < DIM; k++) {
+                for (int l = 0; l < DIM; l++) {
+                    B[i][j] += R[i][k]*A[k][l]*R[j][l];
+                }
+            }
+        }
+    }
+}
