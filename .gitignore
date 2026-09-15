@@ -142,6 +142,9 @@ higflow/higflow/
 higflow/higflow_aquisson_3d/
 inspection_outputs/
 
+# Local-only notes (keep on disk, do not track)
+higflow/example2d_DynamicMeshAdapt/PARALLELIZATION_SAGA.md
+
 # AI assistant config and memory (local-only, never commit)
 .agents/
 .claude/
