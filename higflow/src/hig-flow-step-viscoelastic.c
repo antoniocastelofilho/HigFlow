@@ -1510,22 +1510,6 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
 // }
 
 // Calculate the Omega matrix
-void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small) {
-   // Calculate the Omega and B matrix
-   real Omega_aux[DIM][DIM]; real den;
-   for (int i = 0; i < DIM-1; i++) {
-       for (int j = i+1; j < DIM; j++) {
-           den = lambda[j]-lambda[i] + small;
-           if(fabs(den + small) < small) den -= 2.0*small;
-           Omega_aux[i][j] = (M[i][j]*lambda[j]+M[j][i]*lambda[i])/den;
-           Omega_aux[j][i] = -Omega_aux[i][j];
-       }
-       Omega_aux[i][i] = 0.0;
-    }
-    Omega_aux[DIM-1][DIM-1] = 0.0;
-    // Calculate Omega matrix >> Omega = R Omega_aux R^t
-    hig_flow_matrix_transpose_product(Omega_aux, R, Omega);
-}
 
 // Calculate the matrix BB and the matrix B
 void hig_flow_calculate_b (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM]) {

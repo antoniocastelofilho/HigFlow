@@ -15,4 +15,8 @@ void hig_flow_kernel_rhs (real De, real K[DIM][DIM], real O[DIM][DIM], real B[DI
 void hig_flow_implicit_kernel_rhs (real De, real B[DIM][DIM], real M[DIM][DIM], real RHS[DIM][DIM]);
 void hig_flow_kernel_system_matrix (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt);
 
+// Omega = R Omega_aux R^t.  O denominador lambda[j]-lambda[i] e' protegido
+// contra autovalores coincidentes (estado isotropico).
+void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small);
+
 #endif

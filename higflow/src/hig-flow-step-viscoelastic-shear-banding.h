@@ -6,6 +6,7 @@
 
 #ifndef HIG_FLOW_STEP_VISCOELASTIC_SHEAR_BANDING
 #define HIG_FLOW_STEP_VISCOELASTIC_SHEAR_BANDING
+#include "hig-flow-viscoelastic-kernel.h"
 
 #include "hig-flow-linear-algebra.h"
 
@@ -49,7 +50,6 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) ;
 // Calculate the matrix product transpose
 
 // Calculate the Omega matrix
-void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small);
 
 // Calculate the matrix BB
 void hig_flow_calculate_b (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM]);

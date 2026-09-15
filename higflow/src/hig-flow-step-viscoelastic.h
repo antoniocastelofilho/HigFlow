@@ -50,7 +50,6 @@ void higflow_solver_step_viscoelastic(higflow_solver *ns);
 void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real Kernel[DIM][DIM], real tol); 
 
 // Calculate the Omega matrix
-void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small); 
 
 // Calculate the matrix BB and the matrix B
 void hig_flow_calculate_b (real lambda[DIM], real jlambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM]);

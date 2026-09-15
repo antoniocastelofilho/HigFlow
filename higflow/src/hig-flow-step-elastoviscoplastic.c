@@ -1464,20 +1464,6 @@ void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM
 }
 
 // Calculate the Omega matrix
-void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real Omega[DIM][DIM], real small) {
-   // Calculate the Omega and B matrix
-   real Omega_aux[DIM][DIM];
-   for (int i = 0; i < DIM-1; i++) {
-       for (int j = i+1; j < DIM; j++) {
-           Omega_aux[i][j] = (M[i][j]*lambda[j]+M[j][i]*lambda[i])/(lambda[j]-lambda[i]+small);
-           Omega_aux[j][i] = -Omega_aux[i][j];
-       }
-       Omega_aux[i][i] = 0.0;
-    }
-    Omega_aux[DIM-1][DIM-1] = 0.0;
-    // Calculate Omega matrix >> Omega = R Omega_aux R^t
-    hig_flow_matrix_transpose_product(Omega_aux, R, Omega);
-}
 
 // Calculate the matrix BB
 void hig_flow_calculate_b (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM], real tol) {
