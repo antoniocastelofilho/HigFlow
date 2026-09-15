@@ -41,8 +41,8 @@ void higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(higflow_so
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnplus_temp;
         else dpn_temp = ns->ed.eo.dpnplus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnplus  = psd_get_local_domain(ns->ed.eo.psdEOnplus);
         // Get the map for the domain properties
@@ -125,8 +125,8 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnminus_temp;
         else dpn_temp = ns->ed.eo.dpnminus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnminus  = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         // Get the map for the domain properties
@@ -208,8 +208,8 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnplus_temp;
         else dpn_temp = ns->ed.eo.dpnplus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnplus  = psd_get_local_domain(ns->ed.eo.psdEOnplus);
         // Get the map for the domain properties
@@ -331,8 +331,8 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnminus_temp;
         else dpn_temp = ns->ed.eo.dpnminus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnminus  = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         // Get the map for the domain properties
@@ -455,8 +455,8 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus_multiph
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnplus_temp;
         else dpn_temp = ns->ed.eo.dpnplus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnplus  = psd_get_local_domain(ns->ed.eo.psdEOnplus);
         // Get the map for the domain properties
@@ -581,8 +581,8 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus_multip
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnminus_temp;
         else dpn_temp = ns->ed.eo.dpnminus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnminus  = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         // Get the map for the domain properties
@@ -707,8 +707,8 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus_multiphase(higflo
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnplus_temp;
         else dpn_temp = ns->ed.eo.dpnplus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnplus  = psd_get_local_domain(ns->ed.eo.psdEOnplus);
         // Get the map for the domain properties
@@ -942,8 +942,8 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus_multiphase(higfl
         if(ns->ed.mult.eo.contr.max_inner_iter > 1) dpn_temp = ns->ed.eo.dpnminus_temp;
         else dpn_temp = ns->ed.eo.dpnminus;
 
-        flow_type eoflow0 = ns->ed.mult.contr.eoflow0;
-        flow_type eoflow1 = ns->ed.mult.contr.eoflow1;
+        int eoflow0 = ns->ed.mult.contr.eoflow0;
+        int eoflow1 = ns->ed.mult.contr.eoflow1;
         // Get the local sub-domain for the cells
         sim_domain *sdnminus  = psd_get_local_domain(ns->ed.eo.psdEOnminus);
         // Get the map for the domain properties

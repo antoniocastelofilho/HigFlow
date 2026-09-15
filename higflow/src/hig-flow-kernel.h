@@ -1451,10 +1451,10 @@ void higflow_create_stencil_multiphase(higflow_solver *ns);
 void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 
 // Partition table initialize
-void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank);
+void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, int ntasks, int myrank);
 
 // Partition table multiphase initialize
-void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], higio_amr_info *mi_mult[numhigs], int ntasks, int myrank);
+void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, higio_amr_info **mi_mult, int ntasks, int myrank);
 
 // Use the given mesh information to create to create amr info about the multiphase domain
 // Corresponds to a uniform higtree with the cell sizes of the last given level

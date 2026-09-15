@@ -39,7 +39,7 @@ sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype 
 }
 
 // Creating and setting the boundary condition for the pressure
-void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]) {
+void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]) {
     if(ns->contr.equation == VISCOUS_BURGERS ||
        ns->contr.equation == INVISCID_BURGERS ||
        ns->contr.equation == HEAT) {
@@ -93,8 +93,8 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
 
 // Creating and setting the boundary condition for the velocity
 void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
-                                                   numbcs, int id[numbcs], char
-                                                   bcfilenames[numbcs][1024],
+                                                   numbcs, int id[], char
+                                                   bcfilenames[][1024],
                                                    bc_type
                                                    bctypes[DIM][numbcs],
                                                    bc_valuetype
@@ -148,7 +148,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
 }
 
 // Creating and setting the boundary condition for the electro-osmotic source term
-void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {    
+void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {    
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real bcval, fracvol;
 
@@ -211,7 +211,7 @@ void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solve
 }
 
 // Creating and setting the boundary condition for the electro-osmotic phi
-void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type phibctypes[], bc_valuetype phibcvaluetype[]) {  
+void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type phibctypes[], bc_valuetype phibcvaluetype[]) {  
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real bcval, fracvol;
 
@@ -264,7 +264,7 @@ void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, i
 }
 
 // Creating and setting the boundary condition for the electro-osmotic psi
-void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type psibctypes[], bc_valuetype psibcvaluetype[]) {
+void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type psibctypes[], bc_valuetype psibcvaluetype[]) {
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real bcval, fracvol;
     
@@ -316,7 +316,7 @@ void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, i
 }
 
 // Creating and setting the boundary condition for the electro-osmotic nplus
-void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nplusbctypes[], bc_valuetype nplusbcvaluetype[]) {
+void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type nplusbctypes[], bc_valuetype nplusbcvaluetype[]) {
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real bcval, fracvol;
     
@@ -367,7 +367,7 @@ void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns,
 }
 
 // Creating and setting the boundary condition for the electro-osmotic nminus
-void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nminusbctypes[], bc_valuetype nminusbcvaluetype[]) {
+void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type nminusbctypes[], bc_valuetype nminusbcvaluetype[]) {
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real bcval, fracvol;
     
@@ -418,7 +418,7 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
 }
 
 // Creating and setting the boundary condition for the density number nA (viscoelastic flows with shear-banding)
-void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nAbctypes[], bc_valuetype nAbcvaluetype[]) {
+void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type nAbctypes[], bc_valuetype nAbcvaluetype[]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -468,7 +468,7 @@ void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(higflow_so
 }
 
 // Creating and setting the boundary condition for the density number nB (viscoelastic flows with shear-banding)
-void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type nBbctypes[], bc_valuetype nBbcvaluetype[]) {
+void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type nBbctypes[], bc_valuetype nBbcvaluetype[]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -518,7 +518,7 @@ void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(higflow_so
 }
 
 // Creating and setting the boundary condition for cell source term
-void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]) {
+void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -558,7 +558,7 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
 }
 
 // Creating and setting the boundary condition for facet source term
-void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {
+void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -608,7 +608,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
 }
 
 // Creating and setting the boundary condition for volume fraction and other multiphase properties
-void higflow_set_boundary_condition_for_mult(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]) {
+void higflow_set_boundary_condition_for_mult(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -647,7 +647,7 @@ void higflow_set_boundary_condition_for_mult(higflow_solver *ns, int numbcs, int
 }
 
 // Creating and setting the boundary condition for extra domains domain (for viscoelastic tensors and such)
-void higflow_set_boundary_condition_for_tensors(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]) {
+void higflow_set_boundary_condition_for_tensors(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {

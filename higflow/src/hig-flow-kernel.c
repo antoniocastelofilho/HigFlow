@@ -1340,7 +1340,7 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns) {
 }
 
 // Partition table initialize
-void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], int ntasks, int myrank) {
+void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, int ntasks, int myrank) {
     // Setting the fringe size of the sub-domain
     // The fringe is a buffer around the cells of a given node
     pg_set_fringe_size(pg, 5);
@@ -1389,7 +1389,7 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
 }
 
 // Partition table multiphase initialize
-void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info *mi[numhigs], higio_amr_info *mi_mult[numhigs], int ntasks, int myrank) {
+void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, higio_amr_info **mi_mult, int ntasks, int myrank) {
     if(ns->contr.flowtype == MULTIPHASE) {
         // The fringe is a buffer around the cells of a given node
         pg_set_fringe_size(pg, 5);
