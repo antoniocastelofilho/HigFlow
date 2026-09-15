@@ -11,6 +11,10 @@
 
 #include "hig-flow-vof-advection-3D.h"
 
+// Auxiliar local a este arquivo; declarada aqui porque as chamadas
+// precedem a definicao.
+static void normal_correction_at_get(Point Normal);
+
 void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int dim){
 	// Get the local sub-domain for the cells
 	sim_domain *sdp = psd_get_local_domain(ns->psdp);
@@ -1307,7 +1311,7 @@ void fraction_correction_at_set(real *frac){
 }
 
 // Correction Normal
-void normal_correction_at_get(Point Normal){
+static void normal_correction_at_get(Point Normal){
 	real tol_n = 1.0e-6;
 	for(int i=0;i<DIM;i++){
 		if(fabs(Normal[i])<tol_n) {

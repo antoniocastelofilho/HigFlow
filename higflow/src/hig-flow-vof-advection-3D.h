@@ -5,7 +5,6 @@
 #include "hig-flow-vof-HF-3D.h"
 #include "hig-flow-vof-plic-3D.h"
 
-void normal_correction_at_get(Point Normal);
 
 void fraction_correction_at_set(real *frac);
 

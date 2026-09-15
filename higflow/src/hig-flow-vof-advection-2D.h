@@ -9,7 +9,6 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns);
 
 void fraction_correction_at_set(real *frac);
 
-void normal_correction_at_get(Point Normal);
 
 void higflow_plic_advection_volume_fraction_x_direction_2D(higflow_solver *ns, int dim);
 

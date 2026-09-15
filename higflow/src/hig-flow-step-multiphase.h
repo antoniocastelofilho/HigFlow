@@ -49,7 +49,6 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
 
 void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns);
 
-void normal_correction_at_get(Point Normal);
 
 // *******************************************************************
 // Volume Fraction Transport Step for the Explicit Euler Method

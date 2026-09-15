@@ -1,7 +1,11 @@
 #if DIM == 3
 #include "hig-flow-vof-finite-difference-normal-curvature_3D.h"
 
-int cell_location(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Point P){
+// Auxiliar local a este arquivo; declarada aqui porque as chamadas
+// precedem a definicao.
+static int cell_location(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Point P);
+
+static int cell_location(sim_domain *sd, higflow_solver *ns, int dim, Point Center, Point P){
 	hig_cell *c = sd_get_cell_with_point(sd,P);
 	if (c == NULL){
 		return 0;

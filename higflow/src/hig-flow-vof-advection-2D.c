@@ -12,6 +12,10 @@
 #include "hig-flow-vof-advection-2D.h"
 #include "hig-flow-vof-adap-hf.h"
 
+// Auxiliar local a este arquivo; declarada aqui porque as chamadas
+// precedem a definicao.
+static void normal_correction_at_get(Point Normal);
+
 
 // ***********************************************************************
 // Volume Fraction Transport Step with PLIC fractional step on direction x
@@ -866,7 +870,7 @@ void fraction_correction_at_set(real *frac){
 }
 
 // Correction Normal
-void normal_correction_at_get(Point Normal){
+static void normal_correction_at_get(Point Normal){
 	real tol_n = 1.0e-6;
 	for(int i=0;i<DIM;i++){
 		if(fabs(Normal[i])<tol_n) {

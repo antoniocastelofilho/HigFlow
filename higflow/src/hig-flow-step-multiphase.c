@@ -6,6 +6,10 @@
 #include "Debug-c.h"
 #include "hig-flow-step-multiphase.h"
 
+// Auxiliar local a este arquivo; declarada aqui porque as chamadas
+// precedem a definicao.
+static void normal_correction_at_get(Point Normal);
+
 char nome_frac[100]; char nome_fracaux[100];
 char nome_vx[100]; char nome_vy[100];
 char nome_dmult[100]; char nome_Nmult[100];
@@ -1343,7 +1347,7 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
   }
 }
 // Correction Normal
-void normal_correction_at_get(Point Normal) {
+static void normal_correction_at_get(Point Normal) {
    for(int i=0;i<DIM;i++){
       if (FLT_EQ(Normal[i], 0.0)) {
          Normal[i] = 0.0;

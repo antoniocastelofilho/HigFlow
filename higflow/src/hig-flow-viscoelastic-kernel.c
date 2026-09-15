@@ -69,9 +69,15 @@ void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][D
    real Omega_aux[DIM][DIM]; real den;
    for (int i = 0; i < DIM-1; i++) {
        for (int j = i+1; j < DIM; j++) {
-           den = lambda[j]-lambda[i] + small;
-           if(fabs(den + small) < small) den -= 2.0*small;
-           Omega_aux[i][j] = (M[i][j]*lambda[j]+M[j][i]*lambda[i])/den;
+           // The denominator is the eigenvalue gap itself.  Biasing it by
+           // +small moves the pole from a zero gap to a gap of -small, which
+           // is inside the range the solver actually visits: it inverts the
+           // sign of Omega on the near side of the pole and inflates it by up
+           // to 60x.  Guard on the gap and drop the rotation when the two
+           // eigenvalues coincide, as the log-conformation literature does.
+           den = lambda[j]-lambda[i];
+           if (fabs(den) < small) Omega_aux[i][j] = 0.0;
+           else Omega_aux[i][j] = (M[i][j]*lambda[j]+M[j][i]*lambda[i])/den;
            Omega_aux[j][i] = -Omega_aux[i][j];
        }
        Omega_aux[i][i] = 0.0;

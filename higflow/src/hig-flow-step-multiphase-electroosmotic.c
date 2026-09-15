@@ -1585,7 +1585,7 @@ void higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(higf
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
             // Set the computational cell
-            higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
+            higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
             real rhs = 0.0;
             // Electo-osmotic source term
@@ -2141,10 +2141,10 @@ void higflow_solver_step_multiphase_electroosmotic(higflow_solver *ns) {
         higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(ns, ns->dpu, ns->dpustar);
         break;
     case EXPLICIT_RK2:
-        higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_electroosmotic);
+        higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic);
         break;
     case EXPLICIT_RK3:
-        higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_electroosmotic);
+        higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(ns, higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic);
         break;
     case SEMI_IMPLICIT_EULER:
         higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic(ns);
