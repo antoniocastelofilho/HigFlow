@@ -31,70 +31,38 @@ jobs:
           find . -name '*.py' -not -path '*/bibliotecas/*' \
             -exec pylint --errors-only {} + || true
 
-  build-2d:
+  # A suite constroi o que precisa e roda cada caso em varias contagens de
+  # processos contra uma unica referencia.  Separar 2D e 3D em dois jobs nao e'
+  # cosmetico: os objetos em higflow/src nao levam a dimensao no nome, entao um
+  # mesmo checkout so pode ter um DIM construido de cada vez.
+  regression-2d:
     needs: lint
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/antoniocastelofilho/HigFlow/higflow-ci:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build 2D libraries
+      - name: Regression suite (2D)
         run: |
-          make -C $HIGTREE_DIR clean
-          make -C $HIGTREE_DIR DIM=2
-          make -C $HIGFLOW_DIR clean
-          make -C $HIGFLOW_DIR DIM=2
-      - name: Configure 2D test
-        run: |
-          sed -i 's/numsteps: [0-9]*/numsteps: 5/' \
-            $HIGFLOW_DIR/example2d_Newt/input/example-2d.load.par.contr.yaml
-          sed -i 's/dtp: [0-9.]*/dtp: 0.001/' \
-            $HIGFLOW_DIR/example2d_Newt/input/example-2d.load.par.contr.yaml
-      - name: Build and run 2D test
-        run: |
-          make -C $HIGFLOW_DIR/example2d_Newt clean
-          make -C $HIGFLOW_DIR/example2d_Newt
-          make -C $HIGFLOW_DIR/example2d_Newt run
-      - name: Mass conservation check
-        run: |
-          python3 ${{ github.workspace }}/ci/check_mass.py \
-            $HIGFLOW_DIR/example2d_Newt/VTKS/ --single-phase
-      - name: Reference check
-        run: |
-          python3 ${{ github.workspace }}/ci/check_reference.py \
-            $HIGFLOW_DIR/example2d_Newt/VTKS/ \
-            ${{ github.workspace }}/ci/reference/example2d_Newt.yaml
+          python3 ci/run_suite.py --np 1,2,3 \
+            --case example2d_Newt \
+            --case example2d_Newt_contraction \
+            --case example2d_Oldroyd \
+            --case example2d_Gptt \
+            --case example2d_VOF \
+            --case example2d_VOF_Gptt \
+            --case example2d_VOF_Oldroyd
 
-  build-3d:
+  regression-3d:
     needs: lint
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/antoniocastelofilho/HigFlow/higflow-ci:latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build 3D libraries
+      # O limite de processos e' por caso, no manifesto: a malha do lid-driven
+      # e' grosseira demais para dividir, entao a suite roda em um processo e
+      # registra o motivo em vez de afrouxar a tolerancia.
+      - name: Regression suite (3D)
         run: |
-          make -C $HIGTREE_DIR clean
-          make -C $HIGTREE_DIR DIM=3
-          make -C $HIGFLOW_DIR clean
-          make -C $HIGFLOW_DIR DIM=3
-      - name: Setup mesh for 3D test
-        run: |
-          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN \
-            MESH=rising_NN_20x20x60 setup_mesh
-      - name: Build and run 3D test
-        run: |
-          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN clean
-          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN
-          make -C $HIGFLOW_DIR/example3d_RisingDrop_NN \
-            MESH=rising_NN_20x20x60 NP=1 \
-            IN="numsteps=5 dtp=0.001" run
-      - name: Mass conservation check
-        run: |
-          python3 ${{ github.workspace }}/ci/check_mass.py \
-            $HIGFLOW_DIR/example3d_RisingDrop_NN/output/*__rising_NN_20x20x60/vtk/
-      - name: Reference check
-        run: |
-          python3 ${{ github.workspace }}/ci/check_reference.py \
-            $HIGFLOW_DIR/example3d_RisingDrop_NN/output/*__rising_NN_20x20x60/vtk/ \
-            ${{ github.workspace }}/ci/reference/example3d_RisingDrop_NN.yaml
+          python3 ci/run_suite.py --np 1,2,3 --case example3d_lid_driven

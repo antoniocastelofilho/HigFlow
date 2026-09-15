@@ -74,6 +74,7 @@ CASES = [
     Case("example2d_Newt",         "ns-example",     "example-2d.load", 2),
     Case("example2d_Oldroyd",      "ns-example",     "example-2d.load", 2),
     Case("example2d_Gptt",         "ns-example",     "example-2d.load", 2),
+    Case("example2d_Newt_contraction", "ns-example", "example-2d.load", 2),
     Case("example2d_VOF",          "ns-example",     "example-2d.load", 2, multiphase=True),
     Case("example2d_VOF_Gptt",     "ns-example",     "example-2d.load", 2, multiphase=True),
     Case("example2d_VOF_Oldroyd",  "ns-example",     "example-2d.load", 2, multiphase=True),
