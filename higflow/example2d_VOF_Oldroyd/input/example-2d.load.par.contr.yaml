@@ -15,7 +15,7 @@ simulation_contr:
   convecdiscrtype: second_order            # central, first_order or second_order
   secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick
 
-flowphase: singlephase                    # singlephase or multiphase
+flowphase: multiphase                    # singlephase or multiphase
 
 ###########################################################################################################################   
 

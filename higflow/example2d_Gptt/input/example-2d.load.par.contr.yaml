@@ -21,11 +21,11 @@ flowphase: singlephase                    # singlephase or multiphase
 
 singlephase:
   contr:
-    flowtype: newtonian          # newtonian, generalized_newtonian, viscoelastic or viscoelastic_integral
+    flowtype: viscoelastic          # newtonian, generalized_newtonian, viscoelastic or viscoelastic_integral
     eoflow: false              # for electrosmotic flow - true or false 
   viscoelastic:
     contr:
-      model: oldroyd_b               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
+      model: gptt               # oldroyd_b, giesekus, lptt, gptt, fene_p, e_fene or user_set
       discrtype: explicit            # explicit or implicit
       convecdiscrtype: cubista       # upwind or cubista
     adimensional:

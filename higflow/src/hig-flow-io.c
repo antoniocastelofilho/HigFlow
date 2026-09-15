@@ -6976,7 +6976,7 @@ void higflow_load_controllers_and_parameters_shear_banding_yaml(higflow_solver* 
                 print0f("=+=+=+= VCM Constitutive Equation Discretization: Explicit =+=+=+=\n");
             }
             else if (strcmp(auxchar, "implicit") == 0) {
-                ns->ed.vesb.contr.nAnBconvecdiscrtype = IMPLICIT;
+                ns->ed.vesb.contr.nAnBdiscrtype = IMPLICIT;
                 print0f("=+=+=+= VCM Constitutive Equation Discretization: Implicit =+=+=+=\n");
             }
             else {

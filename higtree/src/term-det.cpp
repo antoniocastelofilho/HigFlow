@@ -96,7 +96,7 @@ send_ctrl_msg(TermDetection *td, int dest, CtrlMsgType type, unsigned value)
 	td->out_msgs.emplace_back(2 * sizeof(unsigned));
 	auto &out = td->out_msgs.back();
 
-	unsigned *out_buf = reinterpret_cast<unsigned*>(&out.buff[0]);
+	unsigned *out_buf = reinterpret_cast<unsigned*>(out.buff.data());
 	out_buf[0] = type;
 	out_buf[1] = value;
 
@@ -145,7 +145,7 @@ do_send_async(TermDetection *td, SendBuff&& msg, int dest, unsigned w)
 	td->weight -= w;
 
 	// Assign weight to the initial bytes
-	*reinterpret_cast<unsigned*>(&msg[0]) = w;
+	*reinterpret_cast<unsigned*>(msg.data()) = w;
 
 	// Add to sent list, so we can check later if the operation is done.
 	td->out_msgs.push_back(std::move(msg));
@@ -155,7 +155,7 @@ do_send_async(TermDetection *td, SendBuff&& msg, int dest, unsigned w)
 	OutgoingMsg &out = td->out_msgs.back();
 
 	// The actual send call
-	MPI_Isend(&out.buff[0], out.buff.size(), MPI_BYTE, dest, user_tag, td->comm, &out.req);
+	MPI_Isend(out.buff.data(), out.buff.size(), MPI_BYTE, dest, user_tag, td->comm, &out.req);
 }
 
 static void
@@ -260,9 +260,9 @@ single_recv_message(TermDetection *td, MPI_Status &s, int *from, int *msg_size)
 		}
 
 		*from = s.MPI_SOURCE;
-		MPI_Recv(&td->recv_buf[0], buf_size, MPI_BYTE, *from, user_tag,
+		MPI_Recv(td->recv_buf.data(), buf_size, MPI_BYTE, *from, user_tag,
 			td->comm, MPI_STATUS_IGNORE);
-		unsigned *buf_as_unsigned = reinterpret_cast<unsigned*>(&td->recv_buf[0]);
+		unsigned *buf_as_unsigned = reinterpret_cast<unsigned*>(td->recv_buf.data());
 		td->weight += *buf_as_unsigned;
 
 		*msg_size = buf_size - sizeof(unsigned);

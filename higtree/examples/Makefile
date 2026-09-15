@@ -23,7 +23,7 @@ endif
 
 STANDARDS = -std=gnu99
 
-CFLAGS+= $(shell pkg-config --cflags glib-2.0)
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 hdf5)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) #-fopenmp
 CFLAGS+=-I/usr/include/trilinos/

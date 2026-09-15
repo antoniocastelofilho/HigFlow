@@ -1,0 +1,463 @@
+#!/usr/bin/env bash
+#===============================================================================
+# install_higflow_ubuntu26
+#
+# Instala PETSc 3.14.0 + HYPRE 2.19.0 para compilar HiGTree/HiGFlow no
+# Ubuntu 26.04 (gcc 15, GNU Make 4.4, Python 3.14, OpenMPI 5).
+#
+# Baseado em install_higflow_ubuntu22. Diferencas e o PORQUE de cada uma:
+#
+#  1. Sem sudo no build do PETSc, e sem --prefix=/opt.  O build e in-place em
+#     bibliotecas/petsc-3.14.0/x86_64, que e exatamente para onde o varsrc
+#     aponta.  Evita uma arvore de arquivos root-owned dentro do projeto.
+#
+#  2. Usa o OpenMPI do sistema em vez de --download-openmpi.  O HDF5 e o Zoltan
+#     do Ubuntu sao compilados contra OpenMPI; um segundo MPI baixado pelo PETSc
+#     resultaria em dois libmpi diferentes no mesmo executavel (ABI quebrada).
+#
+#  3. Usa o OpenBLAS do sistema em vez de --download-fblaslapack.  Dispensa
+#     gfortran e evita compilar codigo f2c de 2020 com gcc 15.
+#
+#  4. --with-debugging=1 (o original tinha "--with-debubbing=yes", um typo que o
+#     PETSc ignorava silenciosamente, produzindo build otimizado sem avisar).
+#
+#  5. Aplica 4 correcoes no PETSc 3.14 (de 2020) para o toolchain atual.
+#     Cada uma esta explicada junto ao patch, mais abaixo.
+#
+# O script e idempotente: pode ser reexecutado sem estragar nada.
+#===============================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PETSC_SRC="$ROOT/bibliotecas/petsc-3.14.0"
+PETSC_ARCH_NAME=x86_64
+NPROC="$(nproc)"
+
+banner() {
+  echo '==============================================================================='
+  echo "$*"
+  echo '==============================================================================='
+}
+
+#-------------------------------------------------------------------------------
+banner 'Dependencias de sistema (apt)'
+#-------------------------------------------------------------------------------
+sudo apt update
+sudo apt -y install \
+    build-essential cmake pkg-config git autoconf automake libtool libltdl-dev \
+    libglib2.0-dev libboost-all-dev valgrind \
+    openmpi-bin libopenmpi-dev \
+    libhdf5-openmpi-dev \
+    libtrilinos-zoltan-dev \
+    libopenblas-dev \
+    libnuma-dev libyaml-dev zlib1g-dev check \
+    python3 unzip
+
+# NOTA: o script do Ubuntu 22 instalava tambem "mpich".  Nao instalamos aqui:
+# ter MPICH e OpenMPI lado a lado faz "-lmpi" resolver para um ou outro conforme
+# o update-alternatives, e um executavel com os dois aborta em tempo de execucao.
+# Se o mpich ja estiver instalado, garanta que as alternatives apontem p/ OpenMPI:
+#   sudo update-alternatives --set mpi /usr/bin/mpicc.openmpi
+if dpkg -l mpich 2>/dev/null | grep -q '^ii'; then
+  echo ">> AVISO: pacote 'mpich' presente. Conferindo update-alternatives..."
+  update-alternatives --query mpi 2>/dev/null | sed -n 's/^Value: /   mpi -> /p' || true
+fi
+
+#-------------------------------------------------------------------------------
+banner 'libfyaml'
+#-------------------------------------------------------------------------------
+if pkg-config --exists libfyaml; then
+  echo ">> libfyaml $(pkg-config --modversion libfyaml) ja instalada, pulando."
+else
+  cd "$ROOT/bibliotecas"
+  [ -d libfyaml-master ] || unzip -q libfyaml-master.zip
+  cd libfyaml-master
+  ./bootstrap.sh
+  ./configure
+  make -j"$NPROC"
+  sudo make install
+  sudo ldconfig
+fi
+
+#-------------------------------------------------------------------------------
+banner 'PETSc 3.14.0: extrair'
+#-------------------------------------------------------------------------------
+cd "$ROOT/bibliotecas"
+[ -d "$PETSC_SRC" ] || tar -xzf petsc-3.14.0.tar.gz
+cd "$PETSC_SRC"
+
+#-------------------------------------------------------------------------------
+banner 'PETSc 3.14.0: correcoes para o toolchain do Ubuntu 26'
+#-------------------------------------------------------------------------------
+
+# --- Correcao 1: modulo xdrlib -------------------------------------------------
+# O configure do PETSc importa "xdrlib", removido da stdlib no Python 3.13
+# (PEP 594).  Sem ele o configure nem inicia.  Reconstruimos o modulo (era Python
+# puro sobre struct) dentro do BuildSystem, que ja esta no sys.path do configure.
+if [ ! -f config/BuildSystem/xdrlib.py ]; then
+  echo ">> criando config/BuildSystem/xdrlib.py"
+  cat > config/BuildSystem/xdrlib.py <<'XDR_EOF'
+"""Reposicao do modulo xdrlib da stdlib (RFC 1014), removido no Python 3.13.
+
+O BuildSystem do PETSc (config/BuildSystem/RDict.py) ainda o importa.
+Adicionado para compilar o PETSc 3.14.0 com Python >= 3.13; nao faz parte do
+PETSc original.
+"""
+
+import struct
+from io import BytesIO
+from functools import wraps
+
+__all__ = ["Error", "Packer", "Unpacker", "ConversionError"]
+
+
+class Error(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __repr__(self):
+        return repr(self.msg)
+
+    def __str__(self):
+        return str(self.msg)
+
+
+class ConversionError(Error):
+    pass
+
+
+def raise_conversion_error(function):
+    @wraps(function)
+    def result(self, value):
+        try:
+            return function(self, value)
+        except struct.error as e:
+            raise ConversionError(e.args[0]) from None
+    return result
+
+
+class Packer:
+    """Pack various data representations into a buffer."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.__buf = BytesIO()
+
+    def get_buffer(self):
+        return self.__buf.getvalue()
+
+    get_buf = get_buffer
+
+    @raise_conversion_error
+    def pack_uint(self, x):
+        self.__buf.write(struct.pack('>L', x))
+
+    @raise_conversion_error
+    def pack_int(self, x):
+        self.__buf.write(struct.pack('>l', x))
+
+    pack_enum = pack_int
+
+    def pack_bool(self, x):
+        if x:
+            self.__buf.write(b'\0\0\0\1')
+        else:
+            self.__buf.write(b'\0\0\0\0')
+
+    @raise_conversion_error
+    def pack_uhyper(self, x):
+        self.__buf.write(struct.pack('>Q', x))
+
+    pack_hyper = pack_uhyper
+
+    @raise_conversion_error
+    def pack_float(self, x):
+        self.__buf.write(struct.pack('>f', x))
+
+    @raise_conversion_error
+    def pack_double(self, x):
+        self.__buf.write(struct.pack('>d', x))
+
+    def pack_fstring(self, n, s):
+        if n < 0:
+            raise ValueError('fstring size must be nonnegative')
+        data = s[:n]
+        n = ((n + 3) // 4) * 4
+        data = data + (n - len(data)) * b'\0'
+        self.__buf.write(data)
+
+    pack_fopaque = pack_fstring
+
+    def pack_string(self, s):
+        n = len(s)
+        self.pack_uint(n)
+        self.pack_fstring(n, s)
+
+    pack_opaque = pack_string
+    pack_bytes = pack_string
+
+    def pack_list(self, list, pack_item):
+        for item in list:
+            self.pack_uint(1)
+            pack_item(item)
+        self.pack_uint(0)
+
+    def pack_farray(self, n, list, pack_item):
+        if len(list) != n:
+            raise ValueError('wrong array size')
+        for item in list:
+            pack_item(item)
+
+    def pack_array(self, list, pack_item):
+        n = len(list)
+        self.pack_uint(n)
+        self.pack_farray(n, list, pack_item)
+
+
+class Unpacker:
+    """Unpacks various data representations from the given buffer."""
+
+    def __init__(self, data):
+        self.reset(data)
+
+    def reset(self, data):
+        self.__buf = data
+        self.__pos = 0
+
+    def get_position(self):
+        return self.__pos
+
+    def set_position(self, position):
+        self.__pos = position
+
+    def get_buffer(self):
+        return self.__buf
+
+    def done(self):
+        if self.__pos < len(self.__buf):
+            raise Error('unextracted data remains')
+
+    def unpack_uint(self):
+        i = self.__pos
+        self.__pos = j = i + 4
+        data = self.__buf[i:j]
+        if len(data) < 4:
+            raise EOFError
+        return struct.unpack('>L', data)[0]
+
+    def unpack_int(self):
+        i = self.__pos
+        self.__pos = j = i + 4
+        data = self.__buf[i:j]
+        if len(data) < 4:
+            raise EOFError
+        return struct.unpack('>l', data)[0]
+
+    unpack_enum = unpack_int
+
+    def unpack_bool(self):
+        return bool(self.unpack_int())
+
+    def unpack_uhyper(self):
+        hi = self.unpack_uint()
+        lo = self.unpack_uint()
+        return int(hi) << 32 | lo
+
+    def unpack_hyper(self):
+        x = self.unpack_uhyper()
+        if x >= 0x8000000000000000:
+            x = x - 0x10000000000000000
+        return x
+
+    def unpack_float(self):
+        i = self.__pos
+        self.__pos = j = i + 4
+        data = self.__buf[i:j]
+        if len(data) < 4:
+            raise EOFError
+        return struct.unpack('>f', data)[0]
+
+    def unpack_double(self):
+        i = self.__pos
+        self.__pos = j = i + 8
+        data = self.__buf[i:j]
+        if len(data) < 8:
+            raise EOFError
+        return struct.unpack('>d', data)[0]
+
+    def unpack_fstring(self, n):
+        if n < 0:
+            raise ValueError('fstring size must be nonnegative')
+        i = self.__pos
+        j = i + (n + 3) // 4 * 4
+        if j > len(self.__buf):
+            raise EOFError
+        self.__pos = j
+        return self.__buf[i:i + n]
+
+    unpack_fopaque = unpack_fstring
+
+    def unpack_string(self):
+        n = self.unpack_uint()
+        return self.unpack_fstring(n)
+
+    unpack_opaque = unpack_string
+    unpack_bytes = unpack_string
+
+    def unpack_list(self, unpack_item):
+        list = []
+        while True:
+            x = self.unpack_uint()
+            if x == 0:
+                break
+            if x != 1:
+                raise ConversionError('0 or 1 expected, got %r' % (x,))
+            item = unpack_item()
+            list.append(item)
+        return list
+
+    def unpack_farray(self, n, unpack_item):
+        list = []
+        for i in range(n):
+            list.append(unpack_item())
+        return list
+
+    def unpack_array(self, unpack_item):
+        n = self.unpack_uint()
+        return self.unpack_farray(n, unpack_item)
+XDR_EOF
+fi
+
+# --- Correcao 2: flags de C para gcc 15 ----------------------------------------
+# Os testes do configure usam uma lista fixa de flags em compilerOptions.py e
+# IGNORAM --with-cflags.  Sem ajuste, dois problemas do gcc >= 14/15 aparecem:
+#   * -Wint-conversion virou erro por padrao.  Isso faz o teste de
+#     MPI_Type_create_struct falhar (ele inicializa MPI_Datatype com {0,1}) e o
+#     PETSc entao define macros de compatibilidade MPI-1 que reescrevem os
+#     prototipos dentro do mpi.h e quebram todo o resto do configure em cascata.
+#   * C23 (padrao do gcc 15) mudou "()" para "sem parametros", quebrando codigo
+#     K&R de 2020 (ex.: hypre).  Por isso fixamos -std=gnu17.
+if ! grep -q 'fpermissive' config/BuildSystem/config/compilerOptions.py; then
+  echo ">> ajustando compilerOptions.py (-fpermissive -std=gnu17)"
+  sed -i "24s|flags.extend(\['-Wall', '-Wwrite-strings', '-Wno-strict-aliasing','-Wno-unknown-pragmas'\])|flags.extend(['-Wall', '-Wwrite-strings', '-Wno-strict-aliasing','-Wno-unknown-pragmas','-fpermissive','-std=gnu17'])|" \
+      config/BuildSystem/config/compilerOptions.py
+  grep -q 'fpermissive' config/BuildSystem/config/compilerOptions.py \
+    || { echo "ERRO: patch de compilerOptions.py falhou"; exit 1; }
+fi
+
+# --- Correcao 3: GNU Make 4.4 --------------------------------------------------
+# lib/petsc/conf/rules reinjeta $(MAKEFLAGS) dentro de MAKEFLAGS="...".  No Make
+# 4.4 essa variavel contem "w --", que o sub-make passa a interpretar como alvo:
+#   gmake[3]: *** No rule to make target 'w'.  Stop.
+if ! grep -q 'filter-out w --' lib/petsc/conf/rules; then
+  echo ">> ajustando lib/petsc/conf/rules (GNU Make 4.4)"
+  sed -i '49s|\$(MAKEFLAGS)|$(filter-out w --,$(MAKEFLAGS))|' lib/petsc/conf/rules
+  grep -q 'filter-out w --' lib/petsc/conf/rules \
+    || { echo "ERRO: patch de rules falhou"; exit 1; }
+fi
+
+# --- Correcao 4: deteccao de MPI misturado -------------------------------------
+# PetscInitialize aborta se achar "ompi_mpi_init" E "MPL_exit" carregados, por
+# assumir que o segundo so existe no MPICH.  O libmpi.so.40 do OpenMPI 5 exporta
+# os DOIS, entao a checagem da falso positivo e TODA execucao aborta.  Aqui ela
+# passa a exigir que os simbolos venham de objetos compartilhados diferentes,
+# que e o que caracteriza mistura de verdade.
+if ! grep -q 'reallymixed' src/sys/objects/pinit.c; then
+  echo ">> ajustando src/sys/objects/pinit.c (falso positivo com OpenMPI 5)"
+  python3 - <<'PY_EOF'
+p = 'src/sys/objects/pinit.c'
+s = open(p, encoding='utf-8').read()
+old = '''    PetscInt cnt = 0;
+    /* These symbols are currently in the OpenMPI and MPICH libraries; they may not always be, in that case the test will simply not detect the problem */
+    if (dlsym(RTLD_DEFAULT,"ompi_mpi_init")) cnt++;
+    if (dlsym(RTLD_DEFAULT,"MPL_exit")) cnt++;
+    if (cnt > 1) {
+      fprintf(stderr,"PETSc Error --- Application was linked against both OpenMPI and MPICH based MPI libraries and will not run correctly\\n");
+      return PETSC_ERR_MPI_LIB_INCOMP;
+    }
+'''
+new = '''    /* These symbols are currently in the OpenMPI and MPICH libraries; they may not always be, in that case the test will simply not detect the problem */
+    void *ompisym = dlsym(RTLD_DEFAULT,"ompi_mpi_init");
+    void *mpchsym = dlsym(RTLD_DEFAULT,"MPL_exit");
+    if (ompisym && mpchsym) {
+      PetscBool reallymixed = PETSC_TRUE;
+#if defined(__GLIBC__)
+      /* Open MPI >= 5 exports MPL_exit from its own libmpi, so finding both symbols is not by
+         itself a mismatch.  Only flag it when they come from two different shared objects. */
+      Dl_info ompiinfo,mpchinfo;
+      if (dladdr(ompisym,&ompiinfo) && dladdr(mpchsym,&mpchinfo) && ompiinfo.dli_fbase == mpchinfo.dli_fbase) reallymixed = PETSC_FALSE;
+#endif
+      if (reallymixed) {
+        fprintf(stderr,"PETSc Error --- Application was linked against both OpenMPI and MPICH based MPI libraries and will not run correctly\\n");
+        return PETSC_ERR_MPI_LIB_INCOMP;
+      }
+    }
+'''
+assert s.count(old) == 1, 'trecho esperado nao encontrado em pinit.c'
+open(p, 'w', encoding='utf-8').write(s.replace(old, new))
+PY_EOF
+fi
+
+#-------------------------------------------------------------------------------
+banner 'PETSc 3.14.0: configure'
+#-------------------------------------------------------------------------------
+cd "$PETSC_SRC"
+env -u PETSC_DIR -u PETSC_ARCH ./configure \
+  PETSC_ARCH="$PETSC_ARCH_NAME" \
+  --with-cc=mpicc --with-cxx=mpicxx --with-fc=0 \
+  --with-debugging=1 \
+  --with-shared-libraries=1 \
+  --download-hypre \
+  --with-blaslapack-lib=/usr/lib/x86_64-linux-gnu/libopenblas.so \
+  --with-cflags='-std=gnu17 -g -O0 -fpermissive' \
+  --with-cxxflags='-g -O0'
+
+#-------------------------------------------------------------------------------
+banner 'PETSc 3.14.0: make + check'
+#-------------------------------------------------------------------------------
+env -u PETSC_DIR -u PETSC_ARCH make PETSC_DIR="$PETSC_SRC" PETSC_ARCH="$PETSC_ARCH_NAME" all
+env -u PETSC_DIR -u PETSC_ARCH make PETSC_DIR="$PETSC_SRC" PETSC_ARCH="$PETSC_ARCH_NAME" check
+
+#-------------------------------------------------------------------------------
+banner 'HYPRE: symlink libHYPRE_krylov'
+#-------------------------------------------------------------------------------
+# Os Makefiles dos exemplos linkam -lHYPRE_krylov, nome de quando o HYPRE era
+# dividido em varias bibliotecas.  No HYPRE 2.19 tudo esta em libHYPRE.so.
+# (O script do Ubuntu 22 fazia o mesmo, com sudo, dentro de /opt.)
+ln -sfn libHYPRE.so "$PETSC_SRC/$PETSC_ARCH_NAME/lib/libHYPRE_krylov.so"
+ls -l "$PETSC_SRC/$PETSC_ARCH_NAME/lib/libHYPRE_krylov.so"
+
+#-------------------------------------------------------------------------------
+banner 'PETSc: registrar o include do MPI em petscvariables'
+#-------------------------------------------------------------------------------
+# Os Makefiles dos exemplos compilam com "gcc" puro e contam com
+# $(PETSC_CC_INCLUDES) para achar o mpi.h.  Como configuramos o PETSc com o
+# wrapper mpicc, ele nao registrou nenhum caminho de MPI ali.  Acrescentamos o
+# include do OpenMPI -- e o mesmo que --with-mpi-dir teria produzido.
+PV="$PETSC_SRC/$PETSC_ARCH_NAME/lib/petsc/conf/petscvariables"
+MPIINC="$(mpicc -show | tr ' ' '\n' | grep '^-I' | tr '\n' ' ')"
+if ! grep -q 'openmpi/include' "$PV"; then
+  sed -i "s|^PETSC_CC_INCLUDES = |PETSC_CC_INCLUDES = $MPIINC|" "$PV"
+  sed -i "s|^PETSC_CC_INCLUDES_INSTALL = |PETSC_CC_INCLUDES_INSTALL = $MPIINC|" "$PV"
+fi
+grep -E '^PETSC_CC_INCLUDES = ' "$PV"
+
+#-------------------------------------------------------------------------------
+banner 'FIM - PETSc + HYPRE instalados'
+#-------------------------------------------------------------------------------
+cat <<'FINAL_EOF'
+Para compilar o HiGTree e o HiGFlow:
+
+    cd <raiz do HigFlow>
+    source varsrc
+    (cd higtree && make clean && make DIM=2 && make DIM=3)
+    (cd higflow && make clean && make DIM=2)
+
+E para rodar um caso:
+
+    (cd higflow/example2d_Newt && make && make run)
+
+Ou simplesmente:  ./TUM_2D
+FINAL_EOF

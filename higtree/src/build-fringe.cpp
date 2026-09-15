@@ -523,7 +523,7 @@ void _fringe_builder_search_from(_FringeBuilder *fb, Rect *isect, unsigned start
 	// Dispatch all remote search works
 	for(auto &work: remote_neighbor_work) {
 		_dispatch_remote_fringe_search(fb->td, work.first, dest_proc_rank,
-			work.second.size(), &work.second[0]);
+			work.second.size(), work.second.data());
 	}
 
 	// Perform all local search works
@@ -741,8 +741,8 @@ _fringe_builder_assemble_result(_FringeBuilder *fb, unsigned *fringe_tree_count,
 			{
 				void *bufs[] = {
 					&nb->to_send_count,
-					&group_buf[0],
-					&node_buf[0]
+					group_buf.data(),
+					node_buf.data()
 				};
 				size_t sizes[] = {
 					sizeof nb->to_send_count,
@@ -811,5 +811,8 @@ _fringe_builder_assemble_result(_FringeBuilder *fb, unsigned *fringe_tree_count,
 	}
 
 	*fringe_tree_count = fb->output_buf.size();
-	return &fb->output_buf[0];
+	// .data() em vez de &output_buf[0]: indexar [0] numa vector vazia e
+	// comportamento indefinido, e a libstdc++ do Ubuntu 26 aborta na assercao.
+	// Acontece quando nenhuma arvore de franja e produzida.
+	return fb->output_buf.data();
 }

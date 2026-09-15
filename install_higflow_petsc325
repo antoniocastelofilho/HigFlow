@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+#===============================================================================
+# install_higflow_petsc325
+#
+# Instala PETSc 3.25.4 + HYPRE 3.1.0 para HiGTree/HiGFlow no Ubuntu 26.04.
+#
+# Comparado ao install_higflow_ubuntu26 (PETSc 3.14.0), este script NAO precisa
+# de nenhum patch: as quatro incompatibilidades que o 3.14 tinha com o toolchain
+# atual foram todas corrigidas upstream --
+#   1. o configure nao usa mais xdrlib nem distutils (removidos no Python 3.13/3.12);
+#      o unico "import imp" restante esta atras de "if sys.version_info < (3,12)";
+#   2. o probe de MPI_Type_create_struct usa {MPI_INT, MPI_DOUBLE} em vez de {0,1},
+#      entao nao esbarra em -Wint-conversion virando erro no gcc >= 14;
+#   3. lib/petsc/conf/rules nao reinjeta mais $(MAKEFLAGS) (bug do GNU Make 4.4);
+#   4. pinit.c nao tem mais a heuristica "ompi_mpi_init + MPL_exit", que dava
+#      falso positivo com o OpenMPI 5 e abortava toda execucao.
+#
+# As decisoes de ambiente sao as mesmas do outro script: OpenMPI e OpenBLAS do
+# sistema (para casar com HDF5/Zoltan do Ubuntu), hypre baixado pelo PETSc,
+# build in-place sem sudo.
+#
+# Idempotente: pode ser reexecutado.
+#===============================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PETSC_VER=3.25.4
+PETSC_SRC="$ROOT/bibliotecas/petsc-$PETSC_VER"
+PETSC_ARCH_NAME=x86_64
+TARBALL="petsc-$PETSC_VER.tar.gz"
+URL="https://web.cels.anl.gov/projects/petsc/download/release-snapshots/$TARBALL"
+
+banner() { echo '==============================================================================='; echo "$*"; echo '==============================================================================='; }
+
+#-------------------------------------------------------------------------------
+banner "Dependencias de sistema (apt)"
+#-------------------------------------------------------------------------------
+sudo apt update
+sudo apt -y install \
+    build-essential cmake pkg-config git autoconf automake libtool libltdl-dev \
+    libglib2.0-dev libboost-all-dev valgrind \
+    openmpi-bin libopenmpi-dev libhdf5-openmpi-dev \
+    libtrilinos-zoltan-dev libopenblas-dev \
+    libnuma-dev libyaml-dev zlib1g-dev check python3 unzip curl
+
+# Ter MPICH instalado junto com OpenMPI faz "-lmpi" resolver conforme o
+# update-alternatives; um executavel com os dois aborta em tempo de execucao.
+if dpkg -l mpich 2>/dev/null | grep -q '^ii'; then
+  echo ">> AVISO: pacote 'mpich' presente."
+  update-alternatives --query mpi 2>/dev/null | sed -n 's/^Value: /   mpi -> /p' || true
+fi
+
+#-------------------------------------------------------------------------------
+banner "libfyaml"
+#-------------------------------------------------------------------------------
+if pkg-config --exists libfyaml; then
+  echo ">> libfyaml $(pkg-config --modversion libfyaml) ja instalada, pulando."
+else
+  cd "$ROOT/bibliotecas"
+  [ -d libfyaml-master ] || unzip -q libfyaml-master.zip
+  cd libfyaml-master
+  ./bootstrap.sh && ./configure && make -j"$(nproc)" && sudo make install && sudo ldconfig
+fi
+
+#-------------------------------------------------------------------------------
+banner "PETSc $PETSC_VER: baixar e extrair"
+#-------------------------------------------------------------------------------
+cd "$ROOT/bibliotecas"
+[ -f "$TARBALL" ]   || curl -# -L -o "$TARBALL" "$URL"
+[ -d "$PETSC_SRC" ] || tar -xzf "$TARBALL"
+
+#-------------------------------------------------------------------------------
+banner "PETSc $PETSC_VER: configure (sem patches)"
+#-------------------------------------------------------------------------------
+cd "$PETSC_SRC"
+env -u PETSC_DIR -u PETSC_ARCH ./configure \
+  PETSC_ARCH="$PETSC_ARCH_NAME" \
+  --with-cc=mpicc --with-cxx=mpicxx --with-fc=0 \
+  --with-debugging=1 \
+  --with-shared-libraries=1 \
+  --download-hypre \
+  --with-blaslapack-lib=/usr/lib/x86_64-linux-gnu/libopenblas.so
+
+#-------------------------------------------------------------------------------
+banner "PETSc $PETSC_VER: make + check"
+#-------------------------------------------------------------------------------
+env -u PETSC_DIR -u PETSC_ARCH make PETSC_DIR="$PETSC_SRC" PETSC_ARCH="$PETSC_ARCH_NAME" all
+# OMPI_MCA_btl='^tcp' evita que o aviso "Unable to find reachable pairing between
+# local and remote interfaces" do OpenMPI polua a saida e faca o diff do check falhar.
+OMPI_MCA_btl='^tcp' env -u PETSC_DIR -u PETSC_ARCH \
+  make PETSC_DIR="$PETSC_SRC" PETSC_ARCH="$PETSC_ARCH_NAME" check
+
+#-------------------------------------------------------------------------------
+banner "HYPRE: symlink libHYPRE_krylov"
+#-------------------------------------------------------------------------------
+# Os Makefiles dos exemplos linkam -lHYPRE_krylov, nome de quando o HYPRE era
+# dividido em varias bibliotecas.  Hoje tudo esta em libHYPRE.so.
+ln -sfn libHYPRE.so "$PETSC_SRC/$PETSC_ARCH_NAME/lib/libHYPRE_krylov.so"
+ls -l "$PETSC_SRC/$PETSC_ARCH_NAME/lib/libHYPRE_krylov.so"
+
+#-------------------------------------------------------------------------------
+banner "PETSc: registrar o include do MPI em petscvariables"
+#-------------------------------------------------------------------------------
+# Os Makefiles dos exemplos compilam com "gcc" puro e contam com
+# $(PETSC_CC_INCLUDES) para achar o mpi.h.  Configurado via wrapper mpicc, o
+# PETSc nao registra nenhum caminho de MPI ali.
+PV="$PETSC_SRC/$PETSC_ARCH_NAME/lib/petsc/conf/petscvariables"
+MPIINC="$(mpicc -show | tr ' ' '\n' | grep '^-I' | tr '\n' ' ')"
+if ! grep -E '^PETSC_CC_INCLUDES = ' "$PV" | grep -q 'openmpi/include'; then
+  sed -i "s|^PETSC_CC_INCLUDES = |PETSC_CC_INCLUDES = $MPIINC|;s|^PETSC_CC_INCLUDES_INSTALL = |PETSC_CC_INCLUDES_INSTALL = $MPIINC|" "$PV"
+fi
+grep -E '^PETSC_CC_INCLUDES = ' "$PV"
+
+#-------------------------------------------------------------------------------
+banner "FIM - PETSc $PETSC_VER + HYPRE instalados"
+#-------------------------------------------------------------------------------
+cat <<FINAL_EOF
+O varsrc deste branch ja aponta para bibliotecas/petsc-$PETSC_VER/x86_64.
+
+    cd $ROOT
+    source varsrc
+    (cd higtree && make clean && make DIM=2 && make DIM=3)
+    (cd higflow && make clean && make DIM=2)
+    (cd higflow/example2d_Newt && make && make run)
+FINAL_EOF

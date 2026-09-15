@@ -1255,7 +1255,7 @@ real hig_flow_convective_tensor_A_term_cubista(higflow_solver *ns, distributed_p
         }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
-                else                 conv1 = vbar[dim]*kc;
+                else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
@@ -1308,7 +1308,7 @@ real hig_flow_convective_tensor_A_term_cubista(higflow_solver *ns, distributed_p
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
                 else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kc;
+                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
                 return ((conv1 - conv2)/cdelta[dim]); 
         } 
@@ -1425,7 +1425,7 @@ real hig_flow_convective_tensor_B_term_cubista(higflow_solver *ns, distributed_p
         }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
-                else                 conv1 = vbar[dim]*kc;
+                else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
@@ -1478,7 +1478,7 @@ real hig_flow_convective_tensor_B_term_cubista(higflow_solver *ns, distributed_p
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
                 else                 conv1 = vbar[dim]*kr;
                 vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
-                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kc;
+                if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
                 else                 conv2 = vbar[dim]*kc;
                 return ((conv1 - conv2)/cdelta[dim]); 
         } 

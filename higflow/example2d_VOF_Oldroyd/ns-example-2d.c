@@ -55,7 +55,7 @@ real get_tensor_multiphase(real fracvol, Point center, int i, int j, real t) {
     return get_kernel(i, 1.0, 0.0) * (i == j);
 }
 
-void calculate_m_user_multiphase(real fracvol, real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1) {
+void calculate_m_user_multiphase(real fracvol, real lambda[DIM], real jlambda[DIM],  real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1) {
     // // Calculate the matrix MM and BB for Oldroyd-B model
     // for (int i = 0; i < DIM; i++) {
     //     for (int j = i+1; j < DIM; j++) {
