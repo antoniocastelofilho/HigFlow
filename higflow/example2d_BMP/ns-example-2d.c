@@ -502,10 +502,10 @@ void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], re
 }
 
 //Calculates the error
-real Calculaerro(higflow_solver *ns, int myrank, real new, real old) {
+real Calculaerro(higflow_solver *ns, int myrank, real novo, real old) {
 
     real erro= 0.0;
-    erro = fabs((old-new)/new)*100.0;
+    erro = fabs((old-novo)/novo)*100.0;
 
     return erro;
 }
@@ -565,8 +565,8 @@ real calc_tau(higflow_solver *ns, int myrank, int i, int j, real Px, real Py) {
         // Get the velocity derivative tensor Du and the Kernel tensor
         real Du[DIM][DIM];
         // Get Du
-        Du[i][j] = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-        Du[j][i] = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpD[j][i], ns->ed.stn);
+        Du[i][j] = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
+        Du[j][i] = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpDu[j][i], ns->ed.stn);
         // Get T tensor
         real D  = 0.5*(Du[i][j]+Du[j][i]);
         real S = compute_value_at_point(sdED, P, P, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);
@@ -674,8 +674,8 @@ void print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, int np, 
                 // Get the velocity derivative tensor Du and the Kernel tensor
                 real Du[DIM][DIM];
                 // Get Du
-                Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[i][j], ns->ed.stn);
-                Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpD[j][i], ns->ed.stn);
+                Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpDu[i][j], ns->ed.stn);
+                Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpDu[j][i], ns->ed.stn);
                 // Get T tensor
                 real D  = 0.5*(Du[i][j]+Du[j][i]);
                 real S = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.vevv.dpS[i][j], ns->ed.stn);

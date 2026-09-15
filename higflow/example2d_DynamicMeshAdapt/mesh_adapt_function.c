@@ -51,7 +51,7 @@ static void build_seed_hash(SeedHash *sh, InterfaceSeedAdapt *seeds, int n,
     sh->ox = lo[0]; sh->oy = lo[1];
 
     int nb = sh->nx * sh->ny;
-    int *cnt = calloc(nb, sizeof(int));
+    int *cnt = (int *) calloc(nb, sizeof(int));
     for (int s = 0; s < n; s++) {
         int bx = (int)((seeds[s].center[0] - lo[0]) / bin_w);
         int by = (int)((seeds[s].center[1] - lo[1]) / bin_h);
@@ -59,12 +59,12 @@ static void build_seed_hash(SeedHash *sh, InterfaceSeedAdapt *seeds, int n,
         if (by < 0) by = 0; if (by >= sh->ny) by = sh->ny - 1;
         cnt[by * sh->nx + bx]++;
     }
-    sh->start = malloc((nb + 1) * sizeof(int));
+    sh->start = (int *) malloc((nb + 1) * sizeof(int));
     int offset = 0;
     for (int i = 0; i < nb; i++) { sh->start[i] = offset; offset += cnt[i]; }
     sh->start[nb] = offset;
-    sh->seeds = malloc(n * sizeof(int));
-    int *pos = malloc(nb * sizeof(int));
+    sh->seeds = (int *) malloc(n * sizeof(int));
+    int *pos = (int *) malloc(nb * sizeof(int));
     memcpy(pos, sh->start, nb * sizeof(int));
     for (int s = 0; s < n; s++) {
         int bx = (int)((seeds[s].center[0] - lo[0]) / bin_w);
@@ -115,7 +115,7 @@ static InterfaceSeedAdapt *collect_interface_seeds_local(
 
     int seed_cap = 1000;
     int seed_count = 0;
-    InterfaceSeedAdapt *seeds = malloc(seed_cap * sizeof(*seeds));
+    InterfaceSeedAdapt *seeds = (InterfaceSeedAdapt *) malloc(seed_cap * sizeof(*seeds));
 
     higcit_celliterator *it = sd_get_domain_celliterator(sdm);
     while (!higcit_isfinished(it)) {
@@ -139,7 +139,7 @@ static InterfaceSeedAdapt *collect_interface_seeds_local(
         if (val > 0.001 && val < 0.999) {
             if (seed_count >= seed_cap) {
                 seed_cap *= 2;
-                seeds = realloc(seeds, seed_cap * sizeof(*seeds));
+                seeds = (InterfaceSeedAdapt *) realloc(seeds, seed_cap * sizeof(*seeds));
             }
             hig_get_center(c, seeds[seed_count].center);
             seed_count++;
@@ -163,8 +163,8 @@ static InterfaceSeedAdapt *gather_seeds_mpi(InterfaceSeedAdapt *local,
     int ntasks;
     MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
 
-    int *counts = malloc(ntasks * sizeof(int));
-    int *disps  = malloc(ntasks * sizeof(int));
+    int *counts = (int *) malloc(ntasks * sizeof(int));
+    int *disps  = (int *) malloc(ntasks * sizeof(int));
     MPI_Allgather(&local_count, 1, MPI_INT, counts, 1, MPI_INT,
                   MPI_COMM_WORLD);
 
@@ -177,10 +177,10 @@ static InterfaceSeedAdapt *gather_seeds_mpi(InterfaceSeedAdapt *local,
 
     InterfaceSeedAdapt *global = NULL;
     if (total > 0) {
-        global = malloc(total * sizeof(*global));
+        global = (InterfaceSeedAdapt *) malloc(total * sizeof(*global));
         int sz = (int)sizeof(InterfaceSeedAdapt);
-        int *byte_counts = malloc(ntasks * sizeof(int));
-        int *byte_disps  = malloc(ntasks * sizeof(int));
+        int *byte_counts = (int *) malloc(ntasks * sizeof(int));
+        int *byte_disps  = (int *) malloc(ntasks * sizeof(int));
         for (int r = 0; r < ntasks; r++) {
             byte_counts[r] = counts[r] * sz;
             byte_disps[r]  = disps[r] * sz;
@@ -245,7 +245,7 @@ static void adapt_tree_with_seeds(real *thresholds, hig_cell *root,
     if (seed_count > 0 && num_levels > 0) {
         for (int pass = 0; pass < num_levels + 1; pass++) {
             int refine_count = 0;
-            hig_cell **to_refine = malloc(refine_cap * sizeof(hig_cell*));
+            hig_cell **to_refine = (hig_cell * *) malloc(refine_cap * sizeof(hig_cell*));
             g_hash_table_remove_all(ref_set);
 
             higcit_celliterator *it_bb =
@@ -269,7 +269,7 @@ static void adapt_tree_with_seeds(real *thresholds, hig_cell *root,
                             !g_hash_table_contains(ref_set, neigh)) {
                             if (refine_count >= refine_cap) {
                                 refine_cap *= 2;
-                                to_refine = realloc(to_refine,
+                                to_refine = (hig_cell * *) realloc(to_refine,
                                     refine_cap * sizeof(hig_cell*));
                             }
                             to_refine[refine_count++] = neigh;
@@ -298,7 +298,7 @@ static void adapt_tree_with_seeds(real *thresholds, hig_cell *root,
         for (int pass = 0; pass < 4; pass++) {
             int merge_count = 0;
             hig_cell **parents_to_merge =
-                malloc(merge_cap * sizeof(hig_cell*));
+                (hig_cell **) malloc(merge_cap * sizeof(hig_cell*));
 
             higcit_celliterator *it_all =
                 higcit_create_all_higtree(root);
@@ -331,7 +331,7 @@ static void adapt_tree_with_seeds(real *thresholds, hig_cell *root,
                         if (safe) {
                             if (merge_count >= merge_cap) {
                                 merge_cap *= 2;
-                                parents_to_merge = realloc(
+                                parents_to_merge = (hig_cell * *) realloc(
                                     parents_to_merge,
                                     merge_cap * sizeof(hig_cell*));
                             }

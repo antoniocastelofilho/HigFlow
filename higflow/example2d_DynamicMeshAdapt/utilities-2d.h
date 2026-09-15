@@ -413,7 +413,7 @@ void get_nameres(char **source, char *destination);
 void write_residuals(sim_residuals *sim_res, char *nameres, real dt, int step, int myrank);*/
 
 long int get_current_mem_usage();
-void write_mem_usage(higflow_solver *ns, char *brief_desc);
+void write_mem_usage(higflow_solver *ns, const char *brief_desc);
 
 real solve_un_u(visc_model_type visc_model, physical_parameters *p_par);
 real calc_u_ptt_fene(visc_model_type visc_model, physical_parameters *p_par, real y);

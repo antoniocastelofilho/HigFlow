@@ -240,8 +240,8 @@ real print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, real yf,
             // Get the velocity derivative tensor Du and the Kernel tensor
             real Du[DIM][DIM];
             // Get Du
-            Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
-            Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.im.dpD[j][i], ns->ed.stn);
+            Du[i][j] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.im.dpDu[i][j], ns->ed.stn);
+            Du[j][i] = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.im.dpDu[j][i], ns->ed.stn);
             // Get T tensor
             real D  = (Du[i][j]+Du[j][i]);
             real S = compute_value_at_point(ns->ed.sdED, P, P, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);

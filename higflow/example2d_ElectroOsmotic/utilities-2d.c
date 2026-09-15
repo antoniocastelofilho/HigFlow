@@ -91,7 +91,7 @@ physical_quantity sqrt_pq(physical_quantity a) {
     if(a.unit.kg % 2 == 0 && a.unit.m % 2 == 0 && a.unit.s % 2 == 0 && a.unit.K % 2 == 0 && a.unit.mol % 2 == 0 && a.unit.A % 2 == 0 && a.unit.cd % 2 == 0) {
         physical_quantity c;
         c.val = sqrt(a.val);
-        c.unit = (dimensional_unit) {a.unit.kg/2, a.unit.m/2, a.unit.s/2, a.unit.K/2, a.unit.mol/2, a.unit.A/2, a.unit.cd/2};
+        c.unit = (dimensional_unit) {(char)(a.unit.kg/2), (char)(a.unit.m/2), (char)(a.unit.s/2), (char)(a.unit.K/2), (char)(a.unit.mol/2), (char)(a.unit.A/2), (char)(a.unit.cd/2)};
         return c;
     }
     printf("Error: sqrt_pq: units are not even");
@@ -172,9 +172,9 @@ bool get_lengths(physical_parameters *p_par, char *nameload) {
 		int status = fscanf(fd, "%lf", &l[dim]);
 		status = fscanf(fd, "%lf", &h[dim]);
         p_par->center[dim].val = (h[dim] + l[dim])/2.0;
-        p_par->center[dim].unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->center[dim].unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->L[dim].val = h[dim] - l[dim];
-        p_par->L[dim].unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->L[dim].unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->L_physical[dim] = mult_pq(p_par->L[dim], p_par->H);
 	}
     // Close the AMR format file
@@ -219,9 +219,9 @@ bool get_lengths_yaml(physical_parameters *p_par, char *nameload) {
 		int status = fscanf(fd, "%lf", &l[dim]);
 		status = fscanf(fd, "%lf", &h[dim]);
         p_par->center[dim].val = (h[dim] + l[dim])/2.0;
-        p_par->center[dim].unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->center[dim].unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->L[dim].val = h[dim] - l[dim];
-        p_par->L[dim].unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->L[dim].unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->L_physical[dim] = mult_pq(p_par->L[dim], p_par->H);
 	}
     // Close the AMR format file
@@ -243,35 +243,35 @@ int myrank) {
 
     // density of water
     p_par->rho_ref.val = 1000.0;
-    p_par->rho_ref.unit = (dimensional_unit) {1, -3, 0, 0, 0, 0, 0};
+    p_par->rho_ref.unit = (dimensional_unit) {(char)(1), (char)(-3), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
     // reference length of 10 micrometers - a fairly usual height for a microfluidic channel
     p_par->H.val = 1.0e-5;
-    p_par->H.unit = (dimensional_unit) {0, 1, 0, 0, 0, 0, 0};
+    p_par->H.unit = (dimensional_unit) {(char)(0), (char)(1), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
     // approximate viscosity of water
     p_par->mu_ref.val = 1.0e-3;
-    p_par->mu_ref.unit = (dimensional_unit) {1, -1, -1, 0, 0, 0, 0};
+    p_par->mu_ref.unit = (dimensional_unit) {(char)(1), (char)(-1), (char)(-1), (char)(0), (char)(0), (char)(0), (char)(0)};
     // dynamic viscosity
     p_par->nu = div_pq(p_par->mu_ref, p_par->rho_ref);
     // obtain reynolds number from higflow parameters
     p_par->Re.val = hig_par.Re;
-    p_par->Re.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+    p_par->Re.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
     // compute characteristic velocity from reynolds number
     p_par->U = div_pq (p_par->Re , div_pq ( mult_pq(p_par->rho_ref, p_par->H), p_par->mu_ref ) );
     // get time step
     p_par->dt.val = hig_par.dt;
-    p_par->dt.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+    p_par->dt.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
     // compute characteristic time
     p_par->tau_time.val = p_par->H.val / p_par->U.val;
-    p_par->tau_time.unit = (dimensional_unit) {0, 0, 1, 0, 0, 0, 0};
+    p_par->tau_time.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(1), (char)(0), (char)(0), (char)(0), (char)(0)};
     // real time step
     p_par->dt_physical = mult_pq(p_par->dt, p_par->tau_time);
     // gravitational acceleration
     p_par->g.val = 9.80665;
-    p_par->g.unit = (dimensional_unit) {0, 1, -2, 0, 0, 0, 0};
+    p_par->g.unit = (dimensional_unit) {(char)(0), (char)(1), (char)(-2), (char)(0), (char)(0), (char)(0), (char)(0)};
     if(hig_contr.add_gravity ==  true) {
         // compute Froude number
         p_par->Fr.val = hig_par.Fr;
-        p_par->Fr.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->Fr.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
     }
 
     bool is_domain_cuboid = get_lengths_yaml(p_par, hig_par.nameload);
@@ -333,39 +333,39 @@ int myrank) {
         print0f("\n+=+=+= Electroosmotic parameters +=+=+=\n");
         // elementary charge of the electron = 1.602176634e-19 C = 9.64853321233100184 C/mol
         p_par->e.val = 96485.3321233100184;
-        p_par->e.unit = (dimensional_unit) {0, 0, 1, 0, -1, 1, 0};
+        p_par->e.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(1), (char)(0), (char)(-1), (char)(1), (char)(0)};
         // assuming monovalent ionic solute
         p_par->Z.val = 1.0;
-        p_par->Z.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->Z.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // permittivity of free space
         p_par->epsilon_0.val = 8.8541878128e-12;
-        p_par->epsilon_0.unit = (dimensional_unit) {-1, -3, 4, 0, 0, 2, 0};
+        p_par->epsilon_0.unit = (dimensional_unit) {(char)(-1), (char)(-3), (char)(4), (char)(0), (char)(0), (char)(2), (char)(0)};
         // relative permittivity of water around normal temperatures
         p_par->epsilon_r.val = 80.1;
-        p_par->epsilon_r.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->epsilon_r.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // permittivity of water around normal temperatures
         p_par->epsilon_e = mult_pq(p_par->epsilon_0, p_par->epsilon_r);
         if(eo_contr.eo_model == PNP) {
             // obtain Péclet number
             p_par->Pe.val = eo_par.Pe;
-            p_par->Pe.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->Pe.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // compute diffusivity using Péclet number
             p_par->D = div_pq (mult_pq (p_par->Re, p_par->nu), p_par->Pe);
         }
         // boltzmann constant = 1.380649e-23 J/K  =  8.31446261815324 J/(mol K)
         p_par->k_B.val = 8.31446261815324;
-        p_par->k_B.unit = (dimensional_unit) {1, 2, -2, -1, -1, 0, 0};
+        p_par->k_B.unit = (dimensional_unit) {(char)(1), (char)(2), (char)(-2), (char)(-1), (char)(-1), (char)(0), (char)(0)};
         // get alpha
         p_par->alpha_eo.val = eo_par.alpha;
-        p_par->alpha_eo.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->alpha_eo.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // temperature
         p_par->T.val = 298;
-        p_par->T.unit = (dimensional_unit) {0, 0, 0, 1, 0, 0, 0};
+        p_par->T.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(1), (char)(0), (char)(0), (char)(0)};
         // reference potential calculated from alpha = zeta_ref e Z / (k_B T)
         p_par->zeta_ref = div_pq(mult_pq(p_par->alpha_eo, mult_pq(p_par->k_B, p_par->T)), mult_pq(p_par->e, p_par->Z));
         // get delta
         p_par->delta_eo.val = eo_par.delta;
-        p_par->delta_eo.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->delta_eo.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // determine reference concentration from delta = n_0 H^2 e z/ (ep_e zeta_ref)
         p_par->n_ref = div_pq(mult_pq(p_par->delta_eo, mult_pq(p_par->epsilon_e, p_par->zeta_ref)), mult_pq(mult_pq(p_par->H, p_par->H), mult_pq(p_par->e, p_par->Z)) );
         // get Debye number kappa = sqrt(2 alpha delta)
@@ -374,13 +374,13 @@ int myrank) {
         p_par->lambda_D = div_pq(p_par->H, p_par->kappa_eo);
         // get potential difference for every unit of reference length
         p_par->Ex.val = eo_par.Ex;
-        p_par->Ex.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->Ex.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // compute real potential difference per unit of length
         p_par->Ex_physical = div_pq(mult_pq(p_par->Ex, p_par->zeta_ref), p_par->H);
         // get physical Helmholtz-Smoluchowski velocity (ep_e zeta_ref / mu) * E
         p_par->u_hs_physical = mult_pq (div_pq(mult_pq(p_par->zeta_ref, p_par->epsilon_e), p_par->mu_ref), p_par->Ex_physical);
         // compute conversion factor between eletro-osmotic and momentum systems
-        physical_quantity one = (physical_quantity) {1.0, (dimensional_unit) {0, 0, 0, 0, 0, 0, 0}};
+        physical_quantity one = (physical_quantity) {1.0, (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)}};
         p_par->G_x = div_pq(one, mult_pq(p_par->Ex, p_par->Re));
         
         if(myrank == 0) {
@@ -452,12 +452,12 @@ int myrank) {
         print0f("\n+=+=+= Viscoelastic parameters +=+=+=\n");
         // get Deborah number
         p_par->De.val = ve_par.De;
-        p_par->De.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->De.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // find relaxation time using Deborah number (De = lambda U / H)
         p_par->lambda_time = mult_pq(p_par->De, div_pq(p_par->H, p_par->U));
         // get beta
         p_par->beta.val = ve_par.beta;
-        p_par->beta.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->beta.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // find viscosity of solvent using beta
         p_par->mu_s = mult_pq(p_par->mu_ref, p_par->beta);
         // find polymeric viscosity (mu = mu_p + mu_s)
@@ -466,31 +466,31 @@ int myrank) {
         p_par->K_s = div_pq(p_par->mu_p, p_par->lambda_time);
         // get Giesekus alpha
         p_par->alpha_giesekus.val = ve_par.alpha;
-        p_par->alpha_giesekus.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->alpha_giesekus.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get PTT epsilon
         p_par->epsilon_ptt.val = ve_par.epsilon;
-        p_par->epsilon_ptt.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->epsilon_ptt.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get PTT xi
         p_par->xi_ptt.val = ve_par.xi;
-        p_par->xi_ptt.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->xi_ptt.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get gptt alpha
         p_par->alpha_gptt.val = ve_par.alpha;
-        p_par->alpha_gptt.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->alpha_gptt.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get gptt beta
         p_par->beta_gptt.val = ve_par.beta;
-        p_par->beta_gptt.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->beta_gptt.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get fene L^2
         p_par->L2_fene.val = ve_par.L2_fene;
-        p_par->L2_fene.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->L2_fene.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get e-fene lambda
         p_par->lambda_fene.val = ve_par.lambda_fene;
-        p_par->lambda_fene.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->lambda_fene.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // get e-fene E
         p_par->E_fene.val = ve_par.E_fene;
-        p_par->E_fene.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->E_fene.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         // compute steady state fully developed newtonian velocity normalized by flow rate
         p_par->Un_U.val = solve_un_u(ve_contr.model, p_par);
-        p_par->Un_U.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->Un_U.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
 
         if(myrank == 0) {
             // print all physical parameters
@@ -546,7 +546,7 @@ int myrank) {
         if(mult_contr.add_surface_tension == true) {
             // Capillary number
             p_par->Ca.val = mult_spar.Ca;
-            p_par->Ca.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->Ca.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // interfacial tension coefficient
             p_par->sigma = div_pq(mult_pq(p_par->mu_ref,p_par->U), p_par->Ca);
             // Bond number
@@ -573,16 +573,16 @@ int myrank) {
 
         }
         // reference density given by user in phase 0
-        p_par->rho0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->rho0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->rho0.val = mult_par0.rho;
         // reference density given by user in phase 1
-        p_par->rho1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->rho1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->rho1.val = mult_par1.rho;
         // reference viscosity given by user in phase 0
-        p_par->mu0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->mu0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->mu0.val = mult_par0.mu;
         // reference viscosity given by user in phase 1
-        p_par->mu1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+        p_par->mu1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
         p_par->mu1.val = mult_par1.mu;
 
         if(myrank == 0) {
@@ -605,17 +605,17 @@ int myrank) {
         if(mult_contr.viscoelastic_either == true)  {
             // get Deborah number
             p_par->De0.val = mult_ve_par0.De;
-            p_par->De0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->De0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->De1.val = mult_ve_par1.De;
-            p_par->De1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->De1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // find relaxation time using Deborah number (De = lambda U / H)
             p_par->lambda_time0 = mult_pq(p_par->De0, div_pq(p_par->H, p_par->U));
             p_par->lambda_time1 = mult_pq(p_par->De1, div_pq(p_par->H, p_par->U));
             // get beta
             p_par->beta0.val = mult_ve_par0.beta;
-            p_par->beta0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->beta0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->beta1.val = mult_ve_par1.beta;
-            p_par->beta1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->beta1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // find viscosity of solvent using beta
             p_par->mu_s0 = mult_pq(p_par->mu_ref, p_par->beta0);
             p_par->mu_s1 = mult_pq(p_par->mu_ref, p_par->beta1);
@@ -624,55 +624,55 @@ int myrank) {
             p_par->mu_p1 = sub_pq(p_par->mu_ref, p_par->mu_s1);
             // find spring constant (lambda = K_s/mu_p)
             if(FLT_EQ(p_par->lambda_time0.val,0.0)){
-                p_par->K_s0.unit = (dimensional_unit) {1, -1, -2, 0, 0, 0, 0};
+                p_par->K_s0.unit = (dimensional_unit) {(char)(1), (char)(-1), (char)(-2), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->K_s0.val = 0.0;
             }
             else p_par->K_s0 = div_pq(p_par->mu_p0, p_par->lambda_time0);
             if(FLT_EQ(p_par->lambda_time1.val,0.0)){
-                p_par->K_s1.unit = (dimensional_unit) {1, -1, -2, 0, 0, 0, 0};
+                p_par->K_s1.unit = (dimensional_unit) {(char)(1), (char)(-1), (char)(-2), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->K_s1.val = 0.0;
             }
             else p_par->K_s1 = div_pq(p_par->mu_p1, p_par->lambda_time1);
             // get Giesekus alpha
             p_par->alpha_giesekus0.val = mult_ve_par0.alpha;
-            p_par->alpha_giesekus0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->alpha_giesekus0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->alpha_giesekus1.val = mult_ve_par1.alpha;
-            p_par->alpha_giesekus1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->alpha_giesekus1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get PTT epsilon
             p_par->epsilon_ptt0.val = mult_ve_par0.epsilon;
-            p_par->epsilon_ptt0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->epsilon_ptt0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->epsilon_ptt1.val = mult_ve_par1.epsilon;
-            p_par->epsilon_ptt1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->epsilon_ptt1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get PTT xi
             p_par->xi_ptt0.val = mult_ve_par0.xi;
-            p_par->xi_ptt0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->xi_ptt0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->xi_ptt1.val = mult_ve_par1.xi;
-            p_par->xi_ptt1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->xi_ptt1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get gptt alpha
             p_par->alpha_gptt0.val = mult_ve_par0.alpha;
-            p_par->alpha_gptt0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->alpha_gptt0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->alpha_gptt1.val = mult_ve_par1.alpha;
-            p_par->alpha_gptt1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->alpha_gptt1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get gptt beta
             p_par->beta_gptt0.val = mult_ve_par0.beta;
-            p_par->beta_gptt0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->beta_gptt0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->beta_gptt1.val = mult_ve_par1.beta;
-            p_par->beta_gptt1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->beta_gptt1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get fene L^2
             p_par->L2_fene0.val = mult_ve_par0.L2_fene;
-            p_par->L2_fene0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->L2_fene0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->L2_fene1.val = mult_ve_par1.L2_fene;
-            p_par->L2_fene1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->L2_fene1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get e-fene lambda
             p_par->lambda_fene0.val = mult_ve_par0.lambda_fene;
-            p_par->lambda_fene0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->lambda_fene0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->lambda_fene1.val = mult_ve_par1.lambda_fene;
-            p_par->lambda_fene1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->lambda_fene1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // get e-fene E
             p_par->E_fene0.val = mult_ve_par0.E_fene;
-            p_par->E_fene0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->E_fene0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->E_fene1.val = mult_ve_par1.E_fene;
-            p_par->E_fene1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->E_fene1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             
             if(myrank == 0) {
 
@@ -777,22 +777,22 @@ int myrank) {
             print0f("\n+=+=+= Multiphase Electroosmotic parameters +=+=+=\n");
             // elementary charge of the electron = 1.602176634e-19 C = 9.64853321233100184 C/mol
             p_par->e.val = 96485.3321233100184;
-            p_par->e.unit = (dimensional_unit) {0, 0, 1, 0, -1, 1, 0};
+            p_par->e.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(1), (char)(0), (char)(-1), (char)(1), (char)(0)};
             // assuming monovalent ionic solute
             p_par->Z.val = 1.0;
-            p_par->Z.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->Z.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // permittivity of free space
             p_par->epsilon_0.val = 8.8541878128e-12;
-            p_par->epsilon_0.unit = (dimensional_unit) {-1, -3, 4, 0, 0, 2, 0};
+            p_par->epsilon_0.unit = (dimensional_unit) {(char)(-1), (char)(-3), (char)(4), (char)(0), (char)(0), (char)(2), (char)(0)};
             // relative permittivity of water around normal temperatures
             p_par->epsilon_r.val = 80.1;
-            p_par->epsilon_r.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->epsilon_r.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // reference relative adimensional permittivity given by the user in phase 0
-            p_par->perm0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->perm0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->perm0.val = mult_eo_par0.perm;
             p_par->epsilon_r0 = mult_pq(p_par->epsilon_r, p_par->perm0);
             // reference relative adimensional permittivity given by the user in phase 1
-            p_par->perm1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->perm1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->perm1.val = mult_eo_par1.perm;
             p_par->epsilon_r1 = mult_pq(p_par->epsilon_r, p_par->perm1);
             // permittivity of water around normal temperatures
@@ -800,40 +800,40 @@ int myrank) {
             if(mult_eo_contr.eo_model == PNP) {
                 // obtain Péclet number
                 p_par->Pe0.val = mult_eo_par0.Pe;
-                p_par->Pe0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+                p_par->Pe0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->Pe1.val = mult_eo_par1.Pe;
-                p_par->Pe1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+                p_par->Pe1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
                 // compute diffusivity using Péclet number
                 if(FLT_EQ(p_par->Pe0.val,0.0)){
-                    p_par->D0.unit = (dimensional_unit) {0, 2, 1, 0, 0, 0, 0};
+                    p_par->D0.unit = (dimensional_unit) {(char)(0), (char)(2), (char)(1), (char)(0), (char)(0), (char)(0), (char)(0)};
                     p_par->D0.val = 0.0;
                 }
                 else p_par->D0 = div_pq (mult_pq (p_par->Re, p_par->nu), p_par->Pe0);
                 if(FLT_EQ(p_par->Pe1.val,0.0)){
-                p_par->D1.unit = (dimensional_unit) {0, 2, 1, 0, 0, 0, 0};
+                p_par->D1.unit = (dimensional_unit) {(char)(0), (char)(2), (char)(1), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->D1.val = 0.0;
                 }
                 else p_par->D1 = div_pq (mult_pq (p_par->Re, p_par->nu), p_par->Pe1);
             }
             // boltzmann constant = 1.380649e-23 J/K  =  8.31446261815324 J/(mol K)
             p_par->k_B.val = 8.31446261815324;
-            p_par->k_B.unit = (dimensional_unit) {1, 2, -2, -1, -1, 0, 0};
+            p_par->k_B.unit = (dimensional_unit) {(char)(1), (char)(2), (char)(-2), (char)(-1), (char)(-1), (char)(0), (char)(0)};
             // get alpha
             p_par->alpha_eo0.val = mult_eo_par0.alpha;
-            p_par->alpha_eo0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->alpha_eo0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->alpha_eo1.val = mult_eo_par1.alpha;
-            p_par->alpha_eo1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->alpha_eo1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // temperature
             p_par->T.val = 298;
-            p_par->T.unit = (dimensional_unit) {0, 0, 0, 1, 0, 0, 0};
+            p_par->T.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(1), (char)(0), (char)(0), (char)(0)};
             // reference potential calculated from alpha = zeta_ref e Z / (k_B T)
             p_par->zeta_ref0 = div_pq(mult_pq(p_par->alpha_eo0, mult_pq(p_par->k_B, p_par->T)), mult_pq(p_par->e, p_par->Z));
             p_par->zeta_ref1 = div_pq(mult_pq(p_par->alpha_eo1, mult_pq(p_par->k_B, p_par->T)), mult_pq(p_par->e, p_par->Z));
             // get delta
             p_par->delta_eo0.val = mult_eo_par0.delta;
-            p_par->delta_eo0.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->delta_eo0.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->delta_eo1.val = mult_eo_par1.delta;
-            p_par->delta_eo1.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->delta_eo1.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // determine reference concentration from delta = n_0 H^2 e z/ (ep_e zeta_ref)
             p_par->n_ref0 = div_pq(mult_pq(p_par->delta_eo0, mult_pq(p_par->epsilon_e, p_par->zeta_ref0)), mult_pq(mult_pq(p_par->H, p_par->H), mult_pq(p_par->e, p_par->Z)) );
             p_par->n_ref1 = div_pq(mult_pq(p_par->delta_eo1, mult_pq(p_par->epsilon_e, p_par->zeta_ref1)), mult_pq(mult_pq(p_par->H, p_par->H), mult_pq(p_par->e, p_par->Z)) );
@@ -842,20 +842,20 @@ int myrank) {
             p_par->kappa_eo1 = sqrt_pq( mult_scalar_pq(2.0, mult_pq(p_par->alpha_eo1, p_par->delta_eo1)) );
             // Debye length
             if(FLT_EQ(p_par->kappa_eo0.val,0.0)){
-                p_par->lambda_D0.unit = (dimensional_unit) {0, 1, 0, 0, 0, 0, 0};
+                p_par->lambda_D0.unit = (dimensional_unit) {(char)(0), (char)(1), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->lambda_D0.val = 0.0;
             }
             else p_par->lambda_D0 = div_pq(p_par->H, p_par->kappa_eo0);
             if(FLT_EQ(p_par->kappa_eo1.val,0.0)){
-                p_par->lambda_D1.unit = (dimensional_unit) {0, 1, 0, 0, 0, 0, 0};
+                p_par->lambda_D1.unit = (dimensional_unit) {(char)(0), (char)(1), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->lambda_D1.val = 0.0;
             }
             else p_par->lambda_D1 = div_pq(p_par->H, p_par->kappa_eo1);
             // get potential difference for every unit of reference length
             p_par->Ex0.val = mult_eo_par0.Ex;
-            p_par->Ex.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->Ex.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             p_par->Ex1.val = mult_eo_par1.Ex;
-            p_par->Ex.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+            p_par->Ex.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
             // compute real potential difference per unit of length
             p_par->Ex_physical0 = div_pq(mult_pq(p_par->Ex0, p_par->zeta_ref0), p_par->H);
             p_par->Ex_physical1 = div_pq(mult_pq(p_par->Ex1, p_par->zeta_ref1), p_par->H);
@@ -863,14 +863,14 @@ int myrank) {
             p_par->u_hs_physical0 = mult_pq (div_pq(mult_pq(p_par->zeta_ref0, p_par->epsilon_e), p_par->mu_ref), p_par->Ex_physical0);
             p_par->u_hs_physical1 = mult_pq (div_pq(mult_pq(p_par->zeta_ref1, p_par->epsilon_e), p_par->mu_ref), p_par->Ex_physical1);
             // compute conversion factor between eletro-osmotic and momentum systems
-            physical_quantity one = (physical_quantity) {1.0, (dimensional_unit) {0, 0, 0, 0, 0, 0, 0}};
+            physical_quantity one = (physical_quantity) {1.0, (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)}};
             if(FLT_EQ(p_par->Ex0.val,0.0)){
-                p_par->G_x.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+                p_par->G_x.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->G_x.val = 0.0;
             }
             else p_par->G_x = div_pq(one, mult_pq(p_par->Ex0, p_par->Re));
             if(FLT_EQ(p_par->Ex1.val,0.0)){
-                p_par->G_x.unit = (dimensional_unit) {0, 0, 0, 0, 0, 0, 0};
+                p_par->G_x.unit = (dimensional_unit) {(char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0), (char)(0)};
                 p_par->G_x.val = 0.0;
             }
             else p_par->G_x = div_pq(one, mult_pq(p_par->Ex1, p_par->Re));
@@ -1499,7 +1499,7 @@ void get_namemem(char **source, char *destination) {
     strcat(destination, "/mem.txt");
 }
 
-void write_mem_usage(higflow_solver *ns, char *brief_desc) {
+void write_mem_usage(higflow_solver *ns, const char *brief_desc) {
     
     long int usage = get_current_mem_usage();
     int myrank;
@@ -1831,7 +1831,7 @@ void solve_psi_in(real *psi_in, physical_parameters *p_par, int npoints) {
         PetscInt       maxit,maxf;
         PetscReal      abstol,rtol,stol;
         SNESGetTolerances(snes,&abstol,&rtol,&stol,&maxit,&maxf);
-        PetscPrintf(PETSC_COMM_WORLD,"atol=%g, rtol=%g, stol=%g, maxit=%D, maxf=%D\n",(double)abstol,(double)rtol,(double)stol,maxit,maxf);
+        PetscPrintf(PETSC_COMM_WORLD,"atol=%g, rtol=%g, stol=%g, maxit=%" PetscInt_FMT ", maxf=%" PetscInt_FMT "\n",(double)abstol,(double)rtol,(double)stol,maxit,maxf);
     }
     SNESSolve(snes, NULL, psi_sol);
 
@@ -1849,11 +1849,11 @@ void solve_psi_in(real *psi_in, physical_parameters *p_par, int npoints) {
 
         PetscInt       its;
         SNESGetIterationNumber(snes,&its);
-        PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %D\n",its);
+        PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %" PetscInt_FMT "\n",its);
 
         SNESConvergedReason reason;
         SNESGetConvergedReason(snes,&reason);
-        PetscPrintf(PETSC_COMM_WORLD,"Converged reason = %D\n",reason);
+        PetscPrintf(PETSC_COMM_WORLD,"Converged reason = %" PetscInt_FMT "\n",reason);
 
         /*FILE *fpsi = fopen("psi.dat", "w");
         for(int i=0; i<npoints; i++) {

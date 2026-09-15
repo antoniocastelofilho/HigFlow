@@ -154,6 +154,7 @@ real square_case_13(Point center, Point delta, Point p0, Point p1, Point p2, Poi
 			return value;
 		}
 	}
+	return value;
 }
 
 real square_case_22(Point center, Point delta, Point p0, Point p1, Point p2, Point p3, real f0, real f1, real f2, real f3){
