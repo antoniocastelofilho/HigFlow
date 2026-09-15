@@ -12,7 +12,7 @@ static guint hash_func(gconstpointer key)
 	static const unsigned iters = DIM * 8 / sizeof(guint);
 	assert(8 % sizeof(guint) == 0);
 
-	const guint *p = key;
+	const guint *p = (const guint *) key;
 
 	guint hash = p[0];
 	for(unsigned dim = 1; dim < iters; ++dim)
@@ -24,8 +24,8 @@ static guint hash_func(gconstpointer key)
 
 static gboolean key_equal_func(gconstpointer a, gconstpointer b)
 {
-	const int64_t *va = a;
-	const int64_t *vb = b;
+	const int64_t *va = (const int64_t *) a;
+	const int64_t *vb = (const int64_t *) b;
 
 	for(unsigned dim = 0; dim < DIM; ++dim) {
 		if(va[dim] != vb[dim]) {

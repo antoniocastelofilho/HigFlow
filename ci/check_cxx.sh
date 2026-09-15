@@ -33,7 +33,27 @@ mapfile -t MODULOS < <(
     | grep -vE '^$|MODULES|='
 )
 
+# Modulos do higtree, lidos do Makefile dele pelo mesmo motivo.
+mapfile -t HT < <(
+  awk '/^MODULES/,0' "$RAIZ/higtree/Makefile" \
+    | awk '/^$/{exit} {print}' | tr -d '\\' | tr -s ' \t' '\n' \
+    | grep -vE '^$|MODULES|='
+)
+
 falhas=0
+for m in "${HT[@]}"; do
+  f="$RAIZ/higtree/src/$m.c"
+  [ -f "$f" ] || continue
+  saida=$(g++ -DDIM="$DIM" -std=gnu++17 -fsyntax-only -w -x c++ \
+              "${INCLUDES[@]}" "$f" 2>&1)
+  n=$(grep -c 'error:' <<<"$saida")
+  if [ "$n" -ne 0 ]; then
+    printf '%-46s %d erro(s)\n' "$m.c" "$n"
+    grep 'error:' <<<"$saida" | head -3 | sed 's/^/    /'
+    falhas=$((falhas + n))
+  fi
+done
+
 for m in "${MODULOS[@]}"; do
   f="$RAIZ/higflow/src/hig-flow-$m.c"
   [ -f "$f" ] || continue
@@ -48,7 +68,7 @@ for m in "${MODULOS[@]}"; do
 done
 
 if [ "$falhas" -eq 0 ]; then
-  echo "Os ${#MODULOS[@]} modulos do higflow compilam como C++ (DIM=$DIM)."
+  echo "Os ${#HT[@]} modulos do higtree e ${#MODULOS[@]} do higflow compilam como C++ (DIM=$DIM)."
   exit 0
 fi
 echo "---"

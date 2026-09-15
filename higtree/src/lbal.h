@@ -25,6 +25,12 @@ struct _lb_portal {
 	unsigned group;
 };
 
+struct _portal_tree_isect {
+	size_t tree_idx;
+	Rect isect;
+	struct _portal_tree_isect *next;
+};
+
 //! Connection between a portal and local trees.
 struct _local_portal {
 	struct _local_portal *next;
@@ -35,11 +41,7 @@ struct _local_portal {
 
 	//! The intersection between a portal and a local output tree.
 	size_t side_count[2];
-	struct _portal_tree_isect {
-		size_t tree_idx;
-		Rect isect;
-		struct _portal_tree_isect *next;
-	} *side_isect[2];
+	struct _portal_tree_isect *side_isect[2];
 };
 
 struct _local_portals {

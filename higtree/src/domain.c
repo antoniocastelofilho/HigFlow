@@ -2282,7 +2282,7 @@ void sd_destroy(sim_domain *d) {
 	free(d);
 }
 
-void sd_create_boundary(hig_cell *root, sim_domain *sd, int type) {
+void sd_create_boundary(hig_cell *root, sim_domain *sd, bc_type type) {
 	Point epsdelta;
 	int nc[DIM];
 	hig_get_cells_per_dim(root, nc);
@@ -2446,7 +2446,7 @@ int sfd_get_num_bcs(sim_facet_domain *d, int type) {
 	return sd_get_num_bcs(d->cdom, type);
 }
 
-void sfd_create_boundary(hig_cell *root, sim_facet_domain *sd, int type) {
+void sfd_create_boundary(hig_cell *root, sim_facet_domain *sd, bc_type type) {
 	sd_create_boundary(root, sd->cdom, type);
 }
 

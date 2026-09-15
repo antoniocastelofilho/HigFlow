@@ -875,7 +875,7 @@ static void _prop_writer_init_dataset(higio_hdf5 *ctx, const char *dataset_path,
 		if(choice) {
 			for(size_t i = 1; i < (sizeof(choices)/sizeof(char*)); ++i) {
 				if(strcmp(choices[i], choice) == 0) {
-					env_comp_type = i;
+					env_comp_type = (enum compression_type) i;
 					break;
 				}
 			}

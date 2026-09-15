@@ -68,7 +68,7 @@ static void _ms_receive(mapper_syncer_info *ms, sim_domain *sd, MPI_Status *stat
 	mp_mapper *m = sd_get_domain_mapper(sd);
 
 	struct neighbor_proc *np;
-	np = g_hash_table_lookup(psd->filtered_neighbors,
+	np = (struct neighbor_proc *) g_hash_table_lookup(psd->filtered_neighbors,
 		GINT_TO_POINTER(status->MPI_SOURCE));
 
 	for(unsigned i = 0; i < np->to_recv_count; ++i) {

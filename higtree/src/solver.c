@@ -252,7 +252,7 @@ solver * slv_create(SolverEngine engine, int first_gid, size_t size)
 	if(env_val) {
 		for(int i = 0; i < (sizeof(engine_names)/sizeof(char*)); ++i) {
 			if(strcmp(env_val, engine_names[i]) == 0) {
-				engine = i+1;
+				engine = (SolverEngine) (i+1);
 				break;
 			}
 		}

@@ -18,15 +18,7 @@ struct neighbor_proc
 	//
 	// This list of fringe rects must be strictly on the same order as the
 	// corresponding list on the remote process.
-	struct to_send_fringe {
-		hig_cell* local_tree;
-
-		/** Where this fringe starts, in tree coordinates. */
-		int lo_idx[DIM];
-
-		/** One after the position this fringe ends, in tree coordinates. */
-		int hi_idx[DIM];
-	} *to_send;
+	struct to_send_fringe *to_send;
 	unsigned to_send_count;
 
 	//! List of all local fringes, organized by what process they mirror
@@ -35,6 +27,16 @@ struct neighbor_proc
 	// corresponding list on the remote process.
 	hig_cell** to_recv_trees;
 	unsigned to_recv_count;
+};
+
+struct to_send_fringe {
+	hig_cell* local_tree;
+
+	/** Where this fringe starts, in tree coordinates. */
+	int lo_idx[DIM];
+
+	/** One after the position this fringe ends, in tree coordinates. */
+	int hi_idx[DIM];
 };
 
 struct tree_properties {

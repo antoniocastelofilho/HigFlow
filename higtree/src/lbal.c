@@ -62,13 +62,13 @@ void lb_set_group_has_fringe(load_balancer *ctx, unsigned group, bool has_fringe
 void lb_add_input_tree(load_balancer *ctx, hig_cell *tree, bool managed,
 		unsigned group)
 {
-	DECL_AND_ALLOC(struct _lb_input_tree, new, 1);
-	new->tree = tree;
-	new->managed = managed;
-	new->next = ctx->trees;
+	DECL_AND_ALLOC(struct _lb_input_tree, novo, 1);
+	novo->tree = tree;
+	novo->managed = managed;
+	novo->next = ctx->trees;
 	assert(group < ctx->num_groups);
-	new->group = group;
-	ctx->trees = new;
+	novo->group = group;
+	ctx->trees = novo;
 	++ctx->num_in_higs;
 }
 
@@ -79,12 +79,12 @@ void lb_add_portal(load_balancer *lb, const Rect *a, const Rect *b,
 	assert(rect_degenerate_count(b) == 1);
 	assert(rect_has_same_size(a, b));
 
-	DECL_AND_ALLOC(struct _lb_portal, new, 1);
-	new->r[0] = *a;
-	new->r[1] = *b;
-	new->group = group;
-	new->next = lb->portals;
-	lb->portals = new;
+	DECL_AND_ALLOC(struct _lb_portal, novo, 1);
+	novo->r[0] = *a;
+	novo->r[1] = *b;
+	novo->group = group;
+	novo->next = lb->portals;
+	lb->portals = novo;
 
 	++lb->num_portals;
 }
@@ -1186,12 +1186,12 @@ static void _local_connectivity_append_tree_neighbor(struct _local_connectivity 
 		++lc->tree_neighbors[tidx_orig].num_neighbors;
 
 	REALLOC_INFER(lc->tree_neighbors[tidx_orig].neighbors, nbs_count);
-	struct _local_neighbor *new =
+	struct _local_neighbor *novo =
 		&lc->tree_neighbors[tidx_orig].neighbors[nbs_count-1];
 
-	new->intersection = *isect_orig;
-	new->neighbor_tree = tidx_dest;
-	POINT_ASSIGN(new->displacement, displacement);
+	novo->intersection = *isect_orig;
+	novo->neighbor_tree = tidx_dest;
+	POINT_ASSIGN(novo->displacement, displacement);
 }
 
 struct _local_connectivity *
@@ -1418,8 +1418,7 @@ struct _local_portals* _local_portals_create(load_balancer *ctx)
 static struct _portal_tree_isect *
 _local_portals_get_by_proc(struct _local_portals *lps, int prank)
 {
-	struct portal_tree_isect_list *l =
-	       g_hash_table_lookup(lps->by_proc, GINT_TO_POINTER(prank));
+	struct portal_tree_isect_list *l = (struct portal_tree_isect_list *) g_hash_table_lookup(lps->by_proc, GINT_TO_POINTER(prank));
 	if(l) {
 		return l->start;
 	}
@@ -1614,8 +1613,7 @@ dispatch_search_from_portals(load_balancer *ctx, _FringeBuilder *fb,
 		unsigned sworks_count = 0;
 
 		// Get contact list for process, or allocate if doesn't exist.
-		struct portal_tree_isect_list *proc_contacts =
-			g_hash_table_lookup(lps->by_proc,
+		struct portal_tree_isect_list *proc_contacts = (struct portal_tree_isect_list *) g_hash_table_lookup(lps->by_proc,
 				GINT_TO_POINTER(s.MPI_SOURCE));
 		if(!proc_contacts) {
 			ALLOC_INFER(proc_contacts, 1);
@@ -1647,17 +1645,17 @@ dispatch_search_from_portals(load_balancer *ctx, _FringeBuilder *fb,
 					sw->search_from_dist = fringesize;
 					POINT_ASSIGN(sw->disp, loc2rem);
 
-					DECL_AND_ALLOC(struct _portal_tree_isect, new, 1);
-					new->next = proc_contacts->start;
-					proc_contacts->start = new;
-					new->tree_idx = it->tree_idx;
+					DECL_AND_ALLOC(struct _portal_tree_isect, novo, 1);
+					novo->next = proc_contacts->start;
+					proc_contacts->start = novo;
+					novo->tree_idx = it->tree_idx;
 
 					rect_translate(rem2loc, &sw->isect,
-						&new->isect);
+						&novo->isect);
 
 					_fringe_builder_add_remote_tree_neighbor(fb,
 						s.MPI_SOURCE, it->tree_idx, loc2rem,
-						&new->isect);
+						&novo->isect);
 				}
 			}
 

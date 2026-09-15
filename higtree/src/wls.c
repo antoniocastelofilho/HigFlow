@@ -291,7 +291,7 @@ static void _assembly_pts_matrix (unsigned dim, int ord, int m, vreal a, const P
 	return;
 }
 
-static bool inc_vector(unsigned dim, int degree, int i[degree])
+static bool inc_vector(unsigned dim, int degree, int i[])
 {
 	for(int j = 0; j < degree; ++j) {
 		if(++i[j] != dim) {

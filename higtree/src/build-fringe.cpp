@@ -24,7 +24,7 @@ namespace bgi = boost::geometry::index;
 
 namespace {
 
-using Block = neighbor_proc::to_send_fringe;
+using Block = to_send_fringe;
 
 // Compute the number of coarse grid neighbors I must expect
 // from a given dimension.
@@ -714,7 +714,7 @@ _fringe_builder_assemble_result(_FringeBuilder *fb, unsigned *fringe_tree_count,
 			// Create and fill the structure to be stored in the
 			// partition graph, while serializing the tree nodes
 			// to be sent.
-			ALLOC(neighbor_proc::to_send_fringe, nb->to_send,
+			ALLOC(to_send_fringe, nb->to_send,
 				nb->to_send_count);
 			unsigned bl_count = 0;
 			unsigned node_count = 0;

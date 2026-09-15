@@ -181,7 +181,7 @@ unsigned sd_get_num_local_higtrees(sim_domain *d);
 int sd_get_num_bcs(sim_domain *d, int type);
 
 //! Creates the boundary conditions around the hig-tree rooted at root. The boundary conditions will be of the given type.
-void sd_create_boundary(hig_cell *root, sim_domain *sd, int type);
+void sd_create_boundary(hig_cell *root, sim_domain *sd, bc_type type);
 
 //! Gets the i-th BC of a given type.
 sim_boundary *sd_get_bc(sim_domain *d, int type, int i);
@@ -251,7 +251,7 @@ unsigned sfd_get_num_local_higtrees(sim_facet_domain *d);
 int sfd_get_num_bcs(sim_facet_domain *d, int type);
 
 //! Creates the boundary conditions around the hig-tree rooted at root. The boundary conditions will be of the given type.
-void sfd_create_boundary(hig_cell *root, sim_facet_domain *sd, int type);
+void sfd_create_boundary(hig_cell *root, sim_facet_domain *sd, bc_type type);
 
 //! Gets in which dimension the facet are at.
 int sfd_get_dim(sim_facet_domain *d);

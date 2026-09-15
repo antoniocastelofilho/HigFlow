@@ -255,7 +255,7 @@ static void _sync_gid(_dp_shared *dp_data, psim_domain *bpsd, void *fdata,
 		MPI_Recv(recv_buf, size, MPI_INT, s.MPI_SOURCE, tag, comm,
 			MPI_STATUS_IGNORE);
 
-		nb = g_hash_table_lookup(bpsd->filtered_neighbors,
+		nb = (struct neighbor_proc *) g_hash_table_lookup(bpsd->filtered_neighbors,
 			GINT_TO_POINTER(s.MPI_SOURCE));
 
 		int *biter = recv_buf;
@@ -508,7 +508,7 @@ _create_filtered_neighbors(partition_graph *pg, sim_domain *sd, GHashTable *tree
 	struct neighbor_proc *nb;
 
 	g_hash_table_iter_init (&iter, pg->neighbors);
-	while(g_hash_table_iter_next(&iter, &key, (gpointer)&nb))
+	while(g_hash_table_iter_next(&iter, &key, (gpointer *)&nb))
 	{
 		int nb_rank = GPOINTER_TO_INT(key);
 		ALLOC_INFER(sent_trees_idx[nb_idx],
@@ -558,7 +558,7 @@ _create_filtered_neighbors(partition_graph *pg, sim_domain *sd, GHashTable *tree
 			MPI_STATUS_IGNORE);
 
 		// Find the original neighbor proc
-		nb = g_hash_table_lookup(pg->neighbors, GINT_TO_POINTER(s.MPI_SOURCE));
+		nb = (struct neighbor_proc *) g_hash_table_lookup(pg->neighbors, GINT_TO_POINTER(s.MPI_SOURCE));
 
 		// Create the new neighbor proc
 		DECL_AND_ALLOC(struct neighbor_proc, new_nb, 1);
@@ -654,8 +654,7 @@ void psd_set_local_domain(psim_domain *psd, sim_domain *d)
 		max = sd_get_num_fringe_higtrees(d);
 		for(unsigned i = 0; i < max; ++i) {
 			hig_cell *c = sd_get_fringe_higtree(d, i);
-			struct tree_properties *p =
-				g_hash_table_lookup(psd->pg->tree_props, c);
+			struct tree_properties *p = (struct tree_properties *) g_hash_table_lookup(psd->pg->tree_props, c);
 			if(p && !p->is_fringe)
 				idx_buf[count++] = i;
 		}
@@ -666,8 +665,7 @@ void psd_set_local_domain(psim_domain *psd, sim_domain *d)
 		max = sd_get_num_local_higtrees(d);
 		for(unsigned i = 0; i < max; ++i) {
 			hig_cell *c = sd_get_local_higtree(d, i);
-			struct tree_properties *p =
-				g_hash_table_lookup(psd->pg->tree_props, c);
+			struct tree_properties *p = (struct tree_properties *) g_hash_table_lookup(psd->pg->tree_props, c);
 			if(p && p->is_fringe)
 				idx_buf[count++] = i;
 		}
@@ -943,7 +941,7 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 	GHashTableIter nbiter;
 	g_hash_table_iter_init(&nbiter, fn);
 	struct neighbor_proc *nb;
-	while(g_hash_table_iter_next(&nbiter, NULL, (gpointer)&nb)) {
+	while(g_hash_table_iter_next(&nbiter, NULL, (gpointer *)&nb)) {
 		/* Create datatype used to send. */
 		int count = -1;
 		sizes[0] = 0;
@@ -1121,7 +1119,7 @@ void dp_sync(distributed_property *dp)
     g_hash_table_iter_init(&nbiter, bpsd->filtered_neighbors);
     struct neighbor_proc *nb;
     gpointer key;
-    while(g_hash_table_iter_next(&nbiter, &key, (gpointer)&nb)) {
+    while(g_hash_table_iter_next(&nbiter, &key, (gpointer *)&nb)) {
         int nb_rank = GPOINTER_TO_INT(key);
 
 		MPI_Irecv(dp->values, 1, psync[nb->idx].recv, nb_rank,
@@ -1299,8 +1297,7 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 		MPI_Recv(sfbi, count, sfbi_type, s.MPI_SOURCE, tag, comm,
 			MPI_STATUS_IGNORE);
 
-		struct neighbor_proc *nb =
-			g_hash_table_lookup(psd->filtered_neighbors,
+		struct neighbor_proc *nb = (struct neighbor_proc *) g_hash_table_lookup(psd->filtered_neighbors,
 				GINT_TO_POINTER(s.MPI_SOURCE));
 		unsigned nb_tree_idx = recvd[nb->idx]++;
 

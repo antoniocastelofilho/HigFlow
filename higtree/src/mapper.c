@@ -51,7 +51,7 @@ void mp_assign(mp_mapper *m, uniqueid id, mp_value_t val) {
 
 mp_value_t mp_lookup(mp_mapper *m, uniqueid id) {
 	if (m->numbits == MP_ALL_BITS) {
-		gpointer *col = g_hash_table_lookup(m->map, GINT_TO_POINTER(id));
+		gpointer col = g_hash_table_lookup(m->map, GINT_TO_POINTER(id));
 		return (mp_value_t) (GPOINTER_TO_INT(col) - 1);
 	} else {
 		uniqueid new_id = id / m->numvals_per_pos;
