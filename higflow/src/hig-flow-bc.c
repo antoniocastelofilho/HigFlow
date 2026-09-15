@@ -8,6 +8,19 @@
 #include <string.h>
 #include <libfyaml.h>
 
+// -----------------------------------------------------------------------
+// BC higtree post-read hook.
+// Set a callback with higflow_set_bc_refine_hook() before calling
+// higflow_initialize_boundaries_yaml().  The callback receives each
+// boundary higtree and its id immediately after it is read from disk,
+// before any sim_boundary is created.  Use NULL to disable.
+// -----------------------------------------------------------------------
+static void (*_bc_refine_hook)(hig_cell *bc_root, int bc_id) = NULL;
+
+void higflow_set_bc_refine_hook(void (*hook)(hig_cell *, int)) {
+    _bc_refine_hook = hook;
+}
+
 // Make the boundary condition
 sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype valuetype) {
     // Setting the map
@@ -27,12 +40,18 @@ sim_boundary *higflow_make_bc(hig_cell *bcg, bc_type type, int id, bc_valuetype 
 
 // Creating and setting the boundary condition for the pressure
 void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type pbctypes[], bc_valuetype pbcvaluetype[]) {
+    if(ns->contr.equation == VISCOUS_BURGERS ||
+       ns->contr.equation == INVISCID_BURGERS ||
+       ns->contr.equation == HEAT) {
+        return;
+    }
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -73,13 +92,20 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
 }
 
 // Creating and setting the boundary condition for the velocity
-void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {
+void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
+                                                   numbcs, int id[numbcs], char
+                                                   bcfilenames[numbcs][1024],
+                                                   bc_type
+                                                   bctypes[DIM][numbcs],
+                                                   bc_valuetype
+                                                   bcvaluetype[DIM][numbcs]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     sim_facet_domain *sfd;
     // Loop for the dimension
@@ -158,14 +184,18 @@ void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solve
                     int  bclid = mp_lookup(bm, hig_get_cid(bcell));
                     //real bcval = bcvalues[dim][h];
                     // Get the eo source term defined by the user
-                    if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-                        fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term(fracvol, id[h], bccenter, dim, ns->par.t);
-                    } else
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_source_term(id[h], bccenter, dim, ns->par.t);
 
-                    // Set the value pbcvalues for the center of the cell 
-                    sb_set_value(bc, bclid, bcval);
+                    if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
+                        hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
+                        if(c) { // otherwise domain owns boundary but not its internal cells
+                            fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term(fracvol, id[h], bccenter, dim, ns->par.t);
+                            sb_set_value(bc, bclid, bcval);
+                        }
+                    } else {
+                        bcval = ns->ed.eo.get_boundary_electroosmotic_source_term(id[h], bccenter, dim, ns->par.t);
+                        sb_set_value(bc, bclid, bcval);
+                    }
                 }
                 // Destroying the iterator 
                 higcit_destroy(it);
@@ -209,19 +239,22 @@ void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, i
                 hig_cell *bcell = higcit_getcell(it);
                 // Get the cell center
                 Point bccenter;
-                hig_get_center(bcell, bccenter);
+                hig_get_center(bcell, bccenter);                
                 // Get the id of the cell
                 int bclid = mp_lookup(bm, hig_get_cid(bcell));
-                // Set the time to get the pressure
-                real t = ns->par.t + ns->par.dt;
                 // Get phi defined by the user
                 if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-                    fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                    bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi(fracvol, id[h], bccenter, ns->par.t);
-                } else
+                    hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
+                    if(c) { // otherwise domain owns boundary but not its internal cells
+                        fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi(fracvol, id[h], bccenter, ns->par.t);
+                        sb_set_value(bc, bclid, bcval);
+                    }
+                } else {
                     bcval = ns->ed.eo.get_boundary_electroosmotic_phi(id[h], bccenter, ns->par.t);
-                // Set the value 
-                sb_set_value(bc, bclid, bcval);
+                    sb_set_value(bc, bclid, bcval);
+                }
+                
             }
             // Destroy the iterator
             higcit_destroy(it);
@@ -262,16 +295,18 @@ void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, i
                 hig_get_center(bcell, bccenter);
                 // Get the id of the cell
                 int bclid = mp_lookup(bm, hig_get_cid(bcell));
-                // Set the time to get the pressure
-                real t = ns->par.t + ns->par.dt;
                 // Get psi defined by the user
                 if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-                    fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                    bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi(fracvol, id[h], bccenter, ns->par.t);
-                } else
+                    hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
+                    if(c) { // otherwise domain owns boundary but not its internal cells
+                        fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi(fracvol, id[h], bccenter, ns->par.t);
+                        sb_set_value(bc, bclid, bcval);
+                    }
+                } else {
                     bcval = ns->ed.eo.get_boundary_electroosmotic_psi(id[h], bccenter, ns->par.t);
-                // Set the value 
-                sb_set_value(bc, bclid, bcval);
+                    sb_set_value(bc, bclid, bcval);
+                }
             }
             // Destroy the iterator
             higcit_destroy(it);
@@ -312,16 +347,17 @@ void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns,
                 hig_get_center(bcell, bccenter);
                 // Get the id of the cell
                 int bclid = mp_lookup(bm, hig_get_cid(bcell));
-                // Set the time to get the pressure
-                real t = ns->par.t + ns->par.dt;
-                // Get the pressure defined by the user
                 if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-                    fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                    bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus(fracvol, id[h], bccenter, ns->par.t);
-                } else
+                    hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
+                    if(c) { // otherwise domain owns boundary but not its internal cells
+                        fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus(fracvol, id[h], bccenter, ns->par.t);
+                        sb_set_value(bc, bclid, bcval);
+                    }
+                } else {
                     bcval = ns->ed.eo.get_boundary_electroosmotic_nplus(id[h], bccenter, ns->par.t);
-                // Set the value 
-                sb_set_value(bc, bclid, bcval);
+                    sb_set_value(bc, bclid, bcval);
+                }
             }
             // Destroy the iterator
             higcit_destroy(it);
@@ -362,16 +398,17 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
                 hig_get_center(bcell, bccenter);
                 // Get the id of the cell
                 int bclid = mp_lookup(bm, hig_get_cid(bcell));
-                // Set the time to get the pressure
-                real t = ns->par.t + ns->par.dt;
-                // Get the pressure defined by the user
                 if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
-                    fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                    bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus(fracvol, id[h], bccenter, ns->par.t);
-                } else
+                    hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
+                    if(c) { // otherwise domain owns boundary but not its internal cells
+                        fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus(fracvol, id[h], bccenter, ns->par.t);
+                        sb_set_value(bc, bclid, bcval);
+                    }
+                } else {
                     bcval = ns->ed.eo.get_boundary_electroosmotic_nminus(id[h], bccenter, ns->par.t);
-                // Set the value 
-                sb_set_value(bc, bclid, bcval);
+                    sb_set_value(bc, bclid, bcval);
+                }
             }
             // Destroy the iterator
             higcit_destroy(it);
@@ -488,6 +525,7 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     // Loop for each boundary condition
     for(int h = 0; h < numbcs; h++) {
@@ -527,6 +565,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
         FILE *fd = fopen(bcfilenames[h], "r");
         bcg[h] = higio_read_from_amr(fd);
         fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
     }
     sim_facet_domain *sfdF;
     // Loop for the dimension
@@ -568,6 +607,82 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
     }
 }
 
+// Creating and setting the boundary condition for volume fraction and other multiphase properties
+void higflow_set_boundary_condition_for_mult(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]) {
+    // Get the HigTree from amr file
+    hig_cell *bcg[numbcs];
+    for(int h = 0; h < numbcs; h++) {
+        FILE *fd = fopen(bcfilenames[h], "r");
+        bcg[h] = higio_read_from_amr(fd);
+        fclose(fd);
+        if (_bc_refine_hook) _bc_refine_hook(bcg[h], id[h]);
+    }
+    
+    // Loop for each boundary condition
+    for(int h = 0; h < numbcs; h++) {
+        // Get the local domain for cell center
+        sim_domain *sd = psd_get_local_domain(ns->ed.mult.psdmult);
+        // Create the bounary condition
+        sim_boundary *bc = higflow_make_bc(bcg[h], NEUMANN, id[h], fixedValue);
+        // Adding the boundary condition 
+        sd_add_boundary(sd, bc);
+        // Get the mapper for the boundary condition
+        mp_mapper *bm = sb_get_mapper(bc);
+        // Loop for the cells of the boundaries conditions 
+        higcit_celliterator *it;
+        for(it = sb_get_celliterator(bc); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell 
+            hig_cell *bcell = higcit_getcell(it);
+            // Get the cell center
+            Point bccenter;
+            hig_get_center(bcell, bccenter);
+            // Get the id of the cell
+            int bclid = mp_lookup(bm, hig_get_cid(bcell));
+            // Set the value 
+            sb_set_value(bc, bclid, 0.0);
+        }
+        // Destroy the iterator
+        higcit_destroy(it);
+    }
+}
+
+// Creating and setting the boundary condition for extra domains domain (for viscoelastic tensors and such)
+void higflow_set_boundary_condition_for_tensors(higflow_solver *ns, int numbcs, int id[numbcs], char bcfilenames[numbcs][1024], bc_type bctypes[], bc_valuetype bcvaluetype[]) {
+    // Get the HigTree from amr file
+    hig_cell *bcg[numbcs];
+    for(int h = 0; h < numbcs; h++) {
+        FILE *fd = fopen(bcfilenames[h], "r");
+        bcg[h] = higio_read_from_amr(fd);
+        fclose(fd);
+    }
+    // Loop for each boundary condition
+    for(int h = 0; h < numbcs; h++) {
+        // Get the local domain for cell center
+        sim_domain *sd = psd_get_local_domain(ns->ed.psdED);
+        // Create the bounary condition
+        sim_boundary *bc = higflow_make_bc(bcg[h], NEUMANN, id[h], fixedValue);
+        // Adding the boundary condition 
+        sd_add_boundary(sd, bc);
+        // Get the mapper for the boundary condition
+        mp_mapper *bm = sb_get_mapper(bc);
+        // Loop for the cells of the boundaries conditions 
+        higcit_celliterator *it;
+        for(it = sb_get_celliterator(bc); !higcit_isfinished(it); higcit_nextcell(it)) {
+            // Get the cell 
+            hig_cell *bcell = higcit_getcell(it);
+            // Get the cell center
+            Point bccenter;
+            hig_get_center(bcell, bccenter);
+            // Get the id of the cell
+            int bclid = mp_lookup(bm, hig_get_cid(bcell));
+            // Set the value 
+            sb_set_value(bc, bclid, 0.0);
+        }
+        // Destroy the iterator
+        higcit_destroy(it);
+    }
+}
+
 // Navier-Stokes initialize the domain and boudaries
 void higflow_initialize_boundaries(higflow_solver *ns) {
     // Loading the boundary condition data
@@ -577,11 +692,16 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
     if (fbc == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     // Number of boundaries
     int numbcs; 
     int ifd = fscanf(fbc,"%d\n",&numbcs);
+    int maxbcs = MAXBCSPERDOMAIN;
+    if(numbcs > maxbcs) {
+        printf("Error: Number of Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
     // Boudary condition data
     int           id[numbcs];
     char          amrBCfilename[numbcs][1024]; 
@@ -615,11 +735,24 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
     // Setting the boundary conditions for the pressure
     higflow_set_boundary_condition_for_pressure(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
     // Setting the boundary conditions for the velocities
-    higflow_set_boundary_condition_for_velocities(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
+    higflow_set_boundary_condition_for_velocities(ns, numbcs, id,
+                                                  amrBCfilename,
+                                                  ubctypes,
+                                                  ubcvaluetype);
     // Setting the boundary conditions for the cell source term 
     higflow_set_boundary_condition_for_cell_source_term(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
     // Setting the boundary conditions for the facet source term
     higflow_set_boundary_condition_for_facet_source_term(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
+
+    if (ns->contr.flowtype == MULTIPHASE) {
+        // Setting the boundary conditions for multiphase properties
+        higflow_set_boundary_condition_for_mult(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
+    }
+
+    if ((ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.viscoelastic_either == true)) {
+        // Setting the boundary conditions for the viscoelastic tensors
+        higflow_set_boundary_condition_for_tensors(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
+    }
     
     // Setting the boundary conditions for the electro-osmotic model
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
@@ -629,11 +762,15 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
         if (fbc == NULL) {
             // Error in open the file
             printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-            exit(1);
+            MPI_Abort(MPI_COMM_WORLD, 1);
         }
         // Number of boundaries
         int numbcs; 
         int ifd = fscanf(fbc,"%d\n",&numbcs);
+        if(numbcs > maxbcs) {
+            printf("Error: Number of Electroosmotic Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
         // Boudary condition data
         int           phibc_timedependent = 0;
         int           psibc_timedependent = 0;
@@ -677,7 +814,7 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
 
         // Setting the boundary conditions for the electro-osmotic phi
         higflow_set_boundary_condition_for_electroosmotic_phi(ns, numbcs, id, amrBCfilename, phibctypes, phibcvaluetype);
-        // // Setting the boundary conditions for the electro-osmotic psi
+        // Setting the boundary conditions for the electro-osmotic psi
         higflow_set_boundary_condition_for_electroosmotic_psi(ns, numbcs, id, amrBCfilename, psibctypes, psibcvaluetype);
         // // Setting the boundary conditions for the electro-osmotic nplus
         higflow_set_boundary_condition_for_electroosmotic_nplus(ns, numbcs, id, amrBCfilename, nplusbctypes, nplusbcvaluetype);
@@ -715,11 +852,15 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
         if (fbc == NULL) {
             // Error in open the file
             printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-            exit(1);
+            MPI_Abort(MPI_COMM_WORLD, 1);
         }
         // Number of boundaries
         int numbcs; 
         int ifd = fscanf(fbc,"%d\n",&numbcs);
+        if(numbcs > maxbcs) {
+            printf("Error: Number of Shear Banding Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
         // Boudary condition data
         int           id[numbcs];
         char          amrBCfilename[numbcs][1024]; 
@@ -763,12 +904,17 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
     if (fyd == NULL) {
         // Error in open the file
         printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
      
     // Number of boundaries
     int numbcs; 
     int ifd = fy_document_scanf(fyd,"/bc/number_bc %d",&numbcs);
+    int maxbcs = MAXBCSPERDOMAIN;
+    if(numbcs > maxbcs) {
+        printf("Error: Number of Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
  
     // Boudary condition data
     int           id[numbcs];
@@ -798,7 +944,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
             pbctypes[h] = NEUMANN;
         } else {
             printf("=+=+=+= Error loading boundary condition type for the pressure in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-            exit(1);
+            MPI_Abort(MPI_COMM_WORLD, 1);
         }
         // Pressure boundary condition value
         sprintf(atrib,"/bc/bc%d/pressure/value_type %%s",h);
@@ -820,7 +966,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
         //  }
         else {
             printf("=+=+=+= Error loading boundary condition valuetype for the pressure in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-            exit(1);
+            MPI_Abort(MPI_COMM_WORLD, 1);
         }
         // Setting the pressure desingularizadtion control
         if (pbctypes[h] == DIRICHLET) {
@@ -839,7 +985,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                ubctypes[dim][h] = NEUMANN;
             } else {
                printf("=+=+=+= Error loading boundary condition type for the velocity in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-               exit(1);
+               MPI_Abort(MPI_COMM_WORLD, 1);
             }
             sprintf(atrib,"/bc/bc%d/velocity_%d/value_type %%s",h,dim);
             ifd = fy_document_scanf(fyd,atrib,aux);
@@ -850,7 +996,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                ubcvaluetype[dim][h] = timedependent;
             } else {
                printf("=+=+=+= Error loading boundary condition valuetype for the velocity in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-               exit(1);
+               MPI_Abort(MPI_COMM_WORLD, 1);
             }
         }
     }
@@ -864,9 +1010,23 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
     // Setting the boundary conditions for the facet source term
     higflow_set_boundary_condition_for_facet_source_term(ns, numbcs, id, amrBCfilename, ubctypes, ubcvaluetype);
 
+    if (ns->contr.flowtype == MULTIPHASE) {
+        // Setting the boundary conditions for multiphase properties
+        higflow_set_boundary_condition_for_mult(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
+    }
+
+    if ((ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.viscoelastic_either == true)) {
+        // Setting the boundary conditions for the viscoelastic tensors
+        higflow_set_boundary_condition_for_tensors(ns, numbcs, id, amrBCfilename, pbctypes, pbcvaluetype);
+    }
+
     // Setting the boundary conditions for the electro-osmotic model
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         int ifd = fy_document_scanf(fyd,"/bc_electroosmotic/number_bc %d",&numbcs);
+         if(numbcs > maxbcs) {
+            printf("Error: Number of Electroosmotic Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
  
         // Boudary condition data
         int           phibc_timedependent = 0;
@@ -899,7 +1059,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 phibctypes[h] = NEUMANN;
             } else {
                 printf("=+=+=+= Error loading boundary condition type for phi in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
             // Applied Potential boundary condition value type
             sprintf(atrib,"/bc_electroosmotic/bc%d/phi/value_type %%s",h);
@@ -910,7 +1070,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 phibcvaluetype[h] = timedependent;
             } else {
                 printf("=+=+=+= Error loading boundary condition valuetype for phi in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
             // Zeta Potential boundary condition type
@@ -922,7 +1082,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 psibctypes[h] = NEUMANN;
             } else {
                 printf("=+=+=+= Error loading boundary condition type for psi in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
             // Zeta Potential boundary condition value type
             sprintf(atrib,"/bc_electroosmotic/bc%d/psi/value_type %%s",h);
@@ -933,7 +1093,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 psibcvaluetype[h] = timedependent;
             } else {
                 printf("=+=+=+= Error loading boundary condition valuetype for psi in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
             // Positive Charge Concentration boundary condition type
@@ -945,7 +1105,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nplusbctypes[h] = NEUMANN;
             } else {
                 printf("=+=+=+= Error loading boundary condition type for nplus in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
             // Positive Charge Concentration boundary condition value type
             sprintf(atrib,"/bc_electroosmotic/bc%d/nplus/value_type %%s",h);
@@ -956,7 +1116,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nplusbcvaluetype[h] = timedependent;
             } else {
                 printf("=+=+=+= Error loading boundary condition valuetype for nplus in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
             // Negative Charge Concentration boundary condition type
@@ -968,7 +1128,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nminusbctypes[h] = NEUMANN;
             } else {
                 printf("=+=+=+= Error loading boundary condition type for mminus in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
             // Negative Charge Concentration boundary condition value type
             sprintf(atrib,"/bc_electroosmotic/bc%d/nminus/value_type %%s",h);
@@ -979,7 +1139,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nminusbcvaluetype[h] = timedependent;
             } else {
                 printf("=+=+=+= Error loading boundary condition valuetype for nminus in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
           
         }
@@ -1019,6 +1179,10 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
     // Setting the boundary conditions for the Shear Banding model
     if (ns->contr.flowtype == SHEAR_BANDING) {
         int ifd = fy_document_scanf(fyd,"/bc_shear_banding/number_bc %d",&numbcs);
+        if(numbcs > maxbcs) {
+            printf("Error: Number of Shear Banding Boundary Conditions (%d) is greater than MAXBCSPERDOMAIN = %d\n", numbcs, maxbcs);
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
  
         // Boudary condition data
         int           id[numbcs];
@@ -1045,7 +1209,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nAbctypes[h] = NEUMANN;
             } else {
                 printf("=+=+=+= Error loading boundary condition type for nA in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
             // nA boundary condition value type
             sprintf(atrib,"/bc_shear_banding/bc%d/nA/value_type %%s",h);
@@ -1056,7 +1220,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nAbcvaluetype[h] = timedependent;
             } else {
                 printf("=+=+=+= Error loading boundary condition valuetype for nA in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
 
             // nB boundary condition type
@@ -1068,7 +1232,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nBbctypes[h] = NEUMANN;
             } else {
                 printf("=+=+=+= Error loading boundary condition type for nB in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
             // nB boundary condition value type
             sprintf(atrib,"/bc_shear_banding/bc%d/nB/value_type %%s",h);
@@ -1079,7 +1243,7 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
                 nBbcvaluetype[h] = timedependent;
             } else {
                 printf("=+=+=+= Error loading boundary condition valuetype for nB in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
-                exit(1);
+                MPI_Abort(MPI_COMM_WORLD, 1);
             }
         }
         // Setting the boundary conditions for the Shear Banding 

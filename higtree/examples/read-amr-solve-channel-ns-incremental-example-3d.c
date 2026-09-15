@@ -528,7 +528,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
 	int dimension[DIM]; dimension[0] = 0; dimension[1] = 0; dimension[2] = 0;
 
 	int degree = 2;
-	const int maxpts = 2*DIM*wls_num_min_points(degree);
+	const int maxpts = 2*DIM*wls_num_min_points(DIM, degree);
 	Point pts[maxpts+1];
 	real dist[maxpts+1];
 	real w0[maxpts], w1[maxpts], w2[maxpts], w3[maxpts], w4[maxpts], w5[maxpts], w6[maxpts], w7[maxpts];
@@ -630,7 +630,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
 				    }
 			}
 
-				    wls = wls_create(degree, maxpts);
+				    wls = wls_create(dim, degree, maxpts);
 				    wls_set_points(wls, cont, pts, p0);
 				    wls_calc(wls, p0, cont, w0);
 
@@ -652,7 +652,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
 				    }
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p1);
     				wls_calc(wls, p1, cont, w1);
 
@@ -674,7 +674,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
     				}
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p2);
     				wls_calc(wls, p2, cont, w2);
 
@@ -696,7 +696,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
     				}
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p3);
     				wls_calc(wls, p3, cont, w3);
 
@@ -718,7 +718,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
     				}
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p4);
     				wls_calc(wls, p4, cont, w4);
 
@@ -740,7 +740,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
     				}
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p5);
     				wls_calc(wls, p5, cont, w5);
 
@@ -762,7 +762,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
     				}
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p6);
     				wls_calc(wls, p6, cont, w6);
 
@@ -784,7 +784,7 @@ void hig_printVTK3dcell(psim_domain *psdp, distributed_property *dpp, distribute
     				}
     				wls_destroy(wls);
 
-    				wls = wls_create(degree, maxpts);
+    				wls = wls_create(dim, degree, maxpts);
     				wls_set_points(wls, cont, pts, p7);
     				wls_calc(wls, p7, cont, w7);
 

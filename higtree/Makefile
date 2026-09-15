@@ -13,12 +13,10 @@ AR = gcc-ar
 RANLIB = gcc-ranlib
 
 ifdef DEBUG
-OPTSOPT += -DDEBUG
+OPTSOPT += -DDEBUG -g -Og
 else
-OPTSOPT += -Ofast -flto -fno-fat-lto-objects -march=native -mtune=native -DNDEBUG
+OPTSOPT += -O3 -flto -fno-fat-lto-objects -march=native -mtune=native -DNDEBUG
 endif
-
-OPTSOPT += -g
 
 CXXSTANDARD = -std=gnu++14
 CSTANDARD = -std=gnu99

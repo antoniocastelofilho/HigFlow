@@ -226,6 +226,7 @@ real slv_get_relative_residual_norm(solver *s)
 
 /** Destroy structure */
 void slv_destroy(solver *s) {
+    if (s == NULL) return;
 
     s->vtable->destroy(s);
 

@@ -54,6 +54,10 @@ real higflow_convective_term(higflow_solver *ns, Point delta, int dim);
 // Difusive term contribution for the Navier-Stokes equation
 real higflow_diffusive_term(higflow_solver *ns, Point delta); 
 
+// Extra Difusive term contribution for the Navier-Stokes equation when Viscosity is not uniform
+// Arises from mixed derivatives together with viscosity gradient
+real higflow_extra_diffusive_term(higflow_solver *ns, Point delta);
+
 // Cell electroosmotic source term contribution for the Navier-Stokes equation
 real higflow_electroosmotic_source_term(higflow_solver *ns, real Ex);
 

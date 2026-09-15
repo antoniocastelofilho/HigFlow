@@ -43,13 +43,6 @@ real interpolate_from_stencil(distributed_property *dp, sim_stencil *stn) {
 // Get the value of a facet property
 real compute_facet_value_at_point(sim_facet_domain *sfdu, Point center, Point p, real weight, distributed_property *dpu, sim_stencil *stn) {
     // Reset the stencil
-//    stn_reset(stn);
-    // Set the interpolater center
- //   sfd_set_interpolator_center(sfdu, center);
-    // Get the stencil parameters
-  //  sfd_get_stencil(sfdu, center, p, weight, stn);
-    // Get the value of property at facet
-   // real value1 = interpolate_from_stencil(dpu, stn);
     stn_reset(stn);
     // Get the stencil parameters
     sfd_get_stencil(sfdu, center, p, weight, stn);

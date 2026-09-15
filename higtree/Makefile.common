@@ -1,4 +1,4 @@
-HIGPATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+HIGPATH := ${HIGTREE_DIR}
 INSPATH = $(HIGPATH)
 OBJPATH = $(HIGPATH)/src
 SRCPATH = $(HIGPATH)/src

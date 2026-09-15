@@ -56,7 +56,7 @@ void hig_flow_calculate_omega (real lambda[DIM], real R[DIM][DIM], real M[DIM][D
 void hig_flow_calculate_b (real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real BB[DIM][DIM]);
 
 // Calculate the kronecker product 
-void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM+1][DIM*DIM+1], real Omega[DIM][DIM], real dt);
+void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real dt);
 
 // Calculate the matrix product
 //void hig_flow_kernel_system_matrix_VCM (real w[DIM*DIM][DIM*DIM+1], real Omega[DIM][DIM], real OmegaT[DIM][DIM], real dt);

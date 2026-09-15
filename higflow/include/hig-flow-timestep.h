@@ -10,8 +10,8 @@
 #include "hig-flow-kernel.h"
 #include "hig-flow-eval.h"
 
-#define MAX_CFL 0.1
-#define MAX_DT_FACTOR 1.1
+#define MAX_CFL 0.25
+#define MAX_DT_FACTOR 1.05
 
 real higflow_compute_CFL(higflow_solver *ns);
 

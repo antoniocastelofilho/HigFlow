@@ -1,0 +1,25 @@
+#PBS -N cavity_oldroyd_bubble
+#PBS -l select=1:ncpus=40
+#PBS -l walltime=48:00:00
+#PBS -V
+#PBS -m abe
+#PBS -M hobitteras@usp.br
+
+module load higtree/deps
+module load python/3.10.1
+
+cd ~/HigFlow/
+export PYTHONPATH=$(pwd)/bibliotecas
+export HIGTREE_DIR=$(pwd)/higtree
+export HIGFLOW_DIR=$(pwd)/higflow
+
+### your script goes here
+
+cd $HIGTREE_DIR
+make clean
+make DIM=2
+cd $HIGFLOW_DIR
+make clean
+make DIM=2
+cd example2d_ElectroOsmotic
+make build_run IN="mult newt-visc oldroyd-oldroyd De1=1.0 beta1=0.5 Re=0.005 dt=0.00002 numsteps=1000001 dts=1.0 dtp=1.0 cavity" MESH=square_121_br NP=36 ENAME=2e-5_bsd

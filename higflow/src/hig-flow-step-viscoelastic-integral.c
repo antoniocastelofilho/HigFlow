@@ -427,7 +427,7 @@ void higflow_explicit_euler_constitutive_equation_integral(higflow_solver *ns) {
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         // Get Du
-                        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                        Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpDu[i][j], ns->ed.stn);
                         B[i][j]  = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpB[k][i][j], ns->ed.stn);
                     }
                 }
@@ -937,7 +937,7 @@ void hig_flow_integral_equation_KBKZ (higflow_solver *ns) {
        for (int i = 0; i < DIM; i++) {
           for (int j = 0; j < DIM; j++) {
              // Get Du
-             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpDu[i][j], ns->ed.stn);
           }
        }
        //  Save S tensor  
@@ -1041,11 +1041,11 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
        //   s[NDT-k] = t-ds+translad;
           if (ds <= 0.0) {
              printf("ERROR: ds= s[m][%d] - s[m][%d] = %f <= 0!\n",k, k-1, ds);
-             exit(1);
+             MPI_Abort(MPI_COMM_WORLD, 1);
           }
           if (s[NDT-k] < 0.0) {
              printf("ERROR: s[%d] = %f ", NDT-k, s[NDT-k]);
-             exit(1);
+             MPI_Abort(MPI_COMM_WORLD, 1);
           }
           //printf(" s[%d] = %f ", NDT-k, s[NDT-k]);  
        }  
@@ -1299,7 +1299,7 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
                                   A2 * G*pow((t-s[k+1]),-1-betafr)*mitt2.real*(alpha/(alpha-3.0+ beta*I1c+((1.0-beta)*I2c)))*B[k+1][i][j];
          //printf("tm0 = %f, mitt0 = %f, tm1 = %f, mitt1 = %f, tm2 = %f, mitt2 = %f\n", tm0.real, mitt0.real, tm1.real, mitt1.real, tm2.real, mitt2.real);
                    //printf("I1a = %f, I1b = %f, I1c = %f, I2a = %f, I2b = %f, I2c = %f, Tensao[%d][%d] = %f \n",I1a, I1b, I1c, I2a, I2b, I2c, i,j,tensao[i][j]);  
-         //exit(1);
+         //MPI_Abort(MPI_COMM_WORLD, 1);
                 }
              }
          // }
@@ -1367,7 +1367,7 @@ void hig_flow_integral_equation_KBKZ_Fractional (higflow_solver *ns) {
        for (int i = 0; i < DIM; i++) {
           for (int j = 0; j < DIM; j++) {
              // Get Du
-             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+             Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpDu[i][j], ns->ed.stn);
           }
        }
        //  Save S tensor  
@@ -1899,20 +1899,9 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic_integral(hig
         // Get the solution of linear system
 
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -2005,20 +1994,9 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_int
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -2111,20 +2089,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higf
         // Solve the linear system
         slv_solve(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real uaux = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpuaux[dim], flid, uaux);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpuaux[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpuaux[dim]);
+        //dp_sync(ns->dpuaux[dim]); // already called from dp_slv_load_from_solver
     }
     //Second Stage of Tr-BDF2
     // Looping for the velocity
@@ -2203,20 +2170,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_integral(higf
         // Get the solution of linear system
         //Vec *vecu = slv_get_solution_vec(ns->slvu[dim]);
         // Gets the values of the solution
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
-            // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
-            int fgid = psfd_lid_to_gid(ns->psfdu[dim], flid);
-            // Get the value of ustar
-            real ustar = slv_get_xi(ns->slvu[dim], fgid);
-            // Set the value of ustar
-            dp_set_value(ns->dpustar[dim], flid, ustar);
-        }
-        // Destroy the iterator
-        higfit_destroy(fit);
+        dp_slv_load_from_solver(ns->dpustar[dim], ns->slvu[dim]);
         // Syncing the intermediate velocity
-        dp_sync(ns->dpustar[dim]);
+        //dp_sync(ns->dpustar[dim]); // already called from dp_slv_load_from_solver
     }
 }
 
@@ -2259,7 +2215,7 @@ void higflow_print_polymeric_tensor_integral(higflow_solver *ns) {
                         for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get Du
-                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpD[i][j], ns->ed.stn);
+                    Du[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpDu[i][j], ns->ed.stn);
                     D[i][j]  = (Du[i][j]+Du[j][i]);
                     // Get S tensor
                     S[i][j] = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.im.dpS[i][j], ns->ed.stn);
