@@ -60,7 +60,7 @@
 //! Allocate an element of type in variable v, with count elements in
 // the flexible array member. Aborts the program if the allocation fails.
 #define ALLOC_INFER_FLEX(v, flex_member, count) do { \
-		v = malloc(count * (sizeof v->flex_member[0]) + sizeof *v); \
+		v = (__typeof__(v)) malloc(count * (sizeof v->flex_member[0]) + sizeof *v); \
 		ALLOCATION_ERROR_CHECK(type, v, 1); \
 	} while(0)
 
@@ -75,10 +75,10 @@
 	ALLOC_INFER_FLEX(v, flex_member, count)
 
 //! \brief Like ALLOC, but uses type of v
-#define ALLOC_INFER(v, size) do { (v) = malloc((size) * sizeof *(v)); if (v == NULL) {fprintf(stderr, "Error allocating at %s:%d, variable %s (size %ld)", __FILE__, __LINE__, #v, (long)size); abort();} } while(0)
+#define ALLOC_INFER(v, size) do { (v) = (__typeof__(v)) malloc((size) * sizeof *(v)); if (v == NULL) {fprintf(stderr, "Error allocating at %s:%d, variable %s (size %ld)", __FILE__, __LINE__, #v, (long)size); abort();} } while(0)
 
 //! \brief Realloc to multiples of the type and check for error
-#define REALLOC_INFER(v, size) do { (v) = realloc((v), (size) * sizeof *(v)); if ((size) && !(v)) {fprintf(stderr, "Error reallocating at %s:%d, variable %s (new size %ld)", __FILE__, __LINE__, #v, (long)(size)); abort();} } while(0)
+#define REALLOC_INFER(v, size) do { (v) = (__typeof__(v)) realloc((v), (size) * sizeof *(v)); if ((size) && !(v)) {fprintf(stderr, "Error reallocating at %s:%d, variable %s (new size %ld)", __FILE__, __LINE__, #v, (long)(size)); abort();} } while(0)
 
 
 //! \brief Declares the variable v of type, and initializes it with val.

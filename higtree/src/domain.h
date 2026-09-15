@@ -84,6 +84,14 @@ hig_cell *sb_get_higtree(sim_boundary *bc);
 //! An SD has an interpolator, which can be used multiple times without needing
 //creating/destroying one each time.
 //! The cwls keeps the interpolation within a cell (it is a cached interpolation).
+struct interpolator {
+	wls_interpolator *wls;
+	int dim;
+	int order;
+	int numminpoints;
+	unsigned maxpts;
+};
+
 typedef struct sim_domain {
 	unsigned max_numhigtrees; //!< Currently allocated size of higtrees vector.
 	int numhigtrees; //!< Actual number of higtrees.
@@ -99,13 +107,7 @@ typedef struct sim_domain {
 	sim_boundary **dirichlet_bcs;
 	int numneumann_bcs;
 	sim_boundary **neumann_bcs;
-	struct interpolator {
-		wls_interpolator *wls;
-		int dim;
-		int order;
-		int numminpoints;
-		unsigned maxpts;
-	} inter, bc_inter;
+	struct interpolator inter, bc_inter;
 	int use_cache;
 	point_mapper *cwls;
 } sim_domain;
