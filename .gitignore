@@ -137,6 +137,10 @@ higflow/example*/ns-exemple-3d
 higflow/example*/ns-complex-3d
 **/amrs/generate_amr
 
+# Generated header staging dirs (copied from src/ by make; rebuilt automatically)
+higtree/include/
+higflow/include/
+
 # Duplicated source/artifact trees and local inspection outputs (never track)
 higflow/higflow/
 higflow/higflow_aquisson_3d/
