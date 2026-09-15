@@ -6472,7 +6472,7 @@ static void parse_yaml_sequence(struct fy_document *fyd, const char *path, real 
     print0f("\n");
 }
 
-static int parse_boolean(char *text, char *name) {
+static int parse_boolean(const char *text, const char *name) {
     if (strcasecmp(text, "true") == 0 || strcasecmp(text, "yes") == 0 || strcasecmp(text, "on") == 0 || 
         strcasecmp(text, "y") == 0 || strcmp(text, "1") == 0)
         return 1;
@@ -6482,6 +6482,7 @@ static int parse_boolean(char *text, char *name) {
     else {
         print0f("=+=+=+= Invalid boolean value for %s =+=+=+=\n", name);
         MPI_Abort(MPI_COMM_WORLD, 1);
+        return 0; // never reached: MPI_Abort does not return
     }
 }
 
