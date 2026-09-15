@@ -96,9 +96,9 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
                                                    numbcs, int id[], char
                                                    bcfilenames[][1024],
                                                    bc_type
-                                                   bctypes[DIM][numbcs],
+                                                   bctypes[][DIM],
                                                    bc_valuetype
-                                                   bcvaluetype[DIM][numbcs]) {
+                                                   bcvaluetype[][DIM]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -115,7 +115,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
             // Get the local domain for the facet
             sfd = psfd_get_local_domain(ns->psfdu[dim]);
             // Create the bounary condition
-            sim_boundary *bc = higflow_make_bc(bcg[h], bctypes[dim][h], id[h], bcvaluetype[dim][h]);
+            sim_boundary *bc = higflow_make_bc(bcg[h], bctypes[h][dim], id[h], bcvaluetype[h][dim]);
             // Adding the boundary condition 
             sfd_add_boundary(sfd, bc);
             // Get the map
@@ -148,7 +148,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
 }
 
 // Creating and setting the boundary condition for the electro-osmotic source term
-void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {    
+void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[][DIM], bc_valuetype bcvaluetype[][DIM]) {    
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real bcval, fracvol;
 
@@ -558,7 +558,7 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
 }
 
 // Creating and setting the boundary condition for facet source term
-void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[DIM][numbcs], bc_valuetype bcvaluetype[DIM][numbcs]) {
+void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, int numbcs, int id[], char bcfilenames[][1024], bc_type bctypes[][DIM], bc_valuetype bcvaluetype[][DIM]) {
     // Get the HigTree from amr file
     hig_cell *bcg[numbcs];
     for(int h = 0; h < numbcs; h++) {
@@ -706,9 +706,9 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
     int           id[numbcs];
     char          amrBCfilename[numbcs][1024]; 
     bc_type       pbctypes[numbcs]; 
-    bc_type       ubctypes[DIM][numbcs]; 
+    bc_type       ubctypes[numbcs][DIM]; 
     bc_valuetype  pbcvaluetype[numbcs];
-    bc_valuetype  ubcvaluetype[DIM][numbcs]; 
+    bc_valuetype  ubcvaluetype[numbcs][DIM]; 
     // Setting the pressure desingularizadtion control
     ns->contr.desingpressure = true;
     for(int h = 0; h < numbcs; h++) {
@@ -726,9 +726,9 @@ void higflow_initialize_boundaries(higflow_solver *ns) {
         }
         for (int dim = 0; dim < DIM; dim++) {
             // Velocity boundary condition type
-            ifd = fscanf(fbc,"%d",(int *)&(ubctypes[dim][h]));
+            ifd = fscanf(fbc,"%d",(int *)&(ubctypes[h][dim]));
             // Velocity boundary condition valuetype
-            ifd = fscanf(fbc,"%d",(int *)&(ubcvaluetype[dim][h]));
+            ifd = fscanf(fbc,"%d",(int *)&(ubcvaluetype[h][dim]));
         }
     }
     fclose(fbc);
@@ -920,9 +920,9 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
     int           id[numbcs];
     char          amrBCfilename[numbcs][1024]; 
     bc_type       pbctypes[numbcs]; 
-    bc_type       ubctypes[DIM][numbcs]; 
+    bc_type       ubctypes[numbcs][DIM]; 
     bc_valuetype  pbcvaluetype[numbcs];
-    bc_valuetype  ubcvaluetype[DIM][numbcs]; 
+    bc_valuetype  ubcvaluetype[numbcs][DIM]; 
     // Setting the pressure desingularizadtion control
     ns->contr.desingpressure = true;
     
@@ -980,9 +980,9 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
             sprintf(atrib,"/bc/bc%d/velocity_%d/type %%s",h,dim);
             ifd = fy_document_scanf(fyd,atrib,aux);
             if (strcmp(aux,"dirichlet") == 0) {
-               ubctypes[dim][h] = DIRICHLET;
+               ubctypes[h][dim] = DIRICHLET;
             } else if(strcmp(aux,"neumann") == 0) {
-               ubctypes[dim][h] = NEUMANN;
+               ubctypes[h][dim] = NEUMANN;
             } else {
                printf("=+=+=+= Error loading boundary condition type for the velocity in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
                MPI_Abort(MPI_COMM_WORLD, 1);
@@ -991,9 +991,9 @@ void higflow_initialize_boundaries_yaml(higflow_solver *ns) {
             ifd = fy_document_scanf(fyd,atrib,aux);
             // Velocity boundary condition valuetype
             if (strcmp(aux,"fixed_value") == 0) {
-               ubcvaluetype[dim][h] = fixedValue;
+               ubcvaluetype[h][dim] = fixedValue;
             } else if(strcmp(aux,"time_dependent") == 0) {
-               ubcvaluetype[dim][h] = timedependent;
+               ubcvaluetype[h][dim] = timedependent;
             } else {
                printf("=+=+=+= Error loading boundary condition valuetype for the velocity in the boundary %d (may not be implemented yet) =+=+=+= \n",h);
                MPI_Abort(MPI_COMM_WORLD, 1);

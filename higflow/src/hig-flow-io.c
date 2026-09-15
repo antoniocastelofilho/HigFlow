@@ -774,12 +774,17 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     // Saving scalar properties from the center of the cell 
     switch (ns->contr.flowtype) {
         case NEWTONIAN:
+            {
         break;
         
+            }
         case GENERALIZED_NEWTONIAN:
+            {
         break;
         
+            }
         case MULTIPHASE:
+            {
             fprintf(f,"\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n");
             for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
                 hig_cell *c = higcit_getcell(it);
@@ -790,13 +795,19 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             higcit_destroy(it);
          break;
             
+            }
         case VISCOELASTIC:
+            {
         break;
         
+            }
         case VISCOELASTIC_INTEGRAL:
+            {
         break;
 
+            }
         case VISCOELASTIC_VAR_VISCOSITY: ;
+            {
             //Printing the viscosity
             sim_domain *sdvisc =  psd_get_local_domain(ns->ed.vevv.psdVisc);
             //fprintf(f, "\nCELL_DATA %ld\nSCALARS viscosity FLOAT\nLOOKUP_TABLE default\n", numcells);
@@ -822,7 +833,9 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
 
         break;
 
+            }
         case SHEAR_BANDING:
+            {
             if (ns->ed.nn_contr.rheotype == VCM){
                 //Printing the density number nA
                 sim_domain *sdna =  psd_get_local_domain(ns->ed.vesb.psdSBnA);
@@ -860,11 +873,16 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
 
         break;
 
+            }
         case ELASTOVISCOPLASTIC:
+            {
         break;
 
+            }
         case SUSPENSIONS:
+            {
         break;
+            }
     }
 
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
@@ -7853,19 +7871,19 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
             print0f("=+=+=+= Solving Equation: Inviscid Euler =+=+=+=\n");
         }
         else if (strcmp(auxchar, "stokes") == 0) {
-            ns->contr.flowtype = STOKES;
+            ns->contr.equation = STOKES;
             print0f("=+=+=+= Solving Equation: Stokes =+=+=+=\n");
         }
         else if (strcmp(auxchar, "viscous_burgers") == 0) {
-            ns->contr.flowtype = VISCOUS_BURGERS;
+            ns->contr.equation = VISCOUS_BURGERS;
             print0f("=+=+=+= Solving Equation: Viscous Burgers =+=+=+=\n");
         }
         else if (strcmp(auxchar, "inviscid_burgers") == 0) {
-            ns->contr.flowtype = INVISCID_BURGERS;
+            ns->contr.equation = INVISCID_BURGERS;
             print0f("=+=+=+= Solving Equation: Inviscid Burgers =+=+=+=\n");
         }
         else if (strcmp(auxchar, "heat") == 0) {
-            ns->contr.flowtype = HEAT;
+            ns->contr.equation = HEAT;
             print0f("=+=+=+= Solving Equation: Heat =+=+=+=\n");
         }
         else {
@@ -7876,7 +7894,7 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
 
     // Projection Method
     if (ns->contr.equation == INVISCID_BURGERS || ns->contr.equation == VISCOUS_BURGERS || ns->contr.equation == HEAT) {
-        ns->contr.projtype = -1;
+        ns->contr.projtype = (projection_type)-1;   // sentinela: nao se aplica a esta equacao
         print0f("=+=+=+= No Projection Necessary =+=+=+=\n");
     } else {
         ifd = fy_document_scanf(fyd, "/simulation_contr/projtype %s", auxchar);
@@ -7983,7 +8001,7 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
 
     // Convective Discretization Type
     if (ns->contr.equation == STOKES || ns->contr.equation == HEAT) {
-        ns->contr.convecdiscrtype = -1;
+        ns->contr.convecdiscrtype = (convecdiscr_type)-1;   // sentinela: nao se aplica a esta equacao
         print0f("=+=+=+= No Convective Term in the Equation =+=+=+=\n");
     } else {
         ifd = fy_document_scanf(fyd, "/simulation_contr/convecdiscrtype %s", auxchar);

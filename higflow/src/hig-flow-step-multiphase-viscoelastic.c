@@ -704,6 +704,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         a0  = 1.0;
                         break;
                     case FENE_P: ;///////////////////////////////////// FENE-P
+                        {
                         real L2 = ns->ed.mult.ve.par0.L2_fene;
                         trA = 0.0;
                         for (int i = 0; i < DIM; i++)
@@ -712,7 +713,9 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         a0 = L2/(L2-3);
                         xi0 = 0.0;
                         break;
+                        }
                     case E_FENE: ;///////////////////////////////////// e-FENE
+                        {
                         real b_fene = ns->ed.mult.ve.par0.L2_fene;
                         real lambda_fene = ns->ed.mult.ve.par0.lambda_fene;
                         real E = ns->ed.mult.ve.par0.E_fene;
@@ -723,6 +726,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         a0  = 1.0;
                         xi0 = 0.0;
                         break;
+                        }
                     default: ///////////////////////////////////// Outros
                         fA0 = 1.0;
                         a0  = 1.0;
@@ -747,6 +751,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         a1  = 1.0;
                         break;
                     case 4: ;///////////////////////////////////// FENE-P
+                        {
                         real L2 = ns->ed.mult.ve.par1.L2_fene;
                         trA = 0.0;
                         for (int i = 0; i < DIM; i++)
@@ -755,7 +760,9 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         a1 = L2/(L2-3);
                         xi1 = 0.0;
                         break;
+                        }
                     case 5: ;///////////////////////////////////// e-FENE
+                        {
                         real b_fene = ns->ed.mult.ve.par1.L2_fene;
                         real lambda_fene = ns->ed.mult.ve.par1.lambda_fene;
                         real E = ns->ed.mult.ve.par1.E_fene;
@@ -766,6 +773,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         a1  = 1.0;
                         xi1 = 0.0;
                         break;
+                        }
                     default: ///////////////////////////////////// Outros
                         fA1 = 1.0;
                         a1  = 1.0;

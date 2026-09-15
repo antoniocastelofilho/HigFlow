@@ -284,6 +284,7 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
                     a  = 1.0;
                     break;
                 case FENE_P: ;///////////////////////////////////// FENE-P
+                    {
                     real L2 = ns->ed.ve.par.L2_fene;
                     trA = 0;
                     for (int i = 0; i < DIM; i++)
@@ -291,7 +292,9 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
                     fA = L2/(L2 - trA);
                     a = L2/(L2-3);
                     break;
+                    }
                 case E_FENE: ;///////////////////////////////////// e-FENE
+                    {
                     real b_fene = ns->ed.ve.par.L2_fene;
                     real lambda_fene = ns->ed.ve.par.lambda_fene;
                     real E = ns->ed.ve.par.E_fene;
@@ -302,6 +305,7 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
                     a  = 1.0;
                     xi = 0.0;
                     break;
+                    }
                 default: ///////////////////////////////////// Outros
                     fA = 1.0;
                     a  = 1.0;
