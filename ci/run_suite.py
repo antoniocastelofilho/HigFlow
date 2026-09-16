@@ -135,10 +135,13 @@ CASES = [
     # os invalida quando a malha muda.  Em np=1 nao ha troca e o caso passa.
     Case("example2d_DynamicMeshAdapt", "ns-example-2d", "load", 2,
          known_broken="corrupcao de heap em np=2: MPI le alem do buffer de dp_create"),
-    # Txx e Txy viram NaN ja no primeiro frame impresso, e o exemplo tenta
-    # escrever em Profiles/Velocities, diretorio que nao existe na arvore.
+    # Entrada legada: .contr/.par posicionais, sem .par.contr.yaml, entao a
+    # suite nao consegue encurtar a corrida -- ele roda o que o .par mandar.
+    # dtp menor que o padrao de proposito: o dt deste caso e' 1e-4, entao com
+    # 20 passos o tempo final e' 0,002 -- com dtp=0,005 so' o quadro inicial
+    # seria escrito e a referencia nao cobriria o avanco no tempo.
     Case("example2d_BMP",          "ns-example",     "example-3d.load", 2,
-         known_broken="Txx/Txy viram NaN no primeiro frame"),
+         dtp=0.0005),
 ]
 
 
@@ -184,6 +187,14 @@ def build_for_dim(dim, cases, timeout):
     return True, ""
 
 
+def _e_numero(texto):
+    try:
+        float(texto.strip())
+        return True
+    except ValueError:
+        return False
+
+
 def prepare_inputs(case, tmp, numsteps, dtp):
     """Copy the case inputs into tmp and override the run length there."""
     indir = os.path.join(tmp, "input")
@@ -192,6 +203,23 @@ def prepare_inputs(case, tmp, numsteps, dtp):
     for f in os.listdir(src):
         if f.startswith(case.load):
             shutil.copy(os.path.join(src, f), indir)
+    # Entrada legada: um .par de numeros soltos, sem rotulo, lido por
+    # higflow_load_parameters (higflow/src/hig-flow-io.c) na ordem
+    #   1 step | 2 numsteps | 3 t | 4 dt | 5 Re | 6 dts | 7 dtp | 8 frame ...
+    # O example2d_BMP usa esse formato e traz numsteps=80000, o que faz a
+    # corrida passar de quinze minutos.  Sem encurtar aqui, o caso nao cabe na
+    # suite; com isso ele fica no mesmo pe' dos casos em yaml.
+    legado = os.path.join(indir, case.load + ".par")
+    if os.path.exists(legado) and not os.path.exists(legado + ".contr.yaml"):
+        with open(legado) as fp:
+            linhas = fp.read().split("\n")
+        numericas = [l for l in linhas if l.strip()]
+        if len(numericas) >= 7 and all(_e_numero(l) for l in numericas[:7]):
+            linhas[1] = str(numsteps)
+            linhas[6] = repr(float(dtp))
+            with open(legado, "w") as fp:
+                fp.write("\n".join(linhas))
+
     par = os.path.join(indir, case.load + ".par.contr.yaml")
     if os.path.exists(par):
         with open(par) as fp:
@@ -233,14 +261,25 @@ def run_case(case, np, numsteps, dtp, timeout):
         return False, None, "timed out after %ds" % timeout
 
     log = r.stdout + r.stderr
-    if "nan" in log.lower():
-        return False, vtk, "NaN in output"
     if r.returncode != 0:
         first = next((l for l in log.splitlines()
                       if re.search(r"SEGV|Segmentation|ERROR|Abort", l)), "")
         return False, vtk, "exit %d %s" % (r.returncode, first.strip()[:60])
     if not os.listdir(vtk):
         return False, vtk, "no VTK output produced"
+
+    # NaN e' procurado nos DADOS, nao no log.  O example2d_BMP imprime um
+    # diagnostico proprio de convergencia, fabs((old-novo)/novo)*100, que da
+    # nan quando a grandeza comparada e' identicamente zero -- Txy no comeco da
+    # corrida.  Isso nao diz nada sobre a solucao: os VTKs daquele caso nao tem
+    # um unico NaN.  Procurar a substring no stdout reprovava o caso por causa
+    # de uma divisao por zero na impressao.
+    for f in sorted(os.listdir(vtk)):
+        if not f.endswith(".vtk"):
+            continue
+        with open(os.path.join(vtk, f), errors="replace") as fp:
+            if "nan" in fp.read().lower():
+                return False, vtk, "NaN in output (%s)" % f
     return True, vtk, ""
 
 
