@@ -1188,7 +1188,9 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
             // Convective term contribution
             rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms times delta t
-            rhs *= 0.25*ns->par.dt;
+            rhs *= 0.5*ns->par.dt;
+            // Difusive term contribution
+            rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
             rhs += ns->cc.ufacet;
             // Reset the stencil
