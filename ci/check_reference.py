@@ -186,14 +186,27 @@ def compare_data(current, reference, case_name, tol=0.001):
                 report.append(
                     f"  vel.{comp}.{metric}: current={v_cur}, ref={v_ref}")
 
-    # Compare pressure
+    # A pressao num escoamento incompressivel so' e' definida a menos de uma
+    # constante aditiva.  O solver ancora esse valor em algum ponto, e a ancora
+    # cai em lugar diferente conforme o dominio e' particionado -- no
+    # example2d_ElectroOsmotic, entre np=1 e np=2 o campo inteiro desloca
+    # -179.42 com desvio de 1.1e-2; removida a constante, o maior residuo e'
+    # 0,004% da escala e nenhuma celula passa de 0,1%.  A solucao e' a mesma.
+    # Comparar min e max absolutos reprovaria isso como se fosse divergencia de
+    # 7%, entao a comparacao e' feita sobre a pressao centrada na propria media.
+    # A media sozinha e' puro calibre e por isso nao entra.
+    def centered(d, metric):
+        v, m = d.get(metric), d.get("mean")
+        return None if v is None or m is None else v - m
+
     p_scale = amplitude(reference.get("p", {}))
-    for metric in ["min", "max", "mean"]:
-        v_cur = current.get("p", {}).get(metric)
-        v_ref = reference.get("p", {}).get(metric)
+    for metric in ["min", "max"]:
+        v_cur = centered(current.get("p", {}), metric)
+        v_ref = centered(reference.get("p", {}), metric)
         if not metrics_close(v_cur, v_ref, tol, p_scale):
             passed = False
-            report.append(f"  p.{metric}: current={v_cur}, ref={v_ref}")
+            report.append(
+                f"  p.{metric}-mean: current={v_cur}, ref={v_ref}")
 
     # Compare FracVol sum if present
     fc_cur = current.get("fracvol_sum")

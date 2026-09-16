@@ -49,8 +49,14 @@ KSP_OPTS = ["-ksp_type", "bcgs", "-pc_type", "bjacobi",
 class Case:
     def __init__(self, name, binary, load, dim, multiphase=False,
                  numsteps=20, dtp=0.005, slow=False, known_broken=None,
-                 max_np=None, max_np_reason=""):
+                 max_np=None, max_np_reason="", overrides=None, example=None):
         self.name = name
+        # Um mesmo exemplo pode render mais de um caso, quando caminhos
+        # diferentes do solver sao escolhidos por configuracao e nao por
+        # codigo.  `example` diz de qual diretorio o caso sai; `name` continua
+        # sendo a identidade do caso e o nome do arquivo de referencia.
+        self.example = example or name
+        self.overrides = overrides or {}
         self.binary = binary          # link target of the example Makefile
         self.load = load              # input prefix, relative to the case dir
         self.dim = dim
@@ -64,7 +70,7 @@ class Case:
 
     @property
     def dir(self):
-        return os.path.join(HIGFLOW, self.name)
+        return os.path.join(HIGFLOW, self.example)
 
 
 # The suite covers one case per physics path that the solver can take.
@@ -78,6 +84,16 @@ CASES = [
     Case("example2d_VOF",          "ns-example",     "example-2d.load", 2, multiphase=True),
     Case("example2d_VOF_Gptt",     "ns-example",     "example-2d.load", 2, multiphase=True),
     Case("example2d_VOF_Oldroyd",  "ns-example",     "example-2d.load", 2, multiphase=True),
+    # Como distribuido, este exemplo roda com eoflow desligado: apesar do nome,
+    # ele cobre o caminho multifasico e nao o eletroosmotico.
+    Case("example2d_ElectroOsmotic", "ns-example-2d",  "load", 2, multiphase=True),
+    # Mesmo exemplo, com o acoplamento eletroosmotico ligado por configuracao.
+    # E' o unico caso da suite que entra em step-multiphase-electroosmotic --
+    # onde estava o Runge-Kutta que chamava o euler monofasico, um bug que
+    # sobreviveu justamente por nada exercitar esse caminho.
+    Case("example2d_ElectroOsmotic_eo", "ns-example-2d", "load", 2,
+         multiphase=True, example="example2d_ElectroOsmotic",
+         overrides={"eoflow": "true", "eoflow0": "true", "eoflow1": "true"}),
     # 10x10x10 = 1000 celulas.  Dividida em dois, a franja passa a ser uma
     # fracao grande de cada subdominio e vel.w.max muda 0,6% entre np=1 e np=2.
     # Nao e' bug de paralelismo: refinando para 20x20x20 a diferenca vai a zero
@@ -91,6 +107,17 @@ CASES = [
     # so the suite reports it as known-broken instead of silently omitting it.
     Case("example2d_KBKZ",         "ns-example",     "example-2d.load", 2,
          known_broken="tensor diverges to NaN at step 3"),
+    # Em np=1 a soma de FracVol cresce 0,72% por passo, de forma monotonica; o
+    # caso tem contorno de velocidade dependente do tempo, entao entrada de
+    # massa pode ser legitima e a checagem de sistema fechado nao se aplicar.
+    # Em np=2 os campos explodem (Tmin = -7,2e6) e o solver aborta em
+    # "Time step is large!!!".  Nenhum dos dois foi apurado.
+    Case("example2d_DynamicMeshAdapt", "ns-example-2d", "load", 2, multiphase=True,
+         known_broken="massa cresce 0,72%/passo em np=1; aborta em np=2"),
+    # Txx e Txy viram NaN ja no primeiro frame impresso, e o exemplo tenta
+    # escrever em Profiles/Velocities, diretorio que nao existe na arvore.
+    Case("example2d_BMP",          "ns-example",     "example-3d.load", 2,
+         known_broken="Txx/Txy viram NaN no primeiro frame"),
 ]
 
 
@@ -120,9 +147,9 @@ def build_for_dim(dim, cases, timeout):
              (higtree, ["make", "-C", higtree, "DIM=%d" % dim]),
              (HIGFLOW, ["make", "-C", HIGFLOW, "clean"]),
              (HIGFLOW, ["make", "-C", HIGFLOW, "DIM=%d" % dim])]
-    for c in cases:
-        steps.append((c.dir, ["make", "-C", c.dir, "clean"]))
-        steps.append((c.dir, ["make", "-C", c.dir]))
+    for d in dict.fromkeys(c.dir for c in cases):     # ordem estavel, sem repetir
+        steps.append((d, ["make", "-C", d, "clean"]))
+        steps.append((d, ["make", "-C", d]))
 
     for where, cmd in steps:
         r = subprocess.run(cmd, capture_output=True, text=True,
@@ -150,6 +177,15 @@ def prepare_inputs(case, tmp, numsteps, dtp):
             text = fp.read()
         text = re.sub(r"numsteps:\s*\d+", "numsteps: %d" % numsteps, text)
         text = re.sub(r"dtp:\s*[0-9.eE+-]+", "dtp: %g" % dtp, text)
+        # Sobrescritas de configuracao do caso.  Trocam so' o valor, deixando
+        # o comentario da linha intacto, para que o diff contra o arquivo
+        # original continue legivel.
+        for key, value in case.overrides.items():
+            text, n = re.subn(r"(?m)^(\s*%s:\s*)\S+" % re.escape(key),
+                              lambda m: m.group(1) + value, text)
+            if n == 0:
+                raise SystemExit("caso %s: chave '%s' nao existe em %s"
+                                 % (case.name, key, os.path.basename(par)))
         with open(par, "w") as fp:
             fp.write(text)
     return os.path.join(indir, case.load)

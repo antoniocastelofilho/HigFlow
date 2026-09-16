@@ -165,7 +165,7 @@ void print(higflow_solver* ns, int myrank, int ntasks){
             printf("*********************************************************************************\n");
     }
     
-    //higflow_print_vtk(ns, myrank);
+    higflow_print_vtk(ns, myrank);  // alem do XDMF: o verificador da suite le VTK
     // if(ns->contr.flowtype == MULTIPHASE) higflow_print_vtk2D_multiphase(ns, myrank);
     //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
     write_xdmf(ns);
