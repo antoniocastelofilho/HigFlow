@@ -883,7 +883,7 @@ void higflow_explicit_euler_intermediate_velocity_elastoviscoplastic(higflow_sol
             // Difusive term contribution
             rhs += higflow_diffusive_term(ns, fdelta);
             // Compute the intermediate velocity
-            real ustar = ns->cc.ucell + ns->par.dt * rhs;
+            real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
@@ -1061,7 +1061,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_elastoviscoplastic(higflo
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1158,7 +1158,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_elastoviscoplast
             // Total contribuition terms times delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1251,7 +1251,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_elastoviscoplastic(higflow
             // Total contribuition terms times delta t
             rhs *= 0.25*ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -1320,7 +1320,17 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_elastoviscoplastic(higflow
             real uaux = dp_get_value(ns->dpuaux[dim], flid);
             // Right hand side equation
             real rhs = 0.0;
-            rhs = (4.0*uaux - ns->cc.ucell)/3.0;
+            // Source term contribution
+            rhs += higflow_source_term(ns);
+            // Pressure term contribution
+            rhs -= higflow_pressure_term(ns);
+            // Tensor term contribution
+            rhs += higflow_tensor_term(ns);
+            // Convective term contribution
+            rhs -= higflow_convective_term(ns, fdelta, dim);
+            // Total contribuition terms times delta t
+            rhs *= 1.0/3.0*ns->par.dt;
+            rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil

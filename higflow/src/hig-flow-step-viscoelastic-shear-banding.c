@@ -2547,7 +2547,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_shear_banding(hig
             // Source term contribution
             rhs += higflow_source_term(ns);
             // Compute the intermediate velocity
-            real ustar = ns->cc.ucell + ns->par.dt * rhs;
+            real ustar = ns->cc.ufacet + ns->par.dt * rhs;
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
@@ -2727,7 +2727,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_shear_banding(higflow_sol
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2820,7 +2820,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_banding(hi
             // Total contribuition terms times delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2914,7 +2914,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solv
             // Difusive term contribution
             rhs += 0.25*ns->par.dt*higflow_diffusive_term(ns, fdelta);
             // Velocity term contribution
-            rhs += ns->cc.ucell;
+            rhs += ns->cc.ufacet;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
@@ -2992,7 +2992,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solv
             rhs += higflow_tensor_term(ns);
             // Total contribuition terms times delta t
             rhs *= ns->par.dt/3.0;
-            rhs += (4.0*uaux - ns->cc.ucell)/3.0;
+            rhs += (4.0*uaux - ns->cc.ufacet)/3.0;
             // Reset the stencil
             stn_reset(ns->stn);
             // Set the right side of stencil
