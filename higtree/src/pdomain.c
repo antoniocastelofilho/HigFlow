@@ -919,9 +919,15 @@ _add_elem_to_datatype(int *current, int *sizes, int *starts, int eid)
 
 static void
 _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
-	get_elem_count_fn elem_count, get_elem_ids_fn get_eids)
+	get_elem_count_fn elem_count, get_elem_ids_fn get_eids,
+	struct psim_domain *bpsd)
 {
 	unsigned num_nbs = g_hash_table_size(fn);
+
+	/* Contagens por vizinho, para conferir a simetria da troca no fim. */
+	DECL_AND_ALLOC(int, _chk_rank, num_nbs ? num_nbs : 1);
+	DECL_AND_ALLOC(long, _chk_send, num_nbs ? num_nbs : 1);
+	DECL_AND_ALLOC(long, _chk_recv, num_nbs ? num_nbs : 1);
 	//mp_mapper *mp = sd_get_domain_mapper(psd->localdomain);
 
 	/* Allocate the struct array, one element per neighbor. */
@@ -941,7 +947,9 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 	GHashTableIter nbiter;
 	g_hash_table_iter_init(&nbiter, fn);
 	struct neighbor_proc *nb;
-	while(g_hash_table_iter_next(&nbiter, NULL, (gpointer *)&nb)) {
+	gpointer _nb_key;
+	while(g_hash_table_iter_next(&nbiter, &_nb_key, (gpointer *)&nb)) {
+		_chk_rank[nb->idx] = GPOINTER_TO_INT(_nb_key);
 		/* Create datatype used to send. */
 		int count = -1;
 		sizes[0] = 0;
@@ -965,6 +973,11 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 		}
 		++count;
 
+		{
+			long t = 0;
+			for(int k = 0; k < count; ++k) t += sizes[k];
+			_chk_send[nb->idx] = t;
+		}
 		MPI_Type_indexed(count, sizes, starts, MPI_HIGREAL,
 			&dp_data->psync[nb->idx].send);
 		MPI_Type_commit(&dp_data->psync[nb->idx].send);
@@ -991,6 +1004,11 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 		}
 		++count;
 
+		{
+			long t = 0;
+			for(int k = 0; k < count; ++k) t += sizes[k];
+			_chk_recv[nb->idx] = t;
+		}
 		MPI_Type_indexed(count, sizes, starts, MPI_HIGREAL,
 			&dp_data->psync[nb->idx].recv);
 		MPI_Type_commit(&dp_data->psync[nb->idx].recv);
@@ -1000,12 +1018,73 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 
 	free(sizes);
 	free(starts);
+
+	/*
+	 * Conferir que a troca e' simetrica antes que ela aconteca.
+	 *
+	 * dp_sync faz MPI_Irecv(dp->values, 1, psync[i].recv, ...) contra o
+	 * MPI_Isend(..., psync[i].send, ...) do vizinho.  Os dois tipos derivados
+	 * sao construidos independentemente, cada processo a partir da sua propria
+	 * arvore, e nada obriga os dois a cobrirem o mesmo numero de elementos.  Se
+	 * o remetente manda mais do que o destinatario dimensionou, o MPI escreve
+	 * alem do buffer alocado em dp_create: corrompe o heap, e isso so' aparece
+	 * muito depois, num "free(): invalid next size" sem relacao aparente com a
+	 * causa.
+	 *
+	 * Acontece de verdade.  No example2d_DynamicMeshAdapt em np=2, depois de uma
+	 * adaptacao de malha, o rank 1 monta um tipo que envia 1013 elementos ao
+	 * rank 0, que dimensionou a recepcao para 1009.  A diferenca sao quatro
+	 * celulas da coluna externa da franja, todas numa interface de refinamento:
+	 * a face da celula grossa e' coberta por sub-facetas da vizinha refinada,
+	 * que existe na arvore do remetente e nao na franja isolada do destinatario.
+	 * A enumeracao de facetas, portanto, nao e' funcao so' do bloco.
+	 *
+	 * A cura e' fazer o bloco serializado carregar a subdivisao das facetas da
+	 * sua face externa, o que muda o protocolo da franja.  Enquanto isso nao e'
+	 * feito, aqui ao menos a falha e' imediata e diz o que aconteceu, em vez de
+	 * virar corrupcao silenciosa de memoria.
+	 */
+	if(num_nbs > 0) {
+		MPI_Comm comm = pg_get_MPI_comm(bpsd->pg);
+		DECL_AND_ALLOC(long, peer_send, num_nbs);
+		DECL_AND_ALLOC(MPI_Request, reqs, num_nbs * 2);
+		const int tag = 913377;
+
+		for(unsigned i = 0; i < num_nbs; ++i) {
+			MPI_Irecv(&peer_send[i], 1, MPI_LONG, _chk_rank[i], tag,
+				comm, &reqs[i]);
+			MPI_Isend(&_chk_send[i], 1, MPI_LONG, _chk_rank[i], tag,
+				comm, &reqs[num_nbs + i]);
+		}
+		MPI_Waitall(num_nbs * 2, reqs, MPI_STATUSES_IGNORE);
+
+		for(unsigned i = 0; i < num_nbs; ++i) {
+			if(peer_send[i] != _chk_recv[i]) {
+				fprintf(stderr,
+					"ERRO: troca de franja assimetrica com o rank %d: "
+					"ele envia %ld elementos, este processo dimensionou "
+					"a recepcao para %ld.  Sincronizar assim escreveria "
+					"alem do buffer e corromperia o heap.  Ver o comentario "
+					"em _create_sync_datatypes (higtree/src/pdomain.c).\n",
+					_chk_rank[i], peer_send[i], _chk_recv[i]);
+				fflush(stderr);
+				MPI_Abort(comm, 1);
+			}
+		}
+
+		free(peer_send);
+		free(reqs);
+	}
+
+	free(_chk_rank);
+	free(_chk_send);
+	free(_chk_recv);
 }
 
 distributed_property *psd_create_property(psim_domain *psd) {
 	if(!psd->dp_data.psync) {
 		_create_sync_datatypes(&psd->dp_data, psd->filtered_neighbors,
-			psd, _cell_sub_counter, _cell_get_ids);
+			psd, _cell_sub_counter, _cell_get_ids, psd);
 		psd->dp_data.bpsd = psd;
 	}
 	return dp_create(&psd->dp_data);
@@ -1015,7 +1094,7 @@ distributed_property *psfd_create_property(psim_facet_domain *psfd)
 {
 	if(!psfd->dp_data.psync) {
 		_create_sync_datatypes(&psfd->dp_data, psfd->psd->filtered_neighbors,
-			psfd, _facet_sub_counter, _facet_get_ids);
+			psfd, _facet_sub_counter, _facet_get_ids, psfd->psd);
 		psfd->dp_data.bpsd = psfd->psd;
 	}
 	return dp_create(&psfd->dp_data);

@@ -381,6 +381,15 @@ def main():
                     failures += 1
                 print("%-24s %-5d  %-7s  %s" % (c.name, np, status, detail))
 
+                # Apagar o temporario do caso que passou.  Sem isto cada
+                # execucao deixa para tras a saida inteira: uma tarde de
+                # rodadas acumulou 24 GB em 1011 diretorios e encheu o tmpfs,
+                # a ponto de o compilador falhar com "Disk quota exceeded" e o
+                # proprio shell nao iniciar.  O de um caso que falhou fica,
+                # porque e' a evidencia para diagnosticar a falha.
+                if ok and vtk:
+                    shutil.rmtree(os.path.dirname(vtk), ignore_errors=True)
+
     for c, why in skipped:
         print("%-24s %-5s  %-7s  %s" % (c.name, "-", "skip", why))
 
