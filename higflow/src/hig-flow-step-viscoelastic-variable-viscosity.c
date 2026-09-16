@@ -1106,7 +1106,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_var
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 0.5 *  ns->par.dt*(1.0-ns->ed.vevv.par.beta)*(ns->cc.viscr[dim2] + ns->cc.viscl[dim2])/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real w = - 0.5 * ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= 2.0 * w ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -1201,7 +1201,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 0.25*ns->par.dt*(1.0-ns->ed.vevv.par.beta)*(ns->cc.viscr[dim2] + ns->cc.viscl[dim2])/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real w = - 0.25*ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -= 2.0 * w ; //divide po 4 para usar regra trapezio em t(n+1/2)
                 Point p;
                 POINT_ASSIGN(p, fcenter);
@@ -1280,7 +1280,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
             real alpha = 0.0;
             for(int dim2 = 0; dim2 < DIM; dim2++) {
                 // Stencil weight update
-                real w = - 1.0/3.0* ns->par.dt*(1.0-ns->ed.vevv.par.beta)*(ns->cc.viscr[dim2] + ns->cc.viscl[dim2])/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
+                real w = - 1.0/3.0*ns->par.dt/(ns->par.Re*fdelta[dim2]*fdelta[dim2]);
                 alpha -=  2.0 * w ;
                 Point p;
                 POINT_ASSIGN(p, fcenter);
