@@ -2317,11 +2317,11 @@ void higflow_semi_implicit_euler_intermediate_velocity_shear_thickening_suspensi
             rhs -= higflow_pressure_term(ns);
             // Tensor term contribution
             rhs += higflow_tensor_term(ns);
-            // We divide the past terms over the density, which has the value of Re
-            rhs /= ns->par.Re;
+            // No division by the density here: rho = 1.0 is the convention of this
+            // model, the same one the other three temporal schemes already assume.
             // Convective term contribution: we neglect the convective term of the Navier-Stokes in the simulation of shear-thickening suspensions
             // This term is only considered when solving the lid-driven cavity problem and is no divided over the density
-            rhs -= higflow_convective_term(ns, fdelta, dim);
+            // rhs -= higflow_convective_term(ns, fdelta, dim);
             // Total contribuition terms by delta t
             rhs *= ns->par.dt;
             // Velocity term contribution
@@ -2343,7 +2343,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_shear_thickening_suspensi
                 // Here, Re represents the density value, which is a constant
                 //real w = -1.0 * (ns->par.dt) * (0.01 + ns->ed.stsp.par.eta0) / (ns->par.Re * fdelta[dim2] * fdelta[dim2]);
                 //real w = -1.0 * (ns->par.dt) * (ns->ed.stsp.par.eta0) / (ns->par.Re * fdelta[dim2] * fdelta[dim2]);
-                real w = -1.0 * (ns->par.dt) * (ns->ed.stsp.par.eta0 + ns->ed.stsp.par.eta0) / (ns->par.Re * fdelta[dim2] * fdelta[dim2]);
+                real w = -1.0 * 2.0 * (ns->par.dt) * (ns->ed.stsp.par.eta0) / (fdelta[dim2] * fdelta[dim2]);
                 // real w = - 2.0*(ns->par.dt)*(ns->ed.stsp.par.eta0)/(fdelta[dim2]*fdelta[dim2]);
                 alpha -= 2.0 * w;
                 Point p;
