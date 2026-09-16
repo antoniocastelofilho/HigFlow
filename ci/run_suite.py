@@ -107,13 +107,34 @@ CASES = [
     # so the suite reports it as known-broken instead of silently omitting it.
     Case("example2d_KBKZ",         "ns-example",     "example-2d.load", 2,
          known_broken="tensor diverges to NaN at step 3"),
-    # Em np=1 a soma de FracVol cresce 0,72% por passo, de forma monotonica; o
-    # caso tem contorno de velocidade dependente do tempo, entao entrada de
-    # massa pode ser legitima e a checagem de sistema fechado nao se aplicar.
-    # Em np=2 os campos explodem (Tmin = -7,2e6) e o solver aborta em
-    # "Time step is large!!!".  Nenhum dos dois foi apurado.
-    Case("example2d_DynamicMeshAdapt", "ns-example-2d", "load", 2, multiphase=True,
-         known_broken="massa cresce 0,72%/passo em np=1; aborta em np=2"),
+    # Apurado.  O crescimento de FracVol de 0,72% por passo NAO e' defeito do
+    # solver: a tampa (bc1) tem componente de velocidade normal ao contorno de
+    # 0,1 enquanto as outras tres paredes tem normal zero, entao o dominio nao
+    # e' fechado.  Zerando so' essa componente, a massa conserva (variacao
+    # maxima 0,057%).  A checagem de sistema fechado de check_mass nao se
+    # aplica a este exemplo, e por isso multiphase fica em False.
+    #
+    # De quebra, como so' a tampa tem fluxo normal, o fluxo liquido pelo
+    # contorno e' nao nulo -- incompativel com incompressibilidade num dominio
+    # fixo.  Era dai que vinha o "Time step is large!!!" com Tmin = -7,2e6 que
+    # este caso exibia em np=2: com a normal zerada as velocidades ficam sas
+    # (|V| < 0,35) e a explosao desaparece.
+    #
+    # O que sobra, e por isso o caso continua quebrado, e' anterior e mais
+    # grave: em np=2 a corrida aborta com "free(): invalid next size", ou seja
+    # corrupcao de heap.  O valgrind localiza um process_vm_readv dentro de
+    # PMPI_Waitall lendo 0 bytes alem do fim de um bloco de 50.744 bytes
+    # alocado em dp_create (higtree/src/pdomain.c:901), por
+    # psfd_create_property <- higflow_create_distributed_properties <-
+    # higflow_rebuild_with_amr, isto e', durante a reconstrucao por adaptacao
+    # de malha.  Hipotese a confirmar: dp_sync faz
+    # MPI_Irecv(dp->values, 1, psync[...].recv, ...) com tipos derivados que
+    # guardam deslocamentos absolutos dentro de values, e esses tipos sao
+    # criados uma unica vez sob `if(!psfd->dp_data.psync)` (pdomain.c:1016),
+    # sendo liberados apenas em _dp_shared_destroy -- nada fora de pdomain.c
+    # os invalida quando a malha muda.  Em np=1 nao ha troca e o caso passa.
+    Case("example2d_DynamicMeshAdapt", "ns-example-2d", "load", 2,
+         known_broken="corrupcao de heap em np=2: MPI le alem do buffer de dp_create"),
     # Txx e Txy viram NaN ja no primeiro frame impresso, e o exemplo tenta
     # escrever em Profiles/Velocities, diretorio que nao existe na arvore.
     Case("example2d_BMP",          "ns-example",     "example-3d.load", 2,
