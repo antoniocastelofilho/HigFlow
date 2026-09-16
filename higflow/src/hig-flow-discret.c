@@ -318,7 +318,7 @@ void higflow_computational_cell_gen_newt(higflow_solver *ns, sim_domain *sdp, si
          ur = compute_facet_u_right(sfdu[dim], fcenter, fdelta, dim2, 1.0, ns->dpu[dim], ns->stn, &infacet);
          uc = ns->cc.ufacet;
 
-         ns->cc.du2dx2[dim2] += (viscl*ul - (viscl + viscr)*uc + viscr)/(fdelta[dim2]*fdelta[dim2]); // div(mu Du)
+         ns->cc.du2dx2[dim2] += (viscl*ul - (viscl + viscr)*uc + viscr*ur)/(fdelta[dim2]*fdelta[dim2]); // div(mu Du)
         
          // Extra term div(muDu^t) = Du^t*mu |||| div(Du^t) has to be omitted because of interpolation issues 
          real dujdxi, vl, vr;
