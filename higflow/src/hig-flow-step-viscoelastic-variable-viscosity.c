@@ -808,7 +808,7 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_variable_viscosit
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
             // Set the computational cell
-            higflow_computational_cell_viscoelastic_variable_viscosity(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
+            higflow_computational_cell_viscoelastic_variable_viscosity(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
             real rhs = 0.0;
             // Source term contribution

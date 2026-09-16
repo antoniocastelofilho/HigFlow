@@ -1868,7 +1868,7 @@ void higflow_explicit_euler_intermediate_velocity_multiphase(higflow_solver *ns,
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
             // Set the computational cell
-            higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
+            higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
             real rhs = 0.0;
             // Source term contribution

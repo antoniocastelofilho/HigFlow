@@ -2119,7 +2119,7 @@ void higflow_explicit_euler_intermediate_velocity_shear_thickening_suspensions(h
             Point fdelta;
             hig_get_facet_delta(f, fdelta);
             // Set the computational cell
-            higflow_computational_cell_shear_thickening_suspensions(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
+            higflow_computational_cell_shear_thickening_suspensions(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
             real rhs = 0.0;
             // Source term contribution
