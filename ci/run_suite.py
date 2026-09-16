@@ -42,6 +42,40 @@ REFDIR = os.path.join(HERE, "reference")
 # 1e-10 the residual left behind is enough to move vel.w.max by half a percent
 # between one and two processes in the 3D lid-driven case.  At 1e-12 the two
 # agree, which is what makes a single reference valid at every process count.
+#
+# O 1e-12 abaixo e' o que pedimos, nao o que recebemos.  Medido no
+# example3d_complex com -ksp_converged_reason -ksp_monitor_true_residual:
+# nenhum solve para por maxits, todos dizem CONVERGED_RTOL ou CONVERGED_ATOL,
+# mas nos solves de PRESSAO o resIduo que o bcgs acompanha descola do
+# verdadeiro -- e' a deriva do resIduo recursivo do BiCGStab:
+#
+#     np=1, 657 iter: acompanhado 4,61e-07  verdadeiro 1,47e-05  ||r||/||b|| 8,2e-12
+#     np=1, 624 iter: acompanhado 6,94e-07  verdadeiro 4,83e-05  ||r||/||b|| 3,1e-11
+#     np=2, 711 iter: acompanhado 1,15e-06  verdadeiro 1,33e-05  ||r||/||b|| 7,4e-12
+#     np=2, 713 iter: acompanhado 7,90e-07  verdadeiro 6,20e-05  ||r||/||b|| 4,0e-11
+#
+# Ou seja: a tolerancia efetiva do solve de pressao e' ~1e-11, uma ordem de
+# grandeza pior que a pedida, e VARIA COM A DECOMPOSICAO -- 3,1e-11 em np=1
+# contra 4,0e-11 em np=2 no mesmo solve.  Os solves de velocidade nao tem isso:
+# acompanhado e verdadeiro coincidem em cinco casas, relativo em 1e-13.
+#
+# Consequencias praticas, para quem for comparar numeros daqui:
+#
+#   - as referencias foram gravadas em np=1 com essa folga embutida, e a
+#     tolerancia de comparacao de 0,1% e' larga o bastante para absorve-la;
+#   - diferenca entre np na ordem de 1e-11 relativo e' o piso de ruIdo do
+#     solver, nao regressao;
+#   - a deriva e' deterministica: mesma decomposicao e mesmo binario dao saIda
+#     identica byte a byte (medido em np=2 e np=4).  Ela so' difere ENTRE
+#     decomposicoes, e e' por isso que comparar a np fixo cancela o efeito.
+#
+# Nao foi corrigido de proposito.  Trocar bcgs por bcgsl ou fgmres na pressao
+# invalidaria TODAS as referencias, e apertar o criterio com um teste sobre o
+# resIduo verdadeiro provavelmente faria as atuais falharem.  Qualquer das duas
+# e' mudanca de base de comparacao, e misturar isso com a migracao em curso
+# tornaria impossIvel separar o que mudou por refatoracao do que mudou por
+# solver.  Fica registrado para ser decidido por si.
+#
 KSP_OPTS = ["-ksp_type", "bcgs", "-pc_type", "bjacobi",
             "-ksp_atol", "1e-12", "-ksp_rtol", "1e-12"]
 
