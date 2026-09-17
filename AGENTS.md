@@ -289,3 +289,43 @@ NOT:
 ```
 
 This avoids MD060/table-column-style linter warnings.
+
+## Reading traps in this tree
+
+Three tools answer a question *close to* the one you meant. Each cost real time on
+2026-09-16, and each produced a plausible wrong answer rather than an error.
+
+### `git diff` does not tell you what is left to commit
+
+Several sessions share one working tree, so they share the index. A `git add`
+without a pathspec leaves a stale snapshot there, and `git status --short` then
+marks files `MM`. From that point on, plain `git diff` compares the tree against
+that stale index and shows *already committed* work as if it were pending.
+
+|Question|Command|
+|-----|-------|
+|What is left to commit?|`git diff HEAD`|
+|Which files?|`git diff HEAD --name-only`|
+|Commit without touching the shared index|`git commit -- <paths>`|
+
+Never commit by staging into the shared index: it can **revert** another session's
+committed work, which is worse than picking it up.
+
+### A pipeline hides the exit status you care about
+
+`cmd | tr -d '\0'` makes `$?` the status of `tr`. A run killed by `timeout` reports
+success. Use `set -o pipefail` or `${PIPESTATUS[0]}`.
+
+### `pgrep -f` and `pkill -f` match their own command line
+
+`pgrep -f run_suite.py` matches the shell that runs it, so an
+`until pgrep …; do sleep; done` loop never ends. Worse, `pkill -f 'while pgrep'`
+kills that shell (exit 144) — once taking a nearly finished suite with it. Use the
+bracket form, `run_suite[.]py`, or kill by a PID captured beforehand.
+
+### The shared pattern
+
+None of the three failed loudly. A step fails or lies, later steps run on stale
+state, and the number that comes out looks reasonable. When a result is suspiciously
+clean — an empty log read as "zero occurrences", a `rc=0` from a run that should have
+taken ten minutes — verify the step produced what you assumed before trusting it.
