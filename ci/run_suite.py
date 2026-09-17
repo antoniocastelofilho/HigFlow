@@ -143,10 +143,7 @@ CASES = [
          max_np=1, max_np_reason="malha 10x10x10 grosseira demais para dividir"),
     # 162000 cells over 33 blocks; a single step takes minutes.  Opt-in.
     Case("example3d_complex",      "ns-complex-3d",  "example-3d.load", 3,
-         numsteps=2, dtp=0.001, slow=True,
-         skip_np=(3,),
-         skip_np_reason="np=3 aborta em domain.c:1341; np=1,2,4 conferem -- "
-                        "defeito delimitado, nao cobertura reduzida"),
+         numsteps=2, dtp=0.001, slow=True),
     # Diverges to NaN at step 3 with the integral viscoelastic solver.  Listed
     # so the suite reports it as known-broken instead of silently omitting it.
     Case("example2d_KBKZ",         "ns-example",     "example-2d.load", 2,

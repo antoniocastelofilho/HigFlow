@@ -945,6 +945,20 @@ static real bc_patch_crossing_t(hig_cell *tree, int proj_dir, real plane,
 	return t;
 }
 
+// Algum retalho de Dirichlet e' atravessado pelo segmento origin->x?
+static bool any_dirichlet_crossed(sim_domain *d, const Point x, const real *origin)
+{
+	for(int i = 0; i < d->numdirichlet_bcs; i++) {
+		hig_cell *tree = d->dirichlet_bcs[i]->bc;
+		const int pd = hig_get_narrowest_dim(tree);
+		Point c; hig_get_center(tree, c);
+		if(bc_patch_crossing_t(tree, pd, c[pd], x, origin) >= 0.0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static inline bool
 get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 	sim_stencil *stn, const stencil_search_funcs *funcs,
@@ -1019,6 +1033,35 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 
 	// No suitable Neumann BC found, we are done here.
 	if(!best.nbc) {
+		return false;
+	}
+
+	// Nenhum retalho DESTA familia foi atravessado, mas algum da OUTRA foi: quem
+	// governa o ponto e' a outra.  Abrir mao aqui faz o get_stencil seguir para o
+	// fechamento de Dirichlet, que e' onde estao declaradas as paredes dos obstaculos.
+	//
+	// Sem isto, um ponto duas celulas dentro de um obstaculo era fechado pela BC de
+	// ENTRADA do canal, a 101 celulas, so' porque a projecao dele no plano de entrada
+	// cai dentro do retalho de entrada -- e como o Neumann e' tentado ANTES do
+	// Dirichlet, esse falso sucesso impedia de chegar a' parede que o estencil tinha
+	// acabado de atravessar.  Em paralelo, a projecao escolhida caia nas arvores de
+	// outro rank e o assert de domain.c disparava.
+	//
+	// A condicao e' "A OUTRA REIVINDICA", e nao "eu nao reivindico".  A diferenca e' o
+	// que separa isto de uma tentativa anterior que foi descartada: aquela abria mao
+	// sempre que nao atravessava, e mandava para a interpolacao geral o ponto que esta'
+	// DENTRO de um solido -- extrapolacao sem informacao de contorno, ilimitada por
+	// construcao (vel.u.min -3,7e6 contra -1,64 no example3d_complex em np=1).  Aqui,
+	// se ninguem atravessa, vale o comportamento antigo, que ao menos e' limitado.
+	//
+	// Medido no example3d_complex em np=3: nos 1.470 pontos em que este fechamento leva
+	// ao assert, um retalho de Dirichlet E' atravessado em 1.470 de 1.470, com a
+	// projecao elegivel e dentro das arvores locais em todos.
+	//
+	// Origem desconhecida e segmento degenerado (origem == x) se resolvem sozinhos:
+	// bc_patch_crossing_t devolve -1 nos dois casos, entao nada e' atravessado e nao se
+	// abre mao -- que e' o correto, porque sem deslocamento nao ha' direcao de travessia.
+	if(best.cross_t < 0.0 && any_dirichlet_crossed(d, x, origin)) {
 		return false;
 	}
 

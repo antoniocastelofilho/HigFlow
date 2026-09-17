@@ -152,7 +152,7 @@ bc:
       value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
   bc10:                                #*** The Boundary ***
     id: 10                             #*** The Boundary Identifier ***
-    path: amrs/Channel_3d_bc/mesh-channel3D-bc-101.amr         #*** The Path to the Boundary ***
+    path: amrs/Channel_3d_bc/mesh-channel3D-bc-10.amr         #*** The Path to the Boundary ***
     pressure:                         #*** The Pressure Condition ***
       type: neumann                # dirichlet or neumann
       value_type: fixed_value           # fixed_value, zero_gradient, freestream, empty, time_dependent or outflow
