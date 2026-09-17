@@ -323,6 +323,25 @@ success. Use `set -o pipefail` or `${PIPESTATUS[0]}`.
 kills that shell (exit 144) — once taking a nearly finished suite with it. Use the
 bracket form, `run_suite[.]py`, or kill by a PID captured beforehand.
 
+### Every rank opens the same file and they clobber each other
+
+Instrumentation that writes a dump from inside the solver runs on *every* rank. With
+a fixed filename, the ranks open the same path with `"w"` and overwrite one another,
+so a two-rank run leaves roughly one rank's worth of data:
+
+    ustar_pre_1.txt   np=1  24.5 MB
+    ustar_pre_1.txt   np=2  12.2 MB     <- not half the work, half the data
+
+Comparing that against a complete serial dump finds "divergence" across every row the
+surviving rank never wrote — confirming whatever you hoped to confirm, for the wrong
+reason. Put the rank in the name (`dump_%d_r%d.txt`, from `MPI_Comm_rank`) and
+concatenate afterwards.
+
+The habit that caught it: **state the check before looking at the result.** Having
+already committed to "verify the matched-key count before reading any difference"
+made a half-sized file impossible to wave away. A control decided after seeing the
+number is worth much less — by then you know which answer you want.
+
 ### The shared pattern
 
 None of the three failed loudly. A step fails or lies, later steps run on stale
