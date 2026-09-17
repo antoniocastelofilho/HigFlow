@@ -694,7 +694,8 @@ get_stencil_interpolate(sim_domain *d, const Point x, real delta, real alpha,
 
 static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 	sim_stencil *stn, bool use_dirichlet, bool use_neumann,
-	const stencil_search_funcs *funcs, void *specific, bool from_sfd);
+	const stencil_search_funcs *funcs, void *specific, bool from_sfd,
+	const real *origin);
 
 
 // Must only be called if point is outside the domain.
@@ -824,7 +825,7 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 
 	// Take the stencil for the point inside the domain:
 	get_stencil(d, delta, inside_p, alpha, stn, true, false,
-		funcs, specific, from_sfd);
+		funcs, specific, from_sfd, NULL);
 
 	// Approximating the function as a line, get the line slope:
 	Point proj_center;
@@ -903,10 +904,52 @@ static void calc_lagrange_coefficient_derivatives(int n, int dir, const Point x,
 
 // Must only be called if point is outside the domain.
 // Returns true if stencil has been filled.
+// Onde o segmento origin->x atravessa o plano deste retalho de BC, como fracao do
+// segmento; -1.0 se nao atravessa (ou se a origem e' desconhecida).
+//
+// A parede que fecha um estencil tem de ser a que o estencil ATRAVESSOU -- a que de
+// fato separa a origem do ponto pedido --, e nao a mais proxima em alguma metrica.
+// Duas razoes, uma fisica e uma estrutural:
+//
+//  - Fisica: com obstaculos no canal, escolher pela distancia fecha uma derivada em
+//    x contra uma parede normal a y que por acaso tem o plano perto.  Medido no
+//    example3d_complex: em 370 fechamentos a face atravessada e' DUAS VEZES mais
+//    distante que a escolhida pelo criterio antigo, e e' a correta.
+//
+//  - Estrutural: o fechamento la' embaixo interpola em Lagrange 1-D ao longo de
+//    proj_dir -- `calc_lagrange_coefficient*` usa SO' a coordenada [proj_dir] de cada
+//    ponto, e os pontos amostrados sao proj_x deslocado so' nessa direcao, com o
+//    proprio x fechando a lista.  Isso exige que proj_x difira de x apenas em
+//    proj_dir.  Numa construcao alinhada ao eixo -- o caso das derivadas da
+//    discretizacao -- a face atravessada tem proj_dir igual a' direcao do estencil,
+//    entao o ponto de travessia COINCIDE com a projecao normal de x e a colinearidade
+//    e' preservada de graca.  Qualquer criterio que desloque o ponto de aplicacao
+//    para fora dessa reta quebra a interpolacao (pesos certos sobre pontos errados).
+static real bc_patch_crossing_t(hig_cell *tree, int proj_dir, real plane,
+	const Point x, const real *origin)
+{
+	if(origin == NULL) return -1.0;
+	const real a = origin[proj_dir] - plane;
+	const real b = x[proj_dir]      - plane;
+	if(a == b)      return -1.0;   // segmento paralelo ao plano
+	if(a * b > 0.0) return -1.0;   // os dois extremos do mesmo lado
+	const real t = a / (a - b);
+	if(t < 0.0 || t > 1.0) return -1.0;
+	// O ponto de travessia tem de cair dentro da extensao do retalho:
+	Rect bb; hig_get_bounding_box(tree, &bb);
+	for(int k = 0; k < DIM; k++) {
+		if(k == proj_dir) continue;
+		const real pk = origin[k] + t * (x[k] - origin[k]);
+		if(pk < bb.lo[k] || pk > bb.hi[k]) return -1.0;
+	}
+	return t;
+}
+
 static inline bool
 get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 	sim_stencil *stn, const stencil_search_funcs *funcs,
-	_wls_item_list *items, void *specific, bool from_sfd)
+	_wls_item_list *items, void *specific, bool from_sfd,
+	const real *origin)
 {
 	// TODO: implement cache for Neumann condition
 
@@ -918,10 +961,12 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 		sim_boundary *nbc;
 		hig_cell *nbc_cell;
 		real dist;
+		real cross_t;   // travessia do estencil, -1.0 se nao atravessa
 		int proj_dir;
 	} best = {
 		.nbc = NULL,
-		.dist = DBL_MAX
+		.dist = DBL_MAX,
+		.cross_t = -1.0
 	};
 
 	for (int i = 0; i < d->numneumann_bcs; i++) {
@@ -940,6 +985,9 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 		POINT_ASSIGN(curr.proj_x, x);
 		curr.proj_x[curr.proj_dir] = center[curr.proj_dir];
 
+		curr.cross_t = bc_patch_crossing_t(tree, curr.proj_dir,
+			center[curr.proj_dir], x, origin);
+
 		curr.nbc_cell = hig_get_cell_with_point(tree, curr.proj_x);
 
 		// If no cell containing the projected point was found,
@@ -950,7 +998,21 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 
 		curr.dist = x[curr.proj_dir] - curr.proj_x[curr.proj_dir];
 
-		if(fabs(curr.dist) < fabs(best.dist)) {
+		// Uma face ATRAVESSADA vence qualquer outra, por mais perto que a outra
+		// esteja.  Entre duas atravessadas vence a PRIMEIRA ao longo do segmento
+		// (menor t) -- a que o estencil encontra antes.  Entre duas NAO
+		// atravessadas vale o criterio antigo, o que torna esta mudanca identidade
+		// sempre que nenhuma face e' cruzada.  (Medido: mais de uma face
+		// atravessada na mesma chamada nao ocorreu nenhuma vez, nem no 2D convexo
+		// nem no example3d_complex.)
+		const bool curr_cross = (curr.cross_t >= 0.0);
+		const bool best_cross = (best.cross_t >= 0.0);
+		if(curr_cross != best_cross) {
+			if(curr_cross) {
+				best = curr;
+			}
+		} else if(curr_cross ? (curr.cross_t < best.cross_t)
+		                     : (fabs(curr.dist) < fabs(best.dist))) {
 			best = curr;
 		}
 	}
@@ -1041,7 +1103,7 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 		// Take the stencils for the points inside the domain:
 		real wi = -lagrange_dweights[i]*wb;
 		get_stencil(d, delta, inside_p[i], wi * alpha, stn, false, false,
-			funcs, specific, from_sfd);
+			funcs, specific, from_sfd, NULL);
 	}
 
 	// Approximating the function as a polynomial:
@@ -1201,7 +1263,7 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 
 	// Take the stencil for the point inside the domain:
 	get_stencil(d, delta, inside_p, (1.0 - ratio) * alpha, stn, false, false,
-		funcs, specific, from_sfd);
+		funcs, specific, from_sfd, NULL);
 
 	// Approximating the function as a line, get the line slope:
 	Point proj_center;
@@ -1277,7 +1339,8 @@ static void calc_lagrange_coefficients(int n, int dir, const Point x, Point *xv,
 static inline bool
 get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
 	sim_stencil *stn, const stencil_search_funcs *funcs,
-	_wls_item_list *items, void *specific, bool from_sfd)
+	_wls_item_list *items, void *specific, bool from_sfd,
+	const real *origin)
 {
 	// TODO: implement cache for Dirichlet condition
 
@@ -1289,10 +1352,12 @@ get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
 		sim_boundary *dbc;
 		hig_cell *dbc_cell;
 		real dist;
+		real cross_t;   // travessia do estencil, -1.0 se nao atravessa
 		int proj_dir;
 	} best = {
 		.dbc = NULL,
-		.dist = DBL_MAX
+		.dist = DBL_MAX,
+		.cross_t = -1.0
 	};
 
 	for (int i = 0; i < d->numdirichlet_bcs; i++) {
@@ -1311,6 +1376,9 @@ get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
 		POINT_ASSIGN(curr.proj_x, x);
 		curr.proj_x[curr.proj_dir] = center[curr.proj_dir];
 
+		curr.cross_t = bc_patch_crossing_t(tree, curr.proj_dir,
+			center[curr.proj_dir], x, origin);
+
 		curr.dbc_cell = hig_get_cell_with_point(tree, curr.proj_x);
 
 		// If no cell containing the projected point was found,
@@ -1321,7 +1389,21 @@ get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
 
 		curr.dist = x[curr.proj_dir] - curr.proj_x[curr.proj_dir];
 
-		if(fabs(curr.dist) < fabs(best.dist)) {
+		// Uma face ATRAVESSADA vence qualquer outra, por mais perto que a outra
+		// esteja.  Entre duas atravessadas vence a PRIMEIRA ao longo do segmento
+		// (menor t) -- a que o estencil encontra antes.  Entre duas NAO
+		// atravessadas vale o criterio antigo, o que torna esta mudanca identidade
+		// sempre que nenhuma face e' cruzada.  (Medido: mais de uma face
+		// atravessada na mesma chamada nao ocorreu nenhuma vez, nem no 2D convexo
+		// nem no example3d_complex.)
+		const bool curr_cross = (curr.cross_t >= 0.0);
+		const bool best_cross = (best.cross_t >= 0.0);
+		if(curr_cross != best_cross) {
+			if(curr_cross) {
+				best = curr;
+			}
+		} else if(curr_cross ? (curr.cross_t < best.cross_t)
+		                     : (fabs(curr.dist) < fabs(best.dist))) {
 			best = curr;
 		}
 	}
@@ -1391,7 +1473,7 @@ get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
 		// }
 		// Take the stencils for the points inside the domain:
 		get_stencil(d, delta, inside_p[i], lagrange_weights[i] * alpha, stn, false, false,
-			funcs, specific, from_sfd);
+			funcs, specific, from_sfd, NULL);
 	}
 
 	// Approximating the function as a polynomial:
@@ -1561,7 +1643,7 @@ get_stencil_neumann_boundary(sim_domain *d, const Point x, real alpha,
 
 	// Take the stencil for the point inside the domain:
 	get_stencil(d, delta, inside_p, alpha, stn, false, false,
-		funcs, specific, from_sfd);
+		funcs, specific, from_sfd, NULL);
 
 	// Approximating the function as a line, get the line slope:
 	Point proj_center;
@@ -1737,7 +1819,7 @@ get_stencil_neumann_boundary_any_order(sim_domain *d, const Point x, real alpha,
 		// Take the stencils for the points inside the domain:
 		real wi = -lagrange_dweights[i]*wb;
 		get_stencil(d, delta, inside_p[i], wi * alpha, stn, false, false,
-			funcs, specific, from_sfd);
+			funcs, specific, from_sfd, NULL);
 	}
 
 	// Approximating the function as a polynomial:
@@ -1925,7 +2007,8 @@ static bool dirichlet_find_in_center(sim_domain *d, CPPoint x, real alpha,
 
 static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 	sim_stencil *stn, bool use_dirichlet, bool use_neumann,
-	const stencil_search_funcs *funcs, void *specific, bool from_sfd)
+	const stencil_search_funcs *funcs, void *specific, bool from_sfd,
+	const real *origin)
 {
 	static _wls_item_list items;
 
@@ -1968,7 +2051,7 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 		if(use_neumann) {
 			// If outside the domain, the point value may be determined by a
 			// Neumann boundary condition.
-			if(get_stencil_neumann_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+			if(get_stencil_neumann_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd, origin)) {
 				return;
 			}
 		}
@@ -1976,7 +2059,7 @@ static void get_stencil(sim_domain *d, real delta, const Point x, real alpha,
 		if(use_dirichlet) { // modificação daniel
 			// If outside the domain, the point value may be determined by a
 			// Dirichlet boundary condition.
-			if(get_stencil_dirichlet_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd)) {
+			if(get_stencil_dirichlet_any_order(d, x, alpha, stn, funcs, &items, specific, from_sfd, origin)) {
 				return;
 			}
 		}
@@ -2051,13 +2134,13 @@ void sd_get_stencil(sim_domain *d, const Point center, const Point x, real alpha
 	sim_stencil *stn)
 {
 	real delta = co_distance(center, x);
-	get_stencil(d, delta, x, alpha, stn, true, true, &cell_funcs, d, false);
+	get_stencil(d, delta, x, alpha, stn, true, true, &cell_funcs, d, false, center);
 }
 
 void sd_get_stencil_without_bc(sim_domain *d, Point x, real delta, real alpha,
 	sim_stencil *stn)
 {
-	get_stencil(d, delta, x, alpha, stn, false, false, &cell_funcs, d, false);
+	get_stencil(d, delta, x, alpha, stn, false, false, &cell_funcs, d, false, NULL);
 
 }
 
@@ -2242,13 +2325,13 @@ void sfd_get_stencil(sim_facet_domain *sfd, const Point center, const Point x,
 		}
 	}
 
-	get_stencil(sfd->cdom, delta, x, alpha, stn, true, true, &facet_funcs, sfd, true);
+	get_stencil(sfd->cdom, delta, x, alpha, stn, true, true, &facet_funcs, sfd, true, center);
 }
 
 void sfd_get_stencil_without_bc(sim_facet_domain *sfd, Point x, real delta,
 	real alpha, sim_stencil *stn)
 {
-	get_stencil(sfd->cdom, delta, x, alpha, stn, false, false, &facet_funcs, sfd, true);
+	get_stencil(sfd->cdom, delta, x, alpha, stn, false, false, &facet_funcs, sfd, true, NULL);
 }
 
 int sfd_get_dim(sim_facet_domain *sfd) {
