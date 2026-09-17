@@ -83,7 +83,8 @@ KSP_OPTS = ["-ksp_type", "bcgs", "-pc_type", "bjacobi",
 class Case:
     def __init__(self, name, binary, load, dim, multiphase=False,
                  numsteps=20, dtp=0.005, slow=False, known_broken=None,
-                 max_np=None, max_np_reason="", overrides=None, example=None):
+                 max_np=None, max_np_reason="", skip_np=(), skip_np_reason="",
+                 overrides=None, example=None):
         self.name = name
         # Um mesmo exemplo pode render mais de um caso, quando caminhos
         # diferentes do solver sao escolhidos por configuracao e nao por
@@ -101,6 +102,12 @@ class Case:
         self.known_broken = known_broken
         self.max_np = max_np            # malha fina demais para dividir mais
         self.max_np_reason = max_np_reason
+        # `skip_np` pula decomposicoes especificas, e nao um teto.  A diferenca
+        # importa: um teto que exclui np=3 exclui o np=4 junto, e com isso esconde
+        # que o np=4 passa -- o que transformaria um defeito conhecido e delimitado
+        # em cobertura silenciosamente menor.
+        self.skip_np = tuple(skip_np)
+        self.skip_np_reason = skip_np_reason
 
     @property
     def dir(self):
@@ -136,7 +143,10 @@ CASES = [
          max_np=1, max_np_reason="malha 10x10x10 grosseira demais para dividir"),
     # 162000 cells over 33 blocks; a single step takes minutes.  Opt-in.
     Case("example3d_complex",      "ns-complex-3d",  "example-3d.load", 3,
-         numsteps=2, dtp=0.001, slow=True),
+         numsteps=2, dtp=0.001, slow=True,
+         skip_np=(3,),
+         skip_np_reason="np=3 aborta em domain.c:1341; np=1,2,4 conferem -- "
+                        "defeito delimitado, nao cobertura reduzida"),
     # Diverges to NaN at step 3 with the integral viscoelastic solver.  Listed
     # so the suite reports it as known-broken instead of silently omitting it.
     Case("example2d_KBKZ",         "ns-example",     "example-2d.load", 2,
@@ -441,6 +451,10 @@ def main():
                 continue
         for c in group:
             for np in nps:
+                if np in c.skip_np:
+                    print("%-24s %-5s  %-7s  %s"
+                          % (c.name, np, "skip", c.skip_np_reason))
+                    continue
                 if c.max_np and np > c.max_np:
                     print("%-24s %-5d  %-7s  %s"
                           % (c.name, np, "skip", c.max_np_reason))
