@@ -317,6 +317,44 @@ def run_case(case, np, numsteps, dtp, timeout):
     return True, vtk, ""
 
 
+# LIMITE DESTA COMPARACAO EM DOMINIO NAO CONVEXO.
+#
+# A suite compara VTK.  Isso e' adequado para os casos 2D, cujos dominios sao
+# convexos, e INSUFICIENTE para caso com vao entre blocos -- hoje o
+# example3d_complex, possivelmente o example2d_DynamicMeshAdapt.
+#
+# O motivo e' que a velocidade nodal do VTK nao e' valor de faceta: hig-flow-io.c
+# a interpola nos quatro cantos de cada celula com compute_facet_value_at_point,
+# que chama sfd_get_stencil -- a MESMA maquinaria que, num ponto sem celula no
+# dominio, fecha o estencil por uma condicao de contorno distante.  Em dominio
+# nao convexo os cantos caem fora justamente junto aos vaos, entao a ESCRITA e'
+# contaminada nos mesmos lugares que a solucao.
+#
+# Medido no example3d_complex, np=1 contra np=2, passo 1:
+#
+#     ustar instrumentado direto (grandeza fisica) : 0,084% da escala
+#     mesmo passo lido pelo VTK                    : 0,96%  da escala
+#
+# Um fator de dez que nao e' amplificacao fisica: e' a lente.  Sem instrumentar
+# ns->dpustar por faceta, com a coordenada como chave, nao ha' como separar as
+# duas coisas -- e a conclusao errada e' a que se tira naturalmente.
+#
+# DUAS CONSEQUENCIAS PRATICAS:
+#
+#   1. Referencia gravada a partir de VTK de caso com vao carrega contaminacao da
+#      escrita, nao so' da solucao.  E' um dos motivos de o example3d_complex
+#      seguir sem referencia.
+#
+#   2. Quando a correcao do acoplamento espurio for aplicada (ver o comentario em
+#      _create_sync_datatypes e as anotacoes de known_broken), PARTE da diferenca
+#      que aparecer aqui vira' da interpolacao de saida passar a fechar diferente.
+#      A tabela vai reportar como diferenca; nao e' regressao, e' a saida deixando
+#      de mentir.  Antes de tratar como quebra, comparar ns->dpustar direto.
+#
+# Julgamento do tipo "inocuo porque o VTK saiu identico byte a byte" continua
+# valendo para os casos convexos e NAO vale para os com vao.
+
+
 def check(vtk, case, tolerance, generate):
     """Run the reference (and mass) checks over a VTK directory."""
     ref = os.path.join(REFDIR, case.name + ".yaml")
