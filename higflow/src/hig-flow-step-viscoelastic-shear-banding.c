@@ -2871,7 +2871,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_banding(hi
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]) {
+void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solver *ns) {
     // Firt stage of Tr-BDF2 method
     // Get the facet iterator
     higfit_facetiterator *fit;
@@ -3076,7 +3076,7 @@ void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) {
            break;
         case SEMI_IMPLICIT_BDF2:
            // Semi-Implicit Crank-Nicolson Method
-           higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(ns, ns->dpu, ns->dpustar);
+           higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(ns);
            break;
     }
     // Set outflow for ustar velocity 

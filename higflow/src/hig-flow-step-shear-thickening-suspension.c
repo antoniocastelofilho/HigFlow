@@ -2490,7 +2490,7 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_thickening
 // *******************************************************************
 // Navier-Stokes Step for the Implicit BDF2 Method
 // *******************************************************************
-void higflow_semi_implicit_bdf2_intermediate_velocity_shear_thickening_suspensions(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM])
+void higflow_semi_implicit_bdf2_intermediate_velocity_shear_thickening_suspensions(higflow_solver *ns)
 {
     // Firt stage of Tr-BDF2 method
     // Get the facet iterator
@@ -2707,7 +2707,7 @@ void higflow_solver_step_shear_thickening_suspensions(higflow_solver *ns)
         break;
     case SEMI_IMPLICIT_BDF2:
         // Semi-Implicit Crank-Nicolson Method
-        higflow_semi_implicit_bdf2_intermediate_velocity_shear_thickening_suspensions(ns, ns->dpu, ns->dpustar);
+        higflow_semi_implicit_bdf2_intermediate_velocity_shear_thickening_suspensions(ns);
         break;
     }
     // Set outflow for ustar velocity

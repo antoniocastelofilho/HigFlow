@@ -32,7 +32,7 @@ void higflow_semi_implicit_euler_intermediate_velocity_shear_banding(higflow_sol
 void higflow_semi_implicit_crank_nicolson_intermediate_velocity_shear_banding(higflow_solver *ns); 
 
 // Navier-Stokes Step for the Implicit BDF2 Method
-void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]); 
+void higflow_semi_implicit_bdf2_intermediate_velocity_shear_banding(higflow_solver *ns); 
 
 // One step of the Navier-Stokes the projection method for viscoelastic flow
 void higflow_solver_step_viscoelastic_shear_banding(higflow_solver *ns) ; 
