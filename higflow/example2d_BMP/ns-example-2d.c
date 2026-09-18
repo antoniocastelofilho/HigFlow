@@ -6,7 +6,6 @@
 
 #include "ns-example-2d.h"
 
-
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
@@ -56,17 +55,116 @@ real get_kernel_jacobian(int dim, real lambda, real tol) {
     return value; 
 }
 
-// Value of the pressure
-real get_pressure(Point center, real t) {
-    real value      = 0.0;
-    return value; 
-}
+// ---------------------------------------------------------------------------
+// O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
+// Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
+// ---------------------------------------------------------------------------
+class BmpProblem : public HigFlowProblem {
+public:
+    // Value of the pressure
+    real pressure(Point center, real t) {
+        real value      = 0.0;
+        return value; 
+    }
+    // Value of the velocity
+    real velocity(Point center, int dim, real t) {
+        real value      = 0.0;
+        return value; 
+    }
+    // Value of the cell source term
+    real source_term(Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the facet source term
+    real facet_source_term(Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the pressure at boundary
+    real boundary_pressure(int id, Point center, real t) {
+        real value;
+        switch (id) {
+            case 0:
+                value = 0.0;        
+                break;
+            case 1:
+                value = 0.0;        
+                break;
+            case 2:
+                value = 0.0;        
+                break;
+            case 3:
+                value = 0.0;        
+                break;
+        }
+        return value; 
+    }
+    // Value of the velocity at boundary
+    real boundary_velocity(int id, Point center, int dim, real t) {
+        real value;
+        switch (id) {
+            case 0:
+                switch (dim) {
+                    case 0:
+                        //set max velocity = 8.0e-4 
+                        //value = 3.2e-3*(-center[1]*center[1] + center[1]);
+                        //value = 4.0*(-center[1]*center[1] + 0.25);
+                        //set max velocity = 1.5 
+                        value = -4.0*center[1]*(center[1] - 1.0);
+                        //value = 0.5*(-4.0*center[1]*(center[1] - 1.0));
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 1:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 2:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 3:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+        }
+        return value; 
+    }
+    // Value of the cell source term at boundary
+    real boundary_source_term(int id, Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the facet source term at boundary
+    real boundary_facet_source_term(int id, Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+};
 
-// Value of the velocity
-real get_velocity(Point center, int dim, real t) {
-    real value      = 0.0;
-    return value; 
-}
+static BmpProblem problema;
 
 // Value of the velocity of the BMP model at the boundary
 real get_velocity_BMP(Point center, real Re, real GMI, real LA, real Phi, real GP) {
@@ -116,7 +214,6 @@ real get_velocity_BMP2(Point center, real Re, real GMI, real LA, real Phi, real 
     return value; 
 }
 
-
 // Value of the velocity of the BMP model at the boundary
 real get_velocity_BMP_proof(real yc, real Re, real GMI, real LA, real Phi, real GP) {
     real y1 = yc -0.5;
@@ -162,18 +259,6 @@ real get_velocity_BMP_proof2(real yc, real Re, real GMI, real LA, real Phi, real
     real U3 = log(U3a/U3b);
     real Ux = U0 - (1.0/(4.0*GM*LA*Re*GP))*(U1+U2+U3);
     real value      = Ux;
-    return value; 
-}
-
-// Value of the cell source term
-real get_source_term(Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the facet source term
-real get_facet_source_term(Point center, int dim, real t) {
-    real value = 0.0;
     return value; 
 }
 
@@ -267,80 +352,6 @@ real get_structpar(Point center, real q, real t, real beta, real Phi, real Lambd
     //real value = 1.0/(1.0 - beta/(1.0-beta));
     real value = 1.0;
     //real value = Phi;
-    return value; 
-}
-
-
-// Value of the pressure at boundary
-real get_boundary_pressure(int id, Point center, real t) {
-    real value;
-    switch (id) {
-        case 0:
-            value = 0.0;        
-            break;
-        case 1:
-            value = 0.0;        
-            break;
-        case 2:
-            value = 0.0;        
-            break;
-        case 3:
-            value = 0.0;        
-            break;
-    }
-    return value; 
-}
-
-// Value of the velocity at boundary
-real get_boundary_velocity(int id, Point center, int dim, real t) {
-    real value;
-    switch (id) {
-        case 0:
-            switch (dim) {
-                case 0:
-                    //set max velocity = 8.0e-4 
-                    //value = 3.2e-3*(-center[1]*center[1] + center[1]);
-                    //value = 4.0*(-center[1]*center[1] + 0.25);
-                    //set max velocity = 1.5 
-                    value = -4.0*center[1]*(center[1] - 1.0);
-                    //value = 0.5*(-4.0*center[1]*(center[1] - 1.0));
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 1:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 2:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 3:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-    }
     return value; 
 }
 
@@ -467,18 +478,6 @@ real get_boundary_velocity2(int id, Point center, int dim, real t) {
             }
             break;
     }
-    return value; 
-}
-
-// Value of the cell source term at boundary
-real get_boundary_source_term(int id, Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the facet source term at boundary
-real get_boundary_facet_source_term(int id, Point center, int dim, real t) {
-    real value = 0.0;
     return value; 
 }
 
@@ -648,7 +647,6 @@ void print_viscosity(higflow_solver *ns, int myrank, real x, int np, real yf, re
     }
 }
 
-
 // Print the Polymeric Tensor
 void print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, int np, real yf, real yl, real dy) {
     char filename[1024];
@@ -696,8 +694,6 @@ void print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, int np, 
    //return max; 
 }
 
-
-
 // *******************************************************************
 // Navier-Stokes main program
 // *******************************************************************
@@ -721,10 +717,8 @@ int main (int argc, char *argv[]) {
     // Load the parameters data for Navier-Stokes simulation
     higflow_load_all_parameters(ns, myrank);
     // set the external functions
-    higflow_set_external_functions(ns, get_pressure, get_velocity, 
-        get_source_term, get_facet_source_term,
-        get_boundary_pressure,  get_boundary_velocity,
-        get_boundary_source_term, get_boundary_facet_source_term); 
+    // Registro por objeto: a interface substitui os oito ponteiros.
+    higflow_set_problem(ns, &problema); 
     // Set the order of the interpolation to be used in the SD. 
     int order_center = 2;
     int order_facet = 2;

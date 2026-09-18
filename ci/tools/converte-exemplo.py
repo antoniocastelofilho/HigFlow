@@ -33,7 +33,10 @@ def corpo_por_padrao(s, pat):
     c,_ = corpo_em(s, m.end()-1)
     return norm(c)
 
-def converte(caminho, nome_classe):
+def converte(caminho, nome_classe, caminho_registro=None):
+    """caminho: onde estao as oito funcoes.  caminho_registro: onde esta a chamada
+    higflow_set_external_functions, se for outro arquivo (alguns exemplos separam
+    as funcoes do usuario num .c incluido pelo principal)."""
     original = open(caminho).read()
     s = original
     ext = {}
@@ -69,11 +72,17 @@ def converte(caminho, nome_classe):
         s = s.replace('\x00M_'+velho+'\x00', '', 1)
     s = re.sub(r'\n{3,}', '\n\n', s)
 
-    r = re.search(r'\n[ \t]*higflow_set_external_functions\(ns,.*?\);', s, re.S)
-    if not r: raise SystemExit("nao achei a chamada de registro")
-    s = (s[:r.start()] +
-         "\n    // Registro por objeto: a interface substitui os oito ponteiros.\n"
-         "    higflow_set_problem(ns, &problema);" + s[r.end():])
+    alvo = caminho_registro or caminho
+    treg = s if alvo == caminho else open(alvo).read()
+    r = re.search(r'\n[ \t]*higflow_set_external_functions\(ns,.*?\);', treg, re.S)
+    if not r: raise SystemExit(f"nao achei a chamada de registro em {alvo}")
+    treg = (treg[:r.start()] +
+            "\n    // Registro por objeto: a interface substitui os oito ponteiros.\n"
+            "    higflow_set_problem(ns, &problema);" + treg[r.end():])
+    if alvo == caminho:
+        s = treg
+    else:
+        open(alvo,'w').write(treg)
     open(caminho,'w').write(s)
 
     # verificacao: os oito corpos tem que ser identicos aos de antes
@@ -87,4 +96,5 @@ def converte(caminho, nome_classe):
     return ok == 8
 
 if __name__ == '__main__':
-    sys.exit(0 if converte(sys.argv[1], sys.argv[2]) else 1)
+    reg = sys.argv[3] if len(sys.argv) > 3 else None
+    sys.exit(0 if converte(sys.argv[1], sys.argv[2], reg) else 1)

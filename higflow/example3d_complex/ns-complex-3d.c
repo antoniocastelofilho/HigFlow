@@ -6,2258 +6,2258 @@
 
 #include "ns-complex-3d.h"
 
-
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
 
-
-// Value of the pressure
-real get_pressure(Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the velocity
-real get_velocity(Point center, int dim, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the cell source term
-real get_source_term(Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the facet source term
-real get_facet_source_term(Point center, int dim, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the pressure at boundary
-real get_boundary_pressure(int id, Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the velocity at boundary
-real get_boundary_velocity(int id, Point center, int dim, real t) {
-    real value;
-    switch (id) {
-        case 0:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 1:
-            switch (dim) {
-                case 0:
-                    value = 1.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 2:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 3:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 4:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 5:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 6:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 7:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 8:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 9:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 10:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 11:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 12:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 13:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 14:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 15:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 16:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 17:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 18:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 19:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 20:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 21:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 22:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 23:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 24:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 25:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 26:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 27:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 28:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 29:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 30:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 31:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 32:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 33:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 34:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 35:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 36:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 37:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 38:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 39:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 40:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 41:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 42:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 43:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 44:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 45:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 46:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 47:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 48:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 49:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 50:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 51:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 52:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 53:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 54:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 55:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 56:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 57:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 58:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 59:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 60:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 61:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 62:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 63:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 64:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 65:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 66:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 67:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 68:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 69:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 70:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 71:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 72:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 73:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 74:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 75:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 76:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 77:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 78:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 79:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 80:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 81:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 82:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = -1.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 83:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 84:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 85:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 86:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 87:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 88:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 89:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 90:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 91:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 92:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 93:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 94:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 95:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 96:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 97:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 98:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 99:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 100:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 101:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 102:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 103:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 104:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 105:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 106:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 107:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 108:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 109:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 110:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 111:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 112:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 113:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 114:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 115:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 116:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 117:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 118:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 119:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 120:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 121:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 122:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 123:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 124:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 125:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 126:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 127:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 128:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 129:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 130:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 131:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 132:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 133:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 134:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 135:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 136:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 137:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 138:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 139:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 140:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 141:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 142:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 143:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 144:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 145:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 146:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 147:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 148:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 149:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 150:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 151:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 152:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 153:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 154:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 155:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 156:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 157:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 158:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 159:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 160:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 161:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 162:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 163:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 164:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 165:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 166:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 167:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 168:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-                case 2:
-                    value = 0.0;
-                    break;
-            }
-            break;
+// ---------------------------------------------------------------------------
+// O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
+// Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
+// ---------------------------------------------------------------------------
+class ComplexProblem : public HigFlowProblem {
+public:
+    // Value of the pressure
+    real pressure(Point center, real t) {
+        real value = 0.0;
+        return value; 
     }
-    return value; 
-}
+    // Value of the velocity
+    real velocity(Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the cell source term
+    real source_term(Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the facet source term
+    real facet_source_term(Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the pressure at boundary
+    real boundary_pressure(int id, Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the velocity at boundary
+    real boundary_velocity(int id, Point center, int dim, real t) {
+        real value;
+        switch (id) {
+            case 0:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 1:
+                switch (dim) {
+                    case 0:
+                        value = 1.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 2:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 3:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 4:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 5:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 6:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 7:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 8:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 9:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 10:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 11:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 12:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 13:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 14:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 15:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 16:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 17:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 18:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 19:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 20:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 21:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 22:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 23:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 24:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 25:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 26:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 27:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 28:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 29:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 30:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 31:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 32:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 33:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 34:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 35:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 36:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 37:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 38:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 39:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 40:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 41:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 42:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 43:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 44:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 45:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 46:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 47:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 48:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 49:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 50:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 51:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 52:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 53:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 54:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 55:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 56:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 57:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 58:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 59:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 60:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 61:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 62:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 63:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 64:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 65:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 66:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 67:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 68:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 69:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 70:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 71:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 72:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 73:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 74:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 75:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 76:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 77:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 78:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 79:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 80:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 81:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 82:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = -1.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 83:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 84:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 85:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 86:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 87:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 88:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 89:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 90:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 91:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 92:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 93:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 94:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 95:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 96:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 97:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 98:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 99:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 100:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 101:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 102:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 103:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 104:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 105:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 106:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 107:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 108:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 109:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 110:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 111:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 112:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 113:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 114:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 115:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 116:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 117:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 118:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 119:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 120:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 121:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 122:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 123:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 124:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 125:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 126:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 127:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 128:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 129:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 130:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 131:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 132:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 133:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 134:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 135:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 136:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 137:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 138:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 139:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 140:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 141:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 142:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 143:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 144:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 145:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 146:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 147:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 148:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 149:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 150:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 151:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 152:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 153:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 154:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 155:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 156:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 157:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 158:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 159:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 160:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 161:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 162:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 163:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 164:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 165:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 166:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 167:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 168:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                    case 2:
+                        value = 0.0;
+                        break;
+                }
+                break;
+        }
+        return value; 
+    }
+    // Value of the cell source term at boundary
+    real boundary_source_term(int id, Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the facet source term at boundary
+    real boundary_facet_source_term(int id, Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+};
 
-// Value of the cell source term at boundary
-real get_boundary_source_term(int id, Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the facet source term at boundary
-real get_boundary_facet_source_term(int id, Point center, int dim, real t) {
-    real value = 0.0;
-    return value; 
-}
+static ComplexProblem problema;
 
 // Value of the Tensor
 real get_tensor(Point center, int i, int j, real t) {
@@ -2503,10 +2503,8 @@ int main (int argc, char *argv[]) {
     print0f("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
     higflow_load_all_controllers_and_parameters_yaml(ns, myrank);
     // set the external functions
-    higflow_set_external_functions(ns, get_pressure, get_velocity, 
-        get_source_term, get_facet_source_term,
-        get_boundary_pressure, get_boundary_velocity,
-        get_boundary_source_term, get_boundary_facet_source_term); 
+    // Registro por objeto: a interface substitui os oito ponteiros.
+    higflow_set_problem(ns, &problema); 
     // Set the order of the interpolation to be used in the SD. 
     int order_center = 2;
     int order_facet = 2;

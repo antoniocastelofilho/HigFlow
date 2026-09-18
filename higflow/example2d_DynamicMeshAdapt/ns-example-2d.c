@@ -33,10 +33,8 @@ void create_initialize_all_domains(higflow_solver* ns, int myrank, int ntasks) {
 
     // Set Initial conditions and Boundary Conditions from user defined functions
     higflow_create_domain(ns, cache, order_center);
-    higflow_set_external_functions(ns, get_pressure, get_velocity,
-        get_source_term, get_facet_source_term,
-        get_boundary_pressure, get_boundary_velocity,
-        get_boundary_source_term, get_boundary_facet_source_term);
+    // Registro por objeto: a interface substitui os oito ponteiros.
+    higflow_set_problem(ns, &problema);
 
     switch (ns->contr.flowtype) {
         case GENERALIZED_NEWTONIAN:
@@ -606,11 +604,8 @@ int main(int argc, char* argv[]) {
 
         higflow_load_data_file_names(argc, argv, ns2);
         higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
-        higflow_set_external_functions(ns2,
-            get_pressure, get_velocity,
-            get_source_term, get_facet_source_term,
-            get_boundary_pressure, get_boundary_velocity,
-            get_boundary_source_term, get_boundary_facet_source_term);
+        // Registro por objeto: a interface substitui os oito ponteiros.
+        higflow_set_problem(ns2, &problema);
 
         higflow_create_domain(ns2, cache, order_center);
         higflow_create_domain_multiphase(ns2, cache, order_center,
@@ -751,10 +746,8 @@ int main(int argc, char* argv[]) {
             ns2->par.nameload = nameload;
             ns2->par.namesave = namesave;
 
-            higflow_set_external_functions(ns2, get_pressure, get_velocity,
-                                           get_source_term, get_facet_source_term,
-                                           get_boundary_pressure, get_boundary_velocity,
-                                           get_boundary_source_term, get_boundary_facet_source_term);
+            // Registro por objeto: a interface substitui os oito ponteiros.
+            higflow_set_problem(ns2, &problema);
             higflow_create_domain(ns2, cache, order_center);
             higflow_create_domain_multiphase(ns2, cache, order_center,
                                              get_viscosity0, get_viscosity1,

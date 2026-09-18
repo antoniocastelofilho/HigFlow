@@ -368,30 +368,118 @@ real get_fracvol(Point center, Point delta, real t) {
 	return value;
 }
 
+// ---------------------------------------------------------------------------
+// O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
+// Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
+// ---------------------------------------------------------------------------
+class VofOldroydProblem : public HigFlowProblem {
+public:
+    // Value of the pressure
+    real pressure(Point center, real t) {
+        real value = 0.0;
+    	return value;
+    }
+    // Value of the velocity
+    real velocity(Point center, int dim, real t) {
+    	real value = 0.0;
+    	return value;
+    }
+    // Value of the cell source term
+    real source_term(Point center, real t) {
+    	real value = 0.0;
+    	return value;
+    }
+    // Value of the facet source term
+    real facet_source_term(Point center, int dim, real t) {
+    	real value = 0.0;
+    	return value;
+    }
+    // Value of the pressure at boundary
+    real boundary_pressure(int id, Point center, real t) {
+    	real value;
+    	switch (id) {
+    	case 0:
+    		value = 0.0;
+    		break;
+    	case 1:
+    		value = 0.0;
+    		break;
+    	case 2:
+    		value = 0.0;
+    		break;
+    	case 3:
+    		value = 0.0;
+    		break;
+    	}
+    	return value;
+    }
+    // Value of the velocity at boundary
+    real boundary_velocity(int id, Point center, int dim, real t) {
+    	real value;
+    	real x = center[0];
+    	real y = center[1];
+    	switch (id) {
+    	case 0:
+    		switch (dim) {
+    		case 0:
+    			// value = 1.5*(1.0 - center[1]*center[1]);
+    			value = 0.0;
+    			break;
+    		case 1:
+    			value = 0.0;
+    			break;
+    		}
+    		break;
+    	case 1:
+    		switch (dim) {
+    		case 0: ;
+    			{
+    			real fxt = 8.0*(1.0 + tanh(8.0*t-4))*x*x*(1.0-x)*(1.0-x);
+    			value = fxt;
+    			//value = 1.0;
+    			break;
+    			}
+    		case 1:
+    			value = 0.0;
+    			break;
+    		}
+    		break;
+    	case 2:
+    		switch (dim) {
+    		case 0:
+    			value = 0.0;
+    			break;
+    		case 1:
+    			value = 0.0;
+    			break;
+    		}
+    		break;
+    	case 3:
+    		switch (dim) {
+    		case 0:
+    			value = 0.0;
+    			break;
+    		case 1:
+    			value = 0.0;
+    			break;
+    		}
+    		break;
+    	}
+    	return value;
+    }
+    // Value of the cell source term at boundary
+    real boundary_source_term(int id, Point center, real t) {
+    	real value = 0.0;
+    	return value;
+    }
+    // Value of the facet source term at boundary
+    real boundary_facet_source_term(int id, Point center, int dim, real t) {
+    	real value = 0.0;
+    	return value;
+    }
+};
 
-// Value of the pressure
-real get_pressure(Point center, real t) {
-    real value = 0.0;
-	return value;
-}
-
-// Value of the velocity
-real get_velocity(Point center, int dim, real t) {
-	real value = 0.0;
-	return value;
-}
-
-// Value of the cell source term
-real get_source_term(Point center, real t) {
-	real value = 0.0;
-	return value;
-}
-
-// Value of the facet source term
-real get_facet_source_term(Point center, int dim, real t) {
-	real value = 0.0;
-	return value;
-}
+static VofOldroydProblem problema;
 
 // Value of the viscosity 
 real get_viscosity0(Point center, real t) {
@@ -422,93 +510,6 @@ real get_density1(Point center, real t) {
 	return value;
 }
 
-// Value of the pressure at boundary
-real get_boundary_pressure(int id, Point center, real t) {
-	real value;
-	switch (id) {
-	case 0:
-		value = 0.0;
-		break;
-	case 1:
-		value = 0.0;
-		break;
-	case 2:
-		value = 0.0;
-		break;
-	case 3:
-		value = 0.0;
-		break;
-	}
-	return value;
-}
-
-// Value of the velocity at boundary
-real get_boundary_velocity(int id, Point center, int dim, real t) {
-	real value;
-	real x = center[0];
-	real y = center[1];
-	switch (id) {
-	case 0:
-		switch (dim) {
-		case 0:
-			// value = 1.5*(1.0 - center[1]*center[1]);
-			value = 0.0;
-			break;
-		case 1:
-			value = 0.0;
-			break;
-		}
-		break;
-	case 1:
-		switch (dim) {
-		case 0: ;
-			{
-			real fxt = 8.0*(1.0 + tanh(8.0*t-4))*x*x*(1.0-x)*(1.0-x);
-			value = fxt;
-			//value = 1.0;
-			break;
-			}
-		case 1:
-			value = 0.0;
-			break;
-		}
-		break;
-	case 2:
-		switch (dim) {
-		case 0:
-			value = 0.0;
-			break;
-		case 1:
-			value = 0.0;
-			break;
-		}
-		break;
-	case 3:
-		switch (dim) {
-		case 0:
-			value = 0.0;
-			break;
-		case 1:
-			value = 0.0;
-			break;
-		}
-		break;
-	}
-	return value;
-}
-
-// Value of the cell source term at boundary
-real get_boundary_source_term(int id, Point center, real t) {
-	real value = 0.0;
-	return value;
-}
-
-// Value of the facet source term at boundary
-real get_boundary_facet_source_term(int id, Point center, int dim, real t) {
-	real value = 0.0;
-	return value;
-}
-
 // Value of the boundary viscosity
 real get_boundary_viscosity(int id, Point center, real q, real t) {
 	real value = 1.0;
@@ -536,10 +537,8 @@ int main (int argc, char *argv[]) {
 	print0f("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
     higflow_load_all_controllers_and_parameters_yaml(ns, myrank);
 	// set the external functions
-	higflow_set_external_functions(ns, get_pressure, get_velocity,
-			get_source_term, get_facet_source_term,
-			get_boundary_pressure, get_boundary_velocity,
-			get_boundary_source_term, get_boundary_facet_source_term);
+    // Registro por objeto: a interface substitui os oito ponteiros.
+    higflow_set_problem(ns, &problema);
 	// Set the order of the interpolation to be used in the SD.
 	int order_center = 2;
 	int order_facet = 2;

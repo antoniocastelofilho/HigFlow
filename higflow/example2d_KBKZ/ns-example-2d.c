@@ -59,118 +59,120 @@ real get_kernel_jacobian(int dim, real lambda, real tol) {
     return value; 
 }
 
-// Value of the pressure
-real get_pressure(Point center, real t) {
-    real value      = 0.0;
-    return value; 
-}
+// ---------------------------------------------------------------------------
+// O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
+// Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
+// ---------------------------------------------------------------------------
+class KbkzProblem : public HigFlowProblem {
+public:
+    // Value of the pressure
+    real pressure(Point center, real t) {
+        real value      = 0.0;
+        return value; 
+    }
+    // Value of the velocity
+    real velocity(Point center, int dim, real t) {
+        real value      = 0.0;
+        return value; 
+    }
+    // Value of the cell source term
+    real source_term(Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the facet source term
+    real facet_source_term(Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the pressure at boundary
+    real boundary_pressure(int id, Point center, real t) {
+        real value;
+        switch (id) {
+            case 0:
+                value = 0.0;        
+                break;
+            case 1:
+                value = 0.0;        
+                break;
+            case 2:
+                value = 0.0;        
+                break;
+            case 3:
+                value = 0.0;        
+                break;
+        }
+        return value; 
+    }
+    // Value of the velocity at boundary
+    real boundary_velocity(int id, Point center, int dim, real t) {
+        real value;
+        switch (id) {
+            case 0:
+                switch (dim) {
+                    case 0:
+                        //set max velocity = 8.0e-4 
+                        //value = 3.2e-3*(-center[1]*center[1] + center[1]);
+                        //value = 4.0*(-center[1]*center[1] + 0.25);
+                        //set max velocity = 1.5 
+                        value = 1.5*(1.0 - center[1]*center[1]);
+                        //value = 1.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 1:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 2:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+            case 3:
+                switch (dim) {
+                    case 0:
+                        value = 0.0;
+                        break;
+                    case 1:
+                        value = 0.0;
+                        break;
+                }
+                break;
+        }
+        return value; 
+    }
+    // Value of the cell source term at boundary
+    real boundary_source_term(int id, Point center, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the facet source term at boundary
+    real boundary_facet_source_term(int id, Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+};
 
-// Value of the velocity
-real get_velocity(Point center, int dim, real t) {
-    real value      = 0.0;
-    return value; 
-}
-
-// Value of the cell source term
-real get_source_term(Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the facet source term
-real get_facet_source_term(Point center, int dim, real t) {
-    real value = 0.0;
-    return value; 
-}
+static KbkzProblem problema;
 
 // Value of the viscosity
 real get_viscosity(Point center, real q, real t) {
     real value = 1.0;
-    return value; 
-}
-
-// Value of the pressure at boundary
-real get_boundary_pressure(int id, Point center, real t) {
-    real value;
-    switch (id) {
-        case 0:
-            value = 0.0;        
-            break;
-        case 1:
-            value = 0.0;        
-            break;
-        case 2:
-            value = 0.0;        
-            break;
-        case 3:
-            value = 0.0;        
-            break;
-    }
-    return value; 
-}
-
-// Value of the velocity at boundary
-real get_boundary_velocity(int id, Point center, int dim, real t) {
-    real value;
-    switch (id) {
-        case 0:
-            switch (dim) {
-                case 0:
-                    //set max velocity = 8.0e-4 
-                    //value = 3.2e-3*(-center[1]*center[1] + center[1]);
-                    //value = 4.0*(-center[1]*center[1] + 0.25);
-                    //set max velocity = 1.5 
-                    value = 1.5*(1.0 - center[1]*center[1]);
-                    //value = 1.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 1:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 2:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-        case 3:
-            switch (dim) {
-                case 0:
-                    value = 0.0;
-                    break;
-                case 1:
-                    value = 0.0;
-                    break;
-            }
-            break;
-    }
-    return value; 
-}
-
-// Value of the cell source term at boundary
-real get_boundary_source_term(int id, Point center, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the facet source term at boundary
-real get_boundary_facet_source_term(int id, Point center, int dim, real t) {
-    real value = 0.0;
     return value; 
 }
 
@@ -191,8 +193,6 @@ void calculate_m_user(real lambda[DIM], real jlambda[DIM],  real B[DIM][DIM], re
         M_aux[i][i]  = (1.0-lambda[i])*jlambda[i];
     }
 }
-
-
 
 // Print the velocity
 void print_velocity (higflow_solver *ns, int myrank, int dim, real x, real yf, real yl, real dy) {
@@ -257,8 +257,6 @@ real print_tensor(higflow_solver *ns, int myrank, int i, int j, real x, real yf,
    return max; 
 }
 
-
-
 // Print the Pressure
 void print_pressure(higflow_solver *ns, int myrank, int i, int j, real x, real yf, real yl, real dy,int p) {
     char filename[1024];
@@ -282,8 +280,6 @@ void print_pressure(higflow_solver *ns, int myrank, int i, int j, real x, real y
     }
 }
 
-
-
 // *******************************************************************
 // Navier-Stokes main program
 // *******************************************************************
@@ -305,10 +301,8 @@ int main (int argc, char *argv[]) {
 	print0f("=+=+=+= Load Controllers and Parameters =+=+=+=+=+=+=+=+=+=+=+=+=\n");
     higflow_load_all_controllers_and_parameters_yaml(ns, myrank);
     // set the external functions
-    higflow_set_external_functions(ns, get_pressure, get_velocity, 
-        get_source_term, get_facet_source_term,
-        get_boundary_pressure, get_boundary_velocity,
-        get_boundary_source_term, get_boundary_facet_source_term); 
+    // Registro por objeto: a interface substitui os oito ponteiros.
+    higflow_set_problem(ns, &problema); 
     // Set the order of the interpolation to be used in the SD. 
     int order_center = 2;
     int order_facet = 2;
