@@ -254,7 +254,7 @@ void higflow_initialize_pressure(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for pressure in this cell
-        real val = ns->func.get_pressure(center, ns->par.t);
+        real val = ns->problem->pressure(center, ns->par.t);
         // Set the value for pressure distributed property
         dp_set_value(ns->dpp, clid, val);
     }
@@ -443,7 +443,7 @@ void higflow_initialize_cell_source_term(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for the source term in this cell
-        real val = ns->func.get_source_term(center, ns->par.t);
+        real val = ns->problem->source_term(center, ns->par.t);
         // Set the value for source term distributed property
         dp_set_value(ns->dpF, clid, val);
     }
@@ -1320,7 +1320,7 @@ void higflow_initialize_velocity(higflow_solver *ns) {
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the velocity in this cell facet
-            real val = ns->func.get_velocity(center, dim, ns->par.t);
+            real val = ns->problem->velocity(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
             dp_set_value(ns->dpu[dim], flid, val);
         }
@@ -1352,7 +1352,7 @@ void higflow_initialize_facet_source_term(higflow_solver *ns) {
             Point center;
             hig_get_facet_center(f, center);
             // Get the value for the facet source term in this cell facet
-            real val = ns->func.get_facet_source_term(center, dim, ns->par.t);
+            real val = ns->problem->facet_source_term(center, dim, ns->par.t);
             // Set the value for the facet source term distributed property
             dp_set_value(ns->dpFU[dim], flid, val);
         }

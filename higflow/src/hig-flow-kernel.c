@@ -12,7 +12,9 @@
 
 // Create the NS object
 higflow_solver *higflow_create (void) {
-    DECL_AND_ALLOC(higflow_solver, ns, 1);   
+    DECL_AND_ALLOC(higflow_solver, ns, 1);
+    // A struct vem de malloc, que nao zera: sem isto o ponteiro comeca indefinido.
+    ns->problem = NULL;
     return ns;
 }
 
@@ -1476,6 +1478,23 @@ real (*get_boundary_facet_source_term)(int id, Point center, int dim, real t)) {
     ns->func.get_boundary_velocity = get_boundary_velocity;
     ns->func.get_boundary_source_term = get_boundary_source_term;
     ns->func.get_boundary_facet_source_term = get_boundary_facet_source_term;
+    // Caminho legado: embrulha os oito ponteiros num objeto, para que a biblioteca
+    // tenha um so' jeito de chamar.  O adaptador vive enquanto o solver viver.
+    HigFlowLegacyProblem *legacy = new HigFlowLegacyProblem();
+    legacy->fn_pressure                  = get_pressure;
+    legacy->fn_velocity                  = get_velocity;
+    legacy->fn_source_term               = get_source_term;
+    legacy->fn_facet_source_term         = get_facet_source_term;
+    legacy->fn_boundary_pressure         = get_boundary_pressure;
+    legacy->fn_boundary_velocity         = get_boundary_velocity;
+    legacy->fn_boundary_source_term      = get_boundary_source_term;
+    legacy->fn_boundary_facet_source_term = get_boundary_facet_source_term;
+    ns->problem = legacy;
+}
+
+// Registra o problema por objeto.
+void higflow_set_problem(higflow_solver *ns, HigFlowProblem *problem) {
+    ns->problem = problem;
 }
 
 // Auxiliar

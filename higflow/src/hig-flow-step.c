@@ -33,9 +33,9 @@ void remove_pressure_singularity(higflow_solver *ns, solver *slvp) {
             dt = ns->par.dt;
             // Calcula valor do lado direito
             if (ns->contr.projtype == INCREMENTAL) {
-                value = ns->func.get_pressure(ccenter2,t+dt) - dp_get_value(ns->dpp, clid);
+                value = ns->problem->pressure(ccenter2,t+dt) - dp_get_value(ns->dpp, clid);
             } else {
-                value = ns->func.get_pressure(ccenter2,t+dt);
+                value = ns->problem->pressure(ccenter2,t+dt);
             }
             cgid = psd_lid_to_gid(ns->psdp, clid);
        slv_impose_value(slvp, cgid, value);
@@ -376,7 +376,7 @@ void higflow_calculate_source_term(higflow_solver *ns) {
         Point ccenter;
         hig_get_center(c, ccenter);
         // Set the source term
-        real F      = ns->func.get_source_term(ccenter, ns->par.t);
+        real F      = ns->problem->source_term(ccenter, ns->par.t);
         // Set the final pressure in the distributed pressure property
         dp_set_value(ns->dpF, clid, F);
     }
@@ -407,7 +407,7 @@ void higflow_calculate_facet_source_term(higflow_solver *ns) {
             Point fcenter;
             hig_get_facet_center(f, fcenter);
             // Get the pressure in the left cell
-            real F = ns->func.get_facet_source_term(fcenter, dim, ns->par.t);
+            real F = ns->problem->facet_source_term(fcenter, dim, ns->par.t);
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpFU[dim], flid, F);
         }
@@ -462,7 +462,7 @@ void higflow_boundary_condition_for_velocity(higflow_solver *ns) {
                         // Set the time to apply the boundary condition
                         real t   = ns->par.t + ns->par.dt;
                         // Get the velocity defined by the user
-                        real val = ns->func.get_boundary_velocity(userid, bccenter, dim, t);
+                        real val = ns->problem->boundary_velocity(userid, bccenter, dim, t);
                         // Set the value
                         sb_set_value(bc, bclid, val);
                     }
@@ -521,11 +521,11 @@ void higflow_boundary_condition_for_pressure(higflow_solver *ns) {
                     real val;
                     if (ns->contr.projtype == NON_INCREMENTAL) {
                         // Non incremental projection method
-                        val = ns->func.get_boundary_pressure(userid, bccenter, t);
+                        val = ns->problem->boundary_pressure(userid, bccenter, t);
                     } else {
                         // Incremental projection method
-                        val = ns->func.get_boundary_pressure(userid, bccenter, t) -
-                              ns->func.get_boundary_pressure(userid, bccenter, ns->par.t);
+                        val = ns->problem->boundary_pressure(userid, bccenter, t) -
+                              ns->problem->boundary_pressure(userid, bccenter, ns->par.t);
                     }
                     // Set the value
                     sb_set_value(bc, bclid, val);
@@ -571,7 +571,7 @@ void higflow_boundary_condition_for_cell_source_term(higflow_solver *ns) {
                 // Set the time to apply the boundary condition
                 real t   = ns->par.t + ns->par.dt;
                 // Get the velocity defined by the user
-                real val = ns->func.get_boundary_source_term(userid, bccenter, t);
+                real val = ns->problem->boundary_source_term(userid, bccenter, t);
                 // Set the value
                 sb_set_value(bc, bclid, val);
             }
@@ -619,7 +619,7 @@ void higflow_boundary_condition_for_facet_source_term(higflow_solver *ns) {
                     // Set the time to apply the boundary condition
                     real t   = ns->par.t + ns->par.dt;
                     // Get the velocity defined by the user
-                    real val = ns->func.get_boundary_facet_source_term(userid, bccenter, dim, t);
+                    real val = ns->problem->boundary_facet_source_term(userid, bccenter, dim, t);
                     // Set the value
                     sb_set_value(bc, bclid, val);
                 }

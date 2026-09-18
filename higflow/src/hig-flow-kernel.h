@@ -13,6 +13,7 @@
 #include "pdomain.h"
 #include "domain.h"
 #include "lbal.h"
+#include "hig-flow-problem.h"
 #include "solver.h"
 
 #define DEBUG
@@ -1189,6 +1190,12 @@ typedef struct higflow_solver {
     higflow_extra_domains      ed;
     // External functions
     higflow_functions          func;
+    // O problema deste exemplo.  A biblioteca chama SEMPRE por aqui; quem
+    // registrou por higflow_set_external_functions recebe um
+    // HigFlowLegacyProblem que reenvia para os ponteiros de `func` acima.
+    // Inicializado a NULL em higflow_create: a struct vem de malloc e nao
+    // zera, entao sem isso o ponteiro comecaria indefinido.
+    HigFlowProblem            *problem;
     // Sub-domain to simulation for cells (pressure)
     sim_domain                 *sdp;
     // Partitioned sub-domain to simulation for cells (pressure)
@@ -1461,6 +1468,10 @@ void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *p
 higio_amr_info *higflow_create_amr_info_mult(higio_amr_info *mi);
 
 // Set the external functions in the NS solver
+// Registra o problema por objeto.  Alternativa a higflow_set_external_functions;
+// o ponteiro tem que sobreviver ao solver.
+void higflow_set_problem(higflow_solver *ns, HigFlowProblem *problem);
+
 void higflow_set_external_functions(higflow_solver *ns,
 real (*get_pressure)(Point center, real t),
 real (*get_velocity)(Point center, int dim, real t),

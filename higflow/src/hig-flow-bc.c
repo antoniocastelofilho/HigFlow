@@ -78,10 +78,10 @@ void higflow_set_boundary_condition_for_pressure(higflow_solver *ns, int numbcs,
             // Get the pressure defined by the user
             real val;
             if (ns->contr.projtype == NON_INCREMENTAL) { // Non incremental projection method
-                val = ns->func.get_boundary_pressure(id[h], bccenter, t);
+                val = ns->problem->boundary_pressure(id[h], bccenter, t);
             } else { // Incremental projection method
-                val = ns->func.get_boundary_pressure(id[h], bccenter, t) -
-                      ns->func.get_boundary_pressure(id[h], bccenter, ns->par.t);
+                val = ns->problem->boundary_pressure(id[h], bccenter, t) -
+                      ns->problem->boundary_pressure(id[h], bccenter, ns->par.t);
             }
             // Set the value
             sb_set_value(bc, bclid, val);
@@ -132,7 +132,7 @@ void higflow_set_boundary_condition_for_velocities(higflow_solver *ns, int
                 int  bclid = mp_lookup(bm, hig_get_cid(bcell));
                 //real bcval = bcvalues[dim][h];
                 // Get the velocity defined by the user
-                real bcval = ns->func.get_boundary_velocity(id[h], bccenter, dim, ns->par.t);
+                real bcval = ns->problem->boundary_velocity(id[h], bccenter, dim, ns->par.t);
                 // Set the value pbcvalues for the center of the cell 
                 sb_set_value(bc, bclid, bcval);
             }
@@ -548,7 +548,7 @@ void higflow_set_boundary_condition_for_cell_source_term(higflow_solver *ns, int
             // Get the id of the cell
             int bclid = mp_lookup(bm, hig_get_cid(bcell));
             // Get the electro-osmotic nminus defined by the user
-            real val = ns->func.get_boundary_source_term(id[h], bccenter, ns->par.t);
+            real val = ns->problem->boundary_source_term(id[h], bccenter, ns->par.t);
             // Set the value 
             sb_set_value(bc, bclid, val);
         }
@@ -592,7 +592,7 @@ void higflow_set_boundary_condition_for_facet_source_term(higflow_solver *ns, in
                 int  bclid = mp_lookup(bm, hig_get_cid(bcell));
                 //real bcval = bcvalues[dim][h];
                 // Get the velocity defined by the user
-                real bcval = ns->func.get_boundary_facet_source_term(id[h], bccenter, dim, ns->par.t);
+                real bcval = ns->problem->boundary_facet_source_term(id[h], bccenter, dim, ns->par.t);
                 // Set the value pbcvalues for the center of the cell 
                 sb_set_value(bc, bclid, bcval);
             }
