@@ -389,6 +389,53 @@ structure at once: flat at the correct value, a factor-32 step exactly at the pl
 of the missing patch, then the transient front. Look at the profile before reducing
 it to a number.
 
+### VTK output is partition-dependent; aggregates hide it
+
+In a multi-block domain the VTK writer interpolates velocity at cell *corners*
+(`compute_facet_value_at_point` → `sfd_get_stencil`), and the least-squares support
+is capped at `maxpts` (120 for order 2 in 3D). At a block interface there are more
+candidates than that at the same distance, so **which ones make the cut depends on
+the order the trees are visited — which depends on the partition.**
+
+Measured on `example3d_complex`, np=1 against np=2, same fields, two instruments:
+
+|Path|Points compared|Max difference|
+|-----|-------|-------|
+|`ns->dpu` per facet, coordinate as key|458,400|1.0e-10 (the dump's own floor)|
+|VTK nodal values|190,729|1.78e-02 — **0.56% of scale**|
+
+The solution agrees to the limit of the instrument; the *output* does not. At the
+worst node the two supports share 114 of 120 points, and the six that differ are all
+3.08 cells away — well inside the 5-cell fringe. Nothing is missing: the tie at the
+cutoff is broken differently.
+
+**The suite does not catch this, and cannot.** It compares min/max/mean per field.
+Those aggregates are blind to a defect localised in a few hundred corner nodes:
+
+|Component|np=1 min / max / mean|np=2 min / max / mean|Relative difference|
+|-----|-------|-------|-------|
+|u|-3.180224 / 1.615838 / -0.085414|-3.180224 / 1.615838 / -0.085416|0, 0, 1.9e-05|
+|v|-1.617355 / 1.617351 / -0.014271|-1.617355 / 1.617351 / -0.014271|0, 0, 4.6e-06|
+
+Min and max agree *exactly* — the 236 divergent nodes never reach the extremes (their
+u spans [-2.586, 1.528] against a global [-3.180, 1.616]) — and the rest dilutes in
+the mean. A green suite at tolerance 1e-5 means three statistics agree, **not** that
+the fields do.
+
+Consequences:
+
+- **Do not compare VTK between different `np`.** To compare decompositions, dump
+  `ns->dpu` per facet with the coordinate as key.
+- **A reference recorded from VTK in a multi-block domain is only valid for the
+  decomposition that recorded it.** `ci/run_suite.py` generates at np=1 by design and
+  checks np=2,3,4 against it; that check passes on aggregates, not on fields.
+
+This is inherent to the writer, not a bug introduced by a change: the support cut is
+order-dependent by construction. It was left unfixed deliberately — making the
+tie-break deterministic would alter the same interpolation the *solver* uses and force
+every reference to be regenerated, a certain cost in shared machinery for a benefit
+confined to pictures.
+
 ### The shared pattern
 
 None of these failed loudly. A step fails or lies, later steps run on stale
