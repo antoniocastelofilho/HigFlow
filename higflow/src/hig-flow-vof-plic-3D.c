@@ -395,7 +395,13 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 real parallel_case_volume(Point Normal,Point Delta,real d_from_center,real tol_n){
 	real nx = Normal[0], ny = Normal[1], nz = Normal[2];
 	real dx = Delta[0], dy = Delta[1], dz = Delta[2];
-	int n_x, n_y, n_z, n_1, n_2, n_3;
+	int  n_x, n_y, n_z;
+	// n_1..n_3 guardam |Normal[i]|, que e' real em [0,1]: declarados como int,
+	// a componente dominante truncava para 0 sempre que nao fosse exatamente
+	// 1.0, e Normal virava o vetor nulo.  trans_center_to_p0 devolvia entao
+	// -d em vez de |n|.Delta/2 - d.  A inversa trans_p0_to_center (linha 155)
+	// ja' usa Normal[i] direto, sem truncar.
+	real n_1, n_2, n_3;
 	real volume, d;
 	
 	n_1 = fabs(Normal[0]);
@@ -408,20 +414,22 @@ real parallel_case_volume(Point Normal,Point Delta,real d_from_center,real tol_n
 	d = fabs(d_from_center);
 	d = trans_center_to_p0(Delta,Normal,d);
 	
-	if(fabs(nx)<tol_n && fabs(ny)<tol_n){
+	if(fabs(nx)<=tol_n && fabs(ny)<=tol_n){
 		n_x = 0;
 		n_y = 0;
 		n_z = 1;
-	}else if(fabs(nx)<tol_n && fabs(nz)<tol_n){
+	}else if(fabs(nx)<=tol_n && fabs(nz)<=tol_n){
 		n_x = 0;
 		n_y = 1;
 		n_z = 0;
-	}else if(fabs(ny)<tol_n && fabs(nz)<tol_n){
+	}else if(fabs(ny)<=tol_n && fabs(nz)<=tol_n){
 		n_x = 1;
 		n_y = 0;
 		n_z = 0;
 	}else{
-		printf("Nenhuma das condicoes foi atendida");
+		printf("=+=+=+= Error in parallel_case_volume: normal (%g %g %g) nao e'"
+		       " paralela a eixo algum com tol_n=%g =+=+=+=\n", nx, ny, nz, tol_n);
+		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
 		
 	
