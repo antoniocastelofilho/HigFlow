@@ -320,8 +320,21 @@ success. Use `set -o pipefail` or `${PIPESTATUS[0]}`.
 
 `pgrep -f run_suite.py` matches the shell that runs it, so an
 `until pgrep …; do sleep; done` loop never ends. Worse, `pkill -f 'while pgrep'`
-kills that shell (exit 144) — once taking a nearly finished suite with it. Use the
-bracket form, `run_suite[.]py`, or kill by a PID captured beforehand.
+kills that shell (exit 144) — once taking a nearly finished suite with it.
+
+The bracket form, `run_suite[.]py`, does stop the pattern from matching itself —
+measured, in isolation. It is still not enough, for two reasons that bit us both:
+
+- **A second, unbracketed occurrence on the same command line.** In a single
+  `bash -c` that waits for X and then runs X, the literal from the "then runs"
+  half sits in the same cmdline, and that is what matches. Brackets protect the
+  pattern, not the command that contains it.
+- **Another session's process.** With several sessions on one machine, "is any
+  `run_suite.py` alive" does not distinguish yours from theirs, and
+  `pgrep … || break` keeps waiting while *any* one exists.
+
+So do not wait by process name at all. Capture the PID at launch, chain with `&&`
+so no wait is needed, or poll for a marker the job itself writes.
 
 ### Every rank opens the same file and they clobber each other
 
@@ -342,9 +355,43 @@ already committed to "verify the matched-key count before reading any difference
 made a half-sized file impossible to wave away. A control decided after seeing the
 number is worth much less — by then you know which answer you want.
 
+### A reference recorded from a broken configuration hides the break forever
+
+`example-3d.load.bc.yaml` pointed `bc10` at `mesh-channel3D-bc-101.amr` — one digit
+too many. One patch was loaded twice, another never, and a one-cell hole was left in
+an obstacle wall. **97% of the inflow came through that hole instead of the channel
+inlet**: the case was solving a different problem, and it *passed the suite*, because
+the reference had been generated with the hole in place.
+
+That is the worst failure mode here, because it is self-sealing: once the reference
+encodes the defect, the defect becomes indistinguishable from correct behaviour for
+every test that consults that reference. The antidote is not to distrust references —
+it is to keep at least one criterion that does not depend on one:
+
+|Criterion|What it caught|
+|-----|-------|
+|Flux through cross-sections|the hole, and a mass leak in example2d_Newt_contraction|
+|Symmetry in a symmetric case|the same contraction leak, for free, in the diff|
+|Agreement across process counts|the whole partitioned-stencil investigation|
+
+Before trusting such an instrument, plant a defect and check it is found *in the
+right place*. The planted defect needs an independently known signature — position,
+magnitude, or both — otherwise "it detected something" is not evidence. The flux
+measurement above was run twice, the second leg deliberately restoring the missing
+patch at a known x, and only then did the clean leg's 1.4e-13 mean anything.
+
+### One number can hide the profile that explains it
+
+That same flux measurement, summarised as a mean over all 130 sections, reported
+"100% deviation" for *both* legs and would have refuted a working instrument. The
+mean included sections the flow had not reached in two steps. The profile showed the
+structure at once: flat at the correct value, a factor-32 step exactly at the plane
+of the missing patch, then the transient front. Look at the profile before reducing
+it to a number.
+
 ### The shared pattern
 
-None of the three failed loudly. A step fails or lies, later steps run on stale
+None of these failed loudly. A step fails or lies, later steps run on stale
 state, and the number that comes out looks reasonable. When a result is suspiciously
 clean — an empty log read as "zero occurrences", a `rc=0` from a run that should have
 taken ten minutes — verify the step produced what you assumed before trusting it.
