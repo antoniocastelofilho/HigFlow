@@ -182,6 +182,14 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 	real n;
 	n = maximo(n_x, n_y, n_z);
 	n = (n==n_x) ? nx : ((n==n_y) ? ny : nz);
+
+	// Celula exatamente meio cheia: a caixa e' centralmente simetrica, entao um
+	// plano pelo centro a corta em duas metades congruentes qualquer que seja a
+	// normal -- a distancia ao centro e' 0, exata.  Sem esta saida a cadeia
+	// estrita abaixo nao casa com VOLUME == 0.5*dx*dy*dz e a funcao cai fora do
+	// fim sem retornar.  A versao 2D resolve o mesmo pelos FLT_EQ do topo
+	// (hig-flow-vof-plic.c:89 e :92).
+	if (FLT_EQ(VOLUME, 0.5*(dx*dy*dz))) return 0.0;
 	//==================================================================
 	//first case========================================================
 	//==================================================================
@@ -222,7 +230,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 			d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
 			return d;
 		}
-		else if(n2 < 0.0 && VOLUME > 0.5*(dx*dy*dz) || n2 > 0.0 && VOLUME < 0.5*(dx*dy*dz)){
+		else{
 		//Parte superior================================================
 				
 			volume = (VOLUME < 0.5*(dx*dy*dz)) ? VOLUME : dx*dy*dz - VOLUME;
@@ -232,7 +240,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 			d = sign(n) * trans_p0_to_center(Delta, Normal, d);
 			return d;
 		}
-	}else if(n_x>tol_n && n_y>tol_n && n_z>tol_n){
+	}else{
 	//==================================================================
 	//Third case =======================================================
 	//==================================================================
@@ -258,27 +266,27 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 			f = volume/(dx*dy*dz);		
 			real c = 6.0*n_x*n_y*n_z*volume;
 			
-			if((c < pow_nx) && (c < pow_ny) && (c < pow_nz)){
+			if((c <= pow_nx) && (c <= pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando a piramide esta completamente dentro da celula	
 				d = cbrt(6*volume*n_x*n_y*n_z);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c > pow_nx) && (c < pow_ny) && (c < pow_nz)){
+			}else if((c > pow_nx) && (c <= pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando tem-se apenas uma piramide fora da celula
 				d = solver_equation_second_order(volume, n_x, n_y, n_z, dx, dy, dz);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c < pow_nx) && (c > pow_ny) && (c < pow_nz)){
+			}else if((c <= pow_nx) && (c > pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando tem-se apenas uma piramide fora da celula
 				d = solver_equation_second_order(volume, n_y, n_x, n_z, dy, dx, dz);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c < pow_nx) && (c < pow_ny) && (c > pow_nz)){
+			}else if((c <= pow_nx) && (c <= pow_ny) && (c > pow_nz)){
 			////Este caso funciona quando tem-se apenas uma piramide fora da celula
 				d = solver_equation_second_order(volume, n_z, n_y, n_x, dz, dy, dx);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c > pow_nx) && (c > pow_ny) && (c < pow_nz)){
+			}else if((c > pow_nx) && (c > pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando tem-se duas piramides fora da celula
 				d = solver_equation_third_order(volume, n_x, n_y, n_z, dx, dy, dz);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
@@ -287,7 +295,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 					d = -sign(n) * trans_p0_to_center(Delta, Normal, d2);
 				}
 				return d;
-			}else if((c > pow_nx) && (c < pow_ny) && (c > pow_nz)){
+			}else if((c > pow_nx) && (c <= pow_ny) && (c > pow_nz)){
 			////Este caso funciona quando tem-se duas piramides fora da celula
 				d = solver_equation_third_order(volume, n_x, n_z, n_y, dx, dz, dy);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
@@ -296,7 +304,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 						d = -sign(n) * trans_p0_to_center(Delta, Normal, d2);
 				}
 				return d;
-			}else if((c < pow_nx) && (c > pow_ny) && (c > pow_nz)){
+			}else if((c <= pow_nx) && (c > pow_ny) && (c > pow_nz)){
 			////Este caso funciona quando tem-se duas piramides fora da celula
 				d = solver_equation_third_order(volume, n_z, n_y, n_x, dz, dy, dx);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
@@ -305,7 +313,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 						d = -sign(n) * trans_p0_to_center(Delta, Normal, d2);
 				}
 				return d;
-			}else if((c > pow_nx) && (c > pow_ny) && (c > pow_nz)){
+			}else{
 			////Este caso funciona quando tem-se tres piramides fora da celula
 				d = solver_equation_third_order_2(volume, n_x, n_y, n_z, dx, dy, dz);
 				d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
@@ -314,34 +322,34 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 			
 		//Parte superior================================================
 		//==============================================================
-		}else if(nz < 0.0 && VOLUME > 0.5*(dx*dy*dz) || nz > 0.0 && VOLUME < 0.5*(dx*dy*dz)){
+		}else{
 			
 			volume = (nz > 0.0 && VOLUME < 0.5*(dx*dy*dz)) ? VOLUME : dx*dy*dz - VOLUME;
 			
 			f = volume/(dx*dy*dz);
 			real c = 6.0*n_x*n_y*n_z*volume;
 			
-			if((c < pow_nx) && (c < pow_ny) && (c < pow_nz)){
+			if((c <= pow_nx) && (c <= pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando a piramide esta completamente dentro da celula	
 				d = cbrt(6*volume*n_x*n_y*n_z);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c > pow_nx) && (c < pow_ny) && (c < pow_nz)){
+			}else if((c > pow_nx) && (c <= pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando tem-se apenas uma piramide fora da celula
 				d = solver_equation_second_order(volume, n_x, n_y, n_z, dx, dy, dz);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c < pow_nx) && (c > pow_ny) && (c < pow_nz)){
+			}else if((c <= pow_nx) && (c > pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando tem-se apenas uma piramide fora da celula
 				d = solver_equation_second_order(volume, n_y, n_x, n_z, dy, dx, dz);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c < pow_nx) && (c < pow_ny) && (c > pow_nz)){
+			}else if((c <= pow_nx) && (c <= pow_ny) && (c > pow_nz)){
 			////Este caso funciona quando tem-se apenas uma piramide fora da celula
 				d = solver_equation_second_order(volume, n_z, n_y, n_x, dz, dy, dx);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
 				return d;
-			}else if((c > pow_nx) && (c > pow_ny) && (c < pow_nz)){
+			}else if((c > pow_nx) && (c > pow_ny) && (c <= pow_nz)){
 			////Este caso funciona quando tem-se duas piramides fora da celula
 				d = solver_equation_third_order(volume, n_x, n_y, n_z, dx, dy, dz);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
@@ -351,7 +359,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 						d = sign(n) * trans_p0_to_center(Delta, Normal, d2);
 				}
 				return d;
-			}else if((c > pow_nx) && (c < pow_ny) && (c > pow_nz)){
+			}else if((c > pow_nx) && (c <= pow_ny) && (c > pow_nz)){
 			////Este caso funciona quando tem-se duas piramides fora da celula
 				d = solver_equation_third_order(volume, n_x, n_z, n_y, dx, dz, dy);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
@@ -361,7 +369,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 						d = sign(n) * trans_p0_to_center(Delta, Normal, d2);
 				}
 				return d;
-			}else if((c < pow_nx) && (c > pow_ny) &&
+			}else if((c <= pow_nx) && (c > pow_ny) &&
 			(c > pow_nz)){
 			////Este caso funciona quando tem-se duas piramides fora da celula
 				d = solver_equation_third_order(volume, n_z, n_y, n_x, dz, dy, dx);
@@ -372,8 +380,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 						d = sign(n) * trans_p0_to_center(Delta, Normal, d2);
 				}
 				return d;
-			}else if((c > pow_nx) && (c > pow_ny) &&
-			(c > pow_nz)){
+			}else{
 			////Este caso funciona quando tem-se tres piramides fora da celula
 				d = solver_equation_third_order_2(volume, n_x, n_y, n_z, dx, dy, dz);
 				d = sign(n) * trans_p0_to_center(Delta, Normal, d);
