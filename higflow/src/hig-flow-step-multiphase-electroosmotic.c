@@ -149,7 +149,7 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                dp_set_value(ns->ed.eo.dpnplus, clid, 1.0);
+                dp_set_value(ns->ed.eo.dpnminus, clid, 1.0);
                 continue;
             }
             real alphaeo0 = ns->ed.mult.eo.par0.alpha; real alphaeo1 = ns->ed.mult.eo.par1.alpha;
