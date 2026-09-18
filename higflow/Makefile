@@ -19,6 +19,12 @@ else
 	DEBUG_DESC = "No Debugging/Optimized"	
 endif
 
+# Avisos ligados como no higtree/Makefile.  A biblioteca de fisica compilava
+# sem nenhuma flag -W, e foi assim que um &incell_left no lugar de
+# &incell_right, e um caso de switch que nao fixava xi, passaram anos
+# despercebidos: o gcc acusa os dois com -Wall, em qualquer nivel de
+# otimizacao.  As duas supressoes sao as mesmas que o higtree ja adota.
+CFLAGS+= -Wall -Wno-unused-result -Wno-unused-variable
 CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml hdf5)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
