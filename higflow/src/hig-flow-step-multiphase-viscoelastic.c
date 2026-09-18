@@ -710,7 +710,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         for (int i = 0; i < DIM; i++)
                             trA += A[i][i];
                         fA0 = L2/(L2 - trA);
-                        a0 = L2/(L2-3);
+                        a0 = L2/(L2-DIM);
                         xi0 = 0.0;
                         break;
                         }
@@ -757,7 +757,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                         for (int i = 0; i < DIM; i++)
                             trA += A[i][i];
                         fA1 = L2/(L2 - trA);
-                        a1 = L2/(L2-3);
+                        a1 = L2/(L2-DIM);
                         xi1 = 0.0;
                         break;
                         }
