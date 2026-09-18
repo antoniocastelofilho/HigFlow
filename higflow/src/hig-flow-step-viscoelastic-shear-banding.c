@@ -2450,7 +2450,7 @@ void hig_flow_derivative_nA_at_center_cell (higflow_solver *ns, Point ccenter, P
         // Get the concentration in the left cell
         real nleft = compute_center_p_left_22(ns->ed.vesb.sdSBnA, ccenter, cdelta, dim, 1.0, ns->ed.vesb.dpnA, ns->ed.stn, &incell_left);
         // Get the concentration in the right cell
-        real nright = compute_center_p_right_22(ns->ed.vesb.sdSBnA, ccenter, cdelta, dim, 1.0, ns->ed.vesb.dpnA, ns->ed.stn, &incell_left);
+        real nright = compute_center_p_right_22(ns->ed.vesb.sdSBnA, ccenter, cdelta, dim, 1.0, ns->ed.vesb.dpnA, ns->ed.stn, &incell_right);
         // Compute the concentration derivative
         if ((incell_left == 1) && (incell_right == 1)) { 
            dndx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, nleft, nright);
@@ -2469,7 +2469,7 @@ void hig_flow_derivative_nB_at_center_cell (higflow_solver *ns, Point ccenter, P
         // Get the concentration in the left cell
         real nleft = compute_center_p_left_22(ns->ed.vesb.sdSBnB, ccenter, cdelta, dim, 1.0, ns->ed.vesb.dpnB, ns->ed.stn, &incell_left);
         // Get the concentration in the right cell
-        real nright = compute_center_p_right_22(ns->ed.vesb.sdSBnB, ccenter, cdelta, dim, 1.0, ns->ed.vesb.dpnB, ns->ed.stn, &incell_left);
+        real nright = compute_center_p_right_22(ns->ed.vesb.sdSBnB, ccenter, cdelta, dim, 1.0, ns->ed.vesb.dpnB, ns->ed.stn, &incell_right);
         // Compute the concentration derivative
         if ((incell_left == 1) && (incell_right == 1)) { 
            dndx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, nleft, nright);
