@@ -109,7 +109,7 @@
 //                                 B[i][j] = 0.0;
 //                                 B[j][i] = 0.0;
 //                             }
-//                             B[i][i] = ns->ed.ve.get_kernel_inverse(i, lambda[i], tol);
+//                             B[i][i] = ns->ed.ve.problem->kernel_inverse(i, lambda[i], tol);
 //                         }
 //                         // Calculate A matrix >> A = R B R^t
 //                         // D = 0.5*(Du + Du^t)
@@ -186,7 +186,7 @@
 //                     for (int j = 0; j < DIM; j++) {
 //                         Kernel[i][j] = 0.0;
 //                     }
-//                     Kernel[i][i] = ns->ed.ve.get_kernel(i, 1.0, tol);
+//                     Kernel[i][i] = ns->ed.ve.problem->kernel(i, 1.0, tol);
 //                 }
 //                 // Store the Kernel Tensor
 //                 for (int i = 0; i < DIM; i++) {
@@ -263,7 +263,7 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
                     B[i][j] = 0.0;
                     B[j][i] = 0.0;
                 }
-                B[i][i] = ns->ed.ve.get_kernel_inverse(i, lambda[i], tol);
+                B[i][i] = ns->ed.ve.problem->kernel_inverse(i, lambda[i], tol);
             }
             // Calculate A matrix >> A = R B R^t
             // D = 0.5*(Du + Du^t)
@@ -409,7 +409,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
             real R[DIM][DIM], Klambda[DIM], lambda[DIM];
             hig_flow_jacobi(KernelCopy, Klambda, R);
             for (int dim = 0; dim < DIM; dim++)
-                lambda[dim] = ns->ed.ve.get_kernel_inverse(dim, Klambda[dim], tol);
+                lambda[dim] = ns->ed.ve.problem->kernel_inverse(dim, Klambda[dim], tol);
 
             // Calculate M matrix >> M = R^t Du R
             real Mtilde[DIM][DIM], M[DIM][DIM];
@@ -427,7 +427,7 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
             // Calculate the Kernel jacobian
             real jlambda[DIM];
             for(int i = 0; i < DIM; i++)
-                jlambda[i] = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+                jlambda[i] = ns->ed.ve.problem->kernel_jacobian(i, lambda[i], tol);
             // Calculate the matrix BB and the matrix B
             real BB[DIM][DIM];
             hig_flow_calculate_b (lambda, jlambda, R, M, BB);
@@ -787,7 +787,7 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
             real R[DIM][DIM], Klambda[DIM], lambda[DIM];
             hig_flow_jacobi(KernelCopy, Klambda, R);
             for (int dim = 0; dim < DIM; dim++)
-                lambda[dim] = ns->ed.ve.get_kernel_inverse(dim, Klambda[dim], tol);
+                lambda[dim] = ns->ed.ve.problem->kernel_inverse(dim, Klambda[dim], tol);
 
             // Calculate M matrix >> M = R^t Du R
             real Mtilde[DIM][DIM], M[DIM][DIM];
@@ -805,7 +805,7 @@ void higflow_implicit_euler_constitutive_equation(higflow_solver *ns) {
             // Calculate the Kernel jacobian
             real jlambda[DIM];
             for(int i = 0; i < DIM; i++)
-                jlambda[i] = ns->ed.ve.get_kernel_jacobian(i, lambda[i], tol);
+                jlambda[i] = ns->ed.ve.problem->kernel_jacobian(i, lambda[i], tol);
             // Calculate the matrix BB and the matrix B
             real BB[DIM][DIM];
             hig_flow_calculate_b (lambda, jlambda, R, M, BB);
@@ -1504,7 +1504,7 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic(higflow_solve
 //            Kernel_aux[i][j] = 0.0;
 //            Kernel_aux[j][i] = 0.0;
 //        }
-//        Kernel_aux[i][i] = ns->ed.ve.get_kernel(i, lambda[i], tol);
+//        Kernel_aux[i][i] = ns->ed.ve.problem->kernel(i, lambda[i], tol);
 //    }
 //    // Calculate Kernel matrix >> Kernel = R Kernel_aux R^t
 //    hig_flow_matrix_transpose_product(Kernel_aux, R, Kernel);

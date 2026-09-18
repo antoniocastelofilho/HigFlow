@@ -475,7 +475,7 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.ve.get_tensor(center, i, j, ns->par.t);
+                    real val = ns->ed.ve.problem->tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     //dp_set_value(ns->ed.ve.dpS[i][j], clid, val);    
                     dp_set_value(ns->ed.ve.dpKernel[i][j], clid, val);                 

@@ -504,6 +504,9 @@ typedef struct higflow_viscoelastic{
     real (*get_kernel_inverse)(int dim, real lambda, real tol);
     // Function to get the kernel jacobian
     real (*get_kernel_jacobian)(int dim, real lambda, real tol);
+    // O problema viscoelastico deste exemplo.  A biblioteca chama por aqui;
+    // quem registrou por ponteiro recebe um HigFlowLegacyViscoelastic.
+    HigFlowViscoelasticProblem *problem;
     // User function to define the viscoelastic model
     void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par);
 } higflow_viscoelastic;
@@ -1295,6 +1298,11 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol));
 void higflow_define_user_function_multiphase_viscoelastic (higflow_solver *ns, 
 void (*calculate_m_user_multiphase)(real fracvol, real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM], real Re, real trS, ve_parameters *par0, ve_parameters *par1));
 
+
+// Create the simulation domain for viscoelastic flow -- versao por objeto.
+// A de ponteiros abaixo constroi um HigFlowLegacyViscoelastic e chama esta.
+void higflow_create_domain_viscoelastic(higflow_solver *ns, int cache, int order,
+                                        HigFlowViscoelasticProblem *problem);
 
 // Create the simulation domain for viscoelastic flow
 void higflow_create_domain_viscoelastic (higflow_solver *ns, int cache, int order,

@@ -546,6 +546,25 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
        // function for the kernel transformation jacobian
        ns->ed.ve.get_kernel_jacobian = get_kernel_jacobian;
     }
+    // Caminho legado: embrulha os quatro ponteiros, para que a biblioteca tenha
+    // um so' jeito de chamar.
+    HigFlowLegacyViscoelastic *legacy = new HigFlowLegacyViscoelastic();
+    legacy->fn_tensor          = get_tensor;
+    legacy->fn_kernel          = get_kernel;
+    legacy->fn_kernel_inverse  = get_kernel_inverse;
+    legacy->fn_kernel_jacobian = get_kernel_jacobian;
+    higflow_create_domain_viscoelastic(ns, cache, order, legacy);
+}
+
+// Versao por objeto.
+void higflow_create_domain_viscoelastic(higflow_solver *ns, int cache, int order,
+                                        HigFlowViscoelasticProblem *problem) {
+    if (ns->contr.flowtype == VISCOELASTIC) {
+       ns->ed.sdED = sd_create(NULL);
+       sd_use_cache(ns->ed.sdED, cache);
+       sd_set_interpolator_order(ns->ed.sdED, order);
+    }
+    ns->ed.ve.problem = problem;
 }
 
 // Define the user function for viscoelastic flow

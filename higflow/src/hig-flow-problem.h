@@ -62,4 +62,36 @@ public:
     real boundary_facet_source_term(int id, Point c, int d, real t) { return fn_boundary_facet_source_term(id, c, d, t); }
 };
 
+// ---------------------------------------------------------------------------
+// Segunda porta: os callbacks especificos de modelo, registrados pelos
+// higflow_create_domain_*.  Ao contrario dos oito da primeira porta, estes NAO
+// sao um conjunto universal -- cada exemplo usa so' os do modelo que configura, e
+// o mesmo nome tem assinaturas diferentes entre modelos (get_viscosity e'
+// (Point,q,t) no generalized-newtonian e (Point,q,t,beta,struct_par) no
+// variable-viscosity).  Por isso sao interfaces SEPARADAS por modelo, herdadas so'
+// por quem precisa, em vez de uma interface gorda com metodos vazios.
+// ---------------------------------------------------------------------------
+class HigFlowViscoelasticProblem {
+public:
+    virtual ~HigFlowViscoelasticProblem() {}
+    virtual real tensor(Point center, int i, int j, real t) = 0;
+    virtual real kernel(int dim, real lambda, real tol) = 0;
+    virtual real kernel_inverse(int dim, real lambda, real tol) = 0;
+    virtual real kernel_jacobian(int dim, real lambda, real tol) = 0;
+};
+
+// Adaptador para quem ainda registra por ponteiro.
+class HigFlowLegacyViscoelastic : public HigFlowViscoelasticProblem {
+public:
+    real (*fn_tensor)(Point, int, int, real);
+    real (*fn_kernel)(int, real, real);
+    real (*fn_kernel_inverse)(int, real, real);
+    real (*fn_kernel_jacobian)(int, real, real);
+
+    real tensor(Point c, int i, int j, real t)      { return fn_tensor(c, i, j, t); }
+    real kernel(int d, real l, real tol)            { return fn_kernel(d, l, tol); }
+    real kernel_inverse(int d, real l, real tol)    { return fn_kernel_inverse(d, l, tol); }
+    real kernel_jacobian(int d, real l, real tol)   { return fn_kernel_jacobian(d, l, tol); }
+};
+
 #endif
