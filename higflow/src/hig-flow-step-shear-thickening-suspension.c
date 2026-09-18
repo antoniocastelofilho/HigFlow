@@ -2998,15 +2998,22 @@ void hig_flow_derivative_tensor_A_at_center_cell(higflow_solver *ns, Point ccent
 // Get the derivative of the volume fraction
 void hig_flow_derivative_volfrac_at_center_cell(higflow_solver *ns, Point ccenter, Point cdelta, real ncenter, real dndx[DIM])
 {
-    for (int dim = 0; dim < DIM; dim++)
-    {
+    for (int dim = 0; dim < DIM; dim++) {
         int incell_left, incell_right;
-        // Get the fraction value in the left cell
+        // Os oito irmaos desta familia degradam para diferenca lateral quando o
+        // vizinho esta fora do dominio; estes dois usavam sempre a centrada, e
+        // ainda passavam &incell_left as DUAS chamadas -- declaravam os dois flags
+        // e nao liam nenhum, que e' a impressao digital de uma edicao que tirou o
+        // ramo sem limpar.
         real nleft = compute_center_p_left_22(ns->ed.stsp.sdphi, ccenter, cdelta, dim, 1.0, ns->ed.stsp.dpphi, ns->ed.stn, &incell_left);
-        // Get the fraction value in the right cell
-        real nright = compute_center_p_right_22(ns->ed.stsp.sdphi, ccenter, cdelta, dim, 1.0, ns->ed.stsp.dpphi, ns->ed.stn, &incell_left);
-        // Compute the volume fraction derivative
-        dndx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, nleft, nright);
+        real nright = compute_center_p_right_22(ns->ed.stsp.sdphi, ccenter, cdelta, dim, 1.0, ns->ed.stsp.dpphi, ns->ed.stn, &incell_right);
+        if ((incell_left == 1) && (incell_right == 1)) {
+            dndx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, nleft, nright);
+        } else if (incell_right == 1) {
+            dndx[dim] = compute_dpdxr_at_point(cdelta, dim, 1.0, ncenter, nright);
+        } else {
+            dndx[dim] = compute_dpdxl_at_point(cdelta, dim, 1.0, nleft, ncenter);
+        }
     }
 }
 

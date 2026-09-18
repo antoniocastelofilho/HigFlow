@@ -1998,12 +1998,20 @@ real hig_flow_structural_par_BMP_model3_RHS (real Lambda, real Phi, real Gamma, 
 void hig_flow_derivative_structural_parameter_center_cell (higflow_solver *ns, Point ccenter, Point cdelta, real spcenter, real dspdx[DIM]) {
     for (int dim = 0; dim < DIM; dim++) {
         int incell_left, incell_right;
-        // Get the structural parameter value in the left cell
+        // Os oito irmaos desta familia degradam para diferenca lateral quando o
+        // vizinho esta fora do dominio; estes dois usavam sempre a centrada, e
+        // ainda passavam &incell_left as DUAS chamadas -- declaravam os dois flags
+        // e nao liam nenhum, que e' a impressao digital de uma edicao que tirou o
+        // ramo sem limpar.
         real spleft = compute_center_p_left_22(ns->ed.vevv.sdVisc, ccenter, cdelta, dim, 1.0, ns->ed.vevv.dpStructPar, ns->ed.stn, &incell_left);
-        // Get the structural parameter value in the right cell
-        real spright = compute_center_p_right_22(ns->ed.vevv.sdVisc, ccenter, cdelta, dim, 1.0, ns->ed.vevv.dpStructPar, ns->ed.stn, &incell_left);
-        // Compute the concentration derivative
-           dspdx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, spleft, spright);
+        real spright = compute_center_p_right_22(ns->ed.vevv.sdVisc, ccenter, cdelta, dim, 1.0, ns->ed.vevv.dpStructPar, ns->ed.stn, &incell_right);
+        if ((incell_left == 1) && (incell_right == 1)) {
+            dspdx[dim] = compute_dpdx_at_point(cdelta, dim, 1.0, spleft, spright);
+        } else if (incell_right == 1) {
+            dspdx[dim] = compute_dpdxr_at_point(cdelta, dim, 1.0, spcenter, spright);
+        } else {
+            dspdx[dim] = compute_dpdxl_at_point(cdelta, dim, 1.0, spleft, spcenter);
+        }
     }
 }
 

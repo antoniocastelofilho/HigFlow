@@ -1186,6 +1186,14 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
     */
     ///////////////////////////////////////////////////////////////////////
 
+    // Guardas de dominio, alinhados a' copia de referencia do CUBISTA
+    // (hig-flow-step-viscoelastic-variable-viscosity.c:402, conferida termo a termo
+    // contra a formulacao NVD).  Esta copia pedia incell_l/r/ll/rr nas quatro
+    // chamadas de estencil e nao consultava nenhum, usando nl/nr/nll/nrr mesmo
+    // quando a celula correspondente esta fora do dominio.  A degradacao tem tres
+    // niveis: formula cheia com o vizinho distante dentro, formula reduzida com
+    // ele fora, e upwind de primeira ordem quando nem o vizinho proximo existe.
+
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar = vr;
     if (vbar > 0.0) {
@@ -1194,47 +1202,98 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
             fi = (nc - nl) / (nr - nl);
             if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * nc;
             else {
-                if (fi < b)                 conv1 = vbar * (a * nc - c * nl);
-                if ((fi >= b) && (fi <= c)) conv1 = vbar * (c * nc + b * nr - d * nl);
-                if (fi > c)                 conv1 = vbar * (e * nc + c * nr);
+                if (fi < b) {
+                    if (incell_l == 1)                     conv1 = vbar * (a * nc - c * nl);
+                    else                                   conv1 = vbar * nc;
+                }
+                if ((fi >= b) && (fi <= c)) {
+                    if ((incell_l == 1) && (incell_r == 1)) conv1 = vbar * (c * nc + b * nr - d * nl);
+                    else                                   conv1 = vbar * nc;
+                }
+                if (fi > c) {
+                    if (incell_r == 1)                     conv1 = vbar * (e * nc + c * nr);
+                    else                                   conv1 = vbar * nc;
+                }
             }
         }
     }
     else { //v1bar < 0.0
-        if (fabs(nc - nrr) <= tol) conv1 = vbar * nr;
-        else {
-            fi = (nr - nrr) / (nc - nrr);
-            if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * nr;
+        if ((incell_r == 1) && (incell_rr == 1)) {
+            if (fabs(nc - nrr) <= tol) conv1 = vbar * nr;
             else {
-                if (fi < b)                 conv1 = vbar * (a * nr - c * nrr);
-                if ((fi >= b) && (fi <= c)) conv1 = vbar * (c * nr + b * nc - d * nrr);
-                if (fi > c)                 conv1 = vbar * (c * nc + e * nr);
+                fi = (nr - nrr) / (nc - nrr);
+                if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * nr;
+                else {
+                    if (fi < b)                 conv1 = vbar * (a * nr - c * nrr);
+                    if ((fi >= b) && (fi <= c)) conv1 = vbar * (c * nr + b * nc - d * nrr);
+                    if (fi > c)                 conv1 = vbar * (c * nc + e * nr);
+                }
             }
+        } else if ((incell_r == 1) && (incell_rr == 0)) {
+            if (fabs(nc - nrr) <= tol) conv1 = vbar * nr;
+            else {
+                fi = (nr - nrr) / (nc - nrr);
+                if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * nr;
+                else {
+                    if (fi <= c)                conv1 = vbar * nr;
+                    if (fi > c)                 conv1 = vbar * (c * nc + e * nr);
+                }
+            }
+        } else {
+            // nem o vizinho proximo existe: upwind de primeira ordem nas duas faces
+            conv1 = (vr > 0.0) ? vr * nc : vr * nr;
+            conv2 = (vl > 0.0) ? vl * nl : vl * nc;
+            return ((conv1 - conv2) / cdelta[dim]);
         }
     }
     // Get the velocity  v2bar(i-1/2,j) in the facet center
     vbar = vl;
     if (vbar > 0.0) {
-        if (fabs(nc - nll) <= tol) conv2 = vbar * nl;
-        else {
-            fi = (nl - nll) / (nc - nll);
-            if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * nl;
+        if ((incell_l == 1) && (incell_ll == 1)) {
+            if (fabs(nc - nll) <= tol) conv2 = vbar * nl;
             else {
-                if (fi < b)                 conv2 = vbar * (a * nl - c * nll);
-                if ((fi >= b) && (fi <= c)) conv2 = vbar * (b * nc + c * nl - d * nll);
-                if (fi > c)                 conv2 = vbar * (c * nc + e * nl);
+                fi = (nl - nll) / (nc - nll);
+                if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * nl;
+                else {
+                    if (fi < b)                 conv2 = vbar * (a * nl - c * nll);
+                    if ((fi >= b) && (fi <= c)) conv2 = vbar * (b * nc + c * nl - d * nll);
+                    if (fi > c)                 conv2 = vbar * (c * nc + e * nl);
+                }
             }
+        } else if ((incell_l == 1) && (incell_ll == 0)) {
+            if (fabs(nc - nll) <= tol) conv2 = vbar * nl;
+            else {
+                fi = (nl - nll) / (nc - nll);
+                if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * nl;
+                else {
+                    if (fi <= c)                conv2 = vbar * nl;
+                    if (fi > c)                 conv2 = vbar * (c * nc + e * nl);
+                }
+            }
+        } else {
+            conv1 = (vr > 0.0) ? vr * nc : vr * nr;
+            conv2 = (vl > 0.0) ? vl * nl : vl * nc;
+            return ((conv1 - conv2) / cdelta[dim]);
         }
     }
-    else { //v2bar < 0.0 
+    else { //v2bar < 0.0
         if (fabs(nl - nr) <= tol) conv2 = vbar * nc;
         else {
             fi = (nc - nr) / (nl - nr);
             if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * nc;
             else {
-                if (fi < b)                 conv2 = vbar * (a * nc - c * nr);
-                if ((fi >= b) && (fi <= c)) conv2 = vbar * (c * nc + b * nl - d * nr);
-                if (fi > c)                 conv2 = vbar * (e * nc + c * nl);
+                if (fi < b) {
+                    if (incell_r == 1)                     conv2 = vbar * (a * nc - c * nr);
+                    else                                   conv2 = vbar * nc;
+                }
+                if ((fi >= b) && (fi <= c)) {
+                    if ((incell_l == 1) && (incell_r == 1)) conv2 = vbar * (c * nc + b * nl - d * nr);
+                    else                                   conv2 = vbar * nc;
+                }
+                if (fi > c) {
+                    if (incell_l == 1)                     conv2 = vbar * (e * nc + c * nl);
+                    else                                   conv2 = vbar * nc;
+                }
             }
         }
     }

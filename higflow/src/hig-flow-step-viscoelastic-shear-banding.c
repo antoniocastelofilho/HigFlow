@@ -2322,6 +2322,15 @@ void higflow_implicit_euler_shear_banding_transport_equation_nB(higflow_solver *
 // Calculate convective term of the transport equation of species A and B using the CUBISTA method
 // *******************************************************************
 real higflow_convective_term_shear_banding_VCM_cubista(higflow_solver *ns, distributed_property *dpu, distributed_property *dpn, sim_domain *sdp, sim_stencil *stn, real n, Point ccenter, Point cdelta, int dim) {
+	// Guardas de dominio restaurados a partir da copia de referencia
+	// (hig-flow-step-viscoelastic-variable-viscosity.c:402), verificada termo a
+	// termo contra a formulacao NVD.  Esta copia pedia incell_l/r/ll/rr nas quatro
+	// chamadas de estencil e nao consultava nenhum: os seis `if (incell_* == 1)
+	// ... else upwind` tinham virado a atribuicao direta, e os dois blocos
+	// degradados de vizinho distante fora do dominio haviam sumido.  Restava
+	// `if (incell_r == 1)` onde a referencia tem `(incell_r == 1) && (incell_rr
+	// == 1)` -- meia condicao, que e' o que denuncia supressao e nao desenho.
+
     real  vbar[DIM], dKdx[dim], kr, krr, kl, kll, kc, a, b, c, d, e, tol, fi, conv1,conv2;
     a     = 1.7500;
     b     = 0.3750;
@@ -2350,20 +2359,23 @@ real higflow_convective_term_shear_banding_VCM_cubista(higflow_solver *ns, distr
                 conv1 = vbar[dim]*kc;
             }else {
                 if (fi < b){ 
-                    conv1 = vbar[dim]*(a*kc - c*kl);
+                    if (incell_l == 1)                    conv1 = vbar[dim]*(a*kc - c*kl);
+                    else                                  conv1 = vbar[dim]*kc;
                 }
 	        if ((fi >= b) && (fi <= c)){
-                    conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
+                    if ((incell_l == 1)&&(incell_r == 1)) conv1 = vbar[dim]*(c*kc + b*kr -d*kl);
+                    else                                  conv1 = vbar[dim]*kc;
                 }
 	        if (fi > c){ 
-                    conv1 = vbar[dim]*(e*kc + c*kr);
+                    if (incell_r == 1)                    conv1 = vbar[dim]*(e*kc + c*kr);
+                    else                                  conv1 = vbar[dim]*kc;
                 }
                     
             }    
         }
     //v1bar < 0.0
     }else {
-        if (incell_r == 1){
+        if ((incell_r == 1) && (incell_rr == 1)){
             if (fabs(kc - krr) <= tol){
                 conv1 = vbar[dim]*kr;
             }else {
@@ -2380,6 +2392,27 @@ real higflow_convective_term_shear_banding_VCM_cubista(higflow_solver *ns, distr
                 }
             }
         //Return upwind value at boundary
+        }else if ((incell_r == 1) && (incell_rr == 0)){
+            if (fabs(kc - krr) <= tol){
+                conv1 = vbar[dim]*kr;
+            }else {
+                fi = (kr- krr)/(kc - krr);
+                if ((fi <= 0.0) || (fi >= 1.0)) {
+                    conv1 = vbar[dim]*kr;
+                }else {
+		    if (fi <= c) 
+                        conv1 = vbar[dim]*kr;
+	            if (fi > c) 
+                        conv1 = vbar[dim]*(c*kc + e*kr);
+                }
+            }/*
+            vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
+            else                 conv1 = vbar[dim]*kr;
+            vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
+            else                 conv2 = vbar[dim]*kc;
+            return ((conv1 - conv2)/cdelta[dim]); */
         }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
@@ -2394,7 +2427,7 @@ real higflow_convective_term_shear_banding_VCM_cubista(higflow_solver *ns, distr
     // Get the velocity  v2bar(i-1/2,j) in the facet center
     vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
     if (vbar[dim] > 0.0){
-        if (incell_l == 1){
+        if ((incell_l == 1) && (incell_ll == 1)){
             if (fabs(kc-kll) <= tol) {
 	        conv2 = vbar[dim]*kl;
             }else {
@@ -2410,6 +2443,27 @@ real higflow_convective_term_shear_banding_VCM_cubista(higflow_solver *ns, distr
 	                conv2 = vbar[dim]*(c*kc + e*kl);
 	        }
 	    }
+        }else if ((incell_l == 1) && (incell_ll == 0)){
+            if (fabs(kc-kll) <= tol) {
+	        conv2 = vbar[dim]*kl;
+            }else {
+	        fi = (kl - kll)/(kc - kll);
+	        if ((fi <= 0.0) || (fi >= 1.0)) {
+	            conv2 = vbar[dim]*kl;
+	        }else {
+	            if (fi <= c)
+	                conv2 = vbar[dim]*kl;
+	            if (fi > c)  
+	                conv2 = vbar[dim]*(c*kc + e*kl);
+	        }
+	    }/*
+            vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
+            else                 conv1 = vbar[dim]*kr;
+            vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
+            if (vbar[dim] > 0.0) conv2 = vbar[dim]*kl;
+            else                 conv2 = vbar[dim]*kc;
+            return ((conv1 - conv2)/cdelta[dim]); */
        }else {
                 vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
                 if (vbar[dim] > 0.0) conv1 = vbar[dim]*kc;
@@ -2429,13 +2483,16 @@ real higflow_convective_term_shear_banding_VCM_cubista(higflow_solver *ns, distr
                 conv2 = vbar[dim]*kc;
             }else {
 	        if (fi < b){
-                    conv2 = vbar[dim]*(a*kc - c*kr);
+                    if (incell_r == 1)                    conv2 = vbar[dim]*(a*kc - c*kr);
+                    else                                  conv2 = vbar[dim]*kc;
                 }
 	        if ((fi >= b) && (fi <= c)){
-                    conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
+                    if ((incell_l == 1)&&(incell_r == 1)) conv2 = vbar[dim]*(c*kc + b*kl -d*kr);
+                    else                                  conv2 = vbar[dim]*kc;
                 }
 	        if (fi > c){ 
-                    conv2 = vbar[dim]*(e*kc + c*kl);
+                    if (incell_l == 1)                    conv2 = vbar[dim]*(e*kc + c*kl);
+                    else                                  conv2 = vbar[dim]*kc;
                 }
 	    }
         }
