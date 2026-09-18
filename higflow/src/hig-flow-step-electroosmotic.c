@@ -1126,7 +1126,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
         break;
     }
     
-    real vbar, vr, vl, nr, nrr, nl, nll, a, b, c, d, e, fi, fl, fc, fr, conv1, conv2;
+    real vbar, vr, vl, nr, nrr, nl, nll, a, b, c, d, e, tol, fi, fl, fc, fr, conv1, conv2;
     real ur, ul, dphidxr, dphidxl, dpsidxr, dpsidxl, phir, phil, phic, psir, psil, psic;
     real phill, phirr, psill, psirr;
     a = 1.7500;
@@ -1134,6 +1134,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
     c = 0.7500;
     d = 0.1250;
     e = 0.2500;
+    tol = 1.0e-14;
     conv1 = 0.0;
     conv2 = 0.0;
     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
@@ -1188,7 +1189,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar = vr;
     if (vbar > 0.0) {
-        if (FLT_EQ(nr, nl)) conv1 = vbar * nc;
+        if (fabs(nr - nl) <= tol) conv1 = vbar * nc;
         else {
             fi = (nc - nl) / (nr - nl);
             if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * nc;
@@ -1200,7 +1201,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
         }
     }
     else { //v1bar < 0.0
-        if (FLT_EQ(nc, nrr)) conv1 = vbar * nr;
+        if (fabs(nc - nrr) <= tol) conv1 = vbar * nr;
         else {
             fi = (nr - nrr) / (nc - nrr);
             if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * nr;
@@ -1214,7 +1215,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
     // Get the velocity  v2bar(i-1/2,j) in the facet center
     vbar = vl;
     if (vbar > 0.0) {
-        if (FLT_EQ(nc, nll)) conv2 = vbar * nl;
+        if (fabs(nc - nll) <= tol) conv2 = vbar * nl;
         else {
             fi = (nl - nll) / (nc - nll);
             if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * nl;
@@ -1226,7 +1227,7 @@ real hig_flow_convective_ionic_cell_term_cubista(higflow_solver *ns, real nc, Po
         }
     }
     else { //v2bar < 0.0 
-        if (FLT_EQ(nl, nr)) conv2 = vbar * nc;
+        if (fabs(nl - nr) <= tol) conv2 = vbar * nc;
         else {
             fi = (nc - nr) / (nl - nr);
             if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * nc;

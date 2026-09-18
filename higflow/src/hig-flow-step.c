@@ -1164,12 +1164,13 @@ void higflow_semi_implicit_bdf2_intermediate_velocity(higflow_solver *ns) {
 // Calculate convective cell term CUBISTA
 // *******************************************************************
 real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_domain* sfdu, sim_stencil* stn, distributed_property* dpK, sim_domain* sdED, sim_stencil* stnED, real kc, Point ccenter, Point cdelta, int dim) {
-    real  vbar, vl, vr, kr, krr, kl, kll, a, b, c, d, e, fi, conv1, conv2;
+    real  vbar, vl, vr, kr, krr, kl, kll, a, b, c, d, e, tol, fi, conv1, conv2;
     a = 1.7500;
     b = 0.3750;
     c = 0.7500;
     d = 0.1250;
     e = 0.2500;
+    tol = 1.0e-14;
     conv1 = 0.0;
     conv2 = 0.0;
     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
@@ -1186,7 +1187,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar = vr;
     if (vbar > 0.0) {
-        if (FLT_EQ(kr, kl)) conv1 = vbar * kc;
+        if (fabs(kr - kl) <= tol) conv1 = vbar * kc;
         else {
             fi = (kc - kl) / (kr - kl);
             if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * kc;
@@ -1198,7 +1199,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
         }
     }
     else { //v1bar < 0.0
-        if (FLT_EQ(kc, krr)) conv1 = vbar * kr; 
+        if (fabs(kc - krr) <= tol) conv1 = vbar * kr; 
         else {
             fi = (kr - krr) / (kc - krr);
             if ((fi <= 0.0) || (fi >= 1.0)) conv1 = vbar * kr;
@@ -1212,7 +1213,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
     // Get the velocity  v2bar(i-1/2,j) in the facet center
     vbar = vl;
     if (vbar > 0.0) {
-        if (FLT_EQ(kc, kll)) conv2 = vbar * kl;
+        if (fabs(kc - kll) <= tol) conv2 = vbar * kl;
         else {
             fi = (kl - kll) / (kc - kll);
             if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * kl;
@@ -1224,7 +1225,7 @@ real hig_flow_convective_cell_term_cubista(distributed_property* dpu, sim_facet_
         }
     }
     else { //v2bar < 0.0 
-        if (FLT_EQ(kl, kr)) conv2 = vbar * kc;
+        if (fabs(kl - kr) <= tol) conv2 = vbar * kc;
         else {
             fi = (kc - kr) / (kl - kr);
             if ((fi <= 0.0) || (fi >= 1.0)) conv2 = vbar * kc;

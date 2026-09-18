@@ -1451,12 +1451,13 @@ void hig_flow_derivative_b_at_center_cell (higflow_solver *ns, Point ccenter, Po
 // Calculate convective tensor term CUBISTA
 // *******************************************************************
 real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_property *dpu, sim_domain *sdp, sim_stencil *stn, real B[DIM][DIM], Point ccenter, Point cdelta, int dim, int k, int i, int j) {
-    real  vbar[DIM], dBdx[dim], kr, krr, kl, kll, kc, a, b, c, d, e, fi, conv1,conv2;
+    real  vbar[DIM], dBdx[dim], kr, krr, kl, kll, kc, a, b, c, d, e, tol, fi, conv1,conv2;
     a     = 1.7500;
     b     = 0.3750;
     c     = 0.7500;
     d     = 0.1250;
     e     = 0.2500;
+    tol   = 1.0e-14;
     conv1 = 0.0;
     conv2 = 0.0;
     int   incell_r, incell_l, incell_ll, incell_rr, infacet;
@@ -1470,7 +1471,7 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
     // Get the velocity  v1bar(i+1/2,j) in the facet center
     vbar[dim] = compute_facet_u_right(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
     if (vbar[dim] > 0.0){
-        if (FLT_EQ(kr, kl)){
+        if (fabs(kr - kl) <= tol){
             conv1 = vbar[dim]*kc;
         }else {
             fi = (kc - kl)/(kr - kl);
@@ -1495,7 +1496,7 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
     //v1bar < 0.0
     }else {
         if ((incell_r == 1) && (incell_rr == 1)){
-            if (FLT_EQ(kc, krr)){
+            if (fabs(kc - krr) <= tol){
                 conv1 = vbar[dim]*kr;
             }else {
                 fi = (kr- krr)/(kc - krr);
@@ -1512,7 +1513,7 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
             }
         //Return upwind value at boundary
         }else if ((incell_r == 1) && (incell_rr == 0)){
-            if (FLT_EQ(kc, krr)){
+            if (fabs(kc - krr) <= tol){
                 conv1 = vbar[dim]*kr;
             }else {
                 fi = (kr- krr)/(kc - krr);
@@ -1547,7 +1548,7 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
     vbar[dim] = compute_facet_u_left(ns->sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpu[dim], ns->stn, &infacet);
     if (vbar[dim] > 0.0){
         if ((incell_l == 1) && (incell_ll == 1)){
-            if (FLT_EQ(kc, kll)) {
+            if (fabs(kc - kll) <= tol) {
            conv2 = vbar[dim]*kl;
             }else {
            fi = (kl - kll)/(kc - kll);
@@ -1563,7 +1564,7 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
            }
        }
         }else if ((incell_l == 1) && (incell_ll == 0)){
-            if (FLT_EQ(kc, kll)) {
+            if (fabs(kc - kll) <= tol) {
            conv2 = vbar[dim]*kl;
             }else {
            fi = (kl - kll)/(kc - kll);
@@ -1594,7 +1595,7 @@ real hig_flow_convective_tensor_term_b_cubista(higflow_solver *ns, distributed_p
         } 
     }else {
     //v2bar < 0.0 
-        if (FLT_EQ(kl, kr)) {
+        if (fabs(kl - kr) <= tol) {
             conv2 = vbar[dim]*kc;
         }else {
             fi = (kc - kr)/(kl - kr);

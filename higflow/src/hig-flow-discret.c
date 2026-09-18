@@ -93,6 +93,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
    c     = 0.7500;
    d     = 0.1250;
    e     = 0.2500;
+   tol = 1.0e-14;
    conv1 = 0.0;
    conv2 = 0.0;
    int   infacet, infacet_r, infacet_l, infacet_rr, infacet_ll;
@@ -169,7 +170,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                   vbar = compute_facet_u_2_right(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
 
                if (vbar > 0.0){ // pr is upstream, pl is downstream
-                  if (FLT_EQ(pr, pl)){
+                  if (fabs(pr - pl) <= tol){
                      conv1 = vbar*pc;
                   }else {
                      fi = (pc - pl)/(pr - pl);
@@ -186,7 +187,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                   }
                   //v1bar < 0.0 -> pc is upstream, prr is downstream
                }else {
-                  if (FLT_EQ(pc, prr)){
+                  if (fabs(pc - prr) <= tol){
                      conv1 = vbar*pr;
                   } else {
                      fi = (pr-prr)/(pc - prr);
@@ -211,7 +212,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                   vbar = compute_facet_u_2_left(sfdu[dim2], fcenter, fdelta, dim, dim2, 1.0, dpu[dim2], ns->stn);
                
                if (vbar > 0.0){ // pc is upstream, pll is downstream
-                  if (FLT_EQ(pc, pll)) {
+                  if (fabs(pc - pll) <= tol) {
                      conv2 = vbar*pl;
                   }else {
                      fi = (pl - pll)/(pc-pll);
@@ -230,7 +231,7 @@ void higflow_computational_cell(higflow_solver *ns, sim_domain *sdp, sim_facet_d
                   }
                }else {
                   //v2bar < 0.0 -> pl is upstream, pr is downstream
-                  if (FLT_EQ(pl, pr)) {
+                  if (fabs(pl - pr) <= tol) {
                      conv2 = vbar*pc;
                   }else {
                      fi = (pc - pr)/(pl - pr);
