@@ -3,123 +3,19 @@
 #include "hig-flow-vof-plic.h"
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 
-real newton_raphson(real x0, real A, real B, real C, real D){
-	
-	real erro, fx, dfx, x1;
-	erro = 0.0;
-	int i=0;
-	do{
-		fx = A*pow(x0,3)+B*pow(x0,2)+C*x0+D;
-		dfx = 3*A*pow(x0,2)+2*B*x0+C;
-		x1 = x0-(fx/dfx);
-		erro = fabs(x0-x1);
-		x0 = x1;
-		i++;
-	}while(erro > 1e-10 && i < 1000);
-			
-	return x0;
-}
-//======================================================================
-// Raiz de A.x^3 + B.x^2 + C.x + D por bisseccao num intervalo que contem a raiz
-// FISICA por construcao.  O Newton com semente fixa nao serve aqui: a cubica do
-// ramo de tres cortes tem tres raizes reais (medido: 0,0154219 / 0,0613653 /
-// 0,18302 para a normal diagonal em celula 0,1^3 com frac=0,20) e a semente
-// dx*sqrt(3)*frac caia na bacia da primeira, devolvendo 0,0712 no centro onde o
-// correto e' 0,0252.  A bisseccao nao depende de chute: basta o intervalo, que
-// vem do regime geometrico do proprio ramo.
-static real raiz_cubica_bisseccao(real lo, real hi, real A, real B, real C, real D,
-                                  real lo_amplo, real hi_amplo){
-	real flo, fhi, m, fm;
-	#define CUB(x) (((A*(x) + B)*(x) + C)*(x) + D)
-	flo = CUB(lo);  fhi = CUB(hi);
-	if (flo*fhi > 0.0) {                 // regime nao contem troca de sinal:
-		lo = lo_amplo; hi = hi_amplo;    // tenta o intervalo fisico completo
-		flo = CUB(lo); fhi = CUB(hi);
-		if (flo*fhi > 0.0)               // ainda nao: devolve o extremo mais proximo
-			return (fabs(flo) <= fabs(fhi)) ? lo : hi;
-	}
-	for (int it = 0; it < 200; it++) {
-		m = 0.5*(lo + hi);
-		fm = CUB(m);
-		if (fm == 0.0) return m;
-		if ((flo < 0.0) == (fm < 0.0)) { lo = m; flo = fm; }
-		else                           { hi = m; }
-		if (hi - lo < 1e-15*(fabs(hi) + fabs(lo)) + 1e-300) break;
-	}
-	#undef CUB
-	return 0.5*(lo + hi);
-}
-
-//======================================================================
-real solver_equation_second_order(real volume, real n_x, real n_y, real n_z,
- real dx, real dy, real dz){
-	
-	real A, B, C, Value;
-
-	A = 3.0*dx;
-	B = -3.0*n_x*pow(dx,2);
-	C = pow(n_x,2)*pow(dx,3)-6*n_y*n_z*volume;
-		
-	if(A==0){
-		Value=-C/B;
-		return Value;
-	}
-	Value=(-B+sqrt(B*B-4.0*A*C))/(2.0*A);
-	
-	return Value;
-}
-//======================================================================
-real solver_equation_third_order(real volume, real n_x, real n_y, real n_z,
- real dx, real dy, real dz){
-		 
-	real A, B, C, D, erro, fx, dfx, x1, frac, Value;
-	real ig1,ig2,ig3;
-	Point p0;
-
-	A = -1.0;
-	B = 3.0*(n_x*dx+n_y*dy);
-	C = -3.0*(pow(n_x,2)*pow(dx,2)+pow(n_y,2)*pow(dy,2));
-	D = pow(n_x,3)*pow(dx,3)+pow(n_y,3)*pow(dy,3)-6.0*n_x*n_y*n_z*volume;
-	
-	// Regime deste ramo: o plano ja' cortou p e q (d > a_p e d > a_q) e ainda nao
-	// somou os dois (d < a_p + a_q).  A raiz fisica esta nesse intervalo.
-	real a_p = n_x*dx, a_q = n_y*dy, a_r = n_z*dz;
-	real lo = (a_p > a_q) ? a_p : a_q;
-	real hi = a_p + a_q;
-	Value = raiz_cubica_bisseccao(lo, hi, A, B, C, D, 0.0, a_p + a_q + a_r);
-	return Value;
-}
-//======================================================================
-real solver_equation_third_order_2(real volume, real n_x, real n_y, real n_z,
- real dx, real dy, real dz){
-		 
-	real A, B, C, D, erro, fx, dfx, x1, frac, Value;
-	real ig1,ig2,ig3;
-	Point p0;
-
-	A = -2.0;
-	B = 3.0*(n_x*dx+n_y*dy+n_z*dz);
-	C = -3.0*(pow(n_x,2)*pow(dx,2)+pow(n_y,2)*pow(dy,2)+pow(n_z,2)*pow(dz,2));
-	D = pow(n_x,3)*pow(dx,3)+pow(n_y,3)*pow(dy,3)+pow(n_z,3)*pow(dz,3)-6.0*n_x*n_y*n_z*volume;
-		   
-	 
-	// Regime deste ramo: o plano cortou os tres eixos (d > a_i para todo i) e nao
-	// pode passar da diagonal projetada (d <= soma a_i).  A raiz fisica esta nesse
-	// intervalo; as outras duas ficam fora dele.
-	real a_x = n_x*dx, a_y = n_y*dy, a_z = n_z*dz;
-	real lo = a_x; if (a_y > lo) lo = a_y; if (a_z > lo) lo = a_z;
-	real hi = a_x + a_y + a_z;
-	Value = raiz_cubica_bisseccao(lo, hi, A, B, C, D, 0.0, hi);
-	return Value;
-}
-//======================================================================
-real solver_equation_third_order_3(real volume, real n_x, real n_y, real n_z,
- real dx, real dy, real dz){
-		 
-	real Value = 0.5*(n_x*dx+n_y*dy)+(n_z*volume)/(dx*dy);
-	
-	return Value;
-}
+// Removidas daqui seis funcoes que ficaram sem chamador em 0a90511, quando o
+// caso geral passou a inverter por bisseccao sobre a formula fechada de volume
+// em vez de escolher entre dezesseis ramos:
+//
+//   newton_raphson                 -- orfa desde db52df8
+//   raiz_cubica_bisseccao          -- introduzida e orfanada no mesmo dia
+//   solver_equation_second_order   -- a quadratica de um corte
+//   solver_equation_third_order    -- a cubica de dois cortes
+//   solver_equation_third_order_2  -- a cubica de tres cortes
+//   solver_equation_third_order_3  -- a forma fechada do regime de laje
+//
+// A aritmetica delas estava CORRETA; o que estava errado era a escolha de ramo
+// que decidia qual chamar.  Ficam no historico, nao no arquivo.
 //======================================================================
 
 //if only one argument of the normal vector is non-zero ================

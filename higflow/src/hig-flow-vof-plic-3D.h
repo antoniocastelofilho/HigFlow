@@ -3,7 +3,6 @@
 
 #include "hig-flow-discret.h"
 
-real newton_raphson(real x0, real A, real B, real C, real D);
 
 real solver_equation_n_nonzero(real volume, real n1, real dy, real dz);
 
