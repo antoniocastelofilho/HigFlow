@@ -436,6 +436,61 @@ tie-break deterministic would alter the same interpolation the *solver* uses and
 every reference to be regenerated, a certain cost in shared machinery for a benefit
 confined to pictures.
 
+### `varsrc` uses `$(pwd)`, so a worktree gets a `PETSC_DIR` that does not exist
+
+`varsrc` sets every path with `$(pwd)`:
+
+    export HIGTREE_DIR=$(pwd)/higtree
+    export PETSC_DIR=$(pwd)/bibliotecas/petsc-3.25.4/x86_64
+
+Sourcing it from the main tree is right. Sourcing it from a **git worktree** is not:
+`HIGTREE_DIR` and `HIGFLOW_DIR` correctly follow the worktree, but `PETSC_DIR` points
+at a `bibliotecas/` that is *gitignored and therefore absent there* — the worktree
+holds only the tarballs, never the built PETSc. The build then loses
+`PETSC_CC_INCLUDES` entirely and dies on `petsc.h: No such file or directory`, a
+hundred lines down in the output.
+
+What makes it cost a whole run rather than a minute: `ci/run_suite.py` reports the
+failure as `build failed: <first 80 chars of the command>`, truncated before the
+compiler ever gets to say what went wrong. Every case shows the same truncated line,
+so it reads like a problem with the tree, not with one environment variable.
+
+Run a suite in a worktree with PETSc taken from the main tree — it is an external,
+read-only dependency and sharing it is correct:
+
+    HIGTREE_DIR=$W/higtree HIGFLOW_DIR=$W/higflow \
+    PETSC_DIR=$MAIN/bibliotecas/petsc-3.25.4/x86_64 PETSC_ARCH= \
+    python3 ci/run_suite.py
+
+Note also that `build_for_dim` uses `env.setdefault`, so a `HIGTREE_DIR` already
+exported in the shell **wins over the worktree**. Sourcing `varsrc` in the main tree
+and then running the suite from a worktree silently builds and links the main tree.
+
+### The physics library compiled with no warnings at all until 2026-09-18
+
+`higtree/Makefile` has carried `-Wall -Wno-unused-result -Wno-unused-variable` all
+along. `higflow/Makefile` had **no `-W` flag of any kind** — the entire physics
+library, solvers included, compiled with warnings off. Two of the bugs found on
+2026-09-18 are ones `-Wall` reports at every optimization level, `-O0` included.
+
+`higflow/Makefile` now mirrors `higtree`. The baseline it exposes is large and mostly
+benign, so read it by category rather than by count:
+
+|DIM|total|what dominates|
+|---|---|---|
+|2|544|176 `array-bounds` in the 3D branch that `switch (DIM)` makes unreachable|
+|3|389|154 `unused-but-set-variable`, 133 `switch`|
+
+The categories worth reading are the small ones: `maybe-uninitialized` (21 at DIM=2,
+24 at DIM=3 — this is the one that found both bugs), `return-type`, `dangling-else`,
+`parentheses`. Note `maybe-uninitialized` needs `-O1` or higher: a `-fsyntax-only`
+pass reports none of it.
+
+The example Makefiles are unaffected. They carry their own `CFLAGS` with `-Werror`,
+but their `%.o: %.c` rule only reaches sources in the example's own directory; the
+shared library arrives as `libhigflow$(DIM)d.a`, built by `higflow/Makefile`.
+
+
 ### The shared pattern
 
 None of these failed loudly. A step fails or lies, later steps run on stale
