@@ -213,7 +213,8 @@ void higflow_compute_viscoelastic_shear_banding_cA_VCM(higflow_solver *ns) {
 void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
     real CBeq   = ns->ed.vesb.par.CBeq;
     real chi   = ns->ed.vesb.par.chi;
-    real CBMaxMin;
+    real CBmax = -1.0e16;
+    real CBmin =  1.0e16;
     if (ns->ed.nn_contr.rheotype == VCM) {
         // Get the local sub-domain for the cells
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
@@ -242,12 +243,13 @@ void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
             real ANAD = 0.0;
             // Calculate the breakage rate of specie A
             real cB = ns->ed.vesb.get_cB(ccenter, ns->par.t, CBeq, chi, ANAD);
-            CBMaxMin = cB;
+            if (cB > CBmax) CBmax = cB;
+            if (cB < CBmin) CBmin = cB;
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.vesb.dpcB, clid, cB);
         }
         //Printing the min and max breakage rate values
-        printf("===> CBeq = %lf <===> CBeq = %lf <===\n", CBMaxMin, CBMaxMin);
+        printf("===> CBmin = %lf <===> CBmax = %lf <===\n", CBmin, CBmax);
         // Destroy the iterator
         higcit_destroy(it);
         // Sync the ditributed pressure property
