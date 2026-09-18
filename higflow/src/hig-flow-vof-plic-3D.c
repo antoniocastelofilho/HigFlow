@@ -236,8 +236,14 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 		n1 = (n_x < tol_n && n_y < tol_n) ? nz : ((n_x < tol_n && n_z < tol_n) ? ny : nx);
 		n_1 = (n_x < tol_n && n_y < tol_n) ? -n_z : ((n_x < tol_n && n_z < tol_n) ? -n_y : -n_x);
 		
-		d  = solver_equation_n_nonzero(VOLUME, n1, dy, dz);
-		d = 0.5*Delta[0] - sign(n)*d;
+		// kd: eixo dominante.  A altura do corte e' VOLUME dividido pelas duas
+		// extensoes PERPENDICULARES a ele, e o deslocamento e' meia extensao DELE.
+		// Antes eram dy*dz e Delta[0] fixos -- certo so' quando o dominante era x,
+		// e invisivel em celula cubica, onde os tres Delta coincidem.
+		int kd = (n_x < tol_n && n_y < tol_n) ? 2 : ((n_x < tol_n && n_z < tol_n) ? 1 : 0);
+		real perp1 = Delta[(kd+1)%3], perp2 = Delta[(kd+2)%3];
+		d  = solver_equation_n_nonzero(VOLUME, n1, perp1, perp2);
+		d = 0.5*Delta[kd] - sign(n)*d;
 		return d;
 		
 	}else if(n_x < tol_n || n_y < tol_n || n_z < tol_n){
@@ -251,9 +257,17 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 		n_1 = (n_x < tol_n) ? -n_y : ((n_y < tol_n) ? -n_x : -n_x);
 		n_2 = (n_x < tol_n) ? -n_z : ((n_y < tol_n) ? -n_z : -n_y);
 		n_3 = 0.0;
-		Normal[0] = n_1;
-		Normal[1] = n_2;
-		Normal[2] = n_3;
+		// Cada componente fica no SEU eixo.  A atribuicao anterior punha as duas
+		// vivas nas posicoes 0 e 1 quaisquer que fossem os eixos delas, enquanto
+		// trans_p0_to_center pareia Normal[i] com Delta[i] na ordem original --
+		// correto so' quando o eixo nulo era z.  Em celula cubica nao aparece.
+		Normal[0] = -n_x;
+		Normal[1] = -n_y;
+		Normal[2] = -n_z;
+		// L0: extensao do eixo NULO, que e' a espessura do problema 2-D.  Era dx
+		// fixo, certo so' quando o eixo nulo era x.
+		int  k0 = (n_x < tol_n) ? 0 : ((n_y < tol_n) ? 1 : 2);
+		real L0 = Delta[k0];
 		n = n2;
 		
 		if(n2 < 0.0 && VOLUME < 0.5*(dx*dy*dz) || n2 > 0.0 && VOLUME > 0.5*(dx*dy*dz)){
@@ -262,7 +276,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 			volume = (VOLUME < 0.5*(dx*dy*dz)) ? VOLUME : dx*dy*dz - VOLUME;
 			
 			f = volume/(dx*dy*dz); 
-			d = sqrt((2*volume*n_1*n_2)/dx);
+			d = sqrt((2*volume*n_1*n_2)/L0);
 			d = -sign(n) * trans_p0_to_center(Delta, Normal, d);
 			return d;
 		}
@@ -272,7 +286,7 @@ real distance_from_center_3D(Point Normal,Point Delta,real VOLUME){
 			volume = (VOLUME < 0.5*(dx*dy*dz)) ? VOLUME : dx*dy*dz - VOLUME;
 			
 			f = volume/(dx*dy*dz);
-			d = sqrt((2*volume*n_1*n_2)/dx);
+			d = sqrt((2*volume*n_1*n_2)/L0);
 			d = sign(n) * trans_p0_to_center(Delta, Normal, d);
 			return d;
 		}
