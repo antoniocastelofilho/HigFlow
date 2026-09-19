@@ -94,10 +94,31 @@ all: $(BIN)
 # atualizado quando so' a higtree mudou, e o binario obsoleto roda em silencio
 # dando os numeros da versao anterior -- exatamente o modo de falha que esta suite
 # existe para pegar.  Custou uma rodada de diagnostico no dia em que foi escrita.
-%-$(DIM)d: %.c testing.h $(LIBPATH)/libhig$(DIM)d.a
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LIBS)
+# ---------------------------------------------------------------------------
+# t8code, OPCIONAL.  Passe T8CODE=<prefixo de instalacao> para que o
+# test-level-jump ganhe o segundo produtor de malha.  Sem isso nada muda e a
+# suite nao depende da biblioteca.
+#
+# A unidade do produtor compila em C++20 porque o t8code exige, enquanto o resto
+# da suite fica em gnu++17 -- so' a assinatura em extern "C" atravessa.
+ifdef T8CODE
+T8OBJ     = t8code/t8-mesh-producer-$(DIM)d.o
+CFLAGS   += -DHIGTREE_COM_T8CODE -I$(T8CODE)/include
+LDFLAGS  += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
+LIBS     += -lt8 -lp4est -lsc
+T8FLAGS   = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I. \
+            -DT8_ENABLE_MPI=1 -DT8_ENABLE_MPIIO=1 -DT8_TEST_LEVEL_INT=0 \
+            -I$(T8CODE)/include $(shell pkg-config --cflags glib-2.0 hdf5) \
+            $(PETSC_CC_INCLUDES)
+
+$(T8OBJ): t8code/t8-mesh-producer.cxx t8code/t8-mesh-producer.h
+	$(CC) $(T8FLAGS) -c $< -o $@
+endif
+
+%-$(DIM)d: %.c testing.h $(T8OBJ) $(LIBPATH)/libhig$(DIM)d.a
+	$(CC) $(CFLAGS) $< $(T8OBJ) -o $@ $(LDFLAGS) $(LIBS)
 
 clean:
-	$(RM) -f *.o test-*-2d test-*-3d
+	$(RM) -f *.o t8code/*.o test-*-2d test-*-3d
 
 .PHONY: all clean

@@ -113,9 +113,20 @@ static hig_cell *malha_mtree(void) {
     return raiz;
 }
 
+// A segunda implementacao entra por compilacao condicional: ela exige o t8code,
+// que nao e' dependencia da HiGTree.  Sem -DHIGTREE_COM_T8CODE a tabela tem um
+// produtor so' e nada muda.  Com ele, as MESMAS asserções rodam sobre a malha
+// produzida pelo t8code, e a clausula C11 passa a exigir que os DOIS atravessem
+// o salto 4:1 -- o driver agrega por (teste, caso) com E logico.
+#ifdef HIGTREE_COM_T8CODE
+#include "t8code/t8-mesh-producer.h"
+#endif
+
 static const ProdutorDeMalha PRODUTORES[] = {
     { "mtree", malha_mtree },
-    // { "t8code", malha_t8code },   <- a segunda implementacao entra aqui
+#ifdef HIGTREE_COM_T8CODE
+    { "t8code", t8_produz_malha_nao_graduada },
+#endif
 };
 
 static void verifica(const ProdutorDeMalha *prod) {
@@ -215,7 +226,13 @@ static void verifica(const ProdutorDeMalha *prod) {
     sd_destroy(sd);
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+    // Este teste inicializa o MPI, e por isso o driver o roda por mpirun mesmo em
+    // np=1 (Test(..., mpi=True)).  A razao e' o produtor do t8code: o t8code exige
+    // MPI inicializado, e o MPI_Init num binario rodado DIRETO trava sem imprimir
+    // nada nesta maquina.  Sem t8code o custo e' so' passar por mpirun.
+    higtree_initialize(&argc, &argv);
+
     for(unsigned i = 0; i < sizeof PRODUTORES / sizeof *PRODUTORES; i++) {
         verifica(&PRODUTORES[i]);
     }

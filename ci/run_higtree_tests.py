@@ -61,7 +61,7 @@ TESTS = [
     Test("test-partition-independence", dims=(2, 3)),
     # Estencil atravessando salto de nivel 4:1 em malha NAO graduada -- a
     # capacidade que qualquer segunda implementacao de malha tera' de preservar.
-    Test("test-level-jump", dims=(2, 3)),
+    Test("test-level-jump", dims=(2, 3), mpi=True),
     # Localizacao por ponto: a celula contem o ponto, o empate nao depende da
     # divisao do dominio, e a convencao de empate esta' fixada.
     Test("test-point-location", dims=(2, 3)),
@@ -122,7 +122,7 @@ def confere_registro():
     return faltam
 
 
-def build_for_dim(dim, timeout):
+def build_for_dim(dim, timeout, t8code=""):
     """Build libhig<dim>d and the test binaries for one dimension.
 
     `make clean` is not optional, for the same reason it is not optional in
@@ -138,10 +138,11 @@ def build_for_dim(dim, timeout):
         return False, ("PETSC_DIR nao esta' no ambiente: carregue o varsrc de "
                        "DENTRO desta arvore (ele usa $(pwd))")
 
+    extra = ["T8CODE=%s" % t8code] if t8code else []
     steps = [["make", "-C", HIGTREE, "clean"],
              ["make", "-C", HIGTREE, "DIM=%d" % dim],
              ["make", "-C", TESTDIR, "clean"],
-             ["make", "-C", TESTDIR, "DIM=%d" % dim]]
+             ["make", "-C", TESTDIR, "DIM=%d" % dim] + extra]
 
     for cmd in steps:
         r = subprocess.run(cmd, capture_output=True, text=True,
@@ -235,6 +236,11 @@ def main():
     ap.add_argument("--test", action="append", default=[],
                     help="rodar apenas este teste (pode repetir)")
     ap.add_argument("--timeout", type=int, default=300)
+    ap.add_argument("--t8code", default=os.environ.get("T8CODE", ""),
+                    help="prefixo de instalacao do t8code.  Com ele, o "
+                         "test-level-jump ganha o segundo produtor de malha e a "
+                         "clausula C11 passa a exigir que os DOIS atravessem o "
+                         "salto 4:1.  Sem ele nada muda.")
     ap.add_argument("--no-build", action="store_true",
                     help="nao reconstruir; so' faz sentido se a arvore ja' esta' "
                          "na dimensao pedida")
@@ -263,7 +269,7 @@ def main():
         if not alvos:
             continue
         if not args.no_build:
-            ok, err = build_for_dim(dim, args.timeout)
+            ok, err = build_for_dim(dim, args.timeout, args.t8code)
             if not ok:
                 print("%-26s %-4d %-3s %-34s %-7s %s"
                       % ("(build)", dim, "-", "", "ERRO", err))
