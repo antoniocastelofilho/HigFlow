@@ -13,7 +13,7 @@
 #include "../src/hig-flow-io.h"
 #include "../src/hig-flow-ic.h"
 #include "../src/hig-flow-bc.h"
-#include "utilities-2d.h"
+#include "../examples-common/utilities-2d.h"
 #define DEBUG
 #include "Debug-c.h"
 #include <stdio.h>

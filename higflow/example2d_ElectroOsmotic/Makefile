@@ -184,3 +184,8 @@ clean_all:
 
 outname:
 	@echo "$(OUTNAME)"
+# utilities-2d.c vive em ../examples-common (era duplicado nos dois exemplos que o
+# usam).  O OBJETO fica local: objeto em diretorio compartilhado nao carrega a
+# dimensao no nome, e dois exemplos de DIM diferentes se atropelariam.
+utilities-2d.o: ../examples-common/utilities-2d.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
+	@$(CC) $(CFLAGS) -c $< -o $@

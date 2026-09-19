@@ -1,3 +1,23 @@
+// ---------------------------------------------------------------------------
+// Utilidades 2-D comuns ao example2d_DynamicMeshAdapt e ao
+// example2d_ElectroOsmotic.
+//
+// Os dois SAO exemplos distintos -- um demonstra adaptacao de malha, o outro
+// escoamento eletro-osmotico, e os `main` deles diferem em 612 de 828 linhas.
+// Mas 42 das 70 funcoes que tinham em comum viviam aqui: este arquivo era
+// duplicado com 2.004 linhas das quais so' 14 diferiam.  A duplicacao estava na
+// infraestrutura, nao no que distingue as duas demonstracoes.
+//
+// As 14 linhas eram duas ocorrencias do mesmo detalhe: uma copia protegia o
+// MPI_Allreduce com `if (ntasks > 1)` e a outra chamava direto.  Sao
+// equivalentes -- MPI_Allreduce com um rank devolve o valor local -- e ficou a
+// versao GUARDADA, que evita a chamada coletiva quando ha' um rank so'.
+//
+// O OBJETO E' COMPILADO LOCALMENTE em cada exemplo, nao aqui: objeto em
+// diretorio compartilhado nao carrega a dimensao no nome, e esta arvore ja' foi
+// mordida por isso (ver AGENTS.md).  Cada Makefile tem uma regra que compila
+// esta fonte para o seu proprio utilities-2d.o.
+// ---------------------------------------------------------------------------
 // *******************************************************************
 // *******************************************************************
 //  Utility functions for directory - version 03/2023
@@ -1075,7 +1095,12 @@ real get_fdp_value_at_point(higflow_solver *ns, distributed_property *dp, psim_f
         hig_get_center(c, center);
         dp_value_local = compute_facet_value_at_point(sfd, center, p, 1.0, dp, ns->stn);
     }
-    MPI_Allreduce(&dp_value_local, &dp_value, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    int ntasks;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    if (ntasks > 1)
+        MPI_Allreduce(&dp_value_local, &dp_value, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    else
+        dp_value = dp_value_local;
     return dp_value;
 }
 
@@ -1458,7 +1483,12 @@ long int get_current_mem_usage() {
     getrusage(RUSAGE_SELF, &ru_mem);
     long int local_usage = ru_mem.ru_maxrss;
     long int total_usage;
-    MPI_Allreduce(&local_usage, &total_usage, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    int ntasks;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    if (ntasks > 1)
+        MPI_Allreduce(&local_usage, &total_usage, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    else
+        total_usage = local_usage;
     return total_usage;
 }
 
