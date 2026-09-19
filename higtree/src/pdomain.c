@@ -1280,95 +1280,16 @@ int psfd_lid_to_gid(psim_facet_domain *psfd, int localid)
 	return psfd->dp_data.gid_map[localid];
 }
 
-static void _compute_block_facet_center(sim_facet_domain *sfd, int hig, int pp[DIM], int dir, Point p) {
-	hig_cell *root = sfd_get_higtree(sfd, hig);
-	hig_cell *c = hig_get_child_in_grid(root, pp);
-
-	hig_get_center(c, p);
-
-	int dim = sfd_get_dim(sfd);
-	if (dir == 0) {
-		Point lp;
-		hig_get_lowpoint(c, lp);
-		p[dim] = lp[dim];
-	} else {
-		Point hp;
-		hig_get_highpoint(c, hp);
-		p[dim] = hp[dim];
-	}
-}
-
-static bool _is_in_neumann_bc(sim_facet_domain *sfd, int hig, int pp[DIM], int dir) {
-	Point p;
-	_compute_block_facet_center(sfd, hig, pp, dir, p);
-
-	sim_domain *d = sfd->cdom;
-	int numbcs = sd_get_num_bcs(d, NEUMANN);
-	// TODO: This search could be better than linear...
-	for(int i = 0; i < numbcs; i++) {
-		sim_boundary *bc = sd_get_bc(d, NEUMANN, i);
-		hig_cell *bchig = sb_get_higtree(bc);
-		hig_cell *c = hig_get_cell_with_point(bchig, p);
-		if (c != NULL) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static int _has_flow(sim_facet_domain *sfd, int hig, int pp[DIM], int dir) {
-	Point p;
-	_compute_block_facet_center(sfd, hig, pp, dir, p);
-	sim_domain *d = sfd->cdom;
-	int numhigs = sfd_get_num_higtrees(sfd);
-	// TODO: This search could be better than linear...
-	for(int hig2 = 0; hig2 < numhigs; hig2++) {
-		if (hig2 != hig) {
-			hig_cell *root = sfd_get_higtree(sfd, hig2);
-			hig_cell *c = hig_get_cell_with_point(root, p);
-			if (c != NULL) {
-				return 1;
-			}
-		}
-	}
-	return 0;
-}
-
-static sim_facet_block_info *
-_psfd_compute_local_sfbi(psim_facet_domain *psfd, int hig) {
-	sim_facet_domain *sfd = psfd_get_local_domain(psfd);
-	int dim = sfd_get_dim(sfd);
-
-	hig_cell *root = sfd_get_local_higtree(sfd, hig);
-	unsigned numchildren = hig_get_number_of_children(root);
-	DECL_AND_ALLOC(sim_facet_block_info, sfbi, numchildren);
-	for(unsigned i = 0; i < numchildren; i++) {
-		int pp[DIM];
-		hig_tobase(i, root->numcells, pp);
-
-		sfbi[i].l = _is_in_neumann_bc(sfd, hig, pp, 0);
-
-		sfbi[i].h =
-			pp[dim] < (root->numcells[dim] - 1) ||
-			_is_in_neumann_bc(sfd, hig, pp, 1) ||
-			_has_flow(sfd, hig, pp, 1);
-	}
-
-	return sfbi;
-}
 
 void psfd_compute_sfbi(psim_facet_domain *psfd) {
 	const int tag = 84012185;
 	sim_facet_domain *sfd = psfd_get_local_domain(psfd);
 
 	/* Calculate psfd form local higs */
-	unsigned numhigs = sfd_get_num_local_higtrees(sfd);
-	sim_facet_block_info *sfbis[numhigs];
-
-	for(unsigned hig = 0; hig < numhigs; ++hig) {
-		sfbis[hig] = _psfd_compute_local_sfbi(psfd, hig);
-		sfd_set_sfbi(sfd, hig, sfbis[hig]);
-	}
+	// A metade local vive no domain.c e nao precisa de MPI; daqui para baixo
+	// e' a troca de blocos de franja, que e' o que so' o caminho particionado
+	// pode fazer.
+	sfd_compute_sfbi(sfd);
 
 	/* Prepare to receive */
 	unsigned num_nbs = g_hash_table_size(psfd->psd->filtered_neighbors);
@@ -1412,7 +1333,7 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 				g_hash_table_lookup(psfd->psd->tree_map, tree)
 			);
 
-			MPI_Isend(sfbis[idx], 1, subarr, rank, tag, comm, &send_reqs[i][j]);
+			MPI_Isend(sfd_get_sfbi(sfd, idx), 1, subarr, rank, tag, comm, &send_reqs[i][j]);
 
 			MPI_Type_free(&subarr);
 		}

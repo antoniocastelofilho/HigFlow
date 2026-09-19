@@ -296,6 +296,14 @@ void sfd_adjust_facet_ids(sim_facet_domain *d);
 
 void sfd_set_sfbi(sim_facet_domain *sfd, int i, sim_facet_block_info *sfbi);
 
+//! \brief Fills the facet block info of the LOCAL trees.  Serial: no MPI.
+//! Under partitioning, psfd_compute_sfbi() calls this and then exchanges the
+//! fringe blocks with the neighbours.
+void sfd_compute_sfbi(sim_facet_domain *sfd);
+
+//! \brief Returns the facet block info of local tree i (NULL until computed).
+sim_facet_block_info *sfd_get_sfbi(sim_facet_domain *sfd, int i);
+
 hig_cell *sfd_get_cell_with_point(sim_facet_domain *d, Point x);
 
 int sfd_get_facet_with_point(sim_facet_domain *d, Point x, hig_facet *facet);

@@ -2911,3 +2911,111 @@ void stn_destroy(sim_stencil *stn) {
 	free(stn->vals);
 	free(stn);
 }
+
+// ---------------------------------------------------------------------------
+// Blocos de faceta (sfbi): a metade SERIAL.
+//
+// Estas quatro funcoes viviam no pdomain.c e a de cima recebia um
+// `psim_facet_domain` que usava numa unica linha, so' para extrair o
+// `sim_facet_domain`.  Nao ha' nada de particionamento nelas: todas trabalham
+// sobre `sfd`, `sfd->cdom` e a arvore.
+//
+// A consequencia de estarem la' era que `sfd->sfbi[]` -- que o iterador de
+// facetas precisa para saber quais facetas sao do bloco -- so' podia ser
+// preenchido por `psfd_compute_sfbi`, isto e', pelo caminho particionado.  Um
+// `sim_facet_domain` montado em serie ficava com sfbi[i] = NULL e a primeira
+// consulta estourava.  Nao era sequencia faltando: nao existia caminho.
+//
+// `psfd_compute_sfbi` continua existindo e faz o que so' ele pode fazer --
+// trocar os blocos de franja entre processos.  A metade local passou a ser
+// `sfd_compute_sfbi`, chamavel sem MPI.
+// ---------------------------------------------------------------------------
+static void _compute_block_facet_center(sim_facet_domain *sfd, int hig, int pp[DIM], int dir, Point p) {
+	hig_cell *root = sfd_get_higtree(sfd, hig);
+	hig_cell *c = hig_get_child_in_grid(root, pp);
+
+	hig_get_center(c, p);
+
+	int dim = sfd_get_dim(sfd);
+	if (dir == 0) {
+		Point lp;
+		hig_get_lowpoint(c, lp);
+		p[dim] = lp[dim];
+	} else {
+		Point hp;
+		hig_get_highpoint(c, hp);
+		p[dim] = hp[dim];
+	}
+}
+
+static bool _is_in_neumann_bc(sim_facet_domain *sfd, int hig, int pp[DIM], int dir) {
+	Point p;
+	_compute_block_facet_center(sfd, hig, pp, dir, p);
+
+	sim_domain *d = sfd->cdom;
+	int numbcs = sd_get_num_bcs(d, NEUMANN);
+	// TODO: This search could be better than linear...
+	for(int i = 0; i < numbcs; i++) {
+		sim_boundary *bc = sd_get_bc(d, NEUMANN, i);
+		hig_cell *bchig = sb_get_higtree(bc);
+		hig_cell *c = hig_get_cell_with_point(bchig, p);
+		if (c != NULL) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static int _has_flow(sim_facet_domain *sfd, int hig, int pp[DIM], int dir) {
+	Point p;
+	_compute_block_facet_center(sfd, hig, pp, dir, p);
+	sim_domain *d = sfd->cdom;
+	int numhigs = sfd_get_num_higtrees(sfd);
+	// TODO: This search could be better than linear...
+	for(int hig2 = 0; hig2 < numhigs; hig2++) {
+		if (hig2 != hig) {
+			hig_cell *root = sfd_get_higtree(sfd, hig2);
+			hig_cell *c = hig_get_cell_with_point(root, p);
+			if (c != NULL) {
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+static sim_facet_block_info *
+_sfd_compute_local_sfbi(sim_facet_domain *sfd, int hig) {
+	int dim = sfd_get_dim(sfd);
+
+	hig_cell *root = sfd_get_local_higtree(sfd, hig);
+	unsigned numchildren = hig_get_number_of_children(root);
+	DECL_AND_ALLOC(sim_facet_block_info, sfbi, numchildren);
+	for(unsigned i = 0; i < numchildren; i++) {
+		int pp[DIM];
+		hig_tobase(i, root->numcells, pp);
+
+		sfbi[i].l = _is_in_neumann_bc(sfd, hig, pp, 0);
+
+		sfbi[i].h =
+			pp[dim] < (root->numcells[dim] - 1) ||
+			_is_in_neumann_bc(sfd, hig, pp, 1) ||
+			_has_flow(sfd, hig, pp, 1);
+	}
+
+	return sfbi;
+}
+
+//! Preenche os blocos de faceta das arvores LOCAIS.  Em serie e' tudo o que
+//! existe; sob particionamento, `psfd_compute_sfbi` chama esta e depois troca os
+//! blocos de franja com os vizinhos.
+void sfd_compute_sfbi(sim_facet_domain *sfd) {
+	unsigned numhigs = sfd_get_num_local_higtrees(sfd);
+	for(unsigned hig = 0; hig < numhigs; ++hig) {
+		sfd_set_sfbi(sfd, hig, _sfd_compute_local_sfbi(sfd, hig));
+	}
+}
+
+sim_facet_block_info *sfd_get_sfbi(sim_facet_domain *sfd, int i) {
+	return sfd->sfbi[i];
+}

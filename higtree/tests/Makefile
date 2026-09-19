@@ -65,6 +65,7 @@ TESTS += test-partition-independence
 TESTS += test-level-jump
 TESTS += test-point-location
 TESTS += test-boundary-path
+TESTS += test-facet-domain-serial
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

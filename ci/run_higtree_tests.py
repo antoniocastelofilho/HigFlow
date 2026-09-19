@@ -60,6 +60,13 @@ TESTS = [
     # Foi nesse ramo que sobreviveram tres dos sete sitios do defeito de
     # compactacao, verdes por ausencia de teste e nao por estarem certos.
     Test("test-boundary-path", dims=(2, 3)),
+
+    # Montagem SERIAL de um sim_facet_domain.  Ate' 2026-09-19 era impossivel: o
+    # sfbi[] so' era preenchido pelo caminho PARTICIONADO, entao um sfd montado
+    # sem MPI estourava na primeira consulta.  A metade local passou a viver no
+    # domain.c como sfd_compute_sfbi; este teste impede que ela volte a depender
+    # do particionamento sem ninguem perceber.
+    Test("test-facet-domain-serial", dims=(2, 3)),
 ]
 
 
