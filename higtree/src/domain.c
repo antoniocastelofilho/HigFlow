@@ -865,8 +865,20 @@ get_stencil_neumann(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras.  `bc_inter` trabalha
+		// em DIM-1 dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas; compactar so' as amostras deixava a consulta num
+		// sistema de coordenadas diferente do delas.  Sem efeito quando
+		// proj_dir == DIM-1 (o laco acima nao remove nada), que e' por que o defeito
+		// era invisivel na direcao Y em 2D e na Z em 3D.
+		Point bcx;
+		POINT_ASSIGN(bcx, best.proj_x);
+		for(unsigned dim = best.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, best.proj_x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		slope = 0.0;
@@ -1187,8 +1199,20 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras.  `bc_inter` trabalha
+		// em DIM-1 dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas; compactar so' as amostras deixava a consulta num
+		// sistema de coordenadas diferente do delas.  Sem efeito quando
+		// proj_dir == DIM-1 (o laco acima nao remove nada), que e' por que o defeito
+		// era invisivel na direcao Y em 2D e na Z em 3D.
+		Point bcx;
+		POINT_ASSIGN(bcx, best.proj_x);
+		for(unsigned dim = best.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, best.proj_x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		der = 0.0;
@@ -1346,8 +1370,20 @@ get_stencil_dirichlet(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras.  `bc_inter` trabalha
+		// em DIM-1 dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas; compactar so' as amostras deixava a consulta num
+		// sistema de coordenadas diferente do delas.  Sem efeito quando
+		// proj_dir == DIM-1 (o laco acima nao remove nada), que e' por que o defeito
+		// era invisivel na direcao Y em 2D e na Z em 3D.
+		Point bcx;
+		POINT_ASSIGN(bcx, best.proj_x);
+		for(unsigned dim = best.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, best.proj_x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		bval = 0.0;
@@ -1557,8 +1593,20 @@ get_stencil_dirichlet_any_order(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras.  `bc_inter` trabalha
+		// em DIM-1 dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas; compactar so' as amostras deixava a consulta num
+		// sistema de coordenadas diferente do delas.  Sem efeito quando
+		// proj_dir == DIM-1 (o laco acima nao remove nada), que e' por que o defeito
+		// era invisivel na direcao Y em 2D e na Z em 3D.
+		Point bcx;
+		POINT_ASSIGN(bcx, best.proj_x);
+		for(unsigned dim = best.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, best.proj_x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		bval = 0.0;
