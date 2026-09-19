@@ -37,6 +37,7 @@ TESTS += test-stencil-selection
 TESTS += test-partition-independence
 TESTS += test-level-jump
 TESTS += test-point-location
+TESTS += test-boundary-path
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

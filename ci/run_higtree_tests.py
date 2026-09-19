@@ -55,6 +55,11 @@ TESTS = [
     # Localizacao por ponto: a celula contem o ponto, o empate nao depende da
     # divisao do dominio, e a convencao de empate esta' fixada.
     Test("test-point-location", dims=(2, 3)),
+    # O ramo ON_BOUNDARY do despacho, que os outros cinco nao alcancam -- medido
+    # com contador: zero chamadas aos fechamentos *_boundary neles, 56 neste.
+    # Foi nesse ramo que sobreviveram tres dos sete sitios do defeito de
+    # compactacao, verdes por ausencia de teste e nao por estarem certos.
+    Test("test-boundary-path", dims=(2, 3)),
 ]
 
 
