@@ -66,6 +66,7 @@ TESTS += test-level-jump
 TESTS += test-point-location
 TESTS += test-boundary-path
 TESTS += test-facet-domain-serial
+TESTS += test-cell-queries
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

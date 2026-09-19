@@ -67,6 +67,13 @@ TESTS = [
     # domain.c como sfd_compute_sfbi; este teste impede que ela volte a depender
     # do particionamento sem ninguem perceber.
     Test("test-facet-domain-serial", dims=(2, 3)),
+
+    # As quatro consultas de celula que o contrato de Mesh vai congelar --
+    # hig_get_center, hig_get_delta, hig_get_cid e o iterador -- somam mais de 850
+    # usos em higflow/src e ate' aqui so' tinham cobertura INDIRETA: passavam
+    # porque os outros testes dependem delas.  Oraculos analiticos, dois niveis de
+    # refino.
+    Test("test-cell-queries", dims=(2, 3)),
 ]
 
 
