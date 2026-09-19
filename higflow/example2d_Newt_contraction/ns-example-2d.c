@@ -78,7 +78,14 @@ public:
                         //value = 4.0*(-center[1]*center[1] + 0.25);
                         //set max velocity = 1.5 
                         //value = -4.0*center[1]*(center[1] - 1.0);
-                        value = 1.5*(1.0 - center[1]*center[1]);
+                        // A parabola tem de zerar nas paredes DESTA face, que vai de
+                        // y=-4 a y=+4 (ch-bc-0.amr).  A forma anterior,
+                        // 1.5*(1.0 - center[1]*center[1]), zerava em y=+-1 -- escala do
+                        // trecho ESTREITO -- e valia -22,5 nas paredes da face larga.
+                        // Integrada sobre a face dava fluxo -52, isto e', a face
+                        // declarada como ENTRADA (u dirichlet, p neumann) tinha vazao
+                        // liquida SAINDO, e o caso rodava como EXPANSAO.
+                        value = 1.5*(1.0 - center[1]*center[1]/16.0);
                         //value = 1.25*(1.0 - center[1]*center[1]*center[1]*center[1]);
                         //value = 1.0*(1.0 - fabs(center[1]));
                         //value = 2.0*(1.0 - sqrt(fabs(center[1])));
