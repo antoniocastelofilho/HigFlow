@@ -462,37 +462,45 @@ void higflow_create_domain_generalized_newtonian (higflow_solver *ns, int cache,
 }
 
 // Create the simulation domain for multiphase flow
-void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order, 
-real (*get_viscosity0)(Point center, real t), 
-real (*get_viscosity1)(Point center, real t), 
-real (*get_density0)(Point center, real t),
-real (*get_density1)(Point center, real t),
-real (*get_fracvol)(Point center, Point delta, real t)) {
+// Versao por objeto.  E' ela que faz a criacao do dominio: a de ponteiros abaixo
+// so' embrulha os cinco num adaptador e delega.  Escrever a de objeto sem a
+// criacao foi o defeito que a suite pegou -- os tres exemplos VOF passaram a
+// chamar esta sobrecarga e o dominio deixou de ser criado, com segfault na
+// primeira particao e abort nas outras duas.
+void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order,
+                                      HigFlowMultiphaseProblem *problem) {
     if (ns->contr.flowtype == MULTIPHASE) {
-       // simulation domain (SD) extra domain
        ns->ed.mult.sdmult = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.mult.sdmult, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
+       sd_use_cache(ns->ed.mult.sdmult, cache);
        sd_set_interpolator_order(ns->ed.mult.sdmult, order);
-
-// Always create sdED for MULTIPHASE (needed by 3D VOF)
        ns->ed.sdED = sd_create(NULL);
        sd_use_cache(ns->ed.sdED, cache);
        sd_set_interpolator_order(ns->ed.sdED, order);
-
-       // function for the domain
-       ns->ed.mult.get_viscosity0      = get_viscosity0;
-       // function for the domain
-       ns->ed.mult.get_viscosity1      = get_viscosity1;
-       // function for the domain
-       ns->ed.mult.get_density0        = get_density0;
-       // function for the domain
-       ns->ed.mult.get_density1        = get_density1;
-       // function for the domain
-       ns->ed.mult.get_fracvol         = get_fracvol;
-
        ns->ed.mult.num_plic_lines = 0;
+    }
+    ns->ed.mult.problem = problem;
+}
+
+// Versao por ponteiros: constroi o adaptador e delega a criacao a' versao acima.
+void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order,
+real (*get_viscosity0)(Point center, real t),
+real (*get_viscosity1)(Point center, real t),
+real (*get_density0)(Point center, real t),
+real (*get_density1)(Point center, real t),
+real (*get_fracvol)(Point center, Point delta, real t)) {
+    HigFlowLegacyMultiphase *legacy = new HigFlowLegacyMultiphase();
+    legacy->fn_viscosity0 = get_viscosity0;
+    legacy->fn_viscosity1 = get_viscosity1;
+    legacy->fn_density0   = get_density0;
+    legacy->fn_density1   = get_density1;
+    legacy->fn_fracvol    = get_fracvol;
+    higflow_create_domain_multiphase(ns, cache, order, legacy);
+    if (ns->contr.flowtype == MULTIPHASE) {
+       ns->ed.mult.get_viscosity0 = get_viscosity0;
+       ns->ed.mult.get_viscosity1 = get_viscosity1;
+       ns->ed.mult.get_density0   = get_density0;
+       ns->ed.mult.get_density1   = get_density1;
+       ns->ed.mult.get_fracvol    = get_fracvol;
     }
 }
 
@@ -513,6 +521,18 @@ real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
             ns->ed.mult.ve.get_kernel_jacobian = get_kernel_jacobian;
         }
     }
+    // Caminho legado: embrulha os quatro ponteiros.
+    HigFlowLegacyMultiphaseViscoelastic *legacy = new HigFlowLegacyMultiphaseViscoelastic();
+    legacy->fn_tensor_multiphase = get_tensor_multiphase;
+    legacy->fn_kernel            = get_kernel;
+    legacy->fn_kernel_inverse    = get_kernel_inverse;
+    legacy->fn_kernel_jacobian   = get_kernel_jacobian;
+    higflow_create_domain_multiphase_viscoelastic(ns, legacy);
+}
+// Versao por objeto.
+void higflow_create_domain_multiphase_viscoelastic(higflow_solver *ns,
+                                     HigFlowMultiphaseViscoelasticProblem *problem) {
+    ns->ed.mult.ve.problem = problem;
 }
 
 // Define the user function for viscoelastic flow

@@ -1046,6 +1046,7 @@ typedef struct higflow_multiphase_viscoelastic{
 
     // Function to get the tensor
     real (*get_tensor_multiphase)(real fracvol, Point center, int i, int j, real t);
+    HigFlowMultiphaseViscoelasticProblem *problem;
     // Function to get the kernel transformation
     real (*get_kernel)(int dim, real lambda, real tol);
     // Function to get the inverse kernel transformation
@@ -1140,6 +1141,7 @@ typedef struct higflow_multiphase{
     real (*get_density1)(Point center, real t);
     // Function to get the volume fraction 
     real (*get_fracvol)(Point center, Point delta, real t);
+    HigFlowMultiphaseProblem *problem;
 } higflow_multiphase;
 
 
@@ -1281,6 +1283,9 @@ void higflow_create_domain_generalized_newtonian (higflow_solver *ns, int cache,
 
 // Create the simulation domain for multiphase flow
 void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order,
+                                     HigFlowMultiphaseProblem *problem);
+
+void higflow_create_domain_multiphase(higflow_solver *ns, int cache, int order,
 real (*get_viscosity0)(Point center, real t),
 real (*get_viscosity1)(Point center, real t),
 real (*get_density0)(Point center, real t),
@@ -1288,6 +1293,9 @@ real (*get_density1)(Point center, real t),
 real (*get_fracvol)(Point center, Point delta, real t));
 
 // Create the simulation domain for multiphase viscoelastic flow
+void higflow_create_domain_multiphase_viscoelastic(higflow_solver *ns,
+                                     HigFlowMultiphaseViscoelasticProblem *problem);
+
 void higflow_create_domain_multiphase_viscoelastic (higflow_solver *ns,
 real (*get_tensor_multiphase)(real fracvol, Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),

@@ -283,8 +283,8 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns) {
         hig_get_delta(c, cdelta);
         real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
         // Calculate the viscosity
-        real visc0 = ns->ed.mult.get_viscosity0(ccenter, ns->par.t);
-        real visc1 = ns->ed.mult.get_viscosity1(ccenter, ns->par.t);
+        real visc0 = ns->ed.mult.problem->viscosity0(ccenter, ns->par.t);
+        real visc1 = ns->ed.mult.problem->viscosity1(ccenter, ns->par.t);
         //real visc  = (1.0-fracvol) + fracvol*visc1;
         real visc  = (1.0 - fracvol)*visc0 + fracvol*visc1;
         // Set the viscosity in the distributed viscosity property
@@ -323,8 +323,8 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
             // Calculate the density
             real fracvol  = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // Calculate the density
-            real dens0 = ns->ed.mult.get_density0(ccenter, ns->par.t);
-            real dens1 = ns->ed.mult.get_density1(ccenter, ns->par.t);
+            real dens0 = ns->ed.mult.problem->density0(ccenter, ns->par.t);
+            real dens1 = ns->ed.mult.problem->density1(ccenter, ns->par.t);
             real dens  = (1.0 - fracvol)*dens0 + fracvol*dens1;
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.mult.dpdens, clid, dens);

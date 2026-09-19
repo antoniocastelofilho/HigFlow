@@ -271,67 +271,11 @@ real get_fracvolN(Point center, Point delta, real t) {
 	return value;
 }
 
-real get_fracvol(Point center, Point delta, real t) {
-	Point p0, p1, p2, p3;
-	real  f0, f1, f2, f3;
-	real  value;
-	int var = 0;
-
-	// Canto inferior esquerdo
-	p0[0] = center[0] - 0.5*delta[0];
-	p0[1] = center[1] - 0.5*delta[1];
-	f0    = func(p0);
-	if (f0 > 0.0) var += 1;
-
-	// Canto inferior direito
-	p1[0] = center[0] + 0.5*delta[0];
-	p1[1] = center[1] - 0.5*delta[1];
-	f1    = func(p1);
-	if (f1 > 0.0) var += 1;
-
-	// Canto superior esquerdo
-	p2[0] = center[0] - 0.5*delta[0];
-	p2[1] = center[1] + 0.5*delta[1];
-	f2    = func(p2);
-	if (f2 > 0.0) var += 1;
-
-	// Canto superior direito
-	p3[0] = center[0] + 0.5*delta[0];
-	p3[1] = center[1] + 0.5*delta[1];
-	f3    = func(p3);
-	if (f3 > 0.0) var += 1;
-
-	if (var == 0){
-		value = 0.0;
-	} else if (var == 4){
-		value = delta[0]*delta[1];
-	}
-	else{
-		value =0.0;
-		int N=16;
-		real delta_new[2];
-		delta_new[0]=delta[0]/N;delta_new[1]=delta[1]/N;
-		real center_new[2];
-		for(int i=0;i<N;i++)
-		{	
-			for (int j=0;j<N;j++)
-			{
-				center_new[0]=p0[0]+(i+0.5)*delta_new[0];
-				center_new[1]=p0[1]+(j+0.5)*delta_new[1];
-				value = value + get_fracvolN(center_new,delta_new, t);
-			}
-		}
-	}	
-
-	value = value/delta[0]/delta[1];
-	return value;
-}
-
 // ---------------------------------------------------------------------------
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
 // Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class VofProblem : public HigFlowProblem {
+class VofProblem : public HigFlowProblem, public HigFlowMultiphaseProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -440,37 +384,90 @@ public:
     	real value = 0.0;
     	return value;
     }
+
+    // --- modelo multifasico ---
+    // Value of the viscosity
+    real viscosity0(Point center, real t) {
+    	real value;
+    	value = 1.0;
+    	return value;
+    }
+    // Value of the viscosity
+    real viscosity1(Point center, real t) {
+    	real value;
+    	value = 1.0;
+    	return value;
+    }
+    // Value of the density
+    real density0(Point center, real t) {
+    	real value;
+    	value = 1.0;
+    	return value;
+    }
+    // Value of the density
+    real density1(Point center, real t) {
+    	real value;
+    	value = 1.0;
+    	return value;
+    }
+    real fracvol(Point center, Point delta, real t) {
+    	Point p0, p1, p2, p3;
+    	real  f0, f1, f2, f3;
+    	real  value;
+    	int var = 0;
+
+    	// Canto inferior esquerdo
+    	p0[0] = center[0] - 0.5*delta[0];
+    	p0[1] = center[1] - 0.5*delta[1];
+    	f0    = func(p0);
+    	if (f0 > 0.0) var += 1;
+
+    	// Canto inferior direito
+    	p1[0] = center[0] + 0.5*delta[0];
+    	p1[1] = center[1] - 0.5*delta[1];
+    	f1    = func(p1);
+    	if (f1 > 0.0) var += 1;
+
+    	// Canto superior esquerdo
+    	p2[0] = center[0] - 0.5*delta[0];
+    	p2[1] = center[1] + 0.5*delta[1];
+    	f2    = func(p2);
+    	if (f2 > 0.0) var += 1;
+
+    	// Canto superior direito
+    	p3[0] = center[0] + 0.5*delta[0];
+    	p3[1] = center[1] + 0.5*delta[1];
+    	f3    = func(p3);
+    	if (f3 > 0.0) var += 1;
+
+    	if (var == 0){
+    		value = 0.0;
+    	} else if (var == 4){
+    		value = delta[0]*delta[1];
+    	}
+    	else{
+    		value =0.0;
+    		int N=16;
+    		real delta_new[2];
+    		delta_new[0]=delta[0]/N;delta_new[1]=delta[1]/N;
+    		real center_new[2];
+    		for(int i=0;i<N;i++)
+    		{	
+    			for (int j=0;j<N;j++)
+    			{
+    				center_new[0]=p0[0]+(i+0.5)*delta_new[0];
+    				center_new[1]=p0[1]+(j+0.5)*delta_new[1];
+    				value = value + get_fracvolN(center_new,delta_new, t);
+    			}
+    		}
+    	}	
+
+    	value = value/delta[0]/delta[1];
+    	return value;
+    }
 };
 
 static VofProblem problema;
-
-// Value of the viscosity 
-real get_viscosity0(Point center, real t) {
-	real value;
-	value = 1.0;
-	return value;
-}
-
-// Value of the viscosity 
-real get_viscosity1(Point center, real t) {
-	real value;
-	value = 1.0;
-	return value;
-}
-
-// Value of the density 
-real get_density0(Point center, real t) {
-	real value;
-	value = 1.0;
-	return value;
-}
-
-// Value of the density 
-real get_density1(Point center, real t) {
-	real value;
-	value = 1.0;
-	return value;
-}
 
 // Value of the boundary viscosity
 real get_boundary_viscosity(int id, Point center, real q, real t) {
@@ -511,7 +508,7 @@ int main (int argc, char *argv[]) {
 	higflow_create_domain(ns, cache, order_center);
 	// Create the simulation domain for non newtonian simulation
 	// higflow_create_domain_generalized_newtonian(ns, cache, order_center, get_viscosity);
-	higflow_create_domain_multiphase(ns, cache, order_center, get_viscosity0, get_viscosity1, get_density0, get_density1, get_fracvol);
+	higflow_create_domain_multiphase(ns, cache, order_center, &problema);
 	
 	// Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");

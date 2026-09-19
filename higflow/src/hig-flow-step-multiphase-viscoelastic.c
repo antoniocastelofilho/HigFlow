@@ -127,7 +127,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         real R[DIM][DIM], Klambda[DIM], lambda[DIM];
         hig_flow_jacobi(KernelCopy, Klambda, R);
         for (int dim = 0; dim < DIM; dim++)
-            lambda[dim] = ns->ed.mult.ve.get_kernel_inverse(dim, Klambda[dim], tol);
+            lambda[dim] = ns->ed.mult.ve.problem->kernel_inverse(dim, Klambda[dim], tol);
 
         // Calculate M matrix >> M = R^t Du R
         real Mtilde[DIM][DIM], M[DIM][DIM];
@@ -150,7 +150,7 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         // Calculate the Kernel jacobian
         real jlambda[DIM];
         for(int i = 0; i < DIM; i++)
-            jlambda[i] = ns->ed.mult.ve.get_kernel_jacobian(i, lambda[i], tol);
+            jlambda[i] = ns->ed.mult.ve.problem->kernel_jacobian(i, lambda[i], tol);
         // Calculate the matrix BB and the matrix B
         real BB[DIM][DIM];
         hig_flow_calculate_b (lambda, jlambda, R, M, BB);
@@ -408,7 +408,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         real R[DIM][DIM], Klambda[DIM], lambda[DIM];
         hig_flow_jacobi(KernelCopy, Klambda, R);
         for (int dim = 0; dim < DIM; dim++)
-            lambda[dim] = ns->ed.mult.ve.get_kernel_inverse(dim, Klambda[dim], tol);
+            lambda[dim] = ns->ed.mult.ve.problem->kernel_inverse(dim, Klambda[dim], tol);
 
         // Calculate M matrix >> M = R^t Du R
         real Mtilde[DIM][DIM], M[DIM][DIM];
@@ -431,7 +431,7 @@ void higflow_implicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
         // Calculate the Kernel jacobian
         real jlambda[DIM];
         for(int i = 0; i < DIM; i++)
-            jlambda[i] = ns->ed.mult.ve.get_kernel_jacobian(i, lambda[i], tol);
+            jlambda[i] = ns->ed.mult.ve.problem->kernel_jacobian(i, lambda[i], tol);
         // Calculate the matrix BB and the matrix B
         real BB[DIM][DIM];
         hig_flow_calculate_b (lambda, jlambda, R, M, BB);
@@ -683,7 +683,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                     B[i][j] = 0.0;
                     B[j][i] = 0.0;
                 }
-                B[i][i] = ns->ed.mult.ve.get_kernel_inverse(i, lambda[i], tol);
+                B[i][i] = ns->ed.mult.ve.problem->kernel_inverse(i, lambda[i], tol);
             }
             // Calculate A matrix >> A = R B R^t
             // D = 0.5*(Du + Du^t)
@@ -787,8 +787,8 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
             }
 
             // interpolate parameters
-            visc0 = ns->ed.mult.get_viscosity0(ccenter, ns->par.t);
-            visc1 = ns->ed.mult.get_viscosity1(ccenter, ns->par.t);
+            visc0 = ns->ed.mult.problem->viscosity0(ccenter, ns->par.t);
+            visc1 = ns->ed.mult.problem->viscosity1(ccenter, ns->par.t);
             fA = higflow_interp_fA_multiphase_viscoelastic(fA0, fA1, fracvol);
             a = higflow_interp_a_multiphase_viscoelastic(a0, a1, fracvol);
             De = higflow_interp_De_multiphase_viscoelastic(De0, De1, fracvol);

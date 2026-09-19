@@ -94,4 +94,56 @@ public:
     real kernel_jacobian(int d, real l, real tol)   { return fn_kernel_jacobian(d, l, tol); }
 };
 
+// --- multifasico: viscosidades e densidades das duas fases, e a fracao volumetrica
+class HigFlowMultiphaseProblem {
+public:
+    virtual ~HigFlowMultiphaseProblem() {}
+    virtual real viscosity0(Point center, real t) = 0;
+    virtual real viscosity1(Point center, real t) = 0;
+    virtual real density0(Point center, real t) = 0;
+    virtual real density1(Point center, real t) = 0;
+    virtual real fracvol(Point center, Point delta, real t) = 0;
+};
+
+class HigFlowLegacyMultiphase : public HigFlowMultiphaseProblem {
+public:
+    real (*fn_viscosity0)(Point, real);
+    real (*fn_viscosity1)(Point, real);
+    real (*fn_density0)(Point, real);
+    real (*fn_density1)(Point, real);
+    real (*fn_fracvol)(Point, Point, real);
+
+    real viscosity0(Point c, real t)            { return fn_viscosity0(c, t); }
+    real viscosity1(Point c, real t)            { return fn_viscosity1(c, t); }
+    real density0(Point c, real t)              { return fn_density0(c, t); }
+    real density1(Point c, real t)              { return fn_density1(c, t); }
+    real fracvol(Point c, Point d, real t)      { return fn_fracvol(c, d, t); }
+};
+
+// --- multifasico viscoelastico.  kernel/kernel_inverse/kernel_jacobian tem a
+// mesma assinatura da interface viscoelastica monofasica: um exemplo que herde as
+// duas e defina uma vez sobrepoe as duas, que e' o comportamento desejado quando
+// ele passa a mesma funcao para os dois registros.
+class HigFlowMultiphaseViscoelasticProblem {
+public:
+    virtual ~HigFlowMultiphaseViscoelasticProblem() {}
+    virtual real tensor_multiphase(real fracvol, Point center, int i, int j, real t) = 0;
+    virtual real kernel(int dim, real lambda, real tol) = 0;
+    virtual real kernel_inverse(int dim, real lambda, real tol) = 0;
+    virtual real kernel_jacobian(int dim, real lambda, real tol) = 0;
+};
+
+class HigFlowLegacyMultiphaseViscoelastic : public HigFlowMultiphaseViscoelasticProblem {
+public:
+    real (*fn_tensor_multiphase)(real, Point, int, int, real);
+    real (*fn_kernel)(int, real, real);
+    real (*fn_kernel_inverse)(int, real, real);
+    real (*fn_kernel_jacobian)(int, real, real);
+
+    real tensor_multiphase(real f, Point c, int i, int j, real t) { return fn_tensor_multiphase(f, c, i, j, t); }
+    real kernel(int d, real l, real tol)          { return fn_kernel(d, l, tol); }
+    real kernel_inverse(int d, real l, real tol)  { return fn_kernel_inverse(d, l, tol); }
+    real kernel_jacobian(int d, real l, real tol) { return fn_kernel_jacobian(d, l, tol); }
+};
+
 #endif

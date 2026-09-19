@@ -311,8 +311,8 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
         hig_get_center(c, center);
         real fracvol = compute_value_at_point(sdvisc, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
         // Calculate the viscosity
-        real visc0 = ns->ed.mult.get_viscosity0(center, ns->par.t);
-        real visc1 = ns->ed.mult.get_viscosity1(center, ns->par.t);
+        real visc0 = ns->ed.mult.problem->viscosity0(center, ns->par.t);
+        real visc1 = ns->ed.mult.problem->viscosity1(center, ns->par.t);
         real visc  = (1.0-fracvol)*visc0 + fracvol*visc1;
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpvisc, clid, visc);
@@ -342,7 +342,7 @@ void higflow_initialize_fracvol(higflow_solver *ns) {
         hig_get_center(c, center);
         hig_get_delta(c, delta);
         // Get the value for pressure in this cell
-        real val = ns->ed.mult.get_fracvol(center, delta, ns->par.t);
+        real val = ns->ed.mult.problem->fracvol(center, delta, ns->par.t);
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.mult.dpfracvol, clid, val);
     }
@@ -372,8 +372,8 @@ void higflow_initialize_density(higflow_solver *ns) {
         // Calculate the density
         real fracvol  = compute_value_at_point(sddens, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
         // Calculate the density
-        real dens0 = ns->ed.mult.get_density0(center, ns->par.t);
-        real dens1 = ns->ed.mult.get_density1(center, ns->par.t);
+        real dens0 = ns->ed.mult.problem->density0(center, ns->par.t);
+        real dens1 = ns->ed.mult.problem->density1(center, ns->par.t);
         real dens  = (1.0-fracvol)*dens0 + fracvol*dens1;
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpdens, clid, dens);
@@ -407,8 +407,8 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         // Get the value for the tensor in this cell
-                        real fracvol = ns->ed.mult.get_fracvol(center, delta, ns->par.t);
-                        real val = ns->ed.mult.ve.get_tensor_multiphase(fracvol, center, i, j, ns->par.t);
+                        real fracvol = ns->ed.mult.problem->fracvol(center, delta, ns->par.t);
+                        real val = ns->ed.mult.ve.problem->tensor_multiphase(fracvol, center, i, j, ns->par.t);
                         dp_set_value(ns->ed.ve.dpKernel[i][j], clid, val);                 
                     }
                 }
