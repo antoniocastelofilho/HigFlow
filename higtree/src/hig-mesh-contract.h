@@ -151,6 +151,11 @@
 //       clausula e' a que a segunda implementacao tem maior risco de nao
 //       cumprir.
 //         test-level-jump / reproduz_campo_linear_atravessando_salto_4_para_1
+//       MEDIDO no t8code v4.0.0-26.08 (higtree/tests/t8code/probe-c11.c): ele
+//       REPRESENTA o salto 4:1 sem balanceamento forcado, e REPORTA os 4
+//       vizinhos de face atraves dele.  A premissa sobrevive ao seu teste de
+//       maior risco -- o que resta e' produzir, a partir dessa floresta, as
+//       estruturas que as consultas leem.
 //
 //   C12 Fora do dominio, o fechamento usa a parede ATRAVESSADA pela projecao, e
 //       nao a mais proxima.
