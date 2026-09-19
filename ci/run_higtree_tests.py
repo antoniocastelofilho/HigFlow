@@ -155,6 +155,39 @@ def build_for_dim(dim, timeout):
     return True, ""
 
 
+CONTRATO = os.path.join(HIGTREE, "src", "hig-mesh-contract.h")
+
+CLAUSULA = re.compile(r"^//\s+([PC]\d+)\s+\S")
+APLICA   = re.compile(r"^//\s+(test-[\w-]+)\s*/\s*(\w+)\s*$")
+
+
+def le_contrato():
+    """Le as clausulas do hig-mesh-contract.h e os casos que as verificam.
+
+    O CABECALHO E' A FONTE.  Manter a lista aqui, em paralelo, seria garantir que
+    as duas divergissem -- e clausula que perdeu o teste deixa de ser clausula e
+    vira comentario, que e' exatamente o que este arquivo existe para impedir.
+    """
+    if not os.path.exists(CONTRATO):
+        return {}
+    clausulas, atual = {}, None
+    for linha in open(CONTRATO, encoding="utf-8"):
+        linha = linha.rstrip("\n")
+        m = CLAUSULA.match(linha)
+        if m:
+            atual = m.group(1)
+            clausulas.setdefault(atual, [])
+            continue
+        m = APLICA.match(linha)
+        if m and atual:
+            clausulas[atual].append((m.group(1), m.group(2)))
+            continue
+        # linha em branco de comentario encerra a clausula corrente
+        if linha.strip() in ("//", ""):
+            atual = None
+    return clausulas
+
+
 CASO = re.compile(r"^caso (\S+) (PASS|FAIL) ?(.*)$")
 RESUMO = re.compile(r"^resumo (\d+) casos, (\d+) falharam$")
 
@@ -224,6 +257,7 @@ def main():
     print("-" * 100)
 
     total = falhas = 0
+    passou = {}          # (teste, caso) -> passou em TODAS as combinacoes
     for dim in dims:
         alvos = [t for t in tests if dim in t.dims]
         if not alvos:
@@ -243,6 +277,8 @@ def main():
             # mistura as duas unidades e o total deixa de significar algo.  As
             # linhas de detalhe continuam todas visiveis.
             for nome, ok, detalhe in cases:
+                chave = (t.name, nome)
+                passou[chave] = passou.get(chave, True) and ok
                 print("%-26s %-4d %-3d %-34s %-7s %s"
                       % (t.name, dim, np, nome, "ok" if ok else "FAIL", detalhe))
             por_caso = {}
@@ -257,6 +293,33 @@ def main():
 
     print("-" * 100)
     print("%d de %d caso(s) passaram" % (total - falhas, total))
+
+    # ------------------------------------------------ o contrato de Mesh
+    clausulas = le_contrato()
+    if clausulas:
+        sem_teste, reprovadas = [], []
+        for cid, casos in sorted(clausulas.items(),
+                                 key=lambda kv: (kv[0][0], int(kv[0][1:]))):
+            if not casos:
+                sem_teste.append(cid)
+                continue
+            # a clausula vale se TODOS os casos que a verificam passaram e
+            # todos de fato rodaram
+            estados = [passou.get(k) for k in casos]
+            if any(e is None for e in estados):
+                sem_teste.append(cid)
+            elif not all(estados):
+                reprovadas.append(cid)
+        ok = len(clausulas) - len(sem_teste) - len(reprovadas)
+        print()
+        print("CONTRATO DE MESH: %d de %d clausula(s) verificada(s)"
+              % (ok, len(clausulas)))
+        for cid in sem_teste:
+            print("  %s  SEM TESTE QUE RODE -- clausula sem teste e' comentario,"
+                  " nao clausula" % cid)
+            falhas += 1
+        for cid in reprovadas:
+            print("  %s  REPROVADA" % cid)
     if descasados:
         print("%d teste(s) fora de registro -- ver as linhas REGISTRO acima"
               % len(descasados))
