@@ -43,6 +43,12 @@ TESTS = [
     # ponto de consulta some quando proj_dir == DIM-1, entao uma dimensao so'
     # deixaria metade do espaco sem cobertura.
     Test("test-stencil-value", dims=(2, 3)),
+    # Qual parede fecha o estencil, medido pelo VALOR: paredes com valores
+    # constantes e DIFERENTES fazem o resultado identificar a escolha sozinho,
+    # sem gancho de depuracao e sem observar o interior da biblioteca.
+    Test("test-stencil-selection", dims=(2, 3)),
+    # A mesma geometria como uma arvore e como duas tem de dar os mesmos valores.
+    Test("test-partition-independence", dims=(2, 3)),
 ]
 
 

@@ -32,7 +32,9 @@ LIBS += $(PETSC_LIB)
 LIBS += $(PETSC_EXTRA_LIB)
 LIBS += -lm
 
-TESTS = test-stencil-value
+TESTS  = test-stencil-value
+TESTS += test-stencil-selection
+TESTS += test-partition-independence
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

@@ -1,0 +1,4 @@
+# Binarios de teste: o Makefile os nomeia com a dimensao (test-*-2d, test-*-3d).
+test-*-2d
+test-*-3d
+*.o
