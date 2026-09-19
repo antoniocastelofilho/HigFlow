@@ -35,6 +35,8 @@ LIBS += -lm
 TESTS  = test-stencil-value
 TESTS += test-stencil-selection
 TESTS += test-partition-independence
+TESTS += test-level-jump
+TESTS += test-point-location
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

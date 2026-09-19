@@ -49,7 +49,36 @@ TESTS = [
     Test("test-stencil-selection", dims=(2, 3)),
     # A mesma geometria como uma arvore e como duas tem de dar os mesmos valores.
     Test("test-partition-independence", dims=(2, 3)),
+    # Estencil atravessando salto de nivel 4:1 em malha NAO graduada -- a
+    # capacidade que qualquer segunda implementacao de malha tera' de preservar.
+    Test("test-level-jump", dims=(2, 3)),
+    # Localizacao por ponto: a celula contem o ponto, o empate nao depende da
+    # divisao do dominio, e a convencao de empate esta' fixada.
+    Test("test-point-location", dims=(2, 3)),
 ]
+
+
+def confere_registro():
+    """O driver conhece todo teste que o Makefile constroi, e vice-versa?
+
+    Um teste que existe, compila e passa mas nao esta' na lista do driver nunca
+    roda -- e a suite reporta verde sem ele.  Aconteceu no dia em que os testes de
+    salto de nivel e localizacao por ponto foram escritos: entraram no Makefile e
+    nao aqui, e a tabela seguiu dizendo "10 de 10" como se nada faltasse.  E' a
+    mesma familia de falha silenciosa que a suite existe para pegar, entao ela tem
+    de se aplicar a si mesma.
+    """
+    mk = os.path.join(TESTDIR, "Makefile")
+    if not os.path.exists(mk):
+        return []
+    no_make = set(re.findall(r"TESTS\s*\+?=\s*(test-[\w-]+)", open(mk).read()))
+    no_driver = {t.name for t in TESTS}
+    faltam = []
+    for nome in sorted(no_make - no_driver):
+        faltam.append("%s esta' no Makefile e nao no driver: nunca roda" % nome)
+    for nome in sorted(no_driver - no_make):
+        faltam.append("%s esta' no driver e nao no Makefile: nao sera' construido" % nome)
+    return faltam
 
 
 def build_for_dim(dim, timeout):
@@ -139,6 +168,12 @@ def main():
         print("nenhum teste corresponde a %s" % args.test)
         return 2
 
+    descasados = confere_registro()
+    for aviso in descasados:
+        print("REGISTRO  %s" % aviso)
+    if descasados:
+        print()
+
     print("%-26s %-4s %-34s %-7s %s" % ("TESTE", "DIM", "CASO", "RESULT", "DETALHE"))
     print("-" * 100)
 
@@ -174,7 +209,10 @@ def main():
 
     print("-" * 100)
     print("%d de %d caso(s) passaram" % (total - falhas, total))
-    return 0 if falhas == 0 else 1
+    if descasados:
+        print("%d teste(s) fora de registro -- ver as linhas REGISTRO acima"
+              % len(descasados))
+    return 0 if falhas == 0 and not descasados else 1
 
 
 if __name__ == "__main__":
