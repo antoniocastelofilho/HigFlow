@@ -1774,8 +1774,23 @@ get_stencil_neumann_boundary(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras, pelo mesmo motivo
+		// dos quatro sitios corrigidos em 3e53d2a: `bc_inter` trabalha em DIM-1
+		// dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas.  Compactar so' as amostras deixa a consulta
+		// num sistema de coordenadas diferente do delas.
+		//
+		// Atencao ao sombreamento acima: o `PPoint x` do laco e' a AMOSTRA; aqui `x`
+		// volta a ser o parametro, que chega em DIM completo (o `search_cells_in_tree_box`
+		// logo acima o usa assim).
+		Point bcx;
+		POINT_ASSIGN(bcx, x);
+		for(unsigned dim = curr.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		slope = 0.0;
@@ -1951,8 +1966,23 @@ get_stencil_neumann_boundary_any_order(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras, pelo mesmo motivo
+		// dos quatro sitios corrigidos em 3e53d2a: `bc_inter` trabalha em DIM-1
+		// dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas.  Compactar so' as amostras deixa a consulta
+		// num sistema de coordenadas diferente do delas.
+		//
+		// Atencao ao sombreamento acima: o `PPoint x` do laco e' a AMOSTRA; aqui `x`
+		// volta a ser o parametro, que chega em DIM completo (o `search_cells_in_tree_box`
+		// logo acima o usa assim).
+		Point bcx;
+		POINT_ASSIGN(bcx, x);
+		for(unsigned dim = curr.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		der = 0.0;
@@ -2054,8 +2084,23 @@ get_stencil_dirichlet_boundary(sim_domain *d, const Point x, real alpha,
 			}
 		}
 
+		// A consulta tem de ser compactada JUNTO com as amostras, pelo mesmo motivo
+		// dos quatro sitios corrigidos em 3e53d2a: `bc_inter` trabalha em DIM-1
+		// dimensoes (interpolator_set_order(&sd->bc_inter, DIM-1, 1)) e le as
+		// primeiras DIM-1 coordenadas.  Compactar so' as amostras deixa a consulta
+		// num sistema de coordenadas diferente do delas.
+		//
+		// Atencao ao sombreamento acima: o `PPoint x` do laco e' a AMOSTRA; aqui `x`
+		// volta a ser o parametro, que chega em DIM completo (o `search_cells_in_tree_box`
+		// logo acima o usa assim).
+		Point bcx;
+		POINT_ASSIGN(bcx, x);
+		for(unsigned dim = curr.proj_dir+1; dim < DIM; ++dim) {
+			bcx[dim-1] = bcx[dim];
+		}
+
 		real w[d->bc_inter.maxpts];
-		calc_weight_from_points(&d->bc_inter, x, items, w);
+		calc_weight_from_points(&d->bc_inter, bcx, items, w);
 
 		// Calculate the slope with the interpolation:
 		bval = 0.0;
