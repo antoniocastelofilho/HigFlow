@@ -43,48 +43,6 @@ real func (Point p) {
 #include "../examples-common/vof-geometry-2d.c"
 
 // Volume fraction
-real get_fracvolN(Point center, Point delta, real t) {
-	Point p0, p1, p2, p3;
-	real  f0, f1, f2, f3;
-	real  value;
-	int var = 0;
-
-	// Canto inferior esquerdo
-	p0[0] = center[0] - 0.5*delta[0];
-	p0[1] = center[1] - 0.5*delta[1];
-	f0    = func(p0);
-	if (f0 > 0.0) var += 1;
-
-	// Canto inferior direito
-	p1[0] = center[0] + 0.5*delta[0];
-	p1[1] = center[1] - 0.5*delta[1];
-	f1    = func(p1);
-	if (f1 > 0.0) var += 1;
-
-	// Canto superior esquerdo
-	p2[0] = center[0] - 0.5*delta[0];
-	p2[1] = center[1] + 0.5*delta[1];
-	f2    = func(p2);
-	if (f2 > 0.0) var += 1;
-
-	// Canto superior direito
-	p3[0] = center[0] + 0.5*delta[0];
-	p3[1] = center[1] + 0.5*delta[1];
-	f3    = func(p3);
-	if (f3 > 0.0) var += 1;
-
-	if (var == 0){
-		value = 0.0;
-	} else if (var == 4){
-		value = delta[0]*delta[1];
-	} else if ((var == 1)||(var == 3)){
-		value = square_case_13(center, delta, p0, p1, p2, p3, f0, f1, f2, f3, var);
-	} else {
-		value = square_case_22(center, delta, p0, p1, p2, p3, f0, f1, f2, f3);
-	}
-
-	return value;
-}
 
 // ---------------------------------------------------------------------------
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.

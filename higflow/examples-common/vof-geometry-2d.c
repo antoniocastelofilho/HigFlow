@@ -203,3 +203,57 @@ real square_case_22(Point center, Point delta, Point p0, Point p1, Point p2, Poi
 }
 
 #endif
+
+// ---------------------------------------------------------------------------
+// Fracao volumetrica de uma celula 2-D cortada pela interface.
+//
+// Os cinco exemplos VOF tinham este corpo identico byte a byte.  O que varia
+// entre eles NAO esta' aqui: e' o `func` abaixo -- a funcao level-set que
+// define a forma inicial --, que cada exemplo continua definindo por conta
+// propria.  Esta funcao so' amostra `func` nos quatro cantos e despacha para
+// os casos analiticos acima.
+// ---------------------------------------------------------------------------
+real func(Point p);   // definida por cada exemplo: a forma inicial da interface
+
+real get_fracvolN(Point center, Point delta, real t) {
+	Point p0, p1, p2, p3;
+	real  f0, f1, f2, f3;
+	real  value;
+	int var = 0;
+
+	// Canto inferior esquerdo
+	p0[0] = center[0] - 0.5*delta[0];
+	p0[1] = center[1] - 0.5*delta[1];
+	f0    = func(p0);
+	if (f0 > 0.0) var += 1;
+
+	// Canto inferior direito
+	p1[0] = center[0] + 0.5*delta[0];
+	p1[1] = center[1] - 0.5*delta[1];
+	f1    = func(p1);
+	if (f1 > 0.0) var += 1;
+
+	// Canto superior esquerdo
+	p2[0] = center[0] - 0.5*delta[0];
+	p2[1] = center[1] + 0.5*delta[1];
+	f2    = func(p2);
+	if (f2 > 0.0) var += 1;
+
+	// Canto superior direito
+	p3[0] = center[0] + 0.5*delta[0];
+	p3[1] = center[1] + 0.5*delta[1];
+	f3    = func(p3);
+	if (f3 > 0.0) var += 1;
+
+	if (var == 0){
+		value = 0.0;
+	} else if (var == 4){
+		value = delta[0]*delta[1];
+	} else if ((var == 1)||(var == 3)){
+		value = square_case_13(center, delta, p0, p1, p2, p3, f0, f1, f2, f3, var);
+	} else {
+		value = square_case_22(center, delta, p0, p1, p2, p3, f0, f1, f2, f3);
+	}
+
+	return value;
+}

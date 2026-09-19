@@ -16,6 +16,10 @@
 
 #include "ns-user-functions-newtonian-gn.c"
 
+// Infraestrutura identica nos dois exemplos que usam este conjunto de funcoes
+// de usuario; o que distingue cada um fica no main e nas funcoes de modelo.
+#include "../examples-common/eo-droplet-2d.c"
+
 /******************************************************************************************/
 /******************************************************************************************/
 /********************************* main user functions ************************************/
@@ -66,74 +70,7 @@ void create_initialize_all_domains(higflow_solver* ns, int myrank, int ntasks) {
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet);
 }
 
-void solver_step(higflow_solver* ns) {
-    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
-        switch (ns->contr.flowtype) {
-            case NEWTONIAN:
-                higflow_solver_step_electroosmotic(ns);
-                break;
-            case MULTIPHASE:
-                if(ns->ed.mult.contr.viscoelastic_either == true)
-                    higflow_solver_step_multiphase_electroosmotic_viscoelastic(ns);
-                else
-                    higflow_solver_step_multiphase_electroosmotic(ns);
-                break;
-            case VISCOELASTIC:
-                higflow_solver_step_electroosmotic_viscoelastic(ns);
-                break;
-        }
-    }
-    else {
-        switch (ns->contr.flowtype) {
-            case NEWTONIAN:
-                higflow_solver_step(ns);
-                break;
-            case MULTIPHASE:
-                if(ns->ed.mult.contr.viscoelastic_either == true) 
-                    higflow_solver_step_multiphase_viscoelastic(ns);
-                else
-                    higflow_solver_step_multiphase(ns);
-                ns->par.stepaux=ns->par.stepaux+1;
-                break;
-            case GENERALIZED_NEWTONIAN:
-                higflow_solver_step_gen_newt(ns);
-                break;
-            case VISCOELASTIC:
-                higflow_solver_step_viscoelastic(ns);
-                break;
-            case VISCOELASTIC_INTEGRAL:
-                higflow_solver_step_viscoelastic_integral(ns);
-                break;
-        }
-    }
-}
 
-int errors(higflow_solver* ns, sim_residuals* sim_res, int myrank) {
-    int errcode = 0;
-
-    if (sim_res != NULL) {
-        real dudt_norm = 0.0;
-        write_residuals(sim_res, ns);
-        if (myrank == 0) dudt_norm = sim_res->u[0]->midrange->res_max->avg[0] / ns->par.dt;
-
-        MPI_Bcast(&dudt_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        print0f("|    dudt_norm = %15.10lf", dudt_norm);
-        if(flowtype != MULTIPHASE) {
-            real tol = 1.0e-5;
-            if (ns->contr.eoflow == true) tol = 5.0e-5;
-            if (dudt_norm < max(1.0e-10 / ns->par.dt, tol)) {
-                print0f("\nsteady state reached\n");
-                errcode = 1;
-            }
-            if (dudt_norm > 1.0e8) {
-                print0f("\nsimulation 'diverged'\n");
-                errcode = -1;
-            }
-        }
-    }
-
-    return errcode;
-}
 
 void save(higflow_solver* ns, int myrank, int ntasks) {
     if (myrank == 0) printf("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
@@ -169,68 +106,7 @@ void print(higflow_solver* ns, int myrank, int ntasks){
     ns->par.tp += ns->par.dtp;
 }
 
-void init_global_var(higflow_solver* ns) {
-    flowtype = ns->contr.flowtype;
-    sdp_ptr = &ns->sdp;
-    stn_ptr = &ns->stn;
-    dpp_ptr = &ns->dpp;
-    sfdv_ptr = &(ns->sfdu[1]);
-    dpvstar_ptr = &ns->dpustar[1];
-    if(flowtype == VISCOELASTIC) visc_model = ns->ed.ve.contr.model;
-    if(flowtype == MULTIPHASE) {
-        dpfracvol_ptr = &ns->ed.mult.dpfracvol;
-        sdmult_ptr = &ns->ed.mult.sdmult;
-        stnmult_ptr = &ns->ed.mult.stn;
-        flowtype0 = ns->ed.mult.contr.flowtype0;
-        flowtype1 = ns->ed.mult.contr.flowtype1;
-        viscoelastic_either = ns->ed.mult.contr.viscoelastic_either;
-        eoflow0 = ns->ed.mult.contr.eoflow0;
-        eoflow1 = ns->ed.mult.contr.eoflow1;
-        eoflow_either = ns->ed.mult.contr.eoflow_either;
-    }
-    eoflow = ns->contr.eoflow;
-    if(eoflow == true) {
-        sfdFeoy_ptr = &ns->ed.eo.sfdEOFeo[1];
-        dpFeoy_ptr = &ns->ed.eo.dpFeo[1];
-        stnFeoy_ptr = &ns->ed.eo.stnpsi;
-    }
-}
 
-void get_inlet_types(higflow_solver* ns) {
-    char namefile[1024];
-    sprintf(namefile,"%s.bc.yaml",ns->par.nameload);
-    
-    FILE *fbc = fopen(namefile, "r");
-    struct fy_document *fyd = NULL;
-    fyd = fy_document_build_from_file(NULL, namefile);
-     
-    if (fyd == NULL) {
-        printf("=+=+=+= Error loading file %s =+=+=+=\n",namefile);
-        exit(1);
-    }
-
-    char aux[1024];
-    int ifd = fy_document_scanf(fyd,"/bc/bc0/velocity_0/type %s",aux);
-    if (strcmp(aux,"dirichlet") == 0) u_inlet = DIRICHLET;
-    else if (strcmp(aux,"neumann") == 0) u_inlet = NEUMANN;
-    else {
-        printf("=+=+=+= Error loading boundary condition type for the inlet velocity\n");
-        exit(1);
-    }
-
-    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
-        ifd = fy_document_scanf(fyd,"/bc_electroosmotic/bc0/psi/type %s",aux);
-        if (strcmp(aux,"dirichlet") == 0) psi_inlet = DIRICHLET;
-        else if (strcmp(aux,"neumann") == 0) psi_inlet = NEUMANN;
-        else {
-            printf("=+=+=+= Error loading boundary condition type for the inlet velocity\n");
-            exit(1);
-        }
-    }
-    
-    fy_document_destroy(fyd);
-    fclose(fbc);
-}
 
 /******************************************************************************************/
 /******************************************************************************************/
