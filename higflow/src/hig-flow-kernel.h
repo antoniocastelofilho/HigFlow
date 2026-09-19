@@ -657,7 +657,8 @@ typedef struct higflow_viscoelastic_variable_viscosity
     // Distributed property for variable structural parameter
     distributed_property *dpStructPar;
     // Function to get the structural parameter
-    real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma); 
+    real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma);
+    HigFlowVariableViscosityProblem *problem; 
     // Distributed property for velocity derivative tensor
     distributed_property *dpDu[DIM][DIM];
     // Distributed property for polymeric tensor
@@ -1365,6 +1366,9 @@ real (*get_boundary_electroosmotic_nminus)(int id, Point center, real t),
 real (*get_permittivity)(Point center, real t));
 
 // Create the simulation domain for viscoelastic flow with variable viscosity
+void higflow_create_domain_viscoelastic_variable_viscosity(higflow_solver *ns,
+                          int cache, int order, HigFlowVariableViscosityProblem *problem);
+
 void higflow_create_domain_viscoelastic_variable_viscosity(higflow_solver *ns, int cache, int order,
                                                            real (*get_tensor)(Point center, int i, int j, real t),
                                                            real (*get_kernel)(int dim, real lambda, real tol),

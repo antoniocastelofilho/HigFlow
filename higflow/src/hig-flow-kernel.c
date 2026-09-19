@@ -748,6 +748,21 @@ void higflow_create_domain_electroosmotic(higflow_solver* ns, int cache, int ord
 }
 
 // Create the simulation domain for viscoelastic flow with variable viscosity
+// Versao por objeto.  E' ela que prepara os dominios -- sdED E sdVisc -- e a de
+// ponteiros apenas embrulha os seis num adaptador e delega.
+void higflow_create_domain_viscoelastic_variable_viscosity(higflow_solver *ns,
+                          int cache, int order, HigFlowVariableViscosityProblem *problem) {
+    if ((ns->contr.flowtype == 6)) {
+       ns->ed.sdED = sd_create(NULL);
+       sd_use_cache(ns->ed.sdED, cache);
+       sd_set_interpolator_order(ns->ed.sdED, order);
+       ns->ed.vevv.sdVisc = sd_create(NULL);
+       sd_use_cache(ns->ed.vevv.sdVisc, cache);
+       sd_set_interpolator_order(ns->ed.vevv.sdVisc, order);
+    }
+    ns->ed.vevv.problem = problem;
+}
+
 void higflow_create_domain_viscoelastic_variable_viscosity (higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
@@ -755,33 +770,21 @@ real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol),
 real (*get_viscosity)(Point center, real q, real t, real beta, real struct_par),
 real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma)) {
+    HigFlowLegacyVariableViscosity *legacy = new HigFlowLegacyVariableViscosity();
+    legacy->fn_tensor          = get_tensor;
+    legacy->fn_kernel          = get_kernel;
+    legacy->fn_kernel_inverse  = get_kernel_inverse;
+    legacy->fn_kernel_jacobian = get_kernel_jacobian;
+    legacy->fn_viscosity       = get_viscosity;
+    legacy->fn_structpar       = get_structpar;
+    higflow_create_domain_viscoelastic_variable_viscosity(ns, cache, order, legacy);
     if ((ns->contr.flowtype == 6)) {
-       // simulation domain (SD) extra domain
-       ns->ed.sdED = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.sdED, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.sdED, order);
-       // function for the domain
        ns->ed.vevv.get_tensor          = get_tensor;
-       // function for the kernel transformation
        ns->ed.vevv.get_kernel          = get_kernel;
-       // function for the inverse kernel transformation
        ns->ed.vevv.get_kernel_inverse  = get_kernel_inverse;
-       // function for the kernel transformation jacobian
        ns->ed.vevv.get_kernel_jacobian = get_kernel_jacobian;
-       // simulation domain for viscosity
-       ns->ed.vevv.sdVisc = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.vevv.sdVisc, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.vevv.sdVisc, order);
-       // viscosity function for the domain
-       ns->ed.vevv.get_viscosity = get_viscosity;
-       if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
-           // Structural parameter function for the domain (For the BMP model, structural parameter=fluidity)
-           ns->ed.vevv.get_structpar = get_structpar;
-       }
+       ns->ed.vevv.get_viscosity       = get_viscosity;
+       if (ns->ed.nn_contr.rheotype == THIXOTROPIC) ns->ed.vevv.get_structpar = get_structpar;
     }
 }
 

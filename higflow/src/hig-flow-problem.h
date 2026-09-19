@@ -170,4 +170,38 @@ public:
     real tensor(Point c, int i, int j, real t) { return fn_tensor(c, i, j, t); }
 };
 
+// --- viscoelastico com viscosidade variavel.  get_viscosity aqui NAO e' o mesmo
+// do generalized-newtonian: leva beta e struct_par a mais.  Foi essa colisao de
+// nome com assinaturas diferentes que impos interfaces separadas por modelo.
+class HigFlowVariableViscosityProblem {
+public:
+    virtual ~HigFlowVariableViscosityProblem() {}
+    virtual real tensor(Point center, int i, int j, real t) = 0;
+    virtual real kernel(int dim, real lambda, real tol) = 0;
+    virtual real kernel_inverse(int dim, real lambda, real tol) = 0;
+    virtual real kernel_jacobian(int dim, real lambda, real tol) = 0;
+    virtual real viscosity(Point center, real q, real t, real beta, real struct_par) = 0;
+    virtual real structpar(Point center, real q, real t, real beta,
+                           real Phi, real Lambda, real Gamma) = 0;
+};
+
+class HigFlowLegacyVariableViscosity : public HigFlowVariableViscosityProblem {
+public:
+    real (*fn_tensor)(Point, int, int, real);
+    real (*fn_kernel)(int, real, real);
+    real (*fn_kernel_inverse)(int, real, real);
+    real (*fn_kernel_jacobian)(int, real, real);
+    real (*fn_viscosity)(Point, real, real, real, real);
+    real (*fn_structpar)(Point, real, real, real, real, real, real);
+
+    real tensor(Point c, int i, int j, real t)    { return fn_tensor(c, i, j, t); }
+    real kernel(int d, real l, real tol)          { return fn_kernel(d, l, tol); }
+    real kernel_inverse(int d, real l, real tol)  { return fn_kernel_inverse(d, l, tol); }
+    real kernel_jacobian(int d, real l, real tol) { return fn_kernel_jacobian(d, l, tol); }
+    real viscosity(Point c, real q, real t, real b, real sp) { return fn_viscosity(c, q, t, b, sp); }
+    real structpar(Point c, real q, real t, real b, real P, real L, real G) {
+        return fn_structpar(c, q, t, b, P, L, G);
+    }
+};
+
 #endif

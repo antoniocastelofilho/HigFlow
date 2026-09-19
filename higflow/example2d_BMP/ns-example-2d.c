@@ -10,56 +10,11 @@
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
 
-// Value of the Tensor
-real get_tensor(Point center, int i, int j, real t) {
-    real value = 0.0;
-    return value; 
-}
-
-// Value of the Kernel
-real get_kernel(int dim, real lambda, real tol) {
-    real value;
-    //if (lambda < tol)
-    //   value = log(tol);
-    //else
-    //   value = log(lambda);
-    //if (lambda < tol)
-    //   value = sqrt(tol);
-    //else
-    //   value = sqrt(lambda);
-    value = lambda;
-    return value; 
-}
-
-// Value of the Kernel inverse
-real get_kernel_inverse(int dim, real lambda, real tol) {
-    real value;
-    //value = exp(lambda);
-    //value = lambda*lambda;
-    value = lambda;
-    return value; 
-}
-
-// Value of the Kernel Jacobian
-real get_kernel_jacobian(int dim, real lambda, real tol) {
-    real value;
-    //if (lambda < tol)
-    //   value = 1.0/tol;
-    //else
-    //   value = 1.0/lambda;
-    //if (lambda < tol)
-    //   value = 0.5/sqrt(tol);
-    //else
-    //   value = 0.5/sqrt(lambda);
-    value = 1.0;
-    return value; 
-}
-
 // ---------------------------------------------------------------------------
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
 // Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class BmpProblem : public HigFlowProblem {
+class BmpProblem : public HigFlowProblem, public HigFlowVariableViscosityProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -160,6 +115,65 @@ public:
     // Value of the facet source term at boundary
     real boundary_facet_source_term(int id, Point center, int dim, real t) {
         real value = 0.0;
+        return value; 
+    }
+
+    // --- viscosidade variavel ---
+    // Value of the Tensor
+    real tensor(Point center, int i, int j, real t) {
+        real value = 0.0;
+        return value; 
+    }
+    // Value of the Kernel
+    real kernel(int dim, real lambda, real tol) {
+        real value;
+        //if (lambda < tol)
+        //   value = log(tol);
+        //else
+        //   value = log(lambda);
+        //if (lambda < tol)
+        //   value = sqrt(tol);
+        //else
+        //   value = sqrt(lambda);
+        value = lambda;
+        return value; 
+    }
+    // Value of the Kernel inverse
+    real kernel_inverse(int dim, real lambda, real tol) {
+        real value;
+        //value = exp(lambda);
+        //value = lambda*lambda;
+        value = lambda;
+        return value; 
+    }
+    // Value of the Kernel Jacobian
+    real kernel_jacobian(int dim, real lambda, real tol) {
+        real value;
+        //if (lambda < tol)
+        //   value = 1.0/tol;
+        //else
+        //   value = 1.0/lambda;
+        //if (lambda < tol)
+        //   value = 0.5/sqrt(tol);
+        //else
+        //   value = 0.5/sqrt(lambda);
+        value = 1.0;
+        return value; 
+    }
+    // Value of the non-Newtonian viscosity
+    real viscosity(Point center, real q, real t, real beta, real struct_par) {
+        //For the BMP model, viscosity = 1/fluidity (fluidity is the structural parameter)
+        real value = 1.0/struct_par;
+        //real value = 1.0;
+        return value; 
+    }
+    // Value of the structural parameter
+    real structpar(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma) {
+        //For the BMP model, the structural parameter has a value of Phi when the fluid is at rest
+        //real value = Phi/(1.0 - (beta/(1.0-beta))*Phi);
+        //real value = 1.0/(1.0 - beta/(1.0-beta));
+        real value = 1.0;
+        //real value = Phi;
         return value; 
     }
 };
@@ -268,14 +282,6 @@ real get_velocity_BMP_proof2(real yc, real Re, real GMI, real LA, real Phi, real
 //    return value; 
 //}
 
-// Value of the non-Newtonian viscosity
-real get_viscosity(Point center, real q, real t, real beta, real struct_par) {
-    //For the BMP model, viscosity = 1/fluidity (fluidity is the structural parameter)
-    real value = 1.0/struct_par;
-    //real value = 1.0;
-    return value; 
-}
-
 // Value of the viscosity
 real get_viscosity2(Point center, real q, real t, real beta, real struct_par) {
     real ap = 2.0;
@@ -342,16 +348,6 @@ real get_viscosity3(Point center, real q, real t, real beta, real struct_par) {
     else {
         value = pow(q,m)/etamax;
     }
-    return value; 
-}
-
-// Value of the structural parameter
-real get_structpar(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma) {
-    //For the BMP model, the structural parameter has a value of Phi when the fluid is at rest
-    //real value = Phi/(1.0 - (beta/(1.0-beta))*Phi);
-    //real value = 1.0/(1.0 - beta/(1.0-beta));
-    real value = 1.0;
-    //real value = Phi;
     return value; 
 }
 
@@ -495,7 +491,7 @@ void calculate_m_user(real Re, real De, real beta, real tr, real lambda[DIM], re
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        real jlambda = get_kernel_jacobian(i, lambda[i], tol);
+        real jlambda = problema.kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = (1.0-lambda[i])*jlambda;
     }
 }
@@ -731,8 +727,7 @@ int main (int argc, char *argv[]) {
     //    get_viscosity, get_boundary_viscosity); 
     //higflow_create_domain_viscoelastic(ns, cache, order_center,get_tensor, 
 	//	    get_kernel, get_kernel_inverse, get_kernel_jacobian); 
-    higflow_create_domain_viscoelastic_variable_viscosity(ns,cache,order_center,get_tensor, 
-		    get_kernel, get_kernel_inverse, get_kernel_jacobian,get_viscosity,get_structpar);
+    higflow_create_domain_viscoelastic_variable_viscosity(ns, cache, order_center, &problema);
     //higflow_create_domain_viscoelastic_integral(ns, cache, order_center, get_tensor); 
     // Initialize the domain
     higflow_initialize_domain(ns, ntasks, myrank, order_facet); 

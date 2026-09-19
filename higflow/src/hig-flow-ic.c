@@ -830,12 +830,12 @@ void higflow_initialize_viscosity_vevv(higflow_solver *ns) {
         hig_get_center(c, center);
         real val;
        if (ns->ed.nn_contr.rheotype == PLM) {
-           val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, 0.0);
+           val = ns->ed.vevv.problem->viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, 0.0);
        }
        if (ns->ed.nn_contr.rheotype == THIXOTROPIC) {
            real valstruct;
-           valstruct = ns->ed.vevv.get_structpar(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, ns->ed.vevv.par.Phi, ns->ed.vevv.par.Lambda, ns->ed.vevv.par.Gamma);
-           val = ns->ed.vevv.get_viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, valstruct);
+           valstruct = ns->ed.vevv.problem->structpar(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, ns->ed.vevv.par.Phi, ns->ed.vevv.par.Lambda, ns->ed.vevv.par.Gamma);
+           val = ns->ed.vevv.problem->viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, valstruct);
        }
         // Set the value for viscosity distributed property
         dp_set_value(ns->ed.vevv.dpvisc, cgid, val);
@@ -869,7 +869,7 @@ void higflow_initialize_structural_parameter(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for structural parameter in this cell
-        real val = ns->ed.vevv.get_structpar(center, 0.0, ns->par.t, beta, Phi, Lambda, Gamma);
+        real val = ns->ed.vevv.problem->structpar(center, 0.0, ns->par.t, beta, Phi, Lambda, Gamma);
         // Set the value for structural parameter distributed property
         dp_set_value(ns->ed.vevv.dpStructPar, cgid, val);
     }
@@ -901,7 +901,7 @@ void higflow_initialize_viscoelastic_tensor_variable_viscosity(higflow_solver *n
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.vevv.get_tensor(center, i, j, ns->par.t);
+                    real val = ns->ed.vevv.problem->tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.vevv.dpS[i][j], cgid, val);
                 }

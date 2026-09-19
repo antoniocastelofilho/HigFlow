@@ -158,7 +158,7 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
                     B[i][j] = 0.0;
                     B[j][i] = 0.0;
                 }
-                B[i][i] = ns->ed.vevv.get_kernel_inverse(i, lambda[i], tol);
+                B[i][i] = ns->ed.vevv.problem->kernel_inverse(i, lambda[i], tol);
             }
             //Get the viscosity value
             //real eta = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
@@ -1442,7 +1442,7 @@ void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM
            Kernel_aux[i][j] = 0.0;
            Kernel_aux[j][i] = 0.0;
        }
-       Kernel_aux[i][i] = ns->ed.vevv.get_kernel(i, lambda[i], tol);
+       Kernel_aux[i][i] = ns->ed.vevv.problem->kernel(i, lambda[i], tol);
    }
    // Calculate Kernel matrix >> Kernel = R Kernel_aux R^t
    hig_flow_matrix_transpose_product(Kernel_aux, R, Kernel);
@@ -1459,7 +1459,7 @@ void hig_flow_calculate_b (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM
             B_aux[i][j] = 0.0;
             B_aux[j][i] = 0.0;
         }
-        real jlambda = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
+        real jlambda = ns->ed.vevv.problem->kernel_jacobian(i, lambda[i], tol);
         B_aux[i][i]  = M[i][i]*lambda[i]*jlambda;
     }
     // Calculate Kernel matrix >> BB = R Btilde Lambda JLambda R^t
@@ -1474,7 +1474,7 @@ void hig_flow_calculate_m_oldroyd (higflow_solver *ns, real lambda[DIM], real M[
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        real jlambda = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
+        real jlambda = ns->ed.vevv.problem->kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = (1.0-lambda[i])*jlambda;
     }
 }
@@ -1487,7 +1487,7 @@ void hig_flow_calculate_m_giesekus (higflow_solver *ns, real lambda[DIM], real M
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        real jlambda = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
+        real jlambda = ns->ed.vevv.problem->kernel_jacobian(i, lambda[i], tol);
         real aux     = 1.0-lambda[i];
         M_aux[i][i]  = (aux - ns->ed.vevv.par.alpha*aux*aux)*jlambda;
     }
@@ -1513,7 +1513,7 @@ void hig_flow_calculate_m_lptt (higflow_solver *ns, real tr, real lambda[DIM],  
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        jlambda[i]   = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
+        jlambda[i]   = ns->ed.vevv.problem->kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = (1.0-lambda[i])*(1.0+(ns->ed.vevv.par.epsilon*ns->par.Re*ns->ed.vevv.par.De*tr)/(1.0-ns->ed.vevv.par.beta))*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {
@@ -1543,7 +1543,7 @@ void hig_flow_calculate_m_gptt (higflow_solver *ns, real tr, real lambda[DIM],  
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        jlambda[i]   = ns->ed.vevv.get_kernel_jacobian(i, lambda[i], tol);
+        jlambda[i]   = ns->ed.vevv.problem->kernel_jacobian(i, lambda[i], tol);
 	real alfa1 = ns->ed.vevv.par.alpha_gptt;
 	real beta1 = ns->ed.vevv.par.beta_gptt;
 	real gama1 = ns->ed.vevv.par.gamma_gptt;
@@ -1675,7 +1675,7 @@ void higflow_compute_viscosity_user_model_vevv(higflow_solver *ns) {
             if (q > qmax) qmax = q;
             if (q < qmin) qmin = q;
             // Calculate the viscosity
-            real visc = ns->ed.vevv.get_viscosity(ccenter, q, ns->par.t, ns->ed.vevv.par.beta, 0.0);
+            real visc = ns->ed.vevv.problem->viscosity(ccenter, q, ns->par.t, ns->ed.vevv.par.beta, 0.0);
             //Check to see min and max viscosity values
             if (visc > etamax) etamax = visc;
             if (visc < etamin) etamin = visc;
@@ -1794,7 +1794,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             if (q < qmin) qmin = q;
 
             //Get the viscosity value at the time "n"
-            //real eta = ns->ed.vevv.get_viscosity(ccenter, q, ns->par.t, beta, StructParP);
+            //real eta = ns->ed.vevv.problem->viscosity(ccenter, q, ns->par.t, beta, StructParP);
             //real eta = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
 
             // Calculate the tensor TS
@@ -1907,7 +1907,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             dp_set_value(ns->ed.vevv.dpStructPar, clid, structparnew);
 
             //Calculate the new viscosity
-            real viscnew = ns->ed.vevv.get_viscosity(ccenter, q, ns->par.t, beta, structparnew);
+            real viscnew = ns->ed.vevv.problem->viscosity(ccenter, q, ns->par.t, beta, structparnew);
             //Check to see min and max viscosity values
             if (viscnew > etamax) etamax = viscnew;
             if (viscnew < etamin) etamin = viscnew;
@@ -2291,7 +2291,7 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             if (q < qmin) qmin = q;
 
             //Get the viscosity value at the time "n"
-            //real eta = ns->ed.vevv.get_viscosity(ccenter, q, ns->par.t, beta, StructParP);
+            //real eta = ns->ed.vevv.problem->viscosity(ccenter, q, ns->par.t, beta, StructParP);
             //real eta = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
 
             // Calculate the tensor TS (elastic stress + solvent contribution)
@@ -2370,7 +2370,7 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             dp_set_value(ns->ed.vevv.dpStructPar, clid, structparnew);
 
             //Calculate the new viscosity
-            real viscnew = ns->ed.vevv.get_viscosity(ccenter, q, ns->par.t, beta, structparnew);
+            real viscnew = ns->ed.vevv.problem->viscosity(ccenter, q, ns->par.t, beta, structparnew);
             //Check to see min and max viscosity values
             if (viscnew > etamax) etamax = viscnew;
             if (viscnew < etamin) etamin = viscnew;
