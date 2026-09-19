@@ -67,6 +67,7 @@ TESTS += test-point-location
 TESTS += test-boundary-path
 TESTS += test-facet-domain-serial
 TESTS += test-cell-queries
+TESTS += test-fringe-support
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

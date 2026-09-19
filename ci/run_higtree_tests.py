@@ -74,6 +74,11 @@ TESTS = [
     # porque os outros testes dependem delas.  Oraculos analiticos, dois niveis de
     # refino.
     Test("test-cell-queries", dims=(2, 3)),
+
+    # A franja, pelo criterio do que o estencil PEDE e nao por tamanho fixado.
+    # build-fringe.cpp sao 815 linhas sem cobertura, e quando o t8code entrar ele
+    # traz a propria camada de ghost -- o contrato precisa estar escrito antes.
+    Test("test-fringe-support", dims=(2, 3)),
 ]
 
 
