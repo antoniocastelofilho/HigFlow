@@ -491,6 +491,33 @@ but their `%.o: %.c` rule only reaches sources in the example's own directory; t
 shared library arrives as `libhigflow$(DIM)d.a`, built by `higflow/Makefile`.
 
 
+### `git push <branch>` answers about the branch you named, not the work you did
+
+`git push origin migracao-cpp` run from a checkout of a *different* branch replies
+`Everything up-to-date`. That is true about `migracao-cpp` and says nothing about
+the commit you just made, which is still only on disk. Read as confirmation, it
+reports work as sent that was never sent.
+
+**Check `git branch -vv` before pushing, not the branch name you remember.** It
+shows where you are, each branch's upstream, and the divergence, so
+`Everything up-to-date` can no longer be read as "my work went out".
+
+Two more in the same family, both from 2026-09-19:
+
+- **`git diff master...branch` (THREE dots) compares against the merge base, not
+  against the tip of `master`.** On a branch whose base is from 2024, it presents
+  as that branch's novelty everything `master` also gained since then. It reported
+  `+638` lines and a set of functions as belonging to a branch that in fact has
+  `domain.c` byte-identical to `master`, and inflated a file-overlap count from 26
+  to 79. For "what does this branch change", use TWO dots.
+- **`make` reports a missing *library* as `No rule to make target 'X-3d'`**, which
+  reads as a missing *source*. In `higtree/tests` it meant one of two things:
+  `libhig2d.a` did not exist because the tree was built for `DIM=3`, or
+  `INSPATH`/`HIGPATH` were empty because `HIGTREE_DIR` was not exported — `varsrc`
+  does not set it, only the test driver does. That Makefile now checks the library
+  and fails with its own message.
+
+
 ### The shared pattern
 
 None of these failed loudly. A step fails or lies, later steps run on stale

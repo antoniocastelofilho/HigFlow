@@ -13,6 +13,33 @@ ifndef DIM
 $(error Defina DIM=2 ou DIM=3)
 endif
 
+# GUARDA: sem a biblioteca, o make responde `No rule to make target 'test-X-2d'`,
+# que se le como FONTE faltando -- e a fonte esta' la'.  Sao duas causas, nenhuma
+# delas obvia pela mensagem:
+#
+#   1. a higtree esta' construida noutra dimensao.  Os objetos nao carregam a
+#      dimensao no nome, entao apos um build DIM=3 o libhig2d.a simplesmente nao
+#      existe;
+#   2. HIGTREE_DIR nao esta' exportado.  Ai' HIGPATH e INSPATH vem vazios,
+#      LIBPATH vira `/lib`, e a dependencia nunca resolve.  O `varsrc` NAO define
+#      HIGTREE_DIR -- quem define e' o ci/run_higtree_tests.py.  Compilar um teste
+#      a mao exige `export HIGTREE_DIR=<raiz>/higtree`.
+#
+# Custou uma rodada de diagnostico em 2026-09-19, com as duas causas somadas.
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+ifndef HIGTREE_DIR
+$(error HIGTREE_DIR nao esta' exportado, entao LIBPATH fica vazio e a biblioteca \
+nunca resolve. Use `export HIGTREE_DIR=<raiz>/higtree`, ou rode pelo driver \
+ci/run_higtree_tests.py)
+endif
+ifeq ($(wildcard $(LIBPATH)/libhig$(DIM)d.a),)
+$(error Biblioteca ausente: $(LIBPATH)/libhig$(DIM)d.a -- a higtree nao esta' \
+construida em DIM=$(DIM). Construa com `make -C $(HIGPATH) clean && \
+make -C $(HIGPATH) DIM=$(DIM)`. O clean nao e' opcional: os objetos nao carregam \
+a dimensao no nome)
+endif
+endif
+
 # A HiGTree e' compilada como C++ (os simbolos da .a vem mangled), entao o teste
 # tem de usar o MESMO compilador -- com gcc o link falha em undefined reference.
 CC = mpic++
