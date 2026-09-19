@@ -64,29 +64,72 @@ static hig_cell *refina_em(hig_cell *raiz, const Point p) {
     return c;
 }
 
-int main(void) {
-    sim_stencil *stn = stn_create();
+// ---------------------------------------------------------------------------
+// O PRODUTOR DA MALHA E' A COSTURA.
+//
+// O contrato de Mesh (higtree/src/hig-mesh-contract.h) diz que uma segunda
+// implementacao nao herda de uma classe: ela PRODUZ as estruturas que as
+// consultas leem, e e' aceita quando passa nas garantias.  Aqui isso fica
+// explicito -- a construcao da malha nao graduada e' um ponteiro de funcao, e as
+// asserções abaixo rodam sobre o que quer que ele devolva.
+//
+// Hoje ha' um produtor so', o MTree.  O adaptador do t8code entra na tabela como
+// segunda entrada, SEM tocar em uma linha de assercao: e' isso que torna a
+// comparacao entre os dois uma comparacao, e nao dois testes diferentes.
+//
+// Os NOMES DOS CASOS nao levam o produtor, de proposito.  O driver agrega por
+// (teste, caso) com E logico, entao a clausula C11 passa a significar "TODO
+// produtor registrado atravessa o salto 4:1".  Quem identifica o produtor e' a
+// mensagem de falha.
+// ---------------------------------------------------------------------------
 
+typedef struct {
+    const char *nome;
+    hig_cell  *(*constroi)(void);   // devolve a raiz de uma malha NAO GRADUADA
+} ProdutorDeMalha;
+
+// Produtor de referencia: MTree, o octree de ponteiros do HiGTree.
+//
+//     raiz [0,1]^DIM refinada 4 por direcao      -> h = 0,25
+//     a celula que contem 0,375 refinada 2x      -> h = 0,125
+//     uma NETA dela refinada de novo             -> h = 0,0625
+//     vizinha imediata permanecendo em 0,25      -> salto de QUATRO para um
+static hig_cell *malha_mtree(void) {
     Point l, h;
     for(int d = 0; d < DIM; d++) { l[d] = 0.0; h[d] = 1.0; }
     hig_cell *raiz = hig_create_root(l, h);
     int nc[DIM];
     for(int d = 0; d < DIM; d++) nc[d] = 4;
-    hig_refine_uniform(raiz, nc);            // h = 0,25
+    hig_refine_uniform(raiz, nc);
 
-    // Um passo de refino: 2:1 contra a vizinha grossa.
     Point p2;
     for(int d = 0; d < DIM; d++) p2[d] = 0.375;
-    hig_cell *meia = refina_em(raiz, p2);    // h = 0,125
+    if(refina_em(raiz, p2) == NULL) return NULL;
 
-    // Segundo passo, numa neta: 4:1 contra a vizinha grossa.
     Point p4;
     for(int d = 0; d < DIM; d++) p4[d] = 0.3125;
-    hig_cell *quarto = refina_em(raiz, p4);  // h = 0,0625
+    if(refina_em(raiz, p4) == NULL) return NULL;
+
+    return raiz;
+}
+
+static const ProdutorDeMalha PRODUTORES[] = {
+    { "mtree", malha_mtree },
+    // { "t8code", malha_t8code },   <- a segunda implementacao entra aqui
+};
+
+static void verifica(const ProdutorDeMalha *prod) {
+    sim_stencil *stn = stn_create();
+
+    hig_cell *raiz = prod->constroi();
 
     t_case("malha_nao_graduada_foi_construida");
-    T_CHECK_MSG(meia != NULL && quarto != NULL,
-        "nao consegui refinar: meia=%p quarto=%p", (void *) meia, (void *) quarto);
+    T_CHECK_MSG(raiz != NULL,
+        "[%s] o produtor nao devolveu malha", prod->nome);
+    if(raiz == NULL) { stn_destroy(stn); return; }
+
+    Point p4;
+    for(int d = 0; d < DIM; d++) p4[d] = 0.3125;
     {   // O salto so' e' 4:1 se a vizinha imediata continuou grossa.
         Point viz;  for(int d = 0; d < DIM; d++) viz[d] = 0.625;
         hig_cell *cv = hig_get_cell_with_point(raiz, viz);
@@ -94,6 +137,7 @@ int main(void) {
         hig_get_delta(cv, dv);
         hig_get_delta(hig_get_cell_with_point(raiz, p4), dq);
         T_NEAR(dv[0] / dq[0], 4.0, 1e-9, "razao de tamanho entre vizinha grossa e fina");
+        (void) prod;
     }
 
     mp_mapper *m = mp_create();
@@ -161,13 +205,19 @@ int main(void) {
 
     // Se nenhum suporte misturou tamanhos, o teste passou sem exercitar o salto.
     T_CHECK_MSG(tamanhos_vistos >= 3.9,
-        "nenhum suporte atravessou o salto: maior razao de tamanhos dentro de um "
-        "estencil foi %.2f, esperado 4 -- o teste nao exercitou malha nao graduada",
-        tamanhos_vistos);
+        "[%s] nenhum suporte atravessou o salto: maior razao de tamanhos dentro "
+        "de um estencil foi %.2f, esperado 4 -- nao exercitou malha nao graduada",
+        prod->nome, tamanhos_vistos);
 
     free(fval);
     free(fdel);
     stn_destroy(stn);
     sd_destroy(sd);
+}
+
+int main(void) {
+    for(unsigned i = 0; i < sizeof PRODUTORES / sizeof *PRODUTORES; i++) {
+        verifica(&PRODUTORES[i]);
+    }
     return t_end();
 }
