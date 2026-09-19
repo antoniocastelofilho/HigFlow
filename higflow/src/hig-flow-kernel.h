@@ -771,6 +771,7 @@ typedef struct higflow_viscoelastic_shear_banding
     real (*get_boundary_nA)(int id, Point center, real t);
     // Function to get nB at boundary
     real (*get_boundary_nB)(int id, Point center, real t);
+    HigFlowShearBandingProblem *problem;
     // Linear system solver for density numbers
     solver *slvnA;
     solver *slvnB;
@@ -841,6 +842,7 @@ typedef struct higflow_elastoviscoplastic
     real (*get_kernel_inverse)(int dim, real lambda, real tol);
     // Function to get the kernel jacobian
     real (*get_kernel_jacobian)(int dim, real lambda, real tol);
+    HigFlowElastoviscoplasticProblem *problem;
     // User function to define the viscoelastic model
     void (*calculate_m_user)(real Re, real De, real beta, real Bi, real zeta, real epsilon, real Np, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol, real smallTD, real SD);
 } higflow_elastoviscoplastic;
@@ -923,6 +925,7 @@ typedef struct higflow_shear_thickening_suspension
     real (*get_vol_frac)(Point center, real t);
     // Function to get the value of alpha = alpha(phi)
     real (*get_alpha)(Point center, real t, real alpha, real phi, real phircp);
+    HigFlowSuspensionProblem *problem;
 } higflow_shear_thickening_suspension;
 
 typedef struct higflow_multiphase_electroosmotic{
@@ -1386,6 +1389,9 @@ void higflow_create_domain_viscoelastic_variable_viscosity(higflow_solver *ns, i
                                                            real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real Lambda, real Gamma));
 
 // Create the simulation domain for viscoelastic flow with shear-banding
+void higflow_create_domain_viscoelastic_shear_banding(higflow_solver *ns, int cache, int order,
+                                     HigFlowShearBandingProblem *problem);
+
 void higflow_create_domain_viscoelastic_shear_banding (higflow_solver *ns, int cache, int order,
                                                        real (*get_tensor)(Point center, int i, int j, real t),
                                                        real (*get_tensor_A)(Point center, int i, int j, real t),
@@ -1398,6 +1404,9 @@ void higflow_create_domain_viscoelastic_shear_banding (higflow_solver *ns, int c
                                                        real (*get_boundary_nB)(int id, Point center, real t));
 
 // Create the simulation domain for elastoviscoplastic flow
+void higflow_create_domain_elastoviscoplastic(higflow_solver *ns, int cache, int order,
+                                     HigFlowElastoviscoplasticProblem *problem);
+
 void higflow_create_domain_elastoviscoplastic (higflow_solver *ns, int cache, int order,
                                                real (*get_tensor)(Point center, int i, int j, real t),
                                                real (*get_kernel)(int dim, real lambda, real tol),
@@ -1409,6 +1418,9 @@ void higflow_define_user_function_elastoviscoplastic (higflow_solver *ns,
                                                       void (*calculate_m_user)(real Re, real De, real beta, real Bi, real zeta, real epsilon, real Np, real tr, real lambda[DIM], real R[DIM][DIM], real M[DIM][DIM], real M_aux[DIM][DIM], real tol, real smallTD, real SD));
 
 // Create the simulation domain for shear-thickening suspension flow
+void higflow_create_domain_shear_thickening_suspension(higflow_solver *ns, int cache, int order,
+                                     HigFlowSuspensionProblem *problem);
+
 void higflow_create_domain_shear_thickening_suspension (higflow_solver *ns, int cache, int order,
                                                         real (*get_tensor)(Point center, int i, int j, real t),
                                                         real (*get_tensor_A)(Point center, int i, int j, real t),

@@ -454,10 +454,10 @@ void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nA(higflow_so
             real val;
             if (nAbctypes[h] == NEUMANN) {
                 // Get the density number defined by the user
-                val = ns->ed.vesb.get_boundary_nA(id[h], bccenter, ns->par.t);
+                val = ns->ed.vesb.problem->boundary_nA(id[h], bccenter, ns->par.t);
             } else {
                 // Dirichlet boundary type
-                val = ns->ed.vesb.get_boundary_nA(id[h], bccenter, ns->par.t);
+                val = ns->ed.vesb.problem->boundary_nA(id[h], bccenter, ns->par.t);
             }
             // Set the value 
             sb_set_value(bc, bcgid, val);
@@ -504,10 +504,10 @@ void higflow_set_boundary_condition_for_viscoelastic_shear_banding_nB(higflow_so
             real val;
             if (nBbctypes[h] == NEUMANN) {
                 // Get the electro-osmotic nplus defined by the user
-                val = ns->ed.vesb.get_boundary_nB(id[h], bccenter, ns->par.t);
+                val = ns->ed.vesb.problem->boundary_nB(id[h], bccenter, ns->par.t);
             } else {
                 // Dirichlet boundary type
-                val = ns->ed.vesb.get_boundary_nB(id[h], bccenter, ns->par.t);
+                val = ns->ed.vesb.problem->boundary_nB(id[h], bccenter, ns->par.t);
             }
             // Set the value 
             sb_set_value(bc, bcgid, val);

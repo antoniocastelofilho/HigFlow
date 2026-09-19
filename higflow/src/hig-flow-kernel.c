@@ -760,6 +760,26 @@ real (*get_structpar)(Point center, real q, real t, real beta, real Phi, real La
 }
 
 // Create the simulation domain for viscoelastic flow with shear-banding
+// Versao por objeto.  Prepara sdED sempre, e sdSBnA/sdSBnB SO' quando
+// rheotype == VCM -- o aninhamento do original tem que ser preservado.
+void higflow_create_domain_viscoelastic_shear_banding(higflow_solver *ns, int cache, int order,
+                                     HigFlowShearBandingProblem *problem) {
+    if ((ns->contr.flowtype == 7)) {
+       ns->ed.sdED = sd_create(NULL);
+       sd_use_cache(ns->ed.sdED, cache);
+       sd_set_interpolator_order(ns->ed.sdED, order);
+       if (ns->ed.nn_contr.rheotype == VCM) {
+           ns->ed.vesb.sdSBnA = sd_create(NULL);
+           sd_use_cache(ns->ed.vesb.sdSBnA, cache);
+           sd_set_interpolator_order(ns->ed.vesb.sdSBnA, order);
+           ns->ed.vesb.sdSBnB = sd_create(NULL);
+           sd_use_cache(ns->ed.vesb.sdSBnB, cache);
+           sd_set_interpolator_order(ns->ed.vesb.sdSBnB, order);
+       }
+    }
+    ns->ed.vesb.problem = problem;
+}
+
 void higflow_create_domain_viscoelastic_shear_banding (higflow_solver *ns, int cache, int order,
     real (*get_tensor)(Point center, int i, int j, real t),
     real (*get_tensor_A)(Point center, int i, int j, real t),
@@ -770,71 +790,43 @@ void higflow_create_domain_viscoelastic_shear_banding (higflow_solver *ns, int c
     real (*get_cB)(Point center, real t, real CBeq, real chi, real ANA),
     real (*get_boundary_nA)(int id, Point center, real t),
     real (*get_boundary_nB)(int id, Point center, real t)) {
-    if ((ns->contr.flowtype == 7)) {
-       // simulation domain (SD) extra domain
-       ns->ed.sdED = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.sdED, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.sdED, order);
-       // function for the domain
-       ns->ed.vesb.get_tensor          = get_tensor;
-       if (ns->ed.nn_contr.rheotype == VCM) {
-           //Get the function for tensor_A
-           ns->ed.vesb.get_tensor_A = get_tensor_A;
-           //Get the function for tensor_B
-           ns->ed.vesb.get_tensor_B = get_tensor_B;
-           //Get the function for nA
-           ns->ed.vesb.get_nA = get_nA;
-           //Get the function for nB
-           ns->ed.vesb.get_nB = get_nB;
-           //Get the function for cA
-           ns->ed.vesb.get_cA = get_cA;
-           //Get the function for cB
-           ns->ed.vesb.get_cB = get_cB;
-           // function for the boundary density number of specie A
-           ns->ed.vesb.get_boundary_nA = get_boundary_nA;
-           // function for the boundary density number of specie B
-           ns->ed.vesb.get_boundary_nB = get_boundary_nB;
-           // simulation domain (SB) for nA
-           ns->ed.vesb.sdSBnA = sd_create(NULL);
-           //reuse interpolation, 0 on, 1 off
-           sd_use_cache(ns->ed.vesb.sdSBnA, cache);      
-           //Sets the order of the interpolation to bhe used for the SD. 
-           sd_set_interpolator_order(ns->ed.vesb.sdSBnA, order);
-           // simulation domain (SB) for nB
-           ns->ed.vesb.sdSBnB = sd_create(NULL);
-           //reuse interpolation, 0 on, 1 off
-           sd_use_cache(ns->ed.vesb.sdSBnB, cache);      
-           //Sets the order of the interpolation to bhe used for the SD. 
-           sd_set_interpolator_order(ns->ed.vesb.sdSBnB, order);
-       }
-    }
+    HigFlowLegacyShearBanding *legacy = new HigFlowLegacyShearBanding();
+    legacy->fn_tensor      = get_tensor;
+    legacy->fn_tensor_A    = get_tensor_A;
+    legacy->fn_tensor_B    = get_tensor_B;
+    legacy->fn_nA          = get_nA;
+    legacy->fn_nB          = get_nB;
+    legacy->fn_cA          = get_cA;
+    legacy->fn_cB          = get_cB;
+    legacy->fn_boundary_nA = get_boundary_nA;
+    legacy->fn_boundary_nB = get_boundary_nB;
+    higflow_create_domain_viscoelastic_shear_banding(ns, cache, order, legacy);
 }
 
 
 // Create the simulation domain for elastoviscoplastic flow
+// Versao por objeto.
+void higflow_create_domain_elastoviscoplastic(higflow_solver *ns, int cache, int order,
+                                     HigFlowElastoviscoplasticProblem *problem) {
+    if ((ns->contr.flowtype == 8)) {
+       ns->ed.sdED = sd_create(NULL);
+       sd_use_cache(ns->ed.sdED, cache);
+       sd_set_interpolator_order(ns->ed.sdED, order);
+    }
+    ns->ed.vepl.problem = problem;
+}
+
 void higflow_create_domain_elastoviscoplastic (higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t),
 real (*get_kernel)(int dim, real lambda, real tol),
 real (*get_kernel_inverse)(int dim, real lambda, real tol),
 real (*get_kernel_jacobian)(int dim, real lambda, real tol)) {
-    if ((ns->contr.flowtype == 8)) {
-       // simulation domain (SD) extra domain
-       ns->ed.sdED = sd_create(NULL);
-       //reuse interpolation, 0 on, 1 off
-       sd_use_cache(ns->ed.sdED, cache);      
-       //Sets the order of the interpolation to bhe used for the SD. 
-       sd_set_interpolator_order(ns->ed.sdED, order);
-       // function for the domain
-       ns->ed.vepl.get_tensor          = get_tensor;
-       // function for the kernel transformation
-       ns->ed.vepl.get_kernel          = get_kernel;
-       // function for the inverse kernel transformation
-       ns->ed.vepl.get_kernel_inverse  = get_kernel_inverse;
-       // function for the kernel transformation jacobian
-       ns->ed.vepl.get_kernel_jacobian = get_kernel_jacobian;
-    }
+    HigFlowLegacyElastoviscoplastic *legacy = new HigFlowLegacyElastoviscoplastic();
+    legacy->fn_tensor          = get_tensor;
+    legacy->fn_kernel          = get_kernel;
+    legacy->fn_kernel_inverse  = get_kernel_inverse;
+    legacy->fn_kernel_jacobian = get_kernel_jacobian;
+    higflow_create_domain_elastoviscoplastic(ns, cache, order, legacy);
 }
 
 // Define the user function for viscoelastic flow
@@ -848,40 +840,33 @@ void (*calculate_m_user)(real Re, real De, real beta, real Bi, real zeta, real e
 
 
 // Create the simulation domain for shear-thickening suspension flow
+// Versao por objeto.  Prepara DOIS dominios: sdED e stsp.sdphi.
+void higflow_create_domain_shear_thickening_suspension(higflow_solver *ns, int cache, int order,
+                                     HigFlowSuspensionProblem *problem) {
+    if ((ns->contr.flowtype == 9)) {
+        ns->ed.sdED = sd_create(NULL);
+        sd_use_cache(ns->ed.sdED, cache);
+        sd_set_interpolator_order(ns->ed.sdED, order);
+        ns->ed.stsp.sdphi = sd_create(NULL);
+        sd_use_cache(ns->ed.stsp.sdphi, cache);
+        sd_set_interpolator_order(ns->ed.stsp.sdphi, order);
+    }
+    ns->ed.stsp.problem = problem;
+}
+
 void higflow_create_domain_shear_thickening_suspension (higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t),
 real (*get_tensor_A)(Point center, int i, int j, real t),
 real (*get_X)(Point center, real t, real X0, real chi, real chi_J),
 real (*get_vol_frac)(Point center, real t),
 real (*get_alpha)(Point center, real t, real alpha, real phi, real phircp)) {
-    if ((ns->contr.flowtype == 9)) {
-        // simulation domain (SD) extra domain
-        ns->ed.sdED = sd_create(NULL);
-        //reuse interpolation, 0 on, 1 off
-        sd_use_cache(ns->ed.sdED, cache);      
-        //Sets the order of the interpolation to bhe used for the SD. 
-        sd_set_interpolator_order(ns->ed.sdED, order);
-        // function for the domain
-        ns->ed.stsp.get_tensor          = get_tensor;
-        // function for the microstructure tensor
-        ns->ed.stsp.get_tensor_A        = get_tensor_A;
-        // function for the X-term direct interparticle forces
-        ns->ed.stsp.get_X  = get_X;
-        //printf("=+=+=+= WE ARE HERE AFTER creating the domain =+=+=+=\n");
-        //Only for th model that considers particle migration
-        //printf("=+=+=+= WE ARE HERE BEFORE creating the domain =+=+=+=\n");
-        //printf("=+=+=+= WE ARE HERE AFTER creating the domain =+=+=+=\n");
-        // simulation domain for viscosity
-        ns->ed.stsp.sdphi = sd_create(NULL);
-        //reuse interpolation, 0 on, 1 off
-        sd_use_cache(ns->ed.stsp.sdphi, cache);      
-        //Sets the order of the interpolation to bhe used for the SD. 
-        sd_set_interpolator_order(ns->ed.stsp.sdphi, order);
-        // volume fraction value for the domain
-        ns->ed.stsp.get_vol_frac = get_vol_frac;
-        // volume fraction value for the domain
-        ns->ed.stsp.get_alpha    = get_alpha;
-    }
+    HigFlowLegacySuspension *legacy = new HigFlowLegacySuspension();
+    legacy->fn_tensor   = get_tensor;
+    legacy->fn_tensor_A = get_tensor_A;
+    legacy->fn_X        = get_X;
+    legacy->fn_vol_frac = get_vol_frac;
+    legacy->fn_alpha    = get_alpha;
+    higflow_create_domain_shear_thickening_suspension(ns, cache, order, legacy);
 }
 
 // Create the partitioned simulation sub-domain for NS object

@@ -186,7 +186,7 @@ void higflow_compute_viscoelastic_shear_banding_cA_VCM(higflow_solver *ns) {
             }
 
             // Calculate the breakage rate of specie A
-            real cA = ns->ed.vesb.get_cA(ccenter, ns->par.t, CAeq, chi, ANAD);
+            real cA = ns->ed.vesb.problem->cA(ccenter, ns->par.t, CAeq, chi, ANAD);
             //Check to see min and max viscosity values
             if (cA > CAmax) CAmax = cA;
             if (cA < CAmin) CAmin = cA;
@@ -242,7 +242,7 @@ void higflow_compute_viscoelastic_shear_banding_cB_VCM(higflow_solver *ns) {
             //real TD = TS[0][1]*D[0][1] + TS[1][0]*D[1][0];
             real ANAD = 0.0;
             // Calculate the breakage rate of specie A
-            real cB = ns->ed.vesb.get_cB(ccenter, ns->par.t, CBeq, chi, ANAD);
+            real cB = ns->ed.vesb.problem->cB(ccenter, ns->par.t, CBeq, chi, ANAD);
             if (cB > CBmax) CBmax = cB;
             if (cB < CBmin) CBmin = cB;
             // Set the viscosity in the distributed viscosity property

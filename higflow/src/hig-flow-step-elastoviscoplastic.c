@@ -139,7 +139,7 @@ void higflow_compute_polymeric_tensor_elastoviscoplastic(higflow_solver *ns) {
                     B[i][j] = 0.0;
                     B[j][i] = 0.0;
                 }
-                B[i][i] = ns->ed.vepl.get_kernel_inverse(i, lambda[i], tol);
+                B[i][i] = ns->ed.vepl.problem->kernel_inverse(i, lambda[i], tol);
             }
             // Calculate A matrix >> A = R B R^t
             // D = 0.5*(Du + Du^t)
@@ -1469,7 +1469,7 @@ void hig_flow_calculate_kernel (higflow_solver *ns, real lambda[DIM], real R[DIM
            Kernel_aux[i][j] = 0.0;
            Kernel_aux[j][i] = 0.0;
        }
-       Kernel_aux[i][i] = ns->ed.vepl.get_kernel(i, lambda[i], tol);
+       Kernel_aux[i][i] = ns->ed.vepl.problem->kernel(i, lambda[i], tol);
    }
    // Calculate Kernel matrix >> Kernel = R Kernel_aux R^t
    hig_flow_matrix_transpose_product(Kernel_aux, R, Kernel);
@@ -1486,7 +1486,7 @@ void hig_flow_calculate_b (higflow_solver *ns, real lambda[DIM], real R[DIM][DIM
             B_aux[i][j] = 0.0;
             B_aux[j][i] = 0.0;
         }
-        real jlambda = ns->ed.vepl.get_kernel_jacobian(i, lambda[i], tol);
+        real jlambda = ns->ed.vepl.problem->kernel_jacobian(i, lambda[i], tol);
         B_aux[i][i]  = M[i][i]*lambda[i]*jlambda;
     }
     // Calculate Kernel matrix >> BB = R Btilde Lambda JLambda R^t
@@ -1519,7 +1519,7 @@ void hig_flow_calculate_m_oldroyd_bingham (higflow_solver *ns, real lambda[DIM],
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        jlambda[i]   = ns->ed.vepl.get_kernel_jacobian(i, lambda[i], tol);
+        jlambda[i]   = ns->ed.vepl.problem->kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = F_SD*(1.0-lambda[i])*jlambda[i];
     }
     //Including the term of the Gordon-Schowalter derivative
@@ -1564,7 +1564,7 @@ void hig_flow_calculate_m_oldroyd_HB (higflow_solver *ns, real lambda[DIM], real
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        jlambda[i]   = ns->ed.vepl.get_kernel_jacobian(i, lambda[i], tol);
+        jlambda[i]   = ns->ed.vepl.problem->kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = F_SD*(1.0-lambda[i])*jlambda[i];
     }
     //Including the term of the Gordon-Schowalter derivative
@@ -1601,7 +1601,7 @@ void hig_flow_calculate_m_lptt_bingham (higflow_solver *ns, real tr, real lambda
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        jlambda[i]   = ns->ed.vepl.get_kernel_jacobian(i, lambda[i], tol);
+        jlambda[i]   = ns->ed.vepl.problem->kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = F_SD*(1.0-lambda[i])*(1.0+(ns->ed.vepl.par.epsilon*ns->par.Re*ns->ed.vepl.par.De*tr)/(1.0-ns->ed.vepl.par.beta))*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {
@@ -1636,7 +1636,7 @@ void hig_flow_calculate_m_eptt_bingham (higflow_solver *ns, real tr, real lambda
             M_aux[i][j] = 0.0;
             M_aux[j][i] = 0.0;
         }
-        jlambda[i]   = ns->ed.vepl.get_kernel_jacobian(i, lambda[i], tol);
+        jlambda[i]   = ns->ed.vepl.problem->kernel_jacobian(i, lambda[i], tol);
         M_aux[i][i]  = F_SD*(1.0-lambda[i])*exp((ns->ed.vepl.par.epsilon*ns->par.Re*ns->ed.vepl.par.De*tr)/(1.0-ns->ed.vepl.par.beta))*jlambda[i];
     }
     for (int i = 0; i < DIM; i++) {

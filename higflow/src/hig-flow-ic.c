@@ -936,7 +936,7 @@ void higflow_initialize_shear_banding_nA(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for nA in this cell
-        real val = ns->ed.vesb.get_nA(center, ns->par.t);
+        real val = ns->ed.vesb.problem->nA(center, ns->par.t);
         // Set the value for distributed property
         dp_set_value(ns->ed.vesb.dpnA, cgid, val);
     }
@@ -964,7 +964,7 @@ void higflow_initialize_shear_banding_nB(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for nB in this cell
-        real val = ns->ed.vesb.get_nB(center, ns->par.t);
+        real val = ns->ed.vesb.problem->nB(center, ns->par.t);
         // Set the value for distributed property
         dp_set_value(ns->ed.vesb.dpnB, cgid, val);
     }
@@ -994,7 +994,7 @@ void higflow_initialize_shear_banding_cA(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for pressure in this cell
-        real val = ns->ed.vesb.get_cA(center, ns->par.t, CAeq, chi, 0.0);;
+        real val = ns->ed.vesb.problem->cA(center, ns->par.t, CAeq, chi, 0.0);;
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.vesb.dpcA, cgid, val);
     }
@@ -1024,7 +1024,7 @@ void higflow_initialize_shear_banding_cB(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for pressure in this cell
-        real val = ns->ed.vesb.get_cB(center, ns->par.t, CBeq, chi, 0.0);;
+        real val = ns->ed.vesb.problem->cB(center, ns->par.t, CBeq, chi, 0.0);;
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.vesb.dpcB, cgid, val);
     }
@@ -1057,7 +1057,7 @@ void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.vesb.get_tensor(center, i, j, ns->par.t);
+                    real val = ns->ed.vesb.problem->tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.vesb.dpS[i][j], cgid, val);
                 }
@@ -1096,7 +1096,7 @@ void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) 
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.vesb.get_tensor_A(center, i, j, ns->par.t);
+                    real val = ns->ed.vesb.problem->tensor_A(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.vesb.dpA[i][j], cgid, val);
                 }
@@ -1135,7 +1135,7 @@ void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) 
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.vesb.get_tensor_B(center, i, j, ns->par.t);
+                    real val = ns->ed.vesb.problem->tensor_B(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.vesb.dpB[i][j], cgid, val);
                 }
@@ -1174,7 +1174,7 @@ void higflow_initialize_elastoviscoplastic_tensor(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.vepl.get_tensor(center, i, j, ns->par.t);
+                    real val = ns->ed.vepl.problem->tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.vepl.dpS[i][j], cgid, val);
                 }
@@ -1213,7 +1213,7 @@ void higflow_initialize_shear_thickening_suspension_tensor(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.stsp.get_tensor(center, i, j, ns->par.t);
+                    real val = ns->ed.stsp.problem->tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.stsp.dpS[i][j], cgid, val);
                 }
@@ -1252,7 +1252,7 @@ void higflow_initialize_shear_thickening_suspension_microstructure_tensor(higflo
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.stsp.get_tensor_A(center, i, j, ns->par.t);
+                    real val = ns->ed.stsp.problem->tensor_A(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.stsp.dpA[i][j], cgid, val);
                 }
@@ -1287,7 +1287,7 @@ void higflow_initialize_volume_fraction(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for structural parameter in this cell
-        real val = ns->ed.stsp.get_vol_frac(center, ns->par.t);
+        real val = ns->ed.stsp.problem->vol_frac(center, ns->par.t);
         //printf("===> volfrac = %lf <===\n", val);
         // Set the value for structural parameter distributed property
         dp_set_value(ns->ed.stsp.dpphi, cgid, val);

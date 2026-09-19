@@ -295,4 +295,85 @@ public:
     real permittivity(real f, Point c, real t)            { return fn_permittivity(f, c, t); }
 };
 
+// --- viscoelastico com bandas de cisalhamento (modelo VCM)
+class HigFlowShearBandingProblem {
+public:
+    virtual ~HigFlowShearBandingProblem() {}
+    virtual real tensor(Point center, int i, int j, real t) = 0;
+    virtual real tensor_A(Point center, int i, int j, real t) = 0;
+    virtual real tensor_B(Point center, int i, int j, real t) = 0;
+    virtual real nA(Point center, real t) = 0;
+    virtual real nB(Point center, real t) = 0;
+    virtual real cA(Point center, real t, real CAeq, real chi, real ANA) = 0;
+    virtual real cB(Point center, real t, real CBeq, real chi, real ANA) = 0;
+    virtual real boundary_nA(int id, Point center, real t) = 0;
+    virtual real boundary_nB(int id, Point center, real t) = 0;
+};
+class HigFlowLegacyShearBanding : public HigFlowShearBandingProblem {
+public:
+    real (*fn_tensor)(Point, int, int, real);
+    real (*fn_tensor_A)(Point, int, int, real);
+    real (*fn_tensor_B)(Point, int, int, real);
+    real (*fn_nA)(Point, real);
+    real (*fn_nB)(Point, real);
+    real (*fn_cA)(Point, real, real, real, real);
+    real (*fn_cB)(Point, real, real, real, real);
+    real (*fn_boundary_nA)(int, Point, real);
+    real (*fn_boundary_nB)(int, Point, real);
+    real tensor(Point c, int i, int j, real t)   { return fn_tensor(c, i, j, t); }
+    real tensor_A(Point c, int i, int j, real t) { return fn_tensor_A(c, i, j, t); }
+    real tensor_B(Point c, int i, int j, real t) { return fn_tensor_B(c, i, j, t); }
+    real nA(Point c, real t)                     { return fn_nA(c, t); }
+    real nB(Point c, real t)                     { return fn_nB(c, t); }
+    real cA(Point c, real t, real e, real x, real a) { return fn_cA(c, t, e, x, a); }
+    real cB(Point c, real t, real e, real x, real a) { return fn_cB(c, t, e, x, a); }
+    real boundary_nA(int id, Point c, real t)    { return fn_boundary_nA(id, c, t); }
+    real boundary_nB(int id, Point c, real t)    { return fn_boundary_nB(id, c, t); }
+};
+
+// --- elastoviscoplastico
+class HigFlowElastoviscoplasticProblem {
+public:
+    virtual ~HigFlowElastoviscoplasticProblem() {}
+    virtual real tensor(Point center, int i, int j, real t) = 0;
+    virtual real kernel(int dim, real lambda, real tol) = 0;
+    virtual real kernel_inverse(int dim, real lambda, real tol) = 0;
+    virtual real kernel_jacobian(int dim, real lambda, real tol) = 0;
+};
+class HigFlowLegacyElastoviscoplastic : public HigFlowElastoviscoplasticProblem {
+public:
+    real (*fn_tensor)(Point, int, int, real);
+    real (*fn_kernel)(int, real, real);
+    real (*fn_kernel_inverse)(int, real, real);
+    real (*fn_kernel_jacobian)(int, real, real);
+    real tensor(Point c, int i, int j, real t)    { return fn_tensor(c, i, j, t); }
+    real kernel(int d, real l, real tol)          { return fn_kernel(d, l, tol); }
+    real kernel_inverse(int d, real l, real tol)  { return fn_kernel_inverse(d, l, tol); }
+    real kernel_jacobian(int d, real l, real tol) { return fn_kernel_jacobian(d, l, tol); }
+};
+
+// --- suspensao que engrossa sob cisalhamento
+class HigFlowSuspensionProblem {
+public:
+    virtual ~HigFlowSuspensionProblem() {}
+    virtual real tensor(Point center, int i, int j, real t) = 0;
+    virtual real tensor_A(Point center, int i, int j, real t) = 0;
+    virtual real X(Point center, real t, real X0, real chi, real chi_J) = 0;
+    virtual real vol_frac(Point center, real t) = 0;
+    virtual real alpha(Point center, real t, real alpha, real phi, real phircp) = 0;
+};
+class HigFlowLegacySuspension : public HigFlowSuspensionProblem {
+public:
+    real (*fn_tensor)(Point, int, int, real);
+    real (*fn_tensor_A)(Point, int, int, real);
+    real (*fn_X)(Point, real, real, real, real);
+    real (*fn_vol_frac)(Point, real);
+    real (*fn_alpha)(Point, real, real, real, real);
+    real tensor(Point c, int i, int j, real t)   { return fn_tensor(c, i, j, t); }
+    real tensor_A(Point c, int i, int j, real t) { return fn_tensor_A(c, i, j, t); }
+    real X(Point c, real t, real x0, real x, real xj) { return fn_X(c, t, x0, x, xj); }
+    real vol_frac(Point c, real t)               { return fn_vol_frac(c, t); }
+    real alpha(Point c, real t, real a, real p, real pr) { return fn_alpha(c, t, a, p, pr); }
+};
+
 #endif

@@ -357,7 +357,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
                     chi = tol_chi;
                 }
 
-                real Xchi = ns->ed.stsp.get_X(ccenter, ns->par.t, X0, chi, chi_J);
+                real Xchi = ns->ed.stsp.problem->X(ccenter, ns->par.t, X0, chi, chi_J);
                 // Check to see min and max values of Xchi
                 if (Xchi > chiJmax)
                     chiJmax = Xchi;
@@ -398,7 +398,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
                     varphi = 0.0;
                 }
                 //DEBUG_INSPECT(varphi,%lf);
-                real alphaVF = ns->ed.stsp.get_alpha(ccenter, ns->par.t, alpha, varphi, phircp);
+                real alphaVF = ns->ed.stsp.problem->alpha(ccenter, ns->par.t, alpha, varphi, phircp);
                 //DEBUG_INSPECT(alphaVF,%lf);
                 if (alphaVF > alphamax)
                     alphamax = alphaVF;
@@ -483,7 +483,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
                 if (tol2chi <= tol_chi){
                     chi = (1.0-tol_chi)*chi_J;
                 }
-                real Xchi = ns->ed.stsp.get_X(ccenter, ns->par.t, X0, chi, chi_J);
+                real Xchi = ns->ed.stsp.problem->X(ccenter, ns->par.t, X0, chi, chi_J);
                 // Check to see min and max values of Xchi
                 if (Xchi > chiJmax)
                     chiJmax = Xchi;
@@ -577,7 +577,7 @@ void higflow_compute_polymeric_tensor_shear_thickening_suspension(higflow_solver
                 //DEBUG_INSPECT(fPi,%lf);
                 //Calculation of the jamming point Chi_J
                 real chi_J = (1.0-fPi)*chij1 + fPi*chij2;
-                real Xchi = ns->ed.stsp.get_X(ccenter, ns->par.t, X0, chi, chi_J);
+                real Xchi = ns->ed.stsp.problem->X(ccenter, ns->par.t, X0, chi, chi_J);
                 //Check to see min and max values of Xchi
                 if (Xchi > chiJmax) chiJmax = Xchi;
                 if (Xchi < chiJmin) chiJmin = Xchi;
@@ -954,7 +954,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
                 if (chi >= tol_chi){
                     chi = tol_chi;
                 }
-                real Xchi = ns->ed.stsp.get_X(ccenter, ns->par.t, X0, chi, chi_J);
+                real Xchi = ns->ed.stsp.problem->X(ccenter, ns->par.t, X0, chi, chi_J);
                 // Check to see min and max values of Xchi
                 if (Xchi > chiJmax)
                     chiJmax = Xchi;
@@ -995,7 +995,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
                     varphi = 0.0;
                 }
                 //DEBUG_INSPECT(varphi,%lf);
-                real alphaVF = ns->ed.stsp.get_alpha(ccenter, ns->par.t, alpha, varphi, phircp);
+                real alphaVF = ns->ed.stsp.problem->alpha(ccenter, ns->par.t, alpha, varphi, phircp);
                 //DEBUG_INSPECT(alphaVF,%lf);
                 if (alphaVF > alphamax)
                     alphamax = alphaVF;
@@ -1072,7 +1072,7 @@ void higflow_compute_particle_stress_tensor_shear_thickening_suspension(higflow_
                 if (chi >= tol_chi){
                     chi = tol_chi;
                 }
-                real Xchi = ns->ed.stsp.get_X(ccenter, ns->par.t, X0, chi, chi_J);
+                real Xchi = ns->ed.stsp.problem->X(ccenter, ns->par.t, X0, chi, chi_J);
                 // Check to see min and max values of Xchi
                 if (Xchi > chiJmax)
                     chiJmax = Xchi;
