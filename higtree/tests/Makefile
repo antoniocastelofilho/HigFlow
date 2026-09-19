@@ -6,7 +6,13 @@
 #
 # Uso: make DIM=2   ou   make DIM=3   (a partir de higtree/tests)
 
+# Tres variantes porque o caminho mudou entre versoes do PETSc.  So' a terceira
+# resolve no 3.25; a segunda, sozinha, deixava PETSC_LIB VAZIO -- e isso so'
+# aparecia ao ligar um teste que referencia PETSc (o paralelo, via
+# higtree_initialize), como `undefined reference to PetscFinalize`.
+-include ${PETSC_DIR}/conf/variables
 -include ${PETSC_DIR}/lib/petsc-conf/petscvariables
+-include ${PETSC_DIR}/lib/petsc/conf/petscvariables
 include ../Makefile.common
 
 ifndef DIM
@@ -45,18 +51,28 @@ endif
 CC = mpic++
 
 CFLAGS  = -std=gnu++17 -g -O0 -Wall
-CFLAGS += $(shell pkg-config --cflags glib-2.0)
+# O hdf5 entra porque `lbal.h` inclui `higtree-io.h`.  So' o teste paralelo precisa
+# do lbal.h, mas a flag e' inofensiva para os demais e evita um segundo conjunto de
+# regras.  Sem ela o erro e' `hdf5.h: No such file or directory`, que aponta para um
+# cabecalho que ninguem escreveu no teste.
+CFLAGS += $(shell pkg-config --cflags glib-2.0 hdf5)
 CFLAGS += $(PETSC_CC_INCLUDES)
 CFLAGS += -I$(SRCPATH) -I.
 CFLAGS += -DDIM=$(DIM)
 
-LDFLAGS = $(shell pkg-config --libs-only-L --libs-only-other glib-2.0)
+LDFLAGS = $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
 LDFLAGS+= -L$(LIBPATH)
 
 LIBS  = -lhig$(DIM)d
-LIBS += $(shell pkg-config --libs-only-l glib-2.0)
+LIBS += $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
+LIBS += -lhdf5
 LIBS += $(PETSC_LIB)
 LIBS += $(PETSC_EXTRA_LIB)
+# O balanceador (lbal.c) chama o Zoltan; so' o teste paralelo o alcança, mas o
+# linker resolve por binario e nao por teste.  O nome da biblioteca no sistema e'
+# `trilinos_zoltan` -- nao `zoltan`, e nao `trinilos_zoltan`, que e' um erro de
+# digitacao que sobrevive no higflow/Makefile por ali so' se arquivar um .a.
+LIBS += -ltrilinos_zoltan
 LIBS += -lm
 
 TESTS  = test-stencil-value
@@ -68,6 +84,7 @@ TESTS += test-boundary-path
 TESTS += test-facet-domain-serial
 TESTS += test-cell-queries
 TESTS += test-fringe-support
+TESTS += test-fringe-parallel
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

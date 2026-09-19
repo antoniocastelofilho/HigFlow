@@ -32,9 +32,19 @@ TESTDIR = os.path.join(HIGTREE, "tests")
 
 
 class Test:
-    def __init__(self, name, dims=(2, 3)):
+    def __init__(self, name, dims=(2, 3), nps=(1,), mpi=False):
         self.name = name
         self.dims = dims
+        # `mpi` diz que o binario chama higtree_initialize.  Ele entao SEMPRE vai
+        # por mpirun, inclusive em np=1: rodado direto, o MPI_Init trava sem
+        # imprimir nada e o teste aparece como timeout, nao como falha.
+        self.mpi = mpi
+        # Numeros de processos a exercitar.  O padrao e' (1,): a maioria dos testes
+        # nao chama MPI_Init e, lancada sob mpirun, travaria.  Quem declara np>1 TEM
+        # de chamar higtree_initialize e reduzir os veredictos entre os ranks antes
+        # de imprimir -- senao cada rank imprime a sua versao e falha de um rank
+        # some no meio das linhas dos outros.
+        self.nps = nps
 
 
 TESTS = [
@@ -79,6 +89,13 @@ TESTS = [
     # build-fringe.cpp sao 815 linhas sem cobertura, e quando o t8code entrar ele
     # traz a propria camada de ghost -- o contrato precisa estar escrito antes.
     Test("test-fringe-support", dims=(2, 3)),
+
+    # A franja sob particionamento REAL.  O teste serial acima monta a franja a
+    # mao e afirma o contrato dela; este exercita quem a PRODUZ -- o
+    # build-fringe.cpp e o balanceador --, que so' rodam sob MPI.  Unico teste
+    # da suite com np>1: chama higtree_initialize e reduz os dados entre ranks
+    # antes de concluir, no rank 0.
+    Test("test-fringe-parallel", dims=(2, 3), nps=(1, 2, 3), mpi=True),
 ]
 
 
@@ -142,14 +159,18 @@ CASO = re.compile(r"^caso (\S+) (PASS|FAIL) ?(.*)$")
 RESUMO = re.compile(r"^resumo (\d+) casos, (\d+) falharam$")
 
 
-def run_test(test, dim, timeout):
+def run_test(test, dim, np, timeout):
     """Run one binary.  Returns (cases, erro) with cases a list of
     (name, ok, detail).  `erro` is set when the binary did not report at all."""
     exe = os.path.join(TESTDIR, "%s-%dd" % (test.name, dim))
     if not os.path.exists(exe):
         return [], "binario nao construido"
+    if np == 1 and not test.mpi:
+        cmd = [exe]
+    else:
+        cmd = ["mpirun", "-use-hwthread-cpus", "-n", str(np), exe]
     try:
-        r = subprocess.run([exe], capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return [], "timeout apos %ds" % timeout
 
@@ -198,7 +219,8 @@ def main():
     if descasados:
         print()
 
-    print("%-26s %-4s %-34s %-7s %s" % ("TESTE", "DIM", "CASO", "RESULT", "DETALHE"))
+    print("%-26s %-4s %-3s %-34s %-7s %s"
+          % ("TESTE", "DIM", "NP", "CASO", "RESULT", "DETALHE"))
     print("-" * 100)
 
     total = falhas = 0
@@ -209,19 +231,20 @@ def main():
         if not args.no_build:
             ok, err = build_for_dim(dim, args.timeout)
             if not ok:
-                print("%-26s %-4d %-34s %-7s %s"
-                      % ("(build)", dim, "", "ERRO", err))
+                print("%-26s %-4d %-3s %-34s %-7s %s"
+                      % ("(build)", dim, "-", "", "ERRO", err))
                 falhas += 1
                 continue
         for t in alvos:
-            cases, erro = run_test(t, dim, args.timeout)
+          for np in t.nps:
+            cases, erro = run_test(t, dim, np, args.timeout)
             # Um caso pode emitir VARIAS linhas de falha, uma por assercao.  A
             # contagem e' por CASO, nao por linha: "2 de 11" quando ha' 6 casos
             # mistura as duas unidades e o total deixa de significar algo.  As
             # linhas de detalhe continuam todas visiveis.
             for nome, ok, detalhe in cases:
-                print("%-26s %-4d %-34s %-7s %s"
-                      % (t.name, dim, nome, "ok" if ok else "FAIL", detalhe))
+                print("%-26s %-4d %-3d %-34s %-7s %s"
+                      % (t.name, dim, np, nome, "ok" if ok else "FAIL", detalhe))
             por_caso = {}
             for nome, ok, _ in cases:
                 por_caso[nome] = por_caso.get(nome, True) and ok
@@ -229,7 +252,8 @@ def main():
             falhas += sum(1 for ok in por_caso.values() if not ok)
             if erro:
                 falhas += 1
-                print("%-26s %-4d %-34s %-7s %s" % (t.name, dim, "", "ERRO", erro))
+                print("%-26s %-4d %-3d %-34s %-7s %s"
+                      % (t.name, dim, np, "", "ERRO", erro))
 
     print("-" * 100)
     print("%d de %d caso(s) passaram" % (total - falhas, total))
