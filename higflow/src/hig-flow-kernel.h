@@ -259,6 +259,7 @@ typedef struct higflow_gen_newtonian{
     distributed_property *dpvisc;
     // Function to get the viscosity
     real (*get_viscosity)(Point center, real q, real t);
+    HigFlowGenNewtonianProblem *problem;
 } higflow_gen_newtonian;
 
 
@@ -585,6 +586,7 @@ typedef struct higflow_viscoelastic_integral{
     distributed_property *dpS[DIM][DIM];
     // Function to get the tensor
     real (*get_tensor)(Point center, int i, int j, real t);
+    HigFlowIntegralProblem *problem;
 } higflow_viscoelastic_integral;
 
 // Parameters for simulation of viscoelastic flows with variable viscosity
@@ -1279,6 +1281,9 @@ void higflow_realloc_solver(higflow_solver *ns);
 void higflow_create_domain (higflow_solver *ns, int cache, int order); 
 
 // Create the simulation domain for generalized newtonian flow
+void higflow_create_domain_generalized_newtonian(higflow_solver *ns, int cache, int order,
+                                     HigFlowGenNewtonianProblem *problem);
+
 void higflow_create_domain_generalized_newtonian (higflow_solver *ns, int cache, int order, real (*get_viscosity)(Point center, real q, real t)); 
 
 // Create the simulation domain for multiphase flow
@@ -1325,6 +1330,9 @@ void (*calculate_m_user)(real lambda[DIM], real jlambda[DIM],real M_aux[DIM][DIM
 
 
 // Create the simulation domain for viscoelastic flow integral model
+void higflow_create_domain_viscoelastic_integral(higflow_solver *ns, int cache, int order,
+                                     HigFlowIntegralProblem *problem);
+
 void higflow_create_domain_viscoelastic_integral (higflow_solver *ns, int cache, int order,
 real (*get_tensor)(Point center, int i, int j, real t));
 

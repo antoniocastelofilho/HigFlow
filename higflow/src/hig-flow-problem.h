@@ -146,4 +146,28 @@ public:
     real kernel_jacobian(int d, real l, real tol) { return fn_kernel_jacobian(d, l, tol); }
 };
 
+// --- generalized newtonian: so' a viscosidade
+class HigFlowGenNewtonianProblem {
+public:
+    virtual ~HigFlowGenNewtonianProblem() {}
+    virtual real viscosity(Point center, real q, real t) = 0;
+};
+class HigFlowLegacyGenNewtonian : public HigFlowGenNewtonianProblem {
+public:
+    real (*fn_viscosity)(Point, real, real);
+    real viscosity(Point c, real q, real t) { return fn_viscosity(c, q, t); }
+};
+
+// --- viscoelastico integral: so' o tensor inicial
+class HigFlowIntegralProblem {
+public:
+    virtual ~HigFlowIntegralProblem() {}
+    virtual real tensor(Point center, int i, int j, real t) = 0;
+};
+class HigFlowLegacyIntegral : public HigFlowIntegralProblem {
+public:
+    real (*fn_tensor)(Point, int, int, real);
+    real tensor(Point c, int i, int j, real t) { return fn_tensor(c, i, j, t); }
+};
+
 #endif

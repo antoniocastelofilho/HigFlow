@@ -14,12 +14,6 @@ real tensormax11 = 0.0;
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
 
-// Value of the Tensor
-real get_tensor(Point center, int i, int j, real t) {
-    real value = 0.0;
-    return value; 
-}
-
 // Value of the Kernel
 real get_kernel(int dim, real lambda, real tol) {
     real value;
@@ -63,7 +57,7 @@ real get_kernel_jacobian(int dim, real lambda, real tol) {
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
 // Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class KbkzProblem : public HigFlowProblem {
+class KbkzProblem : public HigFlowProblem, public HigFlowIntegralProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -163,6 +157,13 @@ public:
     }
     // Value of the facet source term at boundary
     real boundary_facet_source_term(int id, Point center, int dim, real t) {
+        real value = 0.0;
+        return value; 
+    }
+
+    // --- viscoelastico integral ---
+    // Value of the Tensor
+    real tensor(Point center, int i, int j, real t) {
         real value = 0.0;
         return value; 
     }
@@ -316,7 +317,7 @@ int main (int argc, char *argv[]) {
     //    get_viscosity, get_boundary_viscosity); 
     //higflow_create_domain_viscoelastic(ns, cache, order_center,
     //    get_tensor, get_kernel, get_kernel_inverse, get_kernel_jacobian); 
-    higflow_create_domain_viscoelastic_integral(ns, cache, order_center, get_tensor); 
+    higflow_create_domain_viscoelastic_integral(ns, cache, order_center, &problema); 
     // Initialize the domain
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
     // define the user function for viscoelastic flow in case model is user set

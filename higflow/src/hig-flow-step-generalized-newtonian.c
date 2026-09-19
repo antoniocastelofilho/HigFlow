@@ -150,7 +150,7 @@ void higflow_compute_viscosity_gn(higflow_solver *ns) {
             }
             q         = sqrt(2.0*q);
             // Calculate the viscosity
-            real visc = ns->ed.gn.get_viscosity(ccenter, q, ns->par.t);
+            real visc = ns->ed.gn.problem->viscosity(ccenter, q, ns->par.t);
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.gn.dpvisc, clid, visc);
         }

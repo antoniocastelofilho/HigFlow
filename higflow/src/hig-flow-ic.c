@@ -282,7 +282,7 @@ void higflow_initialize_viscosity_gn(higflow_solver *ns) {
         Point center;
         hig_get_center(c, center);
         // Get the value for pressure in this cell
-        real val = ns->ed.gn.get_viscosity(center, 0.0, ns->par.t);
+        real val = ns->ed.gn.problem->viscosity(center, 0.0, ns->par.t);
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.gn.dpvisc, clid, val);
     }
@@ -567,7 +567,7 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
-                    real val = ns->ed.im.get_tensor(center, i, j, ns->par.t);
+                    real val = ns->ed.im.problem->tensor(center, i, j, ns->par.t);
                     // Set the value for tensor distributed property
                     dp_set_value(ns->ed.im.dpS[i][j], clid, val);
                 }
