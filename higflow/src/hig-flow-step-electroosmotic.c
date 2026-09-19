@@ -52,11 +52,11 @@ void higflow_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns) {
                         hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                         if(c) { // otherwise domain owns boundary but not its internal cells
                             fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus(fracvol, userid, bccenter, t);
+                            bcval = ns->ed.mult.eo.problem->boundary_nplus(fracvol, userid, bccenter, t);
                             sb_set_value(bc, bclid, bcval);
                         }
                     } else {
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_nplus(userid, bccenter, t);
+                        bcval = ns->ed.eo.problem->boundary_nplus(userid, bccenter, t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 }
@@ -109,11 +109,11 @@ void higflow_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns) {
                         hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                         if(c) { // otherwise domain owns boundary but not its internal cells
                             fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus(fracvol, userid, bccenter, t);
+                            bcval = ns->ed.mult.eo.problem->boundary_nminus(fracvol, userid, bccenter, t);
                             sb_set_value(bc, bclid, bcval);
                         }
                     } else {
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_nminus(userid, bccenter, t);
+                        bcval = ns->ed.eo.problem->boundary_nminus(userid, bccenter, t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 }
@@ -167,11 +167,11 @@ void higflow_boundary_condition_for_phi(higflow_solver *ns) {
                         hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                         if(c) { // otherwise domain owns boundary but not its internal cells
                             fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi(fracvol, userid, bccenter, t);
+                            bcval = ns->ed.mult.eo.problem->boundary_phi(fracvol, userid, bccenter, t);
                             sb_set_value(bc, bclid, bcval);
                         }
                     } else {
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_phi(userid, bccenter, t);
+                        bcval = ns->ed.eo.problem->boundary_phi(userid, bccenter, t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 }
@@ -225,11 +225,11 @@ void higflow_boundary_condition_for_psi(higflow_solver *ns) {
                         hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                         if(c) { // otherwise domain owns boundary but not its internal cells
                             fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi(fracvol, userid, bccenter, t);
+                            bcval = ns->ed.mult.eo.problem->boundary_psi(fracvol, userid, bccenter, t);
                             sb_set_value(bc, bclid, bcval);
                         }
                     } else {
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_psi(userid, bccenter, t);
+                        bcval = ns->ed.eo.problem->boundary_psi(userid, bccenter, t);
                         sb_set_value(bc, bclid, bcval);
                     }
                     // Set the value 
@@ -1553,16 +1553,16 @@ void higflow_electroosmotic_phi(higflow_solver *ns) {
             // Stencil point update
             Point p;
             POINT_ASSIGN(p, ccenter);
-            real perm = ns->ed.eo.get_permittivity(p, ns->par.t);
+            real perm = ns->ed.eo.problem->permittivity(p, ns->par.t);
             // Stencil point update: right point
             p[dim] = ccenter[dim] + cdelta[dim];
-            real permr = ns->ed.eo.get_permittivity(p, ns->par.t);
+            real permr = ns->ed.eo.problem->permittivity(p, ns->par.t);
             real permrc = 0.5*(perm + permr);
             real wr = permrc/(cdelta[dim]*cdelta[dim]);
             sd_get_stencil(sdp, ccenter, p, wr, ns->ed.eo.stnphi);
             // Stencil point update: left point
             p[dim] = ccenter[dim] - cdelta[dim];
-            real perml = ns->ed.eo.get_permittivity(p, ns->par.t);
+            real perml = ns->ed.eo.problem->permittivity(p, ns->par.t);
             real permlc = 0.5*(perm + perml);
             real wl = permlc/(cdelta[dim]*cdelta[dim]);
             sd_get_stencil(sdp, ccenter, p, wl, ns->ed.eo.stnphi);
@@ -1689,8 +1689,8 @@ void higflow_calculate_electroosmotic_source_term( higflow_solver *ns) {
                 Point ccenterl, ccenterr;
                 POINT_ASSIGN(ccenterl, fcenter); POINT_ASSIGN(ccenterr, fcenter);
                 ccenterl[dim] -= 0.5*fdelta[dim]; ccenterr[dim] += 0.5*fdelta[dim];
-                real perml = ns->ed.eo.get_permittivity(ccenterl, ns->par.t);
-                real permr = ns->ed.eo.get_permittivity(ccenterr, ns->par.t);
+                real perml = ns->ed.eo.problem->permittivity(ccenterl, ns->par.t);
+                real permr = ns->ed.eo.problem->permittivity(ccenterr, ns->par.t);
                 real dpermdx = compute_dpdx_at_point(fdelta, dim, 0.5, perml, permr);
 
                 // Extra term arising due to (possibly non-uniform) permittivity gradient
@@ -1699,7 +1699,7 @@ void higflow_calculate_electroosmotic_source_term( higflow_solver *ns) {
             }
             
             // Get the electroosmotic extra source term defined by user
-            Feo   += ns->ed.eo.get_electroosmotic_source_term(fcenter, dim, ns->par.t);
+            Feo   += ns->ed.eo.problem->source_term(fcenter, dim, ns->par.t);
 
             // Set the distributed source term property
             dp_set_value(ns->ed.eo.dpFeo[dim], flid, Feo);
@@ -1746,7 +1746,7 @@ void higflow_calculate_electroosmotic_source_term_analytic_pbdh( higflow_solver 
             else         Feo = 0.0;
             //DEBUG_INSPECT(Feo, %lf);
             // Get the electroosmotic source term defined by user
-            Feo     += ns->ed.eo.get_electroosmotic_source_term(fcenter, dim, ns->par.t);
+            Feo     += ns->ed.eo.problem->source_term(fcenter, dim, ns->par.t);
             // Set the distributed source term property
             dp_set_value(ns->ed.eo.dpFeo[dim], flid, Feo);
         }
@@ -1798,11 +1798,11 @@ void higflow_boundary_condition_for_electroosmotic_source_term(higflow_solver *n
                         hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                         if(c) { // otherwise domain owns boundary but not its internal cells
                             fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term(fracvol, userid, bccenter, dim, t);
+                            bcval = ns->ed.mult.eo.problem->boundary_source_term(fracvol, userid, bccenter, dim, t);
                             sb_set_value(bc, bclid, bcval);
                         }
                     } else {
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_source_term(userid, bccenter, dim, t);
+                        bcval = ns->ed.eo.problem->boundary_source_term(userid, bccenter, dim, t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 }
@@ -2503,7 +2503,7 @@ void check_uniform_permittivity(higflow_solver *ns) {
         // Get the center of the cell
         Point ccenter;
         hig_get_center(c, ccenter);
-        perm = ns->ed.eo.get_permittivity(ccenter, ns->par.t);
+        perm = ns->ed.eo.problem->permittivity(ccenter, ns->par.t);
         if(perm > maxperm) maxperm = perm;
         if(perm < minperm) minperm = perm;
         dif = maxperm - minperm;

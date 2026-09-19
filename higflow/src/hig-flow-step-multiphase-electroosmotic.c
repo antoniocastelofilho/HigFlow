@@ -1211,18 +1211,18 @@ void higflow_multiphase_electroosmotic_phi(higflow_solver *ns) {
             // Stencil point update
             Point p;
             POINT_ASSIGN(p, ccenter);
-            real perm = ns->ed.mult.eo.get_permittivity(fracvol, p, ns->par.t);
+            real perm = ns->ed.mult.eo.problem->permittivity(fracvol, p, ns->par.t);
             // Stencil point update: right point
             p[dim] = ccenter[dim] + cdelta[dim];
             real fracvolr = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-            real permr = ns->ed.mult.eo.get_permittivity(fracvolr, p, ns->par.t);
+            real permr = ns->ed.mult.eo.problem->permittivity(fracvolr, p, ns->par.t);
             real permrc = 0.5*(perm + permr);
             real wr = permrc/(cdelta[dim]*cdelta[dim]);
             sd_get_stencil(sdp, ccenter, p, wr, ns->ed.eo.stnphi);
             // Stencil point update: left point
             p[dim] = ccenter[dim] - cdelta[dim];
             real fracvoll = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-            real perml = ns->ed.mult.eo.get_permittivity(fracvoll, p, ns->par.t);
+            real perml = ns->ed.mult.eo.problem->permittivity(fracvoll, p, ns->par.t);
             real permlc = 0.5*(perm + perml);
             real wl = permlc/(cdelta[dim]*cdelta[dim]);
             sd_get_stencil(sdp, ccenter, p, wl, ns->ed.eo.stnphi);
@@ -1320,18 +1320,18 @@ real higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
             // Stencil point update
             Point p;
             POINT_ASSIGN(p, ccenter);
-            real perm = ns->ed.mult.eo.get_permittivity(fracvol, p, ns->par.t);
+            real perm = ns->ed.mult.eo.problem->permittivity(fracvol, p, ns->par.t);
             // Stencil point update: right point
             p[dim] = ccenter[dim] + cdelta[dim];
             real fracvolr = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-            real permr = ns->ed.mult.eo.get_permittivity(fracvolr, p, ns->par.t);
+            real permr = ns->ed.mult.eo.problem->permittivity(fracvolr, p, ns->par.t);
             real permrc = 0.5*(perm + permr);
             real wr = permrc/(cdelta[dim]*cdelta[dim]);
             sd_get_stencil(sdp, ccenter, p, wr, ns->ed.eo.stnpsi);
             // Stencil point update: left point
             p[dim] = ccenter[dim] - cdelta[dim];
             real fracvoll = compute_value_at_point(ns->ed.mult.sdmult, ccenter, p, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-            real perml = ns->ed.mult.eo.get_permittivity(fracvoll, p, ns->par.t);
+            real perml = ns->ed.mult.eo.problem->permittivity(fracvoll, p, ns->par.t);
             real permlc = 0.5*(perm + perml);
             real wl = permlc/(cdelta[dim]*cdelta[dim]);
             sd_get_stencil(sdp, ccenter, p, wl, ns->ed.eo.stnpsi);
@@ -1532,9 +1532,9 @@ void higflow_calculate_multiphase_electroosmotic_source_term(higflow_solver *ns)
                 POINT_ASSIGN(ccenterl, fcenter); POINT_ASSIGN(ccenterr, fcenter);
                 ccenterl[dim] -= 0.5*fdelta[dim]; ccenterr[dim] += 0.5*fdelta[dim];
                 real fracvoll = compute_value_at_point(ns->ed.mult.sdmult, ccenterl, ccenterl, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                real perml = ns->ed.mult.eo.get_permittivity(fracvoll, ccenterl, ns->par.t);
+                real perml = ns->ed.mult.eo.problem->permittivity(fracvoll, ccenterl, ns->par.t);
                 real fracvolr = compute_value_at_point(ns->ed.mult.sdmult, ccenterr, ccenterr, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                real permr = ns->ed.mult.eo.get_permittivity(fracvolr, ccenterr, ns->par.t);
+                real permr = ns->ed.mult.eo.problem->permittivity(fracvolr, ccenterr, ns->par.t);
                 real dpermdx = compute_dpdx_at_point(fdelta, dim, 0.5, perml, permr);
 
                 // Extra term arising due to (possibly non-uniform) permittivity gradient
@@ -1543,7 +1543,7 @@ void higflow_calculate_multiphase_electroosmotic_source_term(higflow_solver *ns)
             }
             
             // Get the electroosmotic extra source term defined by user
-            Feo   += ns->ed.mult.eo.get_multiphase_electroosmotic_source_term(fracvol, fcenter, dim, ns->par.t);
+            Feo   += ns->ed.mult.eo.problem->source_term(fracvol, fcenter, dim, ns->par.t);
             // Set the distributed source term property
             dp_set_value(ns->ed.eo.dpFeo[dim], flid, Feo);
         }
@@ -2042,7 +2042,7 @@ void check_uniform_permittivity_multiphase(higflow_solver *ns) {
         Point ccenter;
         hig_get_center(c, ccenter);
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-        perm = ns->ed.mult.eo.get_permittivity(fracvol, ccenter, ns->par.t);
+        perm = ns->ed.mult.eo.problem->permittivity(fracvol, ccenter, ns->par.t);
         if(perm > maxperm) maxperm = perm;
         if(perm < minperm) minperm = perm;
         dif = maxperm - minperm;

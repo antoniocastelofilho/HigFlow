@@ -50,13 +50,7 @@ void create_initialize_all_domains(higflow_solver* ns, int myrank, int ntasks) {
                 higflow_define_user_function_multiphase_viscoelastic(ns, calculate_m_user_multiphase);
             }
             if(ns->ed.mult.contr.eoflow_either == true) 
-                higflow_create_domain_multiphase_electroosmotic(ns, cache, order_center, get_multiphase_electroosmotic_source_term,
-                                                               get_multiphase_electroosmotic_phi, get_multiphase_electroosmotic_psi, 
-                                                               get_multiphase_electroosmotic_nplus, get_multiphase_electroosmotic_nminus, 
-                                                               get_boundary_multiphase_electroosmotic_source_term, 
-                                                               get_boundary_multiphase_electroosmotic_phi, get_boundary_multiphase_electroosmotic_psi, 
-                                                               get_boundary_multiphase_electroosmotic_nplus, get_boundary_multiphase_electroosmotic_nminus,
-                                                               get_multiphase_electroosmotic_permittivity);
+                higflow_create_domain_multiphase_electroosmotic(ns, cache, order_center, &problema_eo);
             break;
         case VISCOELASTIC:
             higflow_create_domain_viscoelastic(ns, cache, order_center, get_tensor, get_kernel,
@@ -69,13 +63,7 @@ void create_initialize_all_domains(higflow_solver* ns, int myrank, int ntasks) {
     }
         
     if (ns->contr.eoflow == true)
-        higflow_create_domain_electroosmotic(ns, cache, order_center, get_electroosmotic_source_term,
-                                             get_electroosmotic_phi, get_electroosmotic_psi, 
-                                             get_electroosmotic_nplus, get_electroosmotic_nminus, 
-                                             get_boundary_electroosmotic_source_term, 
-                                             get_boundary_electroosmotic_phi, get_boundary_electroosmotic_psi, 
-                                             get_boundary_electroosmotic_nplus, get_boundary_electroosmotic_nminus,
-                                             get_electroosmotic_permittivity);
+        higflow_create_domain_electroosmotic(ns, cache, order_center, &problema_eo);
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet);
 }
 

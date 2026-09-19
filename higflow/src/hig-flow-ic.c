@@ -657,9 +657,9 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
                     real fracl = compute_center_p_left(ns->ed.mult.sdmult, center, delta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                     real fracr = compute_center_p_right(ns->ed.mult.sdmult, center, delta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                     fracvol = 0.5*(fracl + fracr);
-                    val = ns->ed.mult.eo.get_multiphase_electroosmotic_source_term(fracvol, center, dim, ns->par.t);
+                    val = ns->ed.mult.eo.problem->source_term(fracvol, center, dim, ns->par.t);
                 } else
-                    val = ns->ed.eo.get_electroosmotic_source_term(center, dim, ns->par.t);
+                    val = ns->ed.eo.problem->source_term(center, dim, ns->par.t);
                 // Set the velocity value for the velocity distributed property
                 dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
             }
@@ -693,9 +693,9 @@ void higflow_initialize_electroosmotic_phi(higflow_solver *ns) {
             // Get the value for electro-osmotic phi in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
-                val = ns->ed.mult.eo.get_multiphase_electroosmotic_phi(fracvol, center, ns->par.t);
+                val = ns->ed.mult.eo.problem->phi(fracvol, center, ns->par.t);
             } else
-                val = ns->ed.eo.get_electroosmotic_phi(center, ns->par.t);
+                val = ns->ed.eo.problem->phi(center, ns->par.t);
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dpphi, clid, val);
         }
@@ -728,9 +728,9 @@ void higflow_initialize_electroosmotic_psi(higflow_solver *ns) {
             // Get the value for electro-osmotic psi in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
-                val = ns->ed.mult.eo.get_multiphase_electroosmotic_psi(fracvol, center, ns->par.t);
+                val = ns->ed.mult.eo.problem->psi(fracvol, center, ns->par.t);
             } else
-                val = ns->ed.eo.get_electroosmotic_psi(center, ns->par.t);
+                val = ns->ed.eo.problem->psi(center, ns->par.t);
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dppsi, clid, val);
         }
@@ -763,9 +763,9 @@ void higflow_initialize_electroosmotic_nplus(higflow_solver *ns) {
             // Get the value for electro-osmotic nplus in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
-                val = ns->ed.mult.eo.get_multiphase_electroosmotic_nplus(fracvol, center, ns->par.t);
+                val = ns->ed.mult.eo.problem->nplus(fracvol, center, ns->par.t);
             } else
-                val = ns->ed.eo.get_electroosmotic_nplus(center, ns->par.t);
+                val = ns->ed.eo.problem->nplus(center, ns->par.t);
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dpnplus, clid, val);
         }
@@ -798,9 +798,9 @@ void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
             // Get the value for electro-osmotic nminus in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
-                val = ns->ed.mult.eo.get_multiphase_electroosmotic_nminus(fracvol, center, ns->par.t);
+                val = ns->ed.mult.eo.problem->nminus(fracvol, center, ns->par.t);
             } else
-                val = ns->ed.eo.get_electroosmotic_nminus(center, ns->par.t);
+                val = ns->ed.eo.problem->nminus(center, ns->par.t);
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dpnminus, clid, val);
         }

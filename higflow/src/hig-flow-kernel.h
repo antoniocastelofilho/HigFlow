@@ -442,6 +442,7 @@ typedef struct higflow_electroosmotic{
     real (*get_boundary_electroosmotic_nminus)(int id, Point center, real t);
     // Function to get the permittivity
     real (*get_permittivity)(Point center, real t);
+    HigFlowElectroosmoticProblem *problem;
     // Linear system solver for potential psi
     solver                     *slvpsi;
     solver                     *slvphi;
@@ -994,6 +995,7 @@ typedef struct higflow_multiphase_electroosmotic{
     real (*get_boundary_multiphase_electroosmotic_nminus)(real fracvol, int id, Point center, real t);
     // Function to get the permittivity
     real (*get_permittivity)(real fracvol, Point center, real t);
+    HigFlowMultiphaseElectroosmoticProblem *problem;
     // // Linear system solver for potential psi
     // solver                     *slvpsi;
     // solver                     *slvphi;
@@ -1338,6 +1340,9 @@ void higflow_create_domain_viscoelastic_integral (higflow_solver *ns, int cache,
 real (*get_tensor)(Point center, int i, int j, real t));
 
 // Create the simulation domain for multiphase electroosmotic flow
+void higflow_create_domain_multiphase_electroosmotic(higflow_solver *ns, int cache, int order,
+                                     HigFlowMultiphaseElectroosmoticProblem *problem);
+
 void higflow_create_domain_multiphase_electroosmotic (higflow_solver *ns, int cache, int order,
 real (*get_multiphase_electroosmotic_source_term)(real fracvol, Point center, int dim, real t),
 real (*get_multiphase_electroosmotic_phi)(real fracvol, Point center, real t),
@@ -1352,6 +1357,9 @@ real (*get_multiphase_boundary_electroosmotic_nminus)(real fracvol, int id, Poin
 real (*get_permittivity)(real fracvol, Point center, real t));
 
 // Create the simulation domain for electro-osmotic flow
+void higflow_create_domain_electroosmotic(higflow_solver *ns, int cache, int order,
+                                     HigFlowElectroosmoticProblem *problem);
+
 void higflow_create_domain_electroosmotic (higflow_solver *ns, int cache, int order,
 real (*get_electroosmotic_source_term)(Point center, int dim, real t),
 real (*get_electroosmotic_phi)(Point center, real t),

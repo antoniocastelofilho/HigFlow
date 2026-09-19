@@ -189,11 +189,11 @@ void higflow_set_boundary_condition_for_electroosmotic_source_term(higflow_solve
                         hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                         if(c) { // otherwise domain owns boundary but not its internal cells
                             fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                            bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_source_term(fracvol, id[h], bccenter, dim, ns->par.t);
+                            bcval = ns->ed.mult.eo.problem->boundary_source_term(fracvol, id[h], bccenter, dim, ns->par.t);
                             sb_set_value(bc, bclid, bcval);
                         }
                     } else {
-                        bcval = ns->ed.eo.get_boundary_electroosmotic_source_term(id[h], bccenter, dim, ns->par.t);
+                        bcval = ns->ed.eo.problem->boundary_source_term(id[h], bccenter, dim, ns->par.t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 }
@@ -247,11 +247,11 @@ void higflow_set_boundary_condition_for_electroosmotic_phi(higflow_solver *ns, i
                     hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                     if(c) { // otherwise domain owns boundary but not its internal cells
                         fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_phi(fracvol, id[h], bccenter, ns->par.t);
+                        bcval = ns->ed.mult.eo.problem->boundary_phi(fracvol, id[h], bccenter, ns->par.t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 } else {
-                    bcval = ns->ed.eo.get_boundary_electroosmotic_phi(id[h], bccenter, ns->par.t);
+                    bcval = ns->ed.eo.problem->boundary_phi(id[h], bccenter, ns->par.t);
                     sb_set_value(bc, bclid, bcval);
                 }
                 
@@ -300,11 +300,11 @@ void higflow_set_boundary_condition_for_electroosmotic_psi(higflow_solver *ns, i
                     hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                     if(c) { // otherwise domain owns boundary but not its internal cells
                         fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_psi(fracvol, id[h], bccenter, ns->par.t);
+                        bcval = ns->ed.mult.eo.problem->boundary_psi(fracvol, id[h], bccenter, ns->par.t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 } else {
-                    bcval = ns->ed.eo.get_boundary_electroosmotic_psi(id[h], bccenter, ns->par.t);
+                    bcval = ns->ed.eo.problem->boundary_psi(id[h], bccenter, ns->par.t);
                     sb_set_value(bc, bclid, bcval);
                 }
             }
@@ -351,11 +351,11 @@ void higflow_set_boundary_condition_for_electroosmotic_nplus(higflow_solver *ns,
                     hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                     if(c) { // otherwise domain owns boundary but not its internal cells
                         fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nplus(fracvol, id[h], bccenter, ns->par.t);
+                        bcval = ns->ed.mult.eo.problem->boundary_nplus(fracvol, id[h], bccenter, ns->par.t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 } else {
-                    bcval = ns->ed.eo.get_boundary_electroosmotic_nplus(id[h], bccenter, ns->par.t);
+                    bcval = ns->ed.eo.problem->boundary_nplus(id[h], bccenter, ns->par.t);
                     sb_set_value(bc, bclid, bcval);
                 }
             }
@@ -402,11 +402,11 @@ void higflow_set_boundary_condition_for_electroosmotic_nminus(higflow_solver *ns
                     hig_cell *c = sd_get_cell_with_point(ns->ed.mult.sdmult, bccenter);
                     if(c) { // otherwise domain owns boundary but not its internal cells
                         fracvol = compute_value_at_point(ns->ed.mult.sdmult, bccenter, bccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-                        bcval = ns->ed.mult.eo.get_boundary_multiphase_electroosmotic_nminus(fracvol, id[h], bccenter, ns->par.t);
+                        bcval = ns->ed.mult.eo.problem->boundary_nminus(fracvol, id[h], bccenter, ns->par.t);
                         sb_set_value(bc, bclid, bcval);
                     }
                 } else {
-                    bcval = ns->ed.eo.get_boundary_electroosmotic_nminus(id[h], bccenter, ns->par.t);
+                    bcval = ns->ed.eo.problem->boundary_nminus(id[h], bccenter, ns->par.t);
                     sb_set_value(bc, bclid, bcval);
                 }
             }

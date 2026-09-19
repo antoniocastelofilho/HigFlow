@@ -204,4 +204,95 @@ public:
     }
 };
 
+// --- eletro-osmotico monofasico.  Onze metodos: cinco no interior, cinco na
+// fronteira, mais a permissividade.
+class HigFlowElectroosmoticProblem {
+public:
+    virtual ~HigFlowElectroosmoticProblem() {}
+    virtual real source_term(Point center, int dim, real t) = 0;
+    virtual real phi(Point center, real t) = 0;
+    virtual real psi(Point center, real t) = 0;
+    virtual real nplus(Point center, real t) = 0;
+    virtual real nminus(Point center, real t) = 0;
+    virtual real boundary_source_term(int id, Point center, int dim, real t) = 0;
+    virtual real boundary_phi(int id, Point center, real t) = 0;
+    virtual real boundary_psi(int id, Point center, real t) = 0;
+    virtual real boundary_nplus(int id, Point center, real t) = 0;
+    virtual real boundary_nminus(int id, Point center, real t) = 0;
+    virtual real permittivity(Point center, real t) = 0;
+};
+
+class HigFlowLegacyElectroosmotic : public HigFlowElectroosmoticProblem {
+public:
+    real (*fn_source_term)(Point, int, real);
+    real (*fn_phi)(Point, real);
+    real (*fn_psi)(Point, real);
+    real (*fn_nplus)(Point, real);
+    real (*fn_nminus)(Point, real);
+    real (*fn_boundary_source_term)(int, Point, int, real);
+    real (*fn_boundary_phi)(int, Point, real);
+    real (*fn_boundary_psi)(int, Point, real);
+    real (*fn_boundary_nplus)(int, Point, real);
+    real (*fn_boundary_nminus)(int, Point, real);
+    real (*fn_permittivity)(Point, real);
+
+    real source_term(Point c, int d, real t)   { return fn_source_term(c, d, t); }
+    real phi(Point c, real t)                  { return fn_phi(c, t); }
+    real psi(Point c, real t)                  { return fn_psi(c, t); }
+    real nplus(Point c, real t)                { return fn_nplus(c, t); }
+    real nminus(Point c, real t)               { return fn_nminus(c, t); }
+    real boundary_source_term(int id, Point c, int d, real t) { return fn_boundary_source_term(id, c, d, t); }
+    real boundary_phi(int id, Point c, real t)     { return fn_boundary_phi(id, c, t); }
+    real boundary_psi(int id, Point c, real t)     { return fn_boundary_psi(id, c, t); }
+    real boundary_nplus(int id, Point c, real t)   { return fn_boundary_nplus(id, c, t); }
+    real boundary_nminus(int id, Point c, real t)  { return fn_boundary_nminus(id, c, t); }
+    real permittivity(Point c, real t)             { return fn_permittivity(c, t); }
+};
+
+// --- eletro-osmotico multifasico.  Os mesmos onze, com fracvol na frente: o
+// valor depende da fase local.  Um exemplo que herde as duas interfaces fica com
+// SOBRECARGAS, nao com colisao, porque as assinaturas diferem.
+class HigFlowMultiphaseElectroosmoticProblem {
+public:
+    virtual ~HigFlowMultiphaseElectroosmoticProblem() {}
+    virtual real source_term(real fracvol, Point center, int dim, real t) = 0;
+    virtual real phi(real fracvol, Point center, real t) = 0;
+    virtual real psi(real fracvol, Point center, real t) = 0;
+    virtual real nplus(real fracvol, Point center, real t) = 0;
+    virtual real nminus(real fracvol, Point center, real t) = 0;
+    virtual real boundary_source_term(real fracvol, int id, Point center, int dim, real t) = 0;
+    virtual real boundary_phi(real fracvol, int id, Point center, real t) = 0;
+    virtual real boundary_psi(real fracvol, int id, Point center, real t) = 0;
+    virtual real boundary_nplus(real fracvol, int id, Point center, real t) = 0;
+    virtual real boundary_nminus(real fracvol, int id, Point center, real t) = 0;
+    virtual real permittivity(real fracvol, Point center, real t) = 0;
+};
+
+class HigFlowLegacyMultiphaseElectroosmotic : public HigFlowMultiphaseElectroosmoticProblem {
+public:
+    real (*fn_source_term)(real, Point, int, real);
+    real (*fn_phi)(real, Point, real);
+    real (*fn_psi)(real, Point, real);
+    real (*fn_nplus)(real, Point, real);
+    real (*fn_nminus)(real, Point, real);
+    real (*fn_boundary_source_term)(real, int, Point, int, real);
+    real (*fn_boundary_phi)(real, int, Point, real);
+    real (*fn_boundary_psi)(real, int, Point, real);
+    real (*fn_boundary_nplus)(real, int, Point, real);
+    real (*fn_boundary_nminus)(real, int, Point, real);
+    real (*fn_permittivity)(real, Point, real);
+
+    real source_term(real f, Point c, int d, real t) { return fn_source_term(f, c, d, t); }
+    real phi(real f, Point c, real t)                { return fn_phi(f, c, t); }
+    real psi(real f, Point c, real t)                { return fn_psi(f, c, t); }
+    real nplus(real f, Point c, real t)              { return fn_nplus(f, c, t); }
+    real nminus(real f, Point c, real t)             { return fn_nminus(f, c, t); }
+    real boundary_source_term(real f, int id, Point c, int d, real t) { return fn_boundary_source_term(f, id, c, d, t); }
+    real boundary_phi(real f, int id, Point c, real t)    { return fn_boundary_phi(f, id, c, t); }
+    real boundary_psi(real f, int id, Point c, real t)    { return fn_boundary_psi(f, id, c, t); }
+    real boundary_nplus(real f, int id, Point c, real t)  { return fn_boundary_nplus(f, id, c, t); }
+    real boundary_nminus(real f, int id, Point c, real t) { return fn_boundary_nminus(f, id, c, t); }
+    real permittivity(real f, Point c, real t)            { return fn_permittivity(f, c, t); }
+};
+
 #endif
