@@ -26,6 +26,7 @@
 #include <t8_schemes/t8_default/t8_default.hxx>
 
 #include "t8-mesh-producer.h"
+#include "hig-mesh-snapshot.h"
 #include "higtree.h"
 #include "higtree-iterator.h"
 
@@ -91,11 +92,12 @@ inicializa_uma_vez (void)
   t8_init (SC_LP_ERROR);
 }
 
-extern "C" hig_cell *
-t8_produz_malha_nao_graduada (void)
+// A floresta e' a mesma para os dois caminhos -- o que materializa em arvore e o
+// que preenche o instantaneo direto.  Comum de proposito: se os dois montassem a
+// floresta cada um a seu modo, compara-los nao diria nada.
+static t8_forest_t
+constroi_floresta (void)
 {
-  inicializa_uma_vez ();
-
   t8_cmesh_t cmesh;
   t8_cmesh_init (&cmesh);                    // obrigatorio ANTES do gerador
   t8_cmesh_new_hypercube (&cmesh, ECLASSE, sc_MPI_COMM_WORLD, 0, 0, 0);
@@ -112,6 +114,17 @@ t8_produz_malha_nao_graduada (void)
     t8_forest_commit (novo);
     f = novo;
   }
+  return f;
+}
+
+extern "C" hig_cell *
+t8_produz_malha_nao_graduada (void)
+{
+  inicializa_uma_vez ();
+
+  t8_forest_t f = constroi_floresta ();
+  if (f == NULL) return NULL;
+  const t8_scheme_c *scheme = t8_forest_get_scheme (f);
 
   // ------------------------------------------------ materializacao
   Point lo, hi;
@@ -152,4 +165,59 @@ t8_produz_malha_nao_graduada (void)
     return NULL;
   }
   return raiz;
+}
+
+// ---------------------------------------------------------------------------
+// A FRONTEIRA MOVIDA: instantaneo preenchido DIRETO da floresta.
+//
+// Compare com t8_produz_malha_nao_graduada acima.  Aquela constroi a floresta e
+// depois refina uma arvore hig folha a folha para reproduzi-la -- traducao, a
+// cada producao.  Esta le as mesmas folhas e escreve centro e tamanho num
+// arranjo plano.  Nao ha' octree de ponteiros em lugar nenhum, e e' esse o
+// ponto: o backend passa a entregar o que as consultas precisam, em vez de
+// entregar uma estrutura que elas saibam navegar.
+// ---------------------------------------------------------------------------
+extern "C" struct hig_mesh_snapshot *
+t8_preenche_instantaneo (void)
+{
+  inicializa_uma_vez ();
+
+  t8_forest_t f = constroi_floresta ();
+  if (f == NULL) return NULL;
+
+  const t8_scheme_c *scheme = t8_forest_get_scheme (f);
+  const t8_locidx_t ntrees = t8_forest_get_num_local_trees (f);
+
+  long n = 0;
+  int nivel_max = NIVEL_BASE;
+  for (t8_locidx_t it = 0; it < ntrees; it++) {
+    n += t8_forest_get_tree_num_leaf_elements (f, it);
+  }
+
+  hig_mesh_snapshot *s = hms_create ((int) n);
+  if (s == NULL) { t8_forest_unref (&f); return NULL; }
+
+  long i = 0;
+  for (t8_locidx_t it = 0; it < ntrees; it++) {
+    const t8_eclass_t ec = t8_forest_get_tree_class (f, it);
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements (f, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++, i++) {
+      const t8_element_t *e = t8_forest_get_leaf_element_in_tree (f, it, ie);
+      const int nivel = scheme->element_get_level (ec, e);
+      if (nivel > nivel_max) nivel_max = nivel;
+
+      double c[3];
+      t8_forest_element_centroid (f, it, e, c);
+      const double lado = 1.0 / (double) (1 << nivel);
+      for (int d = 0; d < DIM; d++) {
+        s->center[i * DIM + d] = c[d];
+        s->delta[i * DIM + d]  = lado;
+      }
+    }
+  }
+
+  t8_forest_unref (&f);
+
+  if (nivel_max < NIVEL_BASE + 2) { hms_destroy (s); return NULL; }
+  return s;
 }

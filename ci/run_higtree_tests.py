@@ -96,6 +96,13 @@ TESTS = [
     # da suite com np>1: chama higtree_initialize e reduz os dados entre ranks
     # antes de concluir, no rank 0.
     Test("test-fringe-parallel", dims=(2, 3), nps=(1, 2, 3), mpi=True),
+
+    # A FRONTEIRA DAS CONSULTAS.  86% das chamadas em laco quente sao leitura de
+    # centro, tamanho e indice, e nenhuma precisa da arvore: o instantaneo as
+    # atende com arranjo plano.  Com --t8code, o caso extra mostra os DOIS
+    # backends preenchendo o mesmo conjunto por caminhos que nao se parecem --
+    # o t8code sem materializar octree nenhum.
+    Test("test-mesh-snapshot", dims=(2, 3), mpi=True),
 ]
 
 

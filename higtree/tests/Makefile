@@ -85,6 +85,7 @@ TESTS += test-facet-domain-serial
 TESTS += test-cell-queries
 TESTS += test-fringe-support
 TESTS += test-fringe-parallel
+TESTS += test-mesh-snapshot
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 

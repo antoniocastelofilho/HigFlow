@@ -174,6 +174,28 @@
 //         test-boundary-path / reproduz_campo_linear_SOBRE_o_contorno
 //
 //
+// ----------------------------------------------- A FRONTEIRA DAS CONSULTAS
+//
+// O nivel de consulta descrito acima nao precisa navegar arvore nenhuma para
+// 86% das suas chamadas.  Das 907 em laco quente, 777 sao leitura de centro,
+// tamanho e indice -- e `hig-mesh-snapshot.h` as atende com arranjo plano
+// preenchido uma vez por producao, indexado pelo id local.
+//
+// Isso muda o que uma segunda implementacao precisa entregar.  Em vez de
+// materializar a propria estrutura como octree de ponteiros para que as
+// consultas a naveguem -- traducao O(folhas) por producao --, ela preenche os
+// arranjos direto.  Medido com o t8code: o mesmo conjunto de celulas, por um
+// caminho que nao constroi arvore alguma.
+//   test-mesh-snapshot / instantaneo_do_mtree_bate_com_a_arvore
+//   test-mesh-snapshot / indice_e_o_id_local
+//   test-mesh-snapshot / instantaneo_ignora_a_franja
+//   test-mesh-snapshot / t8code_preenche_o_mesmo_conjunto   [com --t8code]
+//
+// As outras 130 chamadas (14%) sao topologia de verdade -- estencil e
+// localizacao por ponto -- e continuam atras do backend.  Nao se achata o que e'
+// consulta; o ganho esta' em parar de achatar o que nao e'.
+//
+//
 // ------------------------------------------------- O QUE NAO E' GARANTIA
 //
 // Registrado para ninguem construir guarda sobre oraculo que nao discrimina:

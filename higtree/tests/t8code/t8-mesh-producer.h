@@ -29,6 +29,17 @@ extern "C" {
 //! Devolve NULL se o t8code nao produzir a malha esperada.
 hig_cell *t8_produz_malha_nao_graduada(void);
 
+//! \brief Preenche um instantaneo DIRETO da floresta do t8code.
+//!
+//! E' aqui que a fronteira se move.  A funcao acima materializa a floresta como
+//! octree de ponteiros -- O(folhas) por producao -- so' para que as consultas
+//! antigas possam navega-la.  Esta nao constroi arvore nenhuma: le as folhas do
+//! t8code e escreve centro e tamanho nos arranjos, que e' tudo o que 86% das
+//! chamadas em laco quente precisam.
+//!
+//! Devolve NULL se a floresta nao tiver o salto 4:1 esperado.
+struct hig_mesh_snapshot *t8_preenche_instantaneo(void);
+
 #ifdef __cplusplus
 }
 #endif

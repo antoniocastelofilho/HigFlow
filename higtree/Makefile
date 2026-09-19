@@ -45,6 +45,7 @@ endif
 # Name of the files to be compiled
 MODULES = \
 	allocator \
+	hig-mesh-snapshot \
 	build-fringe \
 	higtree \
 	uniqueid \
