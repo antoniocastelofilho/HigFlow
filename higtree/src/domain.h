@@ -175,6 +175,27 @@ const struct hig_mesh_snapshot *sd_get_snapshot(sim_domain *sd);
 //! deste detector -- aquelas abortam sozinhas.
 int sd_snapshot_is_current(sim_domain *sd);
 
+//! \brief O ORACULO DIFERENCIAL: o instantaneo e a arvore descrevem a mesma
+//! malha?
+//!
+//! Para cada linha `i` do instantaneo, LOCALIZA a celula pelo centro gravado
+//! (`sd_get_cell_with_point`) e exige que ela volte com id `i` e com a mesma
+//! geometria.  Devolve o numero de linhas divergentes, e escreve a primeira em
+//! `detalhe` (se nao for NULL).
+//!
+//! POR QUE PELA BUSCA POR PONTO, e nao pelo iterador.  O instantaneo foi
+//! PREENCHIDO percorrendo o iterador de dominio e indexando pelo mapeador -- e o
+//! mapeador, por sua vez, foi atribuido a partir DESSE MESMO iterador
+//! (`_psd_setmapper`).  Conferir o instantaneo contra o iterador e' portanto
+//! tautologia: mede a aritmetica contra ela propria.  Medido: trocar
+//! `mp_lookup` por um contador de percurso dentro do `hms_from_domain` deixa a
+//! suite inteira verde.  A busca por ponto e' o unico caminho ate' a celula que
+//! nao passa por onde o instantaneo passou.
+//!
+//! Serve de autorizacao para migrar laco: um laco que passa a ler o arranjo
+//! esta' certo se este oraculo aprova, sem depender do resultado fisico.
+int sd_snapshot_verify(sim_domain *sd, char *detalhe, size_t tam);
+
 //! Creates a simulation domain.
 sim_domain *sd_create(mp_mapper *m);
 

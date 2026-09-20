@@ -91,6 +91,7 @@ TESTS += test-boundary-faces
 TESTS += test-point-class
 TESTS += test-mesh-snapshot-parallel
 TESTS += test-domain-snapshot
+TESTS += test-snapshot-oracle
 
 # So' faz sentido com o t8code: nao tem lado MTree.  TEM de entrar ANTES do
 # `all:` -- a lista de pre-requisitos e' expandida quando a REGRA E' LIDA, nao

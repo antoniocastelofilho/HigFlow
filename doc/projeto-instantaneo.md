@@ -206,10 +206,15 @@ migrar onde ela não chega é mexer sem rede.
 2. **A produção no `psd_synced_mapper`**, com o guarda contra refino
    pós-montagem. Nenhum
    sítio migrado ainda; a suíte inteira tem de continuar idêntica.
-3. **Um oráculo diferencial**: um modo que percorre o domínio pelos dois
-   caminhos — árvore e instantâneo — e afirma que centro, delta e id coincidem
-   célula a célula, para *todo* domínio que o exemplo construiu. É o que permite
-   migrar um laço sem depender do resultado físico para saber se ele está certo.
+3. **O oráculo diferencial** — ~~a fazer~~ **feito**. `sd_snapshot_verify`
+   localiza cada célula **por ponto** e exige que ela volte com o mesmo id e a
+   mesma geometria. Com `HIGTREE_VERIFY_SNAPSHOT` no ambiente, todo domínio que
+   o programa montar passa por ele, e divergência aborta. Os 33 casos da suíte
+   de exemplos passam com o modo ligado.
+
+   Ele **não** percorre o iterador, e isso não é detalhe: o instantâneo foi
+   preenchido pelo iterador indexado pelo mapeador, e o mapeador saiu desse mesmo
+   iterador. Conferir um contra o outro mede a aritmética contra ela própria.
 4. **Migrar os laços cobertos por exemplo**, um arquivo por vez, com a suíte
    entre cada um.
 5. **Os solvers sem exemplo, por último** — ou não. Ver a decisão D3.

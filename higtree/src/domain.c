@@ -1,4 +1,5 @@
 #include <string.h>
+#include <math.h>
 
 #include "domain.h"
 #include "hig-mesh-snapshot.h"
@@ -218,6 +219,74 @@ void sd_compute_snapshot(sim_domain *sd)
 const struct hig_mesh_snapshot *sd_get_snapshot(sim_domain *sd)
 {
 	return sd->snapshot;
+}
+
+int sd_snapshot_verify(sim_domain *sd, char *detalhe, size_t tam)
+{
+	if (detalhe != NULL && tam > 0) detalhe[0] = '\0';
+	if (sd->snapshot == NULL) {
+		if (detalhe != NULL && tam > 0) {
+			snprintf(detalhe, tam, "o dominio nao tem instantaneo");
+		}
+		return -1;
+	}
+
+	const hig_mesh_snapshot *s = sd->snapshot;
+	mp_mapper *m = sd_get_domain_mapper(sd);
+	int divergentes = 0;
+
+	for (int i = 0; i < s->n; i++) {
+		Point centro;
+		for (int d = 0; d < DIM; d++) centro[d] = s->center[i * DIM + d];
+
+		// A OUTRA VIA.  Nao se percorre o iterador aqui de proposito: ver o
+		// cabecalho.  Se a linha `i` guardasse a geometria de outra celula, a
+		// busca acharia a celula que de fato ocupa aquele ponto, e o id dela
+		// nao seria `i`.
+		hig_cell *c = sd_get_cell_with_point(sd, centro);
+		if (c == NULL) {
+			if (!divergentes && detalhe != NULL) {
+				snprintf(detalhe, tam,
+					"linha %d: o centro gravado nao cai em celula nenhuma do "
+					"dominio", i);
+			}
+			divergentes++;
+			continue;
+		}
+
+		const int id = mp_lookup(m, hig_get_cid(c));
+		if (id != i) {
+			if (!divergentes && detalhe != NULL) {
+				snprintf(detalhe, tam,
+					"linha %d: o centro gravado leva a' celula de id %d -- a "
+					"linha guarda a geometria de outra celula", i, id);
+			}
+			divergentes++;
+			continue;
+		}
+
+		Point ce, de;
+		hig_get_center(c, ce);
+		hig_get_delta(c, de);
+		int ruim = 0;
+		for (int d = 0; d < DIM; d++) {
+			if (fabs(s->center[i * DIM + d] - ce[d]) > 1e-12 ||
+			    fabs(s->delta[i * DIM + d]  - de[d]) > 1e-12) {
+				ruim = 1;
+				if (!divergentes && detalhe != NULL) {
+					snprintf(detalhe, tam,
+						"linha %d, direcao %d: instantaneo (centro %.17g, delta "
+						"%.17g) contra arvore (centro %.17g, delta %.17g)",
+						i, d, (double) s->center[i * DIM + d],
+						(double) s->delta[i * DIM + d],
+						(double) ce[d], (double) de[d]);
+				}
+				break;
+			}
+		}
+		if (ruim) divergentes++;
+	}
+	return divergentes;
 }
 
 int sd_snapshot_is_current(sim_domain *sd)

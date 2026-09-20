@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <mpi.h>
 #include <glib.h>
@@ -463,6 +464,28 @@ void psd_synced_mapper(psim_domain *psd)
 	// Producao preguicosa deixaria essa ordem implicita, e chamada antes ela
 	// devolveria um instantaneo indexado por lixo -- sem falhar.
 	sd_compute_snapshot(psd_get_local_domain(psd));
+
+	// MODO DE VERIFICACAO, desligado por omissao.  Com HIGTREE_VERIFY_SNAPSHOT
+	// no ambiente, TODO dominio que o programa montar passa pelo oraculo
+	// diferencial -- sao 19 dominios por execucao do solver.  E' o que autoriza
+	// migrar um laco da arvore para o arranjo sem depender do resultado fisico
+	// para saber se ele ficou certo.
+	//
+	// Aborta em vez de avisar: divergencia aqui significa que os lacos migrados
+	// estao lendo celula errada, e um aviso no meio da saida de uma simulacao
+	// longa nao seria lido.
+	if (getenv("HIGTREE_VERIFY_SNAPSHOT") != NULL) {
+		char detalhe[256];
+		sim_domain *sd = psd_get_local_domain(psd);
+		const int ruins = sd_snapshot_verify(sd, detalhe, sizeof detalhe);
+		if (ruins != 0) {
+			fprintf(stderr,
+				"%s:%d: %s: o oraculo diferencial reprovou o instantaneo: "
+				"%d linha(s) divergem.  %s\n",
+				__FILE__, __LINE__, __func__, ruins, detalhe);
+			abort();
+		}
+	}
 
 	/*mapper_syncer_info ms = {
 		.elem_counter = _cell_counter,
