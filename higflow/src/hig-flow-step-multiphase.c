@@ -1751,16 +1751,16 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
     //mp_mapper *mp = sd_get_domain_mapper(sdp);
     remove_pressure_singularity(ns, ns->slvp);
     // Loop for each cell
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int hms_i = 0; hms_i < hms->n; hms_i++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, hms_i, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
+        hms_delta(hms, hms_i, cdelta);
         // Calculate the divergence of the intermediate velocity
         real sumdudx = 0.0;
         for(int dim = 0; dim < DIM; dim++) {
@@ -1813,7 +1813,7 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
         // Get the number of elements of the stencil
         int numelems = stn_get_numelems(ns->stn);
         // Get the cell identifier of the cell
-        int cgid = psd_get_global_id(ns->psdp, c);
+        int cgid = psd_lid_to_gid(ns->psdp, hms_i);
         if (ns->contr.desingpressure == true) { // cell with pressure desingularized
             if(cgid==ns->slvp->imposed_line) continue;
         }
@@ -1822,8 +1822,8 @@ void higflow_pressure_multiphase(higflow_solver *ns) {
         // Set the line of matrix of the solver linear system
         slv_set_Ai(ns->slvp, cgid, numelems, ids, vals);
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
     // Assemble the solver
     slv_assemble(ns->slvp);
     // Solve the linear system

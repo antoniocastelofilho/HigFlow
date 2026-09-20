@@ -1189,17 +1189,16 @@ void higflow_multiphase_electroosmotic_phi(higflow_solver *ns) {
     // Get the map for the domain property nminus
     mp_mapper *m = sd_get_domain_mapper(sdp);
     // Loop for each cell
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
-        int clid    = mp_lookup(m, hig_get_cid(c));
+        hms_delta(hms, clid, cdelta);
 
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
 
@@ -1240,13 +1239,13 @@ void higflow_multiphase_electroosmotic_phi(higflow_solver *ns) {
         // Get the number of elements of the stencil
         int numelems = stn_get_numelems(ns->ed.eo.stnphi);
         // Get the cell identifier of the cell
-        int cgid = psd_get_global_id(ns->ed.eo.psdEOphi, c);
+        int cgid = psd_lid_to_gid(ns->ed.eo.psdEOphi, clid);
         // Set the right side of solver linear system
         slv_set_bi(ns->ed.eo.slvphi, cgid, stn_get_rhs(ns->ed.eo.stnphi));
         // Set the line of matrix of the solver linear system
         slv_set_Ai(ns->ed.eo.slvphi, cgid, numelems, ids, vals);
     }
-    higcit_destroy(it);
+    }
     // Assemble the solver
     slv_assemble(ns->ed.eo.slvphi);
     // Solve the linear system
@@ -1282,17 +1281,16 @@ real higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
     // Get the map for the domain property nminus
     mp_mapper *m = sd_get_domain_mapper(sdp);
     // Loop for each cell
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
-        int clid    = mp_lookup(m, hig_get_cid(c));
+        hms_delta(hms, clid, cdelta);
 
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
         real deltaeo = higflow_interp_delta_multiphase_electroosmotic(ns->ed.mult.eo.par0.delta, ns->ed.mult.eo.par1.delta, fracvol);
@@ -1363,13 +1361,13 @@ real higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
         // Get the number of elements of the stencil
         int numelems = stn_get_numelems(ns->ed.eo.stnpsi);
         // Get the cell identifier of the cell
-        int cgid = psd_get_global_id(ns->ed.eo.psdEOpsi, c);
+        int cgid = psd_lid_to_gid(ns->ed.eo.psdEOpsi, clid);
         // Set the right side of solver linear system
         slv_set_bi(ns->ed.eo.slvpsi, cgid, stn_get_rhs(ns->ed.eo.stnpsi));
         // Set the line of matrix of the solver linear system
         slv_set_Ai(ns->ed.eo.slvpsi, cgid, numelems, ids, vals);
     }
-    higcit_destroy(it);
+    }
     // Assemble the solver
     slv_assemble(ns->ed.eo.slvpsi);
     // Solve the linear system
