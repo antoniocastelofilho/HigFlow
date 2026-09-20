@@ -222,6 +222,26 @@
 //       sobreviveram tres dos sete sitios do defeito de compactacao, verdes por
 //       ausencia de teste e nao por estarem certos.
 //         test-boundary-path / reproduz_campo_linear_SOBRE_o_contorno
+//         test-point-class   / interior_e_dentro
+//         test-point-class   / parede_externa_e_contorno
+//         test-point-class   / fora_do_dominio_e_fora
+//         test-point-class   / interface_interna_de_celula_e_dentro
+//         test-point-class   / criterios_divergem_na_interface_entre_arvores [t8code]
+//       A METADE QUE E' DE MESH e' o DESPACHO: decidir entre dentro, sobre o
+//       contorno e fora, antes de qualquer interpolacao.  Quem interpola depois
+//       e' Discretization, e e' o primeiro caso acima.
+//
+//       OS DOIS CRITERIOS SAO DIFERENTES, e onde se separam esta' medido:
+//         HiGTree  compara com a CAIXA de cada arvore; coordenada igual a um
+//                  limite da caixa => ON_BOUNDARY.
+//         t8code   pergunta se o ponto cai sobre face SEM VIZINHO; face com
+//                  vizinho e' interface interna e o ponto segue DENTRO.
+//       Com o dominio numa arvore so', concordam.  Dividido em duas, o plano da
+//       interface e' limite de caixa mas NAO e' contorno do dominio: a caixa diz
+//       NO_CONTORNO, a face diz DENTRO.  O ultimo caso registra a divergencia em
+//       vez de eleger um vencedor -- qual e' o desejado e' decisao de projeto, e
+//       muda o que o fechamento faz numa interface interna.  O que nao pode e' a
+//       divergencia passar despercebida quando o t8code entrar.
 //
 //
 // ----------------------------------------------- A FRONTEIRA DAS CONSULTAS

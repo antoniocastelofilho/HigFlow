@@ -116,6 +116,11 @@ TESTS = [
     # projecao e a interpolacao em DIM-1 sao de Discretization e ficam nos
     # testes que ja' existem.
     Test("test-boundary-faces", dims=(2, 3), mpi=True),
+
+    # O despacho que escolhe o ramo ON_BOUNDARY (C14).  Os dois backends
+    # decidem por criterios DIFERENTES -- caixa da arvore contra face sem
+    # vizinho -- e o ultimo caso mede onde eles se separam, em vez de supor.
+    Test("test-point-class", dims=(2, 3), mpi=True),
 ]
 
 
