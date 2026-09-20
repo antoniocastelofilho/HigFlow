@@ -70,11 +70,13 @@
 //       volumes locais e' o volume do dominio, e a soma global das celulas
 //       locais e' o total.  Pega celula perdida E celula contada duas vezes,
 //       que contagem por rank nao distingue.
-//         test-fringe-parallel / particao_cobre_o_dominio_uma_vez
+//         test-fringe-parallel  / particao_cobre_o_dominio_uma_vez
+//         test-partition-t8code / particao_cobre_o_dominio_uma_vez  [t8code]
 //
 //   P2  Havendo vizinho, todo rank recebe franja; nao havendo, nenhum recebe.
 //       Reduzido por MIN e por MAX, o que e' mais forte que "alguem tem".
-//         test-fringe-parallel / franja_existe_quando_ha_vizinho
+//         test-fringe-parallel  / franja_existe_quando_ha_vizinho
+//         test-partition-t8code / ghost_existe_quando_ha_vizinho    [t8code]
 //
 //   P3  A montagem e' possivel EM SERIE, sem MPI.  Ate' 2026-09-19 nao era: o
 //       bloco de faceta so' era preenchido pelo caminho particionado, e metade
@@ -82,12 +84,17 @@
 //       existe acoplada ao particionamento e' a mais dificil de substituir --
 //       que e' justamente o que a segunda implementacao vai fazer.
 //         test-facet-domain-serial / montagem_serial_preenche_o_bloco_de_faceta
+//         test-partition-t8code    / monta_em_serie                 [t8code]
+//       Para o MTree isto precisou de correcao -- o sfbi so' era preenchido pelo
+//       caminho particionado.  Para o t8code e' nativo: a floresta em np=1 tem o
+//       dominio inteiro sem nenhum passo a mais.
 //
 //   P4  O resultado nao depende de COMO o dominio foi dividido.  E' o oraculo
 //       que separa "particiona diferente" de "particiona errado", e o t8code
 //       vai particionar diferente de proposito.
 //         test-partition-independence / uma_arvore_contra_duas
-//         test-fringe-parallel       / valor_nao_depende_da_particao
+//         test-fringe-parallel        / valor_nao_depende_da_particao
+//         test-partition-t8code       / valor_nao_depende_da_particao  [t8code]
 //
 //
 // NIVEL DE CONSULTA -- geometria e identidade
@@ -214,8 +221,13 @@
 //   C13 O suporte do estencil ALCANCA a franja, e ela carrega peso.  E' o
 //       criterio do que a franja entrega -- nao do tamanho dela, que amarraria
 //       a implementacao.  Vale em serie e sob particionamento.
-//         test-fringe-support  / com_franja_o_estencil_atravessa_e_carrega_peso
-//         test-fringe-parallel / estencil_alcanca_a_franja
+//         test-fringe-support   / com_franja_o_estencil_atravessa_e_carrega_peso
+//         test-fringe-parallel  / estencil_alcanca_a_franja
+//         test-partition-t8code / suporte_alcanca_o_ghost               [t8code]
+//       O MTree reparte pelo lbal.c com Zoltan e chama a camada de franja; o
+//       t8code reparte por curva de preenchimento e chama a dela de ghost.  Os
+//       dois cumprem o mesmo criterio -- o que a camada ENTREGA ao estencil, nao
+//       o tamanho dela -- por caminhos que nao se parecem.
 //
 //   C14 Sobre o contorno (ramo ON_BOUNDARY), a reproducao polinomial vale.
 //       Metade do despacho de fechamento passa por aqui, e foi nesse ramo que

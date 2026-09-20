@@ -90,6 +90,14 @@ TESTS += test-stencil-support
 TESTS += test-boundary-faces
 TESTS += test-point-class
 
+# So' faz sentido com o t8code: nao tem lado MTree.  TEM de entrar ANTES do
+# `all:` -- a lista de pre-requisitos e' expandida quando a REGRA E' LIDA, nao
+# quando o alvo roda, entao acrescentar a TESTS depois de `all:` nao constroi
+# nada.  O driver o conhece por Test(..., so_t8code=True).
+ifdef T8CODE
+TESTS += test-partition-t8code
+endif
+
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 
 all: $(BIN)
@@ -109,7 +117,8 @@ ifdef T8CODE
 T8OBJ     = t8code/t8-mesh-producer-$(DIM)d.o t8code/t8-point-locator-$(DIM)d.o \
             t8code/t8-forest-cache-$(DIM)d.o t8code/t8-stencil-support-$(DIM)d.o \
             t8code/t8-boundary-faces-$(DIM)d.o \
-            t8code/t8-point-class-$(DIM)d.o
+            t8code/t8-point-class-$(DIM)d.o \
+            t8code/t8-partition-$(DIM)d.o
 CFLAGS   += -DHIGTREE_COM_T8CODE -I$(T8CODE)/include
 LDFLAGS  += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LIBS     += -lt8 -lp4est -lsc

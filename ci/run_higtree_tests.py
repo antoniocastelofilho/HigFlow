@@ -32,13 +32,16 @@ TESTDIR = os.path.join(HIGTREE, "tests")
 
 
 class Test:
-    def __init__(self, name, dims=(2, 3), nps=(1,), mpi=False):
+    def __init__(self, name, dims=(2, 3), nps=(1,), mpi=False, so_t8code=False):
         self.name = name
         self.dims = dims
         # `mpi` diz que o binario chama higtree_initialize.  Ele entao SEMPRE vai
         # por mpirun, inclusive em np=1: rodado direto, o MPI_Init trava sem
         # imprimir nada e o teste aparece como timeout, nao como falha.
         self.mpi = mpi
+        # Teste que so' existe com o t8code -- nao tem lado MTree.  Sem --t8code
+        # ele nao e' construido nem cobrado, e a guarda de registro o ignora.
+        self.so_t8code = so_t8code
         # Numeros de processos a exercitar.  O padrao e' (1,): a maioria dos testes
         # nao chama MPI_Init e, lancada sob mpirun, travaria.  Quem declara np>1 TEM
         # de chamar higtree_initialize e reduzir os veredictos entre os ranks antes
@@ -121,6 +124,13 @@ TESTS = [
     # decidem por criterios DIFERENTES -- caixa da arvore contra face sem
     # vizinho -- e o ultimo caso mede onde eles se separam, em vez de supor.
     Test("test-point-class", dims=(2, 3), mpi=True),
+
+    # O t8code sob particionamento REAL: C13 e P1 a P4.  As sete clausulas ja'
+    # verificadas rodam em um processo; esta familia exige a floresta
+    # distribuida com ghost, e e' onde a substituicao do particionador de fato
+    # acontece.  Espelha o test-fringe-parallel, que faz o mesmo para o MTree.
+    Test("test-partition-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
+         so_t8code=True),
 ]
 
 
@@ -139,6 +149,12 @@ def confere_registro():
         return []
     no_make = set(re.findall(r"TESTS\s*\+?=\s*(test-[\w-]+)", open(mk).read()))
     no_driver = {t.name for t in TESTS}
+    # Testes que so' existem com o t8code saem dos DOIS lados da comparacao.
+    # Tirar de um lado so' faz a guarda disparar na direcao contraria -- foi o
+    # que aconteceu na primeira tentativa.
+    so_t8 = {t.name for t in TESTS if t.so_t8code}
+    no_make -= so_t8
+    no_driver -= so_t8
     faltam = []
     for nome in sorted(no_make - no_driver):
         faltam.append("%s esta' no Makefile e nao no driver: nunca roda" % nome)
@@ -306,6 +322,8 @@ def main():
                 falhas += 1
                 continue
         for t in alvos:
+          if t.so_t8code and not args.t8code:
+            continue
           for np in t.nps:
             cases, erro = run_test(t, dim, np, args.timeout)
             # Um caso pode emitir VARIAS linhas de falha, uma por assercao.  A
