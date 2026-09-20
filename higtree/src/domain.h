@@ -220,6 +220,33 @@ const struct hig_facet_snapshot *sfd_get_snapshot(sim_facet_domain *sfd);
 //! unico caminho que nao passa por onde o instantaneo passou.
 int sfd_snapshot_verify(sim_facet_domain *sfd, char *detalhe, size_t tam);
 
+//! \brief Onde um ponto esta' em relacao ao dominio.
+//!
+//! Estava no domain.c, privado.  Subiu porque a clausula C14 do contrato e'
+//! sobre esta classificacao, e enquanto ela nao tivesse funcao publica o teste
+//! precisava REIMPLEMENTAR o criterio -- ou seja, testava uma copia.
+typedef enum {
+	IN_DOMAIN_PROPER = 0,
+	ON_BOUNDARY = 1,
+	OUTSIDE_DOMAIN = 2
+} point_location;
+
+//! \brief Classifica `x` em relacao ao dominio: dentro, sobre o contorno, fora.
+//!
+//! ON_BOUNDARY significa que O DOMINIO TERMINA ALI (contrato, clausula C14).
+//! Interface entre blocos do MESMO dominio nao e' contorno: ha' malha dos dois
+//! lados, e o ponto segue DENTRO.
+//!
+//! O criterio e' por DIRECAO: o ponto toca um limite de caixa na direcao `d`; o
+//! dominio continua abaixo se algum bloco que o contem tem `lo[d] < x[d]`, e
+//! continua acima se algum tem `hi[d] > x[d]`.  So' e' contorno se faltar um dos
+//! dois.  Nao ha' epsilon de sondagem: a comparacao e' entre limites de caixa
+//! que ja' existem.
+//!
+//! As arvores de FRANJA contam como continuacao, e e' o desejado -- interface de
+//! particao nao e' contorno fisico.
+point_location sd_classify_point(sim_domain *d, CPPoint x);
+
 //! Creates a simulation domain.
 sim_domain *sd_create(mp_mapper *m);
 

@@ -42,26 +42,27 @@ typedef enum { DENTRO = 0, NO_CONTORNO = 1, FORA = 2 } Classe;
 static const char *NOME[] = { "DENTRO", "NO_CONTORNO", "FORA" };
 
 // ------------------------------------------------------------------ MTree
-// Espelha o criterio de `cell_find_in_center`: caixa da arvore, com igualdade de
-// coordenada contando como contorno.  E' re-implementacao do criterio
-// DOCUMENTADO, nao chamada da funcao -- ela e' estatica em domain.c.
+// CHAMA A FUNCAO REAL, `sd_classify_point`.  Ate' 2026-09-20 este teste
+// REIMPLEMENTAVA o criterio, porque o classificador era estatico em domain.c --
+// ou seja, ele afirmava coisas sobre uma copia.  Foi por isso que a divergencia
+// da C14 precisou ser reconferida lendo a funcao antes de decidir o D3.
 static Classe mtree_classe(int nblocos, const Point p) {
-    Classe r = FORA;
+    sim_domain *sd = sd_create(NULL);
     for(int b = 0; b < nblocos; b++) {
-        Rect bb;
-        for(int d = 0; d < DIM; d++) { bb.lo[d] = 0.0; bb.hi[d] = 1.0; }
-        bb.lo[0] = (real) b / nblocos;
-        bb.hi[0] = (real) (b + 1) / nblocos;
-        if(!rect_contains_point(&bb, (real *) p)) continue;
-        r = DENTRO;
-        for(int d = 0; d < DIM; d++) {
-            if(fabs(p[d] - bb.lo[d]) < 1e-12 || fabs(p[d] - bb.hi[d]) < 1e-12) {
-                r = NO_CONTORNO;
-                break;
-            }
-        }
-        break;                       // dominios nao se sobrepoem
+        Point lo, hi;
+        POINT_ASSIGN_SCALAR(lo, 0.0);
+        POINT_ASSIGN_SCALAR(hi, 1.0);
+        lo[0] = (real) b / nblocos;
+        hi[0] = (real) (b + 1) / nblocos;
+        hig_cell *raiz = hig_create_root(lo, hi);
+        int nc[DIM];
+        for(int d = 0; d < DIM; d++) nc[d] = LADO;
+        nc[0] = LADO / nblocos;
+        hig_refine_uniform(raiz, nc);
+        sd_add_higtree(sd, raiz);
     }
+    const Classe r = (Classe) sd_classify_point(sd, (CPPoint) p);
+    sd_destroy(sd);
     return r;
 }
 
@@ -164,18 +165,20 @@ int main(int argc, char *argv[]) {
     // lados.  O criterio da caixa diz NO_CONTORNO; o da face sem vizinho diz
     // DENTRO.
     //
-    // DECIDIDO EM 2026-09-20 (C14): vale a semantica do t8code.  "Sobre o
-    // contorno" significa que o dominio TERMINA ali.  Entao este caso deixou de
-    // ser um empate registrado e passou a ser o que ele e': o t8code cumpre o
-    // contrato, e o MTree DESVIA dele de um jeito conhecido e rastreado.
+    // DECIDIDO EM 2026-09-20 (C14): vale a semantica do t8code -- "sobre o
+    // contorno" significa que o dominio TERMINA ali.  E O MTREE FOI CORRIGIDO no
+    // mesmo dia, entao os dois CONCORDAM e este caso afirma a concordancia.
     //
-    // O desvio nasce no `cell_find_in_center`, que para no PRIMEIRO higtree cuja
-    // caixa contem o ponto e nunca pergunta se outro bloco continua o dominio.
-    // Nao e' hipotetico: com np=3 um dominio chega a tres higtrees.  O efeito
-    // hoje e' benigno -- a busca por condicao de contorno falha e o codigo cai no
-    // caminho normal --, e o caso existe para que ele nao deixe de ser benigno em
-    // silencio.
-    t_case("mtree_desvia_do_contrato_na_interface_entre_arvores");
+    // O desvio antigo nascia no `cell_find_in_center`: ele parava no PRIMEIRO
+    // higtree cuja caixa contem o ponto (`break`) e nunca perguntava se outro
+    // bloco continuava o dominio -- a resposta chegava a depender da ORDEM das
+    // arvores.  O classificador passou a ser `sd_classify_point`, que decide por
+    // DIRECAO: so' e' contorno se o dominio nao continuar de um dos lados.
+    //
+    // ESTE CASO PEGOU A PROPRIA CORRECAO.  Ele estava escrito para falhar se o
+    // MTree passasse a dizer DENTRO, com a mensagem de que isso seria boa
+    // noticia -- e foi exatamente o que aconteceu quando a correcao entrou.
+    t_case("os_dois_concordam_na_interface_entre_arvores");
     {
         Point p; for(int d = 0; d < DIM; d++) p[d] = 0.5625;
         p[0] = 0.5;                      // interface entre as duas arvores
@@ -184,11 +187,14 @@ int main(int argc, char *argv[]) {
         T_CHECK_MSG(t8 == DENTRO,
             "O CONTRATO: na interface entre arvores ha' malha dos dois lados, "
             "entao o ponto esta' DENTRO.  O t8code disse %s", NOME[t8]);
-        T_CHECK_MSG(cx == NO_CONTORNO,
-            "O DESVIO CONHECIDO do MTree: ele diz NO_CONTORNO na interface entre "
-            "arvores, e aqui disse %s.  Se passou a dizer DENTRO, o desvio foi "
-            "CORRIGIDO -- e' boa noticia, e o que precisa ser atualizado sao a "
-            "clausula C14 e este caso", NOME[cx]);
+        T_CHECK_MSG(cx == DENTRO,
+            "O MTree voltou a dizer %s na interface entre arvores.  Ele foi "
+            "CORRIGIDO em 2026-09-20 para decidir por direcao; se regrediu, o "
+            "suspeito e' o `sd_classify_point` ter voltado a parar no primeiro "
+            "bloco que contem o ponto", NOME[cx]);
+        T_CHECK_MSG(cx == t8,
+            "os dois backends discordam na interface (%s contra %s) -- e' a C14 "
+            "que esta' sendo violada por um dos dois", NOME[cx], NOME[t8]);
     }
 #endif
     return t_end();

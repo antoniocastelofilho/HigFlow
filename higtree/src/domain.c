@@ -389,6 +389,46 @@ int sfd_snapshot_verify(sim_facet_domain *sfd, char *detalhe, size_t tam)
 	return divergentes;
 }
 
+point_location sd_classify_point(sim_domain *d, CPPoint x)
+{
+	// Primeira passada: o ponto esta' em algum bloco?  E toca algum limite de
+	// caixa?  A esmagadora maioria dos pontos nao toca nada, e para esses a
+	// resposta sai daqui sem a segunda passada.
+	int dentro = 0, toca = 0;
+	for(int i = 0; i < d->numhigtrees; i++) {
+		Rect bbox;
+		hig_get_bounding_box(sd_get_higtree(d, i), &bbox);
+		if(!rect_contains_point(&bbox, x)) continue;
+		dentro = 1;
+		for(unsigned dim = 0; dim < DIM; ++dim) {
+			if(POS_EQ(x[dim], bbox.lo[dim]) || POS_EQ(x[dim], bbox.hi[dim])) {
+				toca = 1;
+				break;
+			}
+		}
+		if(toca) break;
+	}
+	if(!dentro) return OUTSIDE_DOMAIN;
+	if(!toca)   return IN_DOMAIN_PROPER;
+
+	// Segunda passada, por DIRECAO: o dominio continua dos dois lados?  Se
+	// continua, o limite era de BLOCO e nao de dominio -- o ponto segue dentro.
+	for(unsigned dim = 0; dim < DIM; ++dim) {
+		int toca_dim = 0, desce = 0, sobe = 0;
+		for(int i = 0; i < d->numhigtrees; i++) {
+			Rect bbox;
+			hig_get_bounding_box(sd_get_higtree(d, i), &bbox);
+			if(!rect_contains_point(&bbox, x)) continue;
+			if(POS_EQ(x[dim], bbox.lo[dim]) || POS_EQ(x[dim], bbox.hi[dim]))
+				toca_dim = 1;
+			if(!POS_EQ(bbox.lo[dim], x[dim]) && bbox.lo[dim] < x[dim]) desce = 1;
+			if(!POS_EQ(bbox.hi[dim], x[dim]) && bbox.hi[dim] > x[dim]) sobe  = 1;
+		}
+		if(toca_dim && !(desce && sobe)) return ON_BOUNDARY;
+	}
+	return IN_DOMAIN_PROPER;
+}
+
 int sd_add_higtree(sim_domain *d, hig_cell *c) {
 	_sd_snapshot_ainda_nao(d, __func__);
 	_sd_make_room_for_tree(d);
@@ -693,16 +733,6 @@ calc_weight_from_points(struct interpolator *inter, CPPoint x, _wls_item_list *i
 	wls_set_samples_and_calc(wls, numusedpts, items->ptr, x, w);
 
 }
-
-// Trinary enum to represent the position of a point
-// IN_DOMAIN_PROPER means it is inside the domain.
-// ON_BOUNDARY means it is on the boundary.
-// OUTSIDE_DOMAIN means it is outside the domain.
-typedef enum {
-	IN_DOMAIN_PROPER = 0,
-	ON_BOUNDARY = 1,
-	OUTSIDE_DOMAIN = 2
-} point_location;
 
 
 // Functions used by the stencil interpolation search, implemented for
@@ -2443,22 +2473,19 @@ cell_find_in_center(void *param, CPPoint x, real alpha, point_location *in_domai
 {
 	sim_domain *d = (sim_domain *) param;
 
-	*in_domain = OUTSIDE_DOMAIN;
+	// A CLASSIFICACAO olha TODOS os blocos; a busca da celula usa o primeiro que
+	// contem o ponto.  Antes as duas coisas saiam do mesmo laco, com um `break`
+	// no primeiro bloco -- e por isso a classificacao ignorava que outro bloco
+	// pudesse continuar o dominio.
+	*in_domain = sd_classify_point(d, x);
+	if(*in_domain == OUTSIDE_DOMAIN) return false;
+
 	for(int i = 0; i < d->numhigtrees; i++) {
 		hig_cell *root = sd_get_higtree(d, i);
 
 		Rect bbox;
 		hig_get_bounding_box(root, &bbox);
 		if(rect_contains_point(&bbox, x)) {
-			*in_domain = IN_DOMAIN_PROPER;
-
-			for(unsigned dim = 0; dim < DIM; ++dim) {
-				if(POS_EQ(x[dim], bbox.hi[dim]) || POS_EQ(x[dim], bbox.lo[dim])) {
-					*in_domain = ON_BOUNDARY;
-					break;
-				}
-			}
-
 			hig_cell *cx = hig_get_cell_with_point(root, x);
 			if (cx != NULL) {
 				Point cxcenter;

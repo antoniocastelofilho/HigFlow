@@ -238,7 +238,7 @@
 //         test-point-class   / parede_externa_e_contorno
 //         test-point-class   / fora_do_dominio_e_fora
 //         test-point-class   / interface_interna_de_celula_e_dentro
-//         test-point-class   / mtree_desvia_do_contrato_na_interface_entre_arvores [t8code]
+//         test-point-class   / os_dois_concordam_na_interface_entre_arvores [t8code]
 //       A METADE QUE E' DE MESH e' o DESPACHO: decidir entre dentro, sobre o
 //       contorno e fora, antes de qualquer interpolacao.  Quem interpola depois
 //       e' Discretization, e e' o primeiro caso acima.
@@ -258,28 +258,27 @@
 //       vizinho responde a essa pergunta; a caixa responde outra -- "este ponto
 //       toca o limite de algum bloco".
 //
-//       O MTREE NAO CUMPRE ESTA CLAUSULA, e fica escrito em vez de escondido.  O
-//       `cell_find_in_center` percorre os higtrees do dominio, PARA no primeiro
-//       cuja caixa contem o ponto (`break`, "assume domains do not overlap") e
-//       marca ON_BOUNDARY se alguma coordenada igualar um limite DAQUELA caixa.
-//       Ele nunca pergunta se outro bloco continua o dominio dali'.  Duas
-//       consequencias:
-//         - a resposta depende da ORDEM das arvores no vetor do dominio, que e'
-//           o que a C8 proibe para localizacao;
-//         - e' alcancavel em TODA execucao com np>1.  MEDIDO: com np=3 um
-//           dominio do example2d_Newt chega a TRES higtrees, e os planos entre
-//           eles sao interfaces internas.
+//       O MTREE CUMPRIA MAL, E FOI CORRIGIDO no mesmo dia.  O
+//       `cell_find_in_center` percorria os higtrees, PARAVA no primeiro cuja
+//       caixa contem o ponto (`break`, "assume domains do not overlap") e
+//       marcava ON_BOUNDARY se alguma coordenada igualasse um limite DAQUELA
+//       caixa -- sem nunca perguntar se outro bloco continua o dominio.  A
+//       resposta dependia da ORDEM das arvores no vetor, que e' o que a C8
+//       proibe para localizacao, e era alcancavel em TODA execucao com np>1
+//       (medido: com np=3 um dominio do example2d_Newt tem TRES higtrees).
 //
-//       POR QUE NAO FOI CORRIGIDO JUNTO COM A DECISAO.  O efeito hoje e' BENIGNO,
-//       e foi rastreado ate' o fim: ON_BOUNDARY faz o `get_stencil` procurar
-//       condicao de contorno -- Dirichlet no centro, Neumann, Dirichlet --, e
-//       numa interface interna nenhuma casa, entao o codigo cai no caminho normal
-//       de interpolacao.  O preco e' busca desperdicada na camada de facetas
-//       daquele plano.  O QUE NAO E' GARANTIDO e' que nenhuma condicao registrada
-//       coincida com uma interface interna; se coincidir, seria aplicada num
-//       ponto interno.  Corrigir exige perguntar se o dominio CONTINUA alem do
-//       ponto -- sonda com epsilon --, e isso merece verificacao propria em vez
-//       de vir de carona.
+//       O classificador agora e' `sd_classify_point`, publico em domain.h, e
+//       decide POR DIRECAO: o ponto toca um limite na direcao `d`; o dominio
+//       continua abaixo se algum bloco que o contem tem `lo[d] < x[d]`, e acima
+//       se algum tem `hi[d] > x[d]`; so' e' contorno se faltar um dos dois.  Sem
+//       epsilon de sondagem -- compara limites de caixa que ja' existem.  As
+//       arvores de FRANJA contam como continuacao, e e' o desejado: interface de
+//       particao nao e' contorno fisico, e antes era classificada como se fosse.
+//
+//       O ENUM `point_location` SUBIU PARA domain.h junto com a funcao.  Enquanto
+//       o classificador era estatico, o test-point-class REIMPLEMENTAVA o
+//       criterio -- afirmava coisas sobre uma copia.  Foi por isso que decidir
+//       esta clausula exigiu ler a funcao real antes.
 //
 //
 // ----------------------------------------------- A FRONTEIRA DAS CONSULTAS
