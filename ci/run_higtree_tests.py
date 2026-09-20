@@ -292,6 +292,13 @@ def main():
                          "na dimensao pedida")
     args = ap.parse_args()
 
+    # Caminho relativo e' o que se digita, mas ele e' repassado ao
+    # `make -C higtree/tests` e resolvido A PARTIR DALI, nao da raiz -- o
+    # resultado e' o t8code silenciosamente nao construido e clausulas
+    # reportadas como sem teste.  Absolutiza-se aqui, uma vez.
+    if args.t8code:
+        args.t8code = os.path.abspath(args.t8code)
+
     dims = [int(d) for d in args.dim.split(",") if d.strip()]
     tests = [t for t in TESTS if not args.test or t.name in args.test]
     if not tests:

@@ -173,6 +173,39 @@ apptainer build higflow.sif docker-daemon://higflow:v01
 - `./TUM_CLEAR_ALL` — clean all example build artifacts
 - Benchmark: `./benchmark_speed.sh` (in `example2d_DynamicMeshAdapt/`)
 
+### The two suites, and what each one covers
+
+```bash
+set -a; . ./varsrc; set +a          # from the REPOSITORY ROOT; varsrc uses $(pwd)
+python3 ci/run_suite.py             # 33 runs: the HiGFlow examples, 2D and 3D
+python3 ci/run_higtree_tests.py     # 104 cases: the HiGTree library itself
+```
+
+`run_suite.py` **builds** higtree and never tests it — the library is a
+prerequisite of the examples. Every `domain.c` defect fixed between 15 and
+18/09/2026 lived there and was found by a 3D run aborting, not by a test. That
+is what `run_higtree_tests.py` exists for, and it asserts **value, not form**.
+
+It also enforces the **Mesh contract** (`higtree/src/hig-mesh-contract.h`): the
+driver reads the clauses from the header itself and requires each to have a
+passing case. A clause whose test disappeared prints `SEM TESTE QUE RODE`; one
+whose test failed prints `REPROVADA`. Both count as suite failures — a clause
+without a test is a comment, not a clause.
+
+### Second mesh backend (t8code), optional
+
+```bash
+python3 ci/run_higtree_tests.py --t8code bibliotecas/t8code/install
+```
+
+With the flag, the 18 contract clauses are verified for **two** mesh
+implementations instead of one (142 cases). Without it nothing of t8code is
+built and the suite is identical to before.
+
+t8code is not packaged anywhere and must be built from source — the how, the
+three non-obvious integration constraints, and what is still missing are in
+**`higtree/tests/t8code/README.md`**. Read it before touching that directory.
+
 ## README per case
 
 Every new test case must have a `README.md` describing:
