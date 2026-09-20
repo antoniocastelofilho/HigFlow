@@ -232,6 +232,40 @@ exato em binário. Não há ali o que discriminar.
 Custo: dois arranjos de `n * DIM` em vez de dois (mesma memória), e o produtor
 do t8code passou a preencher a caixa a partir do centroide e do nível.
 
+## 4b. Produção por rank — tentada, e o que ela ensinou
+
+**Não entrou**, e o motivo é uma restrição da HiGTree que eu não conhecia.
+
+A ideia era: a floresta nasce em `COMM_WORLD`, o t8code já a reparte, e cada
+rank materializa só os seus elementos. O conjunto local de um rank é um
+intervalo da curva de preenchimento, e uma árvore hig é uma **caixa** refinada —
+então eu ia representar a região com uma árvore **com buracos**, usando
+`hig_refine_empty` (que cria o vetor de filhos zerado) e preenchendo só os
+compartimentos do rank.
+
+**Árvore com buracos não é navegável.** `hig_get_cell_coords_of_point`
+desreferencia `cell->children[...]` para ler as caixas dos filhos; com filhos
+nulos, é SEGV. E `hig_get_cell_with_point`, que a chama, ainda faz
+`cell = cell->children[p]` sem testar nulo. Toda a localização por ponto —
+inclusive a do fechamento de contorno e a do oráculo — depende dessas duas.
+
+**E a minha premissa sobre o `lbal` estava errada.** Eu tinha escrito que ele
+produz árvores com buracos. Ele não produz: `hig_refine_empty` ali serve para
+*alocar o vetor*, e em seguida o laço preenche **todos** os `tree_size` filhos.
+Cada árvore de saída é uma caixa **completa** — e é por isso que um domínio tem
+várias (medido: até três por rank com np=3), com um passo de fusão entre elas.
+
+**O que a próxima tentativa tem de fazer:** decompor o conjunto de elementos do
+rank em **caixas completas** e emitir uma árvore por caixa. Isso é um problema
+de cobertura por retângulos sobre os índices possuídos, não uma adaptação do que
+já existe.
+
+*Verificado durante a tentativa, e vale guardar:* o caminho local funciona —
+em np=2 cada rank materializou 35 elementos e viu 8 ghosts. O que quebrou foi a
+navegação, não a produção. E pedir `set_adapt`, `set_ghost` e `set_partition` no
+mesmo commit do t8code derruba com np>1 e funciona em np=1, que é o modo como
+esse tipo de defeito se esconde.
+
 ## 5. Ordem, e o que dá rede
 
 A restrição real não é tamanho, é cobertura. A suíte de exemplos roda 33 casos;
