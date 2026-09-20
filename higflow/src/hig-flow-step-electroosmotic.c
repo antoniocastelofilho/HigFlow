@@ -2423,14 +2423,13 @@ void print_minmax_properties(higflow_solver *ns) {
     }
 
     sim_facet_domain *sfdu[DIM];
-    higfit_facetiterator *fit;
     for(int dim=0; dim<DIM; dim++){
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)){
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(sfd_get_domain_mapper(sfdu[dim]), hig_get_fid(f));
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
 
             // u[dim] = dp_get_value(ns->dpu[dim], clid);
             // if(u[dim]>u_max[dim]) u_max[dim] = u[dim];
@@ -2442,7 +2441,7 @@ void print_minmax_properties(higflow_solver *ns) {
             if(Feo[dim]>Feo_max[dim]) Feo_max[dim] = Feo[dim];
             if(Feo[dim]<Feo_min[dim]) Feo_min[dim] = Feo[dim];
         }
-        higfit_destroy(fit);
+        }
     }
 
     // printf("####### MINMAX properties - SUBSTEP%5.3lf ########\n", substep_id);

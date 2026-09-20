@@ -144,7 +144,6 @@ void higflow_outflow_u_step(higflow_solver *ns) {
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
     // Loop for each dimension
-    higfit_facetiterator *fit;
     for(int dim = 0; dim < DIM; dim++) {
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
         // Set the velocity at outflow
@@ -158,7 +157,6 @@ void higflow_outflow_ustar_step(higflow_solver *ns) {
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
     // Loop for each dimension
-    higfit_facetiterator *fit;
     for(int dim = 0; dim < DIM; dim++) {
         // Get the local partitioned domain for facets
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
@@ -258,7 +256,6 @@ void higflow_final_velocity(higflow_solver *ns) {
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
     // Loop for each dimension
-    higfit_facetiterator *fit;
     for(int dim = 0; dim < DIM; dim++) {
         // Initialize the min and max velocity
         real velmax = -1.0e16;
@@ -269,16 +266,16 @@ void higflow_final_velocity(higflow_solver *ns) {
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
 
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             real pl, pr;
             if (ns->contr.projtype == INCREMENTAL) {
                 // Get the pressure in the left cell
@@ -298,7 +295,7 @@ void higflow_final_velocity(higflow_solver *ns) {
             // Compute the final velocity
             real u  = ustar - ns->par.dt * dpdx;
 
-            UPDATE_RESIDUAL_BUFFER_FACET(ns, dp_get_value(ns->dpu[dim], flid), u, f, fcenter)
+            UPDATE_RESIDUAL_BUFFER_FACET_HMS(ns, dp_get_value(ns->dpu[dim], flid), u, hfs, flid, fcenter)
 
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpu[dim], flid, u);
@@ -306,8 +303,8 @@ void higflow_final_velocity(higflow_solver *ns) {
             if (u > velmax) velmax = u;
             if (u < velmin) velmin = u;
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
 
         UPDATE_RESIDUALS(ns, ns->residuals->u[dim])
 
@@ -390,27 +387,26 @@ void higflow_calculate_facet_source_term(higflow_solver *ns) {
     //sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdF[DIM];
     // Loop for each dimension
-    higfit_facetiterator *fit;
     for(int dim = 0; dim < DIM; dim++) {
         // Get the local partitioned domain for facets
         sfdF[dim] = psfd_get_local_domain(ns->psfdF[dim]);
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdF[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdF[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdF[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the pressure in the left cell
             real F = ns->problem->facet_source_term(fcenter, dim, ns->par.t);
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpFU[dim], flid, F);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->dpFU[dim]);
     }
@@ -635,7 +631,6 @@ void higflow_boundary_condition_for_facet_source_term(higflow_solver *ns) {
 // *******************************************************************
 void higflow_explicit_euler_intermediate_velocity(higflow_solver *ns, distributed_property *dpu[DIM], distributed_property *dpustar[DIM]) {
     // Get the facet iterator
-    higfit_facetiterator *fit;
     // Get the local domain for cell
     sim_domain *sdp    = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
@@ -648,16 +643,16 @@ void higflow_explicit_euler_intermediate_velocity(higflow_solver *ns, distribute
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
@@ -675,8 +670,8 @@ void higflow_explicit_euler_intermediate_velocity(higflow_solver *ns, distribute
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Syncing the intermediate velocity
         dp_sync(dpustar[dim]);
     }
@@ -811,7 +806,6 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity(higflow_solver *ns) {
 // *******************************************************************
 void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
     // Get the facet iterator
-    higfit_facetiterator *fit;
     // Get the local domain for cell
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
@@ -825,16 +819,16 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -883,8 +877,8 @@ void higflow_semi_implicit_euler_intermediate_velocity(higflow_solver *ns) {
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
             }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system

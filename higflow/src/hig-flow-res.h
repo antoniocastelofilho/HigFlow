@@ -22,13 +22,36 @@
 #define COMPUTE_MIDLINE // channel only
 
 #ifdef COMPUTE_RESIDUALS
+    // Duas formas, como no caso das celulas: uma chega a' geometria pela faceta,
+    // a outra pelo instantaneo.  A funcao por baixo e' uma so'.
     #define UPDATE_RESIDUAL_BUFFER_FACET(ns, val1, val2, f, fcenter) \
         do { \
-            if((ns)->residuals != NULL) \
-                update_residual_buffer_facet((ns)->residuals->res_buffer, (val1), (val2), (f), (fcenter)); \
+            if((ns)->residuals != NULL) { \
+                hig_cell *__rb_c = hig_get_facet_cell((f)); \
+                Point __rb_d, __rb_lo, __rb_hi; \
+                hig_get_delta(__rb_c, __rb_d); \
+                hig_get_lowpoint(__rb_c, __rb_lo); \
+                hig_get_highpoint(__rb_c, __rb_hi); \
+                update_residual_buffer_facet((ns)->residuals->res_buffer, (val1), (val2), \
+                                             __rb_d, (fcenter), __rb_lo, __rb_hi); \
+            } \
+        } while (0);
+
+    //! Mesma coisa, lendo o instantaneo de facetas: `hfs` e o indice local.
+    #define UPDATE_RESIDUAL_BUFFER_FACET_HMS(ns, val1, val2, hfs, i, fcenter) \
+        do { \
+            if((ns)->residuals != NULL) { \
+                Point __rb_d, __rb_lo, __rb_hi; \
+                hfs_delta((hfs), (i), __rb_d); \
+                hfs_cell_low((hfs), (i), __rb_lo); \
+                hfs_cell_high((hfs), (i), __rb_hi); \
+                update_residual_buffer_facet((ns)->residuals->res_buffer, (val1), (val2), \
+                                             __rb_d, (fcenter), __rb_lo, __rb_hi); \
+            } \
         } while (0);
 #else
     #define UPDATE_RESIDUAL_BUFFER_FACET(ns, val1, val2, f, fcenter) do {} while (0);
+    #define UPDATE_RESIDUAL_BUFFER_FACET_HMS(ns, val1, val2, hfs, i, fcenter) do {} while (0);
 #endif // COMPUTE_RESIDUALS
 
 #ifdef COMPUTE_RESIDUALS
@@ -162,7 +185,9 @@ void free_sim_residuals(sim_residuals *sim_res);
 void write_residuals(sim_residuals *sim_res, higflow_solver *ns);
 
 // the routines below are called to update the residual buffer according to the type of iterator
-void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val2, hig_facet *f, Point fcenter);
+void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val2,
+                                  const Point cdelta, const Point fcenter,
+                                  const Point clow, const Point chigh);
 void update_residual_buffer_cell(residual_buffer *res_buff, real val1, real val2,
                                  const Point cdelta, const Point ccenter,
                                  const Point clow, const Point chigh);

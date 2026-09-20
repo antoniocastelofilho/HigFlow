@@ -544,7 +544,6 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
     if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real val, fracvol;
         // Setting the facet-cell iterator
-        higfit_facetiterator *fit;
         // Setting the volocity values for the domain
         sim_facet_domain *sfdFeo[DIM];
         // Setting the velocity U(dim)
@@ -553,16 +552,16 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
             sfdFeo[dim] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[dim]);
             // Get the Mapper for the local domain
             mp_mapper *m = sfd_get_domain_mapper(sfdFeo[dim]);
-            for(fit = sfd_get_domain_facetiterator(sfdFeo[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+            {
+            const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdFeo[dim]);
+            for(int flid = 0; flid < hfs->n; flid++) {
                 // Getting the cell
-                hig_facet *f = higfit_getfacet(fit);
                 // Get the cell identifier
-                int flid = mp_lookup(m, hig_get_fid(f));
                 // Get the center of the facet
                 Point center;
-                hig_get_facet_center(f, center);
+                hfs_center(hfs, flid, center);
                 Point delta;
-                hig_get_facet_delta(f, delta);
+                hfs_delta(hfs, flid, delta);
                 // Get the value for the velocity in this cell facet
                 if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                     real fracl = compute_center_p_left(ns->ed.mult.sdmult, center, delta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
@@ -574,8 +573,8 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
                 // Set the velocity value for the velocity distributed property
                 dp_set_value(ns->ed.eo.dpFeo[dim], flid, val);
             }
+            }
             // Destroying the iterator
-            higfit_destroy(fit);
             // Sync initial values among processes
             dp_sync(ns->ed.eo.dpFeo[dim]);
         }
@@ -1051,7 +1050,6 @@ void higflow_initialize_volume_fraction(higflow_solver *ns) {
 // Initialize the velocities
 void higflow_initialize_velocity(higflow_solver *ns) {
     // Setting the facet-cell iterator
-    higfit_facetiterator *fit;
     // Setting the volocity values for the domain
     sim_facet_domain *sfdu[DIM];
     // Setting the velocity U(dim)
@@ -1060,21 +1058,21 @@ void higflow_initialize_velocity(higflow_solver *ns) {
         sfdu[dim] = psfd_get_local_domain(ns->psfdu[dim]);
         // Get the Mapper for the local domain
         mp_mapper *m = sfd_get_domain_mapper(sfdu[dim]);
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Getting the cell
-            hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
-            hig_get_facet_center(f, center);
+            hfs_center(hfs, flid, center);
             // Get the value for the velocity in this cell facet
             real val = ns->problem->velocity(center, dim, ns->par.t);
             // Set the velocity value for the velocity distributed property
             dp_set_value(ns->dpu[dim], flid, val);
         }
+        }
         // Destroying the iterator
-        higfit_destroy(fit);
         // Sync initial values among processes
         dp_sync(ns->dpu[dim]);
     }
@@ -1083,7 +1081,6 @@ void higflow_initialize_velocity(higflow_solver *ns) {
 // Initialize the facet source term
 void higflow_initialize_facet_source_term(higflow_solver *ns) {
     // Setting the facet-cell iterator
-    higfit_facetiterator *fit;
     // Setting the volocity values for the domain
     sim_facet_domain *sfdu[DIM];
     // Setting the velocity U(dim)
@@ -1092,21 +1089,21 @@ void higflow_initialize_facet_source_term(higflow_solver *ns) {
         sfdu[dim] = psfd_get_local_domain(ns->psfdF[dim]);
         // Get the Mapper for the local domain 
         mp_mapper *m = sfd_get_domain_mapper(sfdu[dim]);
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Getting the cell
-            hig_facet *f = higfit_getfacet(fit);
             // Get the cell identifier
-            int flid = mp_lookup(m, hig_get_fid(f));
             // Get the center of the facet
             Point center;
-            hig_get_facet_center(f, center);
+            hfs_center(hfs, flid, center);
             // Get the value for the facet source term in this cell facet
             real val = ns->problem->facet_source_term(center, dim, ns->par.t);
             // Set the value for the facet source term distributed property
             dp_set_value(ns->dpFU[dim], flid, val);
         }
+        }
         // Destroying the iterator
-        higfit_destroy(fit);
         // Sync initial values among processes
         dp_sync(ns->dpFU[dim]);
     }

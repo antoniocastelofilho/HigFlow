@@ -382,10 +382,15 @@ void clear_residual_buffer(residual_buffer *res_buff) {
     #endif // COMPUTE_MIDLINE
 }
 
-void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val2, hig_facet *f, Point fcenter){
-    Point cdelta;
-    hig_cell *cell_with_facet = hig_get_facet_cell(f);
-    hig_get_delta(cell_with_facet, cdelta);
+// Mesma mudanca da versao de celula, e pela mesma razao: ela usava `hig_facet *f`
+// so' para chegar na CELULA da faceta e tirar dela o tamanho e, sob
+// COMPUTE_MIDLINE, os cantos.  Tudo isso o `hig_facet_snapshot` carrega -- e foi
+// por causa DESTA funcao que ele guarda a caixa da celula em vez do centro da
+// faceta ja' pronto.
+void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val2,
+                                  const Point cdelta, const Point fcenter,
+                                  const Point clow, const Point chigh){
+    // Ver a nota em update_residual_buffer_cell: isto e' AREA mesmo em DIM==3.
     real cell_area = cdelta[0]*cdelta[1];
 
     real dif = fabs(val1 - val2);
@@ -407,10 +412,7 @@ void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val
     }
     #endif // COMPUTE_MIDRANGE
     #ifdef COMPUTE_MIDLINE
-        Point lowpoint, highpoint;
-        hig_get_lowpoint(cell_with_facet, lowpoint);
-        hig_get_highpoint(cell_with_facet, highpoint);
-        if(POS_GE(res_buff->midlinex, lowpoint[0]) && POS_LE(res_buff->midlinex, highpoint[0])){ // midline
+        if(POS_GE(res_buff->midlinex, clow[0]) && POS_LE(res_buff->midlinex, chigh[0])){ // midline
             res_buff->midline.area += cell_area;
             if(dif > res_buff->midline.res_max) res_buff->midline.res_max = dif;
             res_buff->midline.res_1 += difc;

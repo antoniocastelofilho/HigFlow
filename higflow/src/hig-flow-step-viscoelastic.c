@@ -1121,7 +1121,6 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic(higflow_s
 // *******************************************************************
 void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(higflow_solver *ns) {
     // Get the facet iterator
-    higfit_facetiterator *fit;
     // Get the local domain for cell
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
@@ -1136,16 +1135,16 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(higflow_solv
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_viscoelastic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -1197,8 +1196,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_viscoelastic(higflow_solv
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system

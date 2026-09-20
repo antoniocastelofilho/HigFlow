@@ -1451,23 +1451,22 @@ void higflow_calculate_multiphase_electroosmotic_source_term(higflow_solver *ns)
     sim_domain *sdphi  = psd_get_local_domain(ns->ed.eo.psdEOphi);
     sim_facet_domain *sfdF[DIM];
     // Loop for each dimension
-    higfit_facetiterator *fit;
     for(int dim = 0; dim < DIM; dim++) {
         // Get the local partitioned domain for facets
         sfdF[dim] = psfd_get_local_domain(ns->ed.eo.psfdEOFeo[dim]);
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdF[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdF[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdF[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
 
             real fracl   = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             real fracr   = compute_center_p_right(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
@@ -1546,8 +1545,8 @@ void higflow_calculate_multiphase_electroosmotic_source_term(higflow_solver *ns)
             // Set the distributed source term property
             dp_set_value(ns->ed.eo.dpFeo[dim], flid, Feo);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->ed.eo.dpFeo[dim]);
     }
@@ -1634,7 +1633,6 @@ void higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(higf
 // *******************************************************************
 void higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic(higflow_solver *ns) {
     // Get the facet iterator
-    higfit_facetiterator *fit;
     // Get the local domain for cell
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
@@ -1647,16 +1645,16 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -1717,8 +1715,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase_electroosmotic
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system

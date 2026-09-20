@@ -1662,7 +1662,6 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
     // Loop for each dimension
-    higfit_facetiterator *fit;
     for (int dim = 0; dim < DIM; dim++) {
         // Initialize the min and max velocity
         real velmax    = -1.0e16;
@@ -1672,16 +1671,16 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
         // Get the map of the distributed properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the density in the left cell
             real rhol  = compute_center_p_left(ns->ed.mult.sdmult, fcenter, fdelta, dim, 0.5, ns->ed.mult.dpdens, ns->ed.mult.stn);
             //real rhol  = 1.0;
@@ -1709,7 +1708,7 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
             // Compute the final velocity
             real u  = ustar - ns->par.dt*dpdx/rho;
 
-            UPDATE_RESIDUAL_BUFFER_FACET(ns, dp_get_value(ns->dpu[dim], flid), u, f, fcenter)
+            UPDATE_RESIDUAL_BUFFER_FACET_HMS(ns, dp_get_value(ns->dpu[dim], flid), u, hfs, flid, fcenter)
 
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpu[dim], flid, u);
@@ -1717,8 +1716,8 @@ void higflow_final_velocity_multiphase(higflow_solver *ns) {
             if (u > velmax) velmax = u;
             if (u < velmin) velmin = u;
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
 
         UPDATE_RESIDUALS(ns, ns->residuals->u[dim])
 
@@ -2022,7 +2021,6 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_multiphase(higflow_sol
 // *******************************************************************
 void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver *ns) {
     // Get the facet iterator
-    higfit_facetiterator *fit;
     // Get the local domain for cell
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
     sim_facet_domain *sfdu[DIM];
@@ -2037,16 +2035,16 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -2106,8 +2104,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_multiphase(higflow_solver
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
