@@ -109,6 +109,13 @@ TESTS = [
     # montagem propria do t8code mediria malha e discretizacao juntas e nao
     # diria qual falhou.
     Test("test-stencil-support", dims=(2, 3), mpi=True),
+
+    # Onde o dominio termina, dito por dois mecanismos OPOSTOS: na HiGTree o
+    # contorno e' explicito (arvores sim_boundary registradas), no t8code e'
+    # implicito (face sem vizinho).  E' a metade de Mesh em C12 e C14; a
+    # projecao e a interpolacao em DIM-1 sao de Discretization e ficam nos
+    # testes que ja' existem.
+    Test("test-boundary-faces", dims=(2, 3), mpi=True),
 ]
 
 

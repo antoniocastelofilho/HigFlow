@@ -194,6 +194,22 @@
 //   C12 Fora do dominio, o fechamento usa a parede ATRAVESSADA pela projecao, e
 //       nao a mais proxima.
 //         test-stencil-selection / fecha_pela_parede_atravessada_e_nao_pela_mais_proxima
+//         test-boundary-faces    / contagem_de_faces_de_contorno
+//         test-boundary-faces    / faces_caem_nas_paredes
+//         test-boundary-faces    / normais_apontam_para_fora
+//         test-boundary-faces    / os_dois_mecanismos_concordam  [t8code]
+//       A METADE QUE E' DE MESH e' dizer ONDE o contorno esta'; a projecao, a
+//       escolha da parede e a interpolacao em DIM-1 sao de Discretization.  E os
+//       dois backends dizem isso por mecanismos OPOSTOS: na HiGTree o contorno e'
+//       EXPLICITO (arvores sim_boundary registradas -- a malha nao sabe onde
+//       termina, alguem lhe conta), no t8code e' IMPLICITO (face de elemento sem
+//       vizinho).  Por isso vale afirmar que produzem a mesma geometria: backend
+//       que erre aqui faz o fechamento projetar sobre parede que nao existe, ou
+//       ignorar parede que existe.
+//
+//       LIMITE CONHECIDO: "face sem vizinho e' contorno" so' vale em UM processo.
+//       Sob particionamento, face sem vizinho LOCAL pode ser face de franja, e a
+//       distincao passa a exigir o ghost.  O teste roda em np=1.
 //
 //   C13 O suporte do estencil ALCANCA a franja, e ela carrega peso.  E' o
 //       criterio do que a franja entrega -- nao do tamanho dela, que amarraria

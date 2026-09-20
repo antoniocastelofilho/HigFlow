@@ -87,6 +87,7 @@ TESTS += test-fringe-support
 TESTS += test-fringe-parallel
 TESTS += test-mesh-snapshot
 TESTS += test-stencil-support
+TESTS += test-boundary-faces
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 
@@ -105,7 +106,8 @@ all: $(BIN)
 # da suite fica em gnu++17 -- so' a assinatura em extern "C" atravessa.
 ifdef T8CODE
 T8OBJ     = t8code/t8-mesh-producer-$(DIM)d.o t8code/t8-point-locator-$(DIM)d.o \
-            t8code/t8-forest-cache-$(DIM)d.o t8code/t8-stencil-support-$(DIM)d.o
+            t8code/t8-forest-cache-$(DIM)d.o t8code/t8-stencil-support-$(DIM)d.o \
+            t8code/t8-boundary-faces-$(DIM)d.o
 CFLAGS   += -DHIGTREE_COM_T8CODE -I$(T8CODE)/include
 LDFLAGS  += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LIBS     += -lt8 -lp4est -lsc
