@@ -66,14 +66,18 @@ adapt_alvo (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
 // Garante que a arvore hig tenha, na posicao `p`, uma celula de lado <= `h`.
 // Refina 2 por direcao, um nivel de cada vez, como o t8code faz.
 static void
-refina_ate (hig_cell *raiz, const Point p, const double h)
+refina_ate (hig_cell *raiz, const Point p, const Point h)
 {
   for (int guarda = 0; guarda < 32; guarda++) {
     hig_cell *c = hig_get_cell_with_point (raiz, p);
     if (c == NULL) return;                  // fora do dominio
     Point d;
     hig_get_delta (c, d);
-    if (d[0] <= h * 1.0001) return;         // ja' esta' fino o bastante
+    // Compara so' a direcao 0, e isso e' fiel porque a raiz e' refinada com o
+    // MESMO numero de celulas em toda direcao e cada refino divide todas por
+    // dois: a razao delta/lado e' igual nas DIM direcoes.  Se a raiz passar a ter
+    // resolucao anisotropica, esta linha tem de virar um laco.
+    if (d[0] <= h[0] * 1.0001) return;      // ja' esta' fino o bastante
     int nc[DIM];
     for (int k = 0; k < DIM; k++) nc[k] = 2;
     hig_refine_uniform (c, nc);
@@ -131,9 +135,12 @@ constroi_floresta (void)
 // parada do refinamento, que hoje compara `delta[0]`.  Enquanto a producao for
 // verificada contra o contrato -- e nao contra a geometria de um exemplo -- a
 // caixa unitaria basta e evita uma conversao sem teste.
-static double g_alvo_prod = 0.375;
+// O ALVO VIVE EM COORDENADAS UNITARIAS, as da floresta.  O chamador o da' em
+// coordenadas do DOMINIO e a conversao acontece uma vez, antes do primeiro
+// refino: e' no espaco unitario que o t8code decide, e converter a cada folha
+// seria converter no lugar errado.
+static double g_alvo_prod[DIM];
 static double g_meia_prod = 0.125;
-static int    g_refinos_prod = 0;
 
 static int
 adapt_prod (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
@@ -144,18 +151,19 @@ adapt_prod (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
   double c[3];
   t8_forest_element_centroid (forest_from, which_tree, elements[0], c);
   for (int d = 0; d < DIM; d++) {
-    if (c[d] < g_alvo_prod - g_meia_prod || c[d] > g_alvo_prod + g_meia_prod)
+    if (c[d] < g_alvo_prod[d] - g_meia_prod || c[d] > g_alvo_prod[d] + g_meia_prod)
       return 0;
   }
   return 1;
 }
 
 extern "C" hig_cell *
-t8_produz_malha_para_dominio (int nivel_base, double alvo, int refinos,
-                              long *folhas_out)
+t8_produz_malha_para_dominio (const Point lo, const Point hi, int nivel_base,
+                              const Point alvo, int refinos, long *folhas_out)
 {
   if (folhas_out != NULL) *folhas_out = 0;
   if (nivel_base < 1 || refinos < 0) return NULL;
+  for (int d = 0; d < DIM; d++) if (!(hi[d] > lo[d])) return NULL;
   inicializa_uma_vez ();
 
   // COMM_SELF NOS DOIS, cmesh e floresta.  Com o cmesh em COMM_WORLD ele sai
@@ -169,7 +177,9 @@ t8_produz_malha_para_dominio (int nivel_base, double alvo, int refinos,
   t8_forest_t f = t8_forest_new_uniform (cmesh, scheme, nivel_base, 0,
                                          sc_MPI_COMM_SELF);
 
-  g_alvo_prod = alvo;
+  // Alvo do dominio para a floresta: u = (x - lo) / (hi - lo).
+  for (int d = 0; d < DIM; d++)
+    g_alvo_prod[d] = (alvo[d] - lo[d]) / (hi[d] - lo[d]);
   g_meia_prod = 0.5 / (double) (1 << nivel_base);
   for (int r = 0; r < refinos; r++) {
     t8_forest_t novo;
@@ -180,9 +190,7 @@ t8_produz_malha_para_dominio (int nivel_base, double alvo, int refinos,
     g_meia_prod *= 0.5;
   }
 
-  Point lo, hi;
-  for (int d = 0; d < DIM; d++) { lo[d] = 0.0; hi[d] = 1.0; }
-  hig_cell *raiz = hig_create_root (lo, hi);
+  hig_cell *raiz = hig_create_root ((real *) lo, (real *) hi);
   int nc[DIM];
   for (int d = 0; d < DIM; d++) nc[d] = 1 << nivel_base;
   hig_refine_uniform (raiz, nc);
@@ -198,9 +206,14 @@ t8_produz_malha_para_dominio (int nivel_base, double alvo, int refinos,
       const int nivel = sch->element_get_level (ec, e);
       double c[3];
       t8_forest_element_centroid (f, it, e, c);
-      Point p;
-      for (int d = 0; d < DIM; d++) p[d] = c[d];
-      refina_ate (raiz, p, 1.0 / (double) (1 << nivel));
+      // Floresta -> dominio: x = lo + u * (hi - lo).  O LADO tambem escala, e e'
+      // por isso que o criterio de parada nao pode ser o lado unitario.
+      Point p, lado;
+      for (int d = 0; d < DIM; d++) {
+        p[d]    = lo[d] + c[d] * (hi[d] - lo[d]);
+        lado[d] = (hi[d] - lo[d]) / (double) (1 << nivel);
+      }
+      refina_ate (raiz, p, lado);
       folhas++;
     }
   }
@@ -245,7 +258,9 @@ t8_produz_malha_nao_graduada (void)
       for (int d = 0; d < DIM; d++) p[d] = c[d];
 
       // lado da folha do t8code: o hipercubo tem lado 1 e cada nivel divide por 2
-      refina_ate (raiz, p, 1.0 / (double) (1 << nivel));
+      Point lado_u;
+      for (int d = 0; d < DIM; d++) lado_u[d] = 1.0 / (double) (1 << nivel);
+      refina_ate (raiz, p, lado_u);
       folhas++;
     }
   }

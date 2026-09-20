@@ -52,8 +52,26 @@
 
 #define NIVEL_BASE 3         // 2^3 = 8 celulas por direcao
 #define REFINOS    2
-#define ALVO       0.3125
 #define FRINGE     2
+
+// CAIXA NAO UNITARIA E NAO CUBICA, de proposito.  Com [0,1]^DIM o escalamento do
+// produtor seria codigo sem teste: todo fator valeria 1 e qualquer erro de
+// conversao passaria.  Aqui lado e origem diferem por direcao.
+static void caixa(Point lo, Point hi) {
+    const real LO[3] = { 0.1,  0.2, -0.3 };
+    const real HI[3] = { 0.9,  1.4,  0.5 };
+    for (int d = 0; d < DIM; d++) { lo[d] = LO[d]; hi[d] = HI[d]; }
+}
+
+// Posicao em coordenadas UNITARIAS -> coordenadas do dominio.  As posicoes deste
+// teste sao escolhidas na grade unitaria (onde a malha e' decidida) e convertidas
+// aqui, em vez de escritas ja' convertidas: escrever o numero final seria repetir
+// a conta que o produtor faz.
+static void para_dominio(real u, Point p) {
+    Point lo, hi;
+    caixa(lo, hi);
+    for (int d = 0; d < DIM; d++) p[d] = lo[d] + u * (hi[d] - lo[d]);
+}
 
 static real campo(const Point p) { return 1.0 + 2.0 * p[0] + 3.0 * p[1]; }
 
@@ -72,8 +90,13 @@ int main(int argc, char *argv[]) {
     int niveis_vistos = 0;
     load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
     if (rank == 0) {
-        hig_cell *raiz = t8_produz_malha_para_dominio(NIVEL_BASE, ALVO, REFINOS,
-                                                      &folhas_t8);
+        Point lo, hi, alvo;
+        caixa(lo, hi);
+        // 0,3125 e' centro de celula no nivel base (0,0625 + 2*0,125), entao o
+        // refino pega exatamente a celula que o contem, rodada a rodada.
+        para_dominio(0.3125, alvo);
+        hig_cell *raiz = t8_produz_malha_para_dominio(lo, hi, NIVEL_BASE, alvo,
+                                                      REFINOS, &folhas_t8);
         if (raiz != NULL) {
             // Quantos tamanhos de celula distintos a malha tem?  Um so' significa
             // uniforme, e o refino nao pegou.
@@ -129,7 +152,7 @@ int main(int argc, char *argv[]) {
 
     // Ponto fixo, estritamente dentro de uma celula em toda direcao.
     Point alvo;
-    POINT_ASSIGN_SCALAR(alvo, 0.6796875);
+    para_dominio(0.6796875, alvo);   // longe do refino: fica no nivel base
     real v_local = 0.0;
     long possui = 0;
     {
@@ -175,7 +198,14 @@ int main(int argc, char *argv[]) {
         "locais somadas (np=%d)", folhas_t8, n_global, ntasks);
 
     t_case("particao_cobre_o_dominio_uma_vez");
-    T_NEAR(vol_global, 1.0, 1.0e-12, "soma global dos volumes locais");
+    {
+        Point lo, hi;
+        caixa(lo, hi);
+        real vol = 1.0;
+        for (int d = 0; d < DIM; d++) vol *= (hi[d] - lo[d]);
+        T_NEAR(vol_global, vol, 1.0e-12,
+               "soma global dos volumes locais contra o volume da caixa");
+    }
 
     t_case("franja_existe_quando_ha_vizinho");
     if (ntasks == 1) {
@@ -190,13 +220,18 @@ int main(int argc, char *argv[]) {
         "o ponto alvo deveria pertencer a exatamente um rank, e pertence a %ld",
         donos);
     {
-        // O valor esperado vem da MALHA, nao da particao: 0,6796875 cai na celula
-        // de indice 5 no nivel base (lado 0,125), cujo centro e' 0,6875 em toda
-        // direcao -- longe do alvo de refino, entao ela nao foi subdividida.
-        // Afirmar o valor EXATO e' mais forte que afirmar "nao mudou": pega
-        // tambem a particao que entrega a celula errada.
-        const real c = 0.6875;
-        const real esperado = 1.0 + 2.0 * c + 3.0 * c;
+        // O valor esperado vem da MALHA, nao da particao: em coordenadas
+        // unitarias 0,6796875 cai na celula de indice 5 do nivel base (lado
+        // 0,125), cujo centro e' 0,6875 -- longe do alvo de refino, entao ela nao
+        // foi subdividida.  Afirmar o valor EXATO e' mais forte que "nao mudou":
+        // pega tambem a particao que entrega a celula errada.
+        //
+        // Isto repete a formula da grade, e o que guarda contra eu ter repetido
+        // errado e' a execucao em np=1: formula errada falha nos TRES np, particao
+        // errada falha so' em np>1.
+        Point centro;
+        para_dominio(0.6875, centro);
+        const real esperado = campo(centro);
         T_NEAR(v_global, esperado, 1.0e-12,
                "campo linear no ponto fixo, independente da particao");
     }

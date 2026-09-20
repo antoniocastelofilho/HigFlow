@@ -37,10 +37,15 @@ hig_cell *t8_produz_malha_nao_graduada(void);
 //! produziu -- o numero vem DELE, e e' contra ele que a contagem do dominio e'
 //! conferida depois.
 //!
-//! A caixa e' [0,1]^DIM.  Limite declarado: o hipercubo do t8code e' unitario, e
-//! mapear para outra caixa exige escalar o criterio de parada do refinamento.
-hig_cell *t8_produz_malha_para_dominio(int nivel_base, double alvo, int refinos,
-                                       long *folhas_out);
+//! A caixa e' `[lo, hi]`, qualquer uma.  O hipercubo do t8code e' unitario, e a
+//! conversao acontece em dois lugares: o ALVO vai do dominio para a floresta uma
+//! vez (`u = (x - lo)/(hi - lo)`), e cada centroide de folha volta da floresta
+//! para o dominio (`x = lo + u*(hi - lo)`), junto com o LADO da folha -- que
+//! tambem escala, e e' por isso que o criterio de parada do refinamento nao pode
+//! ser o lado unitario.
+hig_cell *t8_produz_malha_para_dominio(const Point lo, const Point hi,
+                                       int nivel_base, const Point alvo,
+                                       int refinos, long *folhas_out);
 
 //! \brief Preenche um instantaneo DIRETO da floresta do t8code.
 //!
