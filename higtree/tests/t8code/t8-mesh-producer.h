@@ -29,6 +29,19 @@ extern "C" {
 //! Devolve NULL se o t8code nao produzir a malha esperada.
 hig_cell *t8_produz_malha_nao_graduada(void);
 
+//! \brief A malha de PRODUCAO: a arvore que o `lb_add_input_tree` vai
+//! distribuir, com a estrutura decidida pelo t8code.
+//!
+//! `nivel_base` da' 2^nivel_base celulas por direcao; `refinos` diz quantas vezes
+//! refinar em torno de `alvo`.  Devolve em `folhas_out` quantas folhas o t8code
+//! produziu -- o numero vem DELE, e e' contra ele que a contagem do dominio e'
+//! conferida depois.
+//!
+//! A caixa e' [0,1]^DIM.  Limite declarado: o hipercubo do t8code e' unitario, e
+//! mapear para outra caixa exige escalar o criterio de parada do refinamento.
+hig_cell *t8_produz_malha_para_dominio(int nivel_base, double alvo, int refinos,
+                                       long *folhas_out);
+
 //! \brief Preenche um instantaneo DIRETO da floresta do t8code.
 //!
 //! E' aqui que a fronteira se move.  A funcao acima materializa a floresta como

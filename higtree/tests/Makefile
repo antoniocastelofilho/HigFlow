@@ -99,6 +99,7 @@ TESTS += test-snapshot-oracle
 # nada.  O driver o conhece por Test(..., so_t8code=True).
 ifdef T8CODE
 TESTS += test-partition-t8code
+TESTS += test-production-t8code
 endif
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))

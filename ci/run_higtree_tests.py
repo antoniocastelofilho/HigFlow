@@ -159,6 +159,14 @@ TESTS = [
     # acontece.  Espelha o test-fringe-parallel, que faz o mesmo para o MTree.
     Test("test-partition-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
          so_t8code=True),
+
+    # O T8CODE PRODUZINDO a malha que o dominio usa: a arvore que entra no
+    # `lb_add_input_tree` tem a estrutura decidida por ele, e o que vem depois e' o
+    # caminho de producao inteiro -- particao, psd, instantaneo, oraculo.  Nao e' o
+    # t8code particionando (isso e' o caso acima) nem um exemplo rodando sobre
+    # malha dele (os exemplos leem AMR de arquivo e sao comparados com referencia).
+    Test("test-production-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
+         so_t8code=True),
 ]
 
 
