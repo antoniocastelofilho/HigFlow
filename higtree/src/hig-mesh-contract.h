@@ -150,7 +150,22 @@
 //
 //   C10 Interpolacao de ordem k reproduz exatamente polinomio de grau <= k, no
 //       interior do dominio.
-//         test-stencil-value / linear_interior
+//         test-stencil-value   / linear_interior
+//         test-stencil-support / suporte_tem_pontos_bastante           [t8code]
+//         test-stencil-support / suporte_e_local_e_cai_na_grade        [t8code]
+//         test-stencil-support / reproduz_polinomio_de_grau_ate_a_ordem [t8code]
+//       A DIVISAO DE TRABALHO IMPORTA.  Quem reproduz e' o ajuste de minimos
+//       quadrados, que pertence a Discretization e e' o mesmo para qualquer
+//       malha.  O que pertence a Mesh e' o SUPORTE: quais celulas ficam perto do
+//       ponto.  O test-stencil-support passa o suporte das DUAS malhas ao MESMO
+//       `wls`, de modo que uma falha aponte para a malha e nao para o ajuste.
+//
+//       E A REPRODUCAO SOZINHA NAO BASTA, medido: deslocando todos os centroides
+//       do suporte meia celula, ela continua exata -- o campo e' avaliado nos
+//       proprios pontos, entao deslocar amostra e coordenada juntas nao muda o
+//       ajuste.  Ela verifica a DISCRETIZACAO.  Quem verifica a malha e' o caso
+//       da grade e da localidade: todo ponto de suporte cai num centro de celula
+//       e fica a no maximo tres celulas do ponto de consulta.
 //
 //   C11 O estencil ATRAVESSA salto de nivel maior que 2:1.  A contribuicao de
 //       Sousa et al. (2019) e' minimos quadrados moveis em arvore NAO GRADUADA;

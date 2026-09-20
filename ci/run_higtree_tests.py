@@ -103,6 +103,12 @@ TESTS = [
     # backends preenchendo o mesmo conjunto por caminhos que nao se parecem --
     # o t8code sem materializar octree nenhum.
     Test("test-mesh-snapshot", dims=(2, 3), mpi=True),
+
+    # C10 pela separacao certa: a malha fornece o SUPORTE, o ajuste de minimos
+    # quadrados e' o mesmo para as duas.  Comparar sd_get_stencil contra uma
+    # montagem propria do t8code mediria malha e discretizacao juntas e nao
+    # diria qual falhou.
+    Test("test-stencil-support", dims=(2, 3), mpi=True),
 ]
 
 

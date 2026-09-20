@@ -86,6 +86,7 @@ TESTS += test-cell-queries
 TESTS += test-fringe-support
 TESTS += test-fringe-parallel
 TESTS += test-mesh-snapshot
+TESTS += test-stencil-support
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
 
@@ -103,7 +104,8 @@ all: $(BIN)
 # A unidade do produtor compila em C++20 porque o t8code exige, enquanto o resto
 # da suite fica em gnu++17 -- so' a assinatura em extern "C" atravessa.
 ifdef T8CODE
-T8OBJ     = t8code/t8-mesh-producer-$(DIM)d.o t8code/t8-point-locator-$(DIM)d.o
+T8OBJ     = t8code/t8-mesh-producer-$(DIM)d.o t8code/t8-point-locator-$(DIM)d.o \
+            t8code/t8-forest-cache-$(DIM)d.o t8code/t8-stencil-support-$(DIM)d.o
 CFLAGS   += -DHIGTREE_COM_T8CODE -I$(T8CODE)/include
 LDFLAGS  += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LIBS     += -lt8 -lp4est -lsc
@@ -112,7 +114,7 @@ T8FLAGS   = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I. \
             -I$(T8CODE)/include $(shell pkg-config --cflags glib-2.0 hdf5) \
             $(PETSC_CC_INCLUDES)
 
-t8code/%-$(DIM)d.o: t8code/%.cxx t8code/%.h
+t8code/%-$(DIM)d.o: t8code/%.cxx
 	$(CC) $(T8FLAGS) -c $< -o $@
 endif
 
