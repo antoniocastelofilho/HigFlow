@@ -107,6 +107,14 @@ TESTS = [
     # o t8code sem materializar octree nenhum.
     Test("test-mesh-snapshot", dims=(2, 3), mpi=True),
 
+    # O MESMO instantaneo, sob particionamento real.  O caso acima roda em np=1 e
+    # monta a franja a mao -- ele confirma a convencao de numeracao que ele proprio
+    # impos.  Quem a impoe de verdade e' o `psd_synced_mapper`, que so' roda sob
+    # MPI e e' quem o solver usa.  O modo de falhar e' silencioso: franja com id em
+    # [0, n) sobrescreve a linha de uma celula local e o instantaneo sai com o
+    # tamanho certo e uma celula errada dentro.
+    Test("test-mesh-snapshot-parallel", dims=(2, 3), nps=(1, 2, 3), mpi=True),
+
     # C10 pela separacao certa: a malha fornece o SUPORTE, o ajuste de minimos
     # quadrados e' o mesmo para as duas.  Comparar sd_get_stencil contra uma
     # montagem propria do t8code mediria malha e discretizacao juntas e nao
