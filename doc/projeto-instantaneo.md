@@ -13,30 +13,54 @@ Tudo abaixo foi medido em `higflow/src` hoje, 20 de setembro de 2026, com o
 
 ## 1. O que a medição mudou no plano
 
-### O problema mais difícil que eu havia previsto não existe
+### A adaptação existe, e reconstrói em vez de mutar
 
-Eu vinha dizendo que o instantâneo exigiria invalidação a cada adaptação de
-malha. **Não há adaptação de malha em tempo de execução.**
+Eu havia afirmado aqui que **não há adaptação de malha em tempo de execução**.
+Estava errado, e o erro foi de medição: grepei `higflow/examples`, diretório que
+não existe — os exemplos são `higflow/example2d_*` e `example3d_*`. O
+`2>/dev/null` engoliu o *No such file or directory* e eu li zero resultados como
+ausência de adaptação.
+
+Medido de novo, nos 14 exemplos:
 
 ```
-hig_refine_uniform / hig_split em higflow/src   0 sítios
-hig_refine_uniform / hig_split nos exemplos     0 sítios
+higflow/src                       0 sítios de hig_refine_uniform / hig_split
+example2d_ElectroOsmotic          2 sítios
+example2d_DynamicMeshAdapt        2 sítios
 ```
 
-As únicas chamadas de refino vivem dentro da própria HiGTree, e todas no
-caminho de **montagem**: leitura de arquivo AMR (`higtree-io.c`), construção de
-árvore de contorno (`domain.c:2532`), distribuição inicial
-(`higtree-parallel.c`). Depois que `psd_create` retorna, a malha é imutável até
-o fim da simulação.
+O que a leitura de cada um mostra é que **a premissa de projeto sobrevive, por um
+motivo diferente do que eu tinha escrito**:
 
-Isso remove a parte cara do projeto. O instantâneo é **produzido uma vez por
-domínio, ao fim da montagem, e nunca invalidado.** Não há política de
-invalidação a desenhar, não há risco de instantâneo velho, não há custo por
-passo de tempo.
+- `example2d_ElectroOsmotic`, sítio 1: refina um `hig_clone` da raiz, usado só
+  para escrever VTK e destruído em seguida. A malha viva não é tocada.
+- `example2d_ElectroOsmotic`, sítio 2: está em `adapt_mesh_and_update_solver`,
+  que refina a malha viva — e cuja **única chamada está comentada** (linha 364).
+- `example2d_DynamicMeshAdapt`: o caminho vivo é `higflow_rebuild_with_amr`, que
+  constrói uma árvore adaptada nova, chama `lb_calc_partition` e **reconstrói** o
+  solver sobre ela.
 
-Fica um guarda a escrever, não uma política: se algum dia alguém chamar refino
-depois da montagem, isso tem de falhar alto, e não silenciosamente devolver
-geometria velha.
+Ou seja: a adaptação em tempo de execução **existe**, e ela funciona
+reconstruindo o domínio, não mutando o que está vivo. Nenhum caminho alcançável
+refina uma árvore que já pertence a um `sim_domain`.
+
+Para o instantâneo isso é melhor do que a premissa errada que eu tinha: como a
+adaptação passa por `psd_create` / `psd_synced_mapper` outra vez, **o instantâneo
+é reproduzido sozinho**. Continua não havendo política de invalidação a desenhar.
+
+**Mas existe uma mina, e ela é o motivo de o detector não ser supérfluo.** Duas
+funções de refino *no lugar* estão escritas e dormentes:
+
+```
+higflow_refine_tree_inplace      definida, nunca chamada
+adapt_mesh_and_update_solver     definida, chamada comentada
+```
+
+Nenhuma das duas passa pela API do domínio, então a guarda de
+`sd_add_higtree` não as vê. Se alguém as acordar, o instantâneo fica velho **em
+silêncio** e os laços migrados passam a ler a célula errada. Quem detecta esse
+caso é o `sd_snapshot_is_current`, e quem o acordar deve chamar
+`sd_compute_snapshot` logo depois — está anotado nos dois lugares.
 
 ### A lacuna da franja está fechada, e o que ela revelou
 

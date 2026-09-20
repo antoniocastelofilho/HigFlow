@@ -458,6 +458,12 @@ void psd_synced_mapper(psim_domain *psd)
 	_sync_gid(&psd->dp_data, psd, psd,
 		_cell_sub_counter, _cell_get_ids);
 
+	// O instantaneo nasce AQUI, e nao na primeira leitura: o `_psd_setmapper`
+	// acabou de atribuir o mapeador, e e' dele que o indice do instantaneo sai.
+	// Producao preguicosa deixaria essa ordem implicita, e chamada antes ela
+	// devolveria um instantaneo indexado por lixo -- sem falhar.
+	sd_compute_snapshot(psd_get_local_domain(psd));
+
 	/*mapper_syncer_info ms = {
 		.elem_counter = _cell_counter,
 		.send_fill = _cell_send_fill,

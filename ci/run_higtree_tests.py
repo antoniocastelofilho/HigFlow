@@ -115,6 +115,18 @@ TESTS = [
     # tamanho certo e uma celula errada dentro.
     Test("test-mesh-snapshot-parallel", dims=(2, 3), nps=(1, 2, 3), mpi=True),
 
+    # O instantaneo pendurado no dominio: quando nasce, e o que acontece se a
+    # malha mudar depois.  Estado derivado num tipo de malha so' se sustenta
+    # porque a malha e' imutavel apos a montagem -- e "e' imutavel" e' observacao
+    # sobre o codigo de hoje, nao garantia.  Quem a transforma em garantia sao a
+    # guarda (aborta) e o detector, e os dois sao afirmados aqui.  O caso da
+    # guarda roda em processo filho e mede o SIGABRT: o processo que ela mata e'
+    # justamente o que faria a afirmacao.
+    # mpi=True mesmo em np=1: ele chama higtree_initialize, e standalone o
+    # MPI_Init nao volta -- o sintoma e' timeout de 300s sem UMA linha de
+    # saida, que nao se parece nada com "faltou mpirun".
+    Test("test-domain-snapshot", dims=(2, 3), mpi=True),
+
     # C10 pela separacao certa: a malha fornece o SUPORTE, o ajuste de minimos
     # quadrados e' o mesmo para as duas.  Comparar sd_get_stencil contra uma
     # montagem propria do t8code mediria malha e discretizacao juntas e nao

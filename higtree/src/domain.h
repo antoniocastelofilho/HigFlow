@@ -92,6 +92,10 @@ struct interpolator {
 	unsigned maxpts;
 };
 
+//! O instantaneo e' definido em hig-mesh-snapshot.h, que inclui este arquivo --
+//! declaracao adiantada para nao fechar o ciclo.
+struct hig_mesh_snapshot;
+
 typedef struct sim_domain {
 	unsigned max_numhigtrees; //!< Currently allocated size of higtrees vector.
 	int numhigtrees; //!< Actual number of higtrees.
@@ -110,6 +114,23 @@ typedef struct sim_domain {
 	struct interpolator inter, bc_inter;
 	int use_cache;
 	point_mapper *cwls;
+
+	//! \brief A fronteira das consultas, produzida UMA VEZ ao fim da montagem.
+	//!
+	//! NULL ate' `sd_compute_snapshot` rodar.  Estado derivado num tipo de malha
+	//! so' se sustenta porque nenhum caminho alcancavel refina arvore que JA'
+	//! pertence a um dominio.  A adaptacao em tempo de execucao existe
+	//! (example2d_DynamicMeshAdapt), e ela RECONSTROI: arvore nova,
+	//! `lb_calc_partition`, solver novo -- entao o instantaneo e' reproduzido
+	//! sozinho pelo `psd_synced_mapper`.
+	//!
+	//! O QUE ROMPE ISTO sao duas funcoes de refino NO LUGAR, escritas e dormentes:
+	//! `higflow_refine_tree_inplace` (nunca chamada) e
+	//! `adapt_mesh_and_update_solver` (chamada comentada).  Nenhuma passa pela API
+	//! do dominio, entao a guarda de `sd_add_higtree` nao as ve'.  Quem acordar
+	//! uma delas tem de chamar `sd_compute_snapshot` em seguida -- ou o
+	//! instantaneo fica velho em silencio.  `sd_snapshot_is_current` detecta.
+	struct hig_mesh_snapshot *snapshot;
 } sim_domain;
 
 typedef struct sim_facet_block_info {
@@ -128,6 +149,31 @@ typedef struct sim_facet_domain {
 	int dimofinterest[DIM];
 	int dim;
 } sim_facet_domain;
+
+//! \brief Produz o instantaneo do dominio.  ANSIOSO, e nao na primeira leitura.
+//!
+//! EXIGE O MAPEADOR JA' ATRIBUIDO: o instantaneo indexa por
+//! `mp_lookup(m, hig_get_cid(c))`, e chamado antes disso ele sairia indexado por
+//! lixo -- sem falhar, so' com numeros errados.  Por isso quem o chama e' o
+//! `psd_synced_mapper`, logo depois do `_psd_setmapper`; na montagem serial,
+//! chame-o depois do `mp_assign_from_celliterator`.
+//!
+//! Aborta se nao conseguir produzir.  Instantaneo ausente em producao significa
+//! que a convencao de numeracao mudou, e isso tem de parar alto.
+void sd_compute_snapshot(sim_domain *sd);
+
+//! \brief O instantaneo do dominio, ou NULL se ainda nao foi produzido.
+const struct hig_mesh_snapshot *sd_get_snapshot(sim_domain *sd);
+
+//! \brief Detector, nao guarda: o instantaneo ainda descreve esta malha?
+//!
+//! Compara a contagem do iterador de dominio com o tamanho do instantaneo, o que
+//! e' O(n) -- serve para teste e para depuracao, nao para laco quente.
+//!
+//! O QUE ELE NAO PEGA: refino que preserve a contagem de folhas locais.  Mudanca
+//! pela API do dominio (`sd_add_higtree`, `sd_add_fringe_higtree`) nao depende
+//! deste detector -- aquelas abortam sozinhas.
+int sd_snapshot_is_current(sim_domain *sd);
 
 //! Creates a simulation domain.
 sim_domain *sd_create(mp_mapper *m);

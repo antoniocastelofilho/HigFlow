@@ -90,6 +90,7 @@ TESTS += test-stencil-support
 TESTS += test-boundary-faces
 TESTS += test-point-class
 TESTS += test-mesh-snapshot-parallel
+TESTS += test-domain-snapshot
 
 # So' faz sentido com o t8code: nao tem lado MTree.  TEM de entrar ANTES do
 # `all:` -- a lista de pre-requisitos e' expandida quando a REGRA E' LIDA, nao

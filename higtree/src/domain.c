@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "domain.h"
+#include "hig-mesh-snapshot.h"
 #include "utils.h"
 #include "wls.h"
 #include "Debug-c.h"
@@ -145,6 +146,7 @@ sim_domain *sd_create(mp_mapper *m) {
 	ALLOC(sim_boundary *, sd->dirichlet_bcs, MAXBCSPERDOMAIN);
 	ALLOC(sim_boundary *, sd->neumann_bcs, MAXBCSPERDOMAIN);
 	sd->cwls = ptm_create(cache_wls_choice_destroy);
+	sd->snapshot = NULL;
 	sd->use_cache = 1;
 
 	sd->inter.wls = NULL;
@@ -173,7 +175,67 @@ static void _sd_make_room_for_tree(sim_domain *d)
 	}
 }
 
+// O instantaneo so' descreve a malha que existia quando ele foi produzido.  Se a
+// estrutura do dominio mudar depois, os lacos que o leem devolvem a celula errada
+// SEM ERRO NENHUM -- o arranjo continua bem formado, so' que velho.  Daqui em
+// diante isso para o programa.
+//
+// Nao e' `assert`: a higtree compila com -DNDEBUG no modo otimizado, que e' o que
+// se roda, e um guarda que desaparece em release nao e' guarda.
+static void _sd_snapshot_ainda_nao(sim_domain *d, const char *quem)
+{
+	if (d->snapshot == NULL) return;
+	fprintf(stderr,
+		"%s:%d: %s: a estrutura do dominio mudou DEPOIS de o instantaneo ter "
+		"sido produzido.  Ele carrega a malha antiga, e os lacos que o leem "
+		"devolveriam a celula errada em silencio.  Monte o dominio inteiro "
+		"antes de chamar sd_compute_snapshot.\n",
+		__FILE__, __LINE__, quem);
+	abort();
+}
+
+void sd_compute_snapshot(sim_domain *sd)
+{
+	// Reproduzir e' legitimo enquanto se monta; o que nao e' legitimo e' MUDAR a
+	// malha depois, e disso cuida a guarda acima.
+	if (sd->snapshot != NULL) {
+		hms_destroy(sd->snapshot);
+		sd->snapshot = NULL;
+	}
+
+	sd->snapshot = hms_from_domain(sd);
+	if (sd->snapshot == NULL) {
+		fprintf(stderr,
+			"%s:%d: %s: nao consegui produzir o instantaneo -- algum id local "
+			"caiu fora de [0, n).  O mapeador tem de estar atribuido ANTES: "
+			"psd_synced_mapper no caminho paralelo, "
+			"mp_assign_from_celliterator na montagem serial.\n",
+			__FILE__, __LINE__, __func__);
+		abort();
+	}
+}
+
+const struct hig_mesh_snapshot *sd_get_snapshot(sim_domain *sd)
+{
+	return sd->snapshot;
+}
+
+int sd_snapshot_is_current(sim_domain *sd)
+{
+	if (sd->snapshot == NULL) return 0;
+
+	int n = 0;
+	higcit_celliterator *it;
+	for (it = sd_get_domain_celliterator(sd); !higcit_isfinished(it);
+	     higcit_nextcell(it)) {
+		n++;
+	}
+	higcit_destroy(it);
+	return n == sd->snapshot->n;
+}
+
 int sd_add_higtree(sim_domain *d, hig_cell *c) {
+	_sd_snapshot_ainda_nao(d, __func__);
 	_sd_make_room_for_tree(d);
 
 	/* Sets the added tree is not fringe. */
@@ -188,6 +250,7 @@ int sd_add_higtree(sim_domain *d, hig_cell *c) {
 
 int sd_add_fringe_higtree(sim_domain *d, hig_cell *c)
 {
+	_sd_snapshot_ainda_nao(d, __func__);
 	_sd_make_room_for_tree(d);
 
 	d->higtrees[d->numhigtrees] = c;
@@ -2493,6 +2556,7 @@ void sd_destroy(sim_domain *d) {
 			hig_destroy(d->higtrees[i]);
 		}
 	}
+	if (d->snapshot != NULL) hms_destroy(d->snapshot);
 	mp_destroy(d->m);
 	free(d->dirichlet_bcs);
 	free(d->neumann_bcs);
