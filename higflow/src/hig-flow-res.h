@@ -8,6 +8,7 @@
 #define HIG_FLOW_RES
 
 #include "hig-flow-kernel.h"
+#include "hig-mesh-snapshot.h"
 #include "hig-flow-io.h"
 
 #define RES_STORE_NUM_BASE 5
@@ -31,13 +32,36 @@
 #endif // COMPUTE_RESIDUALS
 
 #ifdef COMPUTE_RESIDUALS
+    // Duas formas do MESMO macro, porque ha' duas maneiras de chegar a' geometria
+    // da celula: navegando a arvore ou lendo o instantaneo.  A funcao por baixo e'
+    // uma so', e toma a geometria.
     #define UPDATE_RESIDUAL_BUFFER_CELL(ns, val1, val2, c, ccenter) \
         do { \
-            if((ns)->residuals != NULL) \
-                update_residual_buffer_cell((ns)->residuals->res_buffer, (val1), (val2), (c), (ccenter)); \
+            if((ns)->residuals != NULL) { \
+                Point __rb_d, __rb_lo, __rb_hi; \
+                hig_get_delta((c), __rb_d); \
+                hig_get_lowpoint((c), __rb_lo); \
+                hig_get_highpoint((c), __rb_hi); \
+                update_residual_buffer_cell((ns)->residuals->res_buffer, (val1), (val2), \
+                                            __rb_d, (ccenter), __rb_lo, __rb_hi); \
+            } \
+        } while (0);
+
+    //! Mesma coisa, lendo o instantaneo: `hms` e o indice local da celula.
+    #define UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, val1, val2, hms, i, ccenter) \
+        do { \
+            if((ns)->residuals != NULL) { \
+                Point __rb_d, __rb_lo, __rb_hi; \
+                hms_delta((hms), (i), __rb_d); \
+                hms_low((hms), (i), __rb_lo); \
+                hms_high((hms), (i), __rb_hi); \
+                update_residual_buffer_cell((ns)->residuals->res_buffer, (val1), (val2), \
+                                            __rb_d, (ccenter), __rb_lo, __rb_hi); \
+            } \
         } while (0);
 #else
     #define UPDATE_RESIDUAL_BUFFER_CELL(ns, val1, val2, c, ccenter) do {} while (0);
+    #define UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, val1, val2, hms, i, ccenter) do {} while (0);
 #endif // COMPUTE_RESIDUALS
 
 #ifdef COMPUTE_RESIDUALS
@@ -139,7 +163,9 @@ void write_residuals(sim_residuals *sim_res, higflow_solver *ns);
 
 // the routines below are called to update the residual buffer according to the type of iterator
 void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val2, hig_facet *f, Point fcenter);
-void update_residual_buffer_cell(residual_buffer *res_buff, real val1, real val2, hig_cell *c, Point ccenter);
+void update_residual_buffer_cell(residual_buffer *res_buff, real val1, real val2,
+                                 const Point cdelta, const Point ccenter,
+                                 const Point clow, const Point chigh);
 
 /*
   the routines below are called to update the residuals after the iterator finishes

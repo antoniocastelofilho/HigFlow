@@ -376,7 +376,6 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
         {
         const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
         for(int clid = 0; clid < hms->n; clid++) {
@@ -517,18 +516,18 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
             for (int j = 0; j < DIM; j++) {
                 real Kmax = -1.0e16;
                 real Kmin =  1.0e16;
-                for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+                {
+                const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+                for(int clid = 0; clid < hms->n; clid++) {
                     // Get the cell
-                    hig_cell *c = higcit_getcell(it);
                     // Get the cell identifier
-                    int clid    = mp_lookup(mp, hig_get_cid(c));
                     // Get the center of the cell
                     Point ccenter;
-                    hig_get_center(c, ccenter);
+                    hms_center(hms, clid, ccenter);
                     // Get the S tensor and store in Kernel
                     real S = compute_value_at_point(ns->ed.sdED, ccenter, ccenter, 1.0, ns->ed.ve.dpTaup[i][j], ns->ed.stn);
 
-                    if(j>=i) UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, c, ccenter)
+                    if(j>=i) UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, dp_get_value(ns->ed.ve.dpKernel[i][j], clid), S, hms, clid, ccenter)
                 
                     // Store Kernel
                     dp_set_value(ns->ed.ve.dpKernel[i][j], clid, S);   
@@ -536,8 +535,8 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                     if (S > Kmax) Kmax = S;
                     if (S < Kmin) Kmin = S;
                 }
+                }
                 // Destroy the iterator
-                higcit_destroy(it);
 
                 if(j>=i) UPDATE_RESIDUALS(ns, ns->residuals->Kernel[i][j])
 

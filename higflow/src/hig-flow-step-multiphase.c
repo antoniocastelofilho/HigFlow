@@ -459,18 +459,17 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
    // Get the map for the domain properties
    mp_mapper *mp = sd_get_domain_mapper(sdm);
    // Loop for each cell
-   higcit_celliterator *it;
-   for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+   {
+   const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+   for(int clid = 0; clid < hms->n; clid++) {
       // Get the cell
-      hig_cell *c = higcit_getcell(it);
       // Get the cell identifier
-      int clid    = mp_lookup(mp, hig_get_cid(c));
       // Get the center of the cell
       Point ccenter;
-      hig_get_center(c, ccenter);
+      hms_center(hms, clid, ccenter);
       // Get the delta of the cell
       Point cdelta;
-      hig_get_delta(c, cdelta);
+      hms_delta(hms, clid, cdelta);
       // Get the velocity at facet
       int infacet;
       // Get the velocity in the left facet center
@@ -639,12 +638,12 @@ void higflow_plic_advection_volume_fraction_x_direction(higflow_solver *ns, int 
       // Auxiliary fraction correction
       fraction_correction_at_set(&fracvolaux);
 
-      UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
+      UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, hms, clid, ccenter)
       
       dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
    }
+   }
    // Destroy the iterator
-   higcit_destroy(it);
 
    UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[0])
 
@@ -667,18 +666,17 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at facet
             int infacet;
             // Get the velocity in the left facet center
@@ -851,12 +849,12 @@ void higflow_plic_advection_volume_fraction_y_direction(higflow_solver *ns, int 
             // Auxiliary fraction correction
             fraction_correction_at_set(&fracvolaux);
 
-            UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
+            UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, hms, clid, ccenter)
             
             dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
 
         UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[1])
 
@@ -881,18 +879,17 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at facet
             int infacet;
             // Get the velocity in the left facet center
@@ -1076,12 +1073,12 @@ void higflow_plic_advection_volume_fraction_x_direction_imp(higflow_solver *ns, 
             // Auxiliary fraction correction
             fraction_correction_at_set(&fracvolaux);
 
-            UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
+            UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, hms, clid, ccenter)
 
             dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
 
         UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[0])
 
@@ -1105,18 +1102,17 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at facet
             int infacet;
             // Get the velocity in the left facet center
@@ -1289,12 +1285,12 @@ void higflow_plic_advection_volume_fraction_y_direction_imp(higflow_solver *ns, 
             // Auxiliary fraction correction
             fraction_correction_at_set(&fracvolaux);
 
-            UPDATE_RESIDUAL_BUFFER_CELL(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, c, ccenter)
+            UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, dp_get_value(ns->ed.mult.dpfracvolaux, clid), fracvolaux, hms, clid, ccenter)
 
             dp_set_value(ns->ed.mult.dpfracvolaux, clid, fracvolaux);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
 
         UPDATE_RESIDUALS(ns, ns->residuals->fracvol_adv[1])
 

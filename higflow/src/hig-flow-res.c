@@ -419,9 +419,21 @@ void update_residual_buffer_facet(residual_buffer *res_buff, real val1, real val
     #endif // COMPUTE_MIDLINE
 }
 
-void update_residual_buffer_cell(residual_buffer *res_buff, real val1, real val2, hig_cell *c, Point ccenter){
-    Point cdelta;
-    hig_get_delta(c, cdelta);
+// A assinatura toma a GEOMETRIA, e nao a celula.
+//
+// Ela usava `hig_cell *c` so' para tirar dele `hig_get_delta` e, sob
+// COMPUTE_MIDLINE, os dois cantos -- tudo o que o `hig_mesh_snapshot` ja'
+// carrega.  Enquanto o parametro fosse a celula, todo laco que chamasse este
+// buffer ficava preso a' arvore, e eram 7 dos 28 lacos cobertos dos step-*.c.
+//
+// Os chamadores nao mudaram: quem chama e' o macro, em duas formas -- uma que
+// extrai da celula, outra do instantaneo.  Ver hig-flow-res.h.
+void update_residual_buffer_cell(residual_buffer *res_buff, real val1, real val2,
+                                 const Point cdelta, const Point ccenter,
+                                 const Point clow, const Point chigh){
+    // NOTA, pre-existente e deixada como esta': isto e' AREA, com dois fatores,
+    // mesmo quando DIM==3.  Nao foi mexido aqui porque mudar o residuo e' mudar
+    // um numero que os usuarios acompanham, e isso nao e' decisao de migracao.
     real cell_area = cdelta[0]*cdelta[1];
 
     real dif = fabs(val1 - val2);
@@ -442,10 +454,7 @@ void update_residual_buffer_cell(residual_buffer *res_buff, real val1, real val2
     }
     #endif // COMPUTE_MIDRANGE
     #ifdef COMPUTE_MIDLINE
-        Point lowpoint, highpoint;
-        hig_get_lowpoint(c, lowpoint);
-        hig_get_highpoint(c, highpoint);
-        if(POS_GE(res_buff->midlinex, lowpoint[0]) && POS_LE(res_buff->midlinex, highpoint[0])){ // midline
+        if(POS_GE(res_buff->midlinex, clow[0]) && POS_LE(res_buff->midlinex, chigh[0])){ // midline
             res_buff->midline.area += cell_area;
             if(dif > res_buff->midline.res_max) res_buff->midline.res_max = dif;
             res_buff->midline.res_1 += difc;

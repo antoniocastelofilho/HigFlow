@@ -1377,28 +1377,28 @@ real higflow_multiphase_electroosmotic_psi(higflow_solver *ns) {
     // Set the solver solution in distributed property
     //dp_slv_load_from_solver(ns->ed.eo.dppsi, ns->ed.eo.slvpsi);
     real max_psi_res = 0.0;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int clid    = mp_lookup(m, hig_get_cid(c));
         int cgid    = psd_lid_to_gid(ns->ed.eo.psdEOpsi, clid);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the value of psi
         real psi_new = slv_get_xi(ns->ed.eo.slvpsi, cgid);
 
         real psi_old = dp_get_value(ns->ed.eo.dppsi, clid);
-        UPDATE_RESIDUAL_BUFFER_CELL(ns, psi_old, psi_new, c, ccenter)
+        UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, psi_old, psi_new, hms, clid, ccenter)
         real res = fabs(psi_new - psi_old);
         if(res > max_psi_res) max_psi_res = res;
 
         // Store psi
         dp_set_value(ns->ed.eo.dppsi, clid, psi_new);   
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
 
     UPDATE_RESIDUALS(ns, ns->residuals->psi)
 
