@@ -3,6 +3,7 @@
 // *******************************************************************
 
 #include "hig-flow-io.h"
+#include "hig-mesh-snapshot.h"
 
 #if DIM == 2
     #define VTK_CELL_TYPE 9
@@ -763,13 +764,14 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     Point ccenter;
     // Saving pressure from the center of the cell 
     fprintf(f, "\nCELL_DATA %ld\nSCALARS p FLOAT\nLOOKUP_TABLE default\n", numleafs);
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        hig_cell *c = higcit_getcell(it);
-        hig_get_center(c,ccenter);
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+        hms_center(hms, hms_i, ccenter);
         real val  = compute_value_at_point(ns->sdp, ccenter, ccenter, 1.0, ns->dpp, ns->stn);
         fprintf(f, "%e\n", val);
     }
-    higcit_destroy(it);
+    }
     
     // Saving scalar properties from the center of the cell 
     switch (ns->contr.flowtype) {
@@ -786,13 +788,14 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         case MULTIPHASE:
             {
             fprintf(f,"\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                hig_cell *c = higcit_getcell(it);
-                hig_get_center(c, ccenter);
+            {
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+                hms_center(hms, hms_i, ccenter);
                 real value  = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                fprintf(f, "%e\n", value);
             }
-            higcit_destroy(it);
+            }
          break;
             
             }
@@ -813,13 +816,13 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             //fprintf(f, "\nCELL_DATA %ld\nSCALARS viscosity FLOAT\nLOOKUP_TABLE default\n", numcells);
             //fprintf(f, "\nPOINT_DATA %ld\nSCALARS viscosity FLOAT\n", 4 * numleafs);
             fprintf(f, "\nSCALARS viscosity FLOAT\nLOOKUP_TABLE default\n");
-            for (it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it))
             {
-                hig_cell *c = higcit_getcell(it);
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdvisc);
+            for(int hms_i = 0; hms_i < hms->n; hms_i++) {
                 Point cdelta, ccenter, clowpoint, chightpoint;
-                hig_get_delta(c, cdelta);
+                hms_delta(hms, hms_i, cdelta);
                 //Point ccenter;
-                hig_get_center(c, ccenter);
+                hms_center(hms, hms_i, ccenter);
                 //etav3 = compute_value_at_point(ns->ed.vevv.sdVisc, p3, p3, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
                 real val = compute_value_at_point(ns->ed.vevv.sdVisc, ccenter, ccenter, 1.0, ns->ed.vevv.dpvisc, ns->ed.stn);
                 //real val = dp_get_value(ns->ed.vevv.dpvisc, cgid);
@@ -829,7 +832,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 //fprintf(f, "%e\n", etav2);
                 //fprintf(f, "%e\n", etav3);
             }
-            higcit_destroy(it);
+            }
 
         break;
 
@@ -840,35 +843,35 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 //Printing the density number nA
                 sim_domain *sdna =  psd_get_local_domain(ns->ed.vesb.psdSBnA);
                 fprintf(f, "\nSCALARS nA FLOAT\nLOOKUP_TABLE default\n");
-                for (it = sd_get_domain_celliterator(sdna); !higcit_isfinished(it); higcit_nextcell(it))
                 {
-                    hig_cell *c = higcit_getcell(it);
+                const hig_mesh_snapshot *hms = sd_get_snapshot(sdna);
+                for(int hms_i = 0; hms_i < hms->n; hms_i++) {
                     Point cdelta, ccenter, clowpoint, chightpoint;
-                    hig_get_delta(c, cdelta);
+                    hms_delta(hms, hms_i, cdelta);
                     //Point ccenter;
-                    hig_get_center(c, ccenter);
+                    hms_center(hms, hms_i, ccenter);
                     real val = compute_value_at_point(ns->ed.vesb.sdSBnA, ccenter, ccenter, 1.0, ns->ed.vesb.dpnA, ns->ed.stn);
                     //real val = dp_get_value(ns->ed.vevv.dpvisc, cgid);
                     fprintf(f, "%e\n", val);
                 }
-                higcit_destroy(it);
+                }
 
                 //Printing the density number nB
                 sim_domain *sdnb =  psd_get_local_domain(ns->ed.vesb.psdSBnB);
                 fprintf(f, "\nSCALARS nB FLOAT\nLOOKUP_TABLE default\n");
-                for (it = sd_get_domain_celliterator(sdnb); !higcit_isfinished(it); higcit_nextcell(it))
                 {
-                    hig_cell *c = higcit_getcell(it);
+                const hig_mesh_snapshot *hms = sd_get_snapshot(sdnb);
+                for(int hms_i = 0; hms_i < hms->n; hms_i++) {
                     
                     Point cdelta, ccenter, clowpoint, chightpoint;
-                    hig_get_delta(c, cdelta);
+                    hms_delta(hms, hms_i, cdelta);
                     //Point ccenter;
-                    hig_get_center(c, ccenter);
+                    hms_center(hms, hms_i, ccenter);
                     real val = compute_value_at_point(ns->ed.vesb.sdSBnB, ccenter, ccenter, 1.0, ns->ed.vesb.dpnB, ns->ed.stn);
                     //real val = dp_get_value(ns->ed.vevv.dpvisc, cgid);
                     fprintf(f, "%e\n", val);
                 }
-                higcit_destroy(it);
+                }
             }
 
         break;
@@ -3113,15 +3116,14 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
         
     }
     fprintf(f, "\nCELL_DATA %ld\nSCALARS p FLOAT\nLOOKUP_TABLE default\n", numcells);
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        hig_cell *c = higcit_getcell(it);
-        uniqueid id = hig_get_cid(c);
-        int clid = mp_lookup(m, id);
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         real val = dp_get_value(ns->dpp, clid);
         fprintf(f, "%e\n", val);
         // fprintf(f, "%e\n", val);
     }
-    higcit_destroy(it);
+    }
     
     // Saving scalar properties from the center of the cell 
     switch (ns->contr.flowtype) {
@@ -3134,17 +3136,16 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
         case MULTIPHASE:
             fprintf(f,"\nSCALARS FracVol FLOAT\nLOOKUP_TABLE default\n");
             sfdu2[0] = psfd_get_local_domain(ns->psfdu[0]);
-            for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-               hig_cell *c = higcit_getcell(it);
-               uniqueid id = hig_get_cid(c);
-               int clid = mp_lookup(m, id);
+            {
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for(int clid = 0; clid < hms->n; clid++) {
                Point cdelta, ccenter, p0, p1;
-               hig_get_delta(c, cdelta);
-               hig_get_center(c, ccenter);
+               hms_delta(hms, clid, cdelta);
+               hms_center(hms, clid, ccenter);
                real value = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                fprintf(f, "%e\n", value);
             }
-            higcit_destroy(it);
+            }
          break;
             
         case VISCOELASTIC:

@@ -190,11 +190,22 @@ faceta não tem `delta` nos DIM eixos do mesmo jeito, e o `sfd_get_stencil` (133
 sítios) é topologia, não leitura — fica atrás do backend, como as consultas de
 ponto.
 
-Proponho tratá-lo **depois** do de células, e como peça separada: o de células
-cobre 233 laços com um tipo que já existe e já tem teste; o de facetas é tipo
-novo, e misturar os dois faz a primeira metade esperar pela segunda.
+**A caixa da célula no instantâneo — decisão nova, levantada pelo
+`hig-flow-io.c`.** O instantâneo carrega centro e delta. Mas 19 dos 26 laços
+cobertos daquele arquivo precisam de `c->lowpoint` e `c->highpoint`, que usam
+como *pontos de interpolação* alimentando `compute_facet_value_at_point`.
 
----
+Reconstruir a caixa a partir do que existe — `low = centro − delta/2` — é exato
+em álgebra e **não é exato em ponto flutuante**. O resultado entraria numa
+interpolação cuja saída é justamente o VTK que a referência compara. Por isso
+esses 19 não foram migrados: trocar exatidão por fronteira, sem pedir, num
+arquivo cuja saída é o oráculo, não é uma troca que eu deva fazer sozinho.
+
+A saída limpa seria o instantâneo guardar **a caixa** (`low` e `high`) e derivar
+centro e delta com as mesmas fórmulas que o `hig_get_center` e o
+`hig_get_delta` usam — aí toda leitura fica bit a bit idêntica à de hoje, e os
+19 migram. O preço são dois arranjos a mais (`n * DIM` cada) e uma mudança no
+que o produtor do t8code precisa preencher.
 
 ## 5. Ordem, e o que dá rede
 
