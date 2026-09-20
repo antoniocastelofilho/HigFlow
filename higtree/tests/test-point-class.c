@@ -164,27 +164,31 @@ int main(int argc, char *argv[]) {
     // lados.  O criterio da caixa diz NO_CONTORNO; o da face sem vizinho diz
     // DENTRO.
     //
-    // O caso registra a divergencia em vez de escolher um vencedor: qual dos
-    // dois e' o desejado e' decisao de projeto, e muda o que o fechamento faz
-    // numa interface interna.  O que NAO pode acontecer e' a divergencia passar
-    // despercebida quando o t8code entrar.
-    t_case("criterios_divergem_na_interface_entre_arvores");
+    // DECIDIDO EM 2026-09-20 (C14): vale a semantica do t8code.  "Sobre o
+    // contorno" significa que o dominio TERMINA ali.  Entao este caso deixou de
+    // ser um empate registrado e passou a ser o que ele e': o t8code cumpre o
+    // contrato, e o MTree DESVIA dele de um jeito conhecido e rastreado.
+    //
+    // O desvio nasce no `cell_find_in_center`, que para no PRIMEIRO higtree cuja
+    // caixa contem o ponto e nunca pergunta se outro bloco continua o dominio.
+    // Nao e' hipotetico: com np=3 um dominio chega a tres higtrees.  O efeito
+    // hoje e' benigno -- a busca por condicao de contorno falha e o codigo cai no
+    // caminho normal --, e o caso existe para que ele nao deixe de ser benigno em
+    // silencio.
+    t_case("mtree_desvia_do_contrato_na_interface_entre_arvores");
     {
         Point p; for(int d = 0; d < DIM; d++) p[d] = 0.5625;
         p[0] = 0.5;                      // interface entre as duas arvores
         const Classe cx = mtree_classe(2, p);
         const Classe t8 = t8_classe(2, p);
-        T_CHECK_MSG(cx == NO_CONTORNO,
-            "o criterio da CAIXA deveria dizer NO_CONTORNO na interface entre "
-            "arvores, e disse %s -- se isso mudou, o registro abaixo esta' velho",
-            NOME[cx]);
         T_CHECK_MSG(t8 == DENTRO,
-            "o criterio da FACE SEM VIZINHO deveria dizer DENTRO na interface "
-            "entre arvores (ha' malha dos dois lados), e disse %s", NOME[t8]);
-        T_CHECK_MSG(cx != t8,
-            "os dois criterios passaram a CONCORDAR na interface entre arvores "
-            "(%s).  Nao e' erro -- e' mudanca de comportamento, e este caso "
-            "existe para que ela nao passe despercebida", NOME[cx]);
+            "O CONTRATO: na interface entre arvores ha' malha dos dois lados, "
+            "entao o ponto esta' DENTRO.  O t8code disse %s", NOME[t8]);
+        T_CHECK_MSG(cx == NO_CONTORNO,
+            "O DESVIO CONHECIDO do MTree: ele diz NO_CONTORNO na interface entre "
+            "arvores, e aqui disse %s.  Se passou a dizer DENTRO, o desvio foi "
+            "CORRIGIDO -- e' boa noticia, e o que precisa ser atualizado sao a "
+            "clausula C14 e este caso", NOME[cx]);
     }
 #endif
     return t_end();

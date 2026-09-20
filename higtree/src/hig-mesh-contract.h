@@ -238,7 +238,7 @@
 //         test-point-class   / parede_externa_e_contorno
 //         test-point-class   / fora_do_dominio_e_fora
 //         test-point-class   / interface_interna_de_celula_e_dentro
-//         test-point-class   / criterios_divergem_na_interface_entre_arvores [t8code]
+//         test-point-class   / mtree_desvia_do_contrato_na_interface_entre_arvores [t8code]
 //       A METADE QUE E' DE MESH e' o DESPACHO: decidir entre dentro, sobre o
 //       contorno e fora, antes de qualquer interpolacao.  Quem interpola depois
 //       e' Discretization, e e' o primeiro caso acima.
@@ -250,10 +250,36 @@
 //                  vizinho e' interface interna e o ponto segue DENTRO.
 //       Com o dominio numa arvore so', concordam.  Dividido em duas, o plano da
 //       interface e' limite de caixa mas NAO e' contorno do dominio: a caixa diz
-//       NO_CONTORNO, a face diz DENTRO.  O ultimo caso registra a divergencia em
-//       vez de eleger um vencedor -- qual e' o desejado e' decisao de projeto, e
-//       muda o que o fechamento faz numa interface interna.  O que nao pode e' a
-//       divergencia passar despercebida quando o t8code entrar.
+//       NO_CONTORNO, a face diz DENTRO.
+//
+//       DECIDIDO EM 2026-09-20: VALE A SEMANTICA DO T8CODE.  "Sobre o contorno"
+//       significa que O DOMINIO TERMINA ALI; interface entre blocos do mesmo
+//       dominio nao e' contorno, porque ha' malha dos dois lados.  A face sem
+//       vizinho responde a essa pergunta; a caixa responde outra -- "este ponto
+//       toca o limite de algum bloco".
+//
+//       O MTREE NAO CUMPRE ESTA CLAUSULA, e fica escrito em vez de escondido.  O
+//       `cell_find_in_center` percorre os higtrees do dominio, PARA no primeiro
+//       cuja caixa contem o ponto (`break`, "assume domains do not overlap") e
+//       marca ON_BOUNDARY se alguma coordenada igualar um limite DAQUELA caixa.
+//       Ele nunca pergunta se outro bloco continua o dominio dali'.  Duas
+//       consequencias:
+//         - a resposta depende da ORDEM das arvores no vetor do dominio, que e'
+//           o que a C8 proibe para localizacao;
+//         - e' alcancavel em TODA execucao com np>1.  MEDIDO: com np=3 um
+//           dominio do example2d_Newt chega a TRES higtrees, e os planos entre
+//           eles sao interfaces internas.
+//
+//       POR QUE NAO FOI CORRIGIDO JUNTO COM A DECISAO.  O efeito hoje e' BENIGNO,
+//       e foi rastreado ate' o fim: ON_BOUNDARY faz o `get_stencil` procurar
+//       condicao de contorno -- Dirichlet no centro, Neumann, Dirichlet --, e
+//       numa interface interna nenhuma casa, entao o codigo cai no caminho normal
+//       de interpolacao.  O preco e' busca desperdicada na camada de facetas
+//       daquele plano.  O QUE NAO E' GARANTIDO e' que nenhuma condicao registrada
+//       coincida com uma interface interna; se coincidir, seria aplicada num
+//       ponto interno.  Corrigir exige perguntar se o dominio CONTINUA alem do
+//       ponto -- sonda com epsilon --, e isso merece verificacao propria em vez
+//       de vir de carona.
 //
 //
 // ----------------------------------------------- A FRONTEIRA DAS CONSULTAS

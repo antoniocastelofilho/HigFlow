@@ -273,7 +273,29 @@ deixá-los por último, ou deixá-los como estão. Eu não migraria sem antes ha
 exemplo que os exercite — mas isso os deixa permanentemente no caminho antigo,
 e é uma decisão de projeto, não minha.
 
-**D3 — A classificação na interface entre árvores** (pendente de ontem).
-HiGTree diz `ON_BOUNDARY`, t8code diz dentro. Não bloqueia nada acima: o
-instantâneo carrega geometria, não classificação. Mas bloqueia o fechamento de
-contorno pelo t8code, que vem depois.
+**D3 — A classificação na interface entre árvores — decidido.** Vale a
+semântica do t8code: *sobre o contorno* significa que o domínio **termina** ali.
+Interface entre blocos do mesmo domínio não é contorno, porque há malha dos dois
+lados.
+
+A investigação mudou o caráter da decisão. Não eram duas convenções
+defensáveis — o `cell_find_in_center` para no **primeiro** higtree cuja caixa
+contém o ponto (`break`, "assume domains do not overlap") e nunca pergunta se
+outro bloco continua o domínio. Isso faz a resposta depender da **ordem das
+árvores**, que é o que a cláusula C8 proíbe para localização.
+
+E não é hipotético: medido, com `np=3` um domínio do `example2d_Newt` chega a
+**três** higtrees, então as interfaces internas existem em toda execução
+paralela.
+
+O efeito hoje é **benigno**, e rastreei até o fim: `ON_BOUNDARY` faz o
+`get_stencil` procurar condição de contorno — Dirichlet no centro, Neumann,
+Dirichlet — e numa interface interna nenhuma casa, então cai no caminho normal
+de interpolação. O preço é busca desperdiçada na camada de facetas daquele
+plano.
+
+**O que não fica garantido** é que nenhuma condição registrada coincida com uma
+interface interna; se coincidir, seria aplicada num ponto interno. Corrigir
+exige perguntar se o domínio *continua* além do ponto — uma sonda com epsilon —
+e isso merece verificação própria em vez de vir de carona nesta decisão. Fica
+escrito na C14 como desvio conhecido do MTree, não como convenção alternativa.
