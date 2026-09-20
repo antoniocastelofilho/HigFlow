@@ -50,17 +50,17 @@ void higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(higflow_so
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
@@ -109,8 +109,8 @@ void higflow_explicit_euler_ionic_transport_equation_nplus_multiphase(higflow_so
             // Set property value  
             dp_set_value(ns->ed.eo.dpnplus_aux, clid, newnplus);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
 
         dp_copy_values(dpn_temp, ns->ed.eo.dpnplus_aux);
 
@@ -134,17 +134,17 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
         mp_mapper *mp = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
@@ -193,8 +193,8 @@ void higflow_explicit_euler_ionic_transport_equation_nminus_multiphase(higflow_s
             // Set property value  
             dp_set_value(ns->ed.eo.dpnminus_aux, clid, newnminus);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
 
         dp_copy_values(dpn_temp, ns->ed.eo.dpnminus_aux);
 
@@ -217,23 +217,23 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
                 slv_set_bi(ns->ed.eo.slvnplus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -307,14 +307,14 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus_multiphase(higfl
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -340,23 +340,23 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
         mp_mapper *mp = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
                 slv_set_bi(ns->ed.eo.slvnminus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -430,14 +430,14 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus_multiphase(higf
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -464,23 +464,23 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus_multiph
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
                 slv_set_bi(ns->ed.eo.slvnplus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -556,14 +556,14 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus_multiph
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -590,23 +590,23 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus_multip
         mp_mapper *mp = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
                 slv_set_bi(ns->ed.eo.slvnminus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -682,14 +682,14 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus_multip
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -716,23 +716,23 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus_multiphase(higflo
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
                 slv_set_bi(ns->ed.eo.slvnplus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -808,14 +808,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus_multiphase(higflo
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -826,23 +826,23 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus_multiphase(higflo
         //dp_sync(ns->ed.eo.dpnplus_aux); // already called from dp_slv_load_from_solver
 
         // Second Stage of Tr-BDF2
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
                 slv_set_bi(ns->ed.eo.slvnplus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -918,14 +918,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus_multiphase(higflo
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -951,23 +951,23 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus_multiphase(higfl
         mp_mapper *mp = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
                 slv_set_bi(ns->ed.eo.slvnminus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -1043,14 +1043,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus_multiphase(higfl
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -1061,23 +1061,23 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus_multiphase(higfl
         //dp_sync(ns->ed.eo.dpnminus_aux); // already called from dp_slv_load_from_solver
 
         // Second Stage of Tr-BDF2
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // pure newtonian in this phase
             if ((FLT_EQ(fracvol, 0.0) && eoflow0 != true) ||
                 (FLT_EQ(fracvol, 1.0) && eoflow1 != true)) {
-                int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+                int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
                 slv_set_bi(ns->ed.eo.slvnminus, cgid, 1.0);
                 int j = cgid;
                 real val = 1.0;
@@ -1153,14 +1153,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus_multiphase(higfl
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -1572,16 +1572,16 @@ void higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(higf
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
@@ -1610,8 +1610,8 @@ void higflow_explicit_euler_intermediate_velocity_multiphase_electroosmotic(higf
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Syncing the intermediate velocity
         dp_sync(dpustar[dim]);
         // Set the velocity at outflow
@@ -1746,16 +1746,16 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase_elect
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -1818,8 +1818,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_multiphase_elect
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -1850,16 +1850,16 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -1922,8 +1922,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -1939,16 +1939,16 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_multiphase(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             //Get the uaux
@@ -2010,8 +2010,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_multiphase_electroosmotic(
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system

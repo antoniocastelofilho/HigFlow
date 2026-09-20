@@ -1,5 +1,6 @@
 #if DIM == 3
 //#include "hig-flow-vof-finite-difference-normal-curvature.h"
+#include "hig-mesh-snapshot.h"
 #include "hig-flow-vof-finite-difference-normal-curvature_3D.h"
 
 // Auxiliar local a este arquivo; declarada aqui porque as chamadas
@@ -29,20 +30,20 @@ void shirani_125_cells(higflow_solver *ns){
 		// Loop for each cell
 		higcit_celliterator *it;
 
-		for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+		{
+		const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+		for(int clid = 0; clid < hms->n; clid++) {
 			// Get the cell
-			hig_cell *c = higcit_getcell(it);
 
 			// Get the cell identifier
-			int clid = mp_lookup(mp, hig_get_cid(c));
 
 			// Get the center of the cell
 			Point center;
-			hig_get_center(c, center);
+			hms_center(hms, clid, center);
 
 			// Get the delta of the cell
 			Point delta;
-			hig_get_delta(c, delta);
+			hms_delta(hms, clid, delta);
 
 			Point p;
 			p[0] = center[0];
@@ -368,8 +369,8 @@ void shirani_125_cells(higflow_solver *ns){
 				dp_set_value(ns->ed.mult.dpnormal[i], clid, Normal[i]);
 			}
 		}
+		}
 		// Destroy the iterator
-		higcit_destroy(it);
 		// Sync the distributed pressure property
 		for (int i = 0; i < DIM; i++) {
 			dp_sync(ns->ed.mult.dpnormal[i]);

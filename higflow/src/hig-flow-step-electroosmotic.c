@@ -263,17 +263,17 @@ void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns) {
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnplusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -307,8 +307,8 @@ void higflow_explicit_euler_ionic_transport_equation_nplus(higflow_solver *ns) {
             // Set property value  
             dp_set_value(ns->ed.eo.dpnplus_aux, clid, newnplus);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
 
         dp_copy_values(dpn_temp, ns->ed.eo.dpnplus_aux);
 
@@ -440,17 +440,17 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnplusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -492,14 +492,14 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nplus(higflow_solver *
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -526,17 +526,17 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver 
         mp_mapper *m = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnminusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -577,14 +577,14 @@ void higflow_semi_implicit_euler_ionic_transport_equation_nminus(higflow_solver 
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -611,17 +611,17 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus(higflow
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnplusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -665,14 +665,14 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nplus(higflow
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -699,17 +699,17 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus(higflo
         mp_mapper *m = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnminusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -752,14 +752,14 @@ void higflow_semi_implicit_crank_nicolson_ionic_transport_equation_nminus(higflo
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -786,17 +786,17 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus(higflow_solver *n
         mp_mapper *mp = sd_get_domain_mapper(sdnplus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnplusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -840,14 +840,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus(higflow_solver *n
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -858,17 +858,17 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus(higflow_solver *n
         //dp_sync(ns->ed.eo.dpnplus_aux); // already called from dp_slv_load_from_solver
 
         // Second Stage of Tr-BDF2
-        for (it = sd_get_domain_celliterator(sdnplus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnplus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnplusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -912,14 +912,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nplus(higflow_solver *n
             real *vals = stn_get_vals(ns->ed.eo.stnnplus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnplus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnplus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnplus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnplus, cgid, stn_get_rhs(ns->ed.eo.stnnplus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnplus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnplus);
         // Solve the linear system
@@ -946,17 +946,17 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus(higflow_solver *
         mp_mapper *m = sd_get_domain_mapper(sdnminus);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnminusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -999,14 +999,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus(higflow_solver *
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -1017,17 +1017,17 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus(higflow_solver *
         //dp_sync(ns->ed.eo.dpnminus_aux); // already called from dp_slv_load_from_solver
 
         // Second Stage of Tr-BDF2
-        for (it = sd_get_domain_celliterator(sdnminus); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdnminus);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(m, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity at cell center 
             // real u[DIM], dnminusdx[DIM];
             // hig_flow_velocity_at_center_cell(ns, ccenter, cdelta, u);
@@ -1070,14 +1070,14 @@ void higflow_semi_implicit_bdf2_ionic_transport_equation_nminus(higflow_solver *
             real *vals = stn_get_vals(ns->ed.eo.stnnminus);
             // Get the number of elements of the stencil
             int numelems = stn_get_numelems(ns->ed.eo.stnnminus);
-            int cgid = psd_get_global_id(ns->ed.eo.psdEOnminus, c);
+            int cgid = psd_lid_to_gid(ns->ed.eo.psdEOnminus, clid);
             // Set the right side of solver linear system
             slv_set_bi(ns->ed.eo.slvnminus, cgid, stn_get_rhs(ns->ed.eo.stnnminus));
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->ed.eo.slvnminus, cgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Assemble the solver
         slv_assemble(ns->ed.eo.slvnminus);
         // Solve the linear system
@@ -1389,16 +1389,16 @@ real higflow_electroosmotic_psi(higflow_solver *ns) {
     mp_mapper *m = sd_get_domain_mapper(sdp);
     // Loop for each cell
     higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
-        int clid    = mp_lookup(m, hig_get_cid(c));
+        hms_delta(hms, clid, cdelta);
         // Reset the stencil
         stn_reset(ns->ed.eo.stnpsi);
         // Initialize rhs
@@ -1449,13 +1449,13 @@ real higflow_electroosmotic_psi(higflow_solver *ns) {
         //     printf("rhs = %.12f\n", stn_get_rhs(ns->ed.eo.stnpsi) + delta*(nplus_temp - nminus_temp));
         // }
         // Get the cell identifier of the cell
-        int cgid = psd_get_global_id(ns->ed.eo.psdEOpsi, c);
+        int cgid = psd_lid_to_gid(ns->ed.eo.psdEOpsi, clid);
         // Set the right side of solver linear system
         slv_set_bi(ns->ed.eo.slvpsi, cgid, stn_get_rhs(ns->ed.eo.stnpsi));
         // Set the line of matrix of the solver linear system
         slv_set_Ai(ns->ed.eo.slvpsi, cgid, numelems, ids, vals);
     }
-    higcit_destroy(it);
+    }
     // Assemble the solver
     slv_assemble(ns->ed.eo.slvpsi);
     // Solve the linear system
@@ -1463,27 +1463,27 @@ real higflow_electroosmotic_psi(higflow_solver *ns) {
     // Set the solver solution in distributed property
     //dp_slv_load_from_solver(ns->ed.eo.dppsi, ns->ed.eo.slvpsi);
     real max_psi_res = 0.0;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int clid    = mp_lookup(m, hig_get_cid(c));
         int cgid    = psd_lid_to_gid(ns->ed.eo.psdEOpsi, clid);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the value of psi
         real psi_new = slv_get_xi(ns->ed.eo.slvpsi, cgid);
         real psi_old = dp_get_value(ns->ed.eo.dppsi, clid);
-        UPDATE_RESIDUAL_BUFFER_CELL(ns, psi_old, psi_new, c, ccenter)
+        UPDATE_RESIDUAL_BUFFER_CELL_HMS(ns, psi_old, psi_new, hms, clid, ccenter)
         real res = fabs(psi_new - psi_old);
         if(res > max_psi_res) max_psi_res = res;
 
         // Store psi
         dp_set_value(ns->ed.eo.dppsi, clid, psi_new);   
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
 
     UPDATE_RESIDUALS(ns, ns->residuals->psi)
 
@@ -1534,16 +1534,16 @@ void higflow_electroosmotic_phi(higflow_solver *ns) {
     mp_mapper *m = sd_get_domain_mapper(sdp);
     // Loop for each cell
     higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
-        int clid    = mp_lookup(m, hig_get_cid(c));
+        hms_delta(hms, clid, cdelta);
         // Reset the stencil
         stn_reset(ns->ed.eo.stnphi);
         // Set the right side of stencil
@@ -1580,14 +1580,14 @@ void higflow_electroosmotic_phi(higflow_solver *ns) {
         int numelems = stn_get_numelems(ns->ed.eo.stnphi);
 
         // Get the cell identifier of the cell
-        int cgid = psd_get_global_id(ns->ed.eo.psdEOphi, c);
+        int cgid = psd_lid_to_gid(ns->ed.eo.psdEOphi, clid);
         // Set the right side of solver linear system
         slv_set_bi(ns->ed.eo.slvphi, cgid, stn_get_rhs(ns->ed.eo.stnphi));
         // Set the line of matrix of the solver linear system
         slv_set_Ai(ns->ed.eo.slvphi, cgid, numelems, ids, vals);
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
     // Assemble the solver
     slv_assemble(ns->ed.eo.slvphi);
     // Solve the linear system
@@ -1625,16 +1625,16 @@ void higflow_calculate_electroosmotic_source_term( higflow_solver *ns) {
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdF[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdF[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdF[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the derivative of applied potential
             phil        = compute_center_p_left(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
             phir        = compute_center_p_right(sdphi, fcenter, fdelta, dim, 0.5, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
@@ -1705,8 +1705,8 @@ void higflow_calculate_electroosmotic_source_term( higflow_solver *ns) {
             // Set the distributed source term property
             dp_set_value(ns->ed.eo.dpFeo[dim], flid, Feo);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->ed.eo.dpFeo[dim]);
     }
@@ -1729,13 +1729,13 @@ void higflow_calculate_electroosmotic_source_term_analytic_pbdh( higflow_solver 
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdF[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdF[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdF[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             real y   = fcenter[1];
             // Set the induced potential
             real psi = cosh(kappa*H*y)/cosh(kappa*H);
@@ -1751,8 +1751,8 @@ void higflow_calculate_electroosmotic_source_term_analytic_pbdh( higflow_solver 
             // Set the distributed source term property
             dp_set_value(ns->ed.eo.dpFeo[dim], flid, Feo);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->ed.eo.dpFeo[dim]);
     }
@@ -1832,16 +1832,16 @@ void higflow_explicit_euler_intermediate_velocity_electroosmotic(higflow_solver 
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
@@ -1863,8 +1863,8 @@ void higflow_explicit_euler_intermediate_velocity_electroosmotic(higflow_solver 
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Syncing the intermediate velocity
         dp_sync(dpustar[dim]);
         // Set the velocity at outflow
@@ -1893,16 +1893,16 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the intermediate velocity
             real u     = dp_get_value(ns->dpu[dim], flid);
             real ustar = dp_get_value(ns->dpustar[dim], flid);
@@ -1911,8 +1911,8 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_electroosmotic(higflow
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpustar[dim], flid, urk2);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
@@ -1938,16 +1938,16 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the intermediate velocity
             real u     = dp_get_value(ns->dpu[dim], flid);
             real ustar = dp_get_value(ns->dpustar[dim], flid);
@@ -1956,8 +1956,8 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpuaux[dim], flid, urk3);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->dpuaux[dim]);
     }
@@ -1971,16 +1971,16 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
     // Calculate the third stage velocity by the explicit euler method
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the intermediate velocity
             real u     = dp_get_value(ns->dpu[dim], flid);
             real ustar = dp_get_value(ns->dpustar[dim], flid);
@@ -1989,8 +1989,8 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_electroosmotic(higflow
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpustar[dim], flid, urk3);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the distributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
@@ -2014,16 +2014,16 @@ void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_so
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -2090,8 +2090,8 @@ void higflow_semi_implicit_euler_intermediate_velocity_electroosmotic(higflow_so
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -2121,16 +2121,16 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(h
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -2185,8 +2185,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_electroosmotic(h
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -2217,16 +2217,16 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -2281,8 +2281,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -2298,16 +2298,16 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
    // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-       int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_electroosmotic(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             //Get the uaux
@@ -2361,8 +2361,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_electroosmotic(higflow_sol
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -2496,19 +2496,20 @@ void check_uniform_permittivity(higflow_solver *ns) {
     // Loop for each cell
     higcit_celliterator *it;
     real maxperm = 0.0, minperm = INFINITY, perm, dif;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int hms_i = 0; hms_i < hms->n; hms_i++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, hms_i, ccenter);
         perm = ns->ed.eo.problem->permittivity(ccenter, ns->par.t);
         if(perm > maxperm) maxperm = perm;
         if(perm < minperm) minperm = perm;
         dif = maxperm - minperm;
         if(FLT_NE(dif,0.0)) break;
     }
-    higcit_destroy(it);
+    }
 
     real max_perm_global, min_perm_global;
     MPI_Allreduce(&maxperm, &max_perm_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);

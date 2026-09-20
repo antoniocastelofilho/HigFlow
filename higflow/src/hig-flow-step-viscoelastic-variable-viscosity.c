@@ -597,17 +597,17 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du, S and Kernel tensor
             real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM];
             real tr = 0.0;
@@ -734,8 +734,8 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                 }
             }  
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -743,17 +743,17 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             }
         }
         // Store the Kernel Tensor
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the S tensor and store in Kernel
             real S[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -765,8 +765,8 @@ void higflow_implicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                 }
             }
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -795,16 +795,16 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_variable_viscosit
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_viscoelastic_variable_viscosity(ns, sdp, sfdu, flid, fcenter, fdelta, dim, dpu);
             // Right hand side equation
@@ -824,8 +824,8 @@ void higflow_explicit_euler_intermediate_velocity_viscoelastic_variable_viscosit
             // Update the distributed property intermediate velocity
             dp_set_value(dpustar[dim], flid, ustar);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Syncing the intermediate velocity
         dp_sync(dpustar[dim]);
     }
@@ -852,16 +852,16 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic_variable_
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the intermediate velocity
             real u     = dp_get_value(ns->dpu[dim], flid);
             real ustar = dp_get_value(ns->dpustar[dim], flid);
@@ -870,8 +870,8 @@ void higflow_explicit_runge_kutta_2_intermediate_velocity_viscoelastic_variable_
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpustar[dim], flid, urk2);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the ditributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
@@ -897,16 +897,16 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_variable_
         // Get the map of the distributd properties in the facets
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the intermediate velocity
             real u     = dp_get_value(ns->dpu[dim], flid);
             real ustar = dp_get_value(ns->dpustar[dim], flid);
@@ -915,8 +915,8 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_variable_
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpuaux[dim], flid, urk3);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the ditributed velocity property
         dp_sync(ns->dpuaux[dim]);
     }
@@ -930,16 +930,16 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_variable_
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
     // Calculate the third stage velocity by the explicit euler method
-        for(fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Get the intermediate velocity
             real u     = dp_get_value(ns->dpu[dim], flid);
             real ustar = dp_get_value(ns->dpustar[dim], flid);
@@ -948,8 +948,8 @@ void higflow_explicit_runge_kutta_3_intermediate_velocity_viscoelastic_variable_
             // Set the final velocity in the distributed velocity property
             dp_set_value(ns->dpustar[dim], flid, urk3);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Sync the ditributed velocity property
         dp_sync(ns->dpustar[dim]);
     }
@@ -1067,16 +1067,16 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_var
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_viscoelastic_variable_viscosity(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -1130,8 +1130,8 @@ void higflow_semi_implicit_crank_nicolson_intermediate_velocity_viscoelastic_var
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -1162,16 +1162,16 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_viscoelastic_variable_viscosity(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             // Right hand side equation
@@ -1225,8 +1225,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -1242,16 +1242,16 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
         // Get the map of domain
         mp_mapper *mu = sfd_get_domain_mapper(sfdu[dim]);
         // Loop for each facet
-        for (fit = sfd_get_domain_facetiterator(sfdu[dim]); !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+        {
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfdu[dim]);
+        for(int flid = 0; flid < hfs->n; flid++) {
             // Get the facet cell identifier
-            hig_facet *f = higfit_getfacet(fit);
-            int flid = mp_lookup(mu, hig_get_fid(f));
             // Get the center of the facet
             Point fcenter;
-            hig_get_facet_center(f, fcenter);
+            hfs_center(hfs, flid, fcenter);
             // Get the delta of the facet
             Point fdelta;
-            hig_get_facet_delta(f, fdelta);
+            hfs_delta(hfs, flid, fdelta);
             // Set the computational cell
             higflow_computational_cell_viscoelastic_variable_viscosity(ns, sdp, sfdu, flid, fcenter, fdelta, dim, ns->dpu);
             //Get the uaux
@@ -1304,8 +1304,8 @@ void higflow_semi_implicit_bdf2_intermediate_velocity_viscoelastic_variable_visc
             // Set the line of matrix of the solver linear system
             slv_set_Ai(ns->slvu[dim], fgid, numelems, ids, vals);
         }
+        }
         // Destroy the iterator
-        higfit_destroy(fit);
         // Assemble the solver
         slv_assemble(ns->slvu[dim]);
         // Solve the linear system
@@ -1625,17 +1625,17 @@ void higflow_compute_viscosity_user_model_vevv(higflow_solver *ns) {
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor
             real Du[DIM][DIM];
             for (int dim = 0; dim < DIM; dim++) {
@@ -1679,12 +1679,12 @@ void higflow_compute_viscosity_user_model_vevv(higflow_solver *ns) {
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.vevv.dpvisc, clid, visc);
         }
+        }
         //Printing the min and max shear rate values
         printf("===> qmin = %lf <===> qmax = %lf <===\n", qmin, qmax);
         //Printing the min and max viscosity values
         printf("===> etamin = %lf <===> etamax = %lf <===\n", etamin, etamax);
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         dp_sync(ns->ed.vevv.dpvisc);
     }
@@ -2232,17 +2232,17 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
         mp_mapper *mp = sd_get_domain_mapper(sdvisc);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdvisc);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du, and the tensor S
             real Du[DIM][DIM], S[DIM][DIM];
             // Get the tensors Du and S
@@ -2374,6 +2374,7 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             dp_set_value(ns->ed.vevv.dpvisc, clid, viscnew);
 
         }
+        }
         //Printing the min and max deformation tensor values
         //for (int i = 0; i < DIM; i++) {
         //    for (int j = 0; j < DIM; j++) {
@@ -2411,7 +2412,6 @@ void higflow_implicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
         //Printing the min and max RHS values
         //printf("===> RHSmin = %lf <===> RHSmax = %lf <===\n", RHSmin, RHSmax);
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed structural parameter property
         dp_sync(ns->ed.vevv.dpStructPar);
         // Sync the ditributed viscosity property

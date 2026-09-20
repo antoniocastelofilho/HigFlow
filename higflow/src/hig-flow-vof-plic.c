@@ -1,4 +1,5 @@
 #include "hig-flow-vof-plic.h"
+#include "hig-mesh-snapshot.h"
 
 void arquivoDist(char*nome_dist,real x,real y,real distance){
    FILE *fp=fopen("dist.txt","a");
@@ -326,17 +327,17 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
     mp_mapper *mp = sd_get_domain_mapper(sdm);
     // Loop for each cell
     higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+    for(int clid = 0; clid < hms->n; clid++) {
        // Get the cell
-       hig_cell *c = higcit_getcell(it);
        // Get the cell identifier
-       int clid = mp_lookup(mp, hig_get_cid(c));
        // Get the center of the cell
        Point center;
-       hig_get_center(c, center);
+       hms_center(hms, clid, center);
        // Get the delta of the cell
        Point delta;
-       hig_get_delta(c, delta);
+       hms_delta(hms, clid, delta);
        // Case bi-dimensional
        Point Normal;
        Normal[0] = compute_value_at_point(sdm, center, center, 1.0, ns->ed.mult.dpnormal[0], ns->ed.mult.stn);
@@ -352,8 +353,8 @@ void higflow_compute_distance_multiphase_2D(higflow_solver *ns) {
        // Set value distance
        dp_set_value(ns->ed.mult.dpdistance, clid, distance);
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
     // Sync the distributed pressure property
     dp_sync(ns->ed.mult.dpdistance);
 }
@@ -366,12 +367,14 @@ void higflow_compute_plic_lines_2d(higflow_solver *ns) {
    int clid;
    real fracvol;
    int interface_counter = 0;
-   for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
-      c = higcit_getcell(it);
-      clid = mp_lookup(mp, hig_get_cid(c));
+   {
+   const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+   for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+      clid = hms_i;
       fracvol = dp_get_value(ns->ed.mult.dpfracvol, clid);
       if(FLT_GT(fracvol, 0.0) && FLT_LT(fracvol, 1.0)) interface_counter++;
-   } higcit_destroy(it);
+   }
+   }
 
    if(ns->ed.mult.num_plic_lines !=0) free(ns->ed.mult.plic_lines);
    ns->ed.mult.num_plic_lines = interface_counter;
@@ -383,13 +386,14 @@ void higflow_compute_plic_lines_2d(higflow_solver *ns) {
    Point ccenter, cdelta;
    real nx, ny, dist;
    Line l;
-   for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
-      c = higcit_getcell(it);
-      clid = mp_lookup(mp, hig_get_cid(c));
+   {
+   const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+   for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+      clid = hms_i;
       fracvol = dp_get_value(ns->ed.mult.dpfracvol, clid);
       if(FLT_GT(fracvol, 0.0) && FLT_LT(fracvol, 1.0)) {
-         hig_get_center(c, ccenter);
-         hig_get_delta(c, cdelta);
+         hms_center(hms, hms_i, ccenter);
+         hms_delta(hms, hms_i, cdelta);
          nx= dp_get_value(ns->ed.mult.dpnormal[0], clid);
          ny = dp_get_value(ns->ed.mult.dpnormal[1], clid);
          dist = dp_get_value(ns->ed.mult.dpdistance, clid);
@@ -444,7 +448,8 @@ void higflow_compute_plic_lines_2d(higflow_solver *ns) {
          line_index++;
       }
       
-   } higcit_destroy(it);
+   }
+   }
 }
 
 void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
@@ -458,20 +463,20 @@ void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
       // Loop for each cell
       higcit_celliterator *it;
 
-      for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+      {
+      const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+      for(int clid = 0; clid < hms->n; clid++) {
          // Get the cell
-         hig_cell *c = higcit_getcell(it);
 
          // Get the cell identifier
-         int clid = mp_lookup(mp, hig_get_cid(c));
 
          // Get the center of the cell
          Point center;
-         hig_get_center(c, center);
+         hms_center(hms, clid, center);
 
          // Get the delta of the cell
          Point delta;
-         hig_get_delta(c, delta);
+         hms_delta(hms, clid, delta);
 
          // Case bi-dimensional
          Point Normal;
@@ -488,7 +493,7 @@ void higflow_compute_area_fraction_multiphase_2D(higflow_solver *ns) {
 
          // arquivoFracAux(NULL,center[0],center[1],frac);
       }
+      }
       // Destroy the iterator
-      higcit_destroy(it);
 }
 
