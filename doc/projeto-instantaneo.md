@@ -106,31 +106,57 @@ por coincidência — uma vez confirmada com franja.
 
 ## 3. Onde o instantâneo vive
 
-**Recomendação: no `sim_domain`, produzido ao fim da montagem, alcançado por um
-acessor.** Não no `higflow_solver`.
+**Recomendação: no `sim_domain`, produzido ao fim do `psd_synced_mapper`.** Não
+no `higflow_solver`, e não na primeira leitura.
 
-O motivo é contagem. O solver declara mais de vinte campos de domínio
-(`sdp`, `sdF`, `sdED`, `sdmult`, `sdVisc`, `sdSBnA`, `sdSBnB`, `sdphi`,
-`sdEOphi`, `sdEOpsi`, `sdEOnplus`, `sdEOnminus`, `sfdu[DIM]`, `sfdF[DIM]`,
-`sfdEOFeo[DIM]`, cada um com seu par `psd`/`psfd`). Pôr um instantâneo ao lado
-de cada um duplica essa lista, e cada sítio migrado passa a ter de escolher o
-instantâneo certo para o domínio certo — um emparelhamento errado não dá erro
-de compilação e dá resultado plausível.
+### Por que no domínio
 
-Pendurado no domínio:
+O argumento é de contagem. O solver declara mais de vinte campos de domínio —
+`sdp`, `sdF`, `sdED`, `sdmult`, `sdVisc`, `sdSBnA`, `sdSBnB`, `sdphi`, os quatro
+de eletro-osmose, mais `sfdu[DIM]`, `sfdF[DIM]`, `sfdEOFeo[DIM]`, cada um com
+seu par `psd`/`psfd`. Pôr um instantâneo ao lado de cada um duplica essa lista,
+e cada laço migrado passa a ter de escolher o instantâneo certo para o domínio
+certo. **Emparelhamento errado não dá erro de compilação e dá resultado
+plausível.** Pendurado no domínio, esse erro deixa de ser possível de cometer.
 
-```c
-const hig_mesh_snapshot *sd_snapshot(sim_domain *sd);   // produz na 1a chamada
+O ganho colateral é o da fronteira: quem consome deixa de saber qual backend
+produziu a malha.
+
+### Por que ansioso, e não na primeira leitura
+
+Uma versão anterior desta seção propunha `sd_snapshot(sd)` produzindo na
+primeira chamada. **Está errado**, e pelo mesmo motivo que o teste de franja
+expôs: o instantâneo depende do mapeador estar atribuído, e quem o atribui é o
+`_psd_setmapper`, dentro do `psd_synced_mapper`. Produção preguiçosa deixa essa
+ordem implícita — chamada antes, ela devolve um instantâneo indexado por lixo, e
+o sintoma não é falha, são números errados.
+
+A medição mostra que há um ponto único e não ambíguo para produzi-lo:
+
+```
+psd_create                                   19
+psd_synced_mapper                            19
+mp_assign_from_celliterator em higflow/src    1
 ```
 
-o emparelhamento deixa de ser possível de errar, o solver não muda de forma, e
-o backend que produziu a malha fica irrelevante para quem consome — que é o
-ponto da fronteira.
+Um para um, e o solver não numera domínio nenhum por conta própria — delega.
+Então o instantâneo nasce onde o mapeador acabou de ficar pronto, e a ordem
+deixa de ser uma coisa que alguém precise lembrar.
 
-*O que isso custa:* o `sim_domain` passa a ter estado derivado. Aceitável
-porque a malha é imutável; seria inaceitável se ela adaptasse.
+Junto vai o guarda da seção 1: refino depois da montagem tem de falhar alto, e
+não devolver geometria velha em silêncio.
 
----
+### O custo, e o que mudaria a decisão
+
+O `sim_domain` passa a carregar estado derivado, e é a HiGTree que passa a
+mantê-lo. Isso só é aceitável porque **a malha é imutável depois da montagem**.
+Se a adaptação em tempo de execução entrar algum dia, esta é a primeira decisão
+a rever.
+
+A alternativa legítima é manter a HiGTree sem memória — uma biblioteca de malha
+que responde e não lembra. Não é errada; o preço dela são os vinte e poucos
+campos novos no solver e o emparelhamento manual, que é pagar no lugar onde o
+erro é silencioso.
 
 ## 4. O que ainda não existe
 
@@ -153,7 +179,8 @@ migrar onde ela não chega é mexer sem rede.
 
 1. **Fechar a lacuna da franja** — `test-mesh-snapshot` com `nps=(1,2,3)`.
    Barato, e é o que torna tudo abaixo confiável.
-2. **O acessor no domínio**, com o guarda contra refino pós-montagem. Nenhum
+2. **A produção no `psd_synced_mapper`**, com o guarda contra refino
+   pós-montagem. Nenhum
    sítio migrado ainda; a suíte inteira tem de continuar idêntica.
 3. **Um oráculo diferencial**: um modo que percorre o domínio pelos dois
    caminhos — árvore e instantâneo — e afirma que centro, delta e id coincidem
@@ -171,9 +198,10 @@ enquanto o oráculo do item 3 passar.
 
 ## 6. O que é decisão sua
 
-**D1 — Onde o instantâneo vive.** Recomendo no domínio, pelo argumento da
-seção 3. A alternativa é no solver, que mantém o `sim_domain` sem estado
-derivado ao preço de vinte e poucos campos novos e do emparelhamento manual.
+**D1 — Onde o instantâneo vive, e quando nasce.** Recomendo no domínio,
+produzido ao fim do `psd_synced_mapper`, pelo argumento da seção 3. A
+alternativa é no solver, que mantém o `sim_domain` sem estado derivado ao
+preço de vinte e poucos campos novos e do emparelhamento manual.
 
 **D2 — Os cinco solvers que nenhum exemplo alcança.** Migrá-los sem rede,
 deixá-los por último, ou deixá-los como estão. Eu não migraria sem antes haver
