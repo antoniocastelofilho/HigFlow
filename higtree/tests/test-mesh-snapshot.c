@@ -110,14 +110,17 @@ int main(int argc, char *argv[]) {
             hig_get_delta(c, de);
             visitadas++;
             for (int d = 0; d < DIM; d++) {
-                if (fabs(s->center[i * DIM + d] - ce[d]) > 1e-15 ||
-                    fabs(s->delta[i * DIM + d]  - de[d]) > 1e-15) {
+                Point sa_c, sa_d;
+                hms_center(s, i, sa_c);
+                hms_delta(s, i, sa_d);
+                if (fabs(sa_c[d] - ce[d]) > 1e-15 ||
+                    fabs(sa_d[d] - de[d]) > 1e-15) {
                     if (!divergentes) {
                         snprintf(primeira, sizeof primeira,
                                  "celula %d, direcao %d: instantaneo (%.17g, %.17g) "
                                  "contra arvore (%.17g, %.17g)", i, d,
-                                 (double) s->center[i * DIM + d],
-                                 (double) s->delta[i * DIM + d],
+                                 (double) sa_c[d],
+                                 (double) sa_d[d],
                                  (double) ce[d], (double) de[d]);
                     }
                     divergentes++;
@@ -148,7 +151,8 @@ int main(int argc, char *argv[]) {
             Point ce;
             hig_get_center(c, ce);
             for (int d = 0; d < DIM; d++) {
-                if (fabs(s->center[i * DIM + d] - ce[d]) > 1e-15) { fora++; break; }
+                { Point sc; hms_center(s, i, sc);
+                  if (fabs(sc[d] - ce[d]) > 1e-15) { fora++; break; } }
             }
         }
         higcit_destroy(cit);

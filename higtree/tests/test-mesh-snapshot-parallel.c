@@ -142,8 +142,11 @@ int main(int argc, char *argv[]) {
             hig_get_center(c, ce);
             hig_get_delta(c, de);
             for (int d = 0; d < DIM; d++) {
-                if (fabs(s->center[i * DIM + d] - ce[d]) > 1e-15 ||
-                    fabs(s->delta[i * DIM + d]  - de[d]) > 1e-15) {
+                Point sa_c, sa_d;
+                hms_center(s, i, sa_c);
+                hms_delta(s, i, sa_d);
+                if (fabs(sa_c[d] - ce[d]) > 1e-15 ||
+                    fabs(sa_d[d] - de[d]) > 1e-15) {
                     fora_de_lugar++;
                     break;
                 }

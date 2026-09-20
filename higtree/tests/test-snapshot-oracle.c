@@ -21,12 +21,12 @@
 //       hoje, mas que um segundo backend preenchendo o arranjo direto da propria
 //       estrutura pode -- e e' exatamente para esse caso que o oraculo existe.
 //
-//   acusa_geometria_alterada       mexendo no centro de UMA linha, o oraculo
+//   acusa_caixa_deslocada          mexendo na caixa de UMA linha, o oraculo
 //       acusa.  Separado do anterior de proposito: troca de linha e' erro de
 //       INDICE, perturbacao e' erro de VALOR, e um oraculo pode pegar um e nao o
 //       outro.
 //
-//   acusa_delta_alterado           idem para o tamanho.  O centro certo com o
+//   acusa_caixa_alargada           idem para o tamanho.  O centro certo com o
 //       delta errado passaria por qualquer conferencia que so' olhasse posicao --
 //       e o delta e' o que 144 sitios de higflow/src leem.
 //
@@ -107,12 +107,12 @@ int main(int argc, char *argv[]) {
             // seria corrupcao nenhuma.
             int a = 0, b = s->n - 1;
             for (int d = 0; d < DIM; d++) {
-                real t = s->center[a * DIM + d];
-                s->center[a * DIM + d] = s->center[b * DIM + d];
-                s->center[b * DIM + d] = t;
-                t = s->delta[a * DIM + d];
-                s->delta[a * DIM + d] = s->delta[b * DIM + d];
-                s->delta[b * DIM + d] = t;
+                real t = s->low[a * DIM + d];
+                s->low[a * DIM + d] = s->low[b * DIM + d];
+                s->low[b * DIM + d] = t;
+                t = s->high[a * DIM + d];
+                s->high[a * DIM + d] = s->high[b * DIM + d];
+                s->high[b * DIM + d] = t;
             }
             const int ruins = sd_snapshot_verify(sd, detalhe, sizeof detalhe);
             T_CHECK_MSG(ruins >= 2,
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     }
 
     // ------------------------------------------------------------------
-    t_case("acusa_geometria_alterada");
+    t_case("acusa_caixa_deslocada");
     {
         sim_domain *sd = monta();
         hig_mesh_snapshot *s = corrompivel(sd);
@@ -132,7 +132,11 @@ int main(int argc, char *argv[]) {
             // ainda devolve a celula certa, com o id certo.  Quem tem de pegar e'
             // a comparacao de geometria, e nao a de indice.
             const int i = s->n / 2;
-            s->center[i * DIM] += 1.0e-6;
+            // Desloca a CAIXA inteira: o centro anda 1e-6/2, pouco para sair da
+            // celula, entao a busca por ponto ainda devolve a celula certa e
+            // quem tem de pegar e' a comparacao de geometria.
+            s->low[i * DIM]  += 1.0e-6;
+            s->high[i * DIM] += 1.0e-6;
             const int ruins = sd_snapshot_verify(sd, detalhe, sizeof detalhe);
             T_CHECK_MSG(ruins == 1,
                 "desloquei o centro da linha %d em 1e-6 e o oraculo acusou %d "
@@ -142,7 +146,7 @@ int main(int argc, char *argv[]) {
     }
 
     // ------------------------------------------------------------------
-    t_case("acusa_delta_alterado");
+    t_case("acusa_caixa_alargada");
     {
         sim_domain *sd = monta();
         hig_mesh_snapshot *s = corrompivel(sd);
@@ -150,7 +154,10 @@ int main(int argc, char *argv[]) {
             // Centro intacto, tamanho errado.  Passaria por qualquer conferencia
             // que so' olhasse posicao -- e o delta e' o que 144 sitios leem.
             const int i = s->n / 3;
-            s->delta[i * DIM] *= 2.0;
+            // Canto inferior intacto, superior dobrado: o tamanho muda e a
+            // posicao do canto de baixo nao.  Passaria por qualquer conferencia
+            // que so' olhasse o centro de uma direcao.
+            s->high[i * DIM] += (s->high[i * DIM] - s->low[i * DIM]);
             const int ruins = sd_snapshot_verify(sd, detalhe, sizeof detalhe);
             T_CHECK_MSG(ruins == 1,
                 "dobrei o delta da linha %d e o oraculo acusou %d divergencia(s), "

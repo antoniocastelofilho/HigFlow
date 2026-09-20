@@ -210,8 +210,11 @@ t8_preenche_instantaneo (void)
       t8_forest_element_centroid (f, it, e, c);
       const double lado = 1.0 / (double) (1 << nivel);
       for (int d = 0; d < DIM; d++) {
-        s->center[i * DIM + d] = c[d];
-        s->delta[i * DIM + d]  = lado;
+          // O instantaneo guarda A CAIXA.  O t8code entrega centroide e nivel,
+          // entao a caixa sai dai' -- o backend se adapta ao que o consumidor
+          // le', que e' o sentido certo da dependencia.
+          s->low[i * DIM + d]  = c[d] - lado / 2.0;
+          s->high[i * DIM + d] = c[d] + lado / 2.0;
       }
     }
   }

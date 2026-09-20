@@ -44,11 +44,24 @@
 extern "C" {
 #endif
 
+//! O instantaneo guarda A CAIXA, e nao centro e tamanho.
+//!
+//! POR QUE A CAIXA E' O PRIMARIO.  E' o que a celula guarda: `hig_get_center` e
+//! `hig_get_delta` DERIVAM dela, por `(low+high)/2` e `high-low`.  Guardando a
+//! caixa e derivando com as mesmas contas, toda leitura sai bit a bit igual a'
+//! de hoje.  O contrario nao vale: reconstruir `low = centro - delta/2` e' exato
+//! em algebra e NAO em ponto flutuante.
+//!
+//! Isso nao e' preciosismo.  19 lacos cobertos do `hig-flow-io.c` usam
+//! `c->lowpoint` e `c->highpoint` como PONTOS DE INTERPOLACAO, e o resultado vai
+//! para o VTK que a suite compara com referencia.  Com centro e delta guardados,
+//! migrar esses lacos mudaria a saida no ultimo bit; com a caixa guardada, nao
+//! muda nada.
 typedef struct hig_mesh_snapshot {
     int   n;          //!< numero de celulas LOCAIS (a franja nao entra, ver C6)
     int   dim;        //!< DIM com que foi construido, para conferencia
-    real *center;     //!< n * DIM, indexado por [i*DIM + d]
-    real *delta;      //!< n * DIM, indexado por [i*DIM + d]
+    real *low;        //!< n * DIM, indexado por [i*DIM + d]
+    real *high;       //!< n * DIM, indexado por [i*DIM + d]
 } hig_mesh_snapshot;
 
 //! \brief Preenche um instantaneo a partir de um sim_domain (backend MTree).
@@ -64,12 +77,25 @@ hig_mesh_snapshot *hms_from_domain(sim_domain *sd);
 //! `hig_get_center(c, center)` por `hms_center(hms, i, center)` -- em vez de
 //! espalhar aritmetica de indice por 250 sitios.
 static inline void hms_center(const hig_mesh_snapshot *s, int i, Point p) {
-    for (int d = 0; d < DIM; d++) p[d] = s->center[i * DIM + d];
+    // A MESMA conta do `hig_get_center`: POINT_ADD seguido de POINT_DIV_SCALAR.
+    // Escrita de outro jeito -- `low/2 + high/2`, por exemplo -- ela deixaria de
+    // ser bit a bit igual, e o ponto todo de guardar a caixa se perderia.
+    for (int d = 0; d < DIM; d++) p[d] = (s->low[i * DIM + d] + s->high[i * DIM + d]) / 2.0;
+}
+
+//! \brief O canto inferior da celula local `i`, exatamente como a celula o guarda.
+static inline void hms_low(const hig_mesh_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->low[i * DIM + d];
+}
+
+//! \brief O canto superior da celula local `i`.  Ver `hms_low`.
+static inline void hms_high(const hig_mesh_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->high[i * DIM + d];
 }
 
 //! \brief O tamanho da celula local `i`.  Ver `hms_center`.
 static inline void hms_delta(const hig_mesh_snapshot *s, int i, Point p) {
-    for (int d = 0; d < DIM; d++) p[d] = s->delta[i * DIM + d];
+    for (int d = 0; d < DIM; d++) p[d] = s->high[i * DIM + d] - s->low[i * DIM + d];
 }
 
 //! \brief Aloca um instantaneo vazio para `n` celulas.  Para um backend que

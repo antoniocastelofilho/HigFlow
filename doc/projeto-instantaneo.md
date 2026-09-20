@@ -190,22 +190,37 @@ faceta não tem `delta` nos DIM eixos do mesmo jeito, e o `sfd_get_stencil` (133
 sítios) é topologia, não leitura — fica atrás do backend, como as consultas de
 ponto.
 
-**A caixa da célula no instantâneo — decisão nova, levantada pelo
-`hig-flow-io.c`.** O instantâneo carrega centro e delta. Mas 19 dos 26 laços
-cobertos daquele arquivo precisam de `c->lowpoint` e `c->highpoint`, que usam
-como *pontos de interpolação* alimentando `compute_facet_value_at_point`.
+**A caixa da célula no instantâneo — ~~decisão nova~~ feita.** O instantâneo
+guardava centro e delta. Agora guarda **a caixa** (`low` e `high`), e centro e
+delta saem dela por derivação, com exatamente as mesmas contas do
+`hig_get_center` e do `hig_get_delta`.
 
-Reconstruir a caixa a partir do que existe — `low = centro − delta/2` — é exato
-em álgebra e **não é exato em ponto flutuante**. O resultado entraria numa
-interpolação cuja saída é justamente o VTK que a referência compara. Por isso
-esses 19 não foram migrados: trocar exatidão por fronteira, sem pedir, num
-arquivo cuja saída é o oráculo, não é uma troca que eu deva fazer sozinho.
+O motivo é que a caixa é o primário: é o que a célula guarda, e os outros dois
+são derivados dela. Guardando a caixa, toda leitura sai bit a bit igual à de
+hoje; guardando centro e delta, reconstruir `low = centro − delta/2` é exato em
+álgebra e **não é exato em ponto flutuante**.
 
-A saída limpa seria o instantâneo guardar **a caixa** (`low` e `high`) e derivar
-centro e delta com as mesmas fórmulas que o `hig_get_center` e o
-`hig_get_delta` usam — aí toda leitura fica bit a bit idêntica à de hoje, e os
-19 migram. O preço são dois arranjos a mais (`n * DIM` cada) e uma mudança no
-que o produtor do t8code precisa preencher.
+Isso não era preciosismo, e agora está **medido** em vez de afirmado. Os 19
+laços cobertos do `hig-flow-io.c` usam `c->lowpoint` e `c->highpoint` como
+*pontos de interpolação*, e o resultado vai para o VTK que a suíte compara. A
+perda da reconstrução:
+
+```
+centro − delta/2 ≠ low      1 de 3 células por direção na malha não diádica
+                            ~0,6% de 200 mil caixas aleatórias
+```
+
+O caso `reconstruir_o_canto_nao_seria_exato` afirma essa perda, e é o único
+lugar que guarda a decisão: se alguém "simplificar" o instantâneo de volta para
+centro e delta, ele é o que acusa.
+
+Uma coisa que eu **não** consegui prender, e vale registrada: a escolha entre
+formas algebricamente equivalentes do centro. `(lo+hi)/2`, `lo/2+hi/2` e
+`lo+(hi−lo)/2` dão o mesmo bit em 200 mil caixas aleatórias — dividir por dois é
+exato em binário. Não há ali o que discriminar.
+
+Custo: dois arranjos de `n * DIM` em vez de dois (mesma memória), e o produtor
+do t8code passou a preencher a caixa a partir do centroide e do nível.
 
 ## 5. Ordem, e o que dá rede
 

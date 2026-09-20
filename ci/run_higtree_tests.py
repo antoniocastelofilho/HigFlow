@@ -131,8 +131,8 @@ TESTS = [
     # localiza a celula POR PONTO, e nao percorrendo: o instantaneo foi preenchido
     # pelo iterador indexado pelo mapeador, e o mapeador saiu DESSE MESMO
     # iterador -- conferir um contra o outro mede a aritmetica contra ela propria.
-    # Metade dos casos e' validacao inversa: linha trocada, centro perturbado,
-    # delta dobrado.  Autorizacao que aprova tudo nao autoriza nada.
+    # Metade dos casos e' validacao inversa: linha trocada, caixa deslocada,
+    # caixa alargada.  Autorizacao que aprova tudo nao autoriza nada.
     Test("test-snapshot-oracle", dims=(2, 3), mpi=True),
 
     # C10 pela separacao certa: a malha fornece o SUPORTE, o ajuste de minimos

@@ -300,16 +300,20 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
     fprintf(f, "\n\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 4*numleafs);
 
     // Saving vector properties of cell faces
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        hig_cell *c = higcit_getcell(it);
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+        Point hms_lo, hms_hi;
+        hms_low(hms, hms_i, hms_lo);
+        hms_high(hms, hms_i, hms_hi);
         Point ccenter;
-        hig_get_center(c,ccenter);
+        hms_center(hms, hms_i, ccenter);
         // Pontos onde será interpolada a velocidade
         Point p0, p1, p2, p3;
-        p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-        p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+        p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+        p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+        p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+        p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
         Point vel0, vel1, vel2, vel3;
 
         for(int dim = 0; dim < DIM; dim++) {
@@ -322,7 +326,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         fprintf(f, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n", 
         vel0[0], vel0[1], vel1[0], vel1[1], vel2[0], vel2[1], vel3[0], vel3[1]);
     }
-    higcit_destroy(it);
+    }
 
     /*
     if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
@@ -335,15 +339,19 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         dpEOFeo2[0] = ns->ed.eo.dpFeo[0]; dpEOFeo2[1] = ns->ed.eo.dpFeo[1];
         Point p0, p1, p2, p3;
         fprintf(f, "VECTORS F\u2091\u2092 FLOAT\n");
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *c = higcit_getcell(it);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a força eletrica
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             Point Feo0, Feo1, Feo2, Feo3;
 
             for(int dim = 0; dim < DIM; dim++) {
@@ -356,7 +364,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             fprintf(f, "%e %e 0\n%e %e 0\n%e %e 0\n%e %e 0\n", 
             Feo0[0], Feo0[1], Feo1[0], Feo1[1], Feo2[0], Feo2[1], Feo3[0], Feo3[1]);
         }
-        higcit_destroy(it);
+        }
 
     }
     */
@@ -380,17 +388,21 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 real visc, visc0, visc1;
 
                 fprintf(f, "\nTENSORS \u03C4\u209A FLOAT\n");
-                for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                    hig_cell *c = higcit_getcell(it);
+                {
+                const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+                for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+                    Point hms_lo, hms_hi;
+                    hms_low(hms, hms_i, hms_lo);
+                    hms_high(hms, hms_i, hms_hi);
                     Point ccenter;
-                    hig_get_center(c,ccenter);
+                    hms_center(hms, hms_i, ccenter);
 
                     // Pontos onde será interpolada a velocidade
                     Point p0, p1, p2, p3;
-                    p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-                    p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-                    p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-                    p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+                    p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+                    p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+                    p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+                    p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
 
                     real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                     for (int i = 0; i < DIM; i++) {
@@ -408,21 +420,26 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                     taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
                     taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
                 }
+                }
                     
             }
         break;
         case VISCOELASTIC:
            fprintf(f, "\nTENSORS \u03C4\u209A FLOAT\n");
-           for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-              hig_cell *c = higcit_getcell(it);
+           {
+           const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+           for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+               Point hms_lo, hms_hi;
+               hms_low(hms, hms_i, hms_lo);
+               hms_high(hms, hms_i, hms_hi);
               Point ccenter;
-              hig_get_center(c,ccenter);
+              hms_center(hms, hms_i, ccenter);
               // Pontos onde será interpolada a velocidade
               Point p0, p1, p2, p3;
-              p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-              p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-              p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-              p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+              p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+              p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+              p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+              p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
               
                 real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                 for (int i = 0; i < DIM; i++) {
@@ -440,23 +457,27 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
                 taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
             }
-            higcit_destroy(it);
+           }
         break;
         
         case VISCOELASTIC_INTEGRAL:
         // Integral
             fprintf(f, "\nTENSORS \u03C4\u209A FLOAT\n");
             //real Re   = ns->par.Re;
-            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                hig_cell *c = higcit_getcell(it);
+            {
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+                Point hms_lo, hms_hi;
+                hms_low(hms, hms_i, hms_lo);
+                hms_high(hms, hms_i, hms_hi);
                 Point ccenter;
-                hig_get_center(c,ccenter);
+                hms_center(hms, hms_i, ccenter);
                 // Pontos onde será interpolada a velocidade
                 Point p0, p1, p2, p3;
-                p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-                p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-                p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-                p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+                p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+                p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+                p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+                p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
                 
                 real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                 real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
@@ -489,7 +510,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
                 taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
                 taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
             }
-            higcit_destroy(it);
+            }
         break;
 
 
@@ -497,16 +518,20 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         //sim_domain *sdte =  psd_get_local_domain(ns->ed.psdED);
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *c = higcit_getcell(it);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             
             real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
@@ -539,23 +564,27 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
             taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
-        higcit_destroy(it);
+        }
         break;
 
     case SHEAR_BANDING:
         //sim_domain *sdte =  psd_get_local_domain(ns->ed.psdED);
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *c = higcit_getcell(it);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             
             real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
@@ -588,21 +617,24 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
             taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
-        higcit_destroy(it);
+        }
 
         fprintf(f, "\nTENSORS A FLOAT\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
         {
-            hig_cell *c = higcit_getcell(it);
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             
             real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                 
@@ -621,22 +653,25 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
             taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
-        higcit_destroy(it);
+        }
 
 
         fprintf(f, "\nTENSORS B FLOAT\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it))
         {
-            hig_cell *c = higcit_getcell(it);
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             
             real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                 
@@ -655,7 +690,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
             taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
-        higcit_destroy(it);
+        }
 
         break;
 
@@ -664,16 +699,20 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
 
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *c = higcit_getcell(it);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             
             real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
@@ -706,7 +745,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
             taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
-        higcit_destroy(it);
+        }
 
         break;
 
@@ -714,16 +753,20 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         // Shear-thickening suspensions
         fprintf(f, "\nTENSORS stress FLOAT\n");
 
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            hig_cell *c = higcit_getcell(it);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            Point hms_lo, hms_hi;
+            hms_low(hms, hms_i, hms_lo);
+            hms_high(hms, hms_i, hms_hi);
             Point ccenter;
-            hig_get_center(c,ccenter);
+            hms_center(hms, hms_i, ccenter);
             // Pontos onde será interpolada a velocidade
             Point p0, p1, p2, p3;
-            p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];
-            p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];
-            p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1];
-            p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1];
+            p0[0] = hms_lo[0];  p0[1] = hms_lo[1];
+            p1[0] = hms_hi[0]; p1[1] = hms_lo[1];
+            p2[0] = hms_hi[0]; p2[1] = hms_hi[1];
+            p3[0] = hms_lo[0];  p3[1] = hms_hi[1];
             
             real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
             real Dp0[DIM][DIM], Dp1[DIM][DIM], Dp2[DIM][DIM], Dp3[DIM][DIM];
@@ -756,7 +799,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             taup2[0][0], taup2[0][1], taup2[1][0], taup2[1][1],
             taup3[0][0], taup3[0][1], taup3[1][0], taup3[1][1]);
         }
-        higcit_destroy(it);
+        }
 
         break;
     }
@@ -906,42 +949,47 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
         Point ccenter;
         hig_cell *c;
         fprintf(f, "\nSCALARS \u03D5 FLOAT\nLOOKUP_TABLE default\n");
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            c = higcit_getcell(it);
-            hig_get_center(c, ccenter);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            hms_center(hms, hms_i, ccenter);
             phi  = compute_value_at_point(ns->ed.eo.sdEOphi, ccenter, ccenter, 1.0, ns->ed.eo.dpphi, ns->ed.eo.stnphi);
             fprintf(f, "%e\n", phi);
         }
-        higcit_destroy(it);
+        }
         fprintf(f, "\nSCALARS \u03C8 FLOAT\nLOOKUP_TABLE default\n");
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            c = higcit_getcell(it);
-            hig_get_center(c, ccenter);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            hms_center(hms, hms_i, ccenter);
             psi  = compute_value_at_point(ns->ed.eo.sdEOpsi, ccenter, ccenter, 1.0, ns->ed.eo.dppsi, ns->ed.eo.stnpsi);
             fprintf(f, "%e\n", psi);
         }
-        higcit_destroy(it);
+        }
         fprintf(f, "\nSCALARS n\u207A FLOAT\nLOOKUP_TABLE default\n");
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            c = higcit_getcell(it);
-            hig_get_center(c, ccenter);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            hms_center(hms, hms_i, ccenter);
             np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
             fprintf(f, "%e\n", np);
         }
-        higcit_destroy(it);
+        }
         fprintf(f, "\nSCALARS n\u207B FLOAT\nLOOKUP_TABLE default\n");
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            c = higcit_getcell(it);
-            hig_get_center(c, ccenter);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            hms_center(hms, hms_i, ccenter);
             nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
             fprintf(f, "%e\n", nm);
         }
-        higcit_destroy(it);
+        }
         fprintf(f, "\nSCALARS \u03C1\u2091 FLOAT\nLOOKUP_TABLE default\n");
 
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            c = higcit_getcell(it);
-            hig_get_center(c, ccenter);
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int hms_i = 0; hms_i < hms->n; hms_i++) {
+            hms_center(hms, hms_i, ccenter);
             np   = compute_value_at_point(ns->ed.eo.sdEOnplus, ccenter, ccenter, 1.0, ns->ed.eo.dpnplus, ns->ed.eo.stnnplus);
             nm   = compute_value_at_point(ns->ed.eo.sdEOnminus, ccenter, ccenter, 1.0, ns->ed.eo.dpnminus, ns->ed.eo.stnnminus);
             if(ns->contr.flowtype == MULTIPHASE) {
@@ -951,7 +999,7 @@ void higflow_print_vtk2D(higflow_solver *ns, int rank) {
             rhoe = deltaeo*(np - nm);
             fprintf(f, "%e\n", rhoe);
         }
-        higcit_destroy(it);
+        }
 
     }
 
@@ -2737,23 +2785,25 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
     real w0[maxpts], w1[maxpts], w2[maxpts], w3[maxpts], w4[maxpts], w5[maxpts], w6[maxpts], w7[maxpts];
     uniqueid gids[maxpts];
     fprintf(f, "\nPOINT_DATA %ld\nVECTORS vel FLOAT\n", 8 * numleafs);
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        hig_cell *c = higcit_getcell(it);
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
+        Point hms_lo, hms_hi;
+        hms_low(hms, clid, hms_lo);
+        hms_high(hms, clid, hms_hi);
         Point cdelta, ccenter, clowpoint, chightpoint;
-        hig_get_delta(c, cdelta);
-        hig_get_center(c, ccenter);
+        hms_delta(hms, clid, cdelta);
+        hms_center(hms, clid, ccenter);
         // Pontos onde será interpolada a velocidade
         Point p0, p1, p2, p3, p4, p5, p6, p7;
-        p0[0] = c->lowpoint[0]; p0[1] = c->lowpoint[1]; p0[2] = c->lowpoint[2];
-        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1]; p1[2] = c->lowpoint[2];
-        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
-        p3[0] = c->lowpoint[0]; p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
-        p4[0] = c->lowpoint[0]; p4[1] = c->lowpoint[1]; p4[2] = c->highpoint[2];
-        p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1]; p5[2] = c->highpoint[2];
-        p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
-        p7[0] = c->lowpoint[0]; p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
-        uniqueid id = hig_get_cid(c);
-        int clid = mp_lookup(m, id);
+        p0[0] = hms_lo[0]; p0[1] = hms_lo[1]; p0[2] = hms_lo[2];
+        p1[0] = hms_hi[0]; p1[1] = hms_lo[1]; p1[2] = hms_lo[2];
+        p2[0] = hms_hi[0]; p2[1] = hms_hi[1]; p2[2] = hms_lo[2];
+        p3[0] = hms_lo[0]; p3[1] = hms_hi[1]; p3[2] = hms_lo[2];
+        p4[0] = hms_lo[0]; p4[1] = hms_lo[1]; p4[2] = hms_hi[2];
+        p5[0] = hms_hi[0]; p5[1] = hms_lo[1]; p5[2] = hms_hi[2];
+        p6[0] = hms_hi[0]; p6[1] = hms_hi[1]; p6[2] = hms_hi[2];
+        p7[0] = hms_lo[0]; p7[1] = hms_hi[1]; p7[2] = hms_hi[2];
         double lu0 = 0, lv0 = 0, lw0 = 0;
         double lu1 = 0, lv1 = 0, lw1 = 0;
         double lu2 = 0, lv2 = 0, lw2 = 0;
@@ -2874,7 +2924,7 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
         fprintf(f, "%e %e %e\n", lu6, lv6, lw6);
         fprintf(f, "%e %e %e\n", lu7, lv7, lw7);
     }
-    higcit_destroy(it);
+    }
     // Saving vectorial properties 
     switch (ns->contr.flowtype) {
         case NEWTONIAN:
@@ -2888,23 +2938,25 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
             
         case VISCOELASTIC:
             fprintf(f, "\nTENSORS Tensor FLOAT\n");
-            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                hig_cell *c = higcit_getcell(it);
+            {
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for(int clid = 0; clid < hms->n; clid++) {
+                Point hms_lo, hms_hi;
+                hms_low(hms, clid, hms_lo);
+                hms_high(hms, clid, hms_hi);
                 Point cdelta, ccenter, clowpoint, chightpoint;
-                hig_get_delta(c,cdelta);
-                hig_get_center(c,ccenter);
+                hms_delta(hms, clid, cdelta);
+                hms_center(hms, clid, ccenter);
                 // Pontos onde será interpolada a velocidade
                 Point p0, p1, p2, p3, p4, p5, p6, p7;
-                p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];  p0[2] = c->lowpoint[2];
-                p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];  p1[2] = c->lowpoint[2];
-                p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
-                p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
-                p4[0] = c->lowpoint[0];  p4[1] = c->lowpoint[1];  p4[2] = c->highpoint[2];
-                p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1];  p5[2] = c->highpoint[2];
-                p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
-                p7[0] = c->lowpoint[0];  p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
-                uniqueid id = hig_get_cid(c);
-                int clid = mp_lookup(m, id);
+                p0[0] = hms_lo[0];  p0[1] = hms_lo[1];  p0[2] = hms_lo[2];
+                p1[0] = hms_hi[0]; p1[1] = hms_lo[1];  p1[2] = hms_lo[2];
+                p2[0] = hms_hi[0]; p2[1] = hms_hi[1]; p2[2] = hms_lo[2];
+                p3[0] = hms_lo[0];  p3[1] = hms_hi[1]; p3[2] = hms_lo[2];
+                p4[0] = hms_lo[0];  p4[1] = hms_lo[1];  p4[2] = hms_hi[2];
+                p5[0] = hms_hi[0]; p5[1] = hms_lo[1];  p5[2] = hms_hi[2];
+                p6[0] = hms_hi[0]; p6[1] = hms_hi[1]; p6[2] = hms_hi[2];
+                p7[0] = hms_lo[0];  p7[1] = hms_hi[1]; p7[2] = hms_hi[2];
                 real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                 real taup4[DIM+1][DIM+1], taup5[DIM+1][DIM+1], taup6[DIM+1][DIM+1], taup7[DIM+1][DIM+1];
                 for (int i = 0; i <= DIM; i++) {
@@ -2975,30 +3027,32 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
                    fprintf(f, "\n");
                 }
             }
-            higcit_destroy(it);
+            }
         break;
         
         case VISCOELASTIC_INTEGRAL:
         // Integral
                    fprintf(f, "\nTENSORS Tensor FLOAT\n");
-                   for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                        hig_cell *c = higcit_getcell(it);
+                   {
+                   const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+                   for(int clid = 0; clid < hms->n; clid++) {
+                       Point hms_lo, hms_hi;
+                       hms_low(hms, clid, hms_lo);
+                       hms_high(hms, clid, hms_hi);
                         Point cdelta, ccenter, clowpoint, chightpoint;
-                        hig_get_delta(c,cdelta);
-                        hig_get_center(c,ccenter);
+                        hms_delta(hms, clid, cdelta);
+                        hms_center(hms, clid, ccenter);
                         // Pontos onde será interpolada a velocidade
                         Point p0, p1, p2, p3, p4, p5, p6, p7;
-                        p0[0] = c->lowpoint[0];  p0[1] = c->lowpoint[1];  p0[2] = c->lowpoint[2];
-                        p1[0] = c->highpoint[0]; p1[1] = c->lowpoint[1];  p1[2] = c->lowpoint[2];
-                        p2[0] = c->highpoint[0]; p2[1] = c->highpoint[1]; p2[2] = c->lowpoint[2];
-                        p3[0] = c->lowpoint[0];  p3[1] = c->highpoint[1]; p3[2] = c->lowpoint[2];
-                        p4[0] = c->lowpoint[0];  p4[1] = c->lowpoint[1];  p4[2] = c->highpoint[2];
-                        p5[0] = c->highpoint[0]; p5[1] = c->lowpoint[1];  p5[2] = c->highpoint[2];
-                        p6[0] = c->highpoint[0]; p6[1] = c->highpoint[1]; p6[2] = c->highpoint[2];
-                        p7[0] = c->lowpoint[0];  p7[1] = c->highpoint[1]; p7[2] = c->highpoint[2];
+                        p0[0] = hms_lo[0];  p0[1] = hms_lo[1];  p0[2] = hms_lo[2];
+                        p1[0] = hms_hi[0]; p1[1] = hms_lo[1];  p1[2] = hms_lo[2];
+                        p2[0] = hms_hi[0]; p2[1] = hms_hi[1]; p2[2] = hms_lo[2];
+                        p3[0] = hms_lo[0];  p3[1] = hms_hi[1]; p3[2] = hms_lo[2];
+                        p4[0] = hms_lo[0];  p4[1] = hms_lo[1];  p4[2] = hms_hi[2];
+                        p5[0] = hms_hi[0]; p5[1] = hms_lo[1];  p5[2] = hms_hi[2];
+                        p6[0] = hms_hi[0]; p6[1] = hms_hi[1]; p6[2] = hms_hi[2];
+                        p7[0] = hms_lo[0];  p7[1] = hms_hi[1]; p7[2] = hms_hi[2];
 
-                        uniqueid id = hig_get_cid(c);
-                        int clid = mp_lookup(m, id);
                         
                         real taup0[DIM+1][DIM+1], taup1[DIM+1][DIM+1], taup2[DIM+1][DIM+1], taup3[DIM+1][DIM+1];
                         real taup4[DIM+1][DIM+1], taup5[DIM+1][DIM+1], taup6[DIM+1][DIM+1], taup7[DIM+1][DIM+1];
@@ -3111,7 +3165,7 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
                            fprintf(f, "\n");
                         }
                     }
-                    higcit_destroy(it);
+                   }
         break;
         
     }

@@ -237,7 +237,7 @@ int sd_snapshot_verify(sim_domain *sd, char *detalhe, size_t tam)
 
 	for (int i = 0; i < s->n; i++) {
 		Point centro;
-		for (int d = 0; d < DIM; d++) centro[d] = s->center[i * DIM + d];
+		hms_center(s, i, centro);
 
 		// A OUTRA VIA.  Nao se percorre o iterador aqui de proposito: ver o
 		// cabecalho.  Se a linha `i` guardasse a geometria de outra celula, a
@@ -265,21 +265,25 @@ int sd_snapshot_verify(sim_domain *sd, char *detalhe, size_t tam)
 			continue;
 		}
 
-		Point ce, de;
-		hig_get_center(c, ce);
-		hig_get_delta(c, de);
+		// Compara A CAIXA, que e' o que o instantaneo guarda -- e compara por
+		// IGUALDADE EXATA, nao por tolerancia.  Os dois lados copiam o mesmo
+		// `c->lowpoint`; qualquer diferenca aqui e' linha trocada ou arranjo
+		// corrompido, nunca arredondamento.  Tolerancia so' esconderia isso.
+		Point lo_a, hi_a, lo_c, hi_c;
+		hms_low(s, i, lo_a);
+		hms_high(s, i, hi_a);
+		hig_get_lowpoint(c, lo_c);
+		hig_get_highpoint(c, hi_c);
 		int ruim = 0;
 		for (int d = 0; d < DIM; d++) {
-			if (fabs(s->center[i * DIM + d] - ce[d]) > 1e-12 ||
-			    fabs(s->delta[i * DIM + d]  - de[d]) > 1e-12) {
+			if (lo_a[d] != lo_c[d] || hi_a[d] != hi_c[d]) {
 				ruim = 1;
 				if (!divergentes && detalhe != NULL) {
 					snprintf(detalhe, tam,
-						"linha %d, direcao %d: instantaneo (centro %.17g, delta "
-						"%.17g) contra arvore (centro %.17g, delta %.17g)",
-						i, d, (double) s->center[i * DIM + d],
-						(double) s->delta[i * DIM + d],
-						(double) ce[d], (double) de[d]);
+						"linha %d, direcao %d: instantaneo [%.17g, %.17g] contra "
+						"arvore [%.17g, %.17g]",
+						i, d, (double) lo_a[d], (double) hi_a[d],
+						(double) lo_c[d], (double) hi_c[d]);
 				}
 				break;
 			}

@@ -17,9 +17,9 @@ hms_create(int n)
     if (s == NULL) return NULL;
     s->n = n;
     s->dim = DIM;
-    s->center = (real *) calloc((size_t) n * DIM, sizeof *s->center);
-    s->delta  = (real *) calloc((size_t) n * DIM, sizeof *s->delta);
-    if (s->center == NULL || s->delta == NULL) { hms_destroy(s); return NULL; }
+    s->low  = (real *) calloc((size_t) n * DIM, sizeof *s->low);
+    s->high = (real *) calloc((size_t) n * DIM, sizeof *s->high);
+    if (s->low == NULL || s->high == NULL) { hms_destroy(s); return NULL; }
     return s;
 }
 
@@ -27,8 +27,8 @@ void
 hms_destroy(hig_mesh_snapshot *s)
 {
     if (s == NULL) return;
-    free(s->center);
-    free(s->delta);
+    free(s->low);
+    free(s->high);
     free(s);
 }
 
@@ -60,11 +60,13 @@ hms_from_domain(sim_domain *sd)
             return NULL;
         }
         Point ce, de;
-        hig_get_center(c, ce);
-        hig_get_delta(c, de);
+        // A CAIXA, copiada como a celula a guarda -- centro e delta saem dela
+        // por derivacao, com as mesmas contas do `hig_get_center`.
+        hig_get_lowpoint(c, ce);
+        hig_get_highpoint(c, de);
         for (int d = 0; d < DIM; d++) {
-            s->center[i * DIM + d] = ce[d];
-            s->delta[i * DIM + d]  = de[d];
+            s->low[i * DIM + d]  = ce[d];
+            s->high[i * DIM + d] = de[d];
         }
     }
     higcit_destroy(it);
@@ -93,12 +95,17 @@ hms_mesmo_conjunto(const hig_mesh_snapshot *a, const hig_mesh_snapshot *b,
 
     int sem_par = 0;
     for (int i = 0; i < a->n; i++) {
+        Point ca, da;
+        hms_center(a, i, ca);
+        hms_delta(a, i, da);
         int achou = -1;
         for (int j = 0; j < b->n && achou < 0; j++) {
             if (usado[j]) continue;
+            Point cb;
+            hms_center(b, j, cb);
             int bate = 1;
             for (int d = 0; d < DIM && bate; d++) {
-                if (fabs(a->center[i * DIM + d] - b->center[j * DIM + d]) > tol)
+                if (fabs(ca[d] - cb[d]) > tol)
                     bate = 0;
             }
             if (bate) achou = j;
@@ -107,22 +114,24 @@ hms_mesmo_conjunto(const hig_mesh_snapshot *a, const hig_mesh_snapshot *b,
             if (sem_par == 0 && detalhe) {
                 snprintf(detalhe, 256,
                          "celula %d de a, centro (%.6f, %.6f), sem par em b", i,
-                         (double) a->center[i * DIM],
-                         (double) a->center[i * DIM + (DIM > 1 ? 1 : 0)]);
+                         (double) ca[0],
+                         (double) ca[DIM > 1 ? 1 : 0]);
             }
             sem_par++;
             continue;
         }
         usado[achou] = 1;
+        Point db;
+        hms_delta(b, achou, db);
         for (int d = 0; d < DIM; d++) {
-            if (fabs(a->delta[i * DIM + d] - b->delta[achou * DIM + d]) > tol) {
+            if (fabs(da[d] - db[d]) > tol) {
                 if (sem_par == 0 && detalhe) {
                     snprintf(detalhe, 256,
                              "celula em (%.6f, ...) com tamanhos diferentes: "
                              "%.9f contra %.9f na direcao %d",
-                             (double) a->center[i * DIM],
-                             (double) a->delta[i * DIM + d],
-                             (double) b->delta[achou * DIM + d], d);
+                             (double) ca[0],
+                             (double) da[d],
+                             (double) db[d], d);
                 }
                 sem_par++;
                 break;

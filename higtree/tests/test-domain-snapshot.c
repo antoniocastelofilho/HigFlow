@@ -72,6 +72,28 @@ static sim_domain *monta_serial(hig_cell **raiz_out) {
     return sd;
 }
 
+// Dominio com coordenadas NAO DIADICAS.  Em [0,1] dividido por potencia de dois,
+// todo centro e' exato em binario e `(a+b)/2` coincide com `a/2 + b/2` -- medido:
+// com a malha diadica, sabotar a formula deixava o caso VERDE.  Comecando em 0,1
+// com passo 0,2 nenhuma coordenada e' representavel, e as duas formas divergem.
+static sim_domain *monta_nao_diadico(void) {
+    Point lo, hi;
+    POINT_ASSIGN_SCALAR(lo, 0.1);
+    POINT_ASSIGN_SCALAR(hi, 0.7);
+    hig_cell *raiz = hig_create_root(lo, hi);
+    int nc[DIM];
+    for (int d = 0; d < DIM; d++) nc[d] = 3;
+    hig_refine_uniform(raiz, nc);
+
+    sim_domain *sd = sd_create(NULL);
+    sd_add_higtree(sd, raiz);
+    mp_mapper *m = sd_get_domain_mapper(sd);
+    higcit_celliterator *it = sd_get_domain_celliterator(sd);
+    mp_assign_from_celliterator(m, it, 0);
+    higcit_destroy(it);
+    return sd;
+}
+
 int main(int argc, char *argv[]) {
     higtree_initialize(&argc, &argv);
 
@@ -108,8 +130,11 @@ int main(int argc, char *argv[]) {
                 hig_get_center(c, ce);
                 hig_get_delta(c, de);
                 for (int d = 0; d < DIM; d++) {
-                    if (fabs(s->center[i * DIM + d] - ce[d]) > 1e-15 ||
-                        fabs(s->delta[i * DIM + d]  - de[d]) > 1e-15) {
+                    Point sa_c, sa_d;
+                    hms_center(s, i, sa_c);
+                    hms_delta(s, i, sa_d);
+                    if (fabs(sa_c[d] - ce[d]) > 1e-15 ||
+                        fabs(sa_d[d] - de[d]) > 1e-15) {
                         divergentes++;
                         break;
                     }
@@ -189,6 +214,102 @@ int main(int argc, char *argv[]) {
                 WIFEXITED(st) ? WEXITSTATUS(st) : -1,
                 WIFSIGNALED(st) ? WTERMSIG(st) : -1);
         }
+    }
+
+    // ------------------------------------------------------------------
+    t_case("derivacao_e_bit_a_bit_igual_a_arvore");
+    {
+        // A JUSTIFICATIVA DE GUARDAR A CAIXA depende disto, e nada menos.  Os
+        // lacos migrados alimentam `compute_value_at_point` e
+        // `compute_facet_value_at_point` com centro, delta e cantos; se o
+        // instantaneo devolvesse valores que diferem no ultimo bit, a saida VTK
+        // mudaria e a referencia so' nao acusaria por causa da tolerancia.
+        //
+        // Por isso a comparacao aqui e' `!=` e nao tolerancia: o instantaneo
+        // COPIA `c->lowpoint`, e centro e delta saem das MESMAS contas do
+        // `hig_get_center` e do `hig_get_delta`.  Nao ha' arredondamento a
+        // tolerar -- ou e' identico, ou a premissa caiu.
+        //
+        // O QUE ESTE CASO NAO PRENDE, e vale escrito para ninguem confiar demais
+        // nele: a escolha entre formas algebricamente equivalentes do centro.
+        // MEDIDO -- `(lo+hi)/2`, `lo/2+hi/2` e `lo+(hi-lo)/2` dao o MESMO bit em
+        // 200 mil caixas aleatorias.  Dividir por dois e' exato em binario, entao
+        // nao ha' o que discriminar ali.  Quem sustenta a decisao de guardar a
+        // caixa e' o caso seguinte.
+        sim_domain *sd = monta_nao_diadico();
+        sd_compute_snapshot(sd);
+        const hig_mesh_snapshot *s = sd_get_snapshot(sd);
+        mp_mapper *m = sd_get_domain_mapper(sd);
+
+        int difs = 0;
+        char primeira[256]; primeira[0] = '\0';
+        higcit_celliterator *it;
+        for (it = sd_get_domain_celliterator(sd); !higcit_isfinished(it);
+             higcit_nextcell(it)) {
+            hig_cell *c = higcit_getcell(it);
+            const int i = mp_lookup(m, hig_get_cid(c));
+            Point a_lo, a_hi, a_ce, a_de, t_lo, t_hi, t_ce, t_de;
+            hms_low(s, i, a_lo);     hig_get_lowpoint(c, t_lo);
+            hms_high(s, i, a_hi);    hig_get_highpoint(c, t_hi);
+            hms_center(s, i, a_ce);  hig_get_center(c, t_ce);
+            hms_delta(s, i, a_de);   hig_get_delta(c, t_de);
+            for (int d = 0; d < DIM; d++) {
+                if (a_lo[d] != t_lo[d] || a_hi[d] != t_hi[d] ||
+                    a_ce[d] != t_ce[d] || a_de[d] != t_de[d]) {
+                    if (!difs) {
+                        snprintf(primeira, sizeof primeira,
+                            "celula %d, direcao %d: centro %.17g contra %.17g, "
+                            "delta %.17g contra %.17g", i, d,
+                            (double) a_ce[d], (double) t_ce[d],
+                            (double) a_de[d], (double) t_de[d]);
+                    }
+                    difs++;
+                    break;
+                }
+            }
+        }
+        higcit_destroy(it);
+        T_CHECK_MSG(difs == 0,
+            "%d celula(s) em que o instantaneo nao devolve exatamente o que a "
+            "arvore devolve.  %s", difs, primeira);
+        sd_destroy(sd);
+    }
+
+    // ------------------------------------------------------------------
+    t_case("reconstruir_o_canto_nao_seria_exato");
+    {
+        // ESTE CASO GUARDA A DECISAO DE PROJETO, e e' o unico que a guarda.
+        //
+        // Se alguem "simplificar" o instantaneo de volta para centro e delta, os
+        // lacos do `hig-flow-io.c` que hoje leem `hms_low`/`hms_high` passariam a
+        // reconstruir o canto por `centro - delta/2`.  Isso e' exato em algebra e
+        // NAO em ponto flutuante: medido, difere em ~0,6% de caixas aleatorias e
+        // em 1 das 3 celulas por direcao desta malha.  A diferenca entraria em
+        // `compute_facet_value_at_point` e sairia no VTK.
+        //
+        // Entao o caso AFIRMA a perda: se a reconstrucao passasse a ser exata
+        // para toda celula desta malha, ele falha -- nao porque algo quebrou, mas
+        // porque a razao de guardar a caixa deixou de valer aqui e o teste
+        // precisa ser refeito em malha que a exponha.
+        sim_domain *sd = monta_nao_diadico();
+        sd_compute_snapshot(sd);
+        const hig_mesh_snapshot *s = sd_get_snapshot(sd);
+
+        int perdas = 0;
+        for (int i = 0; i < s->n; i++) {
+            Point lo, ce, de;
+            hms_low(s, i, lo);
+            hms_center(s, i, ce);
+            hms_delta(s, i, de);
+            for (int d = 0; d < DIM; d++) {
+                if (ce[d] - de[d] / 2.0 != lo[d]) { perdas++; break; }
+            }
+        }
+        T_CHECK_MSG(perdas > 0,
+            "em nenhuma das %d celulas a reconstrucao `centro - delta/2` perdeu "
+            "bit -- esta malha deixou de sustentar a decisao de guardar a caixa",
+            s->n);
+        sd_destroy(sd);
     }
 
     return t_end();
