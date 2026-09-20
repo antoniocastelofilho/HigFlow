@@ -73,6 +73,76 @@ hms_from_domain(sim_domain *sd)
     return s;
 }
 
+hig_facet_snapshot *
+hfs_create(int n)
+{
+    hig_facet_snapshot *s = (hig_facet_snapshot *) calloc(1, sizeof *s);
+    if (s == NULL) return NULL;
+    s->n = n;
+    s->low  = (real *) calloc((size_t) n * DIM, sizeof *s->low);
+    s->high = (real *) calloc((size_t) n * DIM, sizeof *s->high);
+    s->dim  = (signed char *) calloc((size_t) n, sizeof *s->dim);
+    s->dir  = (signed char *) calloc((size_t) n, sizeof *s->dir);
+    if (s->low == NULL || s->high == NULL || s->dim == NULL || s->dir == NULL) {
+        hfs_destroy(s);
+        return NULL;
+    }
+    return s;
+}
+
+void
+hfs_destroy(hig_facet_snapshot *s)
+{
+    if (s == NULL) return;
+    free(s->low);
+    free(s->high);
+    free(s->dim);
+    free(s->dir);
+    free(s);
+}
+
+hig_facet_snapshot *
+hfs_from_facet_domain(sim_facet_domain *sfd)
+{
+    mp_mapper *m = sfd_get_domain_mapper(sfd);
+
+    int n = 0;
+    higfit_facetiterator *fit;
+    for (fit = sfd_get_domain_facetiterator(sfd); !higfit_isfinished(fit);
+         higfit_nextfacet(fit)) {
+        n++;
+    }
+    higfit_destroy(fit);
+
+    hig_facet_snapshot *s = hfs_create(n);
+    if (s == NULL) return NULL;
+
+    for (fit = sfd_get_domain_facetiterator(sfd); !higfit_isfinished(fit);
+         higfit_nextfacet(fit)) {
+        hig_facet *f = higfit_getfacet(fit);
+        const int i = mp_lookup(m, hig_get_fid(f));
+        if (i < 0 || i >= n) {          // mapeador incoerente com o iterador
+            higfit_destroy(fit);
+            hfs_destroy(s);
+            return NULL;
+        }
+        // A caixa da CELULA da faceta, copiada.  Centro e tamanho da faceta saem
+        // dela pelas mesmas contas do `hig_get_facet_center`/`_delta`.
+        hig_cell *c = hig_get_facet_cell(f);
+        Point lo, hi;
+        hig_get_lowpoint(c, lo);
+        hig_get_highpoint(c, hi);
+        for (int d = 0; d < DIM; d++) {
+            s->low[i * DIM + d]  = lo[d];
+            s->high[i * DIM + d] = hi[d];
+        }
+        s->dim[i] = (signed char) f->dim;
+        s->dir[i] = (signed char) f->dir;
+    }
+    higfit_destroy(fit);
+    return s;
+}
+
 int
 hms_mesmo_conjunto(const hig_mesh_snapshot *a, const hig_mesh_snapshot *b,
                    real tol, char *detalhe)

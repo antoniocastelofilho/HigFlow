@@ -94,6 +94,28 @@ static sim_domain *monta_nao_diadico(void) {
     return sd;
 }
 
+// Dominio de FACETAS montado em serie, no mesmo espirito do de celulas.
+static sim_facet_domain *monta_facetas(int dim, hig_cell **raiz_out) {
+    Point lo, hi;
+    POINT_ASSIGN_SCALAR(lo, 0.1);
+    POINT_ASSIGN_SCALAR(hi, 0.7);
+    hig_cell *raiz = hig_create_root(lo, hi);
+    int nc[DIM];
+    for (int d = 0; d < DIM; d++) nc[d] = 3;
+    hig_refine_uniform(raiz, nc);
+
+    sim_facet_domain *sfd = sfd_create(NULL, dim);
+    sfd_add_higtree(sfd, raiz);
+    sfd_adjust_facet_ids(sfd);
+    sfd_compute_sfbi(sfd);
+    mp_mapper *mf = sfd_get_domain_mapper(sfd);
+    higfit_facetiterator *fit = sfd_get_domain_facetiterator(sfd);
+    mp_assign_from_facetiterator(mf, fit, 0);
+    higfit_destroy(fit);
+    if (raiz_out) *raiz_out = raiz;
+    return sfd;
+}
+
 int main(int argc, char *argv[]) {
     higtree_initialize(&argc, &argv);
 
@@ -310,6 +332,83 @@ int main(int argc, char *argv[]) {
             "bit -- esta malha deixou de sustentar a decisao de guardar a caixa",
             s->n);
         sd_destroy(sd);
+    }
+
+    // ------------------------------------------------------------------
+    t_case("facetas_derivacao_e_bit_a_bit_igual_a_arvore");
+    {
+        // O instantaneo de facetas guarda a CAIXA DA CELULA, e centro e tamanho
+        // saem dela pelas mesmas contas do `hig_get_facet_center` e do
+        // `hig_get_facet_delta`.  Como no caso das celulas, a comparacao e' `!=`:
+        // nao ha' arredondamento a tolerar.
+        int difs_tot = 0;
+        char primeira[256]; primeira[0] = '\0';
+        for (int dim = 0; dim < DIM; dim++) {
+            sim_facet_domain *sfd = monta_facetas(dim, NULL);
+            sfd_compute_snapshot(sfd);
+            const hig_facet_snapshot *s = sfd_get_snapshot(sfd);
+            mp_mapper *mf = sfd_get_domain_mapper(sfd);
+
+            higfit_facetiterator *fit;
+            for (fit = sfd_get_domain_facetiterator(sfd); !higfit_isfinished(fit);
+                 higfit_nextfacet(fit)) {
+                hig_facet *f = higfit_getfacet(fit);
+                const int i = mp_lookup(mf, hig_get_fid(f));
+                Point a_ce, a_de, t_ce, t_de;
+                hfs_center(s, i, a_ce);
+                hfs_delta(s, i, a_de);
+                hig_get_facet_center(f, t_ce);
+                hig_get_facet_delta(f, t_de);
+                for (int d = 0; d < DIM; d++) {
+                    if (a_ce[d] != t_ce[d] || a_de[d] != t_de[d]) {
+                        if (!difs_tot) {
+                            snprintf(primeira, sizeof primeira,
+                                "dim %d, faceta %d, direcao %d: centro %.17g "
+                                "contra %.17g", dim, i, d,
+                                (double) a_ce[d], (double) t_ce[d]);
+                        }
+                        difs_tot++;
+                        break;
+                    }
+                }
+            }
+            higfit_destroy(fit);
+            sfd_destroy(sfd);
+        }
+        T_CHECK_MSG(difs_tot == 0,
+            "%d faceta(s) em que o instantaneo nao devolve exatamente o que a "
+            "arvore devolve.  %s", difs_tot, primeira);
+    }
+
+    // ------------------------------------------------------------------
+    t_case("facetas_oraculo_aprova_e_acusa");
+    {
+        sim_facet_domain *sfd = monta_facetas(0, NULL);
+        sfd_compute_snapshot(sfd);
+        char detalhe[256];
+
+        const int ok = sfd_snapshot_verify(sfd, detalhe, sizeof detalhe);
+        T_CHECK_MSG(ok == 0,
+            "o oraculo de facetas reprovou um instantaneo recem-produzido: "
+            "%d linha(s).  %s", ok, detalhe);
+
+        // Corrompe de proposito: sem isto, "aprova" nao diz nada.
+        hig_facet_snapshot *s = (hig_facet_snapshot *) sfd_get_snapshot(sfd);
+        if (s != NULL && s->n >= 2) {
+            for (int d = 0; d < DIM; d++) {
+                real t = s->low[d];
+                s->low[d] = s->low[(s->n - 1) * DIM + d];
+                s->low[(s->n - 1) * DIM + d] = t;
+                t = s->high[d];
+                s->high[d] = s->high[(s->n - 1) * DIM + d];
+                s->high[(s->n - 1) * DIM + d] = t;
+            }
+            const int ruins = sfd_snapshot_verify(sfd, detalhe, sizeof detalhe);
+            T_CHECK_MSG(ruins >= 2,
+                "troquei duas linhas e o oraculo de facetas acusou %d "
+                "divergencia(s) -- deveria acusar as duas", ruins);
+        }
+        sfd_destroy(sfd);
     }
 
     return t_end();

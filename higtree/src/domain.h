@@ -95,6 +95,7 @@ struct interpolator {
 //! O instantaneo e' definido em hig-mesh-snapshot.h, que inclui este arquivo --
 //! declaracao adiantada para nao fechar o ciclo.
 struct hig_mesh_snapshot;
+struct hig_facet_snapshot;
 
 typedef struct sim_domain {
 	unsigned max_numhigtrees; //!< Currently allocated size of higtrees vector.
@@ -148,6 +149,11 @@ typedef struct sim_facet_domain {
 	sim_facet_block_info *sfbi[MAXHIGTREESPERDOMAIN];
 	int dimofinterest[DIM];
 	int dim;
+
+	//! \brief A fronteira das consultas, do lado das facetas.  Ver `snapshot`
+	//! em sim_domain -- mesma vida, mesma razao, mesmo ponto de producao
+	//! (`psfd_synced_mapper`, logo apos o mapeador ficar pronto).
+	struct hig_facet_snapshot *snapshot;
 } sim_facet_domain;
 
 //! \brief Produz o instantaneo do dominio.  ANSIOSO, e nao na primeira leitura.
@@ -195,6 +201,24 @@ int sd_snapshot_is_current(sim_domain *sd);
 //! Serve de autorizacao para migrar laco: um laco que passa a ler o arranjo
 //! esta' certo se este oraculo aprova, sem depender do resultado fisico.
 int sd_snapshot_verify(sim_domain *sd, char *detalhe, size_t tam);
+
+//! \brief Produz o instantaneo de FACETAS.  Ansioso, como o de celulas.
+//!
+//! EXIGE O MAPEADOR DE FACETAS ja' atribuido -- quem o chama e' o
+//! `psfd_synced_mapper`, logo apos o `_psfd_setmapper`.  Aborta se nao conseguir
+//! produzir, pela mesma razao do caso das celulas.
+void sfd_compute_snapshot(sim_facet_domain *sfd);
+
+//! \brief O instantaneo de facetas, ou NULL se ainda nao foi produzido.
+const struct hig_facet_snapshot *sfd_get_snapshot(sim_facet_domain *sfd);
+
+//! \brief O ORACULO DIFERENCIAL das facetas.
+//!
+//! Para cada linha `i`, LOCALIZA a faceta pelo centro gravado
+//! (`sfd_get_facet_with_point`) e exige que ela volte com id `i` e com a mesma
+//! geometria.  Pela mesma razao do caso das celulas, a busca por ponto e' o
+//! unico caminho que nao passa por onde o instantaneo passou.
+int sfd_snapshot_verify(sim_facet_domain *sfd, char *detalhe, size_t tam);
 
 //! Creates a simulation domain.
 sim_domain *sd_create(mp_mapper *m);

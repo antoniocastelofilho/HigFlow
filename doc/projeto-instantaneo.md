@@ -184,11 +184,21 @@ erro é silencioso.
 
 ## 4. O que ainda não existe
 
-**O instantâneo de facetas.** São 97 sítios, com mapeador próprio
-(`sfd_get_domain_mapper`) e uma direção por faceta. O tipo de célula não serve:
-faceta não tem `delta` nos DIM eixos do mesmo jeito, e o `sfd_get_stencil` (133
-sítios) é topologia, não leitura — fica atrás do backend, como as consultas de
-ponto.
+**~~O instantâneo de facetas~~ — feito.** `hig_facet_snapshot` guarda a **caixa
+da célula** da faceta, mais `dim` e `dir` por faceta; centro e tamanho saem daí
+pelas mesmas contas do `hig_get_facet_center` e do `hig_get_facet_delta`.
+
+Guardar a caixa não foi simetria com o caso das células — foi medição. Dos 97
+laços de faceta, 95 leem apenas centro, tamanho e id; os outros 2 chamam o
+buffer de resíduo, que precisa da caixa da **célula**. Fosse só pelos 95,
+guardar centro e tamanho prontos bastaria.
+
+Produção ansiosa no `psfd_synced_mapper`, oráculo diferencial próprio
+(`sfd_snapshot_verify`, localizando por `sfd_get_facet_with_point`), e a mesma
+flag `HIGTREE_VERIFY_SNAPSHOT` o liga.
+
+O `sfd_get_stencil` (133 sítios) continua fora: é topologia, não leitura, e fica
+atrás do backend como as consultas de ponto.
 
 **A caixa da célula no instantâneo — ~~decisão nova~~ feita.** O instantâneo
 guardava centro e delta. Agora guarda **a caixa** (`low` e `high`), e centro e

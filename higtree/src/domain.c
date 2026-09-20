@@ -307,6 +307,88 @@ int sd_snapshot_is_current(sim_domain *sd)
 	return n == sd->snapshot->n;
 }
 
+void sfd_compute_snapshot(sim_facet_domain *sfd)
+{
+	if (sfd->snapshot != NULL) {
+		hfs_destroy(sfd->snapshot);
+		sfd->snapshot = NULL;
+	}
+	sfd->snapshot = hfs_from_facet_domain(sfd);
+	if (sfd->snapshot == NULL) {
+		fprintf(stderr,
+			"%s:%d: %s: nao consegui produzir o instantaneo de facetas -- algum "
+			"id local caiu fora de [0, n).  O mapeador de facetas tem de estar "
+			"atribuido ANTES (psfd_synced_mapper).\n",
+			__FILE__, __LINE__, __func__);
+		abort();
+	}
+}
+
+const struct hig_facet_snapshot *sfd_get_snapshot(sim_facet_domain *sfd)
+{
+	return sfd->snapshot;
+}
+
+int sfd_snapshot_verify(sim_facet_domain *sfd, char *detalhe, size_t tam)
+{
+	if (detalhe != NULL && tam > 0) detalhe[0] = '\0';
+	if (sfd->snapshot == NULL) {
+		if (detalhe != NULL && tam > 0)
+			snprintf(detalhe, tam, "o dominio de facetas nao tem instantaneo");
+		return -1;
+	}
+
+	const hig_facet_snapshot *s = sfd->snapshot;
+	mp_mapper *m = sfd_get_domain_mapper(sfd);
+	int divergentes = 0;
+
+	for (int i = 0; i < s->n; i++) {
+		Point centro;
+		hfs_center(s, i, centro);
+
+		// A OUTRA VIA: localizar pelo centro gravado, e nao percorrer.  Mesmo
+		// argumento do oraculo de celulas -- o instantaneo foi preenchido
+		// percorrendo o iterador e indexando pelo mapeador, e o mapeador saiu
+		// desse mesmo iterador.
+		hig_facet fac;
+		if (!sfd_get_facet_with_point(sfd, centro, &fac)) {
+			if (!divergentes && detalhe != NULL)
+				snprintf(detalhe, tam,
+					"linha %d: o centro gravado nao cai em faceta nenhuma", i);
+			divergentes++;
+			continue;
+		}
+		const int id = mp_lookup(m, hig_get_fid(&fac));
+		if (id != i) {
+			if (!divergentes && detalhe != NULL)
+				snprintf(detalhe, tam,
+					"linha %d: o centro gravado leva a' faceta de id %d", i, id);
+			divergentes++;
+			continue;
+		}
+		Point ce, de, ce_t, de_t;
+		hfs_center(s, i, ce);
+		hfs_delta(s, i, de);
+		hig_get_facet_center(&fac, ce_t);
+		hig_get_facet_delta(&fac, de_t);
+		int ruim = 0;
+		for (int d = 0; d < DIM; d++) {
+			if (ce[d] != ce_t[d] || de[d] != de_t[d]) {
+				ruim = 1;
+				if (!divergentes && detalhe != NULL)
+					snprintf(detalhe, tam,
+						"linha %d, direcao %d: instantaneo (centro %.17g, delta "
+						"%.17g) contra arvore (centro %.17g, delta %.17g)",
+						i, d, (double) ce[d], (double) de[d],
+						(double) ce_t[d], (double) de_t[d]);
+				break;
+			}
+		}
+		if (ruim) divergentes++;
+	}
+	return divergentes;
+}
+
 int sd_add_higtree(sim_domain *d, hig_cell *c) {
 	_sd_snapshot_ainda_nao(d, __func__);
 	_sd_make_room_for_tree(d);
@@ -2747,6 +2829,7 @@ sim_facet_domain *sfd_create(mp_mapper *fm, int dim) {
 		fm = mp_create();
 	}
 	sfd->fm = fm;
+	sfd->snapshot = NULL;
 	POINT_ASSIGN_SCALAR(sfd->dimofinterest, 0);
 	sfd->dimofinterest[dim] = 1;
 	memset(sfd->sfbi, 0, MAXHIGTREESPERDOMAIN * sizeof *sfd->sfbi);
@@ -2766,6 +2849,7 @@ void sfd_add_boundary(sim_facet_domain *d, sim_boundary *bc) {
 }
 
 void sfd_destroy(sim_facet_domain *sfd) {
+	if (sfd->snapshot != NULL) hfs_destroy(sfd->snapshot);
 	mp_destroy(sfd->fm);
 	sd_destroy(sfd->cdom);
 	for(unsigned i = 0; i < MAXHIGTREESPERDOMAIN; ++i) {

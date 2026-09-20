@@ -835,6 +835,21 @@ void psfd_synced_mapper(psim_facet_domain *psfd) {
 	_sync_gid(&psfd->dp_data, psfd->psd, psfd,
 		_facet_sub_counter, _facet_get_ids);
 
+	// O instantaneo de facetas nasce AQUI, pelo mesmo motivo do de celulas: o
+	// mapeador acabou de ficar pronto, e e' dele que o indice sai.
+	sfd_compute_snapshot(sfd);
+	if (getenv("HIGTREE_VERIFY_SNAPSHOT") != NULL) {
+		char detalhe[256];
+		const int ruins = sfd_snapshot_verify(sfd, detalhe, sizeof detalhe);
+		if (ruins != 0) {
+			fprintf(stderr,
+				"%s:%d: %s: o oraculo diferencial reprovou o instantaneo de "
+				"facetas: %d linha(s) divergem.  %s\n",
+				__FILE__, __LINE__, __func__, ruins, detalhe);
+			abort();
+		}
+	}
+
 	/*sim_facet_domain *sfd = psfd_get_local_domain(psfd);
 	mapper_syncer_info ms = {
 		.elem_counter = _facet_counter,

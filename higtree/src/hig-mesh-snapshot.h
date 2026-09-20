@@ -104,6 +104,67 @@ hig_mesh_snapshot *hms_create(int n);
 
 void hms_destroy(hig_mesh_snapshot *s);
 
+// =============================================================================
+// O INSTANTANEO DE FACETAS
+//
+// Mesma fronteira, do outro lado: 97 lacos de higflow/src percorrem facetas, e
+// MEDIDO, 95 deles leem apenas centro, tamanho e id.  Os outros 2 chamam o buffer
+// de residuo, que precisa da CAIXA DA CELULA da faceta.
+//
+// POR ISSO ELE GUARDA A CAIXA DA CELULA, e nao o centro da faceta ja' pronto.
+// Nao e' simetria com o instantaneo de celulas -- e' a medicao acima.  Com a
+// caixa, `hig_get_facet_center` e `hig_get_facet_delta` sao reproduzidos pelas
+// MESMAS contas, e o buffer de residuo tambem e' atendido.
+//
+// Uma faceta e' (celula, dim, dir): o centro e' o centro da celula com a
+// coordenada `dim` trocada pelo canto de baixo (dir=0) ou de cima (dir=1), e o
+// tamanho e' o tamanho da CELULA.  `dim` e `dir` sao guardados por faceta em vez
+// de um `dim` unico para o dominio: um campo por dominio exigiria supor que todas
+// as facetas dele compartilham a direcao, e a suposicao nao paga o byte que
+// economiza.
+// =============================================================================
+
+typedef struct hig_facet_snapshot {
+    int   n;            //!< facetas LOCAIS
+    real *low;          //!< n * DIM, caixa da CELULA da faceta
+    real *high;         //!< n * DIM
+    signed char *dim;   //!< direcao da faceta, por faceta
+    signed char *dir;   //!< 0 = face de baixo, 1 = face de cima
+} hig_facet_snapshot;
+
+hig_facet_snapshot *hfs_create(int n);
+void hfs_destroy(hig_facet_snapshot *s);
+
+//! \brief Preenche a partir de um sim_facet_domain (backend MTree).
+//!
+//! Indexa por `mp_lookup(sfd_get_domain_mapper(sfd), hig_get_fid(f))`, de modo
+//! que o indice do arranjo E' o id local da faceta -- a mesma construcao do
+//! instantaneo de celulas, e pela mesma razao.
+hig_facet_snapshot *hfs_from_facet_domain(sim_facet_domain *sfd);
+
+//! \brief O tamanho da faceta `i`.  E' o tamanho da CELULA dela, como manda o
+//! `hig_get_facet_delta`.
+static inline void hfs_delta(const hig_facet_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->high[i * DIM + d] - s->low[i * DIM + d];
+}
+
+//! \brief O centro da faceta `i`, pelas mesmas contas do `hig_get_facet_center`.
+static inline void hfs_center(const hig_facet_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = (s->low[i * DIM + d] + s->high[i * DIM + d]) / 2.0;
+    const int k = s->dim[i];
+    p[k] = s->dir[i] ? s->high[i * DIM + k] : s->low[i * DIM + k];
+}
+
+//! \brief O canto inferior da CELULA da faceta `i`.  Para o buffer de residuo.
+static inline void hfs_cell_low(const hig_facet_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->low[i * DIM + d];
+}
+
+//! \brief O canto superior da CELULA da faceta `i`.
+static inline void hfs_cell_high(const hig_facet_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->high[i * DIM + d];
+}
+
 //! \brief Compara dois instantaneos como CONJUNTOS de celulas.
 //!
 //! Dois backends podem numerar as celulas em ordens diferentes -- e vao, porque
