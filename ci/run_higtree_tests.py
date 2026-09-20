@@ -64,7 +64,7 @@ TESTS = [
     Test("test-level-jump", dims=(2, 3), mpi=True),
     # Localizacao por ponto: a celula contem o ponto, o empate nao depende da
     # divisao do dominio, e a convencao de empate esta' fixada.
-    Test("test-point-location", dims=(2, 3)),
+    Test("test-point-location", dims=(2, 3), mpi=True),
     # O ramo ON_BOUNDARY do despacho, que os outros cinco nao alcancam -- medido
     # com contador: zero chamadas aos fechamentos *_boundary neles, 56 neste.
     # Foi nesse ramo que sobreviveram tres dos sete sitios do defeito de
@@ -166,7 +166,11 @@ def build_for_dim(dim, timeout, t8code=""):
 CONTRATO = os.path.join(HIGTREE, "src", "hig-mesh-contract.h")
 
 CLAUSULA = re.compile(r"^//\s+([PC]\d+)\s+\S")
-APLICA   = re.compile(r"^//\s+(test-[\w-]+)\s*/\s*(\w+)\s*$")
+# Uma prova marcada com [t8code] so' existe quando a suite roda com --t8code.
+# Sem a marca, o driver nao distinguiria "clausula perdeu o teste" de "clausula
+# tem prova extra que esta configuracao nao constroi", e a configuracao padrao
+# acusaria falso alarme -- foi o que aconteceu quando a C8 ganhou a segunda prova.
+APLICA   = re.compile(r"^//\s+(test-[\w-]+)\s*/\s*(\w+)\s*(\[t8code\])?\s*$")
 
 
 def le_contrato():
@@ -188,7 +192,8 @@ def le_contrato():
             continue
         m = APLICA.match(linha)
         if m and atual:
-            clausulas[atual].append((m.group(1), m.group(2)))
+            opcional = m.group(3) is not None
+            clausulas[atual].append((m.group(1), m.group(2), opcional))
             continue
         # linha em branco de comentario encerra a clausula corrente
         if linha.strip() in ("//", ""):
@@ -309,6 +314,7 @@ def main():
 
     # ------------------------------------------------ o contrato de Mesh
     clausulas = le_contrato()
+    com_t8code = bool(args.t8code)
     if clausulas:
         sem_teste, reprovadas = [], []
         for cid, casos in sorted(clausulas.items(),
@@ -318,8 +324,11 @@ def main():
                 continue
             # a clausula vale se TODOS os casos que a verificam passaram e
             # todos de fato rodaram
-            estados = [passou.get(k) for k in casos]
-            if any(e is None for e in estados):
+            # prova opcional que nao foi construida nao conta contra a clausula
+            exigidos = [(t, c) for (t, c, opc) in casos
+                        if not opc or com_t8code]
+            estados = [passou.get(k) for k in exigidos]
+            if not exigidos or any(e is None for e in estados):
                 sem_teste.append(cid)
             elif not all(estados):
                 reprovadas.append(cid)

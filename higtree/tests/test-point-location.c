@@ -19,6 +19,7 @@
 //   3. a convencao de empate e' a que esta' registrada aqui.
 
 #include <stdlib.h>
+#include <math.h>
 #include "testing.h"
 #include "domain.h"
 #include "utils.h"
@@ -47,19 +48,53 @@ static sim_domain *monta(int nblocos, hig_cell *raiz[]) {
     return sd;
 }
 
-// Devolve o centro da celula que contem p, ou NULL.
-static int centro_de(sim_domain *sd, const Point p, Point saida) {
-    hig_cell *c = sd_get_cell_with_point(sd, (real *) p);
+// ---------------------------------------------------------------------------
+// A COSTURA AQUI E' DE LOCALIZADOR, nao de produtor.
+//
+// No test-level-jump o t8code PRODUZ uma malha e o MTree responde as consultas.
+// Isso serve para a C11, que e' sobre o que a malha representa, e nao serve para
+// C7/C8/C9, que sao sobre quem RESPONDE.  Um localizador do t8code que devolvesse
+// arvore hig passaria trivialmente, porque quem localizaria seria o MTree.
+//
+// Entao o que se troca aqui e' a propria consulta: recebe ponto, devolve o centro
+// da celula que o contem.  Cada implementacao decide sozinha, inclusive o
+// desempate -- que e' o ponto inteiro da C8.
+// ---------------------------------------------------------------------------
+
+typedef struct {
+    const char *nome;
+    //! Centro da celula que contem `p`, na malha [0,1]^DIM com LADO celulas por
+    //! direcao dividida em `nblocos`.  Devolve 1 se achou.
+    int (*centro_de)(int nblocos, const Point p, Point saida);
+} Localizador;
+
+static sim_domain *g_sd[3];        // por numero de blocos, montado sob demanda
+static hig_cell   *g_raiz[3][4];
+
+static int mtree_centro_de(int nblocos, const Point p, Point saida) {
+    if(g_sd[nblocos] == NULL) g_sd[nblocos] = monta(nblocos, g_raiz[nblocos]);
+    hig_cell *c = sd_get_cell_with_point(g_sd[nblocos], (real *) p);
     if(c == NULL) return 0;
     hig_get_center(c, saida);
     return 1;
 }
 
-int main(void) {
+#ifdef HIGTREE_COM_T8CODE
+#include "t8code/t8-point-locator.h"
+static int t8_centro_de(int nblocos, const Point p, Point saida) {
+    return t8_localiza_ponto(nblocos, p, saida);
+}
+#endif
+
+static const Localizador LOCALIZADORES[] = {
+    { "mtree", mtree_centro_de },
+#ifdef HIGTREE_COM_T8CODE
+    { "t8code", t8_centro_de },
+#endif
+};
+
+static void verifica(const Localizador *loc) {
     const real h = 1.0 / LADO;
-    hig_cell *r1[4], *r2[4];
-    sim_domain *uma  = monta(1, r1);
-    sim_domain *duas = monta(2, r2);
 
     // ------------------------------------------------------------ sanidade
     t_case("celula_devolvida_contem_o_ponto");
@@ -69,15 +104,17 @@ int main(void) {
             for(int d = 0; d < DIM; d++) p[d] = 0.5;
             p[0] = (i + 0.5) * h;      // interior, sem ambiguidade
             p[1] = (j + 0.5) * h;
-            hig_cell *c = sd_get_cell_with_point(uma, p);
-            T_CHECK_MSG(c != NULL, "ponto interior (%.4f, %.4f) nao achou celula",
-                        p[0], p[1]);
-            if(!c) continue;
-            Rect bb; hig_get_bounding_box(c, &bb);
+            Point c;
+            const int ok = loc->centro_de(1, p, c);
+            T_CHECK_MSG(ok, "[%s] ponto interior (%.4f, %.4f) nao achou celula",
+                        loc->nome, p[0], p[1]);
+            if(!ok) continue;
+            // A celula tem lado h: conter o ponto e' o centro distar menos de h/2
             for(int d = 0; d < DIM; d++) {
-                T_CHECK_MSG(p[d] >= bb.lo[d] - 1e-12 && p[d] <= bb.hi[d] + 1e-12,
-                    "celula devolvida nao contem o ponto na direcao %d: "
-                    "p=%.6f fora de [%.6f, %.6f]", d, p[d], bb.lo[d], bb.hi[d]);
+                T_CHECK_MSG(fabs(p[d] - c[d]) <= 0.5 * h + 1e-12,
+                    "[%s] celula devolvida nao contem o ponto na direcao %d: "
+                    "p=%.6f, centro=%.6f, meia celula=%.6f",
+                    loc->nome, d, p[d], c[d], 0.5 * h);
             }
         }
     }
@@ -96,11 +133,12 @@ int main(void) {
             p[0] = i * h * 0.5;        // passo de meia celula: cai em centro,
             p[1] = j * h * 0.5;        // em face e em canto, alternadamente
             if(p[0] <= 0.0 || p[0] >= 1.0) continue;
-            const int a = centro_de(uma,  p, c1);
-            const int b = centro_de(duas, p, c2);
+            const int a = loc->centro_de(1, p, c1);
+            const int b = loc->centro_de(2, p, c2);
             T_CHECK_MSG(a == b,
-                "ponto (%.4f, %.4f): uma arvore %s, duas arvores %s",
-                p[0], p[1], a ? "achou" : "nao achou", b ? "achou" : "nao achou");
+                "[%s] ponto (%.4f, %.4f): uma arvore %s, duas arvores %s",
+                loc->nome, p[0], p[1], a ? "achou" : "nao achou",
+                b ? "achou" : "nao achou");
             if(!a || !b) continue;
             for(int d = 0; d < DIM; d++) {
                 if(fabs(c1[d] - c2[d]) > 1e-12) {
@@ -112,9 +150,9 @@ int main(void) {
         }
     }
     T_CHECK_MSG(divergentes == 0,
-        "%d pontos caem em celulas DIFERENTES conforme o dominio seja uma arvore "
-        "ou duas; o primeiro e' (%.4f, %.4f) -- o desempate depende da divisao",
-        divergentes, pior[0], pior[1]);
+        "[%s] %d pontos caem em celulas DIFERENTES conforme o dominio seja uma "
+        "arvore ou duas; o primeiro e' (%.4f, %.4f) -- o desempate depende da "
+        "divisao", loc->nome, divergentes, pior[0], pior[1]);
 
     // --------------------------------------------------- a convencao, fixada
     // Um ponto exatamente sobre uma face interna pertence a duas celulas.  Qual
@@ -133,7 +171,7 @@ int main(void) {
         for(int d = 0; d < DIM; d++) p[d] = 0.5 * h + 0.5 * h;   // centro em y,z
         p[0] = 4 * h;                 // EXATAMENTE sobre uma face interna
         for(int d = 1; d < DIM; d++) p[d] = 4.5 * h;
-        if(centro_de(uma, p, c)) {
+        if(loc->centro_de(1, p, c)) {
             const real esperado_maior = (4 + 0.5) * h;   // celula a' direita
             const real esperado_menor = (3 + 0.5) * h;   // celula a' esquerda
             const int ganhou_maior = fabs(c[0] - esperado_maior) < 1e-12;
@@ -152,7 +190,54 @@ int main(void) {
         }
     }
 
-    sd_destroy(uma);
-    sd_destroy(duas);
+}
+
+#ifdef HIGTREE_COM_T8CODE
+// O desempate do t8code nao pode vir da ORDEM em que as folhas sao percorridas.
+//
+// MEDIDO: a primitiva `t8_forest_element_points_inside` devolve DOIS candidatos
+// para um ponto sobre face interna (e um so' no interior -- conferido).  A ordem
+// natural da curva de preenchimento visita primeiro a celula de menor
+// coordenada, entao guardar simplesmente o primeiro candidato da' a resposta
+// certa por acidente: removendo a regra de desempate, os tres casos acima
+// continuavam VERDES.
+//
+// Este caso fecha esse buraco: faz a mesma consulta com o percurso invertido e
+// exige a mesma resposta.  Se o desempate for sorte de ordem, aqui ele quebra.
+static void verifica_ordem_do_desempate(void) {
+    const real h = 1.0 / LADO;
+    t_case("desempate_nao_depende_da_ordem_de_percurso");
+    Point p, direto, invertido;
+    for(int d = 0; d < DIM; d++) p[d] = 4.5 * h;
+    p[0] = 4 * h;                        // EXATAMENTE sobre uma face interna
+
+    t8_localizador_inverte_percurso(0);
+    const int a = t8_localiza_ponto(1, p, direto);
+    t8_localizador_inverte_percurso(1);
+    const int b = t8_localiza_ponto(1, p, invertido);
+    t8_localizador_inverte_percurso(0);
+
+    T_CHECK_MSG(a && b, "o localizador nao achou celula (direto=%d, invertido=%d)",
+                a, b);
+    if(!a || !b) return;
+    for(int d = 0; d < DIM; d++) {
+        T_CHECK_MSG(fabs(direto[d] - invertido[d]) < 1e-12,
+            "o desempate MUDOU com a ordem de percurso na direcao %d: "
+            "%.6f no percurso direto, %.6f no invertido.  A regra de desempate "
+            "nao esta' fazendo o trabalho -- a resposta vinha da ordem",
+            d, direto[d], invertido[d]);
+    }
+}
+#endif
+
+int main(int argc, char *argv[]) {
+    higtree_initialize(&argc, &argv);   // o localizador do t8code exige MPI
+    for(unsigned i = 0; i < sizeof LOCALIZADORES / sizeof *LOCALIZADORES; i++) {
+        verifica(&LOCALIZADORES[i]);
+    }
+#ifdef HIGTREE_COM_T8CODE
+    verifica_ordem_do_desempate();
+    t8_localizador_encerra();
+#endif
     return t_end();
 }

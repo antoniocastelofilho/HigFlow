@@ -131,6 +131,15 @@
 //       escrita: convencao que nem quem le o codigo acerta por intuicao nao
 //       sobrevive a uma reimplementacao.
 //         test-point-location / convencao_de_empate_na_face_esta_fixada
+//         test-point-location / desempate_nao_depende_da_ordem_de_percurso  [t8code]
+//       A SEGUNDA NAO E' REDUNDANTE.  Medido no t8code: a primitiva
+//       `t8_forest_element_points_inside` devolve DOIS candidatos para ponto
+//       sobre face (um so' no interior), e a ordem da curva de preenchimento
+//       visita a celula de menor coordenada primeiro.  Guardar o primeiro
+//       candidato da' a resposta certa POR ACIDENTE -- com a regra removida, o
+//       caso acima continuava verde.  Invertendo o percurso, a resposta virava
+//       de 0,4375 para 0,5625.  Uma implementacao cumpre C8 quando a resposta
+//       nao depende da ordem em que ela percorre.
 //
 //   C9  O desempate nao muda conforme o dominio seja uma arvore ou varias.  Se
 //       mudasse, nenhuma comparacao entre decomposicoes valeria.
@@ -156,6 +165,16 @@
 //       vizinhos de face atraves dele.  A premissa sobrevive ao seu teste de
 //       maior risco -- o que resta e' produzir, a partir dessa floresta, as
 //       estruturas que as consultas leem.
+//
+// COBERTURA POR IMPLEMENTACAO.  As clausulas acima sao verificadas para o MTree
+// sempre.  Para o t8code, so' as que tem costura -- e a costura tem formas
+// diferentes conforme o que se julga:
+//   C11              costura de PRODUTOR   (test-level-jump)
+//   C7, C8, C9       costura de LOCALIZADOR (test-point-location)
+//   fronteira        instantaneo preenchido direto (test-mesh-snapshot)
+// As demais rodam so' contra o MTree.  Acrescentar costura onde o produtor do
+// t8code apenas MATERIALIZA uma arvore hig faria o caso passar trivialmente --
+// quem responderia seria o MTree -- e verde assim e' pior que vermelho.
 //
 //   C12 Fora do dominio, o fechamento usa a parede ATRAVESSADA pela projecao, e
 //       nao a mais proxima.
@@ -189,7 +208,7 @@
 //   test-mesh-snapshot / instantaneo_do_mtree_bate_com_a_arvore
 //   test-mesh-snapshot / indice_e_o_id_local
 //   test-mesh-snapshot / instantaneo_ignora_a_franja
-//   test-mesh-snapshot / t8code_preenche_o_mesmo_conjunto   [com --t8code]
+//   test-mesh-snapshot / t8code_preenche_o_mesmo_conjunto  [t8code]
 //
 // As outras 130 chamadas (14%) sao topologia de verdade -- estencil e
 // localizacao por ponto -- e continuam atras do backend.  Nao se achata o que e'
