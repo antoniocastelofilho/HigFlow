@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-step.h"
+#include "hig-mesh-snapshot.h"
 
 // *******************************************************************
 // Navier-Stokes step elements
@@ -337,12 +338,11 @@ void higflow_final_pressure(higflow_solver *ns) {
         // Get the map of the distributd properties in the cells
         mp_mapper  *mp  = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the pressure in the distributed pressure property
             real p      = dp_get_value(ns->dpp, clid);
             // Get the pressure difference in the distributed difference pressure property
@@ -352,8 +352,8 @@ void higflow_final_pressure(higflow_solver *ns) {
             // Set the final pressure in the distributed pressure property
             dp_set_value(ns->dpp, clid, newp);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         dp_sync(ns->dpp);
     }
@@ -366,22 +366,21 @@ void higflow_calculate_source_term(higflow_solver *ns) {
     // Get the map of the distributd properties in the cells
     mp_mapper  *mp  = sd_get_domain_mapper(sdp);
     // Loop for each cell
-    higcit_celliterator *it;
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int clid    = mp_lookup(mp, hig_get_cid(c));
         // Get the cell center
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Set the source term
         real F      = ns->problem->source_term(ccenter, ns->par.t);
         // Set the final pressure in the distributed pressure property
         dp_set_value(ns->dpF, clid, F);
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
     // Sync the distributed pressure property
     dp_sync(ns->dpF);
 }

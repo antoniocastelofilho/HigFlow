@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-viscoelastic.h"
+#include "hig-mesh-snapshot.h"
 
 // *******************************************************************
 // Constitutive Equations
@@ -228,19 +229,18 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the inside/outside inflow point cell
             int inflowcell, outflowcell;
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du and the Kernel tensor
             real Kernel[DIM][DIM], Du[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -330,6 +330,7 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
                 }
             }
         }
+        }
         for (int i = 0; i < DIM; i++) {
            for (int j = 0; j <= i; j++) {
                // Printing the min and max tensor
@@ -340,7 +341,6 @@ void higflow_compute_polymeric_tensor(higflow_solver *ns) {
            }
         }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -377,17 +377,17 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
         higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du, S and Kernel tensor
             real Du[DIM][DIM], T[DIM][DIM], Kernel[DIM][DIM], KernelCopy[DIM][DIM];
             // Get the S tensor trace
@@ -504,8 +504,8 @@ void higflow_explicit_euler_constitutive_equation(higflow_solver *ns) {
                 }
             }
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {

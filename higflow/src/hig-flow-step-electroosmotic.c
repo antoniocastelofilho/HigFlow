@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-electroosmotic.h"
+#include "hig-mesh-snapshot.h"
 // *******************************************************************
 // Navier-Stokes step elements
 // *******************************************************************
@@ -2393,13 +2394,12 @@ void print_minmax_properties(higflow_solver *ns) {
     //mapper for domain
     mp_mapper *m = sd_get_domain_mapper(sdp);
     // Loop for each cell
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         //get cell and its id
-        hig_cell *c = higcit_getcell(it);
-        int clid    = mp_lookup(m, hig_get_cid(c));
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         //get distributed properties and update min and max
         // p = dp_get_value(ns->dpp, clid);
         // if(p>p_max) p_max = p;
@@ -2420,7 +2420,7 @@ void print_minmax_properties(higflow_solver *ns) {
         // if(deltap>deltap_max) deltap_max = deltap;
         // if(deltap<deltap_min) deltap_min = deltap;
     }
-    higcit_destroy(it);
+    }
 
     sim_facet_domain *sfdu[DIM];
     higfit_facetiterator *fit;

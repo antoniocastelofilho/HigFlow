@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-generalized-newtonian.h"
+#include "hig-mesh-snapshot.h"
 
 // *******************************************************************
 // Navier-Stokes step elements
@@ -24,18 +25,17 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell* c = higcit_getcell(it);
             // Get the cell identifier
-            int clid = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Calculate the velocity derivative tensor
             for (int dim = 0; dim < DIM; dim++) {
                 for (int dim2 = 0; dim2 < DIM; dim2++) {
@@ -69,8 +69,8 @@ void higflow_compute_velocity_derivative_tensor(higflow_solver *ns) {
                 }
             }
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         for (int dim = 0; dim < DIM; dim++) {
             for (int dim2 = 0; dim2 < DIM; dim2++) {

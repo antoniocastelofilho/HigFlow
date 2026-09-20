@@ -3,6 +3,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-multiphase-viscoelastic.h"
+#include "hig-mesh-snapshot.h"
 
 real higflow_interp_visc_multiphase_viscoelastic(real visc0, real visc1, real fracvol) {
     return (1.0 - fracvol) * visc0 + fracvol * visc1;
@@ -78,17 +79,17 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
     mp_mapper *mp = sd_get_domain_mapper(sdp);
     // Loop for each cell
     higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int clid = mp_lookup(mp, hig_get_cid(c));
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
+        hms_delta(hms, clid, cdelta);
 
         // Get Volume fraction
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
@@ -272,8 +273,8 @@ void higflow_explicit_euler_constitutive_equation_multiphase_viscoelastic(higflo
             }
         }
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
     // Sync the distributed pressure property
     for (int i = 0; i < DIM; i++) {
         for (int j = 0; j < DIM; j++) {
@@ -639,17 +640,16 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 
             // Get Volume fraction
             real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
@@ -805,6 +805,7 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
                 }
             }
         }
+        }
         for (int i = 0; i < DIM; i++) {
            for (int j = 0; j <= i; j++) {
                // Printing the min and max tensor
@@ -815,7 +816,6 @@ void higflow_compute_polymeric_tensor_multiphase_viscoelastic(higflow_solver* ns
            }
         }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {

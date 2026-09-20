@@ -3,6 +3,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-multiphase-electroosmotic.h"
+#include "hig-mesh-snapshot.h"
 
 
 real higflow_interp_alpha_multiphase_electroosmotic(real alpha0, real alpha1, real fracvol) {
@@ -2033,14 +2034,14 @@ void check_uniform_permittivity_multiphase(higflow_solver *ns) {
     // Get the local sub-domain for the cells
     sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
     // Loop for each cell
-    higcit_celliterator *it;
     real maxperm = 0.0, minperm = INFINITY, perm, dif;
-    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int hms_i = 0; hms_i < hms->n; hms_i++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, hms_i, ccenter);
         real fracvol = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
         perm = ns->ed.mult.eo.problem->permittivity(fracvol, ccenter, ns->par.t);
         if(perm > maxperm) maxperm = perm;
@@ -2048,7 +2049,7 @@ void check_uniform_permittivity_multiphase(higflow_solver *ns) {
         dif = maxperm - minperm;
         if(FLT_NE(dif,0.0)) break;
     }
-    higcit_destroy(it);
+    }
 
     real max_perm_global, min_perm_global;
     MPI_Allreduce(&maxperm, &max_perm_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);

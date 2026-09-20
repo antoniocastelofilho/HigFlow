@@ -5,6 +5,7 @@
 // *******************************************************************
 
 #include "hig-flow-step-viscoelastic-variable-viscosity.h"
+#include "hig-mesh-snapshot.h"
 #include "hig-flow-mittag-leffler.h"
 
 // Copia local identica a de hig-flow-step-viscoelastic.c.  Mantida static para
@@ -38,15 +39,14 @@ void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the velocity derivative tensor Du and the S tensor
             real Du[DIM][DIM], S[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -85,6 +85,7 @@ void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
                 }
             }
         }
+        }
         //for (int i = 0; i < DIM; i++) {
         //   for (int j = 0; j < DIM; j++) {
                // Printing the min and max tensor
@@ -93,7 +94,6 @@ void higflow_compute_kernel_tensor_variable_viscosity(higflow_solver *ns) {
         //}
         //printf("PAUSE 72\n");getchar();
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -125,19 +125,18 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the inside/outside inflow point cell
             int inflowcell, outflowcell;
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du and the Kernel tensor
             real Kernel[DIM][DIM], Du[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -184,6 +183,7 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
                 }
             }
         }
+        }
         //for (int i = 0; i < DIM; i++) {
         //   for (int j = 0; j < DIM; j++) {
                // Printing the min and max tensor
@@ -191,7 +191,6 @@ void higflow_compute_polymeric_tensor_variable_viscosity(higflow_solver *ns) {
         //   }
         //}
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -229,18 +228,17 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdp);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du, S and Kernel tensor
             real Du[DIM][DIM], S[DIM][DIM], Kernel[DIM][DIM];
             // Get the S tensor trace
@@ -353,8 +351,8 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                 }
             }
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -362,17 +360,17 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
             }
         }
         // Store the Kernel Tensor
-        for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the S tensor and store in Kernel
             real S[DIM][DIM];
             for (int i = 0; i < DIM; i++) {
@@ -384,9 +382,9 @@ void higflow_explicit_euler_constitutive_equation_variable_viscosity(higflow_sol
                 }
             }
         }
+        }
 
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed pressure property
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1738,18 +1736,17 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdvisc);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdvisc);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Get the velocity derivative tensor Du, and the tensor S
             real Du[DIM][DIM], S[DIM][DIM];
             // Get the tensors Du and S
@@ -1915,6 +1912,7 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
             dp_set_value(ns->ed.vevv.dpvisc, clid, viscnew);
 
         }
+        }
         //Printing the min and max deformation tensor values
         //for (int i = 0; i < DIM; i++) {
         //    for (int j = 0; j < DIM; j++) {
@@ -1952,7 +1950,6 @@ void higflow_explicit_euler_BMP_viscosity_evolution_equation(higflow_solver *ns)
         //Printing the min and max RHS values
         //printf("===> RHSmin = %lf <===> RHSmax = %lf <===\n", RHSmin, RHSmax);
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the ditributed structural parameter property
         dp_sync(ns->ed.vevv.dpStructPar);
         // Sync the ditributed viscosity property

@@ -4,6 +4,7 @@
 //#define DEBUG
 
 #include "Debug-c.h"
+#include "hig-mesh-snapshot.h"
 #include "hig-flow-step-multiphase.h"
 
 // Auxiliar local a este arquivo; declarada aqui porque as chamadas
@@ -269,18 +270,17 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns) {
     // Get the map for the domain properties
     mp_mapper *mp = sd_get_domain_mapper(sdm);
     // Loop for each cell
-    higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+    {
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the cell
-        hig_cell *c = higcit_getcell(it);
         // Get the cell identifier
-        int clid    = mp_lookup(mp, hig_get_cid(c));
         // Get the center of the cell
         Point ccenter;
-        hig_get_center(c, ccenter);
+        hms_center(hms, clid, ccenter);
         // Get the delta of the cell
         Point cdelta;
-        hig_get_delta(c, cdelta);
+        hms_delta(hms, clid, cdelta);
         real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
         // Calculate the viscosity
         real visc0 = ns->ed.mult.problem->viscosity0(ccenter, ns->par.t);
@@ -290,8 +290,8 @@ void higflow_compute_viscosity_multiphase(higflow_solver *ns) {
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpvisc, clid, visc);
     }
+    }
     // Destroy the iterator
-    higcit_destroy(it);
     // Sync the distributed pressure property
     dp_sync(ns->ed.mult.dpvisc);
 }
@@ -308,18 +308,17 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
-        higcit_celliterator *it;
-        for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
             // Calculate the density
             real fracvol  = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
             // Calculate the density
@@ -329,8 +328,8 @@ void higflow_compute_density_multiphase(higflow_solver *ns) {
             // Set the viscosity in the distributed viscosity property
             dp_set_value(ns->ed.mult.dpdens, clid, dens);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         dp_sync(ns->ed.mult.dpdens);
 }
@@ -1320,27 +1319,26 @@ void higflow_plic_copy_fractionaux_to_fraction(higflow_solver *ns) {
         // Get the map for the domain properties
         mp_mapper *mp = sd_get_domain_mapper(sdm);
         // Loop for each cell
-        higcit_celliterator *it;
 
-        for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+        {
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdm);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the cell
-            hig_cell *c = higcit_getcell(it);
             // Get the cell identifier
-            int clid    = mp_lookup(mp, hig_get_cid(c));
             // Get the center of the cell
             Point ccenter;
-            hig_get_center(c, ccenter);
+            hms_center(hms, clid, ccenter);
             // Get the delta of the cell
             Point cdelta;
-            hig_get_delta(c, cdelta);
+            hms_delta(hms, clid, cdelta);
 //            real fracvol  = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
 //            arquivoFrac(nome_frac,ccenter[0],ccenter[1],fracvol);
             real fracvolaux  = compute_value_at_point(sdm, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvolaux, ns->ed.mult.stn);
 //            arquivoFrac(nome_fracaux,ccenter[0],ccenter[1],fracvolaux);
             dp_set_value(ns->ed.mult.dpfracvol, clid, fracvolaux);
         }
+        }
         // Destroy the iterator
-        higcit_destroy(it);
         // Sync the distributed pressure property
         dp_sync(ns->ed.mult.dpfracvol);
         dp_sync(ns->ed.mult.dpfracvolaux);
