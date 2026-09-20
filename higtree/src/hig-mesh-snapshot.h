@@ -58,6 +58,20 @@ typedef struct hig_mesh_snapshot {
 //! indice do arranjo E' o id local.
 hig_mesh_snapshot *hms_from_domain(sim_domain *sd);
 
+//! \brief O centro da celula local `i`, no formato que os lacos ja' usam.
+//!
+//! Existe para que a migracao de um laco troque UMA linha --
+//! `hig_get_center(c, center)` por `hms_center(hms, i, center)` -- em vez de
+//! espalhar aritmetica de indice por 250 sitios.
+static inline void hms_center(const hig_mesh_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->center[i * DIM + d];
+}
+
+//! \brief O tamanho da celula local `i`.  Ver `hms_center`.
+static inline void hms_delta(const hig_mesh_snapshot *s, int i, Point p) {
+    for (int d = 0; d < DIM; d++) p[d] = s->delta[i * DIM + d];
+}
+
 //! \brief Aloca um instantaneo vazio para `n` celulas.  Para um backend que
 //! preenche os arranjos direto, sem passar por sim_domain.
 hig_mesh_snapshot *hms_create(int n);

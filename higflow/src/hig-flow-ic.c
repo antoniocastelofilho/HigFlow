@@ -2,6 +2,7 @@
 //  HiG-Flow Solver Initial Condition - version 11/10/2021
 // *******************************************************************
 #include "hig-flow-ic.h"
+#include "hig-mesh-snapshot.h"
 #include <libfyaml.h>
 
 // *******************************************************************
@@ -238,77 +239,52 @@ void higflow_initialize_pressure(higflow_solver *ns) {
        ns->contr.equation == HEAT) {
         return;
     }
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain
     sim_domain *sdp = psd_get_local_domain(ns->psdp);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, clid, center);
         // Get the value for pressure in this cell
         real val = ns->problem->pressure(center, ns->par.t);
         // Set the value for pressure distributed property
         dp_set_value(ns->dpp, clid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->dpp);
 }
 
 // Initialize the viscosity
 void higflow_initialize_viscosity_gn(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdvisc = psd_get_local_domain(ns->ed.psdED);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdvisc);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdvisc);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, clid, center);
         // Get the value for pressure in this cell
         real val = ns->ed.gn.problem->viscosity(center, 0.0, ns->par.t);
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.gn.dpvisc, clid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.gn.dpvisc);
 }
 
 // Initialize the viscosity - Multiphase
 void higflow_initialize_viscosity_mult(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdvisc = psd_get_local_domain(ns->ed.mult.psdmult);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdvisc);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdvisc);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, clid, center);
         real fracvol = compute_value_at_point(sdvisc, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
         // Calculate the viscosity
         real visc0 = ns->ed.mult.problem->viscosity0(center, ns->par.t);
@@ -317,58 +293,40 @@ void higflow_initialize_viscosity_mult(higflow_solver *ns) {
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpvisc, clid, visc);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.mult.dpvisc);
 }
 
 // Initialize the volume fraction 
 void higflow_initialize_fracvol(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdfracvol = psd_get_local_domain(ns->ed.mult.psdmult);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdfracvol);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdfracvol); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdfracvol);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the center of the cell
         Point center, delta;
-        hig_get_center(c, center);
-        hig_get_delta(c, delta);
+        hms_center(hms, clid, center);
+        hms_delta(hms, clid, delta);
         // Get the value for pressure in this cell
         real val = ns->ed.mult.problem->fracvol(center, delta, ns->par.t);
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.mult.dpfracvol, clid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.mult.dpfracvol);
 }
 
 // Initialize the density
 void higflow_initialize_density(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain
     sim_domain *sddens = psd_get_local_domain(ns->ed.mult.psdmult);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sddens);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sddens); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sddens);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, clid, center);
         // Calculate the density
         real fracvol  = compute_value_at_point(sddens, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
         // Calculate the density
@@ -378,8 +336,6 @@ void higflow_initialize_density(higflow_solver *ns) {
         // Set the viscosity in the distributed viscosity property
         dp_set_value(ns->ed.mult.dpdens, clid, dens);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.mult.dpdens);
 }
@@ -387,23 +343,16 @@ void higflow_initialize_density(higflow_solver *ns) {
 void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
     if (ns->contr.flowtype == MULTIPHASE) {
         if(ns->ed.mult.contr.viscoelastic_either == true) {
-            // Setting the cell iterator
-            higcit_celliterator *it;
             // Getting the local domain
             sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-            // Getting the Mapper for the local domain
-            mp_mapper *m = sd_get_domain_mapper(sdp);
             // Traversing the cells of local domain
-            for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-                // Getting the cell
-                hig_cell *c = higcit_getcell(it);
-                // Get the cell identifier
-                int clid = mp_lookup(m, hig_get_cid(c));
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for(int clid = 0; clid < hms->n; clid++) {
                 // Get the center of the cell
                 Point center;
-                hig_get_center(c, center);
+                hms_center(hms, clid, center);
                 Point delta;
-                hig_get_delta(c, delta);
+                hms_delta(hms, clid, delta);
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
                         // Get the value for the tensor in this cell
@@ -413,8 +362,6 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
                     }
                 }
             }
-            // Destroying the iterator
-            higcit_destroy(it);
             // Sync initial values among processes
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
@@ -427,28 +374,19 @@ void higflow_initialize_viscoelastic_mult_tensor(higflow_solver *ns) {
 
 // Initialize the cell source term
 void higflow_initialize_cell_source_term(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain
     sim_domain *sdp = psd_get_local_domain(ns->psdF);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int clid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int clid = 0; clid < hms->n; clid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, clid, center);
         // Get the value for the source term in this cell
         real val = ns->problem->source_term(center, ns->par.t);
         // Set the value for source term distributed property
         dp_set_value(ns->dpF, clid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->dpF);
 }
@@ -457,21 +395,14 @@ void higflow_initialize_cell_source_term(higflow_solver *ns) {
 void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == VISCOELASTIC) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -482,8 +413,6 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -549,21 +478,14 @@ void higflow_initialize_viscoelastic_tensor(higflow_solver *ns) {
 void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -573,8 +495,6 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -588,21 +508,14 @@ void higflow_initialize_viscoelastic_integral_tensor(higflow_solver *ns) {
 void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == VISCOELASTIC_INTEGRAL) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             for (int k = 0; k <= NDT; k++) {
                 for (int i = 0; i < DIM; i++) {
                     for (int j = 0; j < DIM; j++) {
@@ -615,8 +528,6 @@ void higflow_initialize_viscoelastic_integral_finger_tensor(higflow_solver *ns) 
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         for (int k = 0; k <= NDT; k++) {
        for (int i = 0; i < DIM; i++) {
@@ -675,21 +586,14 @@ void higflow_initialize_electroosmotic_source_term(higflow_solver *ns) {
 void higflow_initialize_electroosmotic_phi(higflow_solver *ns) {
     if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real val, fracvol;
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOphi);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             // Get the value for electro-osmotic phi in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
@@ -699,8 +603,6 @@ void higflow_initialize_electroosmotic_phi(higflow_solver *ns) {
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dpphi, clid, val);
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         dp_sync(ns->ed.eo.dpphi);
     }
@@ -710,21 +612,14 @@ void higflow_initialize_electroosmotic_phi(higflow_solver *ns) {
 void higflow_initialize_electroosmotic_psi(higflow_solver *ns) {
     if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real val, fracvol;
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOpsi);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             // Get the value for electro-osmotic psi in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
@@ -734,8 +629,6 @@ void higflow_initialize_electroosmotic_psi(higflow_solver *ns) {
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dppsi, clid, val);
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         dp_sync(ns->ed.eo.dppsi);
     }
@@ -745,21 +638,14 @@ void higflow_initialize_electroosmotic_psi(higflow_solver *ns) {
 void higflow_initialize_electroosmotic_nplus(higflow_solver *ns) {
     if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real val, fracvol;
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOnplus);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             // Get the value for electro-osmotic nplus in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
@@ -769,8 +655,6 @@ void higflow_initialize_electroosmotic_nplus(higflow_solver *ns) {
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dpnplus, clid, val);
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         dp_sync(ns->ed.eo.dpnplus);
     }
@@ -780,21 +664,14 @@ void higflow_initialize_electroosmotic_nplus(higflow_solver *ns) {
 void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
     if(ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
         real val, fracvol;
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.eo.psdEOnminus);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int clid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int clid = 0; clid < hms->n; clid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, clid, center);
             // Get the value for electro-osmotic nminus in this cell
             if(ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true) {
                 fracvol = compute_value_at_point(sdp, center, center, 1.0, ns->ed.mult.dpfracvol, ns->stn);
@@ -804,8 +681,6 @@ void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
             // Set the value for pressure distributed property
             dp_set_value(ns->ed.eo.dpnminus, clid, val);
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
         dp_sync(ns->ed.eo.dpnminus);
     }
@@ -813,21 +688,14 @@ void higflow_initialize_electroosmotic_nminus(higflow_solver *ns) {
 
 // Initialize the viscosity for viscoelastic flows with variable viscosity
 void higflow_initialize_viscosity_vevv(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain (viscosity)
     sim_domain *sdvisc = psd_get_local_domain(ns->ed.vevv.psdVisc);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdvisc);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdvisc); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdvisc);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         real val;
        if (ns->ed.nn_contr.rheotype == PLM) {
            val = ns->ed.vevv.problem->viscosity(center, 0.0, ns->par.t, ns->ed.vevv.par.beta, 0.0);
@@ -840,8 +708,6 @@ void higflow_initialize_viscosity_vevv(higflow_solver *ns) {
         // Set the value for viscosity distributed property
         dp_set_value(ns->ed.vevv.dpvisc, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.vevv.dpvisc);
 }
@@ -853,28 +719,19 @@ void higflow_initialize_structural_parameter(higflow_solver *ns) {
     real Phi = ns->ed.vevv.par.Phi;
     real Gamma = ns->ed.vevv.par.Gamma;
     real beta = ns->ed.vevv.par.beta;
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdstructpar = psd_get_local_domain(ns->ed.vevv.psdVisc);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdstructpar);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdstructpar); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdstructpar);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         // Get the value for structural parameter in this cell
         real val = ns->ed.vevv.problem->structpar(center, 0.0, ns->par.t, beta, Phi, Lambda, Gamma);
         // Set the value for structural parameter distributed property
         dp_set_value(ns->ed.vevv.dpStructPar, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.vevv.dpStructPar);
 }
@@ -883,21 +740,14 @@ void higflow_initialize_structural_parameter(higflow_solver *ns) {
 void higflow_initialize_viscoelastic_tensor_variable_viscosity(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == VISCOELASTIC_VAR_VISCOSITY) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -907,8 +757,6 @@ void higflow_initialize_viscoelastic_tensor_variable_viscosity(higflow_solver *n
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -920,56 +768,38 @@ void higflow_initialize_viscoelastic_tensor_variable_viscosity(higflow_solver *n
 
 // Initialize the shear-banding density number nA
 void higflow_initialize_shear_banding_nA(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain
     sim_domain *sdp = psd_get_local_domain(ns->ed.vesb.psdSBnA);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         // Get the value for nA in this cell
         real val = ns->ed.vesb.problem->nA(center, ns->par.t);
         // Set the value for distributed property
         dp_set_value(ns->ed.vesb.dpnA, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.vesb.dpnA);
 }
 
 // Initialize the shear-banding density number nB
 void higflow_initialize_shear_banding_nB(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain
     sim_domain *sdp = psd_get_local_domain(ns->ed.vesb.psdSBnB);
-    // Getting the Mapper for the local domain
-    mp_mapper *m = sd_get_domain_mapper(sdp);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         // Get the value for nB in this cell
         real val = ns->ed.vesb.problem->nB(center, ns->par.t);
         // Set the value for distributed property
         dp_set_value(ns->ed.vesb.dpnB, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.vesb.dpnB);
 }
@@ -978,28 +808,19 @@ void higflow_initialize_shear_banding_nB(higflow_solver *ns) {
 void higflow_initialize_shear_banding_cA(higflow_solver *ns) {
     real CAeq = ns->ed.vesb.par.CAeq;
     real chi = ns->ed.vesb.par.chi;
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdca = psd_get_local_domain(ns->ed.psdED);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdca);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdca); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdca);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         // Get the value for pressure in this cell
         real val = ns->ed.vesb.problem->cA(center, ns->par.t, CAeq, chi, 0.0);;
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.vesb.dpcA, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.vesb.dpcA);
 }
@@ -1008,28 +829,19 @@ void higflow_initialize_shear_banding_cA(higflow_solver *ns) {
 void higflow_initialize_shear_banding_cB(higflow_solver *ns) {
     real CBeq = ns->ed.vesb.par.CBeq;
     real chi = ns->ed.vesb.par.chi;
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdcb = psd_get_local_domain(ns->ed.psdED);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdcb);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdcb); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdcb);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         // Get the value for pressure in this cell
         real val = ns->ed.vesb.problem->cB(center, ns->par.t, CBeq, chi, 0.0);;
         // Set the value for pressure distributed property
         dp_set_value(ns->ed.vesb.dpcB, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.vesb.dpcB);
 }
@@ -1039,21 +851,14 @@ void higflow_initialize_shear_banding_cB(higflow_solver *ns) {
 void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == SHEAR_BANDING) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -1063,8 +868,6 @@ void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1078,21 +881,14 @@ void higflow_initialize_viscoelastic_tensor_shear_banding(higflow_solver *ns) {
 void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->ed.nn_contr.rheotype == VCM) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -1102,8 +898,6 @@ void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) 
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1117,21 +911,14 @@ void higflow_initialize_conformation_tensor_A_shear_banding(higflow_solver *ns) 
 void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->ed.nn_contr.rheotype == VCM) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -1141,8 +928,6 @@ void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) 
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1156,21 +941,14 @@ void higflow_initialize_conformation_tensor_B_shear_banding(higflow_solver *ns) 
 void higflow_initialize_elastoviscoplastic_tensor(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == ELASTOVISCOPLASTIC) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -1180,8 +958,6 @@ void higflow_initialize_elastoviscoplastic_tensor(higflow_solver *ns) {
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1195,21 +971,14 @@ void higflow_initialize_elastoviscoplastic_tensor(higflow_solver *ns) {
 void higflow_initialize_shear_thickening_suspension_tensor(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == SUSPENSIONS) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -1219,8 +988,6 @@ void higflow_initialize_shear_thickening_suspension_tensor(higflow_solver *ns) {
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1234,21 +1001,14 @@ void higflow_initialize_shear_thickening_suspension_tensor(higflow_solver *ns) {
 void higflow_initialize_shear_thickening_suspension_microstructure_tensor(higflow_solver *ns) {
     // Non Newtonian flow
     if (ns->contr.flowtype == SUSPENSIONS) {
-        // Setting the cell iterator
-        higcit_celliterator *it;
         // Getting the local domain
         sim_domain *sdp = psd_get_local_domain(ns->ed.psdED);
-        // Getting the Mapper for the local domain
-        mp_mapper *m = sd_get_domain_mapper(sdp);
         // Traversing the cells of local domain
-        for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
-            // Getting the cell
-            hig_cell *c = higcit_getcell(it);
-            // Get the cell identifier
-            int cgid = mp_lookup(m, hig_get_cid(c));
+        const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+        for(int cgid = 0; cgid < hms->n; cgid++) {
             // Get the center of the cell
             Point center;
-            hig_get_center(c, center);
+            hms_center(hms, cgid, center);
             for (int i = 0; i < DIM; i++) {
                 for (int j = 0; j < DIM; j++) {
                     // Get the value for the tensor in this cell
@@ -1258,8 +1018,6 @@ void higflow_initialize_shear_thickening_suspension_microstructure_tensor(higflo
                 }
             }
         }
-        // Destroying the iterator
-        higcit_destroy(it);
         // Sync initial values among processes
 	for (int i = 0; i < DIM; i++) {
             for (int j = 0; j < DIM; j++) {
@@ -1271,29 +1029,20 @@ void higflow_initialize_shear_thickening_suspension_microstructure_tensor(higflo
 
 // Initialize the volume fraction for shear thickening suspensions (with particle migration)
 void higflow_initialize_volume_fraction(higflow_solver *ns) {
-    // Setting the cell iterator
-    higcit_celliterator *it;
     // Getting the local domain 
     sim_domain *sdphi = psd_get_local_domain(ns->ed.stsp.psdphi);
-    // Getting the Mapper for the local domain 
-    mp_mapper *m = sd_get_domain_mapper(sdphi);
     // Traversing the cells of local domain
-    for(it = sd_get_domain_celliterator(sdphi); !higcit_isfinished(it); higcit_nextcell(it)) {
-        // Getting the cell
-        hig_cell *c = higcit_getcell(it);
-        // Get the cell identifier
-        int cgid = mp_lookup(m, hig_get_cid(c));
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdphi);
+    for(int cgid = 0; cgid < hms->n; cgid++) {
         // Get the center of the cell
         Point center;
-        hig_get_center(c, center);
+        hms_center(hms, cgid, center);
         // Get the value for structural parameter in this cell
         real val = ns->ed.stsp.problem->vol_frac(center, ns->par.t);
         //printf("===> volfrac = %lf <===\n", val);
         // Set the value for structural parameter distributed property
         dp_set_value(ns->ed.stsp.dpphi, cgid, val);
     }
-    // Destroying the iterator
-    higcit_destroy(it);
     // Sync initial values among processes
     dp_sync(ns->ed.stsp.dpphi);
     //printf("=+=+=+= WE ARE HERE AFTER initialising volfrac =+=+=+=\n");
