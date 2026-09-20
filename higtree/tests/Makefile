@@ -100,6 +100,7 @@ TESTS += test-snapshot-oracle
 ifdef T8CODE
 TESTS += test-partition-t8code
 TESTS += test-production-t8code
+TESTS += test-rank-production-t8code
 endif
 
 BIN = $(addsuffix -$(DIM)d, $(TESTS))
@@ -119,6 +120,7 @@ all: $(BIN)
 # da suite fica em gnu++17 -- so' a assinatura em extern "C" atravessa.
 ifdef T8CODE
 T8OBJ     = t8code/t8-mesh-producer-$(DIM)d.o t8code/t8-point-locator-$(DIM)d.o \
+            t8code/t8-mesh-rank-$(DIM)d.o \
             t8code/t8-forest-cache-$(DIM)d.o t8code/t8-stencil-support-$(DIM)d.o \
             t8code/t8-boundary-faces-$(DIM)d.o \
             t8code/t8-point-class-$(DIM)d.o \

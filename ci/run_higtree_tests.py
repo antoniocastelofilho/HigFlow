@@ -167,6 +167,14 @@ TESTS = [
     # malha dele (os exemplos leem AMR de arquivo e sao comparados com referencia).
     Test("test-production-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
          so_t8code=True),
+
+    # PRODUCAO POR RANK, em CAIXAS COMPLETAS.  A floresta nasce em COMM_WORLD, o
+    # t8code ja' a reparte, e cada rank materializa so' o que e' dele -- tira o
+    # gargalo de um processo ter de caber a malha inteira.  A representacao e' um
+    # CONJUNTO de caixas completas, nao uma arvore com buracos: arvore com buraco
+    # mata `hig_get_cell_with_point`, que desreferencia filho nulo.
+    Test("test-rank-production-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
+         so_t8code=True),
 ]
 
 
