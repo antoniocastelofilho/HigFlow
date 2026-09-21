@@ -184,6 +184,13 @@ TESTS = [
     # mata `hig_get_cell_with_point`, que desreferencia filho nulo.
     Test("test-rank-production-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
          so_t8code=True),
+
+    # A PARTICAO FINAL SENDO A DO T8CODE: sem `lb_calc_partition`, com o
+    # `partition_graph` montado a partir das caixas.  O oraculo e' o CONTEUDO da
+    # franja, porque a construcao do grafo falha em silencio -- pareamento
+    # trocado monta o dominio, roda o sync, e entrega o valor de outra celula.
+    Test("test-particao-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
+         so_t8code=True),
 ]
 
 

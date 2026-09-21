@@ -362,40 +362,42 @@ np = 1, 2, 3 · AMR, t8code, t8code-rank · todas PASS a 0,10%
 *O gancho passou a devolver várias árvores* (`int f(ctx, hig_cell **v, int max)`),
 porque a região de um rank não é uma caixa e vira um conjunto delas.
 
-## 4e. A partição final pelo t8code — medida, não feita
+## 4e. A partição final pelo t8code — feita
 
-**O que a medição diz, e é favorável.** A região de um rank na curva de
-preenchimento é quase um retângulo:
+Sem `lb_calc_partition`: cada rank fica com o que a curva de preenchimento lhe
+deu, e o `partition_graph` é montado a partir das caixas
+(`t8_monta_dominio_particionado`).
+
+**O que tornou isso possível** foi a medição: a região de um rank é quase um
+retângulo — `np=2 → 1` caixa, `np=3 → 2 a 3`, `np=4 → 1`, `np=8 → 1` — e o `pg`
+representa o que se envia como faixa **retangular** em coordenadas de árvore.
+
+**O contrato, lido do `pdomain.c` e não suposto:** quem envia enumera os
+elementos de `local_tree` no intervalo `[lo_idx, hi_idx)`; quem recebe enumera a
+árvore de franja **inteira**. Logo a i-ésima faixa enviada tem de ter a mesma
+forma e a mesma ordem da i-ésima árvore recebida.
+
+**A regra de ordem é a peça delicada:** em ambas as listas, a caixa **dona do
+dado** fica no laço de fora e a que **precisa** dele no de dentro. Os dois lados
+calculam o mesmo objeto a partir dos mesmos dados globais (um `allgather` das
+caixas), então nada é negociado por mensagem.
+
+Eu errei isso na primeira versão — o envio aninhava *(minhas, dele)* e o
+recebimento também, mas o remetente emite com as caixas *dele* por fora, então as
+listas saíam **transpostas**.
 
 ```
-brick 160x40, caixas completas por rank
-np=2  1        np=3  2 a 3        np=4  1        np=8  1
+transposição do aninhamento
+np=2   passa   (uma caixa por rank: 1×1 esconde)
+np=3   REPROVA 228 de 304 células de franja com valor de outra posição
 ```
 
-Isso importa porque o `partition_graph` representa o que se envia como
-`to_send_fringe` — **faixa retangular** em coordenadas de árvore. Se a região
-fosse arbitrária, a representação não serviria. Serve.
+Um teste só em `np=2` não pegaria esse defeito — e nenhum teste de *contagem* ou
+*volume* pegaria em np nenhum.
 
-**O que impede, e não é a geometria.** Não há costura pública. O construtor de
-franja (`_fringe_builder_*`, em `build-fringe.cpp`) é API interna, dirigida pela
-contabilidade que o `lbal` monta *enquanto* particiona — não é "dadas as minhas
-árvores, monte o grafo". E o `lbal` não tem modo de **aceitar** uma partição: ele
-sempre decide. Construir o `pg` fora dele significa refazer a descoberta de
-vizinhança e o pareamento de franjas.
-
-**E o modo de falhar é silencioso**, que é o que torna isso diferente dos passos
-anteriores. O cabeçalho do `pg` diz que as listas têm de estar *"strictly on the
-same order as the corresponding list on the remote process"*. Ordem trocada não
-quebra nada visível: entrega o valor de outra célula.
-
-**Por isso a rede veio antes.** `test-fringe-sync` afirma o **conteúdo** da
-franja, que nenhum teste olhava: depois do `dp_sync`, cada célula de franja tem
-de conter o campo analítico no *próprio* centro. Os dois testes de franja que já
-existiam — o do contrato e o do particionamento real — continuariam verdes com o
-pareamento trocado.
-
-Validado no sentido inverso: escrevendo `f(centro)+1` num rank só, os vizinhos
-acusam — 16 de 32 células em 2D np=2, 128 de 256 em 3D np=2.
+**Limite declarado:** malha uniforme. Com refino, a faixa do remetente e a árvore
+do receptor precisariam ter a mesma subdivisão interna, e isso exige trocar
+estrutura, não só índices.
 
 ## 6. O que é decisão sua
 
