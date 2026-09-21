@@ -147,8 +147,13 @@ sobreposição do `DMPlexDistribute` — as duas foram conflacionadas numa vers�
 anterior deste texto. A sobreposição do Plex é da malha lagrangeana e serve a
 outra coisa (medida: `sondas/sonda-plex-sobreposicao.c`; sobreposição 1 basta
 para área e normal do vértice, e custa +19% de células em np=2 e até +53% em
-np=3 numa esfera de 1280 triângulos). A largura de franja euleriana exigida pelo
-delta segue **sem medir**. Com replicação isso é inofensivo na interpolação (a
+np=3 numa esfera de 1280 triângulos). A largura de franja euleriana foi **medida**
+(`sondas/sonda-franja-euleriana.c`): o alcance para fora de uma célula própria é
+exatamente a franja declarada — 1, 2 e 5 células para franja 1, 2 e 5. O HiGFlow
+declara 5 (`hig-flow-kernel.c:1465`), então Roma (1,5) e Peskin (2,0) cabem com
+folga, e **a franja não é restrição**. Mas a HiGTree usa 1 por omissão: com ela o
+suporte não caberia, e a perda apareceria como força um pouco menor junto às
+fronteiras de partição — defeito que se lê como "efeito de malha". Com replicação isso é inofensivo na interpolação (a
 soma global recupera as parcelas), mas **no espalhamento cada rank precisa ver
 as facetas do suporte que ele possui** — o que já é verdade, porque ele as
 possui.

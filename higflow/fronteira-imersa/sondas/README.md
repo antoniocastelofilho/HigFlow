@@ -101,6 +101,42 @@ superfície é dividida em mais pedaços. Numa esfera de 1280 triângulos em np=
 sobreposição 2 quase **dobra** a malha local. Para corpo pequeno partido em
 muitos ranks, isso deixa de ser detalhe.
 
+### `sonda-franja-euleriana.c` — o alcance real da franja
+
+A única sonda que usa a HiGTree: aqui o que se julga é a **geometria entregue
+pela partição**, não uma capacidade de biblioteca. Por isso fica fora de
+`$(SONDAS)` e tem regra própria, com `DIM`.
+
+```bash
+make sonda-franja DIM=2
+mpirun -n 3 ./sonda-franja
+```
+
+De cada célula **própria**, anda para fora em cada direção até
+`sd_get_cell_with_point` falhar. Só contam os passos que continuam dentro do
+domínio global — fora dele o limite é o domínio, não a franja.
+
+```
+franja declarada 1    alcance mínimo 1 célula     Roma 1,5 NÃO CABE
+franja declarada 2    alcance mínimo 2 células    cabe
+franja declarada 5    alcance mínimo 5 células    cabe
+```
+
+np=2 e np=3, malha 24×24, ~500 direções medidas por rank.
+
+**O alcance é exatamente a franja declarada.** Constante declarada é, aqui,
+geometria entregue — o que não era óbvio e é a razão de medir.
+
+Para a fronteira imersa isso resolve a questão: o HiGFlow declara
+`pg_set_fringe_size(pg, 5)` (`hig-flow-kernel.c:1465`), e tanto Roma (1,5) quanto
+Peskin (2,0) cabem com folga. **A franja euleriana não é restrição.**
+
+O que a medida também diz, e que vale como aviso: a HiGTree usa **1** por
+omissão (`pdomain.c:5`). Com franja 1 o suporte do delta não cabe, e a
+contribuição perdida não apareceria como erro — apareceria como força um pouco
+menor perto das fronteiras de partição, que é o tipo de defeito que passa por
+"efeito de malha". Quem baixar esse 5 quebra a fronteira imersa em silêncio.
+
 ### Uma medida que não mediu nada, registrada de propósito
 
 A primeira execução usou a esfera **sem refinar** — o `DMPlexCreateSphereMesh`
@@ -125,7 +161,8 @@ errar aqui, porque o número sai bonito e estável.
   halo.** Conflacionei as duas coisas antes e corrijo aqui: a sobreposição é da
   malha LAGRANGEANA e serve a área e normal do vértice; o suporte do delta é
   EULERIANO, e quem o cobre é a franja da HiGTree mais a acumulação do `PetscSF`.
-  A largura de franja euleriana que o delta exige segue sem medir.
+  A largura de franja euleriana foi medida em separado, e **cabe** — ver
+  `sonda-franja-euleriana.c`.
 - **Nada sobre desempenho.** Oito triângulos e quatro marcadores não medem nada.
 - **Nada sobre a escolha** — que já foi tomada, e contra a minha recomendação.
   Eu recomendava replicar, pelo tamanho: ~160 marcadores para um cilindro nestas
