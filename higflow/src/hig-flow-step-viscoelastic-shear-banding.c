@@ -3,6 +3,11 @@
 //  HiG-Flow Solver Step Electro-osmotic - version 02/02/2018
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step-viscoelastic.c: the VCM model, with two species whose
+// breakage and reformation produce shear bands.
+//
+// NOT EXECUTED BY ANY CASE.
 
 #include "hig-flow-step-viscoelastic-shear-banding.h"
 #include "hig-mesh-snapshot.h"

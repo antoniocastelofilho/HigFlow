@@ -1,6 +1,30 @@
 // *******************************************************************
 //  HiG-Flow Solver Discretization - version 10/11/2016
 // *******************************************************************
+//
+// The computational cell: for one facet, gather everything a solver needs to write
+// one line of the discretization -- neighbouring values, derivatives, viscosity,
+// tensor terms.  Every `hig-flow-step-*` calls one of these before assembling.
+//
+// `ns->cc` IS A SHARED SCRATCH AREA, not a per-solver structure.  It is refilled for
+// each facet by the cell function of whichever solver is running, and several
+// solvers READ fields that their own cell function never WRITES.  Since the solver
+// is malloc'd, such a read returns uninitialized memory -- which comes out zero when
+// the pages happen to be clean, by luck and not by contract.
+//
+// Two defects of exactly that shape were found and fixed in 2026-09-15/16: `cc.ucell`
+// (written only at 768 and 801, inside the IONIC transport cells) was read by four
+// solvers that lost the whole velocity field every step, and `cc.viscl`/`cc.viscr`
+// (written only at 311 and 443) left Crank-Nicolson and BDF2 with no implicit
+// viscous term.
+//
+// So, before touching any solver: check every `ns->cc.<field>` it reads against the
+// list of who writes that field --
+//
+//     grep -rn "cc\.<field>" higflow/src/*.c | grep -v src_hugo
+//
+// The compiler does not complain, and the accidental zero hides the error on a bench
+// run.
 
 #include "hig-flow-discret.h"
 

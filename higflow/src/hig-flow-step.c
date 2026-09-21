@@ -3,6 +3,36 @@
 //  HiG-Flow Solver Step - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// THE `hig-flow-step-*` FAMILY.  This file is the Newtonian base; the other ten are
+// clones of it that diverge in the constitutive terms.  Documenting them one by one
+// says little -- what matters is WHERE each one departs from its sibling, because
+// that is where the defects live: of the nine closure defects fixed in 2026-09-15/18,
+// every one was answered by the sibling file, the shared explicit term, or the solver
+// the variant was cloned from.  Never by the formulation.
+//
+// WHICH VARIANTS ACTUALLY RUN.  Measured by instrumenting the 92 cell loops and
+// running the suite: 28 execute, spread over 8 files.  Four are never executed --
+//
+//   elastoviscoplastic            no case selects it
+//   shear-thickening-suspension   no case selects it
+//   viscoelastic-shear-banding    no case selects it
+//   viscoelastic-integral         reachable only from example2d_KBKZ, which is
+//                                 known_broken (NaN at step 3) and never completes
+//
+// and `generalized-newtonian` is the deceptive one: linked by eight Makefiles and
+// invoked by none, so a reader who checks the object list assumes it is covered.
+// Containing the call is not the same as taking the path -- dispatch depends on the
+// case configuration.  Check by caller:
+//
+//     grep -rl "higflow_solver_step_<name>" higflow/*/*.c | grep -v '^higflow/src/'
+//
+// Two techniques work on a variant no case reaches.  RATIO OF INCREMENTS: two
+// temporal schemes discretize the same equation, so ||dpustar - dpu|| of one over the
+// other tends to 1 as dt -> 0; it detects divergence BETWEEN them, not an error
+// common to both.  INJECTION: plant the suspect pattern in
+// hig-flow-step-viscoelastic.c, which is consistent and has example2d_Oldroyd, and
+// check the ratio moves to the value the algebra predicts.
 
 #include "hig-flow-step.h"
 #include "hig-mesh-snapshot.h"

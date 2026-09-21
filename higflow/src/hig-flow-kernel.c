@@ -3,6 +3,30 @@
 //  HiG-Flow Solver Kernel - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Builds the solver: domains, distributed properties, stencils, linear systems --
+// everything `higflow_solver` holds, in the order the pieces depend on each other.
+//
+// WHERE THE MESH COMES FROM.  `higflow_partition_domain` has three paths, in this
+// order of precedence:
+//
+//   fonte_de_particao != NULL   the source delivers the domain ALREADY PARTITIONED
+//                               (fringe and partition_graph included); no lbal.
+//   fonte_de_malha    != NULL   the source delivers TREES; lbal repartitions them.
+//   neither                     read the .amr files, as it always did.
+//
+// Both hooks are installed from outside (`higflow_set_fonte_de_*`, declared in the
+// header) and are zeroed in `higflow_create`, because `DECL_AND_ALLOC` is malloc and
+// not calloc -- a garbage pointer would fire a path nobody asked for.
+//
+// A failing partition source ABORTS on purpose.  Carrying on with a domain whose
+// neighbourhood is wrong produces a plausible wrong answer, which is the worst way
+// for this to fail.
+//
+// `_adiciona_aos_dominios` is the chain of twelve domains every tree has to be added
+// to (sdp, sdF, sdED, the electroosmotic ones, vevv, vesb, stsp).  `incluir_sdp`
+// exists because a partition source has already filled `sdp` -- that is where it
+// built the fringe and the graph.
 
 #include "hig-flow-kernel.h"
 

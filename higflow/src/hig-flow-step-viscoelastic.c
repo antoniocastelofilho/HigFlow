@@ -3,6 +3,14 @@
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step.c: adds the polymeric stress tensor, evolved by a
+// differential constitutive model (Oldroyd-B, Giesekus, LPTT, GPTT, FENE-P).
+//
+// This is the CONSISTENT one of the family and it runs (example2d_Oldroyd,
+// example2d_Gptt), which is why it is the injection target when a suspect pattern has
+// to be proved in a solver no case reaches.  See the family header in
+// hig-flow-step.c.
 
 #include "hig-flow-step-viscoelastic.h"
 #include "hig-mesh-snapshot.h"

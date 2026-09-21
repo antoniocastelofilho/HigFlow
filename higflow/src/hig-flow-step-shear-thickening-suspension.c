@@ -3,6 +3,12 @@
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step.c for suspensions whose viscosity rises with shear rate.
+//
+// NOT EXECUTED BY ANY CASE.  Its semi-implicit Euler deliberately omits the
+// convective term -- that divergence from the sibling is intentional, not an
+// oversight.
 
 #include "hig-flow-step-shear-thickening-suspension.h"
 #include "hig-mesh-snapshot.h"

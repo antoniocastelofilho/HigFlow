@@ -3,6 +3,11 @@
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step-viscoelastic.c: the material only flows past a yield
+// stress.
+//
+// NOT EXECUTED BY ANY CASE.
 
 #include "hig-flow-step-elastoviscoplastic.h"
 #include "hig-mesh-snapshot.h"

@@ -1,6 +1,13 @@
 // *******************************************************************
 //  HiG-Flow Solver Step Multiphase Electroosmotic - version 07/05/2024
 // *******************************************************************
+//
+// Combination of the multiphase and electroosmotic variants: two fluids plus the
+// electric force.
+//
+// Because it is a combination, it is where a term taken from the wrong sibling shows
+// up: the Runge-Kutta stages here once called the MONOPHASIC Euler step, which never
+// fills cc.dens, and the terms that divide by it produced NaN.
 
 #include "hig-flow-step-multiphase-electroosmotic.h"
 #include "hig-mesh-snapshot.h"

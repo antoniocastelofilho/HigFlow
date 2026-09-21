@@ -3,6 +3,13 @@
 //  HiG-Flow Solver Step Generalized Newtonian - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step.c: viscosity is a function of the strain rate instead of
+// a constant, so the viscous term carries viscl/viscr from the computational cell.
+//
+// NOT EXECUTED BY ANY CASE, and it is the deceptive one of the family: the object is
+// linked by eight example Makefiles and invoked by none.  Checking the object list
+// suggests coverage that does not exist.
 
 #include "hig-flow-step-generalized-newtonian.h"
 #include "hig-mesh-snapshot.h"

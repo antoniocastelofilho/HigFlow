@@ -3,6 +3,12 @@
 //  HiG-Flow Solver Step Viscoelastic variable viscosity - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step-viscoelastic.c: the solvent viscosity varies in space.
+//
+// The only case that reaches it is example2d_BMP, which uses the legacy positional
+// input (.viscvvcontr) rather than YAML.  Its CN and BDF2 stencils read cc.viscl and
+// cc.viscr, fields its own cell function does not write -- see hig-flow-discret.c.
 
 #include "hig-flow-step-viscoelastic-variable-viscosity.h"
 #include "hig-mesh-snapshot.h"

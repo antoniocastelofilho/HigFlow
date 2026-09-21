@@ -3,6 +3,12 @@
 //  HiG-Flow Solver Step Viscoelastic Integral - version 20/11/2017
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step-viscoelastic.c: the stress comes from an integral over
+// deformation history (KBKZ) instead of a differential equation.
+//
+// REACHABLE ONLY FROM example2d_KBKZ, which is known_broken -- the tensor diverges to
+// NaN at step 3 -- so no case exercises this file to completion.
 
 #include "hig-flow-step-viscoelastic-integral.h"
 #include "hig-mesh-snapshot.h"

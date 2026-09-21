@@ -3,6 +3,12 @@
 //  HiG-Flow Solver Step Electro-osmotic - version 02/02/2018
 // *******************************************************************
 // *******************************************************************
+//
+// Variant of hig-flow-step.c: adds the electric body force from an applied potential
+// and the ionic distribution (Poisson-Boltzmann or transported species).
+//
+// Runs through example2d_ElectroOsmotic.  Its ionic cell function is one of only two
+// that write cc.ucell -- see hig-flow-discret.c.
 
 #include "hig-flow-step-electroosmotic.h"
 #include "hig-mesh-snapshot.h"

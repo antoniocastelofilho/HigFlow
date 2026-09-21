@@ -2,6 +2,13 @@
 //  HiG-Flow Solver Step Multiphase - version 20/01/2022
 // *******************************************************************
 //#define DEBUG
+//
+// Variant of hig-flow-step.c: two fluids with an interface tracked by volume
+// fraction (VOF), so density and viscosity vary in space and surface tension enters
+// the momentum equation.
+//
+// Runs through example2d_VOF and its viscoelastic combinations.  Its cell function is
+// one of only two that write cc.viscl/cc.viscr -- see hig-flow-discret.c.
 
 #include "Debug-c.h"
 #include "hig-mesh-snapshot.h"
