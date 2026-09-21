@@ -574,6 +574,102 @@ O contrato de Mesh (`higtree/src/hig-mesh-contract.h`, 18 cláusulas) é o que
 torna as duas implementações comparáveis: ele é lido do próprio cabeçalho pelo
 driver, então cláusula sem caso de teste não passa despercebida.
 
+### HiGTree — a ordem de construção é parte do contrato
+
+O estado derivado nasce uma vez e passa a ser confiado. Por isso a ordem não é
+convenção: `sd_add_higtree` **recusa** rodar depois que o instantâneo existe.
+
+```mermaid
+flowchart TD
+    A["psd_create"] --> B["sd_add_higtree<br/>árvores próprias"]
+    B --> C["sd_add_fringe_higtree<br/>árvores de franja"]
+    C --> D["sd_add_boundary<br/>contornos"]
+    D --> E["psd_synced_mapper<br/>atribui o mapeador"]
+    E --> F["sd_compute_snapshot<br/>ansioso, no fim"]
+    F --> G["hig_mesh_snapshot<br/>arranjos low e high — o índice É o id local"]
+
+    G --> H["laços migrados<br/>hms_center / hms_delta / hms_low / hms_high"]
+    G --> I["sd_snapshot_verify<br/>oráculo diferencial"]
+
+    I -- "localiza por PONTO,<br/>não pelo iterador" --> J["diverge → abort"]
+
+    style F fill:#1e3a5f,color:#fff
+    style G fill:#1e3a5f,color:#fff
+```
+
+O oráculo localiza por ponto porque o mapeador é atribuído a partir do **mesmo**
+iterador que o instantâneo percorre: compará-los mediria a aritmética contra si
+mesma.
+
+### HiGFlow — os três caminhos, e o legado intacto no meio
+
+```mermaid
+flowchart TD
+    S["higflow_partition_domain"] --> Q1{"fonte_de_particao<br/>≠ NULL?"}
+
+    Q1 -- sim --> P1["a fonte entrega o domínio<br/>JÁ PARTICIONADO"]
+    P1 --> F1["particao_t8<br/>constrói o partition_graph<br/>das caixas do t8code"]
+    F1 --> X1{"numhigs == 1?"}
+    X1 -- não --> AB["abort — vizinhança errada<br/>daria número plausível e errado"]
+    X1 -- sim --> D1["domínio pronto<br/>SEM lbal"]
+
+    Q1 -- não --> Q2{"fonte_de_malha<br/>≠ NULL?"}
+    Q2 -- sim --> P2["a fonte entrega ÁRVORES"]
+    P2 --> F2["malha_t8_uniforme — vários blocos<br/>malha_t8_por_rank — um bloco"]
+    F2 --> LB["lb_calc_partition<br/>o lbal reparticiona"]
+
+    Q2 -- não --> P3["CAMINHO LEGADO<br/>AMR de arquivo"]
+    P3 --> LB
+
+    LB --> D1
+
+    style P3 fill:#2d5016,color:#fff
+    style AB fill:#6b2020,color:#fff
+```
+
+Sem `HIGFLOW_MALHA` no ambiente, os dois ganchos são `NULL` e a execução desce
+pelo caminho verde — o legado não foi removido nem contornado, e a suíte padrão
+afirma isso a cada execução.
+
+### As duas implementações de malha, e o que as compara
+
+```mermaid
+flowchart TD
+    subgraph fisica["HiGFlow — física"]
+        NS["solvers, step-*, io, ic"]
+    end
+
+    subgraph fronteira["a fronteira das consultas"]
+        SNAP["hig_mesh_snapshot<br/>hig_facet_snapshot"]
+    end
+
+    subgraph contrato["hig-mesh-contract.h — 18 cláusulas"]
+        CT["P1–P4 produção<br/>C1–C14 consulta"]
+    end
+
+    subgraph impl["duas implementações"]
+        MT["MTree<br/>octree de ponteiros"]
+        T8["t8code<br/>floresta, sem materializar árvore"]
+    end
+
+    NS --> SNAP
+    SNAP --> MT
+    SNAP --> T8
+    CT -.-> MT
+    CT -.-> T8
+
+    style T8 fill:#1e3a5f,color:#fff
+```
+
+O driver lê as 18 cláusulas **do próprio cabeçalho** e as confronta com os casos
+existentes, então cláusula sem caso não passa despercebida — é o que impede a
+suíte de crescer afirmando menos do que declara.
+
+O `t8_preenche_instantaneo` preenche o arranjo plano **direto da floresta**, sem
+construir árvore de ponteiros alguma. É esse o ponto da costura: o custo que se
+queria evitar era a tradução, e guardar a caixa em vez de centro e tamanho é o
+que a torna desnecessária.
+
 ### O que está verificado, e por qual rede
 
 ```
