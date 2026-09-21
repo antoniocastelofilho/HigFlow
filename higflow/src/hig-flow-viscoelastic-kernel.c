@@ -3,6 +3,12 @@
 //  HiG-Flow Solver Viscoelastic Kernel
 // *******************************************************************
 // *******************************************************************
+//
+// The kernel transformation of the conformation tensor: evolving a transformed
+// tensor (log or square-root) instead of the tensor itself keeps it positive-definite
+// at high Weissenberg, where the direct form loses that property and diverges.
+//
+// `hig_flow_calculate_omega` is the rotation part of the decomposition.
 
 #include "hig-flow-viscoelastic-kernel.h"
 #include "hig-flow-linear-algebra.h"

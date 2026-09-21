@@ -3,6 +3,13 @@
 //  HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Evaluating a property at an arbitrary point, and the finite-difference stencils
+// (2nd and 4th order, left and right) the discretization is built from.
+//
+// `compute_facet_value_at_point` is the bridge to HiGTree: it builds a stencil with
+// `sfd_get_stencil` and contracts it with the property.  Everything that asks for a
+// value away from a cell centre comes through here, including the VTK writer.
 
 #include "hig-flow-eval.h"
 

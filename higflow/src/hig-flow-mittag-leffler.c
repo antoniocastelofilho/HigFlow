@@ -1,6 +1,9 @@
 //*******************************************************
 // Estruture for Mittag-Leffler function
 //*******************************************************
+//
+// The Mittag-Leffler function, needed by the GPTT constitutive model: it generalizes
+// the exponential and is what makes that model's relaxation non-exponential.
 
 #include <math.h>
 #include <stdio.h>

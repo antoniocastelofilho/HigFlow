@@ -1,6 +1,8 @@
 // *******************************************************************
 //  HiG-Flow Solver - version 01/08/24
 // *******************************************************************
+//
+// Time step selection, including the CFL-type restrictions each variant adds.
 
 #include "hig-flow-timestep.h"
 

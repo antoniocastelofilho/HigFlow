@@ -1,3 +1,5 @@
+// Normal and curvature by finite differences on the volume fraction, 2D.
+// See hig-flow-vof-plic.c.
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 
 static real small = EPSMACH;

@@ -1,3 +1,4 @@
+// Interface normal by Mehta's method.  See hig-flow-vof-plic.c.
 #if DIM == 3
 #include "hig-flow-vof-finite-difference-normal-curvature_3D.h"
 #include "hig-mesh-snapshot.h"

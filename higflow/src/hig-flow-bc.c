@@ -3,6 +3,17 @@
 //  HiG-Flow Solver Boundary Condition - version 26/05/2021
 // *******************************************************************
 // *******************************************************************
+//
+// Boundary conditions: reads them from the case files and installs them on the
+// domains, one set per property (pressure, each velocity component, and whatever the
+// variant adds).
+//
+// The VALUE comes from the example, through `boundary_velocity`/`boundary_pressure`,
+// evaluated per boundary cell centre.  Nothing here checks that the profile an
+// example writes matches the FACE it is applied to -- example2d_Newt_contraction ran
+// as an expansion for exactly that reason, a parabola scaled for the narrow channel
+// imposed on the wide inlet, integrating to a net outflow through the face declared
+// as the inlet.
 
 #include "hig-flow-bc.h"
 #include <string.h>

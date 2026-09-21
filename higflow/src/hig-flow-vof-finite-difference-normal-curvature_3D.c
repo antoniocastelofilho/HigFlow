@@ -1,3 +1,5 @@
+// Normal and curvature by finite differences on the volume fraction, 3D.
+// See hig-flow-vof-plic.c.
 #if DIM == 3
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 

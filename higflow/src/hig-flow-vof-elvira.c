@@ -1,3 +1,9 @@
+// NOT COMPILED: absent from MODULES in higflow/Makefile.  Its header is included by
+// hig-flow-step-multiphase.h and by hig-flow-vof-adap-hf.c, so a call compiles and
+// fails at link.
+//
+// ELVIRA reconstruction: picks the normal from nine candidate columns.  See the
+// family header in hig-flow-vof-plic.c.
 #include "hig-flow-vof-elvira.h"
 
 real area_correction_at_get(Point delta, real area){

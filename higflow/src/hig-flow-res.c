@@ -1,3 +1,5 @@
+// Residual bookkeeping: norms per property and per time step, for the convergence
+// report.
 #include "hig-flow-res.h"
 
 // sim_residuals *residuals_global; // has to be initialized in the main program using create_sim_residuals

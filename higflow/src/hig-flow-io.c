@@ -1,6 +1,23 @@
 // *******************************************************************
 //  HiG-Flow Solver IO - version 04/05/2021
 // *******************************************************************
+//
+// Input and output: reading the case configuration, writing VTK frames, and saving
+// and restoring the solver state.  Eleven thousand lines, but only three jobs -- 18
+// `print_*` functions for VTK and 71 `load_*`/`save_*` for state, one per property
+// each variant owns, which is where the bulk comes from.
+//
+// THE VTK WRITER IS NOT A MEASUREMENT INSTRUMENT.  It interpolates velocity at cell
+// CORNERS through `compute_facet_value_at_point`, hence through the same
+// `get_stencil` as the solver.  Corners sit ON boundaries and ON block interfaces,
+// so the output exercises code paths the solution never takes, and it is
+// partition-dependent there by construction (measured: 0.56% between np=1 and np=2
+// on nodes at block interfaces, against 1e-10 measured directly on the facets).
+//
+// Consequences, both learned the hard way: comparing VTK across different numbers of
+// processes is not a valid test, and a reference recorded from VTK in a multi-block
+// domain is only valid for the decomposition that recorded it.  To compare
+// decompositions, dump `ns->dpu` per facet keyed by coordinate.  See AGENTS.md.
 
 #include "hig-flow-io.h"
 #include "hig-mesh-snapshot.h"

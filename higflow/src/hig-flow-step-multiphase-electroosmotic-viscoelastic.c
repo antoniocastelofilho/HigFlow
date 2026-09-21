@@ -1,6 +1,10 @@
 // *******************************************************************
 //  HiG-Flow Solver Step Electro-osmotic - version 12/05/2024
 // *******************************************************************
+//
+// Thin composition, not a solver of its own: advances the constitutive equation and
+// then delegates the momentum step to the multiphase-electroosmotic variant.  The
+// whole file is one function and a switch on the constitutive discretization.
 
 #include "hig-flow-step-multiphase-electroosmotic-viscoelastic.h"
 

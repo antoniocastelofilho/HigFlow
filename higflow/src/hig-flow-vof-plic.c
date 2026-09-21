@@ -1,3 +1,22 @@
+// THE VOF FAMILY.  Thirteen files that answer two questions about a two-fluid
+// interface: WHERE is it inside a cell (reconstruction, from the volume fraction and
+// a normal), and HOW does it move (advection of the fraction).  This file is the
+// core of the first: PLIC, the piecewise-linear reconstruction, called from 19 other
+// files.
+//
+// Several files are alternative methods for the same job, left side by side.  Their
+// status differs and the difference is not visible from the source tree:
+//
+//   compiled and used   plic, plic-3D, adap-hf, advection-2D, advection-3D,
+//                       finite-difference-normal-curvature{,_3D}, mehta, shirani
+//   compiled, unused    HF-3D, hf-padrao -- in MODULES, so they link, but no other
+//                       file calls them
+//   NOT COMPILED        9-cells, elvira -- absent from MODULES in higflow/Makefile.
+//                       Their headers are included (hig-flow-step-multiphase.h), so
+//                       the declarations are visible and a call would compile and
+//                       then fail at link time.
+//
+// So before building on one of these, check MODULES, not the presence of the file.
 #include "hig-flow-vof-plic.h"
 #include "hig-mesh-snapshot.h"
 

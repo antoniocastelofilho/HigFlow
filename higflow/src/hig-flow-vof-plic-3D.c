@@ -1,3 +1,5 @@
+// PLIC reconstruction in 3D: the plane that cuts the cell with the right volume.
+// See the family header in hig-flow-vof-plic.c.
 #if DIM == 3
 #include "hig-flow-vof-plic-3D.h"
 #include "hig-mesh-snapshot.h"

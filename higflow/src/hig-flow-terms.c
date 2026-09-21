@@ -1,6 +1,13 @@
 // *******************************************************************
 //  HiG-Flow Solver - version 25/01/2022
 // *******************************************************************
+//
+// The individual terms of the momentum equation -- pressure, source, tensor,
+// interfacial tension -- each reading what the computational cell prepared.
+//
+// These are SHARED by every `hig-flow-step-*` variant, which is why a defect here
+// reaches all of them at once, and why a variant that diverges from its sibling in a
+// term is usually the one that is wrong.
 #include "hig-flow-terms.h"
 // *******************************************************************
 // Navier-Stokes Equation Components

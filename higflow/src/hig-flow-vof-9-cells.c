@@ -1,3 +1,8 @@
+// NOT COMPILED: absent from MODULES in higflow/Makefile.  Its header is included by
+// hig-flow-step-multiphase.h, so a call compiles and fails at link.
+//
+// Interface reconstruction over a 3x3 neighbourhood.  See the family header in
+// hig-flow-vof-plic.c.
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 #include "hig-flow-vof-9-cells.h"
 #include "hig-flow-discret.h"

@@ -3,6 +3,10 @@
 //  HiG-Flow Solver Linear Algebra
 // *******************************************************************
 // *******************************************************************
+//
+// Small dense linear algebra on the constitutive tensors: Jacobi eigen-decomposition,
+// matrix products and transposes.  Operates on DIMxDIM blocks, not on the global
+// system -- that one lives in higtree/src/solver*.c.
 
 #include "hig-flow-linear-algebra.h"
 

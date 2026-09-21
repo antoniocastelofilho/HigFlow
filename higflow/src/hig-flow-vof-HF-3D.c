@@ -1,3 +1,7 @@
+// Height function in 3D: curvature from columns of volume fraction.
+//
+// COMPILED BUT CALLED BY NOBODY -- it is in MODULES, so it links, but no other file
+// invokes it.  See the family header in hig-flow-vof-plic.c.
 #if DIM == 3
 #include "hig-flow-vof-finite-difference-normal-curvature_3D.h"
 #include "hig-mesh-snapshot.h"

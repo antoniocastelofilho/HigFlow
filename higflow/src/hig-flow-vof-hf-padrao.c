@@ -1,3 +1,6 @@
+// The plain height-function method, horizontal and vertical columns.
+//
+// COMPILED BUT CALLED BY NOBODY.  See the family header in hig-flow-vof-plic.c.
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 #include "hig-mesh-snapshot.h"
 #include "hig-flow-vof-hf-padrao.h"

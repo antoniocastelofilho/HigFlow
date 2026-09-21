@@ -1,3 +1,4 @@
+// Interface normal by Shirani's method.  See hig-flow-vof-plic.c.
 #if DIM == 3
 //#include "hig-flow-vof-finite-difference-normal-curvature.h"
 #include "hig-mesh-snapshot.h"

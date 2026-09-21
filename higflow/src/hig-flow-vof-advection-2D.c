@@ -1,3 +1,5 @@
+// Advection of the volume fraction in 2D: moves the reconstructed interface through
+// the facet fluxes, direction by direction.  See hig-flow-vof-plic.c.
 #if DIM == 2
 // *******************************************************************
 // *******************************************************************

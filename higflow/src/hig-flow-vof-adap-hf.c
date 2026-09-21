@@ -1,3 +1,5 @@
+// Adaptive height function: falls back to another estimate where the column is too
+// short for the height function to be reliable.  See hig-flow-vof-plic.c.
 #include "hig-flow-vof-finite-difference-normal-curvature.h"
 #include "hig-mesh-snapshot.h"
 #include "hig-flow-vof-adap-hf.h"

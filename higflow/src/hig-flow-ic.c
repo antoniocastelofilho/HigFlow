@@ -1,6 +1,14 @@
 // *******************************************************************
 //  HiG-Flow Solver Initial Condition - version 11/10/2021
 // *******************************************************************
+//
+// Initial conditions and domain construction: reads the mesh, partitions it, creates
+// the distributed properties and fills them with the initial state.
+//
+// `higflow_initialize_domain_yaml` is the current entry point; `higflow_initialize_domain`
+// is the legacy positional one, still used by cases like example2d_BMP.  Both go
+// through `higflow_partition_domain` -- see hig-flow-kernel.c for the three mesh
+// sources.
 #include "hig-flow-ic.h"
 #include "hig-mesh-snapshot.h"
 #include <libfyaml.h>
