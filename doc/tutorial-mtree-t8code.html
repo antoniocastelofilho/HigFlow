@@ -156,6 +156,19 @@
 
   <h2>1. Construir</h2>
 
+  <p>Há um instalador na raiz que faz tudo o que esta seção descreve — inclusive
+  construir o t8code — e confere as dependências antes de tocar em qualquer
+  coisa:</p>
+
+  <pre>./instalar.sh                 <span class="c"># DIM=2, com t8code</span>
+./instalar.sh --dim 3         <span class="c"># 3D</span>
+./instalar.sh --sem-t8code    <span class="c"># só o caminho AMR</span>
+./instalar.sh --so-conferir   <span class="c"># só diz o que falta, não constrói</span></pre>
+
+  <p>Ele não instala PETSc nem pacotes do sistema: confere e diz o que falta, com
+  o comando de cada um. O resto desta seção é o mesmo trabalho na mão, para quem
+  precisar de controle fino.</p>
+
   <p>O ambiente sai do <code>varsrc</code>, que precisa ser carregado
   <strong>da raiz do repositório</strong>:</p>
 
