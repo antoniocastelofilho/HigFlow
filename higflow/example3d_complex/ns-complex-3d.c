@@ -17,6 +17,10 @@
 
 #include "ns-complex-3d.h"
 
+// A fonte da malha, escolhida em tempo de execucao por HIGFLOW_MALHA.  So' existe
+// quando o exemplo e' construido com T8CODE=<prefixo>; sem isso nada muda.
+extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
+
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
@@ -2365,6 +2369,12 @@ int main (int argc, char *argv[]) {
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
+    // O EXEMPLO ESCOLHE A FONTE DA MALHA: uma linha, e so' com T8CODE no build.
+    // Os 33 blocos deste caso sao todos uniformes (numlevels=1, numpatches=1),
+    // que e' o que a fonte exige.  Sem HIGFLOW_MALHA no ambiente nada muda.
+#ifdef HIGFLOW_COM_T8CODE
+    malha_t8_instala(ns, myrank);
+#endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
     // Initialize the boundaries
     print0f("=+=+=+= Load Bondary Condtions =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");

@@ -152,8 +152,19 @@ CASES = [
     Case("example3d_lid_driven",   "ns-example-3d",  "example-3d.load", 3,
          max_np=1, max_np_reason="malha 10x10x10 grosseira demais para dividir"),
     # 162000 cells over 33 blocks; a single step takes minutes.  Opt-in.
+    # O unico caso 3D que passa por fonte do t8code, e ate' aqui as fontes so'
+    # eram verificadas contra referencia em 2D.  Os 33 blocos sao todos uniformes
+    # (numlevels=1, numpatches=1), que e' o que a fonte exige.
+    #
+    # SO' `t8code`, e o motivo e' estrutural, nao um defeito: das tres fontes,
+    # so' `malha_t8_uniforme` distribui varios blocos (`for i = rank; i < numhigs;
+    # i += np`).  `t8code-rank` e `t8code-particao` recusam numhigs != 1 -- e
+    # recusam com abort, de proposito, porque seguir daria vizinhanca errada, que
+    # produz resultado plausivel e errado.  Medido: com t8code-particao este caso
+    # aborta em "particao_t8: 33 blocos; esta fonte cobre um so'".
     Case("example3d_complex",      "ns-complex-3d",  "example-3d.load", 3,
-         numsteps=2, dtp=0.001, slow=True),
+         numsteps=2, dtp=0.001, slow=True,
+         t8_fontes=("t8code",)),
     # Diverges to NaN at step 3 with the integral viscoelastic solver.  Listed
     # so the suite reports it as known-broken instead of silently omitting it.
     Case("example2d_KBKZ",         "ns-example",     "example-2d.load", 2,
