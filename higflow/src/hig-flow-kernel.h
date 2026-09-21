@@ -1203,6 +1203,17 @@ typedef struct sim_residuals sim_residuals;
 //! nenhum trabalho novo.  Ver `higflow_set_fonte_de_malha`.
 typedef int (*higflow_fonte_de_malha)(void *ctx, hig_cell **arvores, int max);
 
+//! \brief De onde vem a PARTICAO.
+//!
+//! A fonte de malha entrega arvores para o `lbal` reparticionar.  Esta entrega o
+//! resultado JA' PARTICIONADO: preenche `sd` com as arvores locais e as de
+//! franja, e `pg` com o grafo de vizinhanca.  Nao ha' `lb_calc_partition`.
+//!
+//! Devolve 0 se nao conseguir -- e o solver ABORTA, porque seguir com dominio de
+//! vizinhanca errada da' resultado plausivel e errado.
+typedef int (*higflow_fonte_de_particao)(void *ctx, sim_domain *sd,
+                                         partition_graph *pg);
+
 typedef struct higflow_solver {
     // Parameters
     higflow_parameters         par;
@@ -1265,6 +1276,10 @@ typedef struct higflow_solver {
     //! \brief Fonte da malha.  NULL = ler da informacao AMR, como sempre.
     higflow_fonte_de_malha fonte_de_malha;
     void                  *fonte_de_malha_ctx;
+
+    //! \brief Fonte da PARTICAO.  NULL = `lb_calc_partition`, como sempre.
+    higflow_fonte_de_particao fonte_de_particao;
+    void                     *fonte_de_particao_ctx;
 } higflow_solver;
 
 // *******************************************************************
@@ -1534,6 +1549,10 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 //! \brief Instala a fonte de malha.  `f == NULL` volta ao caminho AMR.
 void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
                                 void *ctx);
+
+//! \brief Instala a fonte de particao.  `f == NULL` volta ao `lbal`.
+void higflow_set_fonte_de_particao(higflow_solver *ns,
+                                   higflow_fonte_de_particao f, void *ctx);
 
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, int ntasks, int myrank);
 

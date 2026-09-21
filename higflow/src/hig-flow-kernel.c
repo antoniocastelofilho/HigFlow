@@ -17,6 +17,8 @@ higflow_solver *higflow_create (void) {
     // gancho de fonte de malha com lixo dispararia sozinho.
     ns->fonte_de_malha = NULL;
     ns->fonte_de_malha_ctx = NULL;
+    ns->fonte_de_particao = NULL;
+    ns->fonte_de_particao_ctx = NULL;
     // A struct vem de malloc, que nao zera: sem isto o ponteiro comeca indefinido.
     ns->problem = NULL;
     return ns;
@@ -1354,6 +1356,71 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns) {
 }
 
 // Partition table initialize
+// A cadeia de dominios que recebem CADA arvore.  Estava embutida no laco do
+// `lbal`; virou funcao porque o caminho do t8code precisa da mesma cadeia, e
+// duplicar um if-chain de doze dominios e' como o cc.<campo> se perde.
+//
+// `incluir_sdp` existe porque o construtor do t8code ja' preencheu o `sdp` -- e'
+// nele que ele monta a franja e o grafo.
+static void _adiciona_aos_dominios(higflow_solver *ns, hig_cell *root, int incluir_sdp)
+{
+    if (incluir_sdp) sd_add_higtree(ns->sdp, root);
+        // Add higtree for SDs
+          sd_add_higtree(ns->sdF, root);
+        if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
+      sd_add_higtree(ns->ed.sdED, root);
+        }
+        // Always add sdED for MULTIPHASE (needed by 3D VOF)
+        if (ns->contr.flowtype == MULTIPHASE) {
+      sd_add_higtree(ns->ed.sdED, root);
+        }
+        if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+      sd_add_higtree(ns->ed.eo.sdEOphi, root);
+      sd_add_higtree(ns->ed.eo.sdEOpsi, root);
+      sd_add_higtree(ns->ed.eo.sdEOnplus, root);
+      sd_add_higtree(ns->ed.eo.sdEOnminus, root);
+        }
+
+        //Viscoelastic flow with variable viscosity
+        if ((ns->ed.nn_contr.rheotype == PLM) || (ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
+      sd_add_higtree(ns->ed.vevv.sdVisc, root);
+        }
+        //Viscoelastic flow with shear-banding
+        if ((ns->ed.nn_contr.rheotype == VCM)) {
+      sd_add_higtree(ns->ed.vesb.sdSBnA, root);
+      sd_add_higtree(ns->ed.vesb.sdSBnB, root);
+        }
+        //Only for Particle migration in shear thickening suspensions
+        if ((ns->contr.flowtype == SUSPENSIONS)) {
+      sd_add_higtree(ns->ed.stsp.sdphi, root);
+        }
+}
+
+static void _adiciona_franja_aos_dominios(higflow_solver *ns, hig_cell *root)
+{
+    // A franja vai para os MESMOS dominios; quem a consome e' o estencil, e ele
+    // existe para todos eles.
+    sd_add_fringe_higtree(ns->sdF, root);
+    if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE)
+        sd_add_fringe_higtree(ns->ed.sdED, root);
+    if (ns->contr.flowtype == MULTIPHASE)
+        sd_add_fringe_higtree(ns->ed.sdED, root);
+    if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
+        sd_add_fringe_higtree(ns->ed.eo.sdEOphi, root);
+        sd_add_fringe_higtree(ns->ed.eo.sdEOpsi, root);
+        sd_add_fringe_higtree(ns->ed.eo.sdEOnplus, root);
+        sd_add_fringe_higtree(ns->ed.eo.sdEOnminus, root);
+    }
+    if ((ns->ed.nn_contr.rheotype == PLM) || (ns->ed.nn_contr.rheotype == THIXOTROPIC))
+        sd_add_fringe_higtree(ns->ed.vevv.sdVisc, root);
+    if ((ns->ed.nn_contr.rheotype == VCM)) {
+        sd_add_fringe_higtree(ns->ed.vesb.sdSBnA, root);
+        sd_add_fringe_higtree(ns->ed.vesb.sdSBnB, root);
+    }
+    if ((ns->contr.flowtype == SUSPENSIONS))
+        sd_add_fringe_higtree(ns->ed.stsp.sdphi, root);
+}
+
 void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
                                 void *ctx)
 {
@@ -1361,11 +1428,37 @@ void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
     ns->fonte_de_malha_ctx = ctx;
 }
 
+void higflow_set_fonte_de_particao(higflow_solver *ns,
+                                   higflow_fonte_de_particao f, void *ctx)
+{
+    ns->fonte_de_particao = f;
+    ns->fonte_de_particao_ctx = ctx;
+}
+
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, int ntasks, int myrank) {
     // Setting the fringe size of the sub-domain
     // The fringe is a buffer around the cells of a given node
     pg_set_fringe_size(pg, 5);
     /* Partitioning the grid from AMR information */
+    // A FONTE DE PARTICAO entrega o resultado ja' repartido: nao ha' `lbal`.
+    if(ns->fonte_de_particao != NULL) {
+        if(!ns->fonte_de_particao(ns->fonte_de_particao_ctx, ns->sdp, pg)) {
+            fprintf(stderr, "higflow_partition_domain: a fonte de particao "
+                            "falhou.  Seguir daqui daria dominio com vizinhanca "
+                            "errada, que produz resultado plausivel e errado.\n");
+            abort();
+        }
+        // O `sdp` ja' foi preenchido pela fonte; os DEMAIS dominios recebem as
+        // mesmas arvores.
+        const int nloc = (int) sd_get_num_local_higtrees(ns->sdp);
+        for(int h = 0; h < nloc; h++)
+            _adiciona_aos_dominios(ns, sd_get_higtree(ns->sdp, h), 0);
+        const unsigned nfr = sd_get_num_fringe_higtrees(ns->sdp);
+        for(unsigned k = 0; k < nfr; k++)
+            _adiciona_franja_aos_dominios(ns, sd_get_fringe_higtree(ns->sdp, k));
+        return;
+    }
+
     load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
     if(ns->fonte_de_malha != NULL) {
         // A FONTE CONTRIBUI AS ARVORES DESTE RANK.  O `lbal` ja' espera entrada
@@ -1385,36 +1478,7 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
     for(int h = 0; h < numhigs; h++) {
         /* Creating the distributed HigTree data structure */
         hig_cell *root = lb_get_local_tree(lb, h, NULL);
-        // Add higtree for SDs
-        sd_add_higtree(ns->sdp, root);
-        sd_add_higtree(ns->sdF, root);
-        if (ns->contr.flowtype != NEWTONIAN && ns->contr.flowtype != MULTIPHASE) {
-            sd_add_higtree(ns->ed.sdED, root);
-        }
-        // Always add sdED for MULTIPHASE (needed by 3D VOF)
-        if (ns->contr.flowtype == MULTIPHASE) {
-            sd_add_higtree(ns->ed.sdED, root);
-        }
-        if (ns->contr.eoflow == true || (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.eoflow_either == true)) {
-            sd_add_higtree(ns->ed.eo.sdEOphi, root);
-            sd_add_higtree(ns->ed.eo.sdEOpsi, root);
-            sd_add_higtree(ns->ed.eo.sdEOnplus, root);
-            sd_add_higtree(ns->ed.eo.sdEOnminus, root);
-        }
-
-        //Viscoelastic flow with variable viscosity
-        if ((ns->ed.nn_contr.rheotype == PLM) || (ns->ed.nn_contr.rheotype == THIXOTROPIC)) {
-            sd_add_higtree(ns->ed.vevv.sdVisc, root);
-        }
-        //Viscoelastic flow with shear-banding
-        if ((ns->ed.nn_contr.rheotype == VCM)) {
-            sd_add_higtree(ns->ed.vesb.sdSBnA, root);
-            sd_add_higtree(ns->ed.vesb.sdSBnB, root);
-        }
-        //Only for Particle migration in shear thickening suspensions
-        if ((ns->contr.flowtype == SUSPENSIONS)) {
-            sd_add_higtree(ns->ed.stsp.sdphi, root);
-        }
+          _adiciona_aos_dominios(ns, root, 1);
     }
     lb_destroy(lb);
 }

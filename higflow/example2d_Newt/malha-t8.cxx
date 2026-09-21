@@ -27,6 +27,7 @@
 #include "higtree.h"
 #include "coord.h"
 #include "t8-mesh-rank.h"
+#include "t8-particao-grafo.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -164,5 +165,31 @@ malha_t8_por_rank (void *ctx, hig_cell **arvores, int max)
   p.n_locais = 0;
   t8_producao_rank_destroi (&p);
   return n;
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// PARTICAO DO T8CODE: nao ha' `lb_calc_partition`.
+//
+// As duas fontes anteriores entregam arvores para o `lbal` reparticionar.  Esta
+// entrega o resultado JA' PARTICIONADO -- dominio com franja e grafo de
+// vizinhanca --, com a particao que a curva de preenchimento decidiu.
+//
+// LIMITE: malha uniforme, que e' a deste exemplo.  Com refino, a faixa do
+// remetente e a arvore do receptor precisariam ter a mesma subdivisao interna.
+extern "C" int
+particao_t8_do_exemplo (void *ctx, sim_domain *sd, partition_graph *pg)
+{
+  (void) ctx;
+#if DIM != 2
+  fprintf (stderr, "particao_t8_do_exemplo: so' existe em DIM=2\n");
+  return 0;
+#else
+  Point lo, hi;
+  lo[0] = LOX; lo[1] = LOY;
+  hi[0] = HIX; hi[1] = HIY;
+  int nb[DIM];
+  nb[0] = NCX; nb[1] = NCY;
+  return t8_monta_dominio_particionado (lo, hi, nb, sd, pg);
 #endif
 }

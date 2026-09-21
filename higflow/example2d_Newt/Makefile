@@ -48,7 +48,7 @@ ifdef T8CODE
 CFLAGS  += -DHIGFLOW_COM_T8CODE -I$(T8CODE)/include
 LDFLAGS += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LIBS    += -lt8 -lp4est -lsc
-T8OBJ    = malha-t8.o $(HIGTREE_DIR)/tests/t8code/t8-mesh-rank.o $(HIGTREE_DIR)/tests/t8code/t8-forest-cache.o
+T8OBJ    = malha-t8.o $(HIGTREE_DIR)/tests/t8code/t8-mesh-rank.o $(HIGTREE_DIR)/tests/t8code/t8-forest-cache.o $(HIGTREE_DIR)/tests/t8code/t8-particao-grafo.o
 T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I$(HIGTREE_DIR)/tests/t8code \
            -DT8_ENABLE_MPI=1 -DT8_ENABLE_MPIIO=1 -I$(T8CODE)/include \
            $(shell pkg-config --cflags glib-2.0 hdf5) $(PETSC_CC_INCLUDES)

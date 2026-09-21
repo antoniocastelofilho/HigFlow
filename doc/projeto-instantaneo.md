@@ -399,6 +399,38 @@ Um teste só em `np=2` não pegaria esse defeito — e nenhum teste de *contagem
 do receptor precisariam ter a mesma subdivisão interna, e isso exige trocar
 estrutura, não só índices.
 
+## 4f. Malha e partição do t8code, no exemplo
+
+`HIGFLOW_MALHA=t8code-particao`: o solver não chama `lb_calc_partition`. A malha
+e a partição são do t8code de ponta a ponta.
+
+O gancho novo, `higflow_set_fonte_de_particao`, difere do de malha: aquele
+entrega **árvores** para o `lbal` reparticionar; este entrega o resultado **já
+particionado** — domínio com franja e grafo de vizinhança.
+
+```
+np = 1, 2, 3 · referência a 0,10% · PASS
+```
+
+**Falhar aqui aborta**, e é deliberado: seguir com domínio de vizinhança errada
+dá resultado plausível e errado. Conferido por sabotagem — com a fonte recusando,
+a execução não gera VTK nenhum.
+
+*Uma coisa que a integração forçou e melhorou o código:* a cadeia de doze
+domínios que recebem cada árvore estava embutida no laço do `lbal`. Virou função
+(`_adiciona_aos_dominios`), porque o caminho do t8code precisa da mesma cadeia —
+e duplicar um `if`-chain de doze domínios é como os campos do `ns->cc` se
+perderam.
+
+As quatro fontes, e o que cada uma exercita:
+
+```
+(omissão)          AMR de arquivo, lbal reparticiona
+t8code             malha do t8code em série, lbal reparticiona
+t8code-rank        malha por rank, lbal reparticiona
+t8code-particao    malha e partição do t8code, sem lbal
+```
+
 ## 6. O que é decisão sua
 
 **D1 — Onde o instantâneo vive, e quando nasce.** Recomendo no domínio,
