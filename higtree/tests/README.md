@@ -139,6 +139,16 @@ dependentes de partição por construção. Ver a seção de VTK no `AGENTS.md`.
 exercita o t8code em malha adaptada não graduada — e é justamente o não graduado
 que motiva o interpolador por mínimos quadrados. *(medido pela outra frente)*
 
+**Das três fontes de malha do HiGFlow, só uma tem verificação 3D.** Isto se afirma
+na suíte de exemplos (`ci/run_suite.py`), não aqui, mas pertence ao mapa porque é
+um limite do t8code. A fonte `t8code` passou a ser conferida contra referência em
+3D pelo `example3d_complex` (33 blocos, 162 mil células). As fontes `t8code-rank` e
+`t8code-particao` seguem só em 2D, e **não por falta de tentativa**: ambas recusam
+`numhigs != 1` — só `malha_t8_uniforme` distribui vários blocos — e não existe
+exemplo 3D de bloco único na suíte. A recusa é por `abort`, de propósito: seguir
+daria domínio com vizinhança errada e números plausíveis. *(medido pela outra
+frente)*
+
 **A divergência de classificação na interface entre árvores de `cmesh` está
 registrada, não resolvida.** O caso documenta que os dois backends discordam; ele
 não afirma qual está certo.
