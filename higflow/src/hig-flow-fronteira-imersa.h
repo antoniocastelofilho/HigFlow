@@ -59,6 +59,22 @@ fi_corpo *fi_cria_curva(sim_facet_domain *sfd, const Point *vertices, int nvert,
 fi_corpo *fi_cria_circulo(sim_facet_domain *sfd, const Point centro, real raio,
                           int nlados, real h);
 
+#if DIM == 3
+//! Em 3D o corpo e' uma SUPERFICIE, nao uma curva.  Esta funcao extruda a curva
+//! fechada em z, colocando marcadores nos centros dos retalhos e o peso igual a'
+//! AREA de cada um -- a soma da a area lateral exata.
+//!
+//! Nao exige topologia, e isso e' proposital: corpo RIGIDO tem peso fixo na
+//! criacao.  Topologia (o `DMPlex`) so' faz falta quando for preciso CURVATURA,
+//! isto e', no caso de interface entre fluidos.  Ver a secao 8 do projeto.
+fi_corpo *fi_cria_extrusao(sim_facet_domain *sfd, const Point *vertices, int nvert,
+                           real z0, real z1, real h);
+
+//! Conveniencia: cilindro de eixo z, entre `z0` e `z1`.
+fi_corpo *fi_cria_cilindro(sim_facet_domain *sfd, real cx, real cy, real raio,
+                           int nlados, real z0, real z1, real h);
+#endif
+
 void fi_destroi(fi_corpo *c);
 
 //! Numero de marcadores DESTE rank.
@@ -94,6 +110,30 @@ void fi_forca_corpo_rigido(fi_corpo *c, real dt);
 //! PetscSFReduce -- o dp_sync nao serve, ele sobrescreve.
 void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
                 distributed_property *dpF[DIM]);
+
+//! Grava a malha lagrangeana em VTK: posicoes, forca, velocidade e peso.
+//! UM ARQUIVO POR RANK -- `<prefixo>_lag_<rank>-<quadro>.vtk` -- porque os
+//! marcadores sao distribuidos por posse euleriana.
+//!
+//! Sem isto o corpo e' INVISIVEL: o VTK do solver grava so' a malha euleriana,
+//! e nao ha' como conferir se os marcadores estao onde se pensa que estao.
+void fi_escreve_vtk(const fi_corpo *c, const char *prefixo, int quadro);
+
+//! Quantos pontos de suporte foram descartados por id de faceta inutilizavel
+//! (`sfd_get_local_id` devolve -1 para a face marcada por `sfd_adjust_facet_ids`).
+//! DEVE SER ZERO.  Diferente de zero significa nucleo somando menos que 1 em
+//! algum marcador, e forca menor ali -- corpo levemente poroso, que se le' como
+//! defeito de malha.  Acumulado no processo, nao reduzido entre ranks.
+long fi_suporte_perdidos(void);
+
+//! A decomposicao de `fi_suporte_perdidos`, que e' o que diz o QUE consertar:
+//!   espelho     id negativo pela convencao de `sfd_adjust_facet_ids` -- o
+//!               canonico e' o simetrico, e ha' conserto
+//!   mapa        a faceta existe mas nao esta' no mapeador deste dominio
+//!   sem_faceta  nao ha' faceta naquele ponto (suporte saindo do dominio)
+long fi_perdidos_espelho(void);
+long fi_perdidos_mapa(void);
+long fi_perdidos_sem_faceta(void);
 
 //! Maior |u| entre TODOS os marcadores, de todos os ranks -- o RESIDUO DE NAO
 //! ESCORREGAMENTO.  E' o primeiro oraculo do metodo, e o mais barato.

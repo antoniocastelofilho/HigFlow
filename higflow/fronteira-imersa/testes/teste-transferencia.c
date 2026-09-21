@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 
     // Campo de velocidade CONSTANTE: u = (3, -7).  Constante e' o que torna a
     // afirmacao 2 uma particao da unidade e nao uma coincidencia.
-    const real U[2] = {3.0, -7.0};
+    const real U[3] = {3.0, -7.0, 2.0};
     for (int dim = 0; dim < DIM; dim++) {
         const int nloc = dpu[dim]->pdata->local_count;
         for (int lid = 0; lid < nloc; lid++) {
@@ -104,11 +104,22 @@ int main(int argc, char *argv[])
     }
 
     // Quadrado de lado 0,5, longe da borda do dominio para o suporte caber.
+#if DIM == 2
     Point v[4] = {{0.25,0.25},{0.75,0.25},{0.75,0.75},{0.25,0.75}};
     fi_corpo *corpo = fi_cria_curva(sfd[0], (const Point *) v, 4, h);
+    const real medida = 2.0;                       // perimetro
+    const char *nome_medida = "1. peso total = perimetro do quadrado";
+#else
+    // Em 3D o corpo e' SUPERFICIE: o mesmo quadrado extrudado em z de 0,25 a
+    // 0,75.  Area lateral = perimetro 2,0 x altura 0,5 = 1,0, exata -- e e' por
+    // isso que a caixa serve melhor que o cilindro para a primeira afirmacao.
+    Point v[4] = {{0.25,0.25,0.25},{0.75,0.25,0.25},{0.75,0.75,0.25},{0.25,0.75,0.25}};
+    fi_corpo *corpo = fi_cria_extrusao(sfd[0], (const Point *) v, 4, 0.25, 0.75, h);
+    const real medida = 1.0;                       // area lateral
+    const char *nome_medida = "1. peso total = area lateral da caixa";
+#endif
 
-    checa(rank, "1. peso total = perimetro do quadrado",
-          fi_peso_total(corpo), 2.0, 1e-12);
+    checa(rank, nome_medida, fi_peso_total(corpo), medida, 1e-12);
 
     fi_interpola(corpo, sfd, dpu);
 
@@ -124,11 +135,11 @@ int main(int argc, char *argv[])
         // se todo marcador leu exatamente U, o total e' U * perimetro * h.
         // O fator h nao e' arbitrario: e' o VOLUME do marcador, e foi ele que
         // faltava quando a forca saia 1/h vezes grande demais.
-        real hvol = 1.0;
-        for (int d = 0; d < DIM - 1; d++) hvol *= h;
+        // codimensao 1 nos dois casos: dV = medida * h^1, e NAO h^(DIM-1)
+        const real hvol = h;
         for (int d = 0; d < DIM; d++) pior[d] = tot[d];
-        checa(rank, "2a. interpolou u[0] constante (x perimetro x h)", pior[0], U[0]*2.0*hvol, 1e-10);
-        checa(rank, "2b. interpolou u[1] constante (x perimetro x h)", pior[1], U[1]*2.0*hvol, 1e-10);
+        checa(rank, "2a. interpolou u[0] constante (x medida x h)", pior[0], U[0]*medida*hvol, 1e-10);
+        checa(rank, "2b. interpolou u[1] constante (x medida x h)", pior[1], U[1]*medida*hvol, 1e-10);
     }
 
     // Afirmacao 3: forca direta com dt, espalhar, e conferir a integral.

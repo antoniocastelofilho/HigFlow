@@ -14,8 +14,27 @@
 struct fi_corpo {
     DM       enxame;      // DMSwarm: posicao, peso, velocidade, forca
     real     h;           // espacamento euleriano (malha uniforme)
+    int      codim;       // codimensao do corpo -- ver _volume_marcador
     MPI_Comm comm;
 };
+
+// O VOLUME DE UM MARCADOR e' `peso * h^codim`, e o expoente e' a CODIMENSAO do
+// corpo, nao a dimensao do espaco.
+//
+//   curva em 2D      peso = comprimento, codim 1  ->  dV = ds * h
+//   superficie em 3D peso = area,        codim 1  ->  dV = dA * h
+//   curva em 3D      peso = comprimento, codim 2  ->  dV = ds * h^2
+//
+// Em 2D codimensao e DIM-1 coincidem, e por isso `h^(DIM-1)` passou nos testes.
+// Em 3D daria h^2 para uma superficie: forca 1/h vezes pequena demais, e o
+// sintoma seria um corpo POROSO -- o fluido atravessando devagar -- que se le'
+// como "malha grosseira" em vez de como erro.
+static real _volume_marcador(const fi_corpo *c, real peso)
+{
+    real v = peso;
+    for (int i = 0; i < c->codim; i++) v *= c->h;
+    return v;
+}
 
 // ------------------------------------------------------------------ o nucleo
 
@@ -52,14 +71,12 @@ static int _possui(sim_facet_domain *sfd, const Point x)
 
 // ------------------------------------------------------------ construcao
 
-fi_corpo *fi_cria_curva(sim_facet_domain *sfd, const Point *vertices, int nvert,
-                        real h)
+// Comum aos geradores: todo rank produz a MESMA lista de candidatos -- a
+// geometria e' analitica e pequena, entao isso evita comunicacao -- e cada um
+// fica com os que possui.
+static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
+                                const Point *pts, const real *pesos, int ncand)
 {
-    if (nvert < 3 || h <= 0.0) {
-        fprintf(stderr, "fi_cria_curva: curva com %d vertices e h=%g\n", nvert, h);
-        abort();
-    }
-
     // O PETSc e' inicializado PREGUICOSAMENTE pela HiGTree, ao criar um solver
     // (utils.c).  Este modulo usa PETSc sem solver nenhum, entao a inicializacao
     // pode nao ter acontecido -- e o sintoma e' um erro em MPI_Comm_get_attr,
@@ -69,8 +86,9 @@ fi_corpo *fi_cria_curva(sim_facet_domain *sfd, const Point *vertices, int nvert,
     _try_initialize_petsc();
 
     fi_corpo *c = (fi_corpo *) malloc(sizeof *c);
-    c->h    = h;
-    c->comm = MPI_COMM_WORLD;
+    c->h     = h;
+    c->codim = codim;
+    c->comm  = MPI_COMM_WORLD;
 
     PetscCallAbort(c->comm, DMCreate(c->comm, &c->enxame));
     PetscCallAbort(c->comm, DMSetType(c->enxame, DMSWARM));
@@ -82,72 +100,141 @@ fi_corpo *fi_cria_curva(sim_facet_domain *sfd, const Point *vertices, int nvert,
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "forca",      DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmFinalizeFieldRegister(c->enxame));
 
-    // Primeira passada: contar os marcadores DESTE rank.  Todo rank percorre a
-    // curva inteira -- ela e' pequena e analitica, e assim a subdivisao e'
-    // identica em todos, sem comunicacao.
-    int esperados = 0, meus = 0;
-    for (int passada = 0; passada < 2; passada++) {
-        PetscReal *pos = NULL, *peso = NULL;
-        if (passada == 1) {
-            PetscCallAbort(c->comm, DMSwarmSetLocalSizes(c->enxame, meus, 4));
-            PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
-            PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
-            meus = 0;
-        }
-        esperados = 0;
+    int meus = 0;
+    for (int i = 0; i < ncand; i++) if (_possui(sfd, pts[i])) meus++;
 
-        for (int v = 0; v < nvert; v++) {
-            const real *a = vertices[v];
-            const real *b = vertices[(v + 1) % nvert];   // fecha sozinha
-            real comp = 0.0;
-            for (int d = 0; d < DIM; d++) comp += (b[d] - a[d]) * (b[d] - a[d]);
-            comp = sqrt(comp);
-            if (comp <= 0.0) continue;
-
-            int nsub = (int) (comp / h + 0.5);
-            if (nsub < 1) nsub = 1;
-            const real ds = comp / nsub;
-
-            for (int s = 0; s < nsub; s++) {
-                // CENTRO do subsegmento, nao o vertice -- ver o .h.
-                const real t = (s + 0.5) / nsub;
-                Point x;
-                for (int d = 0; d < DIM; d++) x[d] = a[d] + t * (b[d] - a[d]);
-                esperados++;
-                if (!_possui(sfd, x)) continue;
-                if (passada == 1) {
-                    for (int d = 0; d < DIM; d++) pos[DIM*meus + d] = x[d];
-                    peso[meus] = ds;
-                }
-                meus++;
-            }
-        }
-
-        if (passada == 1) {
-            PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
-            PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
-        }
+    PetscCallAbort(c->comm, DMSwarmSetLocalSizes(c->enxame, meus, 4));
+    PetscReal *pos = NULL, *peso = NULL;
+    PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
+    PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
+    int k = 0;
+    for (int i = 0; i < ncand; i++) {
+        if (!_possui(sfd, pts[i])) continue;
+        for (int d = 0; d < DIM; d++) pos[DIM*k + d] = pts[i][d];
+        peso[k] = pesos[i];
+        k++;
     }
+    PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
+    PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
 
     // Cada marcador tem de ser reivindicado por EXATAMENTE um rank.  Marcador
     // sobre a face entre celulas de ranks diferentes e' o caso que quebra isso,
     // e seguir daria forca errada sem sintoma visivel.
     int soma = 0;
     MPI_Allreduce(&meus, &soma, 1, MPI_INT, MPI_SUM, c->comm);
-    if (soma != esperados) {
+    if (soma != ncand) {
         int rank; MPI_Comm_rank(c->comm, &rank);
         if (rank == 0)
             fprintf(stderr,
-                "fi_cria_curva: %d marcadores no total, mas os ranks reivindicaram %d.  "
+                "fronteira imersa: %d marcadores no total, mas os ranks reivindicaram %d.  "
                 "Marcador sobre fronteira de particao reivindicado por dois ranks (ou por "
                 "nenhum).  Seguir daria forca errada sem sintoma visivel.\n",
-                esperados, soma);
+                ncand, soma);
         MPI_Barrier(c->comm);
         abort();
     }
-
     return c;
 }
+
+// Percorre a curva fechada e emite (ponto, peso) nos CENTROS dos subsegmentos.
+// Devolve quantos; com `pts`/`pesos` nulos so' conta.
+static int _percorre_curva(const Point *v, int nvert, real h,
+                           Point *pts, real *pesos)
+{
+    int n = 0;
+    for (int i = 0; i < nvert; i++) {
+        const real *a = v[i];
+        const real *b = v[(i + 1) % nvert];        // fecha sozinha
+        real comp = 0.0;
+        for (int d = 0; d < DIM; d++) comp += (b[d] - a[d]) * (b[d] - a[d]);
+        comp = sqrt(comp);
+        if (comp <= 0.0) continue;
+        int nsub = (int) (comp / h + 0.5);
+        if (nsub < 1) nsub = 1;
+        const real ds = comp / nsub;
+        for (int s = 0; s < nsub; s++) {
+            if (pts != NULL) {
+                const real t = (s + 0.5) / nsub;
+                for (int d = 0; d < DIM; d++) pts[n][d] = a[d] + t * (b[d] - a[d]);
+                pesos[n] = ds;
+            }
+            n++;
+        }
+    }
+    return n;
+}
+
+fi_corpo *fi_cria_curva(sim_facet_domain *sfd, const Point *vertices, int nvert,
+                        real h)
+{
+    if (nvert < 3 || h <= 0.0) {
+        fprintf(stderr, "fi_cria_curva: curva com %d vertices e h=%g\n", nvert, h);
+        abort();
+    }
+    const int n = _percorre_curva(vertices, nvert, h, NULL, NULL);
+    Point *pts  = (Point *) malloc(n * sizeof *pts);
+    real  *peso = (real  *) malloc(n * sizeof *peso);
+    _percorre_curva(vertices, nvert, h, pts, peso);
+    fi_corpo *c = _de_candidatos(sfd, h, 1, pts, peso, n);   // curva em 2D: codim 1
+    free(pts); free(peso);
+    return c;
+}
+
+#if DIM == 3
+fi_corpo *fi_cria_extrusao(sim_facet_domain *sfd, const Point *vertices, int nvert,
+                           real z0, real z1, real h)
+{
+    if (nvert < 3 || h <= 0.0 || !(z1 > z0)) {
+        fprintf(stderr, "fi_cria_extrusao: %d vertices, h=%g, z de %g a %g\n",
+                nvert, h, z0, z1);
+        abort();
+    }
+    const int nc = _percorre_curva(vertices, nvert, h, NULL, NULL);
+    Point *curva = (Point *) malloc(nc * sizeof *curva);
+    real  *dscur = (real  *) malloc(nc * sizeof *dscur);
+    _percorre_curva(vertices, nvert, h, curva, dscur);
+
+    // Em z, os marcadores ficam nos CENTROS dos intervalos, pelo mesmo motivo
+    // que na curva: centro nao e' compartilhado entre intervalos vizinhos, e a
+    // soma dos pesos da a area exata.
+    int nz = (int) ((z1 - z0) / h + 0.5);
+    if (nz < 1) nz = 1;
+    const real dz = (z1 - z0) / nz;
+
+    const int n = nc * nz;
+    Point *pts  = (Point *) malloc(n * sizeof *pts);
+    real  *peso = (real  *) malloc(n * sizeof *peso);
+    int k = 0;
+    for (int i = 0; i < nc; i++)
+        for (int j = 0; j < nz; j++) {
+            pts[k][0] = curva[i][0];
+            pts[k][1] = curva[i][1];
+            pts[k][2] = z0 + (j + 0.5) * dz;
+            peso[k]   = dscur[i] * dz;          // AREA do retalho
+            k++;
+        }
+
+    // Superficie em 3D: codimensao 1, igual a' curva em 2D.  NAO e' DIM-1.
+    fi_corpo *c = _de_candidatos(sfd, h, 1, pts, peso, n);
+    free(curva); free(dscur); free(pts); free(peso);
+    return c;
+}
+
+fi_corpo *fi_cria_cilindro(sim_facet_domain *sfd, real cx, real cy, real raio,
+                           int nlados, real z0, real z1, real h)
+{
+    Point *v = (Point *) malloc(nlados * sizeof *v);
+    for (int i = 0; i < nlados; i++) {
+        const real a = 2.0 * M_PI * i / nlados;
+        v[i][0] = cx + raio * cos(a);
+        v[i][1] = cy + raio * sin(a);
+        v[i][2] = z0;
+    }
+    fi_corpo *c = fi_cria_extrusao(sfd, (const Point *) v, nlados, z0, z1, h);
+    free(v);
+    return c;
+}
+#endif
 
 fi_corpo *fi_cria_circulo(sim_facet_domain *sfd, const Point centro, real raio,
                           int nlados, real h)
@@ -192,6 +279,63 @@ real fi_peso_total(const fi_corpo *c)
     return total;
 }
 
+void fi_escreve_vtk(const fi_corpo *c, const char *prefixo, int quadro)
+{
+    int rank;
+    MPI_Comm_rank(c->comm, &rank);
+
+    // UM ARQUIVO POR RANK, como o escritor euleriano ja' faz -- os marcadores
+    // sao distribuidos por posse, entao nao ha' arquivo global sem comunicacao.
+    char nome[512];
+    snprintf(nome, sizeof nome, "%s_lag_%d-%d.vtk", prefixo, rank, quadro);
+    FILE *fp = fopen(nome, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "fi_escreve_vtk: nao abriu %s\n", nome);
+        return;
+    }
+
+    PetscInt n = 0;
+    PetscReal *pos = NULL, *vel = NULL, *f = NULL, *peso = NULL;
+    DMSwarmGetLocalSize(c->enxame, &n);
+    DMSwarmGetField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
+    DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    DMSwarmGetField(c->enxame, "forca",      NULL, NULL, (void **) &f);
+    DMSwarmGetField(c->enxame, "peso",       NULL, NULL, (void **) &peso);
+
+    fprintf(fp, "# vtk DataFile Version 3.0\n"
+                "malha lagrangeana da fronteira imersa\n"
+                "ASCII\nDATASET POLYDATA\nPOINTS %ld float\n", (long) n);
+    for (PetscInt k = 0; k < n; k++) {
+        // VTK quer sempre tres coordenadas, mesmo em 2D.
+        fprintf(fp, "%g %g %g\n", (double) pos[DIM*k],
+                (double) pos[DIM*k + 1],
+                (double) (DIM > 2 ? pos[DIM*k + 2] : 0.0));
+    }
+    // VERTICES: sem isto o ParaView abre o arquivo e nao mostra nada.
+    fprintf(fp, "VERTICES %ld %ld\n", (long) n, (long) (2*n));
+    for (PetscInt k = 0; k < n; k++) fprintf(fp, "1 %ld\n", (long) k);
+
+    fprintf(fp, "POINT_DATA %ld\n", (long) n);
+    fprintf(fp, "VECTORS forca float\n");
+    for (PetscInt k = 0; k < n; k++)
+        fprintf(fp, "%g %g %g\n", (double) f[DIM*k], (double) f[DIM*k + 1],
+                (double) (DIM > 2 ? f[DIM*k + 2] : 0.0));
+    fprintf(fp, "VECTORS velocidade float\n");
+    for (PetscInt k = 0; k < n; k++)
+        fprintf(fp, "%g %g %g\n", (double) vel[DIM*k], (double) vel[DIM*k + 1],
+                (double) (DIM > 2 ? vel[DIM*k + 2] : 0.0));
+    // O peso e' a medida geometrica (comprimento em 2D, area em 3D), nao o
+    // volume -- ver `fi_forca_total` para a diferenca, que ja' custou caro.
+    fprintf(fp, "SCALARS peso float 1\nLOOKUP_TABLE default\n");
+    for (PetscInt k = 0; k < n; k++) fprintf(fp, "%g\n", (double) peso[k]);
+
+    DMSwarmRestoreField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
+    DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    DMSwarmRestoreField(c->enxame, "forca",      NULL, NULL, (void **) &f);
+    DMSwarmRestoreField(c->enxame, "peso",       NULL, NULL, (void **) &peso);
+    fclose(fp);
+}
+
 real fi_residuo_max(const fi_corpo *c)
 {
     PetscInt n = 0;
@@ -220,10 +364,9 @@ void fi_forca_total(const fi_corpo *c, real total[DIM])
     DMSwarmGetField(c->enxame, "peso",  NULL, NULL, (void **) &peso);
     real local[DIM];
     for (int d = 0; d < DIM; d++) local[d] = 0.0;
-    real hvol = 1.0;
-    for (int d = 0; d < DIM - 1; d++) hvol *= c->h;
     for (PetscInt i = 0; i < n; i++)
-        for (int d = 0; d < DIM; d++) local[d] += f[DIM*i + d] * peso[i] * hvol;
+        for (int d = 0; d < DIM; d++)
+            local[d] += f[DIM*i + d] * _volume_marcador(c, peso[i]);
     DMSwarmRestoreField(c->enxame, "forca", NULL, NULL, (void **) &f);
     DMSwarmRestoreField(c->enxame, "peso",  NULL, NULL, (void **) &peso);
     MPI_Allreduce(local, total, DIM, MPI_DOUBLE, MPI_SUM, c->comm);
@@ -237,6 +380,26 @@ void fi_forca_total(const fi_corpo *c, real total[DIM])
 // se acha com uma localizacao de ponto.  Varrer seria O(marcadores x facetas).
 #define FI_LARGURA 5
 #define FI_MEIO    2
+
+// Quantos pontos de suporte foram descartados por id inutilizavel.  Nao e'
+// contador de depuracao: descartar reduz a soma do nucleo abaixo de 1 naquele
+// marcador, entao a forca sai menor ali -- e o sintoma seria corpo levemente
+// poroso, que se le' como "malha grosseira".  Se este numero nao for zero, ha'
+// o que investigar.
+static long _suporte_perdidos = 0;
+// Separados porque significam coisas DIFERENTES: id espelhado e' convencao e
+// tem conserto; faceta fora do mapeador e' suporte que sai do dominio mapeado,
+// e conserto seria outro.  Contar junto foi o que me fez "corrigir" tres vezes
+// o ramo errado -- o numero repetia identico e eu lia como correcao que falhou.
+static long _perdidos_espelho = 0;   // fid < 0
+static long _perdidos_mapa    = 0;   // fid >= 0 mas nao esta' no mapeador
+static long _perdidos_sem_faceta = 0;// nao ha' faceta naquele ponto
+
+long fi_perdidos_espelho(void)     { return _perdidos_espelho; }
+long fi_perdidos_mapa(void)        { return _perdidos_mapa; }
+long fi_perdidos_sem_faceta(void)  { return _perdidos_sem_faceta; }
+
+long fi_suporte_perdidos(void) { return _suporte_perdidos; }
 
 // Preenche `lids` e `pesos` com as facetas do suporte e o peso do nucleo.
 // Devolve quantas.  `capac` deve ser >= FI_LARGURA^DIM.
@@ -290,7 +453,7 @@ static int _suporte(sim_facet_domain *sfd, int dim, const Point X, real h,
         }
 
         hig_facet f;
-        if (!sfd_get_facet_with_point(sfd, p, &f)) continue;
+        if (!sfd_get_facet_with_point(sfd, p, &f)) { _perdidos_sem_faceta++; continue; }
         Point cf;
         hig_get_facet_center(&f, cf);
 
@@ -305,7 +468,49 @@ static int _suporte(sim_facet_domain *sfd, int dim, const Point X, real h,
             fprintf(stderr, "_suporte: mais de %d facetas no suporte\n", capac);
             abort();
         }
-        lids[n]  = sfd_get_local_id(sfd, &f);
+        // O ID PODE NAO SER USAVEL, e isso nao e' excepcional.
+        //
+        // `sfd_adjust_facet_ids` (domain.h) marca a faceta compartilhada entre
+        // duas celulas guardando `-id` na de coordenada maior, e `sfd_get_local_id`
+        // devolve -1 para ela (domain.c:3043).  Usar isso como indice e' escrita
+        // em dp[-1]: corrupcao de heap, e o abort sai longe dali.
+        //
+        // O teste de `fronteira-imersa/testes` NAO pega este caso -- o dominio
+        // dele nao passa por ajuste de ids.  Quem pegou foi o exemplo real.
+        int lid = sfd_get_local_id(sfd, &f);
+        if (lid < 0) {
+            // O ID NEGATIVO NAO E' LIXO: E' A CONVENCAO.
+            //
+            // `sfd_adjust_facet_ids` (domain.h:464) diz que, numa faceta
+            // compartilhada, a celula de coordenada MENOR guarda o id e a outra
+            // guarda `-id`.  `sfd_get_local_id` devolve -1 para essa (domain.c),
+            // mas o id canonico e' simplesmente o simetrico.
+            //
+            // A tentativa anterior -- deslocar o ponto e reconsultar -- nao
+            // podia funcionar: o plano da faceta e' perpendicular a `dim`, entao
+            // andar ao longo de `dim` tira o ponto do plano e nenhuma faceta o
+            // contem.  O sintoma foi o contador repetir o MESMO numero,
+            // 46080, que e' sinal de caminho novo sem efeito, nao de correcao
+            // que errou por pouco.
+            // MEDIDO: o ramo do espelho NUNCA e' tomado neste caso (contador
+            // espelho = 0 em corrida completa).  Ele fica porque a convencao de
+            // `sfd_adjust_facet_ids` existe e pode ocorrer noutra geometria --
+            // mas nao era a causa das perdas, e eu "corrigi" esse ramo duas
+            // vezes antes de separar os contadores.  Numero que repete
+            // IDENTICO e' ramo nao tomado, nao correcao que errou por pouco.
+            const uniqueid fid = hig_get_fid(&f);
+            if (fid < 0) {
+                _perdidos_espelho++;
+                const mp_value_t v = mp_lookup(sfd_get_domain_mapper(sfd), -fid);
+                if (v != MP_UNDEF) lid = (int) v;
+            } else {
+                // A faceta existe na geometria e NAO esta' no mapeador deste
+                // dominio -- suporte saindo da regiao mapeada.
+                _perdidos_mapa++;
+            }
+        }
+        if (lid < 0) { _suporte_perdidos++; continue; }
+        lids[n]  = lid;
         pesos[n] = w;
         n++;
     }
@@ -445,8 +650,6 @@ void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
     // acoplamento com a equacao, ou uma conta de unidades.
     real hd = 1.0;
     for (int d = 0; d < DIM; d++) hd *= c->h;
-    real hvol = 1.0;
-    for (int d = 0; d < DIM - 1; d++) hvol *= c->h;
 
     for (PetscInt k = 0; k < n; k++) {
         Point X;
@@ -454,7 +657,7 @@ void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
         for (int dim = 0; dim < DIM; dim++) {
             const int m = _suporte(sfd[dim], dim, X, c->h, lids, pesos, capac);
             // F(x) = SUM f_k d_h(x-X_k) w_k, com d_h = (1/h^DIM) prod phi.
-            const real esc = f[DIM*k + dim] * (peso[k] * hvol) / hd;
+            const real esc = f[DIM*k + dim] * _volume_marcador(c, peso[k]) / hd;
             for (int i = 0; i < m; i++)
                 dp_add_value(dpF[dim], lids[i], esc * pesos[i]);
         }

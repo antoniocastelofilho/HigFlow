@@ -1,0 +1,105 @@
+# Must be set outwards
+# Try variables path of either PETSc versions (3.5.2, 3.5.3, 3.6.2):
+-include ${PETSC_DIR}/conf/variables
+-include ${PETSC_DIR}/lib/petsc-conf/petscvariables
+-include ${PETSC_DIR}/lib/petsc/conf/petscvariables
+
+# HigTree common
+include ${HIGTREE_DIR}/Makefile.common
+
+CC = mpic++
+
+DIM=3
+
+STANDARDS = -x c++ -std=gnu++17
+
+CFILE = ns-example-3d
+
+ifdef DEBUG
+	CFLAGS+= -g -ggdb -Og -Wall
+	GDB_FLAG = gdb --args
+	DEBUG_DESC = "gdb debug"
+else
+	OPTSOPT = -flto=8 -fno-fat-lto-objects
+	CFLAGS+= -march=native -mtune=native -Ofast -Werror
+	DEBUG_DESC = "No Debugging/Optimized"
+endif
+
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml hdf5)
+CFLAGS+= $(PETSC_CC_INCLUDES)
+CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
+
+LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
+LDFLAGS+= -L$(LIBPATH) $(OPTSOPT)
+
+LIBS+= -lhig$(DIM)d
+LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
+LIBS+= $(PETSC_LIB)
+LIBS+= $(PETSC_EXTRA_LIB)
+LIBS+= -lm -ltrilinos_zoltan -lHYPRE
+
+ARCH = $(shell uname)
+ifeq ($(ARCH), Linux)
+	LIBS+= -lrt
+endif
+
+ifeq ($(NP),)
+	NP = 1
+endif
+
+
+ifdef RESTART
+	LOAD_PATH = output/example-3d.save
+else
+	LOAD_PATH = input/example-3d.load
+endif
+
+OBJ1 = ns-example-3d.o 
+OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
+OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
+OBJ1 += ../src/hig-flow-res.o
+# Fronteira imersa: o modulo mais o adaptador de examples-common.
+OBJ1 += ../src/hig-flow-fronteira-imersa.o fronteira-imersa.o
+
+ns-example-3d: $(OBJ1)
+	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
+
+fronteira-imersa.o: ../examples-common/fronteira-imersa.c
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+%.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
+	$(CC) $(CFLAGS) -c $< -o $@
+
+run:
+	mkdir -p VTKS || true
+	mkdir -p DATA || true
+	mkdir -p output || true
+	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example-3d \
+		$(LOAD_PATH) \
+		output/example.save \
+		VTKS/example.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
+compilerflags:
+	@echo COMPILER_FLAGS=$(CFLAGS)
+
+clean :
+		$(RM) -f ns-example-3d.o ns-example-3d
+
+
+rebuild_higflow:
+	$(MAKE) -C .. clean
+	$(MAKE) -C .. DIM=$(DIM) DEBUG=$(DEBUG) RES=$(RES)
+
+rebuild_higtree:
+	$(MAKE) -C $(HIGTREE_DIR) clean
+	$(MAKE) -C $(HIGTREE_DIR) DIM=$(DIM) DEBUG=$(DEBUG)
+
+rebuild_hig:
+	$(MAKE) rebuild_higtree DEBUG=$(DEBUG)
+	$(MAKE) rebuild_higflow DEBUG=$(DEBUG) RES=$(RES)
+rebuild_all:
+	$(MAKE) rebuild_hig DEBUG=$(DEBUG) RES=$(RES)
+	$(MAKE) clean
+	$(MAKE)
+
+.PHONY: run clean compilerflags

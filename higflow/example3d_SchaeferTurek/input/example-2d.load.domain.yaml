@@ -1,0 +1,5 @@
+domain:
+   number_domains: 1                      #*** The Total Number of the Domains ***
+   domain0:
+      id: 0                              #*** The Domain Identifier           ***
+      path: amrs/Channel_3d_d/mesh-channel3D-d-0.amr       #*** The Path to the Domain          ***
