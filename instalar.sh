@@ -136,9 +136,22 @@ if [ -f "$RAIZ/varsrc" ]; then
     if [ -n "${PETSC_DIR:-}" ] && [ -d "${PETSC_DIR}/${PETSC_ARCH:-}/lib" ]; then
       printf '  %-22s %s\n' "PETSc" "$PETSC_DIR"
     else
-      printf '\033[31m  %-22s %s\033[0m\n' "PETSc" "NAO ENCONTRADO em ${PETSC_DIR:-<vazio>}/${PETSC_ARCH:-<vazio>}"
-      echo "     O varsrc define PETSC_DIR a partir de \$(pwd).  Este instalador o carrega"
-      echo "     da raiz, entao se falhou aqui e' porque o PETSc nao esta' construido."
+      printf '\033[31m  %-22s %s\033[0m\n' "PETSc" "NAO ENCONTRADO"
+      echo "     Esperado em: ${PETSC_DIR:-<o varsrc nao definiu PETSC_DIR>}"
+      echo
+      echo "     Este instalador NAO constroi o PETSc: a construcao dele falha de formas"
+      echo "     dificeis de diagnosticar de dentro de um script.  Construa-o uma vez:"
+      if [ -f "$RAIZ/bibliotecas/petsc-3.25.4.tar.gz" ]; then
+        echo "       o tarball ja' esta' na arvore, em bibliotecas/petsc-3.25.4.tar.gz"
+      else
+        echo "       obtenha o petsc-3.25.4 e descompacte-o em bibliotecas/"
+      fi
+      echo "       configure com --prefix apontando para .../petsc-3.25.4/x86_64"
+      echo
+      echo "     O caminho acima vem do varsrc, que fixa a versao 3.25.4 e poe o arch"
+      echo "     DENTRO do diretorio (PETSC_ARCH fica vazio).  Se o seu PETSc esta' em"
+      echo "     outro lugar -- num modulo de cluster, por exemplo -- edite o varsrc."
+      echo "     Atencao: o bibliotecas/petsc-3.14.0.tar.gz versionado e' de OUTRA versao."
       exit 1
     fi )
 else
@@ -248,17 +261,29 @@ done
 # ------------------------------------------------------------------- verificar
 if [ "$VERIFICAR" = 1 ]; then
   titulo "Verificacao"
-  echo "  suite da biblioteca (contrato de malha)"
+  # Sem isto, uma suite que falha morre pelo `set -e` logo depois de imprimir o
+  # tail -- e o tail de uma suite que falhou ainda parece uma tabela de casos.
+  verifica () {
+    local descricao="$1"; shift
+    echo "  $descricao"
+    if "$@" >/tmp/higflow-instalar.log 2>&1; then
+      tail -3 /tmp/higflow-instalar.log | sed 's/^/     /'
+    else
+      tail -20 /tmp/higflow-instalar.log | sed 's/^/     /'
+      vermelho "     FALHOU -- saida completa em /tmp/higflow-instalar.log"
+      exit 1
+    fi
+  }
   if [ "$COM_T8" = 1 ]; then
-    python3 "$RAIZ/ci/run_higtree_tests.py" --t8code "$T8_PREFIXO" | tail -3 | sed 's/^/     /'
+    verifica "suite da biblioteca (contrato de malha)" \
+      python3 "$RAIZ/ci/run_higtree_tests.py" --t8code "$T8_PREFIXO"
+    verifica "suite de exemplos (fisica contra referencia)" \
+      python3 "$RAIZ/ci/run_suite.py" --t8code "$T8_PREFIXO"
   else
-    python3 "$RAIZ/ci/run_higtree_tests.py" | tail -3 | sed 's/^/     /'
-  fi
-  echo "  suite de exemplos (fisica contra referencia)"
-  if [ "$COM_T8" = 1 ]; then
-    python3 "$RAIZ/ci/run_suite.py" --t8code "$T8_PREFIXO" | tail -2 | sed 's/^/     /'
-  else
-    python3 "$RAIZ/ci/run_suite.py" | tail -2 | sed 's/^/     /'
+    verifica "suite da biblioteca (contrato de malha)" \
+      python3 "$RAIZ/ci/run_higtree_tests.py"
+    verifica "suite de exemplos (fisica contra referencia)" \
+      python3 "$RAIZ/ci/run_suite.py"
   fi
 fi
 
