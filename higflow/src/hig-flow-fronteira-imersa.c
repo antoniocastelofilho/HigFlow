@@ -192,6 +192,25 @@ real fi_peso_total(const fi_corpo *c)
     return total;
 }
 
+real fi_residuo_max(const fi_corpo *c)
+{
+    PetscInt n = 0;
+    PetscReal *vel = NULL;
+    DMSwarmGetLocalSize(c->enxame, &n);
+    DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    real pior = 0.0;
+    for (PetscInt k = 0; k < n; k++) {
+        real m = 0.0;
+        for (int d = 0; d < DIM; d++) m += vel[DIM*k + d] * vel[DIM*k + d];
+        m = sqrt(m);
+        if (m > pior) pior = m;
+    }
+    DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    real global = 0.0;
+    MPI_Allreduce(&pior, &global, 1, MPI_DOUBLE, MPI_MAX, c->comm);
+    return global;
+}
+
 void fi_forca_total(const fi_corpo *c, real total[DIM])
 {
     PetscInt n = 0;
@@ -201,8 +220,10 @@ void fi_forca_total(const fi_corpo *c, real total[DIM])
     DMSwarmGetField(c->enxame, "peso",  NULL, NULL, (void **) &peso);
     real local[DIM];
     for (int d = 0; d < DIM; d++) local[d] = 0.0;
+    real hvol = 1.0;
+    for (int d = 0; d < DIM - 1; d++) hvol *= c->h;
     for (PetscInt i = 0; i < n; i++)
-        for (int d = 0; d < DIM; d++) local[d] += f[DIM*i + d] * peso[i];
+        for (int d = 0; d < DIM; d++) local[d] += f[DIM*i + d] * peso[i] * hvol;
     DMSwarmRestoreField(c->enxame, "forca", NULL, NULL, (void **) &f);
     DMSwarmRestoreField(c->enxame, "peso",  NULL, NULL, (void **) &peso);
     MPI_Allreduce(local, total, DIM, MPI_DOUBLE, MPI_SUM, c->comm);
@@ -408,8 +429,24 @@ void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
     int  *lids  = (int  *) malloc(capac * sizeof *lids);
     real *pesos = (real *) malloc(capac * sizeof *pesos);
 
+    // VOLUME DO MARCADOR, e e' aqui que a geometria vira fisica.
+    //
+    // O peso guardado e' `ds`, COMPRIMENTO de arco -- geometrico, e por isso
+    // testavel contra o perimetro com exatidao.  Mas o que o espalhamento pede
+    // e' o VOLUME que o marcador representa: em 2D, ds*h (a curva com espessura
+    // de uma celula); em 3D, dA*1.  Dai' dV = peso * h^(DIM-1).
+    //
+    // Usar `ds` direto faz a forca sair 1/h vezes maior -- vinte vezes, nesta
+    // malha -- e o resultado NAO e' erro visivel: e' realimentacao com ganho, e
+    // a velocidade explode em algumas dezenas de passos.
+    //
+    // A CONSERVACAO NAO PEGA ISTO.  Ela afirma SUM F h^DIM = SUM f w, que e'
+    // identidade em w seja qual for o significado dele.  Quem pega e' o
+    // acoplamento com a equacao, ou uma conta de unidades.
     real hd = 1.0;
     for (int d = 0; d < DIM; d++) hd *= c->h;
+    real hvol = 1.0;
+    for (int d = 0; d < DIM - 1; d++) hvol *= c->h;
 
     for (PetscInt k = 0; k < n; k++) {
         Point X;
@@ -417,7 +454,7 @@ void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
         for (int dim = 0; dim < DIM; dim++) {
             const int m = _suporte(sfd[dim], dim, X, c->h, lids, pesos, capac);
             // F(x) = SUM f_k d_h(x-X_k) w_k, com d_h = (1/h^DIM) prod phi.
-            const real esc = f[DIM*k + dim] * peso[k] / hd;
+            const real esc = f[DIM*k + dim] * (peso[k] * hvol) / hd;
             for (int i = 0; i < m; i++)
                 dp_add_value(dpF[dim], lids[i], esc * pesos[i]);
         }

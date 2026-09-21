@@ -95,7 +95,20 @@ void fi_forca_corpo_rigido(fi_corpo *c, real dt);
 void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
                 distributed_property *dpF[DIM]);
 
-//! Soma global de f_k * w_k, por direcao.  O que DEVE chegar as facetas.
+//! Maior |u| entre TODOS os marcadores, de todos os ranks -- o RESIDUO DE NAO
+//! ESCORREGAMENTO.  E' o primeiro oraculo do metodo, e o mais barato.
+//!
+//! Com forca defasada ele NAO vai a zero: vai a O(dt).  Entao o teste nao e' o
+//! valor, e' a TAXA -- refinar dt e ver o residuo cair na mesma ordem.  Erro de
+//! sinal, de escala ou de peso nao passa nisso; figura de esteira passa.
+//!
+//! Le' o campo `velocidade`, entao so' vale depois de um `fi_interpola`.
+real fi_residuo_max(const fi_corpo *c);
+
+//! Soma global de f_k * dV_k, por direcao -- a forca que DEVE chegar as
+//! facetas.  dV_k = peso * h^(DIM-1) e' o VOLUME do marcador; o peso guardado e'
+//! comprimento de arco (2D) ou area (3D), que e' geometrico e testavel contra o
+//! perimetro, mas nao e' o que a equacao pede.
 void fi_forca_total(const fi_corpo *c, real total[DIM]);
 
 #ifdef __cplusplus

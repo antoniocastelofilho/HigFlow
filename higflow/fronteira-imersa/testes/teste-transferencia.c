@@ -120,10 +120,15 @@ int main(int argc, char *argv[])
         fi_forca_corpo_rigido(corpo, -1.0);
         real tot[DIM];
         fi_forca_total(corpo, tot);
-        // SUM u_k w_k = U * perimetro, se todo marcador leu exatamente U.
+        // `fi_forca_total` soma f_k * dV_k, e dV = peso * h^(DIM-1).  Entao,
+        // se todo marcador leu exatamente U, o total e' U * perimetro * h.
+        // O fator h nao e' arbitrario: e' o VOLUME do marcador, e foi ele que
+        // faltava quando a forca saia 1/h vezes grande demais.
+        real hvol = 1.0;
+        for (int d = 0; d < DIM - 1; d++) hvol *= h;
         for (int d = 0; d < DIM; d++) pior[d] = tot[d];
-        checa(rank, "2a. interpolou u[0] constante (x perimetro)", pior[0], U[0]*2.0, 1e-10);
-        checa(rank, "2b. interpolou u[1] constante (x perimetro)", pior[1], U[1]*2.0, 1e-10);
+        checa(rank, "2a. interpolou u[0] constante (x perimetro x h)", pior[0], U[0]*2.0*hvol, 1e-10);
+        checa(rank, "2b. interpolou u[1] constante (x perimetro x h)", pior[1], U[1]*2.0*hvol, 1e-10);
     }
 
     // Afirmacao 3: forca direta com dt, espalhar, e conferir a integral.
