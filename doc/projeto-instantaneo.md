@@ -6,8 +6,17 @@ nos sítios de consulta — porque varrer sem isso produz código que fica verde
 errado, e cinco dos arquivos com mais sítios são solvers que nenhum exemplo
 alcança.
 
-Tudo abaixo foi medido em `higflow/src` hoje, 20 de setembro de 2026, com o
+Tudo abaixo foi medido em `higflow/src` em 20 de setembro de 2026, com o
 `src_hugo` excluído da contagem (ele não entra na compilação).
+
+> **Estado em 21 de setembro de 2026 — o projeto saiu de proposta e está no
+> `master`.** Tudo o que este documento propõe foi construído, verificado e
+> mesclado (`22b331e..ee88ecd`, 56 commits); a ramificação `mesh-t8code` foi
+> apagada, porque o trabalho deixou de ser uma ramificação e virou o projeto.
+> As seções abaixo ficam **como foram escritas**, com o raciocínio no tempo em
+> que ele aconteceu — o que mudou depois está marcado em cada seção e reunido
+> na seção 7. Documento de projeto que se reescreve para parecer que sempre
+> soube o resultado perde justamente o que o torna útil: onde o autor errou.
 
 ---
 
@@ -438,8 +447,25 @@ as fontes que declara em `t8_fontes`, **contra a mesma referência**.
 
 ```
 sem a flag    33 de 33     (só o caminho AMR — nada muda)
-com a flag    73 de 73     (AMR + variantes t8code)
+com a flag    75 de 75     (AMR + variantes t8code)
 ```
+
+**Em 21/09 entrou o primeiro caso 3D** (`example3d_complex`, 33 blocos, 162 mil
+células), e com ele o limite que só a tentativa revela: **das três fontes, só
+`malha_t8_uniforme` tem verificação 3D.** As outras duas recusam `numhigs != 1`
+— cobrem um bloco só — e não existe exemplo 3D de bloco único na suíte. A recusa
+é por `abort`, de propósito:
+
+```
+particao_t8: 33 blocos; esta fonte cobre um so'
+higflow_partition_domain: a fonte de particao falhou.  Seguir daqui daria
+dominio com vizinhanca errada, que produz resultado plausivel e errado.
+```
+
+Vale registrar o que aconteceu ali, porque é o oposto de tudo o mais neste
+documento: **o código recusou parecer verde.** Eu havia listado a fonte de
+partição por analogia com os casos 2D, sem conferir o limite dela; a guarda me
+corrigiu em vez de me entregar números plausíveis.
 
 **A fonte deixou de ser decorada.** Ela lê a especificação do próprio arquivo AMR
 (`mi->l`, `mi->h`, `levels[0].patches[0].patchsize`), então serve a qualquer
@@ -475,15 +501,24 @@ mudá-lo em silêncio é um defeito, não um detalhe.
 
 ## 6. O que é decisão sua
 
-**D1 — Onde o instantâneo vive, e quando nasce.** Recomendo no domínio,
-produzido ao fim do `psd_synced_mapper`, pelo argumento da seção 3. A
-alternativa é no solver, que mantém o `sim_domain` sem estado derivado ao
-preço de vinte e poucos campos novos e do emparelhamento manual.
+**D1 — Onde o instantâneo vive, e quando nasce — decidido, como recomendado.**
+No domínio, produzido ao fim do `psd_synced_mapper`. A alternativa era no
+solver, que manteria o `sim_domain` sem estado derivado ao preço de vinte e
+poucos campos novos e do emparelhamento manual.
 
-**D2 — Os cinco solvers que nenhum exemplo alcança.** Migrá-los sem rede,
-deixá-los por último, ou deixá-los como estão. Eu não migraria sem antes haver
-exemplo que os exercite — mas isso os deixa permanentemente no caminho antigo,
-e é uma decisão de projeto, não minha.
+**D2 — Os cinco solvers que nenhum exemplo alcança — decidido CONTRA a minha
+recomendação: migrar mesmo assim.** Eu recomendei não migrar sem exemplo que os
+exercite, e o usuário decidiu migrar; estão migrados.
+
+Registro o que isso significa, porque a decisão não muda o fato: **aqueles
+sítios compilam e não são exercitados por nada.** Compilar e ser exercitado são
+coisas diferentes, e só a primeira está estabelecida ali. O mesmo vale, por
+outro motivo, para o `hig-flow-res.c`: ele só entra no build com `make RES=1`,
+que nenhuma suíte usa. Verifiquei que ele compila nas duas dimensões com a
+assinatura nova do buffer de resíduo — pelo comando real extraído de
+`make -n -B RES=1`, e sem acrescentar um aviso sequer — mas ninguém nunca
+**rodou** aquele caminho, então os números que ele produz não foram conferidos
+contra nada.
 
 **D3 — A classificação na interface entre árvores — decidido.** Vale a
 semântica do t8code: *sobre o contorno* significa que o domínio **termina** ali.
@@ -511,3 +546,88 @@ interface interna; se coincidir, seria aplicada num ponto interno. Corrigir
 exige perguntar se o domínio *continua* além do ponto — uma sonda com epsilon —
 e isso merece verificação própria em vez de vir de carona nesta decisão. Fica
 escrito na C14 como desvio conhecido do MTree, não como convenção alternativa.
+
+---
+
+## 7. Onde isto parou — 21 de setembro de 2026
+
+### A arquitetura que resultou
+
+Duas costuras novas, e nenhuma delas obriga quem não as usa.
+
+**Na HiGTree, a fronteira das consultas mudou de lugar.** O
+`hig_mesh_snapshot` e o `hig_facet_snapshot` são arranjos planos em que **o
+índice é o id local**, pendurados no `sim_domain` e no `sim_facet_domain`,
+produzidos ao fim do `psd_synced_mapper` / `psfd_synced_mapper`. Guardam a
+**caixa**, não centro e tamanho, porque a caixa é o primário e reconstruí-la
+não é exato em ponto flutuante. Quem lê geometria não precisa mais de um
+`hig_cell`, e é isso que permite uma segunda implementação de malha responder
+sem materializar árvore de ponteiros.
+
+**No HiGFlow, o exemplo escolhe a fonte da malha em uma linha.** Dois ganchos no
+`higflow_solver` (`fonte_de_malha`, `fonte_de_particao`), zerados na criação, e o
+`higflow_partition_domain` com três caminhos. Sem `HIGFLOW_MALHA` no ambiente,
+nada muda — o caminho legado não foi removido nem contornado, e a suíte padrão
+afirma isso em cada execução.
+
+O contrato de Mesh (`higtree/src/hig-mesh-contract.h`, 18 cláusulas) é o que
+torna as duas implementações comparáveis: ele é lido do próprio cabeçalho pelo
+driver, então cláusula sem caso de teste não passa despercebida.
+
+### O que está verificado, e por qual rede
+
+```
+HiGTree     316 de 316 casos, contrato de Mesh 18 de 18
+HiGFlow      75 de 75 execuções (7 exemplos × fontes, contra a MESMA referência)
+oráculo     HIGTREE_VERIFY_SNAPSHOT=1 confere todo domínio por LOCALIZAÇÃO DE
+            PONTO, e aborta na divergência
+```
+
+O oráculo localiza por ponto de propósito: o mapeador é atribuído a partir do
+**mesmo** iterador que o instantâneo percorre, então conferir um contra o outro
+mediria a aritmética contra si mesma.
+
+### O que continua em aberto, e por que não foi fechado
+
+**As duas funções de refino no lugar, e o teto de 40.** Estas duas coisas
+estavam em seções separadas deste documento e são, na verdade, a mesma:
+
+O `sim_facet_domain.sfbi[]` é arranjo **fixo** de 40 (`MAXHIGTREESPERDOMAIN`) e
+o `sfd_set_sfbi` o indexa **sem conferir limite**, enquanto o arranjo de árvores
+do domínio cresce sem teto. Medido no pior caso do repositório:
+
+```
+example3d_complex    np=1   33 = 33 próprias + 0 de franja   (índice máximo 32)
+                     np=2   23 = 20 + 3
+                     np=3   18 = 13 + 5
+                     np=4   17 = 10 + 7
+                     np=6   16 = 10 + 6
+```
+
+O crescimento vem das **próprias**, não da franja, e o máximo cai
+monotonicamente: mais ranks é mais seguro. O pior caso é np=1, com sete de
+folga.
+
+A ligação é esta: **o número só pode crescer sem passar por partição nova se
+alguém acordar `higflow_refine_tree_inplace` ou `adapt_mesh_and_update_solver`.**
+O caminho de adaptação alcançável hoje (`higflow_rebuild_with_amr`) reconstrói e
+reparticiona, então respeita a medição acima. As duas funções dormentes não
+passam pela API do domínio — e são, ao mesmo tempo, o que deixaria o instantâneo
+velho em silêncio e o que poderia estourar o teto de 40. Quem as acordar precisa
+chamar `sd_compute_snapshot` **e** reexaminar o teto.
+
+**As fontes de rank e de partição não têm verificação 3D**, e não por falta de
+tentativa: cobrem um bloco só, e não existe exemplo 3D de bloco único na suíte.
+
+**O `sfd_get_stencil` (133 sítios) segue no caminho antigo.** É topologia, não
+leitura de geometria, e fica atrás do backend junto com as consultas de ponto.
+
+### Como reproduzir tudo isto do zero
+
+```bash
+./instalar.sh --verificar
+```
+
+Constrói o t8code do fonte, as duas bibliotecas, os exemplos, e roda as duas
+suítes. Testado em árvore limpa. O tutorial de uso das duas malhas está em
+`doc/tutorial-mtree-t8code.pdf`.
