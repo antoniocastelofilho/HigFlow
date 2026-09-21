@@ -133,7 +133,7 @@ __pycache__/
 # Compiled binaries (rebuilt per-platform; do not track)
 higflow/example*/ns-example
 higflow/example*/ns-example-2d
-higflow/example*/ns-exemple-3d
+higflow/example*/ns-example-3d
 higflow/example*/ns-complex-3d
 **/amrs/generate_amr
 

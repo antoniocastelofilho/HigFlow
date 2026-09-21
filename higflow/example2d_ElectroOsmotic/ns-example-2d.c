@@ -3,6 +3,13 @@
 //  Example for HiG-Flow Solver - version 03/2023
 // *******************************************************************
 // *******************************************************************
+//
+// Electroosmotic flow: an applied potential drives the fluid through the charge in
+// the double layer.  The ionic distribution model is chosen by `model:` under the
+// electroosmotic block (pnp here).
+//
+// The suite runs this directory as TWO cases -- example2d_ElectroOsmotic and
+// example2d_ElectroOsmotic_eo -- which differ only in configuration.
 
 #include "ns-example-2d.h"
 

@@ -3,6 +3,14 @@
 //  Example for HiG-Flow Solver - version 03/05/2019
 // *******************************************************************
 // *******************************************************************
+//
+// Viscoelastic channel flow with the Oldroyd-B model.
+//
+// This is the consistent viscoelastic case, which makes it the injection target when
+// a suspect pattern has to be proven in a solver no case reaches -- see the family
+// header in higflow/src/hig-flow-step.c.
+//
+// Config: singlephase / viscoelastic / oldroyd_b / semi_implicit_euler.
 
 #include "ns-example-2d.h"
 

@@ -13,7 +13,7 @@ DIM=3
 
 STANDARDS = -x c++ -std=gnu++17
 
-CFILE = ns-exemple-3d
+CFILE = ns-example-3d
 
 ifdef DEBUG
 	CFLAGS+= -g -ggdb -Og -Wall
@@ -54,12 +54,12 @@ else
 	LOAD_PATH = input/example-3d.load
 endif
 
-OBJ1 = ns-exemple-3d.o 
+OBJ1 = ns-example-3d.o 
 OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
 OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
 OBJ1 += ../src/hig-flow-res.o
 
-ns-exemple-3d: $(OBJ1)
+ns-example-3d: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
 
 %.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
@@ -69,16 +69,16 @@ run:
 	mkdir -p VTKS || true
 	mkdir -p DATA || true
 	mkdir -p output || true
-	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-exemple-3d \
+	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example-3d \
 		$(LOAD_PATH) \
-		output/exemple.save \
-		VTKS/exemple.print \
+		output/example.save \
+		VTKS/example.print \
 		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f ns-exemple-3d.o ns-exemple-3d
+		$(RM) -f ns-example-3d.o ns-example-3d
 
 
 rebuild_higflow:

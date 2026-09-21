@@ -3,6 +3,9 @@
 //  Example for HiG-Flow Solver - version 03/05/2019
 // *******************************************************************
 // *******************************************************************
+//
+// Viscoelastic channel flow with the GPTT model, whose relaxation is non-exponential
+// and needs the Mittag-Leffler function (higflow/src/hig-flow-mittag-leffler.c).
 
 #include "ns-example-2d.h"
 

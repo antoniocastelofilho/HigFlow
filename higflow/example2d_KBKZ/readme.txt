@@ -3,7 +3,7 @@ Modelo Integral KBKZ PSM ou UCM  Integral
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 OBS:Para salvar pressao, tensores e velocidades para visualizacao fora do paraview 
 crie as pastas Dados/Pressao  Dados/Tensores e Dados/Velocidade
-e habilite as rotinas de impressao no arquivo ns-exemple-2d.c
+e habilite as rotinas de impressao no arquivo ns-example-2d.c
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 

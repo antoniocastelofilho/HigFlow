@@ -3,6 +3,13 @@
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Two Newtonian fluids with an interface tracked by volume fraction.
+//
+// READING THE CONFIG: what makes this multiphase is `flowphase: multiphase`.  Under
+// it the `flowtype:` field of the singlephase block is INERT -- the ones that count
+// are `flowtype0` and `flowtype1`, one per phase.  Reading `flowtype:` alone
+// misleads; here both phases are newtonian.
 
 #include "ns-example-2d.h"
 

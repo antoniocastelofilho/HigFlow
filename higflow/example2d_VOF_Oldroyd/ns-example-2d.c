@@ -3,6 +3,9 @@
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Two fluids where phase 0 is viscoelastic (Oldroyd-B) and phase 1 is Newtonian --
+// `flowtype0` and `flowtype1` in the config, not `flowtype`.  See example2d_VOF.
 
 #include "ns-example-2d.h"
 

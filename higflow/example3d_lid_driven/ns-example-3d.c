@@ -3,8 +3,13 @@
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Lid-driven cavity in 3D: the classic verification case, a box with one moving
+// wall.
+//
+// Mesh is 10x10x10, too coarse to divide, so the suite pins it at np=1 (max_np).
 
-#include "ns-exemple-3d.h"
+#include "ns-example-3d.h"
 
 // *******************************************************************
 // Extern functions for the Navier-Stokes program

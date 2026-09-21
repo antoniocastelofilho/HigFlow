@@ -149,7 +149,7 @@ CASES = [
     # fracao grande de cada subdominio e vel.w.max muda 0,6% entre np=1 e np=2.
     # Nao e' bug de paralelismo: refinando para 20x20x20 a diferenca vai a zero
     # (medido).  Enquanto o exemplo usar esta malha, so np=1 e' comparavel.
-    Case("example3d_lid_driven",   "ns-exemple-3d",  "example-3d.load", 3,
+    Case("example3d_lid_driven",   "ns-example-3d",  "example-3d.load", 3,
          max_np=1, max_np_reason="malha 10x10x10 grosseira demais para dividir"),
     # 162000 cells over 33 blocks; a single step takes minutes.  Opt-in.
     Case("example3d_complex",      "ns-complex-3d",  "example-3d.load", 3,
@@ -191,7 +191,7 @@ CASES = [
     # dtp menor que o padrao de proposito: o dt deste caso e' 1e-4, entao com
     # 20 passos o tempo final e' 0,002 -- com dtp=0,005 so' o quadro inicial
     # seria escrito e a referencia nao cobriria o avanco no tempo.
-    Case("example2d_BMP",          "ns-example",     "example-3d.load", 2,
+    Case("example2d_BMP",          "ns-example",     "example-2d.load", 2,
          dtp=0.0005),
 ]
 

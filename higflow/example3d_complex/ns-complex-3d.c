@@ -3,6 +3,17 @@
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// 3D channel with solid obstacles: 33 blocks whose union is the fluid, the gaps
+// between them being the solids.  The hardest case in the suite and the one that
+// exercised the stencil closure against non-convex geometry.
+//
+// Config is `example-3d.load.*` (semi_implicit_euler).  A stray set of
+// `example-2d.load.*` files used to sit beside it, unread and contradicting the real
+// settings; they were removed.  The prefix a case actually loads is the one in its
+// `Case(...)` entry in ci/run_suite.py.
+//
+// Marked `slow` in the suite: 162000 cells over 33 blocks, minutes per step.
 
 #include "ns-complex-3d.h"
 

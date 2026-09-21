@@ -3,6 +3,13 @@
 //  Example for HiG-Flow Solver - version 03/05/2019
 // *******************************************************************
 // *******************************************************************
+//
+// Integral viscoelastic flow (K-BKZ): the stress comes from an integral over
+// deformation history rather than a differential equation.
+//
+// KNOWN BROKEN in the suite -- the tensor diverges to NaN at step 3.  It is the ONLY
+// case that reaches hig-flow-step-viscoelastic-integral.c, so that whole file is
+// effectively unexercised.
 
 #include "ns-example-2d.h"
 real tensormax00 = 0.0;

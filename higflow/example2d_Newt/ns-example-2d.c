@@ -1,6 +1,16 @@
 // *******************************************************************
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
+//
+// Newtonian channel flow, 2D.  The simplest case in the suite and the one to read
+// first: it shows the minimum an example has to provide -- boundary values, initial
+// state, and the main loop.
+//
+// It is also the case wired to the t8code mesh backends (HIGFLOW_MALHA selects the
+// source); the default path reads the .amr files as before.
+//
+// Config: singlephase / newtonian / semi_implicit_euler, in
+// input/example-2d.load.par.contr.yaml.
 
 #include "ns-example-2d.h"
 

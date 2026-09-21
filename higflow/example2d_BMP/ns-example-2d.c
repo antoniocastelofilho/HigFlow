@@ -3,6 +3,15 @@
 //  Example for HiG-Flow Solver - version 03/05/2019
 // *******************************************************************
 // *******************************************************************
+//
+// BMP thixotropic model with variable viscosity.
+//
+// It uses the LEGACY positional input format (.contr, .par, .viscvvcontr) rather
+// than YAML, so the suite cannot shorten its run through the config -- it runs
+// whatever the .par file says.
+//
+// It is the only case that reaches
+// higflow/src/hig-flow-step-viscoelastic-variable-viscosity.c.
 
 #include "ns-example-2d.h"
 

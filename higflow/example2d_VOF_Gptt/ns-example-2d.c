@@ -3,6 +3,9 @@
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
 // *******************************************************************
+//
+// Two fluids where phase 0 is viscoelastic (GPTT) and phase 1 is Newtonian.
+// See example2d_VOF for how the config is read.
 
 #include "ns-example-2d.h"
 

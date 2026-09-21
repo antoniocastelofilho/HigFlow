@@ -1,3 +1,8 @@
+// Adaptive mesh refinement during the run: the criterion here decides which cells to
+// split or merge, and the domain is rebuilt between steps.
+//
+// KNOWN BROKEN in the suite: heap corruption at np=2, where MPI reads past the buffer
+// of dp_create.  It is the only case that exercises rebuilding the domain mid-run.
 
 #include "higtree.h"
 #include "higtree-io.h"

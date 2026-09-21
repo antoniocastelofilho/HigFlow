@@ -1,6 +1,15 @@
 // *******************************************************************
 //  Example for HiG-Flow Solver - version 10/11/2016
 // *******************************************************************
+//
+// Newtonian flow through a 4:1 contraction: the domain is 8 units tall for x < 0 and
+// 2 units tall after it.
+//
+// The inlet parabola MUST be scaled to the face it is applied to.  It reads
+// `1.5*(1 - y*y/16)` because bc0 spans y from -4 to +4; the earlier `1.5*(1 - y*y)`
+// was written for the narrow channel, went to -22.5 at the walls, and integrated to
+// a net OUTFLOW through the face declared as the inlet -- the case ran as an
+// expansion.  Nothing in the solver checks this; see hig-flow-bc.c.
 
 #include "ns-example-2d.h"
 
