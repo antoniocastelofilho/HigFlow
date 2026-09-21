@@ -85,6 +85,7 @@ TESTS += test-facet-domain-serial
 TESTS += test-cell-queries
 TESTS += test-fringe-support
 TESTS += test-fringe-parallel
+TESTS += test-fringe-sync
 TESTS += test-mesh-snapshot
 TESTS += test-stencil-support
 TESTS += test-boundary-faces

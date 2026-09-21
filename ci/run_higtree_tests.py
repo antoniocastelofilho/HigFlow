@@ -100,6 +100,15 @@ TESTS = [
     # antes de concluir, no rank 0.
     Test("test-fringe-parallel", dims=(2, 3), nps=(1, 2, 3), mpi=True),
 
+    # O CONTEUDO da franja, e nao a existencia dela.  Os dois casos anteriores
+    # afirmam que a franja existe e que o suporte a alcanca; se o pareamento entre
+    # quem envia e quem recebe estivesse trocado, a celula receberia o valor de
+    # OUTRA posicao e ambos continuariam verdes.  O `partition_graph` exige que as
+    # listas estejam "strictly on the same order" nos dois lados, e ordem trocada
+    # nao quebra -- entrega dado errado.  Oraculo analitico: depois do `dp_sync`,
+    # cada celula de franja tem de conter o campo no PROPRIO centro.
+    Test("test-fringe-sync", dims=(2, 3), nps=(1, 2, 3), mpi=True),
+
     # A FRONTEIRA DAS CONSULTAS.  86% das chamadas em laco quente sao leitura de
     # centro, tamanho e indice, e nenhuma precisa da arvore: o instantaneo as
     # atende com arranjo plano.  Com --t8code, o caso extra mostra os DOIS
