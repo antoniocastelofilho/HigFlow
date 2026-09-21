@@ -1,3 +1,18 @@
+// Points and the arithmetic over them.  A Point is a bare array, not a struct, so it
+// decays to a pointer on every call -- which is why assignment goes through
+// POINT_ASSIGN rather than `=`, and why comparison goes through co_equal.
+//
+// THE POINT_* MACROS ARE BRACE BLOCKS, NOT do/while(0).  They expand to `{ ... }`,
+// so the customary semicolon after the call closes an empty statement:
+//
+//     if (c) POINT_ASSIGN(a, b); else ...   // "else without a previous if"
+//
+// It is a compile error rather than a silent one, but it is the reason every use in
+// the tree sits on its own statement or inside explicit braces.
+//
+// Distance and equality tolerances do NOT live here -- they are in utils.h, and that
+// file has two different families of them.  Read the note there before choosing one.
+
 #ifndef COORD_H
 #define COORD_H
 

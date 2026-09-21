@@ -1,3 +1,21 @@
+// Two unrelated jobs share this file, and mixing them up has cost real time here.
+//
+// STATE -- higflow_save_*/higflow_load_* write and read the run's own state: the
+// domain, the boundaries and the properties.  These are the files a restart reads,
+// and they are the files a regression test may compare.
+//
+// VISUALIZATION -- the higflow_print_vtk* family.  NOT RESULTS.  The VTK writers
+// reduce each cell to one value chosen from its support, and where that choice ties
+// the winner depends on how the domain was partitioned: the same run at np=1 and
+// np=4 can differ in the VTK while the solver state is bit-identical.  That was
+// measured here -- ns->dpu agreed to 0.0 over 15,920 facets while VTK metrics moved
+// by a factor of 115.  A reference or a test built on VTK encodes output error, not
+// physics.  See the VTK section in AGENTS.md.
+//
+// The number of print_vtk variants is not redundancy: each writes the extra fields
+// of one physics path.  Calling the wrong one for the current path prints fields
+// that path never filled.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver IO - version 10/11/2016

@@ -1,3 +1,15 @@
+// Finite-difference formulas on a facet, and the per-cell assembly that feeds them.
+//
+// The higflow_computational_cell* family is the WRITE side of ns->cc: each variant
+// fills the shared scratch cell for one physics path, and the term functions in
+// hig-flow-terms.h then read it.  The pairing is by convention only -- see rule 2 in
+// hig-flow-kernel.h -- so a path that fills a different subset than the terms it
+// invokes will read a field left over from the previous cell, with no diagnostic.
+// If you add a variant here, work out which cc fields the terms you call will read.
+//
+// The compute_* formulas take values, not domains, and are therefore the part of the
+// discretization that can be unit-tested directly.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Discretization - version 10/11/2016

@@ -1,3 +1,10 @@
+// The source of cell and facet identity.
+//
+// Ids come from a single process-local counter, so they are unique WITHIN a process
+// and say nothing across ranks: two processes independently number their own cells
+// starting from the same place.  The global numbering that the solver needs is built
+// on top, by the mappers in pdomain.c, from the local ids plus the partition.
+
 #ifndef UNIQUEID_H
 #define UNIQUEID_H
 

@@ -1,3 +1,17 @@
+// Shear-thickening suspensions: a particle-stress tensor and a microstructure tensor
+// advanced alongside the momentum equation, plus a volume-fraction equation for the
+// particles.
+//
+// NO EXAMPLE SELECTS THIS PATH.  Uncovered by the suite.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016

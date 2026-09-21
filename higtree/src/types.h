@@ -1,3 +1,10 @@
+// The scalar type of the whole system, and its MPI counterpart.
+//
+// `real` and `MPI_HIGREAL` MUST be changed together.  Narrowing `real` to float and
+// leaving MPI_HIGREAL as MPI_DOUBLE compiles cleanly and then corrupts every halo
+// exchange in the run, because each side reads twice the bytes it was sent.  There
+// is no build-time check for this; the pairing is a convention held by hand.
+
 #ifndef TYPES_H
 #define TYPES_H
 

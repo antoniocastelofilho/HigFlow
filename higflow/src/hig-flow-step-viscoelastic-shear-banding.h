@@ -1,3 +1,18 @@
+// Shear-banding viscoelastic flow: two species (nA, nB) whose interconversion is
+// driven by the stress, producing coexisting bands of different shear rate.
+//
+// NO EXAMPLE SELECTS THIS PATH -- no case sets a shear-banding flow type, and the
+// nA/nB boundary-condition setters in hig-flow-bc.h are called by nothing in the
+// tree.  Uncovered by the suite.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Electro-osmotic - version 02/02/2018

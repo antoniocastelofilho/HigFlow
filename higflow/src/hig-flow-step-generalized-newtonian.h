@@ -1,3 +1,20 @@
+// Generalized Newtonian: viscosity is a function of the shear rate, with no elastic
+// history -- no tensor to advance, just a viscosity recomputed per cell.
+//
+// NO EXAMPLE SELECTS THIS PATH.  No case in the tree sets a generalized-Newtonian
+// flow type, so nothing here is covered by the regression suite; the nearest
+// exercised relative is the variable-viscosity path reached by example2d_BMP.
+// Changes here are unverified until a case is written or the code is injected into
+// a case that does run.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Generalized Newtonian - version 10/11/2016

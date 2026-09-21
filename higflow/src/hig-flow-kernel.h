@@ -1,3 +1,35 @@
+// The solver object: every domain, every field, every controller and every parameter
+// of a run, in one struct.  Editing this file is how a new physics path gets its
+// state, so the three rules below are addressed to whoever is about to add a field.
+//
+// 1. THE SOLVER IS malloc'd, NOT calloc'd.  higflow_create() uses DECL_AND_ALLOC,
+//    which is malloc, so a newly added pointer field starts as GARBAGE -- not NULL.
+//    Code that tests `if (ns->something)` to decide whether an optional path is
+//    active will then take that path on uninitialized memory.  EVERY NEW POINTER
+//    FIELD MUST BE EXPLICITLY ZEROED IN higflow_create().  Adding it here and
+//    nowhere else compiles, links, and misbehaves at random.
+//
+// 2. `cc` IS ONE SHARED SCRATCH INSTANCE, not a per-call temporary.  There is a
+//    single higflow_compcell embedded in the solver, written by fourteen different
+//    source files and read across file boundaries -- cc.dpdx, for one, is written in
+//    hig-flow-discret.c and read in hig-flow-terms.c.  A field of `cc` is therefore
+//    valid only because of WHO RAN LAST, not because of its type.  Reading one from
+//    a path that did not fill it yields the previous cell's value, silently.  Before
+//    using a cc field in a new path, confirm that path writes it.
+//
+// 3. THIS HEADER TURNS DEBUG ON FOR EVERYTHING DOWNSTREAM.  The bare `#define DEBUG`
+//    below has no condition and cannot be overridden from the command line, so every
+//    unit including this file gets Debug-c.h's active macros -- while HiGTree, built
+//    with -DNDEBUG, gets the empty ones.  Do not assume a DEBUG_* call behaves the
+//    same on both sides of that seam.
+//
+// The controller enums (equation_type, projection_type, flow_type, rheo_type, ...)
+// are what select the solver path at run time from the YAML.  They are ORDINARY
+// ENUMS READ FROM FILE: an out-of-range value is not rejected here, and the switch
+// that consumes it decides what happens.  Note in particular that under a multiphase
+// run (`flowphase`), the single-phase `flowtype` is INERT -- flowtype0 and flowtype1
+// are the ones that matter.  The examples' headers say which case exercises which.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Kernel - version 10/11/2016

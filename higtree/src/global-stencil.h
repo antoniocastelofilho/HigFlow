@@ -1,3 +1,16 @@
+// Accumulates a matrix row in GLOBAL ids, which is what the solver wants, from the
+// per-domain stencils produced in local ids by domain.c.
+//
+// The gs_add_*_stencil() calls translate and SUM INTO the row rather than replacing
+// it, so one row can be assembled from several stencils (different terms of the same
+// equation, different domains in a coupled system) scaled independently.  gs_reset()
+// between rows is therefore mandatory -- a forgotten reset does not fail, it adds the
+// previous row's entries to this one.
+//
+// The rhs travels with the row: Dirichlet contributions arrive as stencil rhs rather
+// than as matrix entries, and gs_add_*_stencil() carries them across with the same
+// scale.
+
 #ifndef GLOBAL_STENCIL_H
 #define GLOBAL_STENCIL_H
 

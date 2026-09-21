@@ -1,3 +1,17 @@
+// The terms of the momentum equation, each returning its contribution for the
+// current cell.
+//
+// NOTE WHAT THE SIGNATURES DO NOT TAKE: no cell, no position, no field.  Every one
+// of these reads ns->cc, the single shared scratch cell described in
+// hig-flow-kernel.h, which the matching higflow_computational_cell* variant must
+// have filled first.  Calling a term outside that pairing returns a number computed
+// from the previous cell's leftovers -- a plausible value, not a crash.
+//
+// higflow_convective_term() is a dispatcher over ns->cc.convec_type; the named
+// variants (quick, cubista, mcupwind, ...) are its cases and can also be called
+// directly.  They differ in stencil width, so they do not all need the same cc
+// fields filled.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Terms - version 10/11/2016

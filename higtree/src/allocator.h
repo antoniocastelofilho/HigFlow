@@ -1,3 +1,12 @@
+// A bump-style pool whose point is BULK RELEASE: allocator_destroy() frees
+// everything at once, so callers with many short-lived buffers of the same lifetime
+// need not track them individually.
+//
+// The two warnings in the function comments are literal, not decorative -- this
+// allocator keeps its bookkeeping next to the returned blocks, so a write past the
+// end of one allocation corrupts the pool rather than the neighbouring data, and the
+// failure surfaces far from its cause.
+
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 

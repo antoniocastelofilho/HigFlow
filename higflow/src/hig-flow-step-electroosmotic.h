@@ -1,3 +1,24 @@
+// Electroosmotic flow: an electric field drives the fluid through the charge in the
+// double layer.  Carries its own unknowns -- the applied potential phi, the induced
+// potential psi, and the ion concentrations nplus/nminus -- each with its own
+// boundary conditions and its own transport equation.
+//
+// EXERCISED by example2d_ElectroOsmotic.  Note that the case sets
+// flowtype: viscoelastic: the electroosmotic machinery is enabled separately from
+// the rheology, so the two selections are independent and both matter.
+//
+// The ion transport has its own stability limit, which is why hig-flow-timestep.h
+// has a PNP-specific CFL.  Using the plain CFL on this path gives a dt that
+// satisfies the wrong condition.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Electro-osmotic - version 02/02/2018

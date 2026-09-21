@@ -1,3 +1,13 @@
+// Flattens a tree into an array so it can cross an MPI boundary, and rebuilds it on
+// the other side.
+//
+// THE COUPLING IN hig_serial_tree IS BY LAYOUT, NOT BY FIELD.  The comment on the
+// struct is load-bearing: serialization memcpy's the leading bytes of hig_cell into
+// it, so the two must keep the same leading members in the same order.  Inserting a
+// field at the FRONT of hig_cell -- or reordering lowpoint/highpoint/numcells --
+// compiles everywhere and corrupts every tree that crosses a rank boundary, with no
+// diagnostic at the seam.  Append to hig_cell, never prepend.
+
 #ifndef HIGTREE_SERIALIZE
 #define HIGTREE_SERIALIZE
 

@@ -1,3 +1,32 @@
+// Debug tracing whose macros expand to nothing unless DEBUG is defined.
+//
+// WHICH HALF OF THE SYSTEM YOU ARE IN DECIDES WHETHER THEY DO ANYTHING, and it is
+// not a build flag you pass:
+//
+//   HiGTree   the default build is the `else` branch of higtree/Makefile --
+//             -O3 -flto -DNDEBUG.  DEBUG is UNSET, so every macro here is empty,
+//             and NDEBUG additionally compiles out every assert() in the library.
+//             The bounds assertions in domain.c and pdomain.c do not run in the
+//             build people actually use.  `make DEBUG=1` flips this.
+//
+//   HiGFlow   hig-flow-kernel.h does a bare `#define DEBUG` before including this
+//             file, with no condition and no way to turn it off from the command
+//             line.  Every translation unit that includes the kernel header
+//             therefore gets the ACTIVE macros, whatever the build mode.
+//
+// So the same macro name means opposite things on the two sides of the seam.
+//
+// THE ARGUMENTS VANISH WITH THE MACRO.  In a release build DEBUG_EXEC(x),
+// DEBUG_ASSERT(x) and DEBUG_INSPECT(x, f) expand without evaluating x, so any side
+// effect placed inside one does not happen -- and the difference shows up only as
+// wrong results in the build people actually run.  Keep these strictly to printing
+// and checking values computed elsewhere.
+//
+// CHECK_MPI_ERR is the exception that is always compiled, and it PRINTS AND
+// CONTINUES: it neither aborts nor returns the code to the caller, so an MPI failure
+// it reports leaves the program running on whatever the failed call left behind.
+// Callers that need the run to stop must test the code themselves.
+
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 

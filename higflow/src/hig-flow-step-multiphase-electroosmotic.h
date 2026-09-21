@@ -1,3 +1,17 @@
+// Two-phase electroosmotic flow: the ionic transport of the electroosmotic path
+// carried across an interface that moves.
+//
+// NO EXAMPLE SELECTS THIS PATH.  Uncovered by the suite -- both of its parents are
+// covered separately, their combination is not.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 //  HiG-Flow Solver Step Multiphase Electroosmotic - version 07/05/2024
 // *******************************************************************

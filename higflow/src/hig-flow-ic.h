@@ -1,3 +1,19 @@
+// Initial conditions, and the domain construction that has to happen before them.
+//
+// higflow_initialize_domain* builds the mesh, partitions it and creates the domains;
+// everything else here fills a field on a domain that already exists.  ORDER IS NOT
+// OPTIONAL: an initializer called before its domain is built writes through a null
+// or unmapped domain.
+//
+// There are two construction entry points -- the positional legacy form and the
+// _yaml form.  They are alternatives, not stages: a case uses one or the other, and
+// which one is what distinguishes the older examples from the newer.  Only the YAML
+// path reads controllers from file.
+//
+// AN UNINITIALIZED FIELD IS NOT ZERO.  The solver is malloc'd (see
+// hig-flow-kernel.h), so a field whose initializer is never called holds whatever
+// was in memory.  A new physics path must add its initializer here AND call it.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Initial Condition - version 10/11/2016

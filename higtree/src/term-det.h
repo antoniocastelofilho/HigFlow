@@ -1,3 +1,12 @@
+// Distributed termination detection by weight throwing, used where a collective has
+// no known message count -- the fringe search in particular, where a rank cannot
+// know in advance how many neighbours will write to it.
+//
+// The precondition in the comment below is the one that matters: call
+// term_det_wait_for_msg() with may_terminate == true whenever this rank has no
+// outstanding work.  Passing false while every rank is idle is how this deadlocks,
+// and the deadlock is silent -- the run simply stops making progress.
+
 #ifndef TERM_DET
 #define TERM_DET
 

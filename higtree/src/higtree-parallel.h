@@ -1,3 +1,15 @@
+// Point-to-point tree and mapper exchange between two specific ranks.
+//
+// EVERY FUNCTION HERE IS HALF OF A PAIR, and the two halves must be called in the
+// same order on both sides -- send/receive, fill_send_buf/from_recv_buf.  There is no
+// tag negotiation and no handshake: a rank that calls the wrong half, or the right
+// half in the wrong order, deadlocks or reads the previous message's bytes.  Each
+// function comment names its counterpart; that pairing is the whole contract.
+//
+// The "uniform" in the names is a precondition, not a description: those functions
+// send the refinement pattern separately from the geometry and assume the tree is
+// uniform.  Passing an adapted tree loses the refinement silently.
+
 #ifndef HIGTREE_PARALLEL
 #define HIGTREE_PARALLEL
 

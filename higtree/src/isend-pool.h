@@ -1,3 +1,10 @@
+// A bag of outstanding MPI_Isend requests waited on together.
+//
+// The buffers handed to the pool must STAY ALIVE AND UNMODIFIED until the wait
+// returns: MPI_Isend does not copy, and a stack buffer that leaves scope before the
+// wait is a use-after-free that usually looks like corrupted data on the receiver
+// rather than a crash here.
+
 #ifndef ISEND_POOL
 #define ISEND_POOL
 

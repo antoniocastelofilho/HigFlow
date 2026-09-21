@@ -1,3 +1,18 @@
+// Elastoviscoplastic flow: elastic below a yield stress, viscoplastic above it.  The
+// yield criterion is evaluated per cell, so the same run has both regimes at once.
+//
+// NO EXAMPLE SELECTS THIS PATH.  Uncovered by the suite; it shares the conformation-
+// tensor machinery in hig-flow-viscoelastic-kernel.h with the paths that are
+// covered, so a change THERE is witnessed, a change HERE is not.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016

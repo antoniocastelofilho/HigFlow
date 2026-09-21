@@ -1,3 +1,15 @@
+// Normal and curvature in 2D by differencing the volume fraction directly.
+//
+// Cheapest of the normal estimators here and the most sensitive to a poorly resolved
+// interface: the fraction field is not smooth, so differencing it amplifies the
+// noise that ELVIRA and the height-function methods exist to avoid.
+//
+// PART OF THE VOF FAMILY: a volume fraction per cell says how much of each phase is
+// there, and the interface is RECONSTRUCTED from it rather than tracked.  The steps
+// are: estimate a normal, place an interface from the normal and the fraction, then
+// advect the fraction.  These files are the alternative methods for those steps, not
+// a pipeline -- several are alternatives to each other.
+
 #ifndef HIG_FLOW_VOF_FINITE_DIFFERENCE_NORMAL_CURVATURE
 #define HIG_FLOW_VOF_FINITE_DIFFERENCE_NORMAL_CURVATURE
 

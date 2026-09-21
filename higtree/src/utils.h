@@ -1,3 +1,24 @@
+// Allocation macros that abort on failure, and the comparison tolerances.
+//
+// THERE ARE TWO TOLERANCE FAMILIES HERE, FOUR ORDERS OF MAGNITUDE APART, and the
+// names do not say which is which:
+//
+//     POS_EQ, POS_NE, POS_GE, POS_LE    EPSDELTA = 1e-8    positions, geometry
+//     FLT_EQ, FLT_NE, FLT_GT, FLT_GE    EPSMACH  = 1e-12   values, rounding error
+//
+// Both are ABSOLUTE, not relative, so both are meaningful only at the scale the
+// meshes actually use.  A domain measured in microns would need them revisited.
+//
+// The TODO under EPSDELTA is worth reading before trusting POS_EQ on a refinement
+// boundary: it records a parent/child boundary mismatch of order 1e-7, which is
+// LARGER than EPSDELTA itself.  Where that holds, POS_EQ answers "different" for two
+// spellings of the same boundary.  It is an open item, not a resolved one.
+//
+// ALLOC and friends abort on failure instead of returning NULL, which is why almost
+// no caller in the tree checks the result.  Note that they use malloc: memory comes
+// back UNINITIALIZED, and every struct allocated this way must have its pointer
+// fields zeroed by hand.
+
 #ifndef __UTILS_H
 #define __UTILS_H
 

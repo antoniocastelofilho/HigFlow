@@ -1,3 +1,10 @@
+// The vtable an iterator implements, plus the per-flavour state.  Included by
+// higtree-iterator.h so the iterator structs have a size; it is not a public
+// interface, and code outside higtree-iterator.c should use the functions there.
+//
+// It sits in its own header only because the concrete `extra` structs must be
+// visible to allocate an iterator by value.
+
 #ifndef MTREE_ITERATOR_INTERNAL_H
 #define MTREE_ITERATOR_INTERNAL_H
 

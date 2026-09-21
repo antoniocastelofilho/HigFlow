@@ -1,3 +1,19 @@
+// Viscoelastic flow whose solvent viscosity varies with the local state -- the BMP
+// family, where structure build-up and break-down change the viscosity as the flow
+// evolves.
+//
+// REACHED ONLY BY example2d_BMP, which is also the only case still using the legacy
+// positional input format rather than YAML.  One case, one input format: changes
+// here have exactly one witness.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016

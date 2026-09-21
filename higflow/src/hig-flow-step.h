@@ -1,3 +1,17 @@
+// The time step itself: the projection method, assembled from the pieces in
+// discret/terms/eval and closed by a pressure solve.
+//
+// The shape is the standard projection: an intermediate velocity that ignores the
+// pressure, a Poisson solve for the pressure correction, then the final divergence-
+// free velocity.  higflow_pressure() and higflow_final_velocity() are the last two
+// stages; the intermediate-velocity stage lives in the per-physics step files, which
+// is why there is one hig-flow-step-*.h per rheology.
+//
+// remove_pressure_singularity() exists because a domain with no Dirichlet pressure
+// anywhere leaves the pressure defined only up to a constant, making the Poisson
+// matrix singular.  Whether it is needed DEPENDS ON THE BOUNDARY SETUP of the case,
+// which is what the comment on it means -- it is not unconditionally safe.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step - version 10/11/2016

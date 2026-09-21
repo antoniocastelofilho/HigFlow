@@ -1,3 +1,21 @@
+// Moving least squares: the numerical core the whole discretization rests on.
+//
+// Given sample positions and a query point, it produces weights that reproduce a
+// polynomial of the configured order EXACTLY.  That property is what makes the
+// stencil machinery testable without a stored reference -- feed a known polynomial,
+// demand the interpolated value back to machine precision, on any mesh.
+// higtree/tests/test-stencil-value.c is built on exactly that.
+//
+// wls_set_points() RETURNS A CONDITIONING MEASURE AND IT MUST BE JUDGED.  Degenerate
+// support -- too few points, or points that happen to be collinear -- yields weights
+// that are finite, plausible-looking and numerically useless.  wls_is_good_enough()
+// is the judge, and the expected reaction to a false is to WIDEN THE SEARCH and ask
+// again, not to use what came back.  Every closure in domain.c is built around that
+// retry loop.
+//
+// WLSMOVING recomputes per query point (the default, and what the solver uses);
+// WLSSTATIC fixes the weighting and is cheaper where the query point does not move.
+
 #ifndef __WLS_H
 #define __WLS_H
 

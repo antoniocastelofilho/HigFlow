@@ -1,3 +1,16 @@
+// Two-phase flow where a phase is viscoelastic: the conformation tensor is advanced
+// per phase and interpolated across the interface.
+//
+// EXERCISED by example2d_VOF_Oldroyd and example2d_VOF_Gptt, through flowtype0.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 //  HiG-Flow Solver Step Multiphase Viscoelastic - version 28/03/2024
 // *******************************************************************

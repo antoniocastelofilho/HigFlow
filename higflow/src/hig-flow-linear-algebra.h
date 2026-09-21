@@ -1,3 +1,11 @@
+// Small dense linear algebra on DIM x DIM matrices, for the constitutive equations.
+// Everything here is fixed-size and local to a cell -- nothing distributed.
+//
+// hig_flow_jacobi() assumes A is SYMMETRIC and does not check it; on a non-symmetric
+// input it converges to something that is not an eigendecomposition.  That is the
+// intended use (the conformation tensor is symmetric by construction), but a path
+// that loses symmetry to round-off and feeds it here gets no warning.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Linear Algebra

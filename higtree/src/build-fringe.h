@@ -1,3 +1,13 @@
+// Internal to the partitioner: builds the fringe, the ring of remote cells each rank
+// mirrors so that a stencil near a partition edge still finds mesh on both sides.
+//
+// Not a public interface -- lbal.c drives it.  The fringe is why OUTSIDE_DOMAIN in
+// domain.c means "past my trees AND their fringe" rather than "outside the physical
+// domain", and why an interface between ranks is interior to the classification.
+//
+// It runs under termination detection (term-det.h) because no rank can know in
+// advance how many neighbours will discover an overlap with it.
+
 #ifndef BUILD_FRINGE
 #define BUILD_FRINGE
 

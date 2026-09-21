@@ -1,3 +1,20 @@
+// Registering boundary conditions on the solver: one setter per field, each taking
+// the whole set at once.
+//
+// EVERY SETTER TAKES FOUR PARALLEL ARRAYS -- id[], bcfilenames[][1024], the type
+// array and the value-type array -- all indexed together and all trusted to have
+// numbcs entries.  Nothing checks that, and a short array is read past its end.
+//
+// A FACE WITH NO ENTRY IS NOT AN ERROR AND IS NOT REPORTED.  There is no
+// completeness check against the mesh: an id listed in the YAML whose .amr patch is
+// missing, or a wall nobody registered, simply leaves that stretch of the domain
+// with no condition, and the stencil closure falls through to an interior formula.
+// The run then produces a plausible field with a hole in the wall.  This has
+// happened here, and it was found by a prediction failing, not by a diagnostic.
+//
+// higflow_set_bc_refine_hook() lets the caller refine a boundary patch as it is
+// read, which is how a BC mesh is matched to a refined region of the domain.
+
 // *******************************************************************
 // *******************************************************************
 //  Hig-Flow Solver Boundary Condition - version 10/11/2016

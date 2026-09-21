@@ -1,3 +1,21 @@
+// Residual bookkeeping: per-field norms, their history at several time scales, and
+// the timing statistics printed alongside.
+//
+// NONE OF IT IS COMPILED BY DEFAULT.  The whole structure and every function here
+// sits under COMPUTE_RESIDUALS, which higflow/Makefile defines only under `make
+// RES=1`.  Ordinary builds -- including every build the regression suite runs --
+// have this machinery absent, so it is neither exercised nor verified by the suite.
+// Treat changes here as untested until you build with RES=1 yourself.
+//
+// COMPUTE_MIDRANGE and COMPUTE_MIDLINE, by contrast, are defined UNCONDITIONALLY
+// just below, despite the "channel only" comments next to them.  They are on for
+// every case, channel or not.
+//
+// RES_STORE_NUM (125) is RES_STORE_NUM_BASE ^ RES_STORE_NUM_POW written out by hand.
+// Changing either of the two does not change the 125, and nothing checks the
+// relation -- the buffer would then be sized for a different history depth than the
+// averaging loops assume.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Residuals - version 13/05/2024

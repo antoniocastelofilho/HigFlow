@@ -1,3 +1,11 @@
+// Shared scaffolding for engines that are NOT distributed: gather the whole system
+// onto one rank, solve it there, scatter the answer back.
+//
+// That shape is a memory and scaling ceiling, not just an implementation detail --
+// the full matrix must fit on a single process.  It is fine for small runs and for
+// debugging against a distributed engine, and it is the wrong choice for production
+// sizes.  PETSc does not go through here.
+
 #ifndef SOLVER_CENTRALIZED_H
 #define SOLVER_CENTRALIZED_H
 

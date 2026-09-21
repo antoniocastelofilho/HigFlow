@@ -1,3 +1,12 @@
+// A map keyed by POSITION rather than by id, used to cache per-point results
+// (sim_domain's weight cache is the main client).
+//
+// It is best-effort by construction, as the create() comment spells out: keys are
+// discretized, so two points can collide or fail to match depending on how they sit
+// against the grid of EPSMACH.  That is acceptable for a cache -- a miss costs a
+// recomputation -- and NOT acceptable for anything where a wrong hit changes the
+// answer.  Do not use it as an identity map.
+
 #ifndef POINT_MAPPER
 #define POINT_MAPPER
 

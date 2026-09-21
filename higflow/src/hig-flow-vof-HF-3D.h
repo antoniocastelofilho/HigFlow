@@ -1,3 +1,15 @@
+// Height function in 3D: columns along x, y or z, with direction_hf_* choosing which.
+//
+// The choice is not cosmetic -- a column nearly parallel to the interface gives a
+// height that is not single-valued, and the curvature computed from it is wrong
+// rather than merely imprecise.
+//
+// PART OF THE VOF FAMILY: a volume fraction per cell says how much of each phase is
+// there, and the interface is RECONSTRUCTED from it rather than tracked.  The steps
+// are: estimate a normal, place an interface from the normal and the fraction, then
+// advect the fraction.  These files are the alternative methods for those steps, not
+// a pipeline -- several are alternatives to each other.
+
 #ifndef HIG_FLOW_VOF_HF_3D
 #define HIG_FLOW_VOF_HF_3D
 

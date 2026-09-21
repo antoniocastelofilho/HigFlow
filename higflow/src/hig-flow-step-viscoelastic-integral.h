@@ -1,3 +1,19 @@
+// Integral viscoelastic models (KBKZ): stress from an integral over deformation
+// history rather than from a differential equation, which is why this path carries
+// the Finger tensor and a stored history the differential ones do not have.
+//
+// REACHED ONLY BY example2d_KBKZ, and that case is marked known_broken in the suite.
+// This is therefore the one solver family with an example that does not currently
+// produce a usable result -- in practice it is uncovered.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016

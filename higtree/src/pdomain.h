@@ -1,3 +1,32 @@
+// The partitioned domain: a sim_domain plus everything needed to make it one piece
+// of a distributed mesh -- the neighbour graph, the fringe rectangles, and the map
+// from local index to the global id the solver uses.
+//
+// BUILD ORDER, and every step is collective unless noted:
+//
+//     sd_create / sd_add_higtree / sd_add_boundary     local assembly
+//     psd_create(sd, pg)                               attach to the partition
+//     psd_synced_mapper(psd)                           global ids become valid HERE
+//
+// Before psd_synced_mapper() the global ids do not exist, and psd_get_global_id()
+// answers from an unfilled mapper -- which, per mapper.h, does not report a miss.
+// psd_synced_mapper() is also where the domain snapshot is produced, for the same
+// reason: it is the first moment the numbering is settled.
+//
+// THE FACET SIDE HAS NO SERIAL CONSTRUCTION PATH.  psfd_compute_sfbi() is the only
+// thing that ever fills sfd->sfbi[], and it is written as an MPI exchange; a
+// sim_facet_domain assembled by hand outside MPI ends up with sfbi[i] == NULL and
+// faults on the first facet iteration.  This is why the facet-side tests in
+// higtree/tests must go through a real partition rather than building a domain
+// directly, and it is a genuine limitation, not an oversight to route around.
+//
+// MAXPARTITIONS is 256 and is a hard compile-time cap on ranks.
+//
+// The two "to_send"/"to_recv" lists in struct neighbor_proc are ORDER-COUPLED across
+// ranks, as their comments say: entry k here must be entry k on the peer.  The lists
+// are built by the same deterministic walk on both sides; nothing verifies the
+// agreement at runtime, and a mismatch shows up as data arriving in the wrong tree.
+
 #ifndef __PDOMAIN_H
 #define __PDOMAIN_H
 

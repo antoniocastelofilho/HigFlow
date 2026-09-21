@@ -1,3 +1,14 @@
+// PLIC in 2D: given a cell normal and its volume fraction, place the straight line
+// that cuts exactly that fraction off the cell.  This is the geometric core --
+// distance_from_center() and the equation solvers here are inverting "area cut as a
+// function of line offset".
+//
+// PART OF THE VOF FAMILY: a volume fraction per cell says how much of each phase is
+// there, and the interface is RECONSTRUCTED from it rather than tracked.  The steps
+// are: estimate a normal, place an interface from the normal and the fraction, then
+// advect the fraction.  These files are the alternative methods for those steps, not
+// a pipeline -- several are alternatives to each other.
+
 #ifndef HIG_FLOW_VOF_PLIC
 #define HIG_FLOW_VOF_PLIC
 

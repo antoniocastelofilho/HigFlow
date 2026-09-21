@@ -1,3 +1,12 @@
+// Axis-aligned boxes, and the predicates over them.
+//
+// DEGENERATE RECTS ARE FIRST CLASS HERE, not an edge case: a boundary patch is a
+// box with lo[d] == hi[d] in exactly one dimension, and that is how every Dirichlet
+// and Neumann region in a domain is represented.  rect_intersect() reports true for
+// a degenerate intersection, rect_degenerate_count() is how callers ask which
+// dimension collapsed, and rect_are_parallel() is only meaningful for degenerates.
+// A predicate written assuming positive volume will be wrong on the boundary.
+
 #ifndef RECT_H
 #define RECT_H
 

@@ -1,3 +1,15 @@
+// Advecting the volume fraction in 3D, one direction at a time.  Same split scheme
+// and same need for fraction correction as the 2D case.
+//
+// The _imp variants are the implicit form of a directional sweep, for the steps
+// where an explicit sweep would violate the CFL on that axis alone.
+//
+// PART OF THE VOF FAMILY: a volume fraction per cell says how much of each phase is
+// there, and the interface is RECONSTRUCTED from it rather than tracked.  The steps
+// are: estimate a normal, place an interface from the normal and the fraction, then
+// advect the fraction.  These files are the alternative methods for those steps, not
+// a pipeline -- several are alternatives to each other.
+
 #ifndef HIG_FLOW_VOF_ADVECTION_3D
 #define HIG_FLOW_VOF_ADVECTION_3D
 

@@ -1,3 +1,23 @@
+// Two-phase flow: a volume fraction tracks the interface, and density, viscosity and
+// curvature are derived from it per cell.  The interface reconstruction itself is in
+// the hig-flow-vof-*.h family.
+//
+// EXERCISED by example2d_VOF, example2d_VOF_Oldroyd and example2d_VOF_Gptt.
+//
+// UNDER A MULTIPHASE RUN THE SINGLE-PHASE flowtype IS INERT -- flowtype0 and
+// flowtype1, the per-phase rheologies, are what select behaviour.  The converse also
+// holds and is the commoner confusion: every single-phase case in this tree still
+// carries flowtype0/flowtype1 values in its YAML, and they do nothing there.  Do not
+// read a case's rheology off the wrong key.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 //  HiG-Flow Solver Step multiphase - version 20/01/2022
 // *******************************************************************

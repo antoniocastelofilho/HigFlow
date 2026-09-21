@@ -1,3 +1,9 @@
+// A seeded random generator, kept in the library so that runs which use randomness
+// can be made REPRODUCIBLE -- pass a fixed seed and the sequence is fixed.
+//
+// A seed_size of 0 means a random seed, and then the run is not reproducible.  Tests
+// and anything whose output is compared against a reference must pass a real seed.
+
 #ifndef RNG_H
 #define RNG_H
 

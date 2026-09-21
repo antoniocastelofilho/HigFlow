@@ -1,3 +1,29 @@
+// How every traversal of a mesh is written.  The whole library iterates through
+// these; almost nothing walks children by hand.
+//
+// COMPOSITE ITERATORS TAKE OWNERSHIP OF THEIR INPUTS -- filter, sorted and concat
+// all destroy the iterator(s) handed to them, so destroying an input yourself is a
+// double free.  They differ in WHEN, which matters if the input is also used for
+// anything else:
+//
+//     filter, concat    lazy: the input is consumed as you advance, and destroyed
+//                       by higcit_destroy() on the composite.
+//     sorted            EAGER: create_sorted() drains the input to completion and
+//                       destroys it before returning.  The input is already spent
+//                       when the call comes back.
+//
+// create_sorted() IS BOUNDED AND TRUNCATES SILENTLY: it keeps the first maxcells
+// cells in the comparator's order and discards the rest with no diagnostic.  Sizing
+// maxcells below the real count yields a short iteration that looks complete.
+//
+// higcit_count() advances the iterator to exhaustion -- after it the iterator is
+// finished, not rewound, and there is no rewind.  Use the _without_advancing variant
+// when the iterator still has to be walked.
+//
+// Facet iterators are the same shape, over (cell, dim, dir) triples selected by
+// dimofinterest[].  Because a facet is shared by two cells, a traversal over cells
+// visits each interior facet TWICE, once from each side.
+
 
 #ifndef MTREE_ITERATOR_H
 #define MTREE_ITERATOR_H

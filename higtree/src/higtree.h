@@ -1,3 +1,27 @@
+// The mesh cell itself, and the geometry queries over it.  Everything else in the
+// library is built on this type.
+//
+// IT IS NOT A QUADTREE OR AN OCTREE.  A cell subdivides into a numcells[0] x
+// numcells[1] x ... grid of children, with the factor chosen per cell -- that is the
+// "hierarchical grid" the name refers to.  Two consequences run through the whole
+// system: the trees are NON-GRADED (adjacent leaves may differ by more than one
+// level, in either direction), and a child's index among its siblings is a mixed-radix
+// number, which is what hig_toposition/hig_tobase convert to and from.
+//
+// Non-graded is the reason the discretization interpolates with moving least squares
+// (wls.h) instead of differencing neighbours: there is no guarantee that a neighbour
+// of comparable size exists in a given direction.
+//
+// sizeof(hig_cell) DEPENDS ON THE HAS*ID MACROS ABOVE, because ids[] is sized from
+// them.  Like DIM, they must agree between the library and everything linked against
+// it, and a mismatch links cleanly and then misreads every cell.  HASVERTEXID is
+// currently off; hig_requires_vertex_ids() exists so a program that needs it aborts
+// at startup rather than reading the wrong slot.
+//
+// A hig_facet is not an object with storage -- it is a (cell, dim, dir) triple, so
+// the SAME physical facet has two spellings, one from each adjoining cell.  Facet
+// identity comes from the ids in the cell, not from the triple.
+
 #ifndef MTREE_H
 #define MTREE_H
 

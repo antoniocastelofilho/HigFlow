@@ -1,3 +1,11 @@
+// The Mittag-Leffler function, needed by the fractional viscoelastic models where it
+// plays the role the exponential plays for an ordinary relaxation.
+//
+// Self-contained numerics over a local complex type (`numc`) -- it does not use the
+// solver or the mesh, and can be tested on its own.  NOTE THE `pi` MACRO: this
+// header defines the bare identifier `pi`, so any translation unit that includes it
+// cannot use `pi` as a name of its own.
+
 //*******************************************************
 // Estruture for Mittag-Leffler function
 //*******************************************************

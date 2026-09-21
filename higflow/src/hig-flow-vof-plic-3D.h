@@ -1,3 +1,14 @@
+// PLIC in 3D: the same inversion as the 2D case, but cutting a box with a PLANE, so
+// the volume-as-a-function-of-offset relation is piecewise cubic instead of
+// piecewise quadratic.  That is why this file is larger than its 2D counterpart and
+// why it carries its own root finder rather than sharing one.
+//
+// PART OF THE VOF FAMILY: a volume fraction per cell says how much of each phase is
+// there, and the interface is RECONSTRUCTED from it rather than tracked.  The steps
+// are: estimate a normal, place an interface from the normal and the fraction, then
+// advect the fraction.  These files are the alternative methods for those steps, not
+// a pipeline -- several are alternatives to each other.
+
 #ifndef HIG_FLOW_VOF_PLIC_3D
 #define HIG_FLOW_VOF_PLIC_3D
 

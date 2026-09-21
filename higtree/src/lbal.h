@@ -1,3 +1,27 @@
+// The load balancer: takes the blocks of a domain, decides which rank owns which,
+// and builds the fringe that makes each rank's piece usable at its edges.
+//
+// This is also ONE OF THE TWO SEAMS where an alternative mesh backend plugs in.
+// Everything upstream of lb_add_input_tree() is free to produce the blocks however
+// it likes -- the .amr reader does, and so does the t8code path -- because what
+// crosses this line is a hig_cell tree, not a description of how it was made.  The
+// other seam is higflow_set_fonte_de_particao(); see higflow's side for that one.
+//
+// The ordering rules in the comments below are load-bearing and are the usual way to
+// get this wrong: every lb_set_* and lb_add_* call belongs BEFORE lb_calc_partition()
+// and every lb_get_* AFTER it, and lb_calc_partition() is collective while the
+// getters are not.  A getter called early returns the pre-partition state without
+// complaining.
+//
+// `managed` on lb_add_input_tree() hands ownership of the tree to the balancer: it
+// will be freed by lb_destroy().  Pass false for a tree the caller still owns, and
+// make sure it outlives the balancer.
+//
+// A "group" is a set of trees partitioned together with a shared weight -- the way a
+// domain with regions of different cost per cell keeps the split balanced.  A
+// "portal" connects two rects that are geometrically apart but topologically
+// adjacent, which is how periodic boundaries reach their opposite face.
+
 #ifndef __LBAL__
 #define __LBAL__
 

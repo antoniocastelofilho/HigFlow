@@ -1,3 +1,9 @@
+// A growable array of points.  Used where a stencil search accumulates candidate
+// positions before handing them to the interpolator.
+//
+// pc_reset() keeps the allocation and drops the contents, which is the point: the
+// cloud is meant to be reused across queries inside a loop rather than recreated.
+
 #ifndef __POINT_CLOUD_H
 #define __POINT_CLOUD_H
 

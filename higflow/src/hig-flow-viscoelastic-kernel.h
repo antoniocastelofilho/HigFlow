@@ -1,3 +1,12 @@
+// The conformation-tensor machinery shared by the viscoelastic variants
+// (viscoelastic, elastoviscoplastic, variable-viscosity).  Centralizing it is what
+// keeps those three from drifting apart.
+//
+// The note on hig_flow_calculate_omega() below records a real limit of the
+// formulation, not a rounding trick: in the near-degenerate eigenvalue band the
+// symmetric term that survives the limit is not recovered.  Read it before changing
+// `small` -- the value is not a tolerance you can tighten freely.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Viscoelastic Kernel

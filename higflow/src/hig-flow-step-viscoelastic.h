@@ -1,3 +1,18 @@
+// Viscoelastic flow: the conformation-tensor path, and the reference implementation
+// the other viscoelastic variants were derived from.
+//
+// EXERCISED by example2d_Oldroyd and example2d_Gptt.  Oldroyd is the consistent case
+// used as an injection target when a suspicious pattern has to be tested in a solver
+// that no example reaches.
+//
+// WHAT A STEP FILE CONTAINS: the intermediate-velocity stage of the projection for
+// one rheology, plus whatever constitutive equation that rheology has to advance.
+// The shared stages (pressure solve, final velocity) stay in hig-flow-step.h.
+//
+// Each intermediate-velocity variant is offered in several time discretizations
+// (explicit Euler, RK2, RK3, semi-implicit, implicit).  WHICH ONE RUNS COMES FROM
+// THE YAML, so a variant present here is not necessarily a variant any case selects.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Viscoelastic - version 10/11/2016

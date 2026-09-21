@@ -1,3 +1,23 @@
+// The map from a cell's or facet's unique id to its index in the solver's vectors.
+// Every stencil entry is an index produced here.
+//
+// A MISS IS NOT REPORTED TO THE CALLER, and this is the trap of the module:
+//
+//   numbits == MP_ALL_BITS   mp_lookup returns MP_UNDEF (0xFFFFFFFF) for an
+//                            unmapped id -- a value that is only detected if the
+//                            caller compares against it.  Only mapper.c does.
+//                            Everyone else uses the result directly as an index.
+//
+//   packed-bits mode         a miss returns 0, which is a VALID index.  A miss is
+//                            then INDISTINGUISHABLE from a hit on element zero.
+//                            This is why mp_assign_from_* guards its MP_UNDEF test
+//                            with `numbits != MP_ALL_BITS ||` -- in packed mode the
+//                            test cannot work at all, so it is skipped.
+//
+// The consequence for callers: look up only ids you know were assigned.  The usual
+// guarantee comes from ordering, not checking -- the mapper is filled from the same
+// iterator that will later be used to query it.
+
 #ifndef MAPPER_H
 #define MAPPER_H
 

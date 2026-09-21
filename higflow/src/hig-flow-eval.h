@@ -1,3 +1,18 @@
+// Reading a velocity or a property at a point that is not a degree of freedom --
+// every one of these goes through the stencil machinery in domain.c.
+//
+// THE NAMES ARE THE ONLY THING DISTINGUISHING NEAR-IDENTICAL VARIANTS, and the
+// suffixes are positional, not descriptive: _left/_right pick the side, a trailing
+// _2 or _22 selects how far and along which of dim/dim2, and the _4_ family works on
+// the four-point stencils used by the higher-order convective schemes.  They all
+// have the same signature shape, so calling the wrong one compiles cleanly and
+// returns a value from the wrong place.  Check the definition, not the name.
+//
+// The `infacet` out-parameter on some variants reports whether the point landed on a
+// facet of the domain; callers use it to decide whether the value is a degree of
+// freedom or an interpolation.  Ignoring it is how a boundary value gets treated as
+// an interior one.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Eval - version 10/11/2016

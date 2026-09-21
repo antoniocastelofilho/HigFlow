@@ -1,3 +1,20 @@
+// Reading meshes from disk and writing them out for inspection.  Two very different
+// jobs share this file, and only one of them is part of the simulation.
+//
+// INPUT -- the .amr format, and higio_amr_info as its parsed form.  A domain is a
+// list of blocks; higio_read_bc_from_amr() cuts one boundary patch per (dim, dir).
+// A face for which no patch is requested simply HAS NO BOUNDARY CONDITION, and
+// nothing reports that: the stencil closure finds no Dirichlet family governing the
+// point and falls through to an interior formula, so a missing wall behaves as a hole
+// rather than as an error.  That failure has happened in this repository.
+//
+// OUTPUT -- higio_print_*_in_vtk*.  These are for VISUALIZATION and must not be
+// treated as results.  The VTK writers reduce each cell to a value chosen from its
+// support, and where that choice ties, the winner depends on how the domain was
+// partitioned; the same run at np=1 and np=4 can differ in the file while the solver
+// state is bit-identical.  See the VTK section in AGENTS.md.  A regression test must
+// compare solver fields, never VTK.
+
 #ifndef HIGTREE_IO_H
 #define HIGTREE_IO_H
 

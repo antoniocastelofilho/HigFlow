@@ -1,3 +1,25 @@
+// The linear-system interface, behind a vtable: everything above this file assembles
+// rows and asks for a solution without knowing which library solves it.
+//
+// THE TWO LISTS BELOW ARE OFFSET BY ONE, not identical, and the comment that used to
+// say otherwise was misleading.  SOLVER_ANY is enum value 0 and has NO entry in
+// engine_names[], so the correspondence is
+//
+//     engine_names[i]  <->  (SolverEngine)(i + 1)
+//
+// which is why slv_create() reads engine_names[engine-1] and the environment lookup
+// writes back (SolverEngine)(i+1).  Adding an engine means adding it to BOTH lists,
+// in the same position, and keeping SOLVER_ANY first.  Nothing checks this at build
+// time; getting it wrong silently runs a different engine than the name says.
+//
+// SOLVER_ANY is not an engine -- it means "decide at runtime": the environment
+// variable HIGTREE_SOLVER_ENGINE first, a built-in heuristic if that is unset.  Some
+// engines exist only under a build flag (USE_SOR, USE_VIENNACL), so the enum's
+// numeric values DEPEND ON THE BUILD and must never be serialized or hard-coded.
+//
+// `converged` is set by the engine after solve() and is the only report that the
+// iteration met its tolerance.  A solver that stops at MaxIteration still returns.
+
 #ifndef SOLVER_H
 #define SOLVER_H
 
@@ -10,7 +32,8 @@
 
 struct solver;
 
-// Keep the same order on both following lists:
+// NOTE: these two lists are OFFSET BY ONE -- see the header comment above.
+// engine_names[i] corresponds to (SolverEngine)(i+1); SOLVER_ANY has no name.
 static const char* engine_names[] = {
 	"hypre",
 	"petsc",

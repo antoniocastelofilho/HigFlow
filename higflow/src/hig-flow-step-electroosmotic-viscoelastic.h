@@ -1,3 +1,9 @@
+// Composition layer only: it declares the single step function that runs the
+// electroosmotic path with a viscoelastic rheology, and delegates everything to the
+// two parent step files.  There is no formulation of its own here.
+//
+// NO EXAMPLE SELECTS THIS COMBINATION.  Uncovered by the suite.
+
 // *******************************************************************
 // *******************************************************************
 //  HiG-Flow Solver Step Electro-osmotic Viscoelastic - version 03/2024

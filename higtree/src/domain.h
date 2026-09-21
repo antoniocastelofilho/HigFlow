@@ -1,3 +1,38 @@
+// A simulation domain: the mesh blocks, the boundary conditions attached to them,
+// and the interpolators that turn a position into a weighted set of unknowns.  This
+// is the type the physics is written against.
+//
+// THE TREE ARRAY HAS TWO HALVES, split at first_fringe.  Indices [0, first_fringe)
+// are trees this rank OWNS; [first_fringe, numhigtrees) are fringe copies mirrored
+// from neighbours.  The domain cell iterator stops at first_fringe, so a loop over
+// "the cells of the domain" visits owned cells only -- while the stencil search reads
+// the whole array, which is exactly why a point owned by a neighbour classifies as
+// interior instead of as boundary.  sd_add_higtree() maintains the split by moving
+// the first fringe tree to the end; do not write higtrees[] directly.
+//
+// THE ARRAY GROWS WITHOUT LIMIT, BUT ONE CONSUMER DOES NOT.  sim_facet_domain.sfbi[]
+// below is a FIXED array of MAXHIGTREESPERDOMAIN (40), and sfd_set_sfbi() indexes it
+// with the domain's tree index and NO BOUNDS CHECK.  A rank whose owned-plus-fringe
+// tree count passes 40 writes past the end of the struct.  Nothing in the build or at
+// runtime reports it.  The margin is not generous: example3d_complex is a 33-block
+// domain, so at np=1 it sits seven trees short of the cap, and the per-rank count
+// WITH fringe trees has not been measured.  Treat 40 as a real ceiling.
+//
+// BUILD ORDER IS PART OF THE CONTRACT, because state is derived once and then
+// trusted: create, add every tree, add every boundary, assign the mapper, and only
+// then compute the snapshot.  sd_add_higtree() refuses to run after the snapshot
+// exists.  See the notes on `snapshot` and sd_compute_snapshot() below for what is
+// derived and what breaks it.
+//
+// A boundary condition is a DEGENERATE tree (a patch, flat in one dimension) plus
+// values at its cell centres.  A face with no patch is not an error and is not
+// reported: the closure finds no family governing the point and falls back to an
+// interior formula, so a missing wall behaves as a hole in the domain.
+//
+// The stencil closures themselves live in domain.c; that file's header explains how
+// a boundary family is chosen (by which patch the segment origin->x CROSSES, not by
+// which plane is nearest) and why.
+
 #ifndef DOMAIN_H
 #define DOMAIN_H
 
