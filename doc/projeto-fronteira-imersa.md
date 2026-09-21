@@ -140,9 +140,15 @@ das facetas do suporte estão em **deslocamentos conhecidos** a partir do
 marcador. Cada um se acha com uma `sfd_get_facet_with_point`. Custo
 `O(N_L × 3^DIM)` localizações, cada uma logarítmica.
 
-Isso também fixa a exigência de franja: o suporte se estende uma célula e meia
-para cada lado, então um marcador a menos disso da borda do rank tem suporte
-atravessando a fronteira. Com replicação isso é inofensivo na interpolação (a
+Isso também fixa a exigência de franja **euleriana**: o suporte se estende uma
+célula e meia para cada lado, então um marcador a menos disso da borda do rank
+tem suporte atravessando a fronteira. Essa franja é a da HiGTree, e **não** é a
+sobreposição do `DMPlexDistribute` — as duas foram conflacionadas numa versão
+anterior deste texto. A sobreposição do Plex é da malha lagrangeana e serve a
+outra coisa (medida: `sondas/sonda-plex-sobreposicao.c`; sobreposição 1 basta
+para área e normal do vértice, e custa +19% de células em np=2 e até +53% em
+np=3 numa esfera de 1280 triângulos). A largura de franja euleriana exigida pelo
+delta segue **sem medir**. Com replicação isso é inofensivo na interpolação (a
 soma global recupera as parcelas), mas **no espalhamento cada rank precisa ver
 as facetas do suporte que ele possui** — o que já é verdade, porque ele as
 possui.

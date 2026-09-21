@@ -75,13 +75,57 @@ O teste discrimina: se o `PetscSF` sobrescrevesse em vez de somar, daria 10,0. O
 grafo se monta do que a HiGTree já tem (`gid_map`, `local_count`, `total_count`
 e os vizinhos filtrados de `_dp_shared`), sem tocar na estrutura dela.
 
+### `sonda-plex-sobreposicao.c` — quanto halo cada nível de sobreposição custa
+
+Esfera triangulada, refinada três vezes (1280 triângulos), distribuída com
+sobreposição 0, 1 e 2. Fantasmas são as folhas do `pointSF`.
+
+```
+np=2   640 próprias    sobrep 0:    0 fantasmas       sobrep 1: +124 (+19%)    sobrep 2: +240 (+38%)
+np=3   427 próprias    sobrep 0:    0 fantasmas       sobrep 1: +161..228 (+38..53%)   sobrep 2: +297..441 (+70..103%)
+```
+
+**A leitura que importa: sobreposição 1 basta, e sobreposição 0 não.** Já em
+sobreposição 0 há vértices fantasmas (64 no rank 0, np=2) — os vértices da
+fronteira da partição são compartilhados. Mas os **triângulos incidentes** a esse
+vértice estão parte do outro lado, e área dual e normal dependem deles. Um anel
+de células resolve; é o que sobreposição 1 entrega.
+
+Sobreposição 2 só se justifica para quem precisa de dois anéis — curvatura por
+estêncil mais largo, energia de flexão — o que é assunto de corpo **deformável**,
+não do corpo rígido e fixo decidido.
+
+**O custo cresce com o número de ranks**, e é preciso ver por quê: o halo é
+proporcional ao perímetro da partição, e o perímetro relativo cresce quando a
+superfície é dividida em mais pedaços. Numa esfera de 1280 triângulos em np=3, a
+sobreposição 2 quase **dobra** a malha local. Para corpo pequeno partido em
+muitos ranks, isso deixa de ser detalhe.
+
+### Uma medida que não mediu nada, registrada de propósito
+
+A primeira execução usou a esfera **sem refinar** — o `DMPlexCreateSphereMesh`
+entrega um icosaedro de 20 triângulos. O resultado:
+
+```
+sobrep 1 | rank 0 | celulas 20 (10 fantasmas)
+sobrep 2 | rank 0 | celulas 20 (10 fantasmas)
+```
+
+Parece a descoberta de que o halo satura no nível 1. **Não é.** Com 20 células e
+sobreposição 1, cada rank já recebeu a malha inteira; o número não cresce porque
+acabou a malha, não porque o halo parou. Medida cujo resultado é o teto do
+domínio não mede o que se pensa estar medindo — e essa é a forma mais fácil de
+errar aqui, porque o número sai bonito e estável.
+
 ## O que as sondas NÃO provam
 
 - **Nada sobre integração.** Elas não tocam HiGTree nem HiGFlow. Que as
   bibliotecas saibam fazer isso não diz que o acoplamento seja barato.
-- **Nada sobre o halo do delta regularizado.** O `DMPlexDistribute` foi chamado
-  com sobreposição **zero**. O suporte do delta (3 a 4 células) exige sobreposição,
-  e isso não foi medido.
+- **Nada sobre o halo do delta regularizado, e a sobreposição do Plex NÃO é esse
+  halo.** Conflacionei as duas coisas antes e corrijo aqui: a sobreposição é da
+  malha LAGRANGEANA e serve a área e normal do vértice; o suporte do delta é
+  EULERIANO, e quem o cobre é a franja da HiGTree mais a acumulação do `PetscSF`.
+  A largura de franja euleriana que o delta exige segue sem medir.
 - **Nada sobre desempenho.** Oito triângulos e quatro marcadores não medem nada.
 - **Nada sobre a escolha** — que já foi tomada, e contra a minha recomendação.
   Eu recomendava replicar, pelo tamanho: ~160 marcadores para um cilindro nestas

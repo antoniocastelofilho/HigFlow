@@ -7,7 +7,7 @@
 # Elas nao dependem da HiGTree nem da HiGFlow de proposito -- o que se esta'
 # julgando e' a biblioteca, nao a integracao.
 
-SONDAS = sonda-dmswarm sonda-dmplex sonda-petscsf
+SONDAS = sonda-dmswarm sonda-dmplex sonda-petscsf sonda-plex-sobreposicao
 
 CXX      = mpic++
 CXXFLAGS = -x c++ -std=gnu++17 -Wall -I$(PETSC_DIR)/include -I$(PETSC_DIR)/../include
