@@ -38,6 +38,22 @@ LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
 LIBS+= -lm -ltrilinos_zoltan -lHYPRE
 
+# t8code, OPCIONAL.  Passe T8CODE=<prefixo> para que o exemplo possa escolher a
+# malha produzida pelo t8code (em tempo de execucao, com HIGFLOW_MALHA=t8code).
+# Sem isso nada muda e o exemplo nao depende da biblioteca.
+#
+# A unidade do produtor compila em C++20 porque o t8code exige, enquanto o resto
+# fica em gnu++17 -- so' a assinatura em extern "C" atravessa.
+ifdef T8CODE
+CFLAGS  += -DHIGFLOW_COM_T8CODE -I$(T8CODE)/include
+LDFLAGS += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
+LIBS    += -lt8 -lp4est -lsc
+T8OBJ    = malha-t8.o
+T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) \
+           -DT8_ENABLE_MPI=1 -DT8_ENABLE_MPIIO=1 -I$(T8CODE)/include \
+           $(shell pkg-config --cflags glib-2.0 hdf5) $(PETSC_CC_INCLUDES)
+endif
+
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)
 	LIBS+= -lrt
@@ -58,9 +74,18 @@ OBJ1 = ns-example-2d.o
 OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
 OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
 OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
+OBJ1 += $(T8OBJ)
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
+
+# A REGRA FICA DEPOIS do alvo `ns-example`.  Em make, a PRIMEIRA regra explicita
+# do arquivo e' o alvo padrao: posta antes, `make` sem argumento construia so'
+# este objeto e retornava 0 -- build "bem-sucedido" sem binario nenhum.
+ifdef T8CODE
+malha-t8.o: malha-t8.cxx
+	$(CC) $(T8FLAGS) -c $< -o $@
+endif
 
 %.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -78,7 +103,7 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f ns-example-2d.o ns-example
+		$(RM) -f ns-example-2d.o ns-example malha-t8.o
 
 rebuild_higflow:
 	$(MAKE) -C .. clean

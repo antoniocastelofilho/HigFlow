@@ -13,6 +13,10 @@
 // Create the NS object
 higflow_solver *higflow_create (void) {
     DECL_AND_ALLOC(higflow_solver, ns, 1);
+    // O solver e' malloc, NAO calloc: ponteiro nao inicializado vira lixo, e um
+    // gancho de fonte de malha com lixo dispararia sozinho.
+    ns->fonte_de_malha = NULL;
+    ns->fonte_de_malha_ctx = NULL;
     // A struct vem de malloc, que nao zera: sem isto o ponteiro comeca indefinido.
     ns->problem = NULL;
     return ns;
@@ -1350,6 +1354,13 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns) {
 }
 
 // Partition table initialize
+void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
+                                void *ctx)
+{
+    ns->fonte_de_malha = f;
+    ns->fonte_de_malha_ctx = ctx;
+}
+
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, int ntasks, int myrank) {
     // Setting the fringe size of the sub-domain
     // The fringe is a buffer around the cells of a given node
@@ -1357,7 +1368,11 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
     /* Partitioning the grid from AMR information */
     load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
     for(unsigned i = myrank; i < numhigs; i += ntasks) {
-        lb_add_input_tree(lb, higio_read_from_amr_info(mi[i]), true, 0);
+        // A malha vem da fonte instalada pelo exemplo; sem fonte, da informacao AMR.
+        hig_cell *__raiz = (ns->fonte_de_malha != NULL)
+                         ? ns->fonte_de_malha(ns->fonte_de_malha_ctx, (int) i, (int) numhigs)
+                         : higio_read_from_amr_info(mi[i]);
+        lb_add_input_tree(lb, __raiz, true, 0);
     }
     lb_calc_partition(lb, pg);
     numhigs = lb_get_num_local_trees(lb);

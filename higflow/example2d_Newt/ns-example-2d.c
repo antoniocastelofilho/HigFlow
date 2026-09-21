@@ -4,6 +4,11 @@
 
 #include "ns-example-2d.h"
 
+#ifdef HIGFLOW_COM_T8CODE
+// Definida em malha-t8.cxx, compilada so' quando T8CODE esta' no ambiente.
+extern "C" hig_cell *malha_t8_do_exemplo(void *ctx, int indice, int numhigs);
+#endif
+
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
@@ -190,6 +195,19 @@ int main (int argc, char *argv[]) {
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
+    // O EXEMPLO ESCOLHE A FONTE DA MALHA.  Sem HIGFLOW_MALHA=t8code no ambiente,
+    // nada muda: o solver le' o arquivo AMR como sempre, e a suite afirma isso.
+    // Com a variavel, a malha vem de uma floresta do t8code -- a mesma malha, por
+    // outro produtor, entao a saida tem de ser identica.
+#ifdef HIGFLOW_COM_T8CODE
+    {
+        const char *fonte = getenv("HIGFLOW_MALHA");
+        if (fonte != NULL && strcmp(fonte, "t8code") == 0) {
+            if (myrank == 0) printf("=+=+=+= Malha produzida pelo t8code =+=+=+=\n");
+            higflow_set_fonte_de_malha(ns, malha_t8_do_exemplo, NULL);
+        }
+    }
+#endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
 
     // Initialize the boundaries

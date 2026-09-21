@@ -1192,6 +1192,10 @@ typedef struct higflow_extra_domains{
 typedef struct sim_residuals sim_residuals;
 
 // Navier-Stokes Solver Data Structure
+//! \brief De onde vem a malha: da informacao AMR (omissao) ou de outra fonte.
+//! Ver `higflow_set_fonte_de_malha`.
+typedef hig_cell *(*higflow_fonte_de_malha)(void *ctx, int indice, int numhigs);
+
 typedef struct higflow_solver {
     // Parameters
     higflow_parameters         par;
@@ -1250,6 +1254,10 @@ typedef struct higflow_solver {
     distributed_property       *dpFU[DIM];
     // structure responsible for tracking residuals of consecutive iterations
     sim_residuals              *residuals;
+
+    //! \brief Fonte da malha.  NULL = ler da informacao AMR, como sempre.
+    higflow_fonte_de_malha fonte_de_malha;
+    void                  *fonte_de_malha_ctx;
 } higflow_solver;
 
 // *******************************************************************
@@ -1506,6 +1514,20 @@ void higflow_create_stencil_multiphase(higflow_solver *ns);
 void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 
 // Partition table initialize
+
+//! \brief De onde vem a malha: da informacao AMR (omissao) ou de outra fonte.
+//!
+//! O solver le' a malha de arquivo AMR.  Este gancho deixa o EXEMPLO escolher
+//! outra fonte -- o t8code, por exemplo -- sem que o nucleo saiba qual.  Recebe o
+//! indice da malha e quantas ha', e devolve a arvore que entraria no
+//! `lb_add_input_tree`.
+//!
+//! SEM GANCHO O COMPORTAMENTO E' IDENTICO ao de antes, e e' a suite de exemplos
+//! que afirma isso: 33/33 sem tocar em nada.
+//! \brief Instala a fonte de malha.  `f == NULL` volta ao caminho AMR.
+void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
+                                void *ctx);
+
 void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numhigs, higio_amr_info **mi, int ntasks, int myrank);
 
 // Partition table multiphase initialize

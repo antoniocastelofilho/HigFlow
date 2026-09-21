@@ -262,7 +262,42 @@ O caso `caixas_sao_navegaveis` é o que autoriza usar estas árvores como árvor
 domínio: `hig_get_cell_with_point` no centro de cada folha tem de devolver aquela
 folha. É exatamente o caso que a versão com buracos não passaria.
 
-## 5. Ordem, e o que dá rede
+## 4c. O exemplo escolhe a fonte da malha — feito
+
+`higflow_set_fonte_de_malha(ns, f, ctx)` instala um gancho que o
+`higflow_partition_domain` consulta. Sem gancho, a malha vem do arquivo AMR como
+sempre — e a suíte afirma essa inércia: **33/33** com o gancho presente e não
+instalado.
+
+O `example2d_Newt` escolhe em tempo de execução: com `HIGFLOW_MALHA=t8code` no
+ambiente, a malha é produzida por uma floresta do t8code. A unidade do produtor
+só é compilada quando se passa `T8CODE=<prefixo>` ao `make` do exemplo; sem isso
+o exemplo não depende da biblioteca.
+
+**O problema da referência foi resolvido evitando-o.** Gerar uma referência a
+partir do código recém-escrito só guardaria contra regressão futura. Em vez
+disso, o `amrs/domain/ch-d-0.amr` descreve uma malha **uniforme** de 160×40 sobre
+`[0,8]×[-1,1]`, e um cmesh de *brick* do t8code com 160×40 árvores no nível 0 tem
+exatamente essas células. Mesma malha, produtor diferente → a saída tem de ser
+**idêntica**:
+
+```
+3 arquivos VTK            byte a byte idênticos
+6 campos gravados         byte a byte idênticos
+```
+
+Sem tolerância, sem número gravado.
+
+**A fiação foi conferida**, porque saída idêntica também é o que se veria se o
+caminho t8code tivesse caído de volta no AMR: com a fonte sabotada para recusar,
+a execução termina em erro e não produz VTK nenhum.
+
+*A armadilha que custou uma rodada, e já está registrada duas vezes neste
+repositório:* a regra `malha-t8.o:` ficou antes do alvo `ns-example`, e em make a
+**primeira regra explícita é o alvo padrão** — `make` construía só o objeto e
+retornava 0. Build "bem-sucedido" sem binário.
+
+
 
 A restrição real não é tamanho, é cobertura. A suíte de exemplos roda 33 casos;
 migrar onde ela não chega é mexer sem rede.
