@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>O instantâneo em produção</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* PDF: uma so' aparencia, clara, porque papel nao tem tema. */
+  :root {
+    --papel:#ffffff; --tinta:#1b2430; --tinta-fraca:#5a6676; --linha:#dfe3ea;
+    --acento:#1f7a6f; --acento-fundo:#e6f2f0; --alerta:#9b2226; --alerta-fundo:#fbeaea;
+    --cod-fundo:#f2f4f7; --cod-tinta:#1b2430;
+  }
+  @page { size: A4; margin: 18mm 15mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; background:var(--papel); color:var(--tinta);
+    font-family:"Source Sans 3", system-ui, sans-serif;
+    font-size:10.5pt; line-height:1.55;
+  }
+  .folha { max-width: 100%; }
+
+  h1 { font-size:20pt; line-height:1.2; margin:0 0 .3rem; letter-spacing:-.01em; text-wrap:balance; }
+  h2 {
+    font-size:14pt; margin:1.9rem 0 .6rem; padding-top:.5rem;
+    border-top:2px solid var(--acento); color:var(--acento);
+    break-after:avoid; text-wrap:balance;
+  }
+  h3 { font-size:11.5pt; margin:1.3rem 0 .4rem; color:var(--tinta); break-after:avoid; text-wrap:balance; }
+  p, li { orphans:2; widows:2; }
+  hr { border:0; border-top:1px solid var(--linha); margin:1.6rem 0; }
+
+  code {
+    font-family:"JetBrains Mono", ui-monospace, monospace; font-size:9pt;
+    background:var(--cod-fundo); padding:.08em .3em; border-radius:3px;
+  }
+  pre {
+    background:var(--cod-fundo); color:var(--cod-tinta); border:1px solid var(--linha);
+    border-radius:4px; padding:.7rem .85rem; overflow-x:auto;
+    font-size:8.6pt; line-height:1.45; break-inside:avoid;
+  }
+  pre code { background:none; padding:0; font-size:inherit; }
+
+  blockquote {
+    margin:1.2rem 0; padding:.8rem 1rem; border-left:4px solid var(--acento);
+    background:var(--acento-fundo); break-inside:avoid;
+  }
+  blockquote p { margin:.3rem 0; }
+
+  table { border-collapse:collapse; width:100%; font-size:9.5pt; margin:1rem 0; break-inside:avoid; }
+  th, td { border:1px solid var(--linha); padding:.35rem .5rem; text-align:left; }
+  th { background:var(--cod-fundo); }
+
+  strong { font-weight:700; }
+
+  /* Os diagramas: um por bloco, nunca partidos entre paginas. */
+  pre.mermaid {
+    background:none; border:none; padding:.4rem 0; text-align:center;
+    break-inside:avoid; page-break-inside:avoid;
+  }
+  pre.mermaid svg { max-width:100%; height:auto; }
+</style>
+</head>
+<body>
+<div class="folha">
+<h1>O instantâneo em produção</h1>
+<p>Proposta de projeto, não de implementação. O objetivo é decidir <strong>onde o
+<code>hig_mesh_snapshot</code> vive, quem o produz e o que o invalida</strong> antes de encostar
+nos sítios de consulta — porque varrer sem isso produz código que fica verde e
+errado, e cinco dos arquivos com mais sítios são solvers que nenhum exemplo
+alcança.</p>
+<p>Tudo abaixo foi medido em <code>higflow/src</code> em 20 de setembro de 2026, com o
+<code>src_hugo</code> excluído da contagem (ele não entra na compilação).</p>
+<blockquote>
+<p><strong>Estado em 21 de setembro de 2026 — o projeto saiu de proposta e está no
+<code>master</code>.</strong> Tudo o que este documento propõe foi construído, verificado e
+mesclado (<code>22b331e..ee88ecd</code>, 56 commits); a ramificação <code>mesh-t8code</code> foi
+apagada, porque o trabalho deixou de ser uma ramificação e virou o projeto.
+As seções abaixo ficam <strong>como foram escritas</strong>, com o raciocínio no tempo em
+que ele aconteceu — o que mudou depois está marcado em cada seção e reunido
+na seção 7. Documento de projeto que se reescreve para parecer que sempre
+soube o resultado perde justamente o que o torna útil: onde o autor errou.</p>
+</blockquote>
+<hr />
+<h2>1. O que a medição mudou no plano</h2>
+<h3>A adaptação existe, e reconstrói em vez de mutar</h3>
+<p>Eu havia afirmado aqui que <strong>não há adaptação de malha em tempo de execução</strong>.
+Estava errado, e o erro foi de medição: grepei <code>higflow/examples</code>, diretório que
+não existe — os exemplos são <code>higflow/example2d_*</code> e <code>example3d_*</code>. O
+<code>2&gt;/dev/null</code> engoliu o <em>No such file or directory</em> e eu li zero resultados como
+ausência de adaptação.</p>
+<p>Medido de novo, nos 14 exemplos:</p>
+<pre><code>higflow/src                       0 sítios de hig_refine_uniform / hig_split
+example2d_ElectroOsmotic          2 sítios
+example2d_DynamicMeshAdapt        2 sítios
+</code></pre>
+<p>O que a leitura de cada um mostra é que <strong>a premissa de projeto sobrevive, por um
+motivo diferente do que eu tinha escrito</strong>:</p>
+<ul>
+<li><code>example2d_ElectroOsmotic</code>, sítio 1: refina um <code>hig_clone</code> da raiz, usado só
+  para escrever VTK e destruído em seguida. A malha viva não é tocada.</li>
+<li><code>example2d_ElectroOsmotic</code>, sítio 2: está em <code>adapt_mesh_and_update_solver</code>,
+  que refina a malha viva — e cuja <strong>única chamada está comentada</strong> (linha 364).</li>
+<li><code>example2d_DynamicMeshAdapt</code>: o caminho vivo é <code>higflow_rebuild_with_amr</code>, que
+  constrói uma árvore adaptada nova, chama <code>lb_calc_partition</code> e <strong>reconstrói</strong> o
+  solver sobre ela.</li>
+</ul>
+<p>Ou seja: a adaptação em tempo de execução <strong>existe</strong>, e ela funciona
+reconstruindo o domínio, não mutando o que está vivo. Nenhum caminho alcançável
+refina uma árvore que já pertence a um <code>sim_domain</code>.</p>
+<p>Para o instantâneo isso é melhor do que a premissa errada que eu tinha: como a
+adaptação passa por <code>psd_create</code> / <code>psd_synced_mapper</code> outra vez, <strong>o instantâneo
+é reproduzido sozinho</strong>. Continua não havendo política de invalidação a desenhar.</p>
+<p><strong>Mas existe uma mina, e ela é o motivo de o detector não ser supérfluo.</strong> Duas
+funções de refino <em>no lugar</em> estão escritas e dormentes:</p>
+<pre><code>higflow_refine_tree_inplace      definida, nunca chamada
+adapt_mesh_and_update_solver     definida, chamada comentada
+</code></pre>
+<p>Nenhuma das duas passa pela API do domínio, então a guarda de
+<code>sd_add_higtree</code> não as vê. Se alguém as acordar, o instantâneo fica velho <strong>em
+silêncio</strong> e os laços migrados passam a ler a célula errada. Quem detecta esse
+caso é o <code>sd_snapshot_is_current</code>, e quem o acordar deve chamar
+<code>sd_compute_snapshot</code> logo depois — está anotado nos dois lugares.</p>
+<h3>A lacuna da franja está fechada, e o que ela revelou</h3>
+<p>O <code>hms_from_domain</code> indexa por <code>mp_lookup(sd_get_domain_mapper(sd),
+hig_get_cid(c))</code> e rejeita índice fora de <code>[0, n)</code>, onde <code>n</code> exclui a franja
+pela cláusula C6. Essa afirmação só estava exercitada em <code>np=1</code>, e com a franja
+montada à mão pelo próprio teste.</p>
+<p><code>test-mesh-snapshot-parallel</code> fecha isso: monta o domínio pelo caminho de
+produção (<code>lb_calc_partition</code>, <code>psd_create</code>, <code>psd_synced_mapper</code>) e afirma, por
+redução global, em np = 1, 2 e 3 e nos dois DIM. <strong>A convenção se sustenta</strong> —
+os locais ficam em <code>[0, n)</code> e a franja vem depois, em todas as configurações.</p>
+<p>Mas o exercício revelou algo que muda como se deve ler essa garantia.</p>
+<p><strong>A identidade de índice é verdadeira por construção.</strong> O <code>_psd_setmapper</code>
+numera os locais com
+<code>mp_assign_from_celliterator(m, sd_get_domain_celliterator(sd), 0)</code> — o <em>mesmo</em>
+iterador que o <code>hms_from_domain</code> percorre. O id do mapeador é, por definição, o
+contador do percurso. Medido: trocar <code>mp_lookup(m, hig_get_cid(c))</code> por
+<code>n_visitadas++</code> dentro do <code>hms_from_domain</code> deixa a suíte <strong>inteira verde</strong>, nos
+dois DIM e nos três np. Não é oráculo fraco — os dois são a mesma função.</p>
+<p>O que resta a proteger, portanto, não é a aritmética do instantâneo: é a
+<strong>convenção de numeração da produção</strong>. E aí o teste discrimina. Numerando a
+franja primeiro no <code>_psd_setmapper</code>, o teste serial passa nos seus 3 casos (ele
+imita a convenção à mão) e o paralelo reprova em np=2 e np=3, nos dois DIM.</p>
+<p>Isso tem consequência de projeto: o passo 3 da seção 5 — o oráculo diferencial —
+<strong>não pode</strong> comparar o instantâneo contra o mesmo percurso que o gerou, porque
+isso é tautologia. Ele tem de alcançar a célula por outra via (busca por ponto)
+e conferir que o id leva à linha certa.</p>
+<h2>2. O terreno</h2>
+<pre><code>laços de célula   (for it = sd_get_domain_celliterator)      233
+sítios de faceta  (sfd_get_domain_facetiterator)              97
+
+sd_get_domain_celliterator   255      hig_get_center   250
+hig_get_cid                  207      hig_get_delta    144
+sfd_get_stencil              133      sd_get_stencil    67
+sd_get_cell_with_point        18
+                                      TOTAL          1074
+</code></pre>
+<p>O laço canônico — e são 233 variações dele — é exatamente a forma do
+instantâneo:</p>
+<pre><code class="language-c">for(it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it); higcit_nextcell(it)) {
+    hig_cell *c = higcit_getcell(it);
+    int clid = mp_lookup(m, hig_get_cid(c));   //  -&gt;  i
+    Point center; hig_get_center(c, center);   //  -&gt;  s-&gt;center[i*DIM + d]
+    real val = ns-&gt;problem-&gt;pressure(center, ns-&gt;par.t);
+    dp_set_value(ns-&gt;dpp, clid, val);
+}
+</code></pre>
+<p>Dos 306 <code>mp_lookup</code>, <strong>183 são literalmente o par <code>mp_lookup(m,
+hig_get_cid(c))</code></strong>, e <code>psd_get_local_id</code> não é usado em lugar nenhum. O
+mapeador é sempre o mesmo objeto que o <code>hms_from_domain</code> já consulta
+(<code>sd_get_domain_mapper</code>), então a identidade de índice vale por construção, não
+por coincidência — uma vez confirmada com franja.</p>
+<hr />
+<h2>3. Onde o instantâneo vive</h2>
+<p><strong>Recomendação: no <code>sim_domain</code>, produzido ao fim do <code>psd_synced_mapper</code>.</strong> Não
+no <code>higflow_solver</code>, e não na primeira leitura.</p>
+<h3>Por que no domínio</h3>
+<p>O argumento é de contagem. O solver declara mais de vinte campos de domínio —
+<code>sdp</code>, <code>sdF</code>, <code>sdED</code>, <code>sdmult</code>, <code>sdVisc</code>, <code>sdSBnA</code>, <code>sdSBnB</code>, <code>sdphi</code>, os quatro
+de eletro-osmose, mais <code>sfdu[DIM]</code>, <code>sfdF[DIM]</code>, <code>sfdEOFeo[DIM]</code>, cada um com
+seu par <code>psd</code>/<code>psfd</code>. Pôr um instantâneo ao lado de cada um duplica essa lista,
+e cada laço migrado passa a ter de escolher o instantâneo certo para o domínio
+certo. <strong>Emparelhamento errado não dá erro de compilação e dá resultado
+plausível.</strong> Pendurado no domínio, esse erro deixa de ser possível de cometer.</p>
+<p>O ganho colateral é o da fronteira: quem consome deixa de saber qual backend
+produziu a malha.</p>
+<h3>Por que ansioso, e não na primeira leitura</h3>
+<p>Uma versão anterior desta seção propunha <code>sd_snapshot(sd)</code> produzindo na
+primeira chamada. <strong>Está errado</strong>, e pelo mesmo motivo que o teste de franja
+expôs: o instantâneo depende do mapeador estar atribuído, e quem o atribui é o
+<code>_psd_setmapper</code>, dentro do <code>psd_synced_mapper</code>. Produção preguiçosa deixa essa
+ordem implícita — chamada antes, ela devolve um instantâneo indexado por lixo, e
+o sintoma não é falha, são números errados.</p>
+<p>A medição mostra que há um ponto único e não ambíguo para produzi-lo:</p>
+<pre><code>psd_create                                   19
+psd_synced_mapper                            19
+mp_assign_from_celliterator em higflow/src    1
+</code></pre>
+<p>Um para um, e o solver não numera domínio nenhum por conta própria — delega.
+Então o instantâneo nasce onde o mapeador acabou de ficar pronto, e a ordem
+deixa de ser uma coisa que alguém precise lembrar.</p>
+<p>Junto vai o guarda da seção 1: refino depois da montagem tem de falhar alto, e
+não devolver geometria velha em silêncio.</p>
+<h3>O custo, e o que mudaria a decisão</h3>
+<p>O <code>sim_domain</code> passa a carregar estado derivado, e é a HiGTree que passa a
+mantê-lo. Isso só é aceitável porque <strong>a malha é imutável depois da montagem</strong>.
+Se a adaptação em tempo de execução entrar algum dia, esta é a primeira decisão
+a rever.</p>
+<p>A alternativa legítima é manter a HiGTree sem memória — uma biblioteca de malha
+que responde e não lembra. Não é errada; o preço dela são os vinte e poucos
+campos novos no solver e o emparelhamento manual, que é pagar no lugar onde o
+erro é silencioso.</p>
+<h2>4. O que ainda não existe</h2>
+<p><strong>~~O instantâneo de facetas~~ — feito.</strong> <code>hig_facet_snapshot</code> guarda a <strong>caixa
+da célula</strong> da faceta, mais <code>dim</code> e <code>dir</code> por faceta; centro e tamanho saem daí
+pelas mesmas contas do <code>hig_get_facet_center</code> e do <code>hig_get_facet_delta</code>.</p>
+<p>Guardar a caixa não foi simetria com o caso das células — foi medição. Dos 97
+laços de faceta, 95 leem apenas centro, tamanho e id; os outros 2 chamam o
+buffer de resíduo, que precisa da caixa da <strong>célula</strong>. Fosse só pelos 95,
+guardar centro e tamanho prontos bastaria.</p>
+<p>Produção ansiosa no <code>psfd_synced_mapper</code>, oráculo diferencial próprio
+(<code>sfd_snapshot_verify</code>, localizando por <code>sfd_get_facet_with_point</code>), e a mesma
+flag <code>HIGTREE_VERIFY_SNAPSHOT</code> o liga.</p>
+<p>O <code>sfd_get_stencil</code> (133 sítios) continua fora: é topologia, não leitura, e fica
+atrás do backend como as consultas de ponto.</p>
+<p><strong>A caixa da célula no instantâneo — ~~decisão nova~~ feita.</strong> O instantâneo
+guardava centro e delta. Agora guarda <strong>a caixa</strong> (<code>low</code> e <code>high</code>), e centro e
+delta saem dela por derivação, com exatamente as mesmas contas do
+<code>hig_get_center</code> e do <code>hig_get_delta</code>.</p>
+<p>O motivo é que a caixa é o primário: é o que a célula guarda, e os outros dois
+são derivados dela. Guardando a caixa, toda leitura sai bit a bit igual à de
+hoje; guardando centro e delta, reconstruir <code>low = centro − delta/2</code> é exato em
+álgebra e <strong>não é exato em ponto flutuante</strong>.</p>
+<p>Isso não era preciosismo, e agora está <strong>medido</strong> em vez de afirmado. Os 19
+laços cobertos do <code>hig-flow-io.c</code> usam <code>c-&gt;lowpoint</code> e <code>c-&gt;highpoint</code> como
+<em>pontos de interpolação</em>, e o resultado vai para o VTK que a suíte compara. A
+perda da reconstrução:</p>
+<pre><code>centro − delta/2 ≠ low      1 de 3 células por direção na malha não diádica
+                            ~0,6% de 200 mil caixas aleatórias
+</code></pre>
+<p>O caso <code>reconstruir_o_canto_nao_seria_exato</code> afirma essa perda, e é o único
+lugar que guarda a decisão: se alguém "simplificar" o instantâneo de volta para
+centro e delta, ele é o que acusa.</p>
+<p>Uma coisa que eu <strong>não</strong> consegui prender, e vale registrada: a escolha entre
+formas algebricamente equivalentes do centro. <code>(lo+hi)/2</code>, <code>lo/2+hi/2</code> e
+<code>lo+(hi−lo)/2</code> dão o mesmo bit em 200 mil caixas aleatórias — dividir por dois é
+exato em binário. Não há ali o que discriminar.</p>
+<p>Custo: dois arranjos de <code>n * DIM</code> em vez de dois (mesma memória), e o produtor
+do t8code passou a preencher a caixa a partir do centroide e do nível.</p>
+<h2>4b. Produção por rank — feita, em caixas completas</h2>
+<p>A floresta nasce em <code>COMM_WORLD</code>, o t8code já a reparte por curva de
+preenchimento, e cada rank materializa só o que é dele. Isso tira o gargalo de um
+processo ter de caber a malha inteira antes de existir partição.</p>
+<p><strong>A representação é um conjunto de caixas completas, não uma árvore com
+buracos.</strong> A primeira tentativa usou buracos e não sobrevive:
+<code>hig_get_cell_coords_of_point</code> desreferencia os filhos para ler as caixas deles,
+e <code>hig_get_cell_with_point</code> ainda faz <code>cell = cell-&gt;children[p]</code> sem testar nulo.
+O <code>lbal</code> também não produz buraco — ele preenche todos os compartimentos, e é por
+isso que um domínio tem <em>várias</em> árvores por rank.</p>
+<p><strong>Decompor no nível base é inválido, e isso foi medido.</strong> <code>set_for_coarsening=1</code>
+pede ao t8code que não divida família entre ranks, mas a garantia não é
+recursiva: ela preserva a família do nível mais fino, e uma célula base refinada
+duas vezes contém família de famílias. Em 3D com np=2, <strong>oito</strong> células base
+saíram divididas — a materialização criava as que faltavam e o domínio ficava com
+541 folhas contra as 533 da floresta. Por isso a decomposição desce até o nível
+em que a posse fecha: célula base completa vira caixa; célula incompleta desce e
+emite as sub-caixas que forem completas.</p>
+<p><em>Um defeito que só apareceu em 3D:</em> o agrupamento de células base em retângulos
+conferia apenas uma <strong>linha</strong> da face ao crescer, não a face inteira. Em 2D a
+linha é a face, então passava; em 3D a caixa engolia células de outro rank.</p>
+<p>O caso <code>caixas_sao_navegaveis</code> é o que autoriza usar estas árvores como árvore de
+domínio: <code>hig_get_cell_with_point</code> no centro de cada folha tem de devolver aquela
+folha. É exatamente o caso que a versão com buracos não passaria.</p>
+<h2>4c. O exemplo escolhe a fonte da malha — feito</h2>
+<p><code>higflow_set_fonte_de_malha(ns, f, ctx)</code> instala um gancho que o
+<code>higflow_partition_domain</code> consulta. Sem gancho, a malha vem do arquivo AMR como
+sempre — e a suíte afirma essa inércia: <strong>33/33</strong> com o gancho presente e não
+instalado.</p>
+<p>O <code>example2d_Newt</code> escolhe em tempo de execução: com <code>HIGFLOW_MALHA=t8code</code> no
+ambiente, a malha é produzida por uma floresta do t8code. A unidade do produtor
+só é compilada quando se passa <code>T8CODE=&lt;prefixo&gt;</code> ao <code>make</code> do exemplo; sem isso
+o exemplo não depende da biblioteca.</p>
+<p><strong>O problema da referência foi resolvido evitando-o.</strong> Gerar uma referência a
+partir do código recém-escrito só guardaria contra regressão futura. Em vez
+disso, o <code>amrs/domain/ch-d-0.amr</code> descreve uma malha <strong>uniforme</strong> de 160×40 sobre
+<code>[0,8]×[-1,1]</code>, e um cmesh de <em>brick</em> do t8code com 160×40 árvores no nível 0 tem
+exatamente essas células. Mesma malha, produtor diferente → a saída tem de ser
+<strong>idêntica</strong>:</p>
+<pre><code>3 arquivos VTK            byte a byte idênticos
+6 campos gravados         byte a byte idênticos
+</code></pre>
+<p>Sem tolerância, sem número gravado.</p>
+<p><strong>A fiação foi conferida</strong>, porque saída idêntica também é o que se veria se o
+caminho t8code tivesse caído de volta no AMR: com a fonte sabotada para recusar,
+a execução termina em erro e não produz VTK nenhum.</p>
+<p><em>A armadilha que custou uma rodada, e já está registrada duas vezes neste
+repositório:</em> a regra <code>malha-t8.o:</code> ficou antes do alvo <code>ns-example</code>, e em make a
+<strong>primeira regra explícita é o alvo padrão</strong> — <code>make</code> construía só o objeto e
+retornava 0. Build "bem-sucedido" sem binário.</p>
+<p>A restrição real não é tamanho, é cobertura. A suíte de exemplos roda 33 casos;
+migrar onde ela não chega é mexer sem rede.</p>
+<ol>
+<li><strong>Fechar a lacuna da franja</strong> — <code>test-mesh-snapshot</code> com <code>nps=(1,2,3)</code>.
+   Barato, e é o que torna tudo abaixo confiável.</li>
+<li><strong>A produção no <code>psd_synced_mapper</code></strong>, com o guarda contra refino
+   pós-montagem. Nenhum
+   sítio migrado ainda; a suíte inteira tem de continuar idêntica.</li>
+<li><strong>O oráculo diferencial</strong> — ~~a fazer~~ <strong>feito</strong>. <code>sd_snapshot_verify</code>
+   localiza cada célula <strong>por ponto</strong> e exige que ela volte com o mesmo id e a
+   mesma geometria. Com <code>HIGTREE_VERIFY_SNAPSHOT</code> no ambiente, todo domínio que
+   o programa montar passa por ele, e divergência aborta. Os 33 casos da suíte
+   de exemplos passam com o modo ligado.</li>
+</ol>
+<p>Ele <strong>não</strong> percorre o iterador, e isso não é detalhe: o instantâneo foi
+   preenchido pelo iterador indexado pelo mapeador, e o mapeador saiu desse mesmo
+   iterador. Conferir um contra o outro mede a aritmética contra ela própria.
+4. <strong>Migrar os laços cobertos por exemplo</strong>, um arquivo por vez, com a suíte
+   entre cada um.
+5. <strong>Os solvers sem exemplo, por último</strong> — ou não. Ver a decisão D3.</p>
+<p>O caminho de árvore <strong>não sai</strong>. O instantâneo é aditivo: um laço migrado lê do
+arranjo, os demais seguem lendo da árvore, e os dois descrevem a mesma malha
+enquanto o oráculo do item 3 passar.</p>
+<hr />
+<h2>4d. O produtor por rank alimenta o exemplo</h2>
+<p><code>HIGFLOW_MALHA=t8code-rank</code>: a floresta nasce em <code>COMM_WORLD</code>, o t8code a
+reparte, e <strong>cada rank materializa só a sua parte</strong>. Nenhum processo chega a ter
+a malha inteira.</p>
+<p><strong>O bloqueio que eu tinha previsto não precisou ser resolvido.</strong> Eu havia escrito
+que isso exigiria produzir o <code>partition_graph</code> sem o <code>lbal</code> — e o <code>pg</code> guarda o
+pareamento de franjas em ordem idêntica nos dois lados, que é o coração do
+<code>build-fringe</code>. Mas o <code>lbal</code> <strong>já</strong> espera entrada distribuída: no caminho AMR
+cada rank lê um subconjunto dos arquivos. Basta cada rank contribuir as suas
+caixas, e o grafo de vizinhança e a franja saem prontos.</p>
+<p>A partição final continua sendo a do <code>lbal</code>, não a do t8code. O que muda é de
+onde vem a malha e quanto cada processo precisa segurar.</p>
+<p><strong>O oráculo muda com o np, e descobrir isso foi metade do trabalho.</strong></p>
+<pre><code>np=1   byte a byte idêntico ao caminho AMR   (17 arquivos)
+np&gt;1   NÃO é idêntico — e nem podia ser
+</code></pre>
+<p>Comparar o caminho AMR <strong>consigo mesmo</strong> em np=1 contra np=2 já dá 3 de 6 campos
+diferentes: o precondicionador <code>bjacobi</code> depende da partição, então a partição
+sozinha move os números. Byte a byte não é oráculo disponível em np&gt;1, para
+fonte nenhuma. Ali vale a referência gravada, com tolerância — a mesma que a
+suíte usa:</p>
+<pre><code>np = 1, 2, 3 · AMR, t8code, t8code-rank · todas PASS a 0,10%
+</code></pre>
+<p><em>O gancho passou a devolver várias árvores</em> (<code>int f(ctx, hig_cell **v, int max)</code>),
+porque a região de um rank não é uma caixa e vira um conjunto delas.</p>
+<h2>4e. A partição final pelo t8code — feita</h2>
+<p>Sem <code>lb_calc_partition</code>: cada rank fica com o que a curva de preenchimento lhe
+deu, e o <code>partition_graph</code> é montado a partir das caixas
+(<code>t8_monta_dominio_particionado</code>).</p>
+<p><strong>O que tornou isso possível</strong> foi a medição: a região de um rank é quase um
+retângulo — <code>np=2 → 1</code> caixa, <code>np=3 → 2 a 3</code>, <code>np=4 → 1</code>, <code>np=8 → 1</code> — e o <code>pg</code>
+representa o que se envia como faixa <strong>retangular</strong> em coordenadas de árvore.</p>
+<p><strong>O contrato, lido do <code>pdomain.c</code> e não suposto:</strong> quem envia enumera os
+elementos de <code>local_tree</code> no intervalo <code>[lo_idx, hi_idx)</code>; quem recebe enumera a
+árvore de franja <strong>inteira</strong>. Logo a i-ésima faixa enviada tem de ter a mesma
+forma e a mesma ordem da i-ésima árvore recebida.</p>
+<p><strong>A regra de ordem é a peça delicada:</strong> em ambas as listas, a caixa <strong>dona do
+dado</strong> fica no laço de fora e a que <strong>precisa</strong> dele no de dentro. Os dois lados
+calculam o mesmo objeto a partir dos mesmos dados globais (um <code>allgather</code> das
+caixas), então nada é negociado por mensagem.</p>
+<p>Eu errei isso na primeira versão — o envio aninhava <em>(minhas, dele)</em> e o
+recebimento também, mas o remetente emite com as caixas <em>dele</em> por fora, então as
+listas saíam <strong>transpostas</strong>.</p>
+<pre><code>transposição do aninhamento
+np=2   passa   (uma caixa por rank: 1×1 esconde)
+np=3   REPROVA 228 de 304 células de franja com valor de outra posição
+</code></pre>
+<p>Um teste só em <code>np=2</code> não pegaria esse defeito — e nenhum teste de <em>contagem</em> ou
+<em>volume</em> pegaria em np nenhum.</p>
+<p><strong>Limite declarado:</strong> malha uniforme. Com refino, a faixa do remetente e a árvore
+do receptor precisariam ter a mesma subdivisão interna, e isso exige trocar
+estrutura, não só índices.</p>
+<h2>4f. Malha e partição do t8code, no exemplo</h2>
+<p><code>HIGFLOW_MALHA=t8code-particao</code>: o solver não chama <code>lb_calc_partition</code>. A malha
+e a partição são do t8code de ponta a ponta.</p>
+<p>O gancho novo, <code>higflow_set_fonte_de_particao</code>, difere do de malha: aquele
+entrega <strong>árvores</strong> para o <code>lbal</code> reparticionar; este entrega o resultado <strong>já
+particionado</strong> — domínio com franja e grafo de vizinhança.</p>
+<pre><code>np = 1, 2, 3 · referência a 0,10% · PASS
+</code></pre>
+<p><strong>Falhar aqui aborta</strong>, e é deliberado: seguir com domínio de vizinhança errada
+dá resultado plausível e errado. Conferido por sabotagem — com a fonte recusando,
+a execução não gera VTK nenhum.</p>
+<p><em>Uma coisa que a integração forçou e melhorou o código:</em> a cadeia de doze
+domínios que recebem cada árvore estava embutida no laço do <code>lbal</code>. Virou função
+(<code>_adiciona_aos_dominios</code>), porque o caminho do t8code precisa da mesma cadeia —
+e duplicar um <code>if</code>-chain de doze domínios é como os campos do <code>ns-&gt;cc</code> se
+perderam.</p>
+<p>As quatro fontes, e o que cada uma exercita:</p>
+<pre><code>(omissão)          AMR de arquivo, lbal reparticiona
+t8code             malha do t8code em série, lbal reparticiona
+t8code-rank        malha por rank, lbal reparticiona
+t8code-particao    malha e partição do t8code, sem lbal
+</code></pre>
+<h2>4g. A suíte que roda nos dois backends</h2>
+<p><code>python3 ci/run_suite.py --t8code &lt;prefixo&gt;</code>: além do caminho AMR, cada caso roda
+as fontes que declara em <code>t8_fontes</code>, <strong>contra a mesma referência</strong>.</p>
+<pre><code>sem a flag    33 de 33     (só o caminho AMR — nada muda)
+com a flag    75 de 75     (AMR + variantes t8code)
+</code></pre>
+<p><strong>Em 21/09 entrou o primeiro caso 3D</strong> (<code>example3d_complex</code>, 33 blocos, 162 mil
+células), e com ele o limite que só a tentativa revela: <strong>das três fontes, só
+<code>malha_t8_uniforme</code> tem verificação 3D.</strong> As outras duas recusam <code>numhigs != 1</code>
+— cobrem um bloco só — e não existe exemplo 3D de bloco único na suíte. A recusa
+é por <code>abort</code>, de propósito:</p>
+<pre><code>particao_t8: 33 blocos; esta fonte cobre um so'
+higflow_partition_domain: a fonte de particao falhou.  Seguir daqui daria
+dominio com vizinhanca errada, que produz resultado plausivel e errado.
+</code></pre>
+<p>Vale registrar o que aconteceu ali, porque é o oposto de tudo o mais neste
+documento: <strong>o código recusou parecer verde.</strong> Eu havia listado a fonte de
+partição por analogia com os casos 2D, sem conferir o limite dela; a guarda me
+corrigiu em vez de me entregar números plausíveis.</p>
+<p><strong>A fonte deixou de ser decorada.</strong> Ela lê a especificação do próprio arquivo AMR
+(<code>mi-&gt;l</code>, <code>mi-&gt;h</code>, <code>levels[0].patches[0].patchsize</code>), então serve a qualquer
+exemplo de malha uniforme. Com refino ela <strong>recusa</strong> em vez de aproximar — malha
+diferente dá números diferentes, e o silêncio ali seria pior que o erro.</p>
+<p><strong>O levantamento decidiu a elegibilidade</strong>, e vale registrado:</p>
+<pre><code>8 exemplos   um bloco uniforme
+1 exemplo    DOIS blocos uniformes (Newt_contraction)
+5 exemplos   sem arquivo de domínio (constroem a malha por outro caminho)
+</code></pre>
+<p>Sete estão ligados. O <code>BMP</code> ficou de fora: ele inicializa o domínio por outro
+caminho, e meia ligação é pior que nenhuma.</p>
+<p>O custo por exemplo é <strong>uma linha</strong> (<code>malha_t8_instala</code>) mais o bloco <code>T8CODE</code> no
+Makefile — o instalador compartilhado evita repetir o <code>strcmp</code> de quatro fontes
+em sete lugares, que é como os campos do <code>ns-&gt;cc</code> se perderam.</p>
+<p><strong>Dois defeitos que isto expôs:</strong></p>
+<p>A fonte em série fazia <strong>todo rank produzir a malha inteira</strong>, em vez de
+distribuir os blocos como o caminho AMR faz (<code>for i = myrank; i += ntasks</code>).
+Ficou latente porque ela só tinha sido exercitada em np=1, onde a regra é
+trivialmente satisfeita; em np=2 a referência reprovou.</p>
+<p>E o meu próprio contador: ao passar a contar execuções reais para incluir as
+variantes, os <code>skip</code> saíram do total e "33/33" virou "31/31" sem que nada
+tivesse regredido. O número de cabeçalho da suíte é comparado entre execuções —
+mudá-lo em silêncio é um defeito, não um detalhe.</p>
+<h2>6. O que é decisão sua</h2>
+<p><strong>D1 — Onde o instantâneo vive, e quando nasce — decidido, como recomendado.</strong>
+No domínio, produzido ao fim do <code>psd_synced_mapper</code>. A alternativa era no
+solver, que manteria o <code>sim_domain</code> sem estado derivado ao preço de vinte e
+poucos campos novos e do emparelhamento manual.</p>
+<p><strong>D2 — Os cinco solvers que nenhum exemplo alcança — decidido CONTRA a minha
+recomendação: migrar mesmo assim.</strong> Eu recomendei não migrar sem exemplo que os
+exercite, e o usuário decidiu migrar; estão migrados.</p>
+<p>Registro o que isso significa, porque a decisão não muda o fato: <strong>aqueles
+sítios compilam e não são exercitados por nada.</strong> Compilar e ser exercitado são
+coisas diferentes, e só a primeira está estabelecida ali. O mesmo vale, por
+outro motivo, para o <code>hig-flow-res.c</code>: ele só entra no build com <code>make RES=1</code>,
+que nenhuma suíte usa. Verifiquei que ele compila nas duas dimensões com a
+assinatura nova do buffer de resíduo — pelo comando real extraído de
+<code>make -n -B RES=1</code>, e sem acrescentar um aviso sequer — mas ninguém nunca
+<strong>rodou</strong> aquele caminho, então os números que ele produz não foram conferidos
+contra nada.</p>
+<p><strong>D3 — A classificação na interface entre árvores — decidido.</strong> Vale a
+semântica do t8code: <em>sobre o contorno</em> significa que o domínio <strong>termina</strong> ali.
+Interface entre blocos do mesmo domínio não é contorno, porque há malha dos dois
+lados.</p>
+<p>A investigação mudou o caráter da decisão. Não eram duas convenções
+defensáveis — o <code>cell_find_in_center</code> para no <strong>primeiro</strong> higtree cuja caixa
+contém o ponto (<code>break</code>, "assume domains do not overlap") e nunca pergunta se
+outro bloco continua o domínio. Isso faz a resposta depender da <strong>ordem das
+árvores</strong>, que é o que a cláusula C8 proíbe para localização.</p>
+<p>E não é hipotético: medido, com <code>np=3</code> um domínio do <code>example2d_Newt</code> chega a
+<strong>três</strong> higtrees, então as interfaces internas existem em toda execução
+paralela.</p>
+<p>O efeito hoje é <strong>benigno</strong>, e rastreei até o fim: <code>ON_BOUNDARY</code> faz o
+<code>get_stencil</code> procurar condição de contorno — Dirichlet no centro, Neumann,
+Dirichlet — e numa interface interna nenhuma casa, então cai no caminho normal
+de interpolação. O preço é busca desperdiçada na camada de facetas daquele
+plano.</p>
+<p><strong>O que não fica garantido</strong> é que nenhuma condição registrada coincida com uma
+interface interna; se coincidir, seria aplicada num ponto interno. Corrigir
+exige perguntar se o domínio <em>continua</em> além do ponto — uma sonda com epsilon —
+e isso merece verificação própria em vez de vir de carona nesta decisão. Fica
+escrito na C14 como desvio conhecido do MTree, não como convenção alternativa.</p>
+<hr />
+<h2>7. Onde isto parou — 21 de setembro de 2026</h2>
+<h3>A arquitetura que resultou</h3>
+<p>Duas costuras novas, e nenhuma delas obriga quem não as usa.</p>
+<p><strong>Na HiGTree, a fronteira das consultas mudou de lugar.</strong> O
+<code>hig_mesh_snapshot</code> e o <code>hig_facet_snapshot</code> são arranjos planos em que <strong>o
+índice é o id local</strong>, pendurados no <code>sim_domain</code> e no <code>sim_facet_domain</code>,
+produzidos ao fim do <code>psd_synced_mapper</code> / <code>psfd_synced_mapper</code>. Guardam a
+<strong>caixa</strong>, não centro e tamanho, porque a caixa é o primário e reconstruí-la
+não é exato em ponto flutuante. Quem lê geometria não precisa mais de um
+<code>hig_cell</code>, e é isso que permite uma segunda implementação de malha responder
+sem materializar árvore de ponteiros.</p>
+<p><strong>No HiGFlow, o exemplo escolhe a fonte da malha em uma linha.</strong> Dois ganchos no
+<code>higflow_solver</code> (<code>fonte_de_malha</code>, <code>fonte_de_particao</code>), zerados na criação, e o
+<code>higflow_partition_domain</code> com três caminhos. Sem <code>HIGFLOW_MALHA</code> no ambiente,
+nada muda — o caminho legado não foi removido nem contornado, e a suíte padrão
+afirma isso em cada execução.</p>
+<p>O contrato de Mesh (<code>higtree/src/hig-mesh-contract.h</code>, 18 cláusulas) é o que
+torna as duas implementações comparáveis: ele é lido do próprio cabeçalho pelo
+driver, então cláusula sem caso de teste não passa despercebida.</p>
+<h3>HiGTree — a ordem de construção é parte do contrato</h3>
+<p>O estado derivado nasce uma vez e passa a ser confiado. Por isso a ordem não é
+convenção: <code>sd_add_higtree</code> <strong>recusa</strong> rodar depois que o instantâneo existe.</p>
+<pre class="mermaid">flowchart TD
+    A[&quot;psd_create&quot;] --&gt; B[&quot;sd_add_higtree&lt;br/&gt;árvores próprias&quot;]
+    B --&gt; C[&quot;sd_add_fringe_higtree&lt;br/&gt;árvores de franja&quot;]
+    C --&gt; D[&quot;sd_add_boundary&lt;br/&gt;contornos&quot;]
+    D --&gt; E[&quot;psd_synced_mapper&lt;br/&gt;atribui o mapeador&quot;]
+    E --&gt; F[&quot;sd_compute_snapshot&lt;br/&gt;ansioso, no fim&quot;]
+    F --&gt; G[&quot;hig_mesh_snapshot&lt;br/&gt;arranjos low e high — o índice É o id local&quot;]
+
+    G --&gt; H[&quot;laços migrados&lt;br/&gt;hms_center / hms_delta / hms_low / hms_high&quot;]
+    G --&gt; I[&quot;sd_snapshot_verify&lt;br/&gt;oráculo diferencial&quot;]
+
+    I -- &quot;localiza por PONTO,&lt;br/&gt;não pelo iterador&quot; --&gt; J[&quot;diverge → abort&quot;]
+
+    style F fill:#1e3a5f,color:#fff
+    style G fill:#1e3a5f,color:#fff
+</pre>
+<p>O oráculo localiza por ponto porque o mapeador é atribuído a partir do <strong>mesmo</strong>
+iterador que o instantâneo percorre: compará-los mediria a aritmética contra si
+mesma.</p>
+<h3>HiGFlow — os três caminhos, e o legado intacto no meio</h3>
+<pre class="mermaid">flowchart TD
+    S[&quot;higflow_partition_domain&quot;] --&gt; Q1{&quot;fonte_de_particao&lt;br/&gt;≠ NULL?&quot;}
+
+    Q1 -- sim --&gt; P1[&quot;a fonte entrega o domínio&lt;br/&gt;JÁ PARTICIONADO&quot;]
+    P1 --&gt; F1[&quot;particao_t8&lt;br/&gt;constrói o partition_graph&lt;br/&gt;das caixas do t8code&quot;]
+    F1 --&gt; X1{&quot;numhigs == 1?&quot;}
+    X1 -- não --&gt; AB[&quot;abort — vizinhança errada&lt;br/&gt;daria número plausível e errado&quot;]
+    X1 -- sim --&gt; D1[&quot;domínio pronto&lt;br/&gt;SEM lbal&quot;]
+
+    Q1 -- não --&gt; Q2{&quot;fonte_de_malha&lt;br/&gt;≠ NULL?&quot;}
+    Q2 -- sim --&gt; P2[&quot;a fonte entrega ÁRVORES&quot;]
+    P2 --&gt; F2[&quot;malha_t8_uniforme — vários blocos&lt;br/&gt;malha_t8_por_rank — um bloco&quot;]
+    F2 --&gt; LB[&quot;lb_calc_partition&lt;br/&gt;o lbal reparticiona&quot;]
+
+    Q2 -- não --&gt; P3[&quot;CAMINHO LEGADO&lt;br/&gt;AMR de arquivo&quot;]
+    P3 --&gt; LB
+
+    LB --&gt; D1
+
+    style P3 fill:#2d5016,color:#fff
+    style AB fill:#6b2020,color:#fff
+</pre>
+<p>Sem <code>HIGFLOW_MALHA</code> no ambiente, os dois ganchos são <code>NULL</code> e a execução desce
+pelo caminho verde — o legado não foi removido nem contornado, e a suíte padrão
+afirma isso a cada execução.</p>
+<h3>As duas implementações de malha, e o que as compara</h3>
+<pre class="mermaid">flowchart TD
+    subgraph fisica[&quot;HiGFlow — física&quot;]
+        NS[&quot;solvers, step-*, io, ic&quot;]
+    end
+
+    subgraph fronteira[&quot;a fronteira das consultas&quot;]
+        SNAP[&quot;hig_mesh_snapshot&lt;br/&gt;hig_facet_snapshot&quot;]
+    end
+
+    subgraph contrato[&quot;hig-mesh-contract.h — 18 cláusulas&quot;]
+        CT[&quot;P1–P4 produção&lt;br/&gt;C1–C14 consulta&quot;]
+    end
+
+    subgraph impl[&quot;duas implementações&quot;]
+        MT[&quot;MTree&lt;br/&gt;octree de ponteiros&quot;]
+        T8[&quot;t8code&lt;br/&gt;floresta, sem materializar árvore&quot;]
+    end
+
+    NS --&gt; SNAP
+    SNAP --&gt; MT
+    SNAP --&gt; T8
+    CT -.-&gt; MT
+    CT -.-&gt; T8
+
+    style T8 fill:#1e3a5f,color:#fff
+</pre>
+<p>O driver lê as 18 cláusulas <strong>do próprio cabeçalho</strong> e as confronta com os casos
+existentes, então cláusula sem caso não passa despercebida — é o que impede a
+suíte de crescer afirmando menos do que declara.</p>
+<p>O <code>t8_preenche_instantaneo</code> preenche o arranjo plano <strong>direto da floresta</strong>, sem
+construir árvore de ponteiros alguma. É esse o ponto da costura: o custo que se
+queria evitar era a tradução, e guardar a caixa em vez de centro e tamanho é o
+que a torna desnecessária.</p>
+<h3>O que está verificado, e por qual rede</h3>
+<pre><code>HiGTree     316 de 316 casos, contrato de Mesh 18 de 18
+HiGFlow      75 de 75 execuções (7 exemplos × fontes, contra a MESMA referência)
+oráculo     HIGTREE_VERIFY_SNAPSHOT=1 confere todo domínio por LOCALIZAÇÃO DE
+            PONTO, e aborta na divergência
+</code></pre>
+<p>O oráculo localiza por ponto de propósito: o mapeador é atribuído a partir do
+<strong>mesmo</strong> iterador que o instantâneo percorre, então conferir um contra o outro
+mediria a aritmética contra si mesma.</p>
+<h3>O que continua em aberto, e por que não foi fechado</h3>
+<p><strong>As duas funções de refino no lugar, e o teto de 40.</strong> Estas duas coisas
+estavam em seções separadas deste documento e são, na verdade, a mesma:</p>
+<p>O <code>sim_facet_domain.sfbi[]</code> é arranjo <strong>fixo</strong> de 40 (<code>MAXHIGTREESPERDOMAIN</code>) e
+o <code>sfd_set_sfbi</code> o indexa <strong>sem conferir limite</strong>, enquanto o arranjo de árvores
+do domínio cresce sem teto. Medido no pior caso do repositório:</p>
+<pre><code>example3d_complex    np=1   33 = 33 próprias + 0 de franja   (índice máximo 32)
+                     np=2   23 = 20 + 3
+                     np=3   18 = 13 + 5
+                     np=4   17 = 10 + 7
+                     np=6   16 = 10 + 6
+</code></pre>
+<p>O crescimento vem das <strong>próprias</strong>, não da franja, e o máximo cai
+monotonicamente: mais ranks é mais seguro. O pior caso é np=1, com sete de
+folga.</p>
+<p>A ligação é esta: <strong>o número só pode crescer sem passar por partição nova se
+alguém acordar <code>higflow_refine_tree_inplace</code> ou <code>adapt_mesh_and_update_solver</code>.</strong>
+O caminho de adaptação alcançável hoje (<code>higflow_rebuild_with_amr</code>) reconstrói e
+reparticiona, então respeita a medição acima. As duas funções dormentes não
+passam pela API do domínio — e são, ao mesmo tempo, o que deixaria o instantâneo
+velho em silêncio e o que poderia estourar o teto de 40. Quem as acordar precisa
+chamar <code>sd_compute_snapshot</code> <strong>e</strong> reexaminar o teto.</p>
+<p><strong>As fontes de rank e de partição não têm verificação 3D</strong>, e não por falta de
+tentativa: cobrem um bloco só, e não existe exemplo 3D de bloco único na suíte.</p>
+<p><strong>O <code>sfd_get_stencil</code> (133 sítios) segue no caminho antigo.</strong> É topologia, não
+leitura de geometria, e fica atrás do backend junto com as consultas de ponto.</p>
+<h3>Como reproduzir tudo isto do zero</h3>
+<pre><code class="language-bash">./instalar.sh --verificar
+</code></pre>
+<p>Constrói o t8code do fonte, as duas bibliotecas, os exemplos, e roda as duas
+suítes. Testado em árvore limpa. O tutorial de uso das duas malhas está em
+<code>doc/tutorial-mtree-t8code.pdf</code>.</p>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral",
+    flowchart: { htmlLabels: true, curve: "basis" },
+    fontFamily: '"Source Sans 3", system-ui, sans-serif'
+  });
+  await mermaid.run();
+  document.title = "pronto:" + document.querySelectorAll("pre.mermaid svg").length;
+</script>
+</body>
+</html>
