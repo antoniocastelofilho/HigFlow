@@ -1442,7 +1442,7 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
     /* Partitioning the grid from AMR information */
     // A FONTE DE PARTICAO entrega o resultado ja' repartido: nao ha' `lbal`.
     if(ns->fonte_de_particao != NULL) {
-        if(!ns->fonte_de_particao(ns->fonte_de_particao_ctx, ns->sdp, pg)) {
+        if(!ns->fonte_de_particao(ns->fonte_de_particao_ctx, mi, (int) numhigs, ns->sdp, pg)) {
             fprintf(stderr, "higflow_partition_domain: a fonte de particao "
                             "falhou.  Seguir daqui daria dominio com vizinhanca "
                             "errada, que produz resultado plausivel e errado.\n");
@@ -1466,7 +1466,7 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
         // subconjunto dos arquivos --, entao o `partition_graph` sai pronto e nao
         // ha' nada de fringe ou vizinhanca a reconstruir aqui.
         hig_cell *raizes[64];
-        const int n = ns->fonte_de_malha(ns->fonte_de_malha_ctx, raizes, 64);
+        const int n = ns->fonte_de_malha(ns->fonte_de_malha_ctx, mi, (int) numhigs, raizes, 64);
         for(int t = 0; t < n; t++) lb_add_input_tree(lb, raizes[t], true, 0);
     } else {
         for(unsigned i = myrank; i < numhigs; i += ntasks) {

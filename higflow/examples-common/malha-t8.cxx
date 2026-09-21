@@ -1,0 +1,234 @@
+// FONTES DE MALHA DO T8CODE, compartilhadas pelos exemplos.
+//
+// A malha NAO esta' decorada aqui: a especificacao vem da informacao AMR que o
+// solver leria de qualquer jeito.  E' o que permite a mesma fonte servir a varios
+// exemplos -- ela reproduz o arquivo daquele exemplo, seja ele qual for.
+//
+// POR QUE ISSO PODE SER VERIFICADO SEM REFERENCIA NOVA.  Para uma malha UNIFORME,
+// um cmesh de BRICK do t8code com a mesma grade tem exatamente as mesmas celulas
+// que o arquivo descreve.  Mesma malha, produtor diferente: a saida tem de bater
+// com a referencia ja' gravada.  Gerar referencia a partir do codigo recem-escrito
+// so' guardaria contra regressao futura.
+//
+// LIMITE, e ele decide quais exemplos podem usar isto: malha UNIFORME, um nivel e
+// um patch por bloco.  Levantado nos exemplos: oito tem um bloco uniforme, o
+// Newt_contraction tem DOIS (que esta fonte cobre, uma arvore por bloco), e cinco
+// nao tem arquivo de dominio.  Com refino a fonte RECUSA em vez de aproximar --
+// uma malha diferente daria numeros diferentes, e o silencio ai' seria pior.
+
+#include <t8.h>
+#include <t8_forest/t8_forest_general.h>
+#include <t8_forest/t8_forest_geometrical.h>
+#include <t8_cmesh/t8_cmesh.h>
+#include <t8_cmesh/t8_cmesh_examples.h>
+#include <t8_schemes/t8_default/t8_default.hxx>
+
+#include "hig-flow-kernel.h"
+#include "higtree.h"
+#include "higtree-io.h"
+#include "coord.h"
+#include "t8-mesh-rank.h"
+#include "t8-particao-grafo.h"
+
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <mpi.h>
+
+static int g_iniciado = 0;
+
+static void
+inicializa (void)
+{
+  if (g_iniciado) return;
+  g_iniciado = 1;
+  sc_init (sc_MPI_COMM_WORLD, 1, 1, NULL, SC_LP_ERROR);
+  t8_init (SC_LP_ERROR);
+}
+
+// A especificacao de UM bloco: caixa e grade.  Recusa o que nao for uniforme.
+static int
+espec (higio_amr_info *mi, Point lo, Point hi, int nb[DIM], const char *quem)
+{
+  if (mi->numlevels != 1) {
+    fprintf (stderr, "%s: a malha tem %d niveis; esta fonte so' reproduz malha "
+                     "uniforme.  Recusar e' melhor que aproximar: malha diferente "
+                     "da' numeros diferentes.\n", quem, mi->numlevels);
+    return 0;
+  }
+  if (mi->levels[0].numpatches != 1) {
+    fprintf (stderr, "%s: o nivel 0 tem %d patches; esperado 1\n", quem,
+             mi->levels[0].numpatches);
+    return 0;
+  }
+  POINT_ASSIGN (lo, mi->l);
+  POINT_ASSIGN (hi, mi->h);
+  POINT_ASSIGN (nb, mi->levels[0].patches[0].patchsize);
+  for (int d = 0; d < DIM; d++) if (nb[d] < 1 || !(hi[d] > lo[d])) return 0;
+  return 1;
+}
+
+#if DIM == 2
+#define BRICK(cm, nb, comm) t8_cmesh_new_brick_2d (cm, (nb)[0], (nb)[1], 0, 0, comm)
+#else
+#define BRICK(cm, nb, comm) t8_cmesh_new_brick_3d (cm, (nb)[0], (nb)[1], (nb)[2], 0, 0, 0, comm)
+#endif
+
+// Um bloco -> uma arvore hig, materializada a partir das FOLHAS da floresta.
+// Nada aqui refina por conta propria: se o t8code produzisse outra malha, a
+// arvore sairia diferente -- e' o que impede este modulo de "passar" reproduzindo
+// o arquivo por fora do t8code.
+static hig_cell *
+bloco (const Point lo, const Point hi, const int nb[DIM], const char *quem)
+{
+  inicializa ();
+  t8_cmesh_t cmesh;
+  t8_cmesh_init (&cmesh);
+  BRICK (cmesh, nb, sc_MPI_COMM_SELF);
+  const t8_scheme_c *scheme = t8_scheme_new_default ();
+  t8_forest_t f = t8_forest_new_uniform (cmesh, scheme, 0, 0, sc_MPI_COMM_SELF);
+
+  hig_cell *raiz = hig_create_root ((real *) lo, (real *) hi);
+  int nc[DIM];
+  for (int d = 0; d < DIM; d++) nc[d] = nb[d];
+  hig_refine_uniform (raiz, nc);
+
+  long folhas = 0, ruins = 0;
+  const t8_locidx_t ntrees = t8_forest_get_num_local_trees (f);
+  for (t8_locidx_t it = 0; it < ntrees; it++) {
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements (f, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const t8_element_t *e = t8_forest_get_leaf_element_in_tree (f, it, ie);
+      double c[3];
+      t8_forest_element_centroid (f, it, e, c);
+      Point p;
+      for (int d = 0; d < DIM; d++)
+        p[d] = lo[d] + (c[d] / (double) nb[d]) * (hi[d] - lo[d]);
+      hig_cell *cel = hig_get_cell_with_point (raiz, p);
+      if (cel == NULL) { ruins++; continue; }
+      Point ce;
+      hig_get_center (cel, ce);
+      for (int d = 0; d < DIM; d++)
+        if (fabs (ce[d] - p[d]) > 1.0e-12) { ruins++; break; }
+      folhas++;
+    }
+  }
+  t8_forest_unref (&f);
+
+  long esperado = 1;
+  for (int d = 0; d < DIM; d++) esperado *= nb[d];
+  if (folhas != esperado || ruins != 0) {
+    fprintf (stderr, "%s: a floresta deu %ld folha(s) e %ld divergencia(s) contra "
+                     "a arvore (esperado %ld e 0)\n", quem, folhas, ruins, esperado);
+    hig_destroy (raiz);
+    return NULL;
+  }
+  return raiz;
+}
+
+// ---------------------------------------------------------------- em serie
+extern "C" int
+malha_t8_uniforme (void *ctx, higio_amr_info **mi, int numhigs,
+                   hig_cell **arvores, int max)
+{
+  (void) ctx;
+  int rank = 0, np = 1;
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Comm_size (MPI_COMM_WORLD, &np);
+
+  // CADA BLOCO E' CONTRIBUIDO POR UM RANK SO', pela mesma regra do caminho AMR
+  // (`for i = myrank; i < numhigs; i += ntasks`).  Sem isso todo rank entrega a
+  // malha inteira e o `lbal` recebe `np` copias dela.
+  //
+  // O defeito ficou latente ate' agora porque a fonte em serie so' tinha sido
+  // exercitada em np=1, onde a regra e' trivialmente satisfeita.  Em np=2 a
+  // referencia reprovou.
+  int n = 0;
+  for (int i = rank; i < numhigs; i += np) {
+    if (n >= max) return 0;
+    Point lo, hi;
+    int nb[DIM];
+    if (!espec (mi[i], lo, hi, nb, "malha_t8_uniforme")) return 0;
+    hig_cell *t = bloco (lo, hi, nb, "malha_t8_uniforme");
+    if (t == NULL) { for (int k = 0; k < n; k++) hig_destroy (arvores[k]); return 0; }
+    arvores[n++] = t;
+  }
+  return n;
+}
+
+// -------------------------------------------------------------- por rank
+extern "C" int
+malha_t8_por_rank (void *ctx, higio_amr_info **mi, int numhigs,
+                   hig_cell **arvores, int max)
+{
+  (void) ctx;
+  if (numhigs != 1) {
+    fprintf (stderr, "malha_t8_por_rank: %d blocos; esta fonte cobre um so'\n",
+             numhigs);
+    return 0;
+  }
+  Point lo, hi;
+  int nb[DIM];
+  if (!espec (mi[0], lo, hi, nb, "malha_t8_por_rank")) return 0;
+
+  t8_producao_rank p;
+  if (!t8_produz_por_rank_brick (lo, hi, nb, &p)) return 0;
+  if (p.base_dividida != 0 || p.n_locais > max) {
+    t8_producao_rank_destroi (&p);
+    return 0;
+  }
+  for (int i = 0; i < p.n_locais; i++) arvores[i] = p.locais[i];
+  const int n = p.n_locais;
+  p.n_locais = 0;                    // as arvores passam a ser do `lbal`
+  t8_producao_rank_destroi (&p);
+  return n;
+}
+
+// ------------------------------------------------------------- particao
+extern "C" int
+particao_t8 (void *ctx, higio_amr_info **mi, int numhigs, sim_domain *sd,
+             partition_graph *pg)
+{
+  (void) ctx;
+  if (numhigs != 1) {
+    fprintf (stderr, "particao_t8: %d blocos; esta fonte cobre um so'\n", numhigs);
+    return 0;
+  }
+  Point lo, hi;
+  int nb[DIM];
+  if (!espec (mi[0], lo, hi, nb, "particao_t8")) return 0;
+  return t8_monta_dominio_particionado (lo, hi, nb, sd, pg);
+}
+
+// ---------------------------------------------------------------------------
+// INSTALADOR: uma linha por exemplo.
+//
+// Le' HIGFLOW_MALHA e instala o gancho correspondente.  Sem a variavel, nada e'
+// instalado e o exemplo segue lendo o arquivo AMR -- que e' o que a suite padrao
+// exercita.
+//
+// Existe para que aderir custe UMA chamada: sem ele, cada exemplo repetiria o
+// `strcmp` de quatro fontes, e repetir isso em oito exemplos e' como os campos do
+// `ns->cc` se perderam.
+extern "C" void
+malha_t8_instala (higflow_solver *ns, int myrank)
+{
+  const char *fonte = getenv ("HIGFLOW_MALHA");
+  if (fonte == NULL) return;
+
+  if (strcmp (fonte, "t8code") == 0) {
+    if (myrank == 0) printf ("=+=+=+= Malha do t8code (serie) =+=+=+=\n");
+    higflow_set_fonte_de_malha (ns, malha_t8_uniforme, NULL);
+  } else if (strcmp (fonte, "t8code-rank") == 0) {
+    if (myrank == 0) printf ("=+=+=+= Malha do t8code (por rank) =+=+=+=\n");
+    higflow_set_fonte_de_malha (ns, malha_t8_por_rank, NULL);
+  } else if (strcmp (fonte, "t8code-particao") == 0) {
+    if (myrank == 0) printf ("=+=+=+= Malha e particao do t8code =+=+=+=\n");
+    higflow_set_fonte_de_particao (ns, particao_t8, NULL);
+  } else {
+    if (myrank == 0)
+      fprintf (stderr, "HIGFLOW_MALHA=%s nao e' uma fonte conhecida.  Use "
+                       "t8code, t8code-rank ou t8code-particao.\n", fonte);
+  }
+}

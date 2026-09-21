@@ -6,6 +6,11 @@
 
 #include "ns-example-2d.h"
 
+#ifdef HIGFLOW_COM_T8CODE
+// Definida em ../examples-common/malha-t8.cxx, compilada so' com T8CODE.
+extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
+#endif
+
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
 // *******************************************************************
@@ -404,6 +409,9 @@ int main (int argc, char *argv[]) {
     //    get_viscosity, get_boundary_viscosity); 
     higflow_create_domain_viscoelastic(ns, cache, order_center, &problema); 
     // Initialize the domain
+#ifdef HIGFLOW_COM_T8CODE
+    malha_t8_instala(ns, myrank);
+#endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
     // define the user function for viscoelastic flow in case model is user set
     //higflow_define_user_function_viscoelastic(ns, calculate_m_user);

@@ -38,6 +38,23 @@ LIBS+= $(PETSC_LIB)
 LIBS+= $(PETSC_EXTRA_LIB)
 LIBS+= -lm -ltrilinos_zoltan -lHYPRE
 
+# t8code, OPCIONAL.  Passe T8CODE=<prefixo> para que o exemplo possa escolher a
+# malha produzida pelo t8code (em tempo de execucao, com HIGFLOW_MALHA=t8code).
+# Sem isso nada muda e o exemplo nao depende da biblioteca.
+#
+# A unidade do produtor compila em C++20 porque o t8code exige, enquanto o resto
+# fica em gnu++17 -- so' a assinatura em extern "C" atravessa.
+ifdef T8CODE
+CFLAGS  += -DHIGFLOW_COM_T8CODE -I$(T8CODE)/include
+LDFLAGS += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
+LIBS    += -lt8 -lp4est -lsc
+T8OBJ    = malha-t8.o $(HIGTREE_DIR)/tests/t8code/t8-mesh-rank.o $(HIGTREE_DIR)/tests/t8code/t8-forest-cache.o $(HIGTREE_DIR)/tests/t8code/t8-particao-grafo.o
+T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I../src -I$(HIGTREE_DIR)/tests/t8code \
+           -DT8_ENABLE_MPI=1 -DT8_ENABLE_MPIIO=1 -I$(T8CODE)/include \
+           $(shell pkg-config --cflags glib-2.0 hdf5) $(PETSC_CC_INCLUDES)
+endif
+
+
 ARCH = $(shell uname)
 ifeq ($(ARCH), Linux)
 	LIBS+= -lrt
@@ -61,9 +78,26 @@ OBJ1 += ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-step-viscoe
 OBJ1 += ../src/hig-flow-res.o 
 OBJ1 += ../src/hig-flow-linear-algebra.o
 OBJ1 += ../src/hig-flow-viscoelastic-kernel.o
+OBJ1 += $(T8OBJ)
 
 ns-example: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
+
+ifdef T8CODE
+# A fonte vive em ../examples-common: ela le' a especificacao do proprio arquivo
+# AMR, entao serve a qualquer exemplo de malha uniforme -- nao ha' nada decorado
+# nela que a prenda a este.
+malha-t8.o: ../examples-common/malha-t8.cxx
+	$(CC) $(T8FLAGS) -c $< -o $@
+
+# O adaptador do t8code vive sob higtree/tests porque e' opcional e e' la' que
+# ele e' verificado, clausula por clausula.  O exemplo o compila de la' em vez de
+# duplicar a decomposicao em caixas -- duplicar um algoritmo sutil e' pior que a
+# dependencia estranha.  Quando o adaptador sair de `tests`, esta regra muda de
+# caminho e mais nada.
+$(HIGTREE_DIR)/tests/t8code/%.o: $(HIGTREE_DIR)/tests/t8code/%.cxx
+	$(CC) $(T8FLAGS) -c $< -o $@
+endif
 
 %.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 	$(CC) $(CFLAGS) -c $< -o $@

@@ -49,7 +49,7 @@ CFLAGS  += -DHIGFLOW_COM_T8CODE -I$(T8CODE)/include
 LDFLAGS += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LIBS    += -lt8 -lp4est -lsc
 T8OBJ    = malha-t8.o $(HIGTREE_DIR)/tests/t8code/t8-mesh-rank.o $(HIGTREE_DIR)/tests/t8code/t8-forest-cache.o $(HIGTREE_DIR)/tests/t8code/t8-particao-grafo.o
-T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I$(HIGTREE_DIR)/tests/t8code \
+T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I../src -I$(HIGTREE_DIR)/tests/t8code \
            -DT8_ENABLE_MPI=1 -DT8_ENABLE_MPIIO=1 -I$(T8CODE)/include \
            $(shell pkg-config --cflags glib-2.0 hdf5) $(PETSC_CC_INCLUDES)
 endif
@@ -83,7 +83,10 @@ ns-example: $(OBJ1)
 # do arquivo e' o alvo padrao: posta antes, `make` sem argumento construia so'
 # este objeto e retornava 0 -- build "bem-sucedido" sem binario nenhum.
 ifdef T8CODE
-malha-t8.o: malha-t8.cxx
+# A fonte vive em ../examples-common: ela le' a especificacao do proprio arquivo
+# AMR, entao serve a qualquer exemplo de malha uniforme -- nao ha' nada decorado
+# nela que a prenda a este.
+malha-t8.o: ../examples-common/malha-t8.cxx
 	$(CC) $(T8FLAGS) -c $< -o $@
 
 # O adaptador do t8code vive sob higtree/tests porque e' opcional e e' la' que

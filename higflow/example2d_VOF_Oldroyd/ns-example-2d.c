@@ -5,6 +5,11 @@
 // *******************************************************************
 
 #include "ns-example-2d.h"
+
+#ifdef HIGFLOW_COM_T8CODE
+// Definida em ../examples-common/malha-t8.cxx, compilada so' com T8CODE.
+extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
+#endif
 #define pi 3.1415926535897932384626434
 
 // *******************************************************************
@@ -323,6 +328,9 @@ int main (int argc, char *argv[]) {
 	// Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
    //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
+#ifdef HIGFLOW_COM_T8CODE
+    malha_t8_instala(ns, myrank);
+#endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
     
 	// Initialize the boundaries

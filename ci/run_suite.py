@@ -81,7 +81,7 @@ KSP_OPTS = ["-ksp_type", "bcgs", "-pc_type", "bjacobi",
 
 
 class Case:
-    def __init__(self, name, binary, load, dim, multiphase=False,
+    def __init__(self, name, binary, load, dim, multiphase=False, t8_fontes=None,
                  numsteps=20, dtp=0.005, slow=False, known_broken=None,
                  max_np=None, max_np_reason="", skip_np=(), skip_np_reason="",
                  overrides=None, example=None):
@@ -95,6 +95,7 @@ class Case:
         self.binary = binary          # link target of the example Makefile
         self.load = load              # input prefix, relative to the case dir
         self.dim = dim
+        self.t8_fontes = t8_fontes or ()
         self.multiphase = multiphase  # mass conservation applies
         self.numsteps = numsteps
         self.dtp = dtp                # VTK write interval
@@ -118,13 +119,22 @@ class Case:
 # numsteps is small on purpose: the reference guards against a change in
 # behaviour, and a long run costs time without widening coverage.
 CASES = [
-    Case("example2d_Newt",         "ns-example",     "example-2d.load", 2),
-    Case("example2d_Oldroyd",      "ns-example",     "example-2d.load", 2),
-    Case("example2d_Gptt",         "ns-example",     "example-2d.load", 2),
-    Case("example2d_Newt_contraction", "ns-example", "example-2d.load", 2),
-    Case("example2d_VOF",          "ns-example",     "example-2d.load", 2, multiphase=True),
-    Case("example2d_VOF_Gptt",     "ns-example",     "example-2d.load", 2, multiphase=True),
-    Case("example2d_VOF_Oldroyd",  "ns-example",     "example-2d.load", 2, multiphase=True),
+    Case("example2d_Newt",         "ns-example",     "example-2d.load", 2,
+         t8_fontes=("t8code", "t8code-rank", "t8code-particao")),
+    Case("example2d_Oldroyd",      "ns-example",     "example-2d.load", 2,
+         t8_fontes=("t8code", "t8code-particao")),
+    Case("example2d_Gptt",         "ns-example",     "example-2d.load", 2,
+         t8_fontes=("t8code", "t8code-particao")),
+    Case("example2d_Newt_contraction", "ns-example", "example-2d.load", 2,
+         # DOIS blocos uniformes: so' a fonte em serie cobre.  As outras duas
+         # exigem um bloco so' -- e recusam, em vez de aproximar.
+         t8_fontes=("t8code",)),
+    Case("example2d_VOF",          "ns-example",     "example-2d.load", 2, multiphase=True,
+         t8_fontes=("t8code", "t8code-particao")),
+    Case("example2d_VOF_Gptt",     "ns-example",     "example-2d.load", 2, multiphase=True,
+         t8_fontes=("t8code", "t8code-particao")),
+    Case("example2d_VOF_Oldroyd",  "ns-example",     "example-2d.load", 2, multiphase=True,
+         t8_fontes=("t8code", "t8code-particao")),
     # Como distribuido, este exemplo roda com eoflow desligado: apesar do nome,
     # ele cobre o caminho multifasico e nao o eletroosmotico.
     Case("example2d_ElectroOsmotic", "ns-example-2d",  "load", 2, multiphase=True),
@@ -190,7 +200,7 @@ def run(cmd, **kw):
     return subprocess.run(cmd, capture_output=True, text=True, **kw)
 
 
-def build_for_dim(dim, cases, timeout):
+def build_for_dim(dim, cases, timeout, t8code=None):
     """Build the libraries and example binaries for one dimension.
 
     The object files in higflow/src carry no dimension in their names and the
@@ -214,7 +224,9 @@ def build_for_dim(dim, cases, timeout):
              (HIGFLOW, ["make", "-C", HIGFLOW, "DIM=%d" % dim])]
     for d in dict.fromkeys(c.dir for c in cases):     # ordem estavel, sem repetir
         steps.append((d, ["make", "-C", d, "clean"]))
-        steps.append((d, ["make", "-C", d]))
+        # Com --t8code o exemplo ganha as fontes alternativas; sem, ele nem
+        # depende da biblioteca.
+        steps.append((d, ["make", "-C", d] + (["T8CODE=" + t8code] if t8code else [])))
 
     for where, cmd in steps:
         r = subprocess.run(cmd, capture_output=True, text=True,
@@ -281,7 +293,7 @@ def prepare_inputs(case, tmp, numsteps, dtp):
     return os.path.join(indir, case.load)
 
 
-def run_case(case, np, numsteps, dtp, timeout):
+def run_case(case, np, numsteps, dtp, timeout, fonte=None):
     """Run one case at np processes.  Returns (ok, vtk_dir_or_None, detail)."""
     exe = os.path.join(case.dir, case.binary)
     if not os.path.exists(exe):
@@ -296,8 +308,13 @@ def run_case(case, np, numsteps, dtp, timeout):
             load, os.path.join(tmp, "out.save"), os.path.join(vtk, "p.print")]
            + KSP_OPTS)
     try:
+        # A FONTE DA MALHA entra por ambiente, como o exemplo a le'.  Sem ela o
+        # exemplo segue no arquivo AMR, que e' o caminho que a suite padrao mede.
+        env = dict(os.environ)
+        if fonte: env["HIGFLOW_MALHA"] = fonte
+        else:     env.pop("HIGFLOW_MALHA", None)
         r = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=timeout, cwd=case.dir)
+                           timeout=timeout, cwd=case.dir, env=env)
     except subprocess.TimeoutExpired:
         return False, None, "timed out after %ds" % timeout
 
@@ -404,6 +421,11 @@ def main():
                     help="also run the long cases (example3d_complex)")
     ap.add_argument("--include-broken", action="store_true",
                     help="also run cases known to be broken")
+    ap.add_argument("--t8code", metavar="PREFIXO",
+                    help="constroi os exemplos com o t8code e roda, alem do "
+                         "caminho AMR, as fontes que cada caso declara em "
+                         "t8_fontes.  A referencia e' a MESMA: malha uniforme "
+                         "produzida por outro backend tem de dar o mesmo numero.")
     ap.add_argument("--no-build", action="store_true",
                     help="use the binaries already built, do not run make")
     args = ap.parse_args()
@@ -435,11 +457,12 @@ def main():
     print("-" * 78)
 
     failures = 0
+    execucoes = 0          # conta TAMBEM as fontes alternativas
     # Grouped by dimension: see build_for_dim for why they cannot share a tree.
     for dim in sorted({c.dim for c in selected}):
         group = [c for c in selected if c.dim == dim]
         if not args.no_build:
-            ok, why = build_for_dim(dim, group, args.timeout)
+            ok, why = build_for_dim(dim, group, args.timeout, args.t8code)
             if not ok:
                 for c in group:
                     print("%-24s %-5s  %-7s  build failed: %s"
@@ -449,20 +472,27 @@ def main():
         for c in group:
             for np in nps:
                 if np in c.skip_np:
+                    execucoes += 1     # o skip CONTA, como sempre contou
                     print("%-24s %-5s  %-7s  %s"
                           % (c.name, np, "skip", c.skip_np_reason))
                     continue
                 if c.max_np and np > c.max_np:
+                    execucoes += 1
                     print("%-24s %-5d  %-7s  %s"
                           % (c.name, np, "skip", c.max_np_reason))
                     continue
-                ok, vtk, detail = run_case(c, np, c.numsteps, c.dtp, args.timeout)
-                if ok:
-                    ok, detail = check(vtk, c, args.tolerance, args.generate)
-                status = "ok" if ok else "FAIL"
-                if not ok:
-                    failures += 1
-                print("%-24s %-5d  %-7s  %s" % (c.name, np, status, detail))
+                fontes = [None] + (list(c.t8_fontes) if args.t8code else [])
+                for fonte in fontes:
+                    ok, vtk, detail = run_case(c, np, c.numsteps, c.dtp,
+                                               args.timeout, fonte)
+                    if ok:
+                        ok, detail = check(vtk, c, args.tolerance, args.generate)
+                    status = "ok" if ok else "FAIL"
+                    if not ok:
+                        failures += 1
+                    execucoes += 1
+                    nome = c.name if fonte is None else c.name + ":" + fonte
+                    print("%-24s %-5d  %-7s  %s" % (nome, np, status, detail))
 
                 # Apagar o temporario do caso que passou.  Sem isto cada
                 # execucao deixa para tras a saida inteira: uma tarde de
@@ -477,7 +507,13 @@ def main():
         print("%-24s %-5s  %-7s  %s" % (c.name, "-", "skip", why))
 
     print("-" * 78)
-    total = len(selected) * len(nps)
+    # Conta o que REALMENTE rodou -- inclusive os `skip`, que sempre entraram no
+    # total.  Com --t8code cada caso rende uma execucao por fonte, e
+    # `len(selected) * len(nps)` diria menos do que foi verificado.
+    #
+    # (o numero de cabecalho da suite e' comparado entre execucoes; muda-lo em
+    # silencio faria "33/33" virar "31/31" sem que nada tivesse regredido.)
+    total = execucoes if execucoes else len(selected) * len(nps)
     print("%d of %d run(s) passed" % (total - failures, total))
     return 1 if failures else 0
 

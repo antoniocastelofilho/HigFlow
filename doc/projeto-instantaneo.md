@@ -431,6 +431,48 @@ t8code-rank        malha por rank, lbal reparticiona
 t8code-particao    malha e partição do t8code, sem lbal
 ```
 
+## 4g. A suíte que roda nos dois backends
+
+`python3 ci/run_suite.py --t8code <prefixo>`: além do caminho AMR, cada caso roda
+as fontes que declara em `t8_fontes`, **contra a mesma referência**.
+
+```
+sem a flag    33 de 33     (só o caminho AMR — nada muda)
+com a flag    73 de 73     (AMR + variantes t8code)
+```
+
+**A fonte deixou de ser decorada.** Ela lê a especificação do próprio arquivo AMR
+(`mi->l`, `mi->h`, `levels[0].patches[0].patchsize`), então serve a qualquer
+exemplo de malha uniforme. Com refino ela **recusa** em vez de aproximar — malha
+diferente dá números diferentes, e o silêncio ali seria pior que o erro.
+
+**O levantamento decidiu a elegibilidade**, e vale registrado:
+
+```
+8 exemplos   um bloco uniforme
+1 exemplo    DOIS blocos uniformes (Newt_contraction)
+5 exemplos   sem arquivo de domínio (constroem a malha por outro caminho)
+```
+
+Sete estão ligados. O `BMP` ficou de fora: ele inicializa o domínio por outro
+caminho, e meia ligação é pior que nenhuma.
+
+O custo por exemplo é **uma linha** (`malha_t8_instala`) mais o bloco `T8CODE` no
+Makefile — o instalador compartilhado evita repetir o `strcmp` de quatro fontes
+em sete lugares, que é como os campos do `ns->cc` se perderam.
+
+**Dois defeitos que isto expôs:**
+
+A fonte em série fazia **todo rank produzir a malha inteira**, em vez de
+distribuir os blocos como o caminho AMR faz (`for i = myrank; i += ntasks`).
+Ficou latente porque ela só tinha sido exercitada em np=1, onde a regra é
+trivialmente satisfeita; em np=2 a referência reprovou.
+
+E o meu próprio contador: ao passar a contar execuções reais para incluir as
+variantes, os `skip` saíram do total e "33/33" virou "31/31" sem que nada
+tivesse regredido. O número de cabeçalho da suíte é comparado entre execuções —
+mudá-lo em silêncio é um defeito, não um detalhe.
+
 ## 6. O que é decisão sua
 
 **D1 — Onde o instantâneo vive, e quando nasce.** Recomendo no domínio,

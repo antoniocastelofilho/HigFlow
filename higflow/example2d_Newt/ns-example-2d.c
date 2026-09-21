@@ -6,9 +6,8 @@
 
 #ifdef HIGFLOW_COM_T8CODE
 // Definida em malha-t8.cxx, compilada so' quando T8CODE esta' no ambiente.
-extern "C" int malha_t8_do_exemplo(void *ctx, hig_cell **arvores, int max);
-extern "C" int malha_t8_por_rank(void *ctx, hig_cell **arvores, int max);
-extern "C" int particao_t8_do_exemplo(void *ctx, sim_domain *sd, partition_graph *pg);
+// Definida em ../examples-common/malha-t8.cxx, compilada so' com T8CODE.
+extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 #endif
 
 // *******************************************************************
@@ -197,27 +196,10 @@ int main (int argc, char *argv[]) {
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
-    // O EXEMPLO ESCOLHE A FONTE DA MALHA.  Sem HIGFLOW_MALHA=t8code no ambiente,
-    // nada muda: o solver le' o arquivo AMR como sempre, e a suite afirma isso.
-    // Com a variavel, a malha vem de uma floresta do t8code -- a mesma malha, por
-    // outro produtor, entao a saida tem de ser identica.
+    // O EXEMPLO ESCOLHE A FONTE DA MALHA: uma linha, e so' com T8CODE no build.
+    // Sem HIGFLOW_MALHA no ambiente nada muda, e a suite padrao afirma isso.
 #ifdef HIGFLOW_COM_T8CODE
-    {
-        const char *fonte = getenv("HIGFLOW_MALHA");
-        if (fonte != NULL && strcmp(fonte, "t8code") == 0) {
-            if (myrank == 0) printf("=+=+=+= Malha produzida pelo t8code (serie) =+=+=+=\n");
-            higflow_set_fonte_de_malha(ns, malha_t8_do_exemplo, NULL);
-        } else if (fonte != NULL && strcmp(fonte, "t8code-particao") == 0) {
-            // Malha E particao do t8code: nao ha' `lb_calc_partition`.
-            if (myrank == 0) printf("=+=+=+= Malha e particao do t8code =+=+=+=\n");
-            higflow_set_fonte_de_particao(ns, particao_t8_do_exemplo, NULL);
-        } else if (fonte != NULL && strcmp(fonte, "t8code-rank") == 0) {
-            // Cada rank materializa so' a sua parte: nenhum processo chega a ter
-            // a malha inteira na memoria.
-            if (myrank == 0) printf("=+=+=+= Malha produzida pelo t8code (por rank) =+=+=+=\n");
-            higflow_set_fonte_de_malha(ns, malha_t8_por_rank, NULL);
-        }
-    }
+    malha_t8_instala(ns, myrank);
 #endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
 
