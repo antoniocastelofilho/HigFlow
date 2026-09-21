@@ -2,16 +2,27 @@
 // (or facet) values that approximates the field there.  Everything the solver
 // discretizes goes through here.
 //
-// `get_stencil` dispatches on WHERE the point falls, and the three branches behave
-// very differently:
+// `get_stencil` dispatches on WHERE the point falls -- `sd_classify_point` answers
+// that -- and the three branches behave very differently:
 //
-//   IN_DOMAIN_PROPER  at a cell centre -> one element, weight 1, exact hit.
-//   ON_BOUNDARY       on a tree's bounding box -> the `*_boundary` closures.
-//   OUTSIDE_DOMAIN    outside every LOCAL tree -> the `*_any_order` closures.
+//   IN_DOMAIN_PROPER  inside the mesh -> interpolate from surrounding cells.
+//   ON_BOUNDARY       the DOMAIN ends here -> the `*_boundary` closures.
+//   OUTSIDE_DOMAIN    past the local trees AND their fringe -> the `*_any_order` ones.
 //
-// OUTSIDE_DOMAIN means "outside MY trees", not "outside the physical domain": with
-// the domain partitioned, a point owned by a neighbour rank lands here too.  Several
-// defects lived on that conflation.
+// ON_BOUNDARY is not "touches some tree's bounding box".  The test is directional:
+// the point sits on a limit in dimension d, and the domain must fail to continue on
+// one of the two sides -- some block with lo[d] < x[d] below, some with hi[d] > x[d]
+// above.  An interface between blocks of the SAME domain is interior, because there
+// is mesh on both sides.
+//
+// The earlier version stopped at the first tree whose box contained the point
+// ("assume domains do not overlap") and never asked whether another block continued
+// the domain, so the answer depended on the ORDER of the trees in the array.  That
+// was a defect, not a convention, and it was reachable in any run with np > 1.
+//
+// OUTSIDE_DOMAIN means "outside MY trees", not "outside the physical domain" -- but
+// the FRINGE trees live in `d->higtrees` too and are scanned, so a point owned by a
+// neighbour usually lands as IN_DOMAIN_PROPER.  OUTSIDE begins past the fringe.
 //
 // A boundary closure answers "does this family govern this point?".  It is chosen by
 // which patch the segment origin->x CROSSES, not by which plane lies nearest -- a

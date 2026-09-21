@@ -1,11 +1,23 @@
 // Load balancing: decides which trees each rank owns, and builds the fringe.
 //
-// This is the seam where a different mesh backend would attach, and the shape of the
-// contract is the obstacle: `lb_add_input_tree` takes a `hig_cell *` and
-// `lb_get_local_tree` returns one, so the balancer partitions POINTER OCTREES, not
-// an abstract mesh.  Putting a linear, space-filling-curve forest (t8code) behind
-// this would mean materializing it as pointer octrees first, which discards the
-// scalability that motivates it.
+// This was the only seam where a different mesh backend could attach, and the shape
+// of the contract is why: `lb_add_input_tree` takes a `hig_cell *` and
+// `lb_get_local_tree` returns one, so the balancer partitions POINTER OCTREES, not an
+// abstract mesh.  A linear, space-filling-curve forest has to be materialized as
+// pointer octrees to pass through here.
+//
+// THERE IS NOW A SECOND SEAM that goes around this file:
+// `t8_monta_dominio_particionado` builds the `sim_domain` and the `partition_graph`
+// straight from the t8code boxes, with no `lb_calc_partition` at all, and
+// `higflow_set_fonte_de_particao` selects it.  example2d_Newt runs that way
+// (HIGFLOW_MALHA=t8code-particao) and matches the reference at np = 1, 2 and 3.
+//
+// What each costs: this file gives load balancing and arbitrary refinement, at the
+// price of the pointer-octree contract.  The second seam skips the translation
+// through `lbal` entirely, and its materialization is PER RANK, in whole boxes -- no
+// process ever holds the full mesh -- but today it assumes a uniform mesh: with
+// refinement, the sender's box and the receiver's tree would have to agree on the
+// internal subdivision.
 //
 // `lb_add_portal` declares that two boxes are contiguous although they are not
 // adjacent in space -- how disjoint blocks are told to exchange fringe.
