@@ -1193,8 +1193,15 @@ typedef struct sim_residuals sim_residuals;
 
 // Navier-Stokes Solver Data Structure
 //! \brief De onde vem a malha: da informacao AMR (omissao) ou de outra fonte.
-//! Ver `higflow_set_fonte_de_malha`.
-typedef hig_cell *(*higflow_fonte_de_malha)(void *ctx, int indice, int numhigs);
+//!
+//! Devolve quantas arvores ESTE RANK contribui e as escreve em `arvores` (vetor
+//! de `max` posicoes).  Devolver mais de uma e' o caso normal de um produtor por
+//! rank: a regiao de um processo nao e' uma caixa, e vira um conjunto delas.
+//!
+//! O `lbal` ja' espera entrada distribuida -- no caminho AMR cada rank adiciona
+//! um subconjunto dos arquivos --, entao o `partition_graph` sai pronto sem
+//! nenhum trabalho novo.  Ver `higflow_set_fonte_de_malha`.
+typedef int (*higflow_fonte_de_malha)(void *ctx, hig_cell **arvores, int max);
 
 typedef struct higflow_solver {
     // Parameters

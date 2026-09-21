@@ -1367,12 +1367,18 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
     pg_set_fringe_size(pg, 5);
     /* Partitioning the grid from AMR information */
     load_balancer *lb = lb_create(MPI_COMM_WORLD, 1);
-    for(unsigned i = myrank; i < numhigs; i += ntasks) {
-        // A malha vem da fonte instalada pelo exemplo; sem fonte, da informacao AMR.
-        hig_cell *__raiz = (ns->fonte_de_malha != NULL)
-                         ? ns->fonte_de_malha(ns->fonte_de_malha_ctx, (int) i, (int) numhigs)
-                         : higio_read_from_amr_info(mi[i]);
-        lb_add_input_tree(lb, __raiz, true, 0);
+    if(ns->fonte_de_malha != NULL) {
+        // A FONTE CONTRIBUI AS ARVORES DESTE RANK.  O `lbal` ja' espera entrada
+        // distribuida -- e' o que o laco AMR abaixo faz, cada rank lendo um
+        // subconjunto dos arquivos --, entao o `partition_graph` sai pronto e nao
+        // ha' nada de fringe ou vizinhanca a reconstruir aqui.
+        hig_cell *raizes[64];
+        const int n = ns->fonte_de_malha(ns->fonte_de_malha_ctx, raizes, 64);
+        for(int t = 0; t < n; t++) lb_add_input_tree(lb, raizes[t], true, 0);
+    } else {
+        for(unsigned i = myrank; i < numhigs; i += ntasks) {
+            lb_add_input_tree(lb, higio_read_from_amr_info(mi[i]), true, 0);
+        }
     }
     lb_calc_partition(lb, pg);
     numhigs = lb_get_num_local_trees(lb);

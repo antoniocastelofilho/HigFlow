@@ -48,8 +48,8 @@ ifdef T8CODE
 CFLAGS  += -DHIGFLOW_COM_T8CODE -I$(T8CODE)/include
 LDFLAGS += -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LIBS    += -lt8 -lp4est -lsc
-T8OBJ    = malha-t8.o
-T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) \
+T8OBJ    = malha-t8.o $(HIGTREE_DIR)/tests/t8code/t8-mesh-rank.o $(HIGTREE_DIR)/tests/t8code/t8-forest-cache.o
+T8FLAGS  = -x c++ -std=gnu++20 -O1 -DDIM=$(DIM) -I$(SRCPATH) -I$(HIGTREE_DIR)/tests/t8code \
            -DT8_ENABLE_MPI=1 -DT8_ENABLE_MPIIO=1 -I$(T8CODE)/include \
            $(shell pkg-config --cflags glib-2.0 hdf5) $(PETSC_CC_INCLUDES)
 endif
@@ -84,6 +84,14 @@ ns-example: $(OBJ1)
 # este objeto e retornava 0 -- build "bem-sucedido" sem binario nenhum.
 ifdef T8CODE
 malha-t8.o: malha-t8.cxx
+	$(CC) $(T8FLAGS) -c $< -o $@
+
+# O adaptador do t8code vive sob higtree/tests porque e' opcional e e' la' que
+# ele e' verificado, clausula por clausula.  O exemplo o compila de la' em vez de
+# duplicar a decomposicao em caixas -- duplicar um algoritmo sutil e' pior que a
+# dependencia estranha.  Quando o adaptador sair de `tests`, esta regra muda de
+# caminho e mais nada.
+$(HIGTREE_DIR)/tests/t8code/%.o: $(HIGTREE_DIR)/tests/t8code/%.cxx
 	$(CC) $(T8FLAGS) -c $< -o $@
 endif
 

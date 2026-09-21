@@ -47,6 +47,14 @@ typedef struct t8_producao_rank {
 int t8_produz_por_rank(const Point lo, const Point hi, int nivel_base,
                        const Point alvo, int refinos, t8_producao_rank *out);
 
+//! \brief A mesma decomposicao, com cmesh de BRICK: malha uniforme de dimensoes
+//! quaisquer (160x40, por exemplo), que o hipercubo nao representa.
+//!
+//! Nao preenche franja: quem reparte depois e' o `lbal`, e e' ele quem monta a
+//! franja e o grafo de vizinhanca.
+int t8_produz_por_rank_brick(const Point lo, const Point hi, const int nb[DIM],
+                             t8_producao_rank *out);
+
 void t8_producao_rank_destroi(t8_producao_rank *p);
 
 #ifdef __cplusplus

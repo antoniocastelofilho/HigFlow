@@ -264,25 +264,28 @@ monta_caixa (const Point lo, const Point h, const Caixa *c, int nivel_base,
   return raiz;
 }
 
+// `nb` e' a grade BASE (quantas celulas por direcao no nivel mais grosso) e
+// `nivel_base` e' o nivel que os elementos dessa grade tem na floresta.  Para o
+// hipercubo sao `1<<L` e `L`; para um BRICK de nb[0] x nb[1] arvores sao a
+// propria grade e o nivel 0.  Separar os dois e' o que permite a mesma
+// decomposicao servir aos dois produtores.
 static int
-monta_conjunto (const Point lo, const Point hi, int nivel_base, Folha *fs, long n,
-                hig_cell **saida, int max, long *dividida)
+monta_conjunto (const Point lo, const Point hi, const int nb[DIM], int nivel_base,
+                Folha *fs, long n, hig_cell **saida, int max, long *dividida)
 {
   if (n <= 0) return 0;
-  const int nbase = 1 << nivel_base;
   Point h;
-  for (int d = 0; d < DIM; d++) h[d] = (hi[d] - lo[d]) / (double) nbase;
+  for (int d = 0; d < DIM; d++) h[d] = (hi[d] - lo[d]) / (double) nb[d];
 
-  int nb[DIM];
   long total = 1;
-  for (int d = 0; d < DIM; d++) { nb[d] = nbase; total *= nbase; }
+  for (int d = 0; d < DIM; d++) total *= nb[d];
   char *posse = (char *) calloc ((size_t) total, 1);
   for (long k = 0; k < n; k++) {
     long pos = 0, mul = 1;
     for (int d = 0; d < DIM; d++) {
       int i = (int) floor ((fs[k].x[d] - lo[d]) / h[d]);
       if (i < 0) i = 0;
-      if (i >= nbase) i = nbase - 1;
+      if (i >= nb[d]) i = nb[d] - 1;
       pos += i * mul; mul *= nb[d];
     }
     posse[pos] = 1;
@@ -421,7 +424,9 @@ t8_produz_por_rank (const Point lo, const Point hi, int nivel_base,
     }
   }
   out->n_local = k;
-  out->n_locais = monta_conjunto (lo, hi, nivel_base, loc, k, out->locais,
+  int nb[DIM];
+  for (int d = 0; d < DIM; d++) nb[d] = 1 << nivel_base;
+  out->n_locais = monta_conjunto (lo, hi, nb, nivel_base, loc, k, out->locais,
                                   T8_MAX_CAIXAS, &out->base_dividida);
   free (loc);
 
@@ -446,10 +451,64 @@ t8_produz_por_rank (const Point lo, const Point hi, int nivel_base,
   // A franja NAO conta para `base_dividida`: ela e' um recorte da malha do
   // vizinho por construcao, e familia dividida ali e' esperada.
   long descartado = 0;
-  out->n_franjas = monta_conjunto (lo, hi, nivel_base, gh, kg, out->franjas,
+  out->n_franjas = monta_conjunto (lo, hi, nb, nivel_base, gh, kg, out->franjas,
                                    T8_MAX_CAIXAS, &descartado);
   free (gh);
 
+  t8_forest_unref (&f);
+  return 1;
+}
+
+// A MESMA decomposicao, alimentada por um cmesh de BRICK.  Serve para malha
+// uniforme de dimensoes quaisquer -- 160x40, por exemplo --, que o hipercubo nao
+// representa: ele e' uma arvore so', e o refino uniforme dele da' potencia de
+// dois por direcao.
+extern "C" int
+t8_produz_por_rank_brick (const Point lo, const Point hi, const int nb[DIM],
+                          t8_producao_rank *out)
+{
+  if (out == NULL) return 0;
+  memset (out, 0, sizeof *out);
+  for (int d = 0; d < DIM; d++) if (nb[d] < 1 || !(hi[d] > lo[d])) return 0;
+
+  t8_inicializa_uma_vez ();
+
+  t8_cmesh_t cmesh;
+  t8_cmesh_init (&cmesh);
+#if DIM == 2
+  t8_cmesh_new_brick_2d (cmesh, nb[0], nb[1], 0, 0, sc_MPI_COMM_WORLD);
+#else
+  t8_cmesh_new_brick_3d (cmesh, nb[0], nb[1], nb[2], 0, 0, 0, sc_MPI_COMM_WORLD);
+#endif
+  const t8_scheme_c *scheme = t8_scheme_new_default ();
+  t8_forest_t f = t8_forest_new_uniform (cmesh, scheme, 0, 1, sc_MPI_COMM_WORLD);
+
+  out->n_global = (long) t8_forest_get_global_num_leaf_elements (f);
+  const t8_scheme_c *sch = t8_forest_get_scheme (f);
+  const t8_locidx_t nloc_trees = t8_forest_get_num_local_trees (f);
+
+  // O brick cobre [0,nb[0]] x [0,nb[1]] (x [0,nb[2]]); a volta para o dominio
+  // divide pela extensao de cada direcao, e nao por um lado unitario.
+  long n = (long) t8_forest_get_local_num_leaf_elements (f);
+  Folha *loc = (Folha *) malloc ((size_t) (n > 0 ? n : 1) * sizeof *loc);
+  long k = 0;
+  for (t8_locidx_t it = 0; it < nloc_trees; it++) {
+    const t8_eclass_t ec = t8_forest_get_tree_class (f, it);
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements (f, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const t8_element_t *e = t8_forest_get_leaf_element_in_tree (f, it, ie);
+      double c[3];
+      t8_forest_element_centroid (f, it, e, c);
+      for (int d = 0; d < DIM; d++)
+        loc[k].x[d] = lo[d] + (c[d] / (double) nb[d]) * (hi[d] - lo[d]);
+      loc[k].nivel = sch->element_get_level (ec, e);
+      k++;
+    }
+  }
+  out->n_local = k;
+  out->n_locais = monta_conjunto (lo, hi, nb, 0, loc, k, out->locais,
+                                  T8_MAX_CAIXAS, &out->base_dividida);
+  free (loc);
   t8_forest_unref (&f);
   return 1;
 }

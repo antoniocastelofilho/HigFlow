@@ -26,6 +26,7 @@
 
 #include "higtree.h"
 #include "coord.h"
+#include "t8-mesh-rank.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -41,18 +42,18 @@
 
 static int g_iniciado = 0;
 
-extern "C" hig_cell *
-malha_t8_do_exemplo (void *ctx, int indice, int numhigs)
+// Produz a malha INTEIRA, em serie, em todo rank.  Simples e suficiente para
+// mostrar que a fonte funciona, mas mantem o gargalo: cada processo materializa
+// 6400 celulas antes de o `lbal` repartir.  Quem tira o gargalo e'
+// `malha_t8_por_rank`, abaixo.
+extern "C" int
+malha_t8_do_exemplo (void *ctx, hig_cell **arvores, int max)
 {
   (void) ctx;
-  if (indice != 0 || numhigs != 1) {
-    fprintf (stderr, "malha_t8_do_exemplo: este exemplo tem uma malha so' "
-                     "(indice=%d de %d)\n", indice, numhigs);
-    return NULL;
-  }
+  if (max < 1) return 0;
 #if DIM != 2
   fprintf (stderr, "malha_t8_do_exemplo: so' existe em DIM=2\n");
-  return NULL;
+  return 0;
 #else
   if (!g_iniciado) {
     g_iniciado = 1;
@@ -107,8 +108,61 @@ malha_t8_do_exemplo (void *ctx, int indice, int numhigs)
                      "divergencia(s) contra a arvore (esperado %ld e 0)\n",
              folhas, ruins, (long) NCX * NCY);
     hig_destroy (raiz);
-    return NULL;
+    return 0;
   }
-  return raiz;
+  arvores[0] = raiz;
+  return 1;
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// PRODUCAO POR RANK: nenhum processo chega a ter a malha inteira.
+//
+// A floresta nasce em COMM_WORLD, o t8code a reparte, e cada rank materializa so'
+// a sua parte -- em CAIXAS COMPLETAS, porque arvore com buraco nao e' navegavel.
+// As caixas entram no `lb_add_input_tree` como entrada distribuida, que e' o que
+// o `lbal` ja' espera; ele reparte de novo e monta o grafo de vizinhanca e a
+// franja.  Por isso esta fonte nao produz franja: nao e' dela.
+//
+// A particao final e' a do `lbal`, nao a do t8code.  O que muda em relacao a'
+// fonte em serie e' de onde vem a malha e quanto cada processo precisa segurar.
+extern "C" int
+malha_t8_por_rank (void *ctx, hig_cell **arvores, int max)
+{
+  (void) ctx;
+#if DIM != 2
+  fprintf (stderr, "malha_t8_por_rank: so' existe em DIM=2\n");
+  return 0;
+#else
+  Point lo, hi;
+  lo[0] = LOX; lo[1] = LOY;
+  hi[0] = HIX; hi[1] = HIY;
+  int nb[DIM];
+  nb[0] = NCX; nb[1] = NCY;
+
+  t8_producao_rank p;
+  if (!t8_produz_por_rank_brick (lo, hi, nb, &p)) {
+    fprintf (stderr, "malha_t8_por_rank: o produtor falhou\n");
+    return 0;
+  }
+  if (p.base_dividida != 0) {
+    fprintf (stderr, "malha_t8_por_rank: %ld celula(s) com familia dividida\n",
+             p.base_dividida);
+    t8_producao_rank_destroi (&p);
+    return 0;
+  }
+  if (p.n_locais > max) {
+    fprintf (stderr, "malha_t8_por_rank: %d caixas, cabe %d\n", p.n_locais, max);
+    t8_producao_rank_destroi (&p);
+    return 0;
+  }
+  // As arvores passam a pertencer ao `lbal` (`managed = true`), entao aqui so' se
+  // solta o vetor -- destruir as arvores seria destruir a malha que se acabou de
+  // entregar.
+  for (int i = 0; i < p.n_locais; i++) arvores[i] = p.locais[i];
+  const int n = p.n_locais;
+  p.n_locais = 0;
+  t8_producao_rank_destroi (&p);
+  return n;
 #endif
 }

@@ -326,6 +326,42 @@ enquanto o oráculo do item 3 passar.
 
 ---
 
+## 4d. O produtor por rank alimenta o exemplo
+
+`HIGFLOW_MALHA=t8code-rank`: a floresta nasce em `COMM_WORLD`, o t8code a
+reparte, e **cada rank materializa só a sua parte**. Nenhum processo chega a ter
+a malha inteira.
+
+**O bloqueio que eu tinha previsto não precisou ser resolvido.** Eu havia escrito
+que isso exigiria produzir o `partition_graph` sem o `lbal` — e o `pg` guarda o
+pareamento de franjas em ordem idêntica nos dois lados, que é o coração do
+`build-fringe`. Mas o `lbal` **já** espera entrada distribuída: no caminho AMR
+cada rank lê um subconjunto dos arquivos. Basta cada rank contribuir as suas
+caixas, e o grafo de vizinhança e a franja saem prontos.
+
+A partição final continua sendo a do `lbal`, não a do t8code. O que muda é de
+onde vem a malha e quanto cada processo precisa segurar.
+
+**O oráculo muda com o np, e descobrir isso foi metade do trabalho.**
+
+```
+np=1   byte a byte idêntico ao caminho AMR   (17 arquivos)
+np>1   NÃO é idêntico — e nem podia ser
+```
+
+Comparar o caminho AMR **consigo mesmo** em np=1 contra np=2 já dá 3 de 6 campos
+diferentes: o precondicionador `bjacobi` depende da partição, então a partição
+sozinha move os números. Byte a byte não é oráculo disponível em np>1, para
+fonte nenhuma. Ali vale a referência gravada, com tolerância — a mesma que a
+suíte usa:
+
+```
+np = 1, 2, 3 · AMR, t8code, t8code-rank · todas PASS a 0,10%
+```
+
+*O gancho passou a devolver várias árvores* (`int f(ctx, hig_cell **v, int max)`),
+porque a região de um rank não é uma caixa e vira um conjunto delas.
+
 ## 6. O que é decisão sua
 
 **D1 — Onde o instantâneo vive, e quando nasce.** Recomendo no domínio,

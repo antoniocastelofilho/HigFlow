@@ -6,7 +6,8 @@
 
 #ifdef HIGFLOW_COM_T8CODE
 // Definida em malha-t8.cxx, compilada so' quando T8CODE esta' no ambiente.
-extern "C" hig_cell *malha_t8_do_exemplo(void *ctx, int indice, int numhigs);
+extern "C" int malha_t8_do_exemplo(void *ctx, hig_cell **arvores, int max);
+extern "C" int malha_t8_por_rank(void *ctx, hig_cell **arvores, int max);
 #endif
 
 // *******************************************************************
@@ -203,8 +204,13 @@ int main (int argc, char *argv[]) {
     {
         const char *fonte = getenv("HIGFLOW_MALHA");
         if (fonte != NULL && strcmp(fonte, "t8code") == 0) {
-            if (myrank == 0) printf("=+=+=+= Malha produzida pelo t8code =+=+=+=\n");
+            if (myrank == 0) printf("=+=+=+= Malha produzida pelo t8code (serie) =+=+=+=\n");
             higflow_set_fonte_de_malha(ns, malha_t8_do_exemplo, NULL);
+        } else if (fonte != NULL && strcmp(fonte, "t8code-rank") == 0) {
+            // Cada rank materializa so' a sua parte: nenhum processo chega a ter
+            // a malha inteira na memoria.
+            if (myrank == 0) printf("=+=+=+= Malha produzida pelo t8code (por rank) =+=+=+=\n");
+            higflow_set_fonte_de_malha(ns, malha_t8_por_rank, NULL);
         }
     }
 #endif
