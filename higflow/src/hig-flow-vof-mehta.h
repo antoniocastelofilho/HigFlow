@@ -1,8 +1,9 @@
 // Mehta's interface treatment, called from the multiphase step.
 //
-// Unlike hig-flow-vof-shirani.h, which is its copy-paste sibling, this one IS live:
-// hig-flow-step-multiphase.c calls mehta().  The commented-out shirani declaration
-// below is a leftover of that copy and means nothing here.
+// This one IS live: hig-flow-step-multiphase.c calls mehta().  The commented-out
+// shirani declaration below is a leftover of the copy this file was made from, and
+// means nothing here -- shirani_125_cells() is declared nowhere, and its own header
+// was removed as dead.
 //
 // PART OF THE VOF FAMILY: a volume fraction per cell says how much of each phase is
 // there, and the interface is RECONSTRUCTED from it rather than tracked.  The steps

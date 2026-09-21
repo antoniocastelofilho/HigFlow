@@ -135,6 +135,17 @@ condição de contorno ainda reproduzia polinômios.
 **O VTK não é testado aqui, e não deve ser.** Os escritores VTK são
 dependentes de partição por construção. Ver a seção de VTK no `AGENTS.md`.
 
+**As cláusulas do t8code só rodam sobre malha uniforme.** Nenhum caso do contrato
+exercita o t8code em malha adaptada não graduada — e é justamente o não graduado
+que motiva o interpolador por mínimos quadrados. *(medido pela outra frente)*
+
+**A divergência de classificação na interface entre árvores de `cmesh` está
+registrada, não resolvida.** O caso documenta que os dois backends discordam; ele
+não afirma qual está certo.
+
+**O oráculo do instantâneo verifica geometria, não valor.** Caixa, centro e delta,
+por localização de ponto. Ele não afirma nada sobre valores de propriedade.
+
 **A suíte ATF de 2020 não roda.** São 71 casos em `../atf-tests` que precisam
 de `atf-c`, não instalado em lugar nenhum — cinco anos sem executar. Ficam como
 material de referência, não como suíte.
