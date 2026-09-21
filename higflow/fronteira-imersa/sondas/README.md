@@ -57,6 +57,24 @@ O número que importa é o **suporte do vértice**: os triângulos incidentes
 continuam alcançáveis depois da distribuição. É o que área dual e normal exigem,
 e é exatamente o ponto em que uma estrutura caseira ficaria cara.
 
+### `sonda-petscsf.c` — acumulação franja→dono
+
+O buraco que a estrutura distribuída reabre. O espalhamento do delta escreve em
+facetas de **outro** rank, e o `dp_sync` da HiGTree (`pdomain.c:1308`) manda
+dono→franja e **sobrescreve**: a contribuição na franja seria descartada, calada.
+
+Cada rank escreve 1,0 nas entradas próprias e 10,0 numa entrada de franja do
+vizinho. Depois do `PetscSFReduce` com `MPI_SUM`:
+
+```
+np=2 e np=3   entrada 0 = 11,0  (1 própria + 10 do vizinho)   ACUMULOU
+              entrada 1 =  1,0
+```
+
+O teste discrimina: se o `PetscSF` sobrescrevesse em vez de somar, daria 10,0. O
+grafo se monta do que a HiGTree já tem (`gid_map`, `local_count`, `total_count`
+e os vizinhos filtrados de `_dp_shared`), sem tocar na estrutura dela.
+
 ## O que as sondas NÃO provam
 
 - **Nada sobre integração.** Elas não tocam HiGTree nem HiGFlow. Que as
@@ -65,12 +83,12 @@ e é exatamente o ponto em que uma estrutura caseira ficaria cara.
   com sobreposição **zero**. O suporte do delta (3 a 4 células) exige sobreposição,
   e isso não foi medido.
 - **Nada sobre desempenho.** Oito triângulos e quatro marcadores não medem nada.
-- **Nada sobre a escolha.** Nas centenas de marcadores destas malhas (`h = 0,01`;
-  um cilindro de diâmetro 0,05 dá ~160 marcadores), **replicar a malha inteira em
-  todo rank ainda é mais simples** que distribuir — e faz desaparecer o problema
-  de acumulação franja→dono, porque nenhum rank escreve fora do que possui. As
-  bibliotecas passam a valer com muitos corpos, superfície bem mais fina que a
-  malha, ou corpo deformável.
+- **Nada sobre a escolha** — que já foi tomada, e contra a minha recomendação.
+  Eu recomendava replicar, pelo tamanho: ~160 marcadores para um cilindro nestas
+  malhas. O argumento está certo para a primeira versão e errado para a
+  trajetória: corpo móvel exige migração e corpo deformável exige topologia
+  distribuída, e chegar neles com marcadores replicados custa trocar a estrutura
+  com o método já funcionando em cima dela. Decidido usar as malhas do PETSc.
 
 ## Por que não uma biblioteca nova
 
