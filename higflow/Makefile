@@ -96,6 +96,7 @@ MODULES = \
 	step-viscoelastic-shear-banding \
 	step-viscoelastic-variable-viscosity \
 	step-elastoviscoplastic \
+	fronteira-imersa \
 
 OBJS = $(MODULES:%=$(HIGFLOW_OBJPATH)/hig-flow-%.o)
 

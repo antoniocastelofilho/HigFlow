@@ -74,6 +74,10 @@ OBJ1 = ns-example-2d.o
 OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
 OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
 OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
+# Fronteira imersa: o modulo mais o adaptador de examples-common.  So' os
+# exemplos que instalam um corpo precisam destes dois -- o passo chama por
+# ponteiro de funcao, entao os demais nao referenciam simbolo nenhum.
+OBJ1 += ../src/hig-flow-fronteira-imersa.o fronteira-imersa.o
 OBJ1 += $(T8OBJ)
 
 ns-example: $(OBJ1)
@@ -82,6 +86,11 @@ ns-example: $(OBJ1)
 # A REGRA FICA DEPOIS do alvo `ns-example`.  Em make, a PRIMEIRA regra explicita
 # do arquivo e' o alvo padrao: posta antes, `make` sem argumento construia so'
 # este objeto e retornava 0 -- build "bem-sucedido" sem binario nenhum.
+# O adaptador da fronteira imersa: FORA do ifdef T8CODE -- nao tem relacao com
+# t8code, e la' dentro o exemplo nao construiria sem T8CODE=.
+fronteira-imersa.o: ../examples-common/fronteira-imersa.c
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
 ifdef T8CODE
 # A fonte vive em ../examples-common: ela le' a especificacao do proprio arquivo
 # AMR, entao serve a qualquer exemplo de malha uniforme -- nao ha' nada decorado
@@ -114,7 +123,7 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f ns-example-2d.o ns-example malha-t8.o
+		$(RM) -f ns-example-2d.o ns-example malha-t8.o fronteira-imersa.o
 
 rebuild_higflow:
 	$(MAKE) -C .. clean

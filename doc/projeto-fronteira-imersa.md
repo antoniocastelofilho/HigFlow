@@ -204,3 +204,130 @@ versão, **gerado no próprio exemplo** a partir de parâmetros analíticos (cen
 raio, número de marcadores) — porque formato de arquivo é compromisso que merece
 esperar o método funcionar. Se preferir arquivo desde já, diga: muda a entrada,
 não o resto.
+
+---
+
+## 8. Dois casos que o nome esconde
+
+"Fronteira imersa" cobre duas coisas que compartilham a maquinaria e divergem em
+quase tudo o mais. A distinção precisa estar no código, não só na cabeça de quem
+o escreveu.
+
+```
+(a) CONTORNO RÍGIDO CURVO        um sólido dentro do fluido: cilindro, perfil,
+                                 parede que a malha cartesiana não representa
+(b) INTERFACE ENTRE DOIS FLUIDOS bolha, gota, superfície livre
+```
+
+Na literatura são linhagens diferentes: (a) é fronteira imersa com forçamento
+direto (Fadlun, Uhlmann); (b) é **rastreamento de frente** (Unverdi–Tryggvason).
+Nomear os dois como a mesma coisa é o começo do erro.
+
+### O que é comum — e é o que já está construído
+
+Os dois operadores de transferência, o núcleo regularizado, o par adjunto, e a
+acumulação franja→dono. `fi_interpola` e `fi_espalha` servem aos dois casos sem
+uma linha de diferença. Isso não é coincidência: a transferência é sobre
+*geometria e quadratura*, não sobre física.
+
+### O que difere — quatro coisas, e elas se acumulam
+
+**1. De onde vem a força.**
+
+Em (a) a força é um **multiplicador de Lagrange**: vale o que for preciso para
+que `u = U_corpo`. Não tem lei constitutiva, e sua magnitude cresce como `1/Δt`
+— é rígida por construção.
+
+Em (b) a força é **constitutiva**: tensão superficial `σ κ n`. Tem magnitude
+física própria e traz a sua própria restrição de passo, a da onda capilar,
+`Δt ≲ sqrt(ρ h³ / 2πσ)` — que não existe no caso (a).
+
+**2. Os marcadores se movem?**
+
+Em (a), com corpo fixo, nunca. É por isso que a estrutura atual basta: os
+marcadores são colocados uma vez e ficam.
+
+Em (b) eles são **advectados** pela velocidade interpolada, `dX/dt = u(X)`. Daí
+saem duas exigências que hoje não existem: migração entre ranks quando o
+marcador cruza fronteira de partição — medida na `sonda-dmswarm`, ainda não
+usada — e **remalhamento**, porque a malha lagrangeana se deforma e o
+espaçamento deriva. Quando `ds > h` o suporte do núcleo deixa de cobrir a
+interface e ela fica **permeável**: o fluido atravessa. É o defeito mais
+característico de rastreamento de frente, e não se anuncia como erro.
+
+**3. Precisa de conectividade?**
+
+Em (a), não. Os pesos são fixos na criação e cada marcador é independente.
+
+Em (b), **sim, e é a diferença que quebra a estrutura atual.** Curvatura exige
+vizinhos: em 2D a ordem ao longo da curva, em 3D a triangulação — o `DMPlex`,
+com sobreposição 1, que é o que a `sonda-plex-sobreposicao` mediu.
+
+E aqui está a consequência afiada: **distribuir marcadores por posse euleriana
+destrói a ordem da curva.** O `fi_cria_curva` de hoje guarda só os marcadores
+deste rank, sem ordem e sem ligação com os vizinhos. Para (a) isso é correto e
+barato. Para (b) é exatamente o que não pode acontecer.
+
+**4. Acoplamento com o resto da física.**
+
+Em (a), nenhum: a densidade é uniforme e a força entra no campo por faceta.
+
+Em (b), densidade e viscosidade **saltam** através da interface, e a formulação
+de um fluido só precisa de uma função indicadora derivada das posições dos
+marcadores. Mais que isso: **o HiGFlow já tem multifásico**, por VOF, com
+curvatura própria (`vof-*-normal-curvature`, função altura) e um termo de tensão
+interfacial já na equação — `higflow_interfacial_tension_term`, que lê `cc.IF` e
+divide por `We * ρ`. Rastreamento de frente seria uma representação
+**alternativa** de interface, não um acréscimo ao trabalho de fronteira imersa.
+
+Uma armadilha concreta desse acoplamento: `higflow_source_term` **divide `cc.F`
+por `cc.dens`** quando `flowtype == MULTIPHASE`. Uma força espalhada em `dpFU`
+numa corrida multifásica já sai dividida por ρ — o que é o certo para a forma
+não conservativa da quantidade de movimento, e é um erro de fator ρ para quem
+não souber.
+
+### O que isto implica para o código
+
+Separar o que transfere do que **decide a força**:
+
+```
+fi_interpola / fi_espalha        comuns aos dois casos, prontos
+fi_forca_corpo_rigido(c, dt)     caso (a) -- o multiplicador, f = (U - u)/Δt
+fi_forca_tensao(c, sigma)        caso (b) -- exige curvatura, exige topologia
+fi_move(c, dt)                   caso (b) -- advecção, migração, remalhamento
+```
+
+O caso (a) está construído e verificado. O caso (b) **não é uma extensão dele**:
+precisa de topologia distribuída, de marcadores que migram, de remalhamento, e
+de uma decisão sobre conviver com o VOF que já existe. É projeto próprio.
+
+### A decisão, tomada em 21/09/2026: alternativa ao VOF, e separada
+
+O rastreamento de frente é **alternativa** ao VOF, não complemento, e fica
+**separado** dele. Não entra nos módulos `hig-flow-vof-*`, não usa a fração
+volumétrica, e não passa pelo `cc.IF`.
+
+Isso tem uma consequência que não é óbvia e que vale antecipar, porque
+descobri-la no meio da implementação custaria caro:
+
+**Separado do VOF, ele não herda a densidade.** A formulação de um fluido
+precisa de ρ e μ variáveis através da interface, e hoje quem os produz é a
+maquinaria do VOF, a partir da fração volumétrica. Um rastreamento de frente
+separado tem de derivar os seus **da posição dos marcadores** — uma função
+indicadora própria.
+
+E isso decide como a força tem de ser escalada, por causa de um detalhe já
+medido: `higflow_source_term` divide `cc.F` por `cc.dens` **apenas quando**
+`flowtype == MULTIPHASE`. Então das duas, uma:
+
+- o rastreamento de frente declara um `flowtype` próprio, e aí **ele mesmo**
+  divide a força por ρ antes de espalhar; ou
+- ele reusa `MULTIPHASE` — e aí herda o divisor, mas também a expectativa de que
+  a densidade venha do VOF, que é justamente o que se quis evitar.
+
+A primeira é coerente com "separado". Fica escrita como o que decidir primeiro
+quando (b) começar, não como coisa a descobrir depois.
+
+**O que a decisão NÃO muda:** os dois operadores de transferência continuam
+comuns aos dois casos. Separar (b) do VOF não o separa da maquinaria que o caso
+(a) já construiu e verificou.

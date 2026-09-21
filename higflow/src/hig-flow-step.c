@@ -1336,6 +1336,23 @@ void higflow_solver_step(higflow_solver *ns) {
     // Calculate the facet source term
     higflow_calculate_facet_source_term(ns);
 
+    // FRONTEIRA IMERSA, forca direta DEFASADA.  Entra aqui e em nenhum outro
+    // lugar: o campo de forca por faceta ja' existe e ja' e' lido pela equacao
+    // (dpFU -> cc.F -> higflow_source_term), entao basta somar nele ANTES do
+    // preditor.  Sem corpo instalado o passo e' o de sempre, bit a bit.
+    //
+    // "Defasada" quer dizer que a velocidade usada e' a do passo anterior --
+    // o preditor ainda nao rodou.  O preco e' que o nao escorregamento nao e'
+    // imposto no passo corrente: a velocidade na fronteira vai a O(dt) do zero,
+    // e nao a zero.  Ver doc/projeto-fronteira-imersa.md, secao 3.
+    // E' um PONTEIRO DE FUNCAO, nao uma chamada direta, pelo mesmo motivo que
+    // `fonte_de_malha`: este arquivo e' ligado por TODOS os exemplos, e uma
+    // chamada direta obrigaria cada um deles a ligar o modulo da fronteira
+    // imersa -- doze Makefiles pagando por um recurso que um usa.  Com o
+    // ponteiro, quem nao instala corpo nao referencia simbolo nenhum.
+    if (ns->fronteira_imersa_aplica != NULL)
+        ns->fronteira_imersa_aplica(ns, ns->fronteira_imersa_ctx);
+
     // Calculate the intermediated velocity
     switch (ns->contr.tempdiscrtype) {
         case EXPLICIT_EULER:

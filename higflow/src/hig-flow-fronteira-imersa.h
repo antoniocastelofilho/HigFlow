@@ -71,8 +71,23 @@ real fi_peso_total(const fi_corpo *c);
 void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
                   distributed_property *dpu[DIM]);
 
-//! Forca direta defasada, corpo fixo: f_k = (0 - u_k) / dt.
-void fi_calcula_forca(fi_corpo *c, real dt);
+//! Forca direta defasada, CORPO RIGIDO E FIXO: f_k = (0 - u_k) / dt.
+//!
+//! O nome diz a LEI, nao a operacao, porque ha' duas leis e elas nao sao
+//! variantes uma da outra (ver secao 8 do projeto):
+//!
+//!   contorno rigido curvo   a forca e' MULTIPLICADOR DE LAGRANGE -- vale o que
+//!                           for preciso para u = U_corpo.  Sem lei
+//!                           constitutiva, magnitude crescendo como 1/dt.
+//!   interface entre fluidos a forca e' CONSTITUTIVA -- tensao superficial
+//!                           sigma*kappa*n.  Exige CURVATURA, e portanto
+//!                           vizinhos: ordem da curva em 2D, triangulacao em 3D.
+//!
+//! A transferencia (`fi_interpola`, `fi_espalha`) serve aos dois sem diferenca;
+//! a lei, nao.  E a distribuicao por posse euleriana que `fi_cria_curva` faz
+//! DESTROI a ordem da curva -- correto para o caso rigido, inviavel para o
+//! outro.
+void fi_forca_corpo_rigido(fi_corpo *c, real dt);
 
 //! Espalha a forca dos marcadores nas facetas, ACUMULANDO (dp_add_value).
 //! Contribuicoes que caem em faceta de franja sao somadas no dono por

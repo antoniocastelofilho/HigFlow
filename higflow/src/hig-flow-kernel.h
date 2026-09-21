@@ -1237,6 +1237,13 @@ typedef struct sim_residuals sim_residuals;
 //! O `lbal` ja' espera entrada distribuida -- no caminho AMR cada rank adiciona
 //! um subconjunto dos arquivos --, entao o `partition_graph` sai pronto sem
 //! nenhum trabalho novo.  Ver `higflow_set_fonte_de_malha`.
+//! \brief Aplica a fronteira imersa dentro do passo, antes do preditor.
+//! `ctx` e' o que foi dado a `higflow_set_fronteira_imersa` -- na pratica o
+//! `fi_corpo`, que este cabecalho nao precisa conhecer.
+// `struct higflow_solver` qualificado: este typedef vem ANTES da definicao
+// da struct, e sem a tag o compilador nao tem o nome ainda.
+typedef void (*higflow_fronteira_imersa)(struct higflow_solver *ns, void *ctx);
+
 typedef int (*higflow_fonte_de_malha)(void *ctx, higio_amr_info **mi, int numhigs,
                                      hig_cell **arvores, int max);
 
@@ -1310,6 +1317,12 @@ typedef struct higflow_solver {
     distributed_property       *dpFU[DIM];
     // structure responsible for tracking residuals of consecutive iterations
     sim_residuals              *residuals;
+
+    //! \brief Fronteira imersa (opcional).  NULL = nada muda, e o passo nao paga
+    //! nada.  Ver `higflow_set_fronteira_imersa` e
+    //! doc/projeto-fronteira-imersa.md.
+    higflow_fronteira_imersa fronteira_imersa_aplica;
+    void                    *fronteira_imersa_ctx;
 
     //! \brief Fonte da malha.  NULL = ler da informacao AMR, como sempre.
     higflow_fonte_de_malha fonte_de_malha;
@@ -1585,6 +1598,18 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 //! SEM GANCHO O COMPORTAMENTO E' IDENTICO ao de antes, e e' a suite de exemplos
 //! que afirma isso: 33/33 sem tocar em nada.
 //! \brief Instala a fonte de malha.  `f == NULL` volta ao caminho AMR.
+//! \brief Instala a fronteira imersa.  Sem isto o passo e' o de sempre, bit a
+//! bit.  O solver NAO toma posse do contexto: quem criou destroi.
+//!
+//! E' um gancho, e nao uma dependencia direta, para que os exemplos que nao usam
+//! fronteira imersa nao precisem ligar o modulo dela.  O adaptador vive em
+//! examples-common/fronteira-imersa.c, como o da fonte de malha.
+//!
+//! A forca e' DEFASADA -- calculada com a velocidade do passo anterior, antes do
+//! preditor -- e o corpo e' RIGIDO e FIXO.  As tres decisoes estao no projeto.
+void higflow_set_fronteira_imersa(higflow_solver *ns,
+                                  higflow_fronteira_imersa f, void *ctx);
+
 void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
                                 void *ctx);
 

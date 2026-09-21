@@ -325,7 +325,7 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
     DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
 }
 
-void fi_calcula_forca(fi_corpo *c, real dt)
+void fi_forca_corpo_rigido(fi_corpo *c, real dt)
 {
     PetscInt n = 0;
     PetscReal *vel = NULL, *f = NULL;

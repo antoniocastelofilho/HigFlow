@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         real pior[DIM];
         for (int d = 0; d < DIM; d++) pior[d] = 0.0;
         // reusa a forca como sonda: f = -u/dt com dt = -1 devolve u.
-        fi_calcula_forca(corpo, -1.0);
+        fi_forca_corpo_rigido(corpo, -1.0);
         real tot[DIM];
         fi_forca_total(corpo, tot);
         // SUM u_k w_k = U * perimetro, se todo marcador leu exatamente U.
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 
     // Afirmacao 3: forca direta com dt, espalhar, e conferir a integral.
     const real dt = 0.01;
-    fi_calcula_forca(corpo, dt);
+    fi_forca_corpo_rigido(corpo, dt);
     real esperado[DIM];
     fi_forca_total(corpo, esperado);
     fi_espalha(corpo, sfd, dpF);

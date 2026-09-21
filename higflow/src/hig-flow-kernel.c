@@ -39,6 +39,8 @@ higflow_solver *higflow_create (void) {
     DECL_AND_ALLOC(higflow_solver, ns, 1);
     // O solver e' malloc, NAO calloc: ponteiro nao inicializado vira lixo, e um
     // gancho de fonte de malha com lixo dispararia sozinho.
+    ns->fronteira_imersa_aplica = NULL;
+    ns->fronteira_imersa_ctx = NULL;
     ns->fonte_de_malha = NULL;
     ns->fonte_de_malha_ctx = NULL;
     ns->fonte_de_particao = NULL;
@@ -1443,6 +1445,13 @@ static void _adiciona_franja_aos_dominios(higflow_solver *ns, hig_cell *root)
     }
     if ((ns->contr.flowtype == SUSPENSIONS))
         sd_add_fringe_higtree(ns->ed.stsp.sdphi, root);
+}
+
+void higflow_set_fronteira_imersa(higflow_solver *ns,
+                                  higflow_fronteira_imersa f, void *ctx)
+{
+    ns->fronteira_imersa_aplica = f;
+    ns->fronteira_imersa_ctx    = ctx;
 }
 
 void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
