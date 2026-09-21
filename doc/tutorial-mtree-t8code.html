@@ -1,0 +1,385 @@
+<title>MTree e t8code no HiGFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+  :root {
+    --papel:      #f7f8fa;
+    --papel-alto: #ffffff;
+    --tinta:      #1b2430;
+    --tinta-fraca:#5a6676;
+    --linha:      #dfe3ea;
+    --mtree:      #1f7a6f;
+    --mtree-fundo:#e6f2f0;
+    --t8:         #a86018;
+    --t8-fundo:   #fbf0e2;
+    --alerta:     #9b2226;
+    --alerta-fundo:#fbeaea;
+    --cod-fundo:  #131a24;
+    --cod-tinta:  #dce3ec;
+    --cod-fraca:  #7d8da3;
+    --cod-sinal:  #6fd3c3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --papel:      #11161d;
+      --papel-alto: #171e27;
+      --tinta:      #dfe5ee;
+      --tinta-fraca:#9aa7b8;
+      --linha:      #2a333f;
+      --mtree:      #58c4b4;
+      --mtree-fundo:#16302d;
+      --t8:         #e0a45c;
+      --t8-fundo:   #2f2417;
+      --alerta:     #f08c8c;
+      --alerta-fundo:#331c1d;
+      --cod-fundo:  #0c1118;
+      --cod-tinta:  #dce3ec;
+      --cod-fraca:  #75849a;
+      --cod-sinal:  #6fd3c3;
+    }
+  }
+  :root[data-theme="dark"] {
+    --papel:      #11161d;
+    --papel-alto: #171e27;
+    --tinta:      #dfe5ee;
+    --tinta-fraca:#9aa7b8;
+    --linha:      #2a333f;
+    --mtree:      #58c4b4;
+    --mtree-fundo:#16302d;
+    --t8:         #e0a45c;
+    --t8-fundo:   #2f2417;
+    --alerta:     #f08c8c;
+    --alerta-fundo:#331c1d;
+    --cod-fundo:  #0c1118;
+    --cod-tinta:  #dce3ec;
+    --cod-fraca:  #75849a;
+    --cod-sinal:  #6fd3c3;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--papel);
+    color: var(--tinta);
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+  }
+  .folha { max-width: 50rem; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+
+  h1, h2, h3 { font-family: Archivo, system-ui, sans-serif; text-wrap: balance; }
+  h1 {
+    font-size: clamp(2.1rem, 5vw, 3rem); font-weight: 800;
+    letter-spacing: -0.025em; line-height: 1.08; margin: 0 0 .6rem;
+  }
+  h2 {
+    font-size: 1.45rem; font-weight: 700; letter-spacing: -0.015em;
+    margin: 3.2rem 0 .3rem; padding-top: 1.2rem; border-top: 1px solid var(--linha);
+  }
+  h3 { font-size: 1.08rem; font-weight: 600; margin: 2rem 0 .3rem; }
+  p  { margin: .75rem 0; }
+  .sub { color: var(--tinta-fraca); font-size: 1.12rem; margin: 0 0 1.2rem; }
+  .etiqueta {
+    font-family: Archivo, sans-serif; font-size: .72rem; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--tinta-fraca);
+  }
+  .cabecalho { border-bottom: 2px solid var(--tinta); padding-bottom: 1.6rem; margin-bottom: .5rem; }
+
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .88em; }
+  p code, li code, td code {
+    background: var(--papel-alto); border: 1px solid var(--linha);
+    border-radius: 4px; padding: .06em .32em;
+  }
+  pre {
+    background: var(--cod-fundo); color: var(--cod-tinta);
+    border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: .84rem; line-height: 1.6; margin: .2rem 0 1.1rem;
+  }
+  pre .c { color: var(--cod-fraca); }
+  pre .s { color: var(--cod-sinal); }
+  .rotulo-cmd {
+    font-family: Archivo, sans-serif; font-size: .7rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-fraca);
+    margin: 1.4rem 0 .35rem;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.4rem; font-size: .93rem; }
+  th, td { text-align: left; padding: .6rem .7rem; border-bottom: 1px solid var(--linha); vertical-align: top; }
+  th { font-family: Archivo, sans-serif; font-size: .74rem; letter-spacing: .1em;
+       text-transform: uppercase; color: var(--tinta-fraca); font-weight: 700; }
+  .rolagem { overflow-x: auto; }
+
+  .marca-mtree, .marca-t8 {
+    display: inline-block; font-family: "JetBrains Mono", monospace; font-size: .78rem;
+    font-weight: 600; padding: .1em .5em; border-radius: 4px; white-space: nowrap;
+  }
+  .marca-mtree { background: var(--mtree-fundo); color: var(--mtree); }
+  .marca-t8    { background: var(--t8-fundo);    color: var(--t8); }
+
+  .nota, .cuidado {
+    border-left: 3px solid var(--tinta-fraca); background: var(--papel-alto);
+    padding: .85rem 1.1rem; margin: 1.2rem 0; border-radius: 0 6px 6px 0;
+  }
+  .cuidado { border-left-color: var(--alerta); background: var(--alerta-fundo); }
+  .nota p:first-child, .cuidado p:first-child { margin-top: 0; }
+  .nota p:last-child, .cuidado p:last-child { margin-bottom: 0; }
+  .cuidado strong { color: var(--alerta); }
+
+  ul { padding-left: 1.2rem; }
+  li { margin: .35rem 0; }
+  .rodape { margin-top: 3.5rem; padding-top: 1.2rem; border-top: 1px solid var(--linha);
+            color: var(--tinta-fraca); font-size: .88rem; }
+  a { color: var(--mtree); }
+  :focus-visible { outline: 2px solid var(--mtree); outline-offset: 2px; }
+</style>
+
+<div class="folha">
+
+  <header class="cabecalho">
+    <div class="etiqueta">HiGFlow · branch mesh-t8code</div>
+    <h1>MTree e t8code no HiGFlow</h1>
+    <p class="sub">Como construir, rodar e verificar o solver com os dois backends de
+    malha. Todos os comandos desta página foram executados como estão escritos.</p>
+  </header>
+
+  <p>O HiGFlow sempre leu a malha de um arquivo AMR e a distribuiu com o
+  <code>lbal</code>. Agora existe um segundo caminho: a malha pode ser produzida
+  pelo <strong>t8code</strong>, e a partição também. Nada disso é obrigatório —
+  <strong>sem pedir, nada muda</strong>, e o t8code não é sequer dependência.</p>
+
+  <p>Este tutorial cobre o que funciona hoje e diz, em cada ponto, o que
+  <em>não</em> funciona. Onde há limite, ele está declarado — não descoberto
+  depois.</p>
+
+  <h2>1. Construir</h2>
+
+  <p>O ambiente sai do <code>varsrc</code>, que precisa ser carregado
+  <strong>da raiz do repositório</strong>:</p>
+
+  <pre><span class="c"># sempre a partir da raiz: o varsrc usa $(pwd)</span>
+cd /caminho/para/HigFlow
+set -a; . ./varsrc; set +a
+export HIGTREE_DIR="$PWD/higtree" HIGFLOW_DIR="$PWD/higflow"</pre>
+
+  <div class="cuidado">
+    <p><strong>O <code>make clean</code> não é opcional ao trocar de dimensão.</strong>
+    Os objetos não carregam a dimensão no nome, então depois de um build em
+    <code>DIM=3</code> os arquivos parecem atuais para um build em
+    <code>DIM=2</code>: o make não reconstrói nada e o binário 2D liga objetos 3D.
+    Isso falha como segfault e números errados, não como erro de compilação.</p>
+  </div>
+
+  <pre>make -C higtree clean && make -C higtree DIM=2
+make -C higflow clean && make -C higflow DIM=2
+make -C higflow/example2d_Newt</pre>
+
+  <h3>Com o t8code (opcional)</h3>
+
+  <p>O t8code não está empacotado em distribuição nenhuma; vem do fonte. O
+  <code>libp4est-dev</code> do Debian existe, mas não basta — o CMake do t8code
+  busca <code>sc</code> e <code>p4est</code> por <code>FetchContent</code>.</p>
+
+  <pre>cd bibliotecas
+git clone https://github.com/DLR-AMR/t8code.git
+cd t8code && git checkout v4.0.0-26.09
+cmake -B build -S . \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$PWD/install" \
+  -DT8CODE_ENABLE_MPI=ON \
+  -DT8CODE_BUILD_AS_SHARED_LIBRARY=ON \
+  -DT8CODE_BUILD_TESTS=OFF -DT8CODE_BUILD_EXAMPLES=OFF \
+  -DT8CODE_BUILD_BENCHMARKS=OFF -DT8CODE_BUILD_TUTORIALS=OFF
+cmake --build build -j4 && cmake --install build</pre>
+
+  <div class="cuidado">
+    <p><strong>Não clone com <code>--depth 1</code>.</strong> O CMake deriva a
+    versão de <code>git describe</code>, e sem as tags ele para com
+    <code>VERSION ".." format invalid</code> — mensagem que não menciona tag
+    nenhuma. Se já clonou raso: <code>git fetch --unshallow --tags</code>.</p>
+  </div>
+
+  <p>Depois, o exemplo ganha as fontes alternativas passando o prefixo:</p>
+
+  <pre>make -C higflow/example2d_Newt clean
+make -C higflow/example2d_Newt T8CODE="$PWD/bibliotecas/t8code/install"</pre>
+
+  <h2>2. Rodar</h2>
+
+  <p>Sem variável de ambiente, o exemplo lê o arquivo AMR — o caminho de sempre:</p>
+
+  <pre>cd higflow/example2d_Newt
+mpirun -n 2 --oversubscribe ./ns-example \
+   SAIDA/example-2d.load SAIDA/out.save SAIDA/VTKS/p.print \
+   -ksp_type bcgs -pc_type bjacobi</pre>
+
+  <p>Com <code>HIGFLOW_MALHA</code>, a malha passa a vir do t8code:</p>
+
+  <pre>HIGFLOW_MALHA=t8code-particao mpirun -n 2 --oversubscribe ./ns-example ...</pre>
+
+  <div class="nota">
+    <p>O diretório <code>VTKS</code> precisa existir antes; o solver não o cria. E
+    copie os arquivos de <code>input/</code> para o diretório de saída — é deles
+    que o <code>.load</code> é lido.</p>
+  </div>
+
+  <h2>3. As quatro fontes</h2>
+
+  <p>Cada uma exercita um estágio diferente. As três primeiras entregam árvores
+  para o <code>lbal</code> reparticionar; a última entrega o resultado já
+  particionado.</p>
+
+  <div class="rolagem">
+  <table>
+    <thead>
+      <tr><th>HIGFLOW_MALHA</th><th>Quem decide a malha</th><th>Quem decide a partição</th><th>Limite</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><em>(não definida)</em></td>
+        <td><span class="marca-mtree">arquivo AMR</span></td>
+        <td><span class="marca-mtree">lbal</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><code>t8code</code></td>
+        <td><span class="marca-t8">t8code</span>, em série</td>
+        <td><span class="marca-mtree">lbal</span></td>
+        <td>malha uniforme; N blocos</td>
+      </tr>
+      <tr>
+        <td><code>t8code-rank</code></td>
+        <td><span class="marca-t8">t8code</span>, por rank</td>
+        <td><span class="marca-mtree">lbal</span></td>
+        <td>malha uniforme; 1 bloco</td>
+      </tr>
+      <tr>
+        <td><code>t8code-particao</code></td>
+        <td><span class="marca-t8">t8code</span></td>
+        <td><span class="marca-t8">t8code</span></td>
+        <td>malha uniforme; 1 bloco</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Por rank</strong> significa que nenhum processo chega a ter a malha
+  inteira na memória — era esse o gargalo que motivou o t8code. A região de um
+  rank vira um <em>conjunto de caixas completas</em>, porque árvore com buracos
+  não é navegável: <code>hig_get_cell_with_point</code> desreferencia filho nulo.</p>
+
+  <h2>4. Verificar</h2>
+
+  <p>Há duas suítes, e elas cobrem coisas diferentes.</p>
+
+  <div class="rotulo-cmd">Suíte de exemplos — física contra referência gravada</div>
+  <pre>python3 ci/run_suite.py                     <span class="c"># 33 de 33, só o caminho AMR</span>
+python3 ci/run_suite.py --t8code bibliotecas/t8code/install
+                                            <span class="c"># 73 de 73, AMR + variantes t8code</span></pre>
+
+  <p>Com <code>--t8code</code>, cada caso elegível roda também pelas fontes que
+  declara, <strong>contra a mesma referência</strong>. É isso que dá valor ao
+  modo: malha uniforme produzida por outro backend tem de dar o mesmo número.
+  Nenhuma referência nova foi gerada a partir do código novo — isso só guardaria
+  contra regressão futura.</p>
+
+  <div class="rotulo-cmd">Suíte da biblioteca — contrato de malha</div>
+  <pre>python3 ci/run_higtree_tests.py             <span class="c"># 170/170, contrato 18/18</span>
+python3 ci/run_higtree_tests.py --t8code bibliotecas/t8code/install
+                                            <span class="c"># 316/316, contrato 18/18</span></pre>
+
+  <p>O contrato vive em <code>higtree/src/hig-mesh-contract.h</code> e não é prosa:
+  o driver lê as cláusulas do próprio cabeçalho e exige que cada uma tenha caso
+  passando. Cláusula sem teste sai como <code>SEM TESTE QUE RODE</code>; cláusula
+  cujo teste falhou, como <code>REPROVADA</code>. As duas contam como falha.</p>
+
+  <div class="rotulo-cmd">Oráculo do instantâneo — ligado por ambiente</div>
+  <pre>HIGTREE_VERIFY_SNAPSHOT=1 python3 ci/run_suite.py</pre>
+
+  <p>Com essa variável, <strong>todo domínio montado</strong> passa pelo oráculo
+  diferencial — são 19 por execução do solver — e divergência aborta. Ele localiza
+  cada célula <em>por ponto</em>, e não percorrendo: o instantâneo foi preenchido
+  percorrendo o iterador e indexando pelo mapeador, e o mapeador saiu desse mesmo
+  iterador. Conferir um contra o outro mediria a aritmética contra ela própria.</p>
+
+  <h2>5. Quais exemplos servem</h2>
+
+  <p>A fonte t8code reproduz malha <strong>uniforme</strong>. O levantamento dos
+  arquivos de domínio:</p>
+
+  <div class="rolagem">
+  <table>
+    <thead><tr><th>Situação</th><th>Quantos</th><th>Quais</th></tr></thead>
+    <tbody>
+      <tr><td>Um bloco uniforme</td><td>8</td>
+          <td>Newt, Oldroyd, Gptt, VOF, VOF_Gptt, VOF_Oldroyd, BMP, KBKZ</td></tr>
+      <tr><td>Dois blocos uniformes</td><td>1</td><td>Newt_contraction</td></tr>
+      <tr><td>Sem arquivo de domínio</td><td>5</td>
+          <td>ElectroOsmotic, DynamicMeshAdapt, os dois 3D, examples-common</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Sete estão ligados.</strong> O <code>BMP</code> ficou de fora porque
+  inicializa o domínio por outro caminho, e o <code>KBKZ</code> está marcado como
+  quebrado na suíte. Ligar um exemplo custa uma linha
+  (<code>malha_t8_instala(ns, myrank)</code>) mais o bloco <code>T8CODE</code> no
+  Makefile.</p>
+
+  <div class="nota">
+    <p>Com malha refinada a fonte <strong>recusa</strong> em vez de aproximar.
+    Malha diferente dá números diferentes, e o silêncio ali seria pior que o erro.</p>
+  </div>
+
+  <h2>6. Armadilhas</h2>
+
+  <p>Todas custaram tempo de verdade nesta árvore. Estão aqui porque nenhuma se
+  anuncia com clareza.</p>
+
+  <h3>Build que falha sem dizer <code>error:</code></h3>
+  <p>A guarda do Makefile para com <code>*** Biblioteca ausente: ... libhig2d.a</code>
+  quando a árvore está na outra dimensão. Isso <strong>não</strong> casa com
+  <code>grep error:</code>, então um build falho passa por bem-sucedido e o teste
+  roda o binário velho. Confira por status de saída:</p>
+  <pre>if make -C higtree/tests DIM=2 T8CODE=... alvo-2d &gt;/dev/null 2&gt;&amp;1; then ...</pre>
+  <p>O sintoma para reconhecer: <em>um resultado que não muda quando deveria mudar</em>.</p>
+
+  <h3>O <code>varsrc</code> carregado do diretório errado</h3>
+  <p>Ele usa <code>$(pwd)</code>. Carregado de dentro de <code>higtree/tests</code>,
+  aponta o <code>PETSC_DIR</code> para um <code>bibliotecas/</code> que não existe
+  ali. O sintoma é <code>undefined reference to PetscFinalize</code> ao ligar —
+  que aponta para o PETSc, não para o diretório errado.</p>
+
+  <h3>Comparação byte a byte só vale em <code>np=1</code></h3>
+  <p>O precondicionador <code>bjacobi</code> depende da partição, então a partição
+  <em>sozinha</em> move os números: o caminho AMR comparado consigo mesmo em np=1
+  contra np=2 já difere em 3 dos 6 campos gravados. Em np&gt;1 o oráculo é a
+  referência gravada, com tolerância — para qualquer fonte de malha.</p>
+
+  <h3>Antes de acusar o código novo, rode o baseline</h3>
+  <p>Duas vezes uma reprovação contra a referência parecia defeito do t8code e era
+  configuração de execução: a referência é de <code>numsteps=20</code> e
+  <code>dtp=0.005</code>, que a suíte sobrescreve e uma execução manual não. Nas
+  duas, o caminho AMR reprovava igual.</p>
+
+  <h2>7. O que ainda não existe</h2>
+
+  <ul>
+    <li><strong>Malha com refino pelo t8code, ponta a ponta.</strong> A faixa do
+    remetente e a árvore do receptor precisariam concordar na subdivisão interna —
+    é trocar estrutura, não índices.</li>
+    <li><strong>Os exemplos sem arquivo de domínio</strong> constroem a malha por
+    outro caminho e não têm fonte alternativa.</li>
+    <li><strong>Código sem cobertura.</strong> 207 laços foram migrados para o
+    instantâneo em arquivos que nenhum teste executa. Eles compilam e a
+    transformação é a mesma que a suíte validou onde havia cobertura — mas isso é
+    o que se afirma, e nada além.</li>
+  </ul>
+
+  <p class="rodape">Branch <code>mesh-t8code</code>. Números desta página:
+  HiGTree 170/170 sem t8code e 316/316 com; HiGFlow 33/33 sem a flag e 73/73 com;
+  contrato de malha 18/18 nas duas configurações.</p>
+
+</div>
