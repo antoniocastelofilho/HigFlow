@@ -14,6 +14,13 @@
 // `Case(...)` entry in ci/run_suite.py.
 //
 // Marked `slow` in the suite: 162000 cells over 33 blocks, minutes per step.
+//
+// It is also the first 3D case wired to a t8code mesh backend, and the only one:
+// HIGFLOW_MALHA=t8code selects it, and the suite checks it against the same
+// reference as the default path.  ONLY that source applies.  `t8code-rank` and
+// `t8code-particao` cover a single block and refuse 33 -- by aborting, on purpose,
+// because carrying on would give a domain with the wrong neighbourhood and numbers
+// that look plausible.  That is a limit of those two sources, not of this case.
 
 #include "ns-complex-3d.h"
 
