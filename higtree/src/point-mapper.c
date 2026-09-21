@@ -1,3 +1,9 @@
+// Hash table with a GEOMETRIC key: indexed by point, not by id.
+//
+// The point is discretized before becoming a key (`discretize_point`), otherwise
+// rounding would scatter the same physical point across buckets.  Used to memoize
+// stencils that were already computed.
+
 #include "point-mapper.h"
 
 static void discretize_point(CPPoint x, int64_t *dx)

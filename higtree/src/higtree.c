@@ -1,3 +1,21 @@
+// The tree itself: a cell is a box that either holds values or is subdivided into a
+// regular grid of children.  This is the structure a second mesh backend (t8code)
+// would have to stand in for.
+//
+// Subdivision is NOT binary and not fixed: `hig_refine_uniform` splits a cell into
+// numcells[DIM] children per direction, so a parent may have any rectangular brood.
+// `hig_toposition`/`hig_tobase` convert between a child's grid coordinates and its
+// linear index.
+//
+// The tree is NOT required to be graded -- neighbouring cells may differ by more
+// than one level.  The moving-least-squares interpolation is what makes that
+// workable, and a 4:1 jump is exercised by higtree/tests/test-level-jump.c.
+//
+// A point exactly on a face belongs to the cell of LOWER coordinate: the cell
+// interval is closed above and open below.  Eight files in HiGFlow depend on point
+// location, so that tie-break is contract, not preference
+// (higtree/tests/test-point-location.c pins it).
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

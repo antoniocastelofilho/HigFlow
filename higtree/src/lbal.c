@@ -1,3 +1,15 @@
+// Load balancing: decides which trees each rank owns, and builds the fringe.
+//
+// This is the seam where a different mesh backend would attach, and the shape of the
+// contract is the obstacle: `lb_add_input_tree` takes a `hig_cell *` and
+// `lb_get_local_tree` returns one, so the balancer partitions POINTER OCTREES, not
+// an abstract mesh.  Putting a linear, space-filling-curve forest (t8code) behind
+// this would mean materializing it as pointer octrees first, which discards the
+// scalability that motivates it.
+//
+// `lb_add_portal` declares that two boxes are contiguous although they are not
+// adjacent in space -- how disjoint blocks are told to exchange fringe.
+
 #include <assert.h>
 #include <zoltan.h>
 #include <string.h>

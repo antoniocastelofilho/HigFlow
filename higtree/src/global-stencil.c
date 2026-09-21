@@ -1,3 +1,8 @@
+// A stencil in GLOBAL indices, for assembling the linear system.
+//
+// The `sim_stencil` of domain.c speaks local indices; this one speaks the global
+// indices the solver expects.  The conversion happens at the solver boundary.
+
 #include <string.h>
 #include "global-stencil.h"
 

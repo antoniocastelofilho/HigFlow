@@ -1,3 +1,8 @@
+// Point primitives: distance, dot product, equality.
+//
+// Equality is BY TOLERANCE (`co_equal`, `point_equal_tol`), never bitwise: cell
+// coordinates come out of repeated halving and rarely land on the same bits.
+
 
 #include<stdio.h>
 #include<stdlib.h>

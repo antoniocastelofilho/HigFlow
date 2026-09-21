@@ -1,3 +1,8 @@
+// A queue of non-blocking MPI sends that keeps the buffers alive.
+//
+// `MPI_Isend` requires the buffer to stay valid until the send completes; this
+// queue holds the requests and releases everything in `isend_pool_wait_all`.
+
 #include <string.h>
 #include "utils.h"
 

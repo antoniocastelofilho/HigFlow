@@ -1,3 +1,16 @@
+// Reading and writing meshes and fields: the .amr mesh description, HDF5, and the
+// VTK output.
+//
+// The .amr format is one box plus a refinement pattern; `higio_amr_info` is the
+// parsed form, and a domain is usually several of them.
+//
+// The VTK writer interpolates velocity at cell CORNERS, which go through the same
+// `get_stencil` machinery as the solver.  Corners lie ON boundaries and ON block
+// interfaces, so the output exercises code paths the solution never does -- and it
+// is partition-dependent there by construction.  Comparing VTK across different
+// numbers of processes is therefore not a valid test; compare `ns->dpu` per facet
+// instead.  See AGENTS.md.
+
 #include<string.h>
 #include<assert.h>
 #include<stdlib.h>

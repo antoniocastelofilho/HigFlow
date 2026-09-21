@@ -1,3 +1,7 @@
+// NOT BUILT.  A variant of solver-petsc.c (62 lines differ) left in the tree; the
+// library contains solver-petsc-2d.o from solver-petsc.c, never this file.  Kept for
+// reference only.
+
 #include "solver.h"
 #include "Debug-c.h"
 

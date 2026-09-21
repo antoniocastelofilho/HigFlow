@@ -1,3 +1,9 @@
+// Sending and receiving trees between processes.
+//
+// Two modes, and the difference matters: `uniform_refinement` sends only the
+// refinement pattern, which is valid when both sides already agree on the root;
+// `uniform_tree` sends the whole tree.
+
 
 #include "mpi.h"
 #include "Debug-c.h"

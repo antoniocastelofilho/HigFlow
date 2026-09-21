@@ -1,3 +1,11 @@
+// Translation between the GLOBAL identifier of a cell or facet (`uniqueid`, which
+// does not change with the partition) and the process-LOCAL index, which is what
+// indexes the distributed properties.
+//
+// `mp_assign_from_celliterator` numbers in the order the iterator yields, so the
+// local numbering depends on WHICH trees are local: local ids are not comparable
+// across processes, nor across different decompositions of the same domain.
+
 
 #include <stdlib.h>
 #include <string.h>

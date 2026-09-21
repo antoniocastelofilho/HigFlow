@@ -1,3 +1,9 @@
+// The linear solver interface: assemble a matrix and a right-hand side, solve, read
+// the solution back.
+//
+// One vtable, several backends (PETSc, HYPRE, SOR, centralized, debug-write).  The
+// caller speaks in GLOBAL indices; see global-stencil.c for that conversion.
+
 #include <stdlib.h>
 #include <string.h>
 #include "solver.h"

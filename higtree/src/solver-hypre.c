@@ -1,3 +1,5 @@
+// A `solver` backend on top of HYPRE.
+
 #include <assert.h>
 #include <stdbool.h>
 #include <HYPRE.h>

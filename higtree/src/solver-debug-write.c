@@ -1,3 +1,8 @@
+// A `solver` implementation that solves nothing: it writes the matrix and the
+// right-hand side to a file.
+//
+// For inspecting the assembled system without going through PETSc or HYPRE.
+
 #include <mpi.h>
 #include <stdio.h>
 #include "solver-centralized.h"

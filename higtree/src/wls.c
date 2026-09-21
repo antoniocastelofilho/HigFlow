@@ -1,3 +1,16 @@
+// Moving least squares: given sample points and a query point, produce the weights
+// that reproduce a polynomial of the configured order exactly.
+//
+// This is the numerical core the whole discretization rests on, and the property
+// that makes it testable without a reference: an interpolation of order k reproduces
+// ANY polynomial of degree <= k to machine precision, whatever the mesh looks like.
+// higtree/tests/test-stencil-value.c uses exactly that as its oracle.
+//
+// `wls_set_points` returns a conditioning measure and `wls_is_good_enough` judges it:
+// support that is degenerate (collinear points, too few of them) yields weights that
+// are numerically useless, and the caller is expected to widen the search rather than
+// use them.
+
 #include "utils.h"
 #include "coord.h"
 #include "rng.h"

@@ -1,3 +1,8 @@
+// The counter behind `uniqueid`, the identity a cell keeps regardless of which rank
+// holds it or how the domain is divided.
+//
+// Contrast with the local index from mapper.c, which is per-process and per-partition.
+
 
 #include <stdlib.h>
 #include "higtree.h"

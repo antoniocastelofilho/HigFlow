@@ -1,3 +1,9 @@
+// Axis-aligned box operations: intersection, union, containment, distance to a
+// point.
+//
+// `Rect` is how the whole of HiGTree talks about extent -- bounding box of a cell,
+// of a tree, of a boundary patch, and the search box a stencil gathers from.
+
 #include "utils.h"
 #include "rect.h"
 

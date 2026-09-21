@@ -1,3 +1,8 @@
+// A `solver` backend that gathers the whole system onto one rank and solves it there.
+//
+// Useful for small problems and for comparing against a distributed solve; it does
+// not scale and is not meant to.
+
 /* This is not an implementation of a solver per-se, instead, this file is a
  * generic framework for implementing solvers that needs data do be
  * centralized on a single node (MPI node 0) before being solved. */

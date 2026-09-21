@@ -1,3 +1,28 @@
+// The stencil machinery: given a point, produce the weighted combination of cell
+// (or facet) values that approximates the field there.  Everything the solver
+// discretizes goes through here.
+//
+// `get_stencil` dispatches on WHERE the point falls, and the three branches behave
+// very differently:
+//
+//   IN_DOMAIN_PROPER  at a cell centre -> one element, weight 1, exact hit.
+//   ON_BOUNDARY       on a tree's bounding box -> the `*_boundary` closures.
+//   OUTSIDE_DOMAIN    outside every LOCAL tree -> the `*_any_order` closures.
+//
+// OUTSIDE_DOMAIN means "outside MY trees", not "outside the physical domain": with
+// the domain partitioned, a point owned by a neighbour rank lands here too.  Several
+// defects lived on that conflation.
+//
+// A boundary closure answers "does this family govern this point?".  It is chosen by
+// which patch the segment origin->x CROSSES, not by which plane lies nearest -- a
+// derivative taken along x must close against a wall whose normal is x, and the
+// nearest plane is often one perpendicular to it.  `bc_patch_crossing_t` is that
+// test; the closure itself interpolates in 1-D along `proj_dir`, which is why the
+// application point must stay collinear with x along that axis.
+//
+// The boundary VALUE is fitted in DIM-1 dimensions (`bc_inter`), so both the samples
+// AND the query point must have the projection dimension removed -- see `bcx`.
+
 #include <string.h>
 #include <math.h>
 

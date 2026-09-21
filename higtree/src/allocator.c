@@ -1,3 +1,8 @@
+// Bump allocator: hands out chunks from larger blocks and frees them all at once.
+//
+// For many small, short-lived allocations with the same lifetime -- the per-query
+// bookkeeping of a stencil, not anything that outlives a call.
+
 #include <stddef.h>
 #include "utils.h"
 

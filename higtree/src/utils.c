@@ -1,3 +1,10 @@
+// Process-wide setup and small helpers.
+//
+// `higtree_initialize` brings up MPI and PETSc; `_try_initialize_petsc` tolerates
+// PETSc being already initialized by the caller.  Also the grid walk
+// (`subgrid_coord_advance`) that iterates a rectangular index range in DIM
+// dimensions.
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

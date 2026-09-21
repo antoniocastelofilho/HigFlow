@@ -1,3 +1,13 @@
+// Iterators over cells and facets: all leaves, leaves inside a box, boundary
+// facets, and concatenations of other iterators.
+//
+// `higcit_create_concat` is how a domain made of several trees is walked as one
+// sequence -- and since mapper.c numbers in iteration order, the concatenation order
+// determines the local numbering.
+//
+// `higcit_count_without_advancing` exists because counting normally consumes the
+// iterator.
+
 
 #include<stdlib.h>
 #include<stdio.h>

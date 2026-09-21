@@ -1,3 +1,6 @@
+// NOT BUILT.  A variant of solver.c (18 lines differ) left in the tree; the library
+// contains solver-2d.o from solver.c, never this file.  Kept for reference only.
+
 #include <stdlib.h>
 #include <string.h>
 #include "solver.h"

@@ -1,3 +1,9 @@
+// Makes neighbouring ranks agree on the global ids of the cells they share.
+//
+// After partitioning, each rank numbers its own cells; the fringe cells belong to a
+// neighbour and must carry the OWNER's global id, not a locally invented one.  This
+// is the exchange that fixes that up.
+
 #include <string.h>
 
 #include "mapper-syncer.h"

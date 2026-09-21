@@ -1,3 +1,8 @@
+// Packs and unpacks a tree for transmission over MPI.
+//
+// It serializes the STRUCTURE (who has children, how many), not the values: the
+// receiver rebuilds the tree and then receives the properties separately.
+
 #include <string.h>
 #include <stdint.h>
 

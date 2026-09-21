@@ -1,3 +1,8 @@
+// A growing set of points, with no spatial structure of its own.
+//
+// It is the accumulator the box searches fill before the points become
+// interpolation support; sorting and clipping by distance belong to the caller.
+
 #include <math.h>
 #include <stdlib.h>
 #include "Debug-c.h"

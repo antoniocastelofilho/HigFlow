@@ -1,3 +1,6 @@
+// A `solver` backend implementing successive over-relaxation, with no external
+// dependency.
+
 #include <omp.h>
 #include <numa.h>
 #include <numaif.h>

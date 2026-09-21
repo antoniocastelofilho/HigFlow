@@ -1,3 +1,17 @@
+// The partitioned domain: local trees plus a fringe of neighbouring cells, and the
+// global<->local numbering that lets every rank name the same cell.
+//
+// The fringe is what makes a stencil near a partition edge resolvable without
+// communication.  Its depth is `pg_set_fringe_size` -- 1 by default, but HiGFlow
+// sets 5 in `higflow_partition_domain`.  A stencil wider than the fringe becomes
+// partition-dependent, silently: it still returns a value, just a different one per
+// decomposition.
+//
+// `psfd_compute_sfbi` is the only thing that fills `sfd->sfbi[]`, and there is no
+// serial equivalent -- a `sim_facet_domain` cannot be built outside this file.  Half
+// of the mesh interface therefore cannot be exercised without the partitioning
+// layer, which matters for replacing that layer.
+
 #include "Debug-c.h"
 
 #include <string.h>
