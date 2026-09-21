@@ -7,10 +7,16 @@
 // partition-dependent, silently: it still returns a value, just a different one per
 // decomposition.
 //
-// `psfd_compute_sfbi` is the only thing that fills `sfd->sfbi[]`, and there is no
-// serial equivalent -- a `sim_facet_domain` cannot be built outside this file.  Half
-// of the mesh interface therefore cannot be exercised without the partitioning
-// layer, which matters for replacing that layer.
+// `psfd_compute_sfbi` fills `sfd->sfbi[]` for the fringe trees, by exchanging blocks
+// with the neighbours.  It does NOT fill the local ones itself: it calls
+// `sfd_compute_sfbi` (domain.c) first, which is the serial half and is callable
+// without MPI.
+//
+// That split is recent -- until 2026-09-19 the partitioned path was the only filler,
+// so a `sim_facet_domain` could not be assembled outside MPI at all and half the mesh
+// interface was unreachable without the partitioning layer.  Splitting it is what
+// made the facet side testable in serial, and `higtree/tests/test-facet-domain-serial.c`
+// exists to stop it silently regressing.
 
 #include "Debug-c.h"
 
@@ -1342,6 +1348,7 @@ int psfd_lid_to_gid(psim_facet_domain *psfd, int localid)
 void psfd_compute_sfbi(psim_facet_domain *psfd) {
 	const int tag = 84012185;
 	sim_facet_domain *sfd = psfd_get_local_domain(psfd);
+	int _medida_maior = (int) sfd_get_num_local_higtrees(sfd) - 1;  /* MEDIDA TEMPORARIA */
 
 	/* Calculate psfd form local higs */
 	// A metade local vive no domain.c e nao precisa de MPI; daqui para baixo
@@ -1425,6 +1432,7 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 			g_hash_table_lookup(psd->tree_map, tree)
 		);
 		sfd_set_sfbi(sfd, local_tree_idx, sfbi);
+		if ((int) local_tree_idx > _medida_maior) _medida_maior = (int) local_tree_idx;  /* MEDIDA */
 	}
 
 	MPI_Type_free(&sfbi_type);
@@ -1435,6 +1443,16 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 	{
 		MPI_Waitall(nb->to_send_count, send_reqs[i], MPI_STATUSES_IGNORE);
 		free(send_reqs[i]);
+	}
+
+	/* MEDIDA TEMPORARIA -- remover.  Direta: o maior indice que REALMENTE entra
+	   no sfbi[].  Indireta: proprias e franja, que e' de onde ele vem. */
+	{
+		int _r; MPI_Comm_rank(MPI_COMM_WORLD, &_r);
+		const int _prop = (int) sfd_get_num_local_higtrees(sfd);
+		const int _tot  = (int) sfd_get_num_higtrees(sfd);
+		fprintf(stderr, "MEDIDA_SFBI rank=%d proprias=%d franja=%d total=%d maior_indice=%d teto=%d\n",
+		        _r, _prop, _tot - _prop, _tot, _medida_maior, MAXHIGTREESPERDOMAIN);
 	}
 }
 

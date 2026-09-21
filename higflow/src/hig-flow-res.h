@@ -4,8 +4,15 @@
 // NONE OF IT IS COMPILED BY DEFAULT.  The whole structure and every function here
 // sits under COMPUTE_RESIDUALS, which higflow/Makefile defines only under `make
 // RES=1`.  Ordinary builds -- including every build the regression suite runs --
-// have this machinery absent, so it is neither exercised nor verified by the suite.
-// Treat changes here as untested until you build with RES=1 yourself.
+// have this machinery absent.
+//
+// COMPILING AND BEING EXERCISED ARE DIFFERENT THINGS, and only the first has been
+// established.  The residual path WAS syntax-checked at DIM=2 and DIM=3 across
+// hig-flow-res.c and the five step files that use the macro, using the real command
+// from `make -n -B RES=1`, and it adds no warning the files did not already have.
+// What no one has done is RUN it: no case in the suite builds with RES=1, so the
+// numbers this machinery produces have never been checked against anything.  A
+// change here that compiles is not thereby verified.
 //
 // COMPUTE_MIDRANGE and COMPUTE_MIDLINE, by contrast, are defined UNCONDITIONALLY
 // just below, despite the "channel only" comments next to them.  They are on for

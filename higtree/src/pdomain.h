@@ -13,12 +13,17 @@
 // psd_synced_mapper() is also where the domain snapshot is produced, for the same
 // reason: it is the first moment the numbering is settled.
 //
-// THE FACET SIDE HAS NO SERIAL CONSTRUCTION PATH.  psfd_compute_sfbi() is the only
-// thing that ever fills sfd->sfbi[], and it is written as an MPI exchange; a
-// sim_facet_domain assembled by hand outside MPI ends up with sfbi[i] == NULL and
-// faults on the first facet iteration.  This is why the facet-side tests in
-// higtree/tests must go through a real partition rather than building a domain
-// directly, and it is a genuine limitation, not an oversight to route around.
+// THE FACET SIDE IS FILLED IN TWO HALVES, and calling only the parallel one is not
+// how it works.  sfd_compute_sfbi() (domain.c) fills the blocks of the LOCAL trees
+// and needs no MPI; psfd_compute_sfbi() calls it and then exchanges the FRINGE
+// blocks with the neighbours.  In serial the first is all there is.
+//
+// Until 2026-09-19 the second was the only filler, so a sim_facet_domain built
+// outside MPI ended up with sfbi[i] == NULL and faulted on the first facet
+// iteration -- half the mesh interface could not be exercised without the
+// partitioning layer.  Do not reintroduce that coupling: higtree/tests/
+// test-facet-domain-serial.c asserts the serial assembly still works, and it was
+// written precisely because the regression would otherwise be silent.
 //
 // MAXPARTITIONS is 256 and is a hard compile-time cap on ranks.
 //
