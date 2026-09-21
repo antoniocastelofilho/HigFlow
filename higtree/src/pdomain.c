@@ -1348,7 +1348,6 @@ int psfd_lid_to_gid(psim_facet_domain *psfd, int localid)
 void psfd_compute_sfbi(psim_facet_domain *psfd) {
 	const int tag = 84012185;
 	sim_facet_domain *sfd = psfd_get_local_domain(psfd);
-	int _medida_maior = (int) sfd_get_num_local_higtrees(sfd) - 1;  /* MEDIDA TEMPORARIA */
 
 	/* Calculate psfd form local higs */
 	// A metade local vive no domain.c e nao precisa de MPI; daqui para baixo
@@ -1432,7 +1431,6 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 			g_hash_table_lookup(psd->tree_map, tree)
 		);
 		sfd_set_sfbi(sfd, local_tree_idx, sfbi);
-		if ((int) local_tree_idx > _medida_maior) _medida_maior = (int) local_tree_idx;  /* MEDIDA */
 	}
 
 	MPI_Type_free(&sfbi_type);
@@ -1443,16 +1441,6 @@ void psfd_compute_sfbi(psim_facet_domain *psfd) {
 	{
 		MPI_Waitall(nb->to_send_count, send_reqs[i], MPI_STATUSES_IGNORE);
 		free(send_reqs[i]);
-	}
-
-	/* MEDIDA TEMPORARIA -- remover.  Direta: o maior indice que REALMENTE entra
-	   no sfbi[].  Indireta: proprias e franja, que e' de onde ele vem. */
-	{
-		int _r; MPI_Comm_rank(MPI_COMM_WORLD, &_r);
-		const int _prop = (int) sfd_get_num_local_higtrees(sfd);
-		const int _tot  = (int) sfd_get_num_higtrees(sfd);
-		fprintf(stderr, "MEDIDA_SFBI rank=%d proprias=%d franja=%d total=%d maior_indice=%d teto=%d\n",
-		        _r, _prop, _tot - _prop, _tot, _medida_maior, MAXHIGTREESPERDOMAIN);
 	}
 }
 
