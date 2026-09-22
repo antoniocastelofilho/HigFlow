@@ -393,3 +393,107 @@ de quanta violação o resultado tolera.
   próxima medida é o arrasto em dois `Δt` e ver se ele **se move**.
 - Nada em 3D. O despenhadeiro lá pode estar em outro lugar, e a malha é mais
   grosseira (10 células no diâmetro contra 20).
+
+---
+
+## 10. O método de segunda ordem da literatura — e o que ele não resolve
+
+Levantamento de 21/09/2026, pedido a partir dos trabalhos de Aristeu da Silveira
+Neto (UFU) e Alexandre Roma (IME-USP). **As quatro hipóteses que eu havia
+levantado estavam todas erradas**, e uma delas foi verificada como
+explicitamente não sendo o caso — registro isso porque o valor do levantamento
+foi justamente ter pedido fonte em vez de confirmação.
+
+### O método
+
+**Griffith, Hornung, McQueen & Peskin, "An adaptive, formally second order
+accurate version of the immersed boundary method", JCP 223 (2007) 10–49.**
+
+Citado nominalmente no único artigo conjunto de Roma **e** Silveira-Neto em
+revista — Ceniceros, Roma, Silveira-Neto & Villar, *Commun. Comput. Phys.*
+8(1):51–94, 2010 — em contraste com o Roma-Peskin-Berger de 1999, que é de
+**primeira** ordem e é de onde vem o núcleo de 3 pontos usado aqui.
+
+Base não adaptativa: **Lai & Peskin, JCP 160 (2000) 705–719**, o artigo canônico
+de "IB de segunda ordem".
+
+O **Modelo Físico Virtual** (Lima e Silva, Silveira-Neto & Damasceno, JCP 189,
+2003) **não é** o método de segunda ordem: Campregher/Silveira-Neto (2009)
+registra que ele *não* impõe o não escorregamento diretamente, e ali
+"second-order" se refere ao esquema espacial do solver.
+
+### Segunda ordem em quê — a distinção que muda o plano
+
+Segunda ordem **no esquema**, em tempo e espaço. **Não** na imposição da condição
+de contorno. Lai & Peskin, literal: *"the use of the discrete delta function in
+the boundary-fluid interaction prevents the immersed boundary method from being
+more than first-order accurate"* — a velocidade não tem derivada contínua
+através da fronteira. O ganho real é **menos viscosidade numérica**.
+
+O próprio artigo do Roma/Silveira-Neto mediu isso separadamente: **ordem 1 na
+vizinhança da interface, tendendo a 2 longe dela.**
+
+Consequência direta para este projeto: a defasagem temporal da força e a primeira
+ordem espacial do núcleo são **dois erros independentes**. Passar para um esquema
+de segunda ordem mata o erro dominante de hoje, o `O(Δt)`, e **não** faz o resíduo
+convergir melhor que `O(h)` com o refino de malha.
+
+### As três receitas, e o custo de cada uma
+
+```
+Uhlmann / Fadlun    forca da velocidade PROVISORIA do passo corrente, nao de u^n.
+                    Formula identica a' nossa; muda de onde vem a velocidade.
+                    Uhlmann usa O MESMO nucleo de 3 pontos do Roma.
+                    -> menor custo para eliminar o nosso O(dt)
+
+Lai-Peskin          ponto medio, DUAS avaliacoes da forca por passo, ZERO iteracoes
+
+Multi-direct        ITERA.  E o motivo nao e' a defasagem temporal: e' que
+ forcing            espalhar e interpolar nao comutam (H.A != I).
+                    20 iteracoes no classico, 5 em variantes aceleradas
+```
+
+### Os valores de referência do 2D-1
+
+Verificados em duas fontes independentes — Nabh, tese, Universität Heidelberg,
+Preprint 42/98, 1998, p. 74; confirmados pelo Featflow/TU Dortmund e por John &
+Matthies, *IJNMF* 37 (2001) 885–903:
+
+```
+Cd = 5,57953523384     Cl = 0,010618948146     dp = 0,11752016697
+dp medido entre (0,15 ; 0,2) e (0,25 ; 0,2)
+```
+
+### DUAS ADVERTÊNCIAS QUE MUDAM O QUE MEDIR
+
+**1. `Cl` não é resolvível aqui.** O deslocamento do cilindro fora do eixo é
+`D/20 = 0,005`. O suporte do núcleo de 3 pontos é `3Δx ≈ 0,15 D` — **maior que o
+próprio deslocamento**. Com forçamento difuso em resolução moderada, `Cl` serve
+de diagnóstico de simetria, **não** de critério de acurácia. Usar `Cd` e `Δp`.
+
+**2. Vinte células por diâmetro é pouco.** **Não há na literatura nenhum `Cd` do
+2D-1 obtido com fronteira imersa de forçamento contínuo** — lacuna declarada, não
+suposta. O que há é indireto: Peng, Ayala & Wang (arXiv:1906.05445) medem
+`D/δx ≈ 37` para 1% no arrasto com o IBM do Uhlmann; Jiang & Liu
+(arXiv:1806.09403) medem inclinação de convergência **≈1,0** para forçamento
+direto simples contra ≈1,5 para MDF. Com inclinação 1, cada refino pela metade
+corta o erro pela metade. Nossos 20/D estão bem abaixo de 1%.
+
+### Um teste falsificável, sem mexer na formulação
+
+A leitura da tabela da seção 9 é que há **dois erros somados**: a rampa linear é
+o `O(Δt)` da defasagem, o **patamar** é o piso `O(h)` do `H·A ≠ I`.
+
+Isso se testa refinando a malha **com `Δt` fixo** e vendo se o patamar cai com
+`h`. Se cair: a rota do Uhlmann remove a rampa e **não** o patamar; só iterar
+ataca o patamar. É o experimento de melhor retorno antes de mexer em formulação.
+
+*(Esta decomposição é análise sobre a nossa medição, não citação: o levantamento
+declarou não ter achado artigo que enuncie o escalonamento `O(Δt)` do resíduo do
+forçamento defasado.)*
+
+### Procedência a conferir
+
+A referência do Uhlmann 2005 veio com um link de arXiv datado de 2018, o que é
+inconsistente. O conteúdo citado é coerente com o artigo, mas o link precisa ser
+conferido antes de entrar em bibliografia.
