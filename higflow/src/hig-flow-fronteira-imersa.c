@@ -15,6 +15,7 @@ struct fi_corpo {
     DM       enxame;      // DMSwarm: posicao, peso, velocidade, forca
     real     h;           // espacamento euleriano (malha uniforme)
     int      codim;       // codimensao do corpo -- ver _volume_marcador
+    real     forca_passo[DIM];  // forca do PASSO, somada sobre as iteracoes
     MPI_Comm comm;
 };
 
@@ -89,6 +90,7 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     c->h     = h;
     c->codim = codim;
     c->comm  = MPI_COMM_WORLD;
+    for (int d = 0; d < DIM; d++) c->forca_passo[d] = 0.0;
 
     PetscCallAbort(c->comm, DMCreate(c->comm, &c->enxame));
     PetscCallAbort(c->comm, DMSetType(c->enxame, DMSWARM));
@@ -334,6 +336,23 @@ void fi_escreve_vtk(const fi_corpo *c, const char *prefixo, int quadro)
     DMSwarmRestoreField(c->enxame, "forca",      NULL, NULL, (void **) &f);
     DMSwarmRestoreField(c->enxame, "peso",       NULL, NULL, (void **) &peso);
     fclose(fp);
+}
+
+void fi_zera_forca_passo(fi_corpo *c)
+{
+    for (int d = 0; d < DIM; d++) c->forca_passo[d] = 0.0;
+}
+
+void fi_acumula_forca_passo(fi_corpo *c)
+{
+    real parcial[DIM];
+    fi_forca_total(c, parcial);
+    for (int d = 0; d < DIM; d++) c->forca_passo[d] += parcial[d];
+}
+
+void fi_forca_passo(const fi_corpo *c, real forca[DIM])
+{
+    for (int d = 0; d < DIM; d++) forca[d] = c->forca_passo[d];
 }
 
 real fi_residuo_max(const fi_corpo *c)

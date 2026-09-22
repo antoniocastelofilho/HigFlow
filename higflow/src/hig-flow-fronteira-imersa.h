@@ -157,6 +157,21 @@ long fi_perdidos_espelho(void);
 long fi_perdidos_mapa(void);
 long fi_perdidos_sem_faceta(void);
 
+//! A FORCA DO PASSO, somada sobre as ITERACOES do forcamento.
+//!
+//! Com forcamento iterado, `fi_forca_total` devolve so' a parcela da ULTIMA
+//! iteracao -- que e' justamente a menor.  Ler dali daria arrasto uma ordem de
+//! grandeza pequeno demais.  Use: zerar no inicio do passo, acumular apos cada
+//! `fi_forca_corpo_rigido`, e ler no fim.
+//!
+//! O sinal: `f` e' a forca que o corpo aplica AO FLUIDO.  A forca hidrodinamica
+//! sobre o corpo e' a reacao, `-forca_passo`.  Para escoamento em +x sobre
+//! corpo fixo, o arrasto sai POSITIVO: `f_x` e' negativo (freia o fluido) e o
+//! sinal troca.
+void fi_zera_forca_passo(fi_corpo *c);
+void fi_acumula_forca_passo(fi_corpo *c);
+void fi_forca_passo(const fi_corpo *c, real forca[DIM]);
+
 //! Maior |u| entre TODOS os marcadores, de todos os ranks -- o RESIDUO DE NAO
 //! ESCORREGAMENTO.  E' o primeiro oraculo do metodo, e o mais barato.
 //!

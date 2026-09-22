@@ -328,6 +328,17 @@ int main (int argc, char *argv[]) {
         // Printing
         if (ns->par.t >= ns->par.tp) {
             print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+            // Cd A CADA QUADRO, porque o que interessa nao e' o valor final e
+            // sim ver se ele ESTACIONOU.  Um Cd sozinho no fim nao distingue
+            // convergido de ainda caindo.
+            if (obstaculo != NULL) {
+                real Fq[DIM];
+                fi_forca_passo(obstaculo, Fq);
+                print0f("===> CD_TEMPO  t = %.4f   Cd = %.6f   Cl = %.6f   "
+                        "residuo = %.4e\n", (double) ns->par.t,
+                        (double) (-2.0*Fq[0]), (double) (-2.0*Fq[1]),
+                        (double) fi_residuo_max(obstaculo));
+            }
             higflow_print_vtk(ns, myrank);
             //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
             ns->par.tp += ns->par.dtp;
@@ -352,9 +363,33 @@ int main (int argc, char *argv[]) {
     // Getting the execution time 
     // O PRIMEIRO ORACULO.  Com forca defasada o residuo nao vai a zero, vai a
     // O(dt): o teste e' refinar dt e ver a TAXA, nao olhar o valor.
-    if (obstaculo != NULL)
+    if (obstaculo != NULL) {
         print0f("=+=+=+= RESIDUO_NAO_ESCORREGAMENTO %.6e  (dt = %.6e) =+=+=+=\n",
                 (double) fi_residuo_max(obstaculo), (double) ns->par.dt);
+
+        // ARRASTO E SUSTENTACAO.  Nesta escala (adimensionalizada por D e pela
+        // velocidade media) tem-se rho = 1, u_media = 1, D = 1, entao
+        //     Cd = 2 * F_x   e   Cl = 2 * F_y
+        // com F a forca HIDRODINAMICA sobre o corpo, que e' a REACAO da forca
+        // que o corpo aplica ao fluido: F = -forca_passo.
+        //
+        // Referencia do 2D-1 (Nabh 1998, confirmada por Featflow e por
+        // John & Matthies 2001): Cd = 5,57953523384; Cl = 0,010618948146.
+        //
+        // DUAS RESSALVAS, para nao se confiar no numero cedo demais:
+        //  - Cl NAO e' resolvivel com nucleo difuso nesta resolucao.  O
+        //    deslocamento do cilindro fora do eixo e' D/20 e o suporte do nucleo
+        //    de 3 pontos e' ~0,15 D, MAIOR que o deslocamento.  Cl serve de
+        //    diagnostico de simetria, nao de criterio.
+        //  - Isto ignora a inercia do fluido "fantasma" dentro do corpo, que o
+        //    Uhlmann contabiliza a parte.  Para corpo fixo em regime permanente
+        //    o termo se anula; no transiente, nao.
+        real F[DIM];
+        fi_forca_passo(obstaculo, F);
+        print0f("=+=+=+= Cd = %.6f   Cl = %.6f   (referencia 2D-1: "
+                "Cd = 5.579535, Cl = 0.010619) =+=+=+=\n",
+                (double) (-2.0 * F[0]), (double) (-2.0 * F[1]));
+    }
 
     if(myrank == 0) {
         DEBUG_INSPECT(GET_NSEC_CLOCK(total)/1.0e9, %lf);

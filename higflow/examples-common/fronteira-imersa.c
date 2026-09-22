@@ -32,6 +32,8 @@ static void _aplica_defasado(higflow_solver *ns, void *ctx)
     fi_corpo *corpo = (fi_corpo *) ctx;
     fi_interpola(corpo, ns->sfdu, ns->dpu);
     fi_forca_corpo_rigido(corpo, ns->par.dt);
+    fi_zera_forca_passo(corpo);
+    fi_acumula_forca_passo(corpo);
     fi_espalha(corpo, ns->sfdF, ns->dpFU);
 }
 
@@ -59,9 +61,13 @@ static void _corrige_uhlmann(higflow_solver *ns, void *ctx)
     // (H.A != I), entao uma aplicacao so' remove PARTE do escorregamento.
     // MEDIDO: uma aplicacao corta o residuo pela metade (4,47e-2 -> 2,20e-2).
     // E' a razao pela qual o multi-direct forcing da literatura usa 5 a 20.
+    fi_zera_forca_passo(corpo);
     for (int it = 0; it < niter; it++) {
         fi_interpola(corpo, ns->sfdu, ns->dpustar);
         fi_forca_corpo_rigido(corpo, ns->par.dt);
+        // SOMA SOBRE AS ITERACOES: cada uma acrescenta uma parcela, e a ultima
+        // e' a menor.  Ler so' a ultima daria arrasto uma ordem pequeno demais.
+        fi_acumula_forca_passo(corpo);
 
         for (int dim = 0; dim < DIM; dim++) {
             const int n = rascunho[dim]->pdata->total_count;
