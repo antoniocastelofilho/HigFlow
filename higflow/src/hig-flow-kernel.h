@@ -1321,7 +1321,16 @@ typedef struct higflow_solver {
     //! \brief Fronteira imersa (opcional).  NULL = nada muda, e o passo nao paga
     //! nada.  Ver `higflow_set_fronteira_imersa` e
     //! doc/projeto-fronteira-imersa.md.
+    //! \brief Fronteira imersa ANTES do preditor -- forca defasada, calculada
+    //! com a velocidade do passo anterior.
     higflow_fronteira_imersa fronteira_imersa_aplica;
+    //! \brief Fronteira imersa DEPOIS do preditor -- rota Uhlmann/Fadlun, forca
+    //! calculada da velocidade PROVISORIA do passo corrente e corrigindo-a.
+    //!
+    //! As duas existem porque a diferenca entre elas E' a medida: a defasada
+    //! impoe o nao escorregamento a O(dt), a pos-preditor tira esse termo.
+    //! Instalar as duas ao mesmo tempo aplicaria a forca duas vezes.
+    higflow_fronteira_imersa fronteira_imersa_pos_preditor;
     void                    *fronteira_imersa_ctx;
 
     //! \brief Fonte da malha.  NULL = ler da informacao AMR, como sempre.
@@ -1609,6 +1618,12 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 //! preditor -- e o corpo e' RIGIDO e FIXO.  As tres decisoes estao no projeto.
 void higflow_set_fronteira_imersa(higflow_solver *ns,
                                   higflow_fronteira_imersa f, void *ctx);
+
+//! \brief Instala a fronteira imersa DEPOIS do preditor (rota Uhlmann).
+//! Mesma convencao da anterior; o `ctx` e' compartilhado.
+void higflow_set_fronteira_imersa_pos_preditor(higflow_solver *ns,
+                                               higflow_fronteira_imersa f,
+                                               void *ctx);
 
 void higflow_set_fonte_de_malha(higflow_solver *ns, higflow_fonte_de_malha f,
                                 void *ctx);

@@ -105,11 +105,33 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
 //! outro.
 void fi_forca_corpo_rigido(fi_corpo *c, real dt);
 
+//! ATENCAO AO CONTRATO: `fi_espalha` E' DONO DO CAMPO QUE RECEBE.
+//!
+//! Ele acumula franja->dono com `PetscSFReduce`, o que so' e' correto se o
+//! campo contiver APENAS contribuicoes espalhadas.  Passar um campo ja'
+//! povoado -- `dpustar`, por exemplo -- faz o reduce somar os valores de franja
+//! nos donos, isto e', somar um campo inteiro nas fronteiras de particao.
+//!
+//! Isso nao e' hipotese: eu mesmo violei o contrato um dia depois de escreve-lo,
+//! passando `dpustar` na rota Uhlmann.  A corrida divergia para 1e96 e o
+//! diagnostico so' fechou quando anular a forca (alfa = 0) NAO mudou nada --
+//! sinal de que a corrupcao nao vinha da forca.
+//!
+//! Para somar num campo povoado: espalhe num campo ZERADO proprio e some depois.
+//!
 //! Espalha a forca dos marcadores nas facetas, ACUMULANDO (dp_add_value).
 //! Contribuicoes que caem em faceta de franja sao somadas no dono por
 //! PetscSFReduce -- o dp_sync nao serve, ele sobrescreve.
 void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
                 distributed_property *dpF[DIM]);
+
+//! O mesmo, multiplicando a contribuicao por `escala`.
+//!
+//! Existe por causa do Uhlmann: ali a forca nao vai para o campo de FONTE (que a
+//! equacao le' e multiplica por dt sozinha), vai CORRIGIR a velocidade
+//! provisoria -- `u* += dt * F` -- entao o dt entra aqui.
+void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
+                           distributed_property *dpF[DIM], real escala);
 
 //! Grava a malha lagrangeana em VTK: posicoes, forca, velocidade e peso.
 //! UM ARQUIVO POR RANK -- `<prefixo>_lag_<rank>-<quadro>.vtk` -- porque os

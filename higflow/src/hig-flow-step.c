@@ -1381,6 +1381,18 @@ void higflow_solver_step(higflow_solver *ns) {
            break;
     }
 
+    // FRONTEIRA IMERSA, rota UHLMANN/FADLUN.  Entra AQUI -- depois do preditor e
+    // antes da pressao -- e a posicao e' a diferenca inteira em relacao a' rota
+    // defasada: a forca e' calculada da velocidade PROVISORIA do passo corrente,
+    // `f = (U_corpo - u*)/dt`, e corrige o proprio `u*`.  Some o termo O(dt) que
+    // a defasagem introduz.
+    //
+    // A projecao de pressao roda DEPOIS e desfaz parte da correcao, entao isto
+    // tambem nao impoe nao escorregamento exato -- tira o termo O(dt), nao o
+    // piso O(h) do nucleo.
+    if (ns->fronteira_imersa_pos_preditor != NULL)
+        ns->fronteira_imersa_pos_preditor(ns, ns->fronteira_imersa_ctx);
+
     // Set outflow for ustar velocity 
     //higflow_outflow_ustar_step(ns);
     // Calculate the pressure

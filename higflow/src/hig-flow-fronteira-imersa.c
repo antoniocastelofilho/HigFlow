@@ -342,11 +342,16 @@ real fi_residuo_max(const fi_corpo *c)
     PetscReal *vel = NULL;
     DMSwarmGetLocalSize(c->enxame, &n);
     DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    // NaN TEM DE SOBREVIVER AO MAXIMO.  `m > pior` com NaN e' FALSO, entao um
+    // maximo ingenuo devolve ZERO num campo que explodiu -- foi o que aconteceu
+    // na primeira corrida do Uhlmann: residuo 0,000000e+00 com max|u| em 1e96.
+    // Maximo que nao enxerga NaN e' maximo que mente.
     real pior = 0.0;
     for (PetscInt k = 0; k < n; k++) {
         real m = 0.0;
         for (int d = 0; d < DIM; d++) m += vel[DIM*k + d] * vel[DIM*k + d];
         m = sqrt(m);
+        if (!isfinite(m)) { pior = m; break; }
         if (m > pior) pior = m;
     }
     DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
@@ -622,6 +627,12 @@ static PetscSF _grafo_de(distributed_property *dp, MPI_Comm comm,
 void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
                 distributed_property *dpF[DIM])
 {
+    fi_espalha_com_escala(c, sfd, dpF, 1.0);
+}
+
+void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
+                           distributed_property *dpF[DIM], real escala)
+{
     PetscInt n = 0;
     PetscReal *pos = NULL, *f = NULL, *peso = NULL;
     DMSwarmGetLocalSize(c->enxame, &n);
@@ -657,7 +668,7 @@ void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
         for (int dim = 0; dim < DIM; dim++) {
             const int m = _suporte(sfd[dim], dim, X, c->h, lids, pesos, capac);
             // F(x) = SUM f_k d_h(x-X_k) w_k, com d_h = (1/h^DIM) prod phi.
-            const real esc = f[DIM*k + dim] * _volume_marcador(c, peso[k]) / hd;
+            const real esc = escala * f[DIM*k + dim] * _volume_marcador(c, peso[k]) / hd;
             for (int i = 0; i < m; i++)
                 dp_add_value(dpF[dim], lids[i], esc * pesos[i]);
         }

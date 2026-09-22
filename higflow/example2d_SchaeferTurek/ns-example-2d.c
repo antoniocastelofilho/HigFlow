@@ -247,8 +247,20 @@ int main (int argc, char *argv[]) {
         // bonito" invalida a comparacao.
         Point centro; centro[0] = 2.0; centro[1] = 2.0;
         for (int d = 2; d < DIM; d++) centro[d] = 0.0;
-        // 128 lados: perimetro pi, lado 0,0245, abaixo de h = 0,05.
-        obstaculo = fi_cria_circulo(ns->sfdu[0], centro, 0.5, 128, 0.05);
+        // O h vem do ambiente (HIGFLOW_H, omissao 0,05) para o diagnostico de
+        // refino poder variar a malha sem recompilar.  E o numero de lados sai
+        // DELE: com perimetro pi e lado ~h, nlados = pi/h.
+        //
+        // Antes eram 128 lados fixos com h = 0,05, o que dava ds = h/2 -- mais
+        // marcadores que celulas.  Nao e' erro, mas mistura duas variaveis
+        // quando o que se quer medir e' o efeito de h sozinho.
+        const char *amb = getenv("HIGFLOW_H");
+        const real h_mal = (amb != NULL) ? atof(amb) : 0.05;
+        int nlados = (int) (M_PI / h_mal + 0.5);
+        if (nlados < 8) nlados = 8;
+        obstaculo = fi_cria_circulo(ns->sfdu[0], centro, 0.5, nlados, h_mal);
+        print0f("=+=+=+= h = %g, %d lados, ds = %g =+=+=+=\n",
+                (double) h_mal, nlados, (double) (M_PI / nlados));
         fronteira_imersa_instala(ns, obstaculo);
         print0f("=+=+=+= Schaefer-Turek 2D-1: cilindro D=1 em (2,2), 20 celulas "
                 "no diametro =+=+=+=\n");
