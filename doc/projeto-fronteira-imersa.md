@@ -331,3 +331,65 @@ quando (b) começar, não como coisa a descobrir depois.
 **O que a decisão NÃO muda:** os dois operadores de transferência continuam
 comuns aos dois casos. Separar (b) do VOF não o separa da maquinaria que o caso
 (a) já construiu e verificou.
+
+---
+
+## 9. O maior `Δt` estável — medido, e a pergunta estava errada
+
+`example2d_SchaeferTurek`, 400 passos para **todos** os valores, np=3. Número
+fixo de passos e não tempo fixo, porque instabilidade de realimentação cresce
+**por passo**: a tempo fixo cada `Δt` teria um número diferente de
+oportunidades de amplificação, e o passo grande pareceria melhor do que é.
+
+Reproduzir com `ci/tools/varre-dt-fronteira-imersa.sh`.
+
+```
+Δt        max|u|      veredito    resíduo de não escorregamento
+0,001     1,790       estável     4,20e-02
+0,002     1,815       estável     8,93e-02
+0,005     1,961       estável     2,24e-01
+0,01      1,896       estável     3,98e-01
+0,02      1,794       estável     6,45e-01
+0,05      1,592       estável     1,01e+00
+0,10      1,1e+104    DIVERGIU    1,49e+103
+0,20      6,2e+95     DIVERGIU    1,06e+93
+0,40      2,0e+109    DIVERGIU    2,25e+105
+```
+
+### A conclusão é o contrário do que motivou o experimento
+
+**O despenhadeiro está entre 5e-2 e 1e-1, ACIMA do CFL convectivo (~0,026).**
+Então a fronteira imersa **não é o gargalo de estabilidade** — o esquema
+semi-implícito absorve `Δt` até quase o dobro do CFL. O teto explícito que eu
+queria dar ao `higflow_adjust_timestep` não é necessário: o CFL já é mais
+restritivo.
+
+**Mas o limite útil está muito antes, e é de acurácia.** A coluna do resíduo
+cresce como `O(Δt)` — razões 2,13 / 2,51 quando `Δt` dobra — e depois **satura**,
+porque não pode passar da escala de velocidade local:
+
+```
+Δt = 1e-3    resíduo  2,3% de max|u|
+Δt = 5e-3            12%
+Δt = 2e-2            36%
+Δt = 5e-2            63%   <- ultimo estavel, e o corpo deixou de ser corpo
+```
+
+Em `Δt = 5e-2` a corrida é estável e **o obstáculo é uma sugestão**. É o pior
+desfecho possível para quem confia em estabilidade como critério.
+
+**O que nenhum controlador de CFL captura.** Ele deixaria `Δt` crescer até 0,026
+e entregaria um cilindro com ~20% de escorregamento sem reclamar de nada. Se o
+`higflow_adjust_timestep` for ligado com a fronteira imersa ativa, o limite tem
+de vir do **resíduo**, não do CFL — e isso é escolha de quem usa, porque depende
+de quanta violação o resultado tolera.
+
+### O que a tabela NÃO estabelece
+
+- A primeira versão do varrimento (até 2e-2) **não achou limite nenhum** e uma
+  tabela toda verde parece resposta. O limite só apareceu estendendo até 0,4.
+  Varrimento que não encontra a fronteira não mediu o que se pensa.
+- Nada sobre o `Cd`. Resíduo pequeno é condição necessária, não suficiente: a
+  próxima medida é o arrasto em dois `Δt` e ver se ele **se move**.
+- Nada em 3D. O despenhadeiro lá pode estar em outro lugar, e a malha é mais
+  grosseira (10 células no diâmetro contra 20).
