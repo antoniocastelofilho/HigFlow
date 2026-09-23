@@ -1,19 +1,22 @@
 # malha  celulas  Cd  erro_vs_ref_pct  erro_vs_unif40_pct  residuo  min_por_t
 #
-# refinada     -> caixa [1;3,5]x[1;3]
-# refinada_ext -> caixa [1;8]x[1;3], a mesma corrida com a caixa estendida
-#                 (so' depois de acb6cff: antes disso ela divergia em np=6)
-# Uhlmann 5 iteracoes, dt = 5e-3, t = 10, np=6
-uniforme20   36080   5.725658  +2.616  +2.198  4.0291e-03   -
-uniforme40  144320   5.602506  +0.409   0.000  8.2844e-03  16.5
-refinada     42080   5.629576  +0.897  +0.483  8.3425e-03   2.0
-refinada_ext 52880   5.573406  -0.110  -0.520  8.2983e-03   2.8
-
-# Custo por caixa, 3 passos, np=6, maquina livre.  MEDIDO depois do conserto da
-# particao (set_for_coarsening) -- antes dele a [1;12] tinha malha degenerada.
-# x1  segundos_para_3_passos
-8.0     3
-9.0     4
-10.0    3
-11.0  337
-12.0  403
+# Uhlmann 5 iteracoes, dt = 5e-3, t = 10, np=6, HIGFLOW_H = 0,025 (126 marcadores)
+#
+# O COMPRIMENTO DA CAIXA NAO IMPORTA.  Tres caixas, o mesmo Cd -- e as duas
+# maiores batem em SETE algarismos.  O Cl difere na quinta casa, entao as
+# corridas sao de fato distintas; o Cd e' que nao se move.
+#
+uniforme20    36080   5.725658  +2.616  +2.198  4.0291e-03   -
+uniforme40   144320   5.602506  +0.409   0.000  8.2844e-03  16.5
+refinada_3.5  42080   5.629576  +0.897  +0.483  8.3425e-03   2.0
+refinada_8    52880   5.629705  +0.900  +0.485  8.3426e-03   2.8
+refinada_12   62480   5.629705  +0.900  +0.485       -        -
+#
+# RETIRADO: uma medicao anterior da caixa [1;8] deu Cd = 5,573406, e eu a
+# reportei como "a borda da caixa vale 1% no arrasto".  ERRADO.  Aquela corrida
+# foi feita antes do conserto do set_for_coarsening, com a malha ainda tendo
+# duas arvores degeneradas de 0,05 x 0,025.  Refeita com a malha limpa, a mesma
+# caixa da' 5,629705 -- igual a' caixa curta.
+#
+# O 1% era a MALHA, nao a caixa.  Duas coisas mudaram entre as duas medicoes e
+# eu creditei uma so'.  Mesmo erro do estudo de refinamento com dt fixo.
