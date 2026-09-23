@@ -102,6 +102,7 @@ ifdef T8CODE
 TESTS += test-partition-t8code
 TESTS += test-production-t8code
 TESTS += test-rank-production-t8code
+TESTS += test-refino-caixa-t8code
 TESTS += test-particao-t8code
 endif
 

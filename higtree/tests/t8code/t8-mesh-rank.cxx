@@ -587,6 +587,32 @@ t8_produz_por_rank_brick (const Point lo, const Point hi, const int nb[DIM],
 // callback converter a cada elemento.
 static double g_cx_lo[DIM], g_cx_hi[DIM];
 
+// A caixa DESTA passada, em coordenadas de brick (celula de nivel 0 mede 1).
+//
+// A passada `r` cria o nivel `r+1`.  Quem deve receber o nivel MAIS FINO e' a
+// caixa pedida, sem folga; cada nivel mais grosso se estende DUAS celulas
+// daquele nivel alem do nivel imediatamente mais fino.  O resultado e' uma
+// escada de degraus de duas celulas, em vez de todos os niveis terminando na
+// mesma borda.
+//
+// Com `refinos == 1` a folga e' zero e nada muda -- e' o caso ja' medido, e ele
+// fica identico de proposito.
+static void
+caixa_da_passada (const double cx_lo[DIM], const double cx_hi[DIM],
+                  int r, int refinos, const int nb[DIM],
+                  double saida_lo[DIM], double saida_hi[DIM])
+{
+  const int niveis_acima = refinos - (r + 1);      // quantos ainda virao
+  const double h = 1.0 / (double) (1 << (r + 1));  // celula do nivel criado
+  const double folga = 2.0 * (double) niveis_acima * h;
+  for (int d = 0; d < DIM; d++) {
+    saida_lo[d] = cx_lo[d] - folga;
+    saida_hi[d] = cx_hi[d] + folga;
+    if (saida_lo[d] < 0.0) saida_lo[d] = 0.0;
+    if (saida_hi[d] > (double) nb[d]) saida_hi[d] = (double) nb[d];
+  }
+}
+
 static int
 adapt_caixa (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
              const t8_eclass_t tree_class, t8_locidx_t lelement_id,
@@ -605,10 +631,15 @@ adapt_caixa (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree
 // tem referencia gravada, e nao vale arriscar mudanca de comportamento neles
 // por economia de vinte linhas.
 //
-// NAO pede balanceamento (`t8_forest_set_balance` nao e' chamado), entao a razao
-// entre celulas vizinhas pode chegar a 4:1.  Para a fronteira imersa isso
-// importa: o corpo tem de ficar INTEIRAMENTE dentro do nivel fino, com folga
-// maior que o suporte do nucleo, e a guarda do modulo verifica isso.
+// PEDE balanceamento (`t8_forest_set_balance`, abaixo), entao a razao entre
+// celulas vizinhas e' no maximo 2:1.  O comentario anterior dizia o contrario e
+// estava obsoleto.
+//
+// E ESCALONA AS CAIXAS quando ha' mais de um nivel: a interpolacao por minimos
+// quadrados moveis do HiGFlow quer DUAS camadas de um nivel antes de encontrar o
+// proximo.  Refinar a MESMA caixa em todas as passadas faz as interfaces de
+// nivel 1 e 2 coincidirem na borda; o balanceamento entao insere UMA camada
+// intermediaria, e uma nao basta.  Ver `caixa_da_passada`.
 extern "C" int
 t8_produz_por_rank_brick_refinado (const Point lo, const Point hi, const int nb[DIM],
                                    const Point caixa_lo, const Point caixa_hi,
@@ -650,7 +681,11 @@ t8_produz_por_rank_brick_refinado (const Point lo, const Point hi, const int nb[
   // numeros da corrida saem IDENTICOS ate' o ultimo digito com e sem a chamada.
   // Fica porque para `refinos > 1` ela passa a importar, e porque um solver nao
   // deve depender de o usuario lembrar de pedir; mas nao foi a cura de nada.
+  double cx_lo_pedida[DIM], cx_hi_pedida[DIM];
+  for (int d = 0; d < DIM; d++) { cx_lo_pedida[d] = g_cx_lo[d]; cx_hi_pedida[d] = g_cx_hi[d]; }
+
   for (int r = 0; r < refinos; r++) {
+    caixa_da_passada (cx_lo_pedida, cx_hi_pedida, r, refinos, nb, g_cx_lo, g_cx_hi);
     t8_forest_t novo;
     t8_forest_init (&novo);
     t8_forest_set_adapt (novo, f, adapt_caixa, 0);

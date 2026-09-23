@@ -185,6 +185,13 @@ TESTS = [
     Test("test-rank-production-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
          so_t8code=True),
 
+    # O PRODUTOR REFINADO, que nao tinha teste nenhum -- dois defeitos dele so'
+    # apareceram como escoamento divergindo numa simulacao de meia hora.  As
+    # clausulas sao geometricas: arvore de uma celula, razao 2:1, e DUAS camadas
+    # entre niveis, que e' o que a interpolacao por MLS do HiGFlow precisa.
+    Test("test-refino-caixa-t8code", dims=(2, 3), nps=(1, 2, 3), mpi=True,
+         so_t8code=True),
+
     # A PARTICAO FINAL SENDO A DO T8CODE: sem `lb_calc_partition`, com o
     # `partition_graph` montado a partir das caixas.  O oraculo e' o CONTEUDO da
     # franja, porque a construcao do grafo falha em silencio -- pareamento
