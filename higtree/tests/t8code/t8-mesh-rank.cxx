@@ -206,34 +206,38 @@ emite_completas (const Point blo, const Point bhi, int nivel, Folha *fs, long n,
     saida[(*out)++] = raiz;
     return;
   }
-  // FUNDIR IRMAOS ANTES DE DESCER.  A recursao em quadrantes emite cada
-  // quadrante completo como arvore propria e nunca junta os irmaos: uma celula
-  // base cuja posse e' a metade inferior sai como DUAS arvores de uma celula,
-  // quando cabe UMA arvore 2x1.
+  // FUNDIR IRMAOS ANTES DE DESCER -- inclusive com NIVEL MISTO.
   //
-  // MEDIDO, e nao suposto: com a caixa de refino [1;8]x[1;3] em np=6 isto
-  // produziu quatro arvores de UMA celula (0,025 x 0,025) em torno de
-  // (3,575 ; 1,5125), e o escoamento explodiu exatamente ali -- |u| = 1,79e2 no
-  // segundo passo, com todo o resto do dominio em 1,0.  Uma arvore de uma celula
-  // nao tem interior: toda faceta dela e' de fronteira, e a franja declarada e'
-  // de cinco celulas.  Com a caixa [1;3,5], que nao gera lasca nenhuma, a mesma
-  // corrida fica sa.
+  // A recursao em quadrantes emite cada quadrante completo como arvore propria e
+  // nunca junta os irmaos: uma celula base cuja posse e' a metade inferior sai
+  // como DUAS arvores de uma celula, quando cabe UMA arvore 2x1.
   //
-  // So' funde quando as folhas desta caixa estao TODAS no mesmo nivel.  E' o
-  // caso que aparece aqui, e e' o unico que se pode fundir sem mudar a malha:
-  // com niveis misturados uma caixa uniforme nao representaria o mesmo refino, e
-  // a recursao antiga continua valendo.
+  // MEDIDO, e nao suposto.  Caixa [1;8]x[1;3] em np=6, UM nivel: quatro arvores
+  // de 0,025 x 0,025 em torno de (3,575 ; 1,5125), e o escoamento explodiu
+  // exatamente ali -- |u| = 1,79e2 no segundo passo, com o resto do dominio em
+  // 1,0.  Uma arvore de uma celula nao tem interior: toda faceta dela e' de
+  // fronteira, e a franja declarada e' de cinco celulas.
+  //
+  // POR QUE NIVEL MISTO IMPORTA, e a primeira versao disto nao bastava.  A
+  // versao anterior so' fundia quando TODAS as folhas da caixa estavam no mesmo
+  // nivel.  Com DOIS niveis de refino, a celula base na borda da escada contem
+  // folhas de nivel 1 E de nivel 2 -- cai fora daquela condicao e volta para a
+  // recursao em quadrantes.  MEDIDO na corrida de dois niveis: duas arvores de
+  // 0,0125 x 0,0125 sobreviveram, em (1,2250 ; 1,5875) e (2,3000 ; 2,0000).
+  //
+  // A GENERALIZACAO: a grade e' o nivel MAIS GROSSO presente, e nao o unico
+  // nivel.  Agrupa-se em retangulos maximais o que a posse fecha naquele nivel,
+  // e dentro de cada celula do retangulo `materializa_completo` desce o que
+  // houver abaixo.  Onde a posse nao fecha, desce-se por recursao -- mas agora
+  // so' naquelas celulas, e nao na caixa inteira.
   {
-    int lmin = fs[0].nivel, lmax = fs[0].nivel;
-    for (long k = 1; k < n; k++) {
-      if (fs[k].nivel < lmin) lmin = fs[k].nivel;
-      if (fs[k].nivel > lmax) lmax = fs[k].nivel;
-    }
-    // Teto de 4 niveis (grade 16 por direcao, 4096 celulas em 3D).  Sem ele
-    // `tot` e' 2^(DIM*(lmax-nivel)) e transborda muito antes de o alloc falhar.
-    // Acima disso vale a recursao antiga, que nao precisa de grade.
-    if (lmin == lmax && lmax > nivel && (lmax - nivel) <= 4) {
-      const int g = 1 << (lmax - nivel);
+    int lmin = fs[0].nivel;
+    for (long k = 1; k < n; k++) if (fs[k].nivel < lmin) lmin = fs[k].nivel;
+
+    // Teto de 4 niveis: `tot` e' 2^(DIM*(lmin-nivel)) e transborda muito antes
+    // de o alloc falhar.  Acima disso vale a recursao antiga.
+    if (lmin > nivel && (lmin - nivel) <= 4) {
+      const int g = 1 << (lmin - nivel);
       int gb[DIM];
       long tot = 1;
       Point hg;
@@ -241,23 +245,34 @@ emite_completas (const Point blo, const Point bhi, int nivel, Folha *fs, long n,
         gb[d] = g; tot *= g;
         hg[d] = (bhi[d] - blo[d]) / (double) g;
       }
-      char *posse = (char *) calloc ((size_t) tot, 1);
-      for (long k = 0; k < n; k++) {
-        long pos = 0, mul = 1;
+
+      char  *posse = (char *)  calloc ((size_t) tot, 1);
+      Folha *sel   = (Folha *) malloc ((size_t) n * sizeof *sel);
+      Folha *buf2  = (Folha *) malloc ((size_t) n * sizeof *buf2);
+
+      // Posse por celula da grade: fecha ou nao fecha, no nivel da grade.
+      for (long q = 0; q < tot; q++) {
+        long r = q; int ix[DIM];
+        for (int d = 0; d < DIM; d++) { ix[d] = (int) (r % g); r /= g; }
+        Point clo, chi;
         for (int d = 0; d < DIM; d++) {
-          int i = (int) floor ((fs[k].x[d] - blo[d]) / hg[d]);
-          if (i < 0) i = 0;
-          if (i >= g) i = g - 1;
-          pos += i * mul; mul *= g;
+          clo[d] = blo[d] + ix[d] * hg[d];
+          chi[d] = clo[d] + hg[d];
         }
-        posse[pos] = 1;
+        long m = 0;
+        for (long k = 0; k < n; k++) {
+          int dentro = 1;
+          for (int d = 0; d < DIM && dentro; d++)
+            if (fs[k].x[d] < clo[d] || fs[k].x[d] > chi[d]) dentro = 0;
+          if (dentro) sel[m++] = fs[k];
+        }
+        posse[q] = (m > 0 && completo (clo, chi, lmin, sel, m)) ? 1 : 0;
       }
-      // No MONTE, nao na pilha: T8_MAX_CAIXAS e' 4096, e isto esta' dentro de
-      // uma funcao RECURSIVA -- 64 KB por quadro em 2D, 96 KB em 3D, em todo
-      // quadro da descida, inclusive nos que nem entram aqui.
+
+      // No MONTE, nao na pilha: T8_MAX_CAIXAS e' 4096 e isto e' recursivo.
       Caixa *cx = (Caixa *) malloc ((size_t) T8_MAX_CAIXAS * sizeof *cx);
       const int ncx = agrupa (posse, gb, cx, T8_MAX_CAIXAS);
-      free (posse);
+
       for (int c = 0; c < ncx && *out < max; c++) {
         Point rlo, rhi;
         int ext[DIM];
@@ -267,10 +282,51 @@ emite_completas (const Point blo, const Point bhi, int nivel, Folha *fs, long n,
           ext[d] = cx[c].i1[d] - cx[c].i0[d] + 1;
         }
         hig_cell *raiz = hig_create_root (rlo, rhi);
-        hig_refine_uniform (raiz, ext);   // nivel uniforme: nada mais a descer
+        hig_refine_uniform (raiz, ext);
+
+        // O que houver ABAIXO do nivel da grade, celula a celula.  Com nivel
+        // uniforme isto nao faz nada, e o resultado e' identico ao de antes.
+        const int nf = hig_get_number_of_children (raiz);
+        for (int i = 0; i < nf; i++) {
+          hig_cell *f = hig_get_child (raiz, i);
+          Point flo, fhi;
+          hig_get_lowpoint (f, flo);
+          hig_get_highpoint (f, fhi);
+          long m = 0;
+          for (long k = 0; k < n; k++) {
+            int dentro = 1;
+            for (int d = 0; d < DIM && dentro; d++)
+              if (fs[k].x[d] < flo[d] || fs[k].x[d] > fhi[d]) dentro = 0;
+            if (dentro) buf2[m++] = fs[k];
+          }
+          materializa_completo (f, buf2, m, lmin, dividida);
+        }
         saida[(*out)++] = raiz;
       }
-      free (cx);
+
+      // So' as celulas da grade cuja posse NAO fecha descem -- e nao a caixa
+      // inteira, que era o que jogava tudo de volta nos quadrantes.
+      for (long q = 0; q < tot && *out < max; q++) {
+        if (posse[q]) continue;
+        long r = q; int ix[DIM];
+        for (int d = 0; d < DIM; d++) { ix[d] = (int) (r % g); r /= g; }
+        Point clo, chi;
+        for (int d = 0; d < DIM; d++) {
+          clo[d] = blo[d] + ix[d] * hg[d];
+          chi[d] = clo[d] + hg[d];
+        }
+        long m = 0;
+        for (long k = 0; k < n; k++) {
+          int dentro = 1;
+          for (int d = 0; d < DIM && dentro; d++)
+            if (fs[k].x[d] < clo[d] || fs[k].x[d] > chi[d]) dentro = 0;
+          if (dentro) sel[m++] = fs[k];
+        }
+        if (m > 0)
+          emite_completas (clo, chi, lmin, sel, m, saida, max, out, dividida);
+      }
+
+      free (cx); free (buf2); free (sel); free (posse);
       return;
     }
   }

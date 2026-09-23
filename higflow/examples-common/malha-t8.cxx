@@ -240,6 +240,10 @@ malha_t8_refinada (void *ctx, higio_amr_info **mi, int numhigs,
   // um sitio que "2 caixas" sozinho nao localiza.
   if (getenv ("HIGFLOW_REFINO_LISTA") != NULL) {
     int rk; MPI_Comm_rank (MPI_COMM_WORLD, &rk);
+    // A contagem do T8CODE e' a autoridade.  A soma das folhas materializadas
+    // tem de bater com ela: a mais e' sobreposicao de arvore, a menos e' buraco.
+    if (rk == 0)
+      printf ("GLOBAL t8code = %ld folhas\n", prod.n_global);
     for (int i = 0; i < prod.n_locais; i++) {
       Point tl, th;
       hig_get_lowpoint (prod.locais[i], tl);

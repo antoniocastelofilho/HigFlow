@@ -80,15 +80,34 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
 
+    // A GEOMETRIA DO CASO QUE FALHOU, e nao uma aproximacao dela.
+    //
+    // MEDIDO, duas vezes: com [0,1]^DIM e 880 folhas, e depois com um dominio
+    // alongado e 4840 folhas, o teste passava COM A FUSAO DESLIGADA -- nao
+    // exercitava o defeito.  O caso que de fato produziu o buraco e' o canal do
+    // Schaefer-Turek: 22 x 4,1, h = 0,05, caixa de refino [1;3,5]x[1;3], dois
+    // niveis, seis processos.  Reproduzi-lo custa so' a producao da malha.
+    //
+    // Em 3D a mesma malha seria proibitiva, entao a terceira direcao entra
+    // curta -- o que o caso precisa e' particao irregular sobre celula base de
+    // NIVEL MISTO, e isso a versao 3D reduzida ainda tem.
     Point lo, hi, cx_lo, cx_hi;
     POINT_ASSIGN_SCALAR(lo, 0.0);
-    POINT_ASSIGN_SCALAR(hi, 1.0);
-    // Caixa interna, com folga das bordas do dominio, para que a escada tenha
-    // espaco e o teste nao meca o recorte contra a fronteira.
-    POINT_ASSIGN_SCALAR(cx_lo, 0.30);
-    POINT_ASSIGN_SCALAR(cx_hi, 0.70);
+    hi[0] = 22.0;  hi[1] = 4.1;
+    cx_lo[0] = 1.0;  cx_lo[1] = 1.0;
+    cx_hi[0] = 3.5;  cx_hi[1] = 3.0;
     int nb[DIM];
-    for (int d = 0; d < DIM; d++) nb[d] = NB;
+    nb[0] = 440;  nb[1] = 82;
+#if DIM == 3
+    // Em 3D a malha do canal inteiro e' proibitiva: 440 x 82 x 10 com dois
+    // niveis levou mais de dez minutos so' na producao, porque os lacos de
+    // `emite_completas` varrem as folhas por celula da grade.  A versao 3D usa
+    // um quinto da resolucao -- o que o caso precisa e' particao irregular
+    // sobre celula base de NIVEL MISTO, e isso ela mantem.
+    hi[2] = 1.0;  cx_lo[2] = 0.2;  cx_hi[2] = 0.8;
+    nb[0] = 88;  nb[1] = 16;  nb[2] = 16;
+    cx_hi[0] = 3.5;
+#endif
 
     t8_producao_rank p;
     if (!t8_produz_por_rank_brick_refinado(lo, hi, nb, cx_lo, cx_hi, REFINOS, &p)) {
@@ -163,7 +182,24 @@ int main(int argc, char *argv[])
 
     caso(rank, "razao_no_maximo_2_para_1", gs[0] == 0);
     caso(rank, "duas_camadas_entre_niveis", gs[1] == 0);
-    caso(rank, "cobertura_global_bate", gs[3] == p.n_global);
+    // A contagem INDEPENDENTE -- folhas percorridas nas arvores -- contra a do
+    // t8code.  A versao anterior comparava p.n_local com p.n_global, e os DOIS
+    // vem da floresta: tautologia, que passava com a malha furada.
+    //
+    // MEDIDO: a decomposicao antiga, com dois niveis, materializava 66.620 das
+    // 66.632 folhas que o t8code produziu.  Doze celulas a menos -- um BURACO,
+    // onde hig_get_cell_with_point devolve nulo.  Pior que lasca, e invisivel
+    // para a clausula tautologica.
+    caso(rank, "folhas_materializadas_batem_com_o_t8code", gs[2] == p.n_global);
+    // NOTA HONESTA: esta clausula NAO foi demonstrada contra o defeito vivo,
+    // porque o codigo que o produzia ja' foi substituido.  Ela e' verificada
+    // por construcao -- compara com a contagem do proprio t8code, que e' a
+    // autoridade -- e pelo dado historico: a corrida de dois niveis
+    // materializou 66.620 das 66.632, e esta clausula teria falhado.
+    //
+    // As outras tres TAMBEM nao falham com a fusao desligada nesta geometria.
+    // Elas afirmam propriedades reais da malha; o que nao se pode dizer e' que
+    // cubram todo caminho que leva a viola-las.
 
     if (rank == 0) {
         printf("     (%ld folhas conferidas, %ld de %ld globais; "
