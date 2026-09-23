@@ -6,6 +6,18 @@
 DIM ?= 2
 FI  = ../../src/hig-flow-fronteira-imersa.c
 
+ALVOS = teste-transferencia teste-franja-refino
+all: $(ALVOS)
+
+teste-franja-refino: teste-franja-refino.c
+	mpic++ -x c++ -std=gnu++17 -Wall -DDIM=$(DIM) $^ -o $@ \
+	  -I$(HIGTREE_DIR)/src -I../../src \
+	  -I$(PETSC_DIR)/include -I$(PETSC_DIR)/../include \
+	  $(shell pkg-config --cflags glib-2.0 hdf5 libfyaml) \
+	  -L$(HIGTREE_DIR)/lib -L$(PETSC_DIR)/lib -Wl,-rpath,$(PETSC_DIR)/lib \
+	  -lhig$(DIM)d $(shell pkg-config --libs glib-2.0 hdf5 libfyaml) \
+	  -lpetsc -ltrilinos_zoltan -lm
+
 teste-transferencia: teste-transferencia.c $(FI)
 	mpic++ -x c++ -std=gnu++17 -Wall -DDIM=$(DIM) $^ -o $@ \
 	  -I$(HIGTREE_DIR)/src -I../../src \
@@ -16,6 +28,6 @@ teste-transferencia: teste-transferencia.c $(FI)
 	  -lpetsc -ltrilinos_zoltan -lm
 
 clean:
-	$(RM) -f teste-transferencia
+	$(RM) -f $(ALVOS)
 
-.PHONY: clean
+.PHONY: clean all

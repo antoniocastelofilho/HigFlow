@@ -95,6 +95,15 @@ static void _corrige_uhlmann(higflow_solver *ns, void *ctx)
 extern "C" void fronteira_imersa_instala(higflow_solver *ns, fi_corpo *corpo)
 {
     const char *modo = getenv("HIGFLOW_FI_MODO");
+    // 'desligado' nao instala gancho nenhum.  Isto NAO e' o mesmo que alfa = 0:
+    // com alfa = 0 a forca e' nula mas fi_espalha continua rodando, e foi
+    // justamente por alfa = 0 ainda divergir que se achou a corrupcao de campo
+    // pelo PetscSFReduce.  Para isolar o solver do corpo, o gancho tem que nao
+    // existir.
+    if (modo != NULL && strcmp(modo, "desligado") == 0) {
+        print0f("=+=+=+= Fronteira imersa: DESLIGADA (sem gancho) =+=+=+=\n");
+        return;
+    }
     if (modo != NULL && strcmp(modo, "uhlmann") == 0) {
         higflow_set_fronteira_imersa_pos_preditor(ns, _corrige_uhlmann, corpo);
         const char *sa0 = getenv("HIGFLOW_FI_ALFA");

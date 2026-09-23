@@ -235,6 +235,21 @@ malha_t8_refinada (void *ctx, higio_amr_info **mi, int numhigs,
     return 0;
   }
 
+  // Os limites de CADA arvore local, nao so' a contagem.  Uma regiao de refino
+  // vira varias arvores por rank, e a costura entre duas arvores adjacentes e'
+  // um sitio que "2 caixas" sozinho nao localiza.
+  if (getenv ("HIGFLOW_REFINO_LISTA") != NULL) {
+    int rk; MPI_Comm_rank (MPI_COMM_WORLD, &rk);
+    for (int i = 0; i < prod.n_locais; i++) {
+      Point tl, th;
+      hig_get_lowpoint (prod.locais[i], tl);
+      hig_get_highpoint (prod.locais[i], th);
+      printf ("ARVORE rank %d [%d] x[%.4f,%.4f] y[%.4f,%.4f]\n",
+              rk, i, tl[0], th[0], tl[1], th[1]);
+      fflush (stdout);
+    }
+  }
+
   int n = 0;
   for (int i = 0; i < prod.n_locais; i++) arvores[n++] = prod.locais[i];
   // As arvores passam para o chamador; nao destruir aqui.
