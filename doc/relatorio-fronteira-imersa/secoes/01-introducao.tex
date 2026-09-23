@@ -1,0 +1,44 @@
+\section{Objetivo e escopo}
+
+O HiGFlow resolve Navier--Stokes incompressível sobre malha cartesiana em
+octree (HiGTree). Corpos sólidos de geometria curva não são representáveis por
+essa malha sem escada de células, e é esse o problema que a fronteira imersa
+resolve: o corpo é descrito por uma malha \emph{lagrangeana} de marcadores que
+não coincide com a malha \emph{euleriana} do escoamento, e o acoplamento entre
+as duas se faz por um campo de força.
+
+Este relatório cobre:
+
+\begin{itemize}
+  \item a formulação implementada e as duas variantes comparadas
+        (Seção~\ref{sec:formulacao});
+  \item as decisões de implementação e estrutura de dados
+        (Seção~\ref{sec:implementacao});
+  \item a verificação dos operadores de transferência, isolada do solver
+        (Seção~\ref{sec:verificacao});
+  \item o experimento --- canal com obstáculo cilíndrico, \emph{benchmark}
+        DFG/Schäfer--Turek 2D-1 --- e o estudo de refinamento
+        (Seções~\ref{sec:experimento} e~\ref{sec:resultados}).
+\end{itemize}
+
+\paragraph{Escopo deliberadamente restrito.} As decisões abaixo foram tomadas no
+início e limitam o que este trabalho afirma:
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  corpo    & rígido e \textbf{fixo} ($U_{\mathrm{corpo}} = 0$) \\
+  alcance  & apenas o solver newtoniano \\
+  malha    & uniforme (sem refinamento local) \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Corpo móvel, corpo deformável e interface entre fluidos \emph{não} são
+extensões diretas deste trabalho; a Seção~\ref{sec:discussao} explica por quê.
+
+\paragraph{Uma nota sobre o que este relatório registra.} Além dos resultados,
+registram-se as medidas que \emph{não} discriminaram --- oráculos que passaram
+com o método errado --- porque elas são a parte transferível da experiência. Um
+resultado correto obtido por um teste que não podia detectar o erro é sorte, e
+sorte não se reproduz.

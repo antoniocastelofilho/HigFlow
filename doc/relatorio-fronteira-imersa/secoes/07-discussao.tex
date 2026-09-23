@@ -1,0 +1,90 @@
+\section{Discussão e trabalho futuro}
+\label{sec:discussao}
+
+\subsection{O que este trabalho estabelece}
+
+\begin{itemize}
+  \item Um método de fronteira imersa com forçamento direto, verificado nos seus
+        operadores de transferência independentemente do solver, em $np=1,2,3$.
+  \item Que a formulação defasada tem erro $O(\dt/h)$ --- número de Courant ---
+        e que refinar a malha sem corrigi-la \emph{piora} o não escorregamento.
+  \item Que a rota pós-preditor com forçamento iterado reduz o resíduo em
+        $41\times$ e permite $\dt$ vinte vezes maior para a mesma acurácia.
+  \item $\Cd$ com erro de $+2{,}6\%$ a 20 células por diâmetro e $+0{,}4\%$ a 40,
+        contra o valor de referência do \emph{benchmark}.
+\end{itemize}
+
+\subsection{O que este trabalho não estabelece}
+
+\begin{itemize}
+  \item \textbf{A inclinação de convergência.} Dois pontos não a determinam, e o
+        valor obtido é quase o dobro do publicado. A terceira resolução está em
+        curso.
+  \item \textbf{Nada sobre $\Cl$.} O suporte do núcleo é maior que a assimetria
+        que o produz.
+  \item \textbf{Nada em 3D quantitativamente.} A geometria 3D-1Z existe e roda,
+        mas a 10 células por diâmetro e sem comparação com referência.
+  \item \textbf{Nada sobre corpo móvel ou deformável.} Ver abaixo.
+  \item \textbf{O termo de inércia do fluido interno.} O $\Cd$ calculado ignora a
+        inércia do fluido ``fantasma'' dentro do corpo, que Uhlmann contabiliza à
+        parte. Para corpo fixo em regime permanente o termo se anula --- e o
+        escoamento estacionou ---, de modo que o número é legítimo aqui; num
+        transiente, não seria.
+\end{itemize}
+
+\subsection{Contorno rígido e interface entre fluidos são problemas distintos}
+
+``Fronteira imersa'' cobre duas linhagens que compartilham a maquinaria e
+divergem em quase tudo o mais:
+
+\begin{center}
+\begin{tabular}{lll}
+  \toprule
+   & \textbf{contorno rígido} & \textbf{interface entre fluidos} \\
+  \midrule
+  força        & multiplicador de Lagrange & constitutiva ($\sigma\kappa\mathbf{n}$) \\
+  marcadores   & fixos                     & advectados \\
+  conectividade& dispensável               & \textbf{indispensável} (curvatura) \\
+  remalhamento & não                       & sim, ou a interface fica permeável \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Os operadores de transferência servem aos dois sem diferença. A distribuição por
+posse euleriana, porém, \textbf{destrói a ordem da curva} --- correto e barato
+para o caso rígido, inviável para o outro, que precisa de vizinhos para calcular
+curvatura.
+
+\subsection{Refinamento local}
+
+É o caminho da literatura: o erro é de ordem~1 \emph{junto} à interface e ordem~2
+longe dela~\cite{lai2000,griffith2005}, e o método adaptativo de
+Roma--Peskin--Berger~\cite{roma1999} --- fonte do núcleo aqui usado --- existe
+exatamente para isso. Em 3D é a única rota viável: 40 células por diâmetro
+uniformes custariam $\sim$27 milhões de células contra $\sim$420 mil hoje.
+
+Três ressalvas, na ordem em que doem:
+
+\begin{enumerate}
+  \item A enumeração do suporte pressupõe um $h$ único e global. Numa malha
+        graduada isso não é ajuste, é reescrita.
+  \item O núcleo na fronteira de refinamento não preserva de graça a partição da
+        unidade nem a propriedade adjunta --- que são precisamente as duas
+        propriedades que os testes verificam.
+  \item \textbf{Refinamento local reduz células, não passos.} O $\dt$ é global e
+        ditado pela menor célula. O custo de refinar é $(1/h)^{D+1}$, e o
+        refinamento local ataca apenas $D$ desse expoente.
+\end{enumerate}
+
+\subsection{Próximos passos}
+
+\begin{enumerate}
+  \item Terceira resolução (80 células/$D$), para decidir a inclinação de
+        convergência. \emph{Em curso.}
+  \item Se a inclinação se confirmar, refinamento local, com os pré-requisitos
+        acima.
+  \item Verificação 3D quantitativa contra o \emph{benchmark} 3D-1Z.
+  \item Comparação com a rota de Lai--Peskin (ponto médio, duas avaliações de
+        força por passo, sem iterar), que é a alternativa estrutural ao
+        forçamento iterado.
+\end{enumerate}

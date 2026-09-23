@@ -1,0 +1,77 @@
+% Relatorio: fronteira imersa com forcamento direto no HiGFlow
+%
+% Compila com pdflatex + bibtex + pdflatex + pdflatex, ou latexmk -pdf main
+% No Overleaf: enviar a pasta inteira; o arquivo principal e' este.
+%
+% Os NUMEROS vivem em dados/*.dat e sao lidos por pgfplotstable, nao digitados
+% no texto.  Regenerar uma medida troca o .dat e o relatorio acompanha -- sem
+% a chance de a tabela e o texto discordarem, que e' o erro classico aqui.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=2.7cm]{geometry}
+
+\pgfplotsset{compat=1.18}
+\sisetup{output-decimal-marker={,}, group-separator={.}}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{teal},
+  commentstyle=\color{gray},
+  breaklines=true,
+  frame=leftline,
+  framesep=6pt,
+  xleftmargin=10pt,
+}
+
+\newcommand{\Cd}{C_{\mathrm{d}}}
+\newcommand{\Cl}{C_{\mathrm{l}}}
+\newcommand{\dt}{\Delta t}
+
+\title{Fronteira imersa com forçamento direto no HiGFlow:\\
+       implementação, verificação e o experimento de Schäfer--Turek}
+\author{Antonio Castelo Filho}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este relatório descreve a implementação de um método de fronteira imersa com
+forçamento direto no HiGFlow, sua verificação, e o estudo de refinamento sobre o
+escoamento em canal com obstáculo cilíndrico (\emph{benchmark} DFG/Schäfer--Turek
+2D-1, $\mathrm{Re}=20$). Duas formulações foram implementadas e comparadas: a
+força \emph{defasada}, calculada com a velocidade do passo anterior, e a rota
+\emph{pós-preditor} de Fadlun/Uhlmann, com forçamento iterado. Registra-se
+também, deliberadamente, o que cada medida \emph{não} estabelece --- incluindo
+três oráculos que passaram com o método errado.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+\input{secoes/01-introducao}
+\input{secoes/02-formulacao}
+\input{secoes/03-implementacao}
+\input{secoes/04-verificacao}
+\input{secoes/05-experimento}
+\input{secoes/06-resultados}
+\input{secoes/07-discussao}
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}

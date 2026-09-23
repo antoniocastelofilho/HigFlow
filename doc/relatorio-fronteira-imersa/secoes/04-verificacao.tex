@@ -1,0 +1,47 @@
+\section{Verificação}
+\label{sec:verificacao}
+
+Os operadores de transferência são verificados \emph{sem solver}, em domínio
+pequeno, com cinco afirmações em $np = 1, 2, 3$:
+
+\begin{enumerate}
+  \item \textbf{Peso total igual à medida geométrica.} A curva é um quadrado de
+        lado $0{,}5$: perímetro exatamente $2{,}0$. Círculo não serviria --- o
+        polígono inscrito tem perímetro \emph{próximo}, e ``próximo'' não
+        distingue subdivisão errada de discretização.
+  \item \textbf{Interpolar campo constante devolve a constante.} É a partição da
+        unidade do núcleo. Pega núcleo errado, suporte incompleto e normalização
+        errada.
+  \item \textbf{Conservação da força}, equação~\eqref{eq:conservacao}. É o único
+        dos três que exercita a acumulação franja\,$\to$\,dono.
+\end{enumerate}
+
+\subsection{Três oráculos que não discriminaram}
+
+Esta subseção é o registro do que \emph{não} funcionou como teste, e é a parte
+transferível da experiência.
+
+\paragraph{A conservação da força não pega erro nos marcadores.} A
+equação~\eqref{eq:conservacao} é uma \textbf{identidade em $\Delta V_k$}: ela é
+verdadeira seja qual for o significado do peso, e os dois lados usam os mesmos
+marcadores. Ela passou, exata, em duas situações de erro grave: com metade dos
+marcadores devolvendo zero (âncora na faceta), e com a força vinte vezes maior
+que o devido (peso $=\mathrm{d}s$ em vez de $\mathrm{d}s\cdot h$). Quem pegou os
+dois foi a afirmação~2, que compara com um valor absoluto \emph{conhecido}.
+
+\paragraph{A esteira do cilindro não é oráculo.} Ela parece correta numa faixa
+larga de implementações erradas. O canal com obstáculo \emph{é} bom caso ---
+desde que se compare número com número contra valores publicados, não figura.
+
+\paragraph{Taxa de convergência com número de passos fixo não mede taxa.}
+Refinar $\dt$ mantendo \texttt{numsteps} faz cada corrida terminar num
+\textbf{tempo físico diferente}: comparam-se pontos distintos do transiente. Para
+acurácia, o tempo final deve ser fixo. (Para \emph{estabilidade} vale o oposto:
+instabilidade de realimentação cresce por passo, e ali o número de passos é que
+deve ser fixo.)
+
+\paragraph{Corolário de método.} Em três ocasiões distintas um contador ou uma
+métrica repetiu \emph{exatamente} o mesmo valor após uma correção, e isso foi
+lido como ``correção que errou por pouco''. Em todas, o significado era outro:
+\textbf{ramo não exercitado}. Número que não muda quando deveria mudar é
+informação, não ruído.

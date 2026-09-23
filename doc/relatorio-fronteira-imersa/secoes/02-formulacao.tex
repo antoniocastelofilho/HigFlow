@@ -1,0 +1,102 @@
+\section{Formulação}
+\label{sec:formulacao}
+
+\subsection{Os dois operadores de transferência}
+
+A fronteira é discretizada em marcadores $\mathbf{X}_k$, $k = 1,\dots,N_L$, cada
+um com uma medida geométrica $w_k$ (comprimento de arco em 2D, área em 3D). O
+acoplamento entre as malhas se faz por dois operadores, construídos sobre o mesmo
+núcleo regularizado $\delta_h$:
+
+\begin{align}
+  \mathbf{u}(\mathbf{X}_k) &= \sum_{\mathbf{x}} \mathbf{u}(\mathbf{x})\,
+      \delta_h(\mathbf{x}-\mathbf{X}_k)\, h^{D}
+      && \text{(interpolação)} \label{eq:interp}\\
+  \mathbf{F}(\mathbf{x}) &= \sum_{k} \mathbf{f}_k\,
+      \delta_h(\mathbf{x}-\mathbf{X}_k)\, \Delta V_k
+      && \text{(espalhamento)} \label{eq:espalha}
+\end{align}
+
+onde $D$ é a dimensão do espaço e $\Delta V_k$ é o \emph{volume} do marcador.
+
+O núcleo é o de três pontos de Roma, Peskin e Berger~\cite{roma1999}:
+\begin{equation}
+  \phi(r) =
+  \begin{cases}
+    \tfrac{1}{3}\left(1 + \sqrt{1-3r^2}\right), & |r| \le \tfrac{1}{2},\\[4pt]
+    \tfrac{1}{6}\left(5 - 3|r| - \sqrt{1-3(1-|r|)^2}\right),
+      & \tfrac{1}{2} \le |r| \le \tfrac{3}{2},\\[4pt]
+    0, & \text{caso contrário,}
+  \end{cases}
+  \qquad
+  \delta_h(\mathbf{x}) = \frac{1}{h^{D}}\prod_{d=1}^{D}\phi\!\left(\frac{x_d}{h}\right).
+\end{equation}
+
+\paragraph{O par adjunto é o que importa.} Com o \emph{mesmo} núcleo nos dois
+operadores, espalhar é o transposto de interpolar, e disso decorre a conservação:
+a força total que sai dos marcadores chega às facetas,
+\begin{equation}
+  \sum_{\mathbf{x}} \mathbf{F}(\mathbf{x})\,h^{D}
+  \;=\; \sum_k \mathbf{f}_k \,\Delta V_k .
+  \label{eq:conservacao}
+\end{equation}
+Trocar um dos dois núcleos quebra~\eqref{eq:conservacao} sem produzir nenhum
+sintoma visível --- ponto ao qual a Seção~\ref{sec:verificacao} retorna.
+
+\paragraph{O volume do marcador não é a medida geométrica.} Para um corpo de
+codimensão~1 (curva em 2D, superfície em 3D), o marcador representa um retalho de
+espessura uma célula:
+\begin{equation}
+  \Delta V_k = w_k \, h^{\,\mathrm{codim}} , \qquad \mathrm{codim} = 1 .
+\end{equation}
+O expoente é a \textbf{codimensão do corpo}, não a dimensão do espaço. Em 2D as
+duas coincidem, e usar $h^{D-1}$ passa despercebido; em 3D isso daria
+$\mathrm{d}A\cdot h^2$ em vez de $\mathrm{d}A\cdot h$, errando a força por um
+fator $1/h$.
+
+\subsection{Forçamento direto: duas variantes}
+
+Para corpo rígido e fixo, a força não tem lei constitutiva --- é um
+multiplicador de Lagrange que vale o que for preciso para impor
+$\mathbf{u}=\mathbf{0}$ na fronteira:
+\begin{equation}
+  \mathbf{f}_k = \frac{\mathbf{0} - \mathbf{u}(\mathbf{X}_k)}{\dt}.
+  \label{eq:forca}
+\end{equation}
+
+A diferença entre as duas variantes implementadas está em \emph{de onde vem}
+$\mathbf{u}(\mathbf{X}_k)$ em~\eqref{eq:forca}, e \emph{quando} a força é
+aplicada.
+
+\paragraph{Defasada.} A velocidade é a do passo anterior, $\mathbf{u}^n$, e a
+força é somada ao campo de fonte \emph{antes} do preditor. Custa uma chamada
+num único ponto do passo, e impõe o não escorregamento a $O(\dt)$.
+
+\paragraph{Pós-preditor (Fadlun/Uhlmann~\cite{uhlmann2005}).} O preditor produz
+a velocidade provisória $\mathbf{u}^*$ \emph{sem} força; a força é então
+calculada de $\mathbf{u}^*$ e corrige a própria $\mathbf{u}^*$:
+\begin{equation}
+  \mathbf{u}^* \leftarrow \mathbf{u}^* + \alpha\,\dt\,\mathbf{F}, \qquad
+  \mathbf{f}_k = \frac{\mathbf{0}-\mathbf{u}^*(\mathbf{X}_k)}{\dt}.
+\end{equation}
+O termo $O(\dt)$ da defasagem desaparece. A projeção de pressão roda
+\emph{depois} e desfaz parte da correção, de modo que o não escorregamento
+continua aproximado.
+
+\paragraph{Forçamento iterado.} Uma aplicação não zera o escorregamento porque
+espalhar e interpolar não comutam ($\mathcal{S}\mathcal{I} \neq \mathcal{I}$).
+Repetir interpolação--força--espalhamento dentro do passo é o
+\emph{multi-direct forcing}~\cite{wang2008}; a literatura relata de~5 a~20
+iterações.
+
+\subsection{O que ``segunda ordem'' significa na literatura}
+
+O método de fronteira imersa formalmente de segunda ordem é o de Griffith
+\emph{et al.}~\cite{griffith2007}, cuja base não adaptativa é Lai e
+Peskin~\cite{lai2000}. A distinção importa e é frequentemente perdida: a segunda
+ordem é \textbf{do esquema}, não da imposição da condição de contorno. Nas
+palavras de~\cite{lai2000}, o delta discreto ``impede o método de fronteira
+imersa de ser mais que de primeira ordem'', porque a velocidade não tem derivada
+contínua através da fronteira; o ganho efetivo é \emph{menos viscosidade
+numérica}. Ceniceros \emph{et al.}~\cite{ceniceros2010} medem exatamente isso:
+ordem~1 na vizinhança da interface, tendendo a~2 longe dela.

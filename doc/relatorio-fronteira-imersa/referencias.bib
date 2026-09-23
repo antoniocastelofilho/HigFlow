@@ -1,0 +1,110 @@
+% Referencias VERIFICADAS em fonte primaria durante o levantamento de 21/09/2026.
+% Onde a verificacao falhou, o comentario diz.
+
+@article{roma1999,
+  author  = {Roma, Alexandre M. and Peskin, Charles S. and Berger, Marsha J.},
+  title   = {An Adaptive Version of the Immersed Boundary Method},
+  journal = {Journal of Computational Physics},
+  volume  = {153}, number = {2}, pages = {509--534}, year = {1999},
+  doi     = {10.1006/jcph.1999.6293},
+  note    = {Fonte do nucleo regularizado de 3 pontos usado aqui.}
+}
+
+@article{lai2000,
+  author  = {Lai, Ming-Chih and Peskin, Charles S.},
+  title   = {An Immersed Boundary Method with Formal Second-Order Accuracy and
+             Reduced Numerical Viscosity},
+  journal = {Journal of Computational Physics},
+  volume  = {160}, number = {2}, pages = {705--719}, year = {2000},
+  doi     = {10.1006/jcph.2000.6483}
+}
+
+@article{griffith2007,
+  author  = {Griffith, Boyce E. and Hornung, Richard D. and McQueen, David M.
+             and Peskin, Charles S.},
+  title   = {An adaptive, formally second order accurate version of the immersed
+             boundary method},
+  journal = {Journal of Computational Physics},
+  volume  = {223}, number = {1}, pages = {10--49}, year = {2007},
+  doi     = {10.1016/j.jcp.2006.08.019}
+}
+
+@article{griffith2005,
+  author  = {Griffith, Boyce E. and Peskin, Charles S.},
+  title   = {On the order of accuracy of the immersed boundary method: higher
+             order convergence rates for sufficiently smooth problems},
+  journal = {Journal of Computational Physics},
+  volume  = {208}, number = {1}, pages = {75--105}, year = {2005}
+}
+
+@article{ceniceros2010,
+  author  = {Ceniceros, Hector D. and Roma, Alexandre M. and
+             Silveira-Neto, Aristeu and Villar, Millena M.},
+  title   = {A Robust, Fully Adaptive Hybrid Level-Set/Front-Tracking Method for
+             Two-Phase Flows with an Accurate Surface Tension Computation},
+  journal = {Communications in Computational Physics},
+  volume  = {8}, number = {1}, pages = {51--94}, year = {2010},
+  note    = {Unico artigo conjunto de Roma e Silveira-Neto em revista; cita
+             griffith2007 como a versao de segunda ordem.}
+}
+
+@article{uhlmann2005,
+  author  = {Uhlmann, Markus},
+  title   = {An immersed boundary method with direct forcing for the simulation
+             of particulate flows},
+  journal = {Journal of Computational Physics},
+  volume  = {209}, number = {2}, pages = {448--476}, year = {2005},
+  doi     = {10.1016/j.jcp.2005.03.017},
+  note    = {ATENCAO: a copia consultada veio por um link de arXiv com data
+             inconsistente (2018).  O conteudo citado confere com o artigo, mas
+             a procedencia do link nao foi confirmada.}
+}
+
+@article{limaesilva2003,
+  author  = {Lima e Silva, A. L. F. and Silveira-Neto, A. and Damasceno, J. J. R.},
+  title   = {Numerical simulation of two-dimensional flows over a circular
+             cylinder using the immersed boundary method},
+  journal = {Journal of Computational Physics},
+  volume  = {189}, number = {2}, pages = {351--370}, year = {2003},
+  note    = {Modelo Fisico Virtual.  NAO e' o metodo de segunda ordem: nao impoe
+             o nao escorregamento diretamente.}
+}
+
+@phdthesis{nabh1998,
+  author = {Nabh, G.},
+  title  = {On higher order methods for the stationary incompressible
+            Navier--Stokes equations},
+  school = {Universit\"at Heidelberg},
+  year   = {1998},
+  note   = {Preprint 42/98, p.~74.  Fonte primaria dos valores de referencia do
+            benchmark 2D-1.}
+}
+
+@article{john2001,
+  author  = {John, Volker and Matthies, Gunar},
+  title   = {Higher-order finite element discretizations in a benchmark problem
+             for incompressible flows},
+  journal = {International Journal for Numerical Methods in Fluids},
+  volume  = {37}, number = {8}, pages = {885--903}, year = {2001},
+  doi     = {10.1002/fld.195},
+  note    = {Confirma os valores de nabh1998; adota Cl ligeiramente diferente.}
+}
+
+@incollection{schafer1996,
+  author    = {Sch\"afer, M. and Turek, S.},
+  title     = {Benchmark Computations of Laminar Flow Around a Cylinder},
+  booktitle = {Flow Simulation with High-Performance Computers II},
+  series    = {Notes on Numerical Fluid Mechanics}, volume = {52},
+  publisher = {Vieweg}, pages = {547--566}, year = {1996},
+  note      = {NAO VERIFICADO em fonte primaria: os intervalos de tolerancia
+               citados de segunda mao nao foram confirmados no texto original.}
+}
+
+@article{wang2008,
+  author  = {Wang, Zeli and Fan, Jianren and Luo, Kun},
+  title   = {Combined multi-direct forcing and immersed boundary method for
+             simulating flows with moving particles},
+  journal = {International Journal of Multiphase Flow},
+  volume  = {34}, number = {3}, pages = {283--302}, year = {2008},
+  note    = {Multi-direct forcing; relata a necessidade de ~20 iteracoes.}
+}

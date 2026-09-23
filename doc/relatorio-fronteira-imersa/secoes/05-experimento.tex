@@ -1,0 +1,75 @@
+\section{O experimento}
+\label{sec:experimento}
+
+\subsection{Geometria e escala}
+
+O caso é o \emph{benchmark} DFG/Schäfer--Turek 2D-1~\cite{schafer1996}:
+escoamento laminar estacionário em canal sobre cilindro, $\mathrm{Re}=20$. Na
+forma original:
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  canal    & $[0;\,2{,}2] \times [0;\,0{,}41]$ \\
+  cilindro & $D = 0{,}1$, centro em $(0{,}2;\,0{,}2)$ \\
+  entrada  & $u(0,y) = 4\,U_m\,y(H-y)/H^2$, \; $U_m = 0{,}3$ \\
+  fluido   & $\nu = 10^{-3}$, $\rho = 1$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+com $\bar{u} = 2U_m/3 = 0{,}2$ e $\mathrm{Re} = \bar{u}D/\nu = 20$.
+
+\paragraph{Adimensionalização, e por que ela não é opcional.} O HiGFlow aplica
+$1/\mathrm{Re}$ ao termo viscoso. Fornecer a geometria dimensional com
+$\mathrm{Re}=20$ produziria um Reynolds efetivo de $0{,}4$. Todas as medidas
+abaixo usam a escala de $D$ e da velocidade média:
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  canal    & $22 \times 4{,}1$ \\
+  cilindro & $D = 1$, centro em $(2;\,2)$ \\
+  entrada  & $u(y) = 6\,y(4{,}1-y)/4{,}1^2$, \; média $1$, máximo $1{,}5$ \\
+  $\mathrm{Re}$ & $20$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+$\Cd$ e $\Cl$ são adimensionais e não mudam com essa escala.
+
+\paragraph{O cilindro está fora do eixo de propósito.} O centro em $y=2$ num
+canal $[0;4{,}1]$ está a $2$ do fundo e $2{,}1$ do topo. A assimetria é do
+\emph{benchmark} e é ela que produz o $\Cl$ publicado; centralizar invalidaria a
+comparação.
+
+\subsection{Coeficientes e valores de referência}
+
+Nesta escala ($\rho=1$, $\bar{u}=1$, $D=1$),
+\begin{equation}
+  \Cd = -2\,F_x, \qquad \Cl = -2\,F_y,
+\end{equation}
+com $\mathbf{F} = \sum_k \mathbf{f}_k \Delta V_k$ a força que o corpo aplica ao
+\emph{fluido}; a força hidrodinâmica sobre o corpo é a reação, daí o sinal.
+
+\paragraph{Com forçamento iterado, a força do passo é a soma sobre as
+iterações.} Cada iteração acrescenta uma parcela, e a última é a menor; ler
+apenas a última daria arrasto uma ordem de grandeza pequeno demais.
+
+Os valores de referência, de Nabh~\cite{nabh1998} e confirmados
+por~\cite{john2001}:
+\begin{center}
+\begin{tabular}{lS[table-format=1.11]}
+  \toprule
+  $\Cd$       & 5.57953523384 \\
+  $\Cl$       & 0.010618948146 \\
+  $\Delta p$  & 0.11752016697 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{$\Cl$ não é critério de acurácia aqui.} O deslocamento do cilindro
+fora do eixo é $D/20$, e o suporte do núcleo de três pontos é $3h$. Com
+$h = D/20$, o suporte cobre $0{,}15\,D$ --- \textbf{três vezes maior que a
+própria assimetria} que produz o $\Cl$. Ele serve de diagnóstico de simetria,
+não de critério.

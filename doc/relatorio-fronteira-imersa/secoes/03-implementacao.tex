@@ -1,0 +1,74 @@
+\section{Implementação}
+\label{sec:implementacao}
+
+\subsection{Onde o código vive}
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  \texttt{higflow/src/hig-flow-fronteira-imersa.\{h,c\}} & o núcleo do método \\
+  \texttt{higflow/examples-common/fronteira-imersa.c}    & adaptador solver/módulo \\
+  \texttt{higflow/fronteira-imersa/testes/}              & verificação isolada \\
+  \texttt{higflow/example2d\_SchaeferTurek/}             & o experimento \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{O módulo não conhece o solver, e isso é deliberado.} Ele recebe um
+\texttt{sim\_facet\_domain} e uma \texttt{distributed\_property} por direção, não
+um \texttt{higflow\_solver}. Foi essa separação que permitiu verificar a
+conservação sem montar um solver (Seção~\ref{sec:verificacao}).
+
+\paragraph{O acoplamento é por ponteiro de função.} O arquivo
+\texttt{hig-flow-step.c} é ligado por \emph{todos} os exemplos. Uma chamada
+direta obrigaria os doze \emph{Makefiles} a ligar o módulo por um recurso que um
+exemplo usa. Com o gancho, quem não instala corpo não referencia símbolo algum.
+A primeira tentativa, com chamada direta, levou a suíte de 33 para 0 de 33 casos.
+
+\subsection{Estrutura de dados da malha lagrangeana}
+
+Os marcadores vivem num \texttt{DMSwarm} do PETSc --- biblioteca já presente no
+projeto, sem dependência nova. A entrada é uma \textbf{curva fechada por
+segmentos}; em 3D, a extrusão dessa curva, formando uma superfície.
+
+\paragraph{Marcadores nos centros dos subsegmentos, não nos vértices.} Marcador
+em vértice duplicaria o vértice compartilhado entre segmentos consecutivos, e a
+soma dos pesos deixaria de ser o perímetro. Com centros, o peso de cada marcador
+é o comprimento do seu subsegmento, e a soma dá o perímetro exato --- invariante
+que o teste cobra com tolerância de $10^{-12}$.
+
+\paragraph{Distribuição por posse euleriana.} Cada marcador pertence ao rank que
+possui a célula que o contém, condição para o espalhamento ser local. Uma guarda
+aborta se a soma dos marcadores reivindicados não bater com o total: marcador
+sobre fronteira de partição reivindicado por dois ranks (ou por nenhum) daria
+força errada sem sintoma visível.
+
+\subsection{O suporte do marcador, sem varredura}
+
+O núcleo tem suporte de $1{,}5$ células para cada lado. Localizar as facetas do
+suporte varrendo seria $O(N_L \times N_{\mathrm{facetas}})$. Não é preciso: a
+malha é uniforme e os centros do suporte estão em \emph{deslocamentos conhecidos}
+a partir de uma âncora, cada um achado por uma localização de ponto.
+
+\paragraph{A âncora sai da célula, não de uma faceta.} A função
+\texttt{sfd\_get\_facet\_with\_point} acha a faceta cujo \emph{plano} contém o
+ponto; um marcador no meio de uma célula não está sobre plano algum naquela
+direção. Ancorar numa faceta funcionava apenas para a direção em que o marcador
+por acaso caísse sobre um plano de face --- e numa curva alinhada com a malha
+isso atinge metade dos marcadores, com a força saindo exatamente pela metade.
+
+\subsection{Acumulação franja \texorpdfstring{$\to$}{->} dono}
+
+O espalhamento de um marcador próximo da borda escreve em facetas de \emph{outro}
+rank. A sincronização da HiGTree (\texttt{dp\_sync}) envia dono\,$\to$\,franja e
+\textbf{sobrescreve}: contribuições escritas numa franja seriam descartadas em
+silêncio. A direção que falta é feita com \texttt{PetscSFReduce} e
+\texttt{MPI\_SUM}, sobre um grafo montado a partir do que a HiGTree já tem
+(\texttt{gid\_map}, \texttt{local\_count}, \texttt{total\_count}).
+
+\paragraph{Contrato: o espalhamento é dono do campo que recebe.} Ele acumula
+franja\,$\to$\,dono, o que só é correto se o campo contiver \emph{apenas}
+contribuições espalhadas. Passar um campo já povoado faz o \emph{reduce} somar
+um campo inteiro nas fronteiras de partição. Para somar num campo povoado ---
+como $\mathbf{u}^*$ na rota pós-preditor --- espalha-se num campo zerado próprio
+e soma-se depois.

@@ -1,0 +1,137 @@
+\section{Resultados}
+\label{sec:resultados}
+
+Salvo indicação, as medidas usam $h = 0{,}05$ (20 células por diâmetro), $np=3$,
+e o resíduo de não escorregamento é $\max_k |\mathbf{u}(\mathbf{X}_k)|$, a ser
+comparado com $\max|\mathbf{u}| \approx 1{,}8$ no domínio.
+
+\subsection{Estabilidade: o maior \texorpdfstring{$\dt$}{dt}, forçamento defasado}
+
+\pgfplotstabletypeset[
+  % TODAS string: os valores divergidos estouram o parser numerico do TeX.
+  columns/0/.style={column name={$\dt$}, string type},
+  columns/1/.style={column name={resíduo}, string type},
+  columns/2/.style={column name={$\max|\mathbf{u}|$}, string type},
+  columns/3/.style={column name={veredito}, string type},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{dados/varre-dt-defasado.dat}
+
+\medskip
+Número de passos \emph{fixo} (400) para todos os valores: instabilidade de
+realimentação cresce por passo, e a tempo fixo cada $\dt$ teria um número
+diferente de oportunidades de amplificação.
+
+\paragraph{A conclusão é o contrário do que motivou o experimento.} O
+despenhadeiro está entre $5\times 10^{-2}$ e $10^{-1}$, \emph{acima} do CFL
+convectivo ($\approx 0{,}026$): a fronteira imersa não é o gargalo de
+estabilidade. O limite útil é de \textbf{acurácia} --- em $\dt = 5\times10^{-2}$,
+último estável, o resíduo é $63\%$ de $\max|\mathbf{u}|$, e o obstáculo deixou de
+ser obstáculo.
+
+\paragraph{Advertência de método.} A primeira versão deste varrimento foi até
+$2\times10^{-2}$ e \textbf{não encontrou limite algum}. Uma tabela inteiramente
+verde \emph{parece} resposta. Varrimento que não encontra a fronteira não mediu o
+que se pensa que mediu.
+
+\subsection{O erro do forçamento defasado escala com o número de Courant}
+
+\pgfplotstabletypeset[
+  columns/0/.style={column name={$h$}, fixed, precision=4},
+  columns/1/.style={column name={cél./$D$}, fixed, precision=0},
+  columns/2/.style={column name={$\dt$}, sci, precision=2},
+  columns/3/.style={column name={resíduo}, sci, precision=3},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{dados/refino-defasado.dat}
+
+\medskip
+Tempo físico fixo ($t = 0{,}2$). O resíduo é $O(\dt)$ \emph{puro} nas duas
+malhas --- razões $2{,}04$ e $2{,}02$ --- e \textbf{sem piso}. E a malha fina dá
+o dobro da grossa no mesmo $\dt$.
+
+Juntando as duas observações, o resíduo escala com $\dt/h$: o número de Courant.
+Faz sentido --- o erro da defasagem é $\dt\,\partial_t u$, e junto ao corpo
+$\partial_t u \sim u^2/h$. \textbf{Refinar a malha sem corrigir a defasagem
+piora o resíduo}, e é por isso que refinamento local só faz sentido \emph{depois}
+da mudança de formulação.
+
+\subsection{Rota pós-preditor e forçamento iterado}
+
+\pgfplotstabletypeset[
+  columns/0/.style={column name={iterações}, fixed, precision=0},
+  columns/1/.style={column name={resíduo}, sci, precision=3},
+  columns/2/.style={column name={ganho vs.\ defasado}, fixed, precision=1},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{dados/iteracoes.dat}
+
+\medskip
+Com $\dt = 10^{-3}$ e $t = 0{,}2$. Uma aplicação corta o resíduo pela
+\emph{metade}, não o zera --- consequência direta de
+$\mathcal{S}\mathcal{I}\neq\mathcal{I}$, e a razão pela qual a literatura
+itera~\cite{wang2008}. A convergência satura: dobrar de 5 para 10 iterações
+compra $1{,}38\times$; de 10 para 20, $1{,}40\times$.
+
+\subsection{\texorpdfstring{$\dt$}{dt} com a rota pós-preditor}
+
+\pgfplotstabletypeset[
+  columns/0/.style={column name={$\dt$}, sci, precision=2},
+  columns/1/.style={column name={Uhlmann, 5 it.}, sci, precision=3},
+  columns/2/.style={column name={defasado}, sci, precision=3},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{dados/varre-dt-uhlmann.dat}
+
+\medskip
+Abaixo de $2\times10^{-3}$ o resíduo \textbf{acha um patamar} ($\approx
+1{,}7\times10^{-3}$): é o piso que a formulação defasada nunca deixou aparecer,
+porque a rampa $O(\dt)$ o encobria.
+
+\paragraph{O ganho se converte em custo de máquina.} A rota pós-preditor em
+$\dt = 2\times10^{-2}$ é tão acurada quanto a defasada em $\dt = 10^{-3}$:
+\textbf{vinte vezes o passo para a mesma acurácia}.
+
+\subsection{Refinamento: \texorpdfstring{$\Cd$}{Cd} contra a referência}
+
+\pgfplotstabletypeset[
+  columns/0/.style={column name={cél./$D$}, fixed, precision=0},
+  columns/1/.style={column name={$h$}, fixed, precision=4},
+  columns/2/.style={column name={$\Cd$}, fixed, precision=6},
+  columns/3/.style={column name={$\Cl$}, fixed, precision=6},
+  columns/4/.style={column name={resíduo}, sci, precision=3},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{dados/refino-cd.dat}
+
+\medskip
+Rota pós-preditor com 5 iterações, $\dt = 5\times10^{-3}$, medidos no
+\emph{mesmo} instante $t = 14$, com $\Cd$ estável na quinta casa decimal entre
+quadros consecutivos.
+
+\begin{center}
+\begin{tabular}{lSS}
+  \toprule
+  & {20 cél./$D$} & {40 cél./$D$} \\
+  \midrule
+  erro em $\Cd$ & {$+2{,}62\%$} & {$+0{,}41\%$} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+A razão entre os erros é $6{,}4$ para um refinamento de $2$, o que dá inclinação
+de convergência $\approx 2{,}7$.
+
+\paragraph{Esse valor merece desconfiança.} A literatura mede inclinação
+$\approx 1{,}0$ para forçamento direto simples e $\approx 1{,}5$ para
+\emph{multi-direct forcing}. Obter $2{,}7$ é quase o dobro da melhor taxa
+publicada. Três explicações competem: (i) as iterações compram ordem; (ii) o erro
+da malha grossa tinha componentes que se cancelavam; (iii) algum detalhe da
+medida de $\Cd$ escala com $h$ de modo não previsto. \textbf{Dois pontos não
+distinguem as três} --- daí a terceira resolução.
+
+\paragraph{Observação que separa duas coisas.} A malha fina tem resíduo de não
+escorregamento \emph{pior} ($8{,}3\times10^{-3}$ contra $4{,}0\times10^{-3}$) e
+$\Cd$ \emph{melhor}. Resíduo e erro no arrasto não são a mesma quantidade: o
+primeiro mede escorregamento nos marcadores; o segundo depende de quão bem o
+escoamento em torno do corpo está resolvido.
