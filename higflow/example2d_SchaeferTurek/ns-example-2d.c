@@ -338,6 +338,24 @@ int main (int argc, char *argv[]) {
                 // "o marcador sumiu do rank" de "o marcador nao acha faceta"
                 real umax_l, fmax_l;
                 fi_locais_cru(obstaculo, &umax_l, &fmax_l);
+                // ONDE esta' o maior |u| do campo?  Se a instabilidade nasce na
+                // fronteira de refino, o ponto fica LA' -- e o x dele diz em qual
+                // fronteira.  Varre as facetas locais pelo instantaneo.
+                {
+                    real pior = 0.0; Point ondep; POINT_ASSIGN_SCALAR(ondep, 0.0);
+                    for (int dd = 0; dd < DIM; dd++) {
+                        sim_facet_domain *sf = psfd_get_local_domain(ns->psfdu[dd]);
+                        const hig_facet_snapshot *hfs = sfd_get_snapshot(sf);
+                        for (int fl = 0; fl < hfs->n; fl++) {
+                            const real v = fabs(dp_get_value(ns->dpu[dd], fl));
+                            if (v > pior) { pior = v; hfs_center(hfs, fl, ondep); }
+                        }
+                    }
+                    printf("===> PICO rank %d  t = %.4f  |u|max = %.4e  em (%.4f,%.4f)\n",
+                           myrank, (double) ns->par.t, (double) pior,
+                           (double) ondep[0], (double) ondep[1]);
+                    fflush(stdout);
+                }
                 printf("===> DIAG rank %d  t = %.4f  marcadores = %d  "
                        "suporte = %ld  |u|loc = %.4e  |f|loc = %.4e\n",
                        myrank, (double) ns->par.t,
