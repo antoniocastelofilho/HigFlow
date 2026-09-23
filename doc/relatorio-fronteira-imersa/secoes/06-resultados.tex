@@ -110,25 +110,43 @@ Rota pós-preditor com 5 iterações, $\dt = 5\times10^{-3}$, medidos no
 quadros consecutivos.
 
 \begin{center}
-\begin{tabular}{lSS}
+\begin{tabular}{lSSS}
   \toprule
-  & {20 cél./$D$} & {40 cél./$D$} \\
+  & {20 cél./$D$} & {40 cél./$D$} & {80 cél./$D$} \\
   \midrule
-  erro em $\Cd$ & {$+2{,}62\%$} & {$+0{,}41\%$} \\
+  erro em $\Cd$   & {$+2{,}62\%$} & {$+0{,}41\%$} & {$-1{,}38\%$} \\
+  resíduo relativo & {$0{,}22\%$}  & {$0{,}46\%$}  & {$0{,}93\%$} \\
   \bottomrule
 \end{tabular}
 \end{center}
 
-A razão entre os erros é $6{,}4$ para um refinamento de $2$, o que dá inclinação
-de convergência $\approx 2{,}7$.
+\paragraph{O erro troca de sinal, e o estudo está confundido.} A convergência
+não é monótona: o erro cruza o zero entre 40 e 80 células por diâmetro. A
+segunda linha da tabela explica por quê --- o resíduo \textbf{dobra a cada
+refinamento}, porque $\dt$ foi mantido fixo em $5\times10^{-3}$ e o resíduo
+escala com $\dt/h$.
 
-\paragraph{Esse valor merece desconfiança.} A literatura mede inclinação
-$\approx 1{,}0$ para forçamento direto simples e $\approx 1{,}5$ para
-\emph{multi-direct forcing}. Obter $2{,}7$ é quase o dobro da melhor taxa
-publicada. Três explicações competem: (i) as iterações compram ordem; (ii) o erro
-da malha grossa tinha componentes que se cancelavam; (iii) algum detalhe da
-medida de $\Cd$ escala com $h$ de modo não previsto. \textbf{Dois pontos não
-distinguem as três} --- daí a terceira resolução.
+As três corridas, portanto, \textbf{não têm qualidade equivalente de condição de
+contorno}: a mais fina tem quatro vezes o escorregamento da mais grossa. O $\Cd$
+medido é a soma de duas tendências opostas --- erro espacial caindo com $h$, erro
+de escorregamento subindo. Elas se cancelam perto de 40 células por diâmetro, e é
+esse cancelamento, não uma ordem de convergência alta, que produzia a inclinação
+aparente de $2{,}7$ entre os dois primeiros pontos.
+
+\paragraph{O que isso invalida e o que não invalida.} Não invalida a
+implementação nem os valores: cada $\Cd$ é o resultado correto \emph{para
+aquele par} $(h,\dt)$. Invalida a leitura de ordem de convergência, que exigiria
+manter o resíduo constante --- isto é, escalar $\dt$ com $h$. O custo disso na
+malha de 80 células é de aproximadamente 43~horas.
+
+\paragraph{A desconfiança estava certa, e a causa não era nenhuma das três
+que eu havia listado.} Com dois pontos, a inclinação aparente de $2{,}7$ era
+quase o dobro da melhor taxa publicada ($\approx 1{,}5$ para \emph{multi-direct
+forcing}), e três explicações competiam: as iterações comprarem ordem; o ponto da
+malha grossa estar fora da curva; ou algum detalhe da medida escalar com $h$. A
+terceira resolução mostrou que a causa era outra e mais simples: \textbf{a
+escolha de manter $\dt$ fixo introduziu no experimento uma tendência oposta à que
+se queria medir}.
 
 \paragraph{Observação que separa duas coisas.} A malha fina tem resíduo de não
 escorregamento \emph{pior} ($8{,}3\times10^{-3}$ contra $4{,}0\times10^{-3}$) e

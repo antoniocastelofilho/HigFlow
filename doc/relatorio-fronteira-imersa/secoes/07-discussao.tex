@@ -17,9 +17,10 @@
 \subsection{O que este trabalho não estabelece}
 
 \begin{itemize}
-  \item \textbf{A inclinação de convergência.} Dois pontos não a determinam, e o
-        valor obtido é quase o dobro do publicado. A terceira resolução está em
-        curso.
+  \item \textbf{A ordem de convergência.} Os três pontos medidos não a
+        determinam, porque foram obtidos com $\dt$ fixo e o resíduo dobra a cada
+        refinamento. Determiná-la exige manter o resíduo constante --- escalar
+        $\dt$ com $h$ --- ao custo de $\sim$43~horas na malha mais fina.
   \item \textbf{Nada sobre $\Cl$.} O suporte do núcleo é maior que a assimetria
         que o produz.
   \item \textbf{Nada em 3D quantitativamente.} A geometria 3D-1Z existe e roda,
@@ -79,10 +80,14 @@ Três ressalvas, na ordem em que doem:
 \subsection{Próximos passos}
 
 \begin{enumerate}
-  \item Terceira resolução (80 células/$D$), para decidir a inclinação de
-        convergência. \emph{Em curso.}
-  \item Se a inclinação se confirmar, refinamento local, com os pré-requisitos
-        acima.
+  \item \textbf{Separar as duas tendências.} O caminho barato não é repetir o
+        refinamento com $\dt$ escalado ($\sim$43~h na malha fina), e sim medir a
+        dependência de $\Cd$ com $\dt$ a \emph{malha fixa}: três corridas a 20
+        células por diâmetro, $\sim$8~h no total, que quantificam quanto do erro
+        vem do passo de tempo e permitem extrapolar $\dt \to 0$ em cada
+        resolução.
+  \item Só então a ordem de convergência, e, se ela se confirmar, refinamento
+        local com os pré-requisitos acima.
   \item Verificação 3D quantitativa contra o \emph{benchmark} 3D-1Z.
   \item Comparação com a rota de Lai--Peskin (ponto médio, duas avaliações de
         força por passo, sem iterar), que é a alternativa estrutural ao
