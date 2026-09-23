@@ -213,16 +213,38 @@ malha_t8_refinada (void *ctx, higio_amr_info **mi, int numhigs,
   if (!t8_produz_por_rank_brick_refinado (lo, hi, nb, cx_lo, cx_hi, niveis, &prod))
     return 0;
 
+  // NAO TRUNCAR EM SILENCIO.  O solver passa max = 64 arvores; uma caixa de
+  // refino grande produz MUITO mais caixas completas que isso, e descartar as
+  // excedentes deixa buracos na malha.
+  //
+  // MEDIDO: com a caixa [1;8]x[1;3] o corpo ficou numa regiao descartada, a
+  // interpolacao nao achou suporte nenhum, e a corrida deu Cd = 0, Cl = 0 e
+  // residuo 0 -- tres zeros perfeitos, que parecem "ainda nao comecou" e nao
+  // "a malha esta' furada".  Truncamento calado e' pior que falha.
+  if (prod.n_locais > max) {
+    int rank; MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+    if (rank == 0)
+      fprintf (stderr,
+        "malha_t8_refinada: a malha refinada precisa de %d caixas e o solver "
+        "aceita %d.\n"
+        "  A caixa de refino e' grande demais para esta representacao.\n"
+        "  Ou diminua HIGFLOW_REFINO_CAIXA, ou aumente `raizes[]` em\n"
+        "  higflow_partition_domain (hig-flow-kernel.c).\n",
+        prod.n_locais, max);
+    t8_producao_rank_destroi (&prod);
+    return 0;
+  }
+
   int n = 0;
-  for (int i = 0; i < prod.n_locais && n < max; i++) arvores[n++] = prod.locais[i];
+  for (int i = 0; i < prod.n_locais; i++) arvores[n++] = prod.locais[i];
   // As arvores passam para o chamador; nao destruir aqui.
   prod.n_locais = 0;
   t8_producao_rank_destroi (&prod);
 
   int rank; MPI_Comm_rank (MPI_COMM_WORLD, &rank);
   if (rank == 0)
-    printf ("=+=+=+= malha do t8code REFINADA: %d niveis na caixa "
-            "[%g,%g]x[%g,%g] =+=+=+=\n", niveis,
+    printf ("=+=+=+= malha do t8code REFINADA: %d niveis, %d caixas, na regiao "
+            "[%g,%g]x[%g,%g] =+=+=+=\n", niveis, n,
             (double) cx_lo[0], (double) cx_hi[0],
             (double) cx_lo[1], (double) cx_hi[1]);
   return n;
