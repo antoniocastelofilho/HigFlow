@@ -45,6 +45,30 @@ que se pensa que mediu.
   every last row/.style={after row=\bottomrule},
 ]{dados/refino-defasado.dat}
 
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{loglogaxis}[
+  width=0.78\textwidth, height=0.52\textwidth,
+  xlabel={$\dt$}, ylabel={resíduo de não escorregamento},
+  legend pos=north west, legend cell align=left,
+  grid=both, grid style={gray!25},
+]
+\addplot[thick, mark=*, color=black]
+  table[x index=2, y index=3] {dados/refino-defasado-h05.dat};
+\addlegendentry{$h=0{,}05$ (20 cél./$D$)}
+\addplot[thick, mark=triangle*, color=red!70!black]
+  table[x index=2, y index=3] {dados/refino-defasado-h025.dat};
+\addlegendentry{$h=0{,}025$ (40 cél./$D$)}
+\end{loglogaxis}
+\end{tikzpicture}
+\caption{Forçamento defasado: duas retas paralelas de inclinação~1, com a malha
+\emph{fina} acima da grossa. Refinar a malha \textbf{piora} o não
+escorregamento a $\dt$ fixo, porque o erro escala com $\dt/h$ --- o número de
+Courant.}
+\label{fig:residuo-refino}
+\end{figure}
+
 \medskip
 Tempo físico fixo ($t = 0{,}2$). O resíduo é $O(\dt)$ \emph{puro} nas duas
 malhas --- razões $2{,}04$ e $2{,}02$ --- e \textbf{sem piso}. E a malha fina dá
@@ -83,6 +107,31 @@ compra $1{,}38\times$; de 10 para 20, $1{,}40\times$.
   every last row/.style={after row=\bottomrule},
 ]{dados/varre-dt-uhlmann.dat}
 
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{loglogaxis}[
+  width=0.78\textwidth, height=0.52\textwidth,
+  xlabel={$\dt$}, ylabel={resíduo de não escorregamento},
+  legend pos=north west, legend cell align=left,
+  grid=both, grid style={gray!25},
+]
+\addplot[thick, mark=*, color=black]
+  table[x index=0, y index=2] {dados/varre-dt-uhlmann.dat};
+\addlegendentry{forçamento defasado}
+\addplot[thick, mark=square*, color=blue!70!black]
+  table[x index=0, y index=1] {dados/varre-dt-uhlmann.dat};
+\addlegendentry{pós-preditor, 5 iterações}
+\end{loglogaxis}
+\end{tikzpicture}
+\caption{Resíduo de não escorregamento contra $\dt$, $h=0{,}05$, tempo físico
+fixo $t=0{,}2$. O forçamento defasado é uma reta de inclinação~1 em toda a
+faixa: erro $O(\dt)$ sem piso. A rota pós-preditor \emph{encurva} abaixo de
+$\dt \approx 2\times10^{-3}$ e encontra um patamar --- o piso que a formulação
+defasada nunca deixou aparecer, porque a rampa o encobria.}
+\label{fig:residuo-dt}
+\end{figure}
+
 \medskip
 Abaixo de $2\times10^{-3}$ o resíduo \textbf{acha um patamar} ($\approx
 1{,}7\times10^{-3}$): é o piso que a formulação defasada nunca deixou aparecer,
@@ -119,6 +168,32 @@ quadros consecutivos.
   \bottomrule
 \end{tabular}
 \end{center}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{semilogxaxis}[
+  width=0.78\textwidth, height=0.52\textwidth,
+  xlabel={células por diâmetro}, ylabel={$\Cd$},
+  xtick={20,40,80}, xticklabels={20,40,80}, log basis x=2,
+  grid=both, grid style={gray!25},
+  legend pos=north east, legend cell align=left,
+]
+\addplot[thick, mark=*, color=blue!70!black]
+  table[x index=0, y index=2] {dados/refino-cd.dat};
+\addlegendentry{$\Cd$ medido}
+\addplot[thick, dashed, color=red!70!black, domain=15:110, samples=2]
+  {5.57953523384};
+\addlegendentry{referência (Nabh)}
+\end{semilogxaxis}
+\end{tikzpicture}
+\caption{$\Cd$ contra a resolução, com $\dt = 5\times10^{-3}$ \emph{fixo}. A
+curva \textbf{cruza} a referência entre 40 e 80 células por diâmetro: a
+convergência não é monótona. A causa não é o método, é o experimento --- com
+$\dt$ fixo o resíduo dobra a cada refinamento, e o $\Cd$ medido é a soma de duas
+tendências opostas.}
+\label{fig:cd-refino}
+\end{figure}
 
 \paragraph{O erro troca de sinal, e o estudo está confundido.} A convergência
 não é monótona: o erro cruza o zero entre 40 e 80 células por diâmetro. A

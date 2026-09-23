@@ -43,6 +43,31 @@ canal $[0;4{,}1]$ está a $2$ do fundo e $2{,}1$ do topo. A assimetria é do
 \emph{benchmark} e é ela que produz o $\Cl$ publicado; centralizar invalidaria a
 comparação.
 
+\subsection{Parâmetros numéricos}
+
+Reunidos num lugar só, porque espalhados eles não permitem reproduzir:
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  discretização temporal    & Euler semi-implícito \\
+  método de projeção        & incremental \\
+  discretização espacial    & segunda ordem \\
+  esquema convectivo        & \emph{upwind} de segunda ordem (CUBISTA) \\
+  solver linear             & PETSc \\
+  tolerâncias               & \texttt{atol} $=10^{-50}$, \texttt{rtol} $=10^{-5}$ \\
+  fronteira imersa          & núcleo de Roma (3 pontos), $\Delta s \approx h$ \\
+  iterações do forçamento   & 5 (salvo indicação) \\
+  franja da partição        & 5 células (\texttt{pg\_set\_fringe\_size}) \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+A franja de 5 células merece nota: o suporte do núcleo é $1{,}5$ células para
+cada lado, e a HiGTree usa franja~1 por omissão. Com franja~1 o suporte não
+caberia, e a contribuição perdida apareceria como força um pouco menor junto às
+fronteiras de partição --- que se lê como ``efeito de malha''.
+
 \subsection{Coeficientes e valores de referência}
 
 Nesta escala ($\rho=1$, $\bar{u}=1$, $D=1$),

@@ -29,6 +29,15 @@ estiver errado, ele está errado no `.dat`.
 2. atualizar, na Seção 6, a razão entre os erros e a inclinação de convergência;
 3. a Seção 7 tem um item "em curso" que passa a conclusão.
 
+## Figuras
+
+Três, todas geradas por `pgfplots` lendo os mesmos `.dat` das tabelas --- não há
+imagem pré-renderizada para ficar desatualizada:
+
+1. resíduo × `dt`, defasado contra pós-preditor (a rampa e o patamar);
+2. resíduo × `dt` nas duas malhas (duas retas paralelas: refinar piora);
+3. `Cd` × resolução, com a linha da referência (a troca de sinal).
+
 ## NÃO FOI COMPILADO
 
 Não há LaTeX nesta máquina — este projeto **nunca passou por um compilador**.
