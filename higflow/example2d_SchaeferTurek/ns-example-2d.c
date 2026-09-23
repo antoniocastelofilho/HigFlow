@@ -371,6 +371,9 @@ int main (int argc, char *argv[]) {
         printf("=+=+=+= NIVEL_TROCADO rank %d: %ld =+=+=+=\n",
                myrank, fi_suporte_nivel_trocado());
         fflush(stdout);
+        // A malha lagrangeana em VTK.  Sem isto o corpo nao aparece em lugar
+        // nenhum -- o escritor do solver grava so' a malha euleriana.
+        fi_escreve_vtk(obstaculo, argv[3], 0);
 
         // ARRASTO E SUSTENTACAO.  Nesta escala (adimensionalizada por D e pela
         // velocidade media) tem-se rho = 1, u_media = 1, D = 1, entao
