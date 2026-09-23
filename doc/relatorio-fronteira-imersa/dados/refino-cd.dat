@@ -1,0 +1,10 @@
+# celulas_por_D  h  Cd  Cl  residuo  residuo_rel_pct
+# Uhlmann 5 iteracoes, dt = 5e-3 FIXO, todos em t = 10
+#
+# ATENCAO: o dt FIXO confunde o estudo.  O residuo escala com dt/h, entao ele
+# DOBRA a cada refino -- as tres corridas nao tem qualidade equivalente de
+# condicao de contorno.  O erro no Cd troca de sinal entre 40 e 80 porque e' a
+# soma de duas tendencias opostas.  Ver a secao de discussao.
+20   0.05    5.725658  0.013184  4.0291e-03  0.22
+40   0.025   5.602506  0.011139  8.2844e-03  0.46
+80   0.0125  5.502503  0.009867  1.6756e-02  0.93

@@ -1,0 +1,12 @@
+# dt  residuo  max_u  veredito   (400 passos FIXOS, h=0,05, np=3)
+# As colunas sao STRING: os valores divergidos (1e96, 1e104...) estouram o
+# parser numerico do TeX, que nao passa de ~1e16384 sem a fpu.  Formatados aqui.
+0.001   4.20e-02   1.790    estavel
+0.002   8.93e-02   1.815    estavel
+0.005   2.24e-01   1.961    estavel
+0.01    3.98e-01   1.896    estavel
+0.02    6.45e-01   1.794    estavel
+0.05    1.01e+00   1.592    estavel
+0.1     1.5e+103   1.1e104  DIVERGIU
+0.2     1.1e+93    6.2e95   DIVERGIU
+0.4     2.2e+105   2.0e109  DIVERGIU

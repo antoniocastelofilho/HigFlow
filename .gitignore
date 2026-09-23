@@ -153,3 +153,8 @@ inspection_outputs/
 skills-lock.json
 graphify-out/
 **/graphify-out/
+
+# O *.dat acima mira saida de simulacao.  Os dados de MEDICAO do relatorio sao
+# fonte, nao saida: sao os numeros que as tabelas citam, e sem eles o relatorio
+# afirma resultados que nada no repositorio sustenta.
+!doc/relatorio-fronteira-imersa/dados/*.dat
