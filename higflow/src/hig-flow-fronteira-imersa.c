@@ -504,6 +504,7 @@ static long _suporte_nivel_trocado = 0;
 // mesmo sintoma (forca zero): marcador que sumiu do rank, e marcador que esta'
 // la' mas nao acha faceta.
 static long _suporte_achados = 0;
+static int  _diag_suporte = 0;   // ligado por FI_DIAG_SUPORTE, um marcador so'
 
 long fi_suporte_achados(void) { return _suporte_achados; }
 
@@ -660,6 +661,19 @@ static int _suporte(sim_facet_domain *sfd, int dim, const Point X, real h,
             }
         }
         if (lid < 0) { _suporte_perdidos++; continue; }
+        // COMPARACAO PEDIDA x ENCONTRADA.  A pergunta e' se a faceta devolvida
+        // esta' ONDE se pediu.  Ligada por FI_DIAG_SUPORTE para nao poluir
+        // corrida normal; imprime so' o primeiro marcador de cada chamada.
+        if (_diag_suporte) {
+            real dist = 0.0;
+            for (int d = 0; d < DIM; d++) dist += (cf[d]-p[d])*(cf[d]-p[d]);
+            dist = sqrt(dist);
+            fprintf(stderr, "  SUP dim=%d pedido=(%.5f,%.5f) achado=(%.5f,%.5f) "
+                            "dist=%.3e (h=%.4f)  lid=%d  peso=%.4f\n",
+                    dim, (double) p[0], (double) p[1],
+                    (double) cf[0], (double) cf[1], (double) dist, (double) h,
+                    lid, (double) w);
+        }
         lids[n]  = lid;
         pesos[n] = w;
         n++;
@@ -679,6 +693,8 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
     DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
     DMSwarmGetField(c->enxame, "h",          NULL, NULL, (void **) &hmar);
     _suporte_achados = 0;      // conta a chamada CORRENTE, nao o acumulado
+    static int _ja = 0;
+    _diag_suporte = (getenv("FI_DIAG_SUPORTE") != NULL) && (_ja++ % 200 == 0);
 
     int capac = FI_LARGURA;
     for (int d = 1; d < DIM; d++) capac *= FI_LARGURA;
@@ -689,7 +705,12 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
         Point X;
         for (int d = 0; d < DIM; d++) X[d] = pos[DIM*k + d];
         for (int dim = 0; dim < DIM; dim++) {
+            const int dg = _diag_suporte && (k == 0);
+            const int guarda = _diag_suporte; _diag_suporte = dg;
             const int m = _suporte(sfd[dim], dim, X, hmar[k], lids, pesos, capac);
+            _diag_suporte = guarda;
+            if (dg) fprintf(stderr, "  SUP marcador 0 em (%.5f,%.5f), h=%.4f, %d facetas\n",
+                            (double) X[0], (double) X[1], (double) hmar[k], m);
             _suporte_achados += m;
             real u = 0.0;
             // u(X) = SUM u(x) d_h(x-X) h^DIM, e o h^DIM cancela com o 1/h^DIM

@@ -570,10 +570,22 @@ t8_produz_por_rank_brick_refinado (const Point lo, const Point hi, const int nb[
   t8_forest_t f = t8_forest_new_uniform (cmesh, scheme, 0, 1, sc_MPI_COMM_WORLD);
 
   // Um nivel de cada vez: o t8code refina UMA vez por passada de adapt.
+  //
+  // BALANCEAMENTO PEDIDO, ao contrario do resto deste arquivo.  Os produtores de
+  // teste omitem `t8_forest_set_balance` de proposito -- e' o que permite exibir
+  // o 4:1 que o contrato de Mesh tolera.  Para um SOLVER isso nao serve: com
+  // salto 4:1 na fronteira de refino, o escoamento diverge.
+  //
+  // ATENCAO: pedir balanceamento NAO consertou a divergencia da caixa grande --
+  // com UM nivel de refino o salto ja' e' no maximo 2:1 por construcao, e os
+  // numeros da corrida saem IDENTICOS ate' o ultimo digito com e sem a chamada.
+  // Fica porque para `refinos > 1` ela passa a importar, e porque um solver nao
+  // deve depender de o usuario lembrar de pedir; mas nao foi a cura de nada.
   for (int r = 0; r < refinos; r++) {
     t8_forest_t novo;
     t8_forest_init (&novo);
     t8_forest_set_adapt (novo, f, adapt_caixa, 0);
+    t8_forest_set_balance (novo, NULL, 0);
     t8_forest_set_partition (novo, NULL, 0);
     t8_forest_commit (novo);
     f = novo;
