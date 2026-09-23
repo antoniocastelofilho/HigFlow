@@ -223,6 +223,46 @@ terceira resolução mostrou que a causa era outra e mais simples: \textbf{a
 escolha de manter $\dt$ fixo introduziu no experimento uma tendência oposta à que
 se queria medir}.
 
+\subsection{Refinamento local}
+
+Malha base de 20 células por diâmetro, com \textbf{um nível de refinamento} numa
+caixa $[1;3{,}5]\times[1;3]$ em torno do cilindro --- produzida pelo t8code
+(\texttt{HIGFLOW\_MALHA=t8code-refinada}), não lida de arquivo.
+
+\begin{center}
+\begin{tabular}{lrSSS}
+  \toprule
+  malha & {células} & {$\Cd$} & {erro} & {min./$t$} \\
+  \midrule
+  uniforme, 20 cél./$D$ &  36\,080 & 5.725658 & {$+2{,}62\%$} & {---} \\
+  uniforme, 40 cél./$D$ & 144\,320 & 5.602506 & {$+0{,}41\%$} & 16.5 \\
+  \textbf{refinada}     &  42\,080 & 5.629576 & {$+0{,}90\%$} & 2.0 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{A condição de contorno reproduz; o escoamento não.} O resíduo da
+malha refinada é $8{,}34\times10^{-3}$, contra $8{,}28\times10^{-3}$ da uniforme
+fina --- praticamente idêntico, como esperado, já que depende do $h$ local junto
+ao corpo, que é o mesmo nas duas. Mas o $\Cd$ fica $0{,}48\%$ acima do da
+uniforme fina. \textbf{A diferença está fora da caixa de refinamento.}
+
+O suspeito é geométrico: a caixa termina em $x=3{,}5$, um diâmetro e meio a
+jusante, e em $\mathrm{Re}=20$ a bolha de recirculação é da ordem de dois a três
+diâmetros. A esteira sai da região fina antes de se fechar.
+
+\paragraph{O custo cai mais do que a contagem de células sugere.} São $3{,}4$
+vezes menos células que a uniforme fina, mas \textbf{oito vezes} menos tempo de
+máquina --- 2{,}0 contra 16{,}5 minutos por unidade de tempo, no mesmo número de
+processos. A diferença extra vem da solução de pressão, que escala pior que
+linearmente.
+
+\paragraph{A instrumentação não pegaria isto.} A guarda
+\texttt{fi\_suporte\_nivel\_trocado} deu zero em todos os processos, e
+corretamente: ela verifica se o \emph{suporte dos marcadores} atravessa uma
+fronteira de refinamento. Não diz nada sobre a esteira. A guarda está certa e é
+insuficiente --- proteger o corpo não é proteger o escoamento.
+
 \paragraph{Observação que separa duas coisas.} A malha fina tem resíduo de não
 escorregamento \emph{pior} ($8{,}3\times10^{-3}$ contra $4{,}0\times10^{-3}$) e
 $\Cd$ \emph{melhor}. Resíduo e erro no arrasto não são a mesma quantidade: o

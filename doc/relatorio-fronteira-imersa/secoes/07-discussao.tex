@@ -56,7 +56,50 @@ posse euleriana, porém, \textbf{destrói a ordem da curva} --- correto e barato
 para o caso rígido, inviável para o outro, que precisa de vizinhos para calcular
 curvatura.
 
-\subsection{Refinamento local}
+\subsection{Refinamento local --- implementado}
+
+\textbf{Está feito e mede.} O $h$ do núcleo deixou de ser global e passou a ser
+lido da célula que contém cada marcador; uma quarta fonte de malha
+(\texttt{t8code-refinada}) produz, via t8code, uma malha refinada numa caixa; e
+uma guarda verifica que o suporte de nenhum marcador atravessa fronteira de
+refinamento. Tudo verificado em $np=1,2,3$, inclusive a acumulação
+franja\,$\to$\,dono através das fronteiras de partição.
+
+Dois resultados, um esperado e um não:
+
+\begin{itemize}
+  \item \textbf{Esperado:} o resíduo de não escorregamento da malha refinada
+        iguala o da uniforme fina. A qualidade da condição de contorno depende do
+        $h$ local, e ele é o mesmo.
+  \item \textbf{Não esperado:} o $\Cd$ fica $0{,}48\%$ acima da uniforme fina.
+        A diferença está \emph{fora} da caixa, provavelmente na esteira, que sai
+        da região fina antes de se fechar.
+\end{itemize}
+
+E um ganho maior do que o previsto: \textbf{oito vezes} menos tempo de máquina,
+contra $3{,}4$ vezes menos células.
+
+\paragraph{O que isso significa para 3D.} A malha uniforme de 40 células por
+diâmetro custaria $\sim$27 milhões de células; com refinamento local em torno do
+corpo, a ordem cai para alguns milhões. É a diferença entre impossível e caro.
+
+\subsection{Por que t8code e não a máquina de AMR da HiGTree}
+
+O refinamento aqui é \textbf{estático}: a malha é construída antes de
+particionar e não muda durante a corrida. Isso basta para corpo rígido e fixo, e
+funciona em paralelo hoje.
+
+A adaptação \emph{dinâmica} da HiGTree --- reparticionar depois de adaptar ---
+está quebrada em $np=2$ (\texttt{example2d\_DynamicMeshAdapt}), e a causa está
+documentada em \texttt{higtree/src/pdomain.c}: os tipos derivados do MPI são
+construídos independentemente por cada processo a partir da sua própria árvore, e
+numa interface de refinamento a enumeração de facetas deixa de ser função só do
+bloco. A cura muda o protocolo da franja.
+
+Não está no caminho deste trabalho, e a razão é estratégica: a escalabilidade
+paralela dessa máquina é justamente o que motivou integrar o t8code.
+
+\subsection{Refinamento local: a teoria}
 
 É o caminho da literatura: o erro é de ordem~1 \emph{junto} à interface e ordem~2
 longe dela~\cite{lai2000,griffith2005}, e o método adaptativo de
@@ -76,6 +119,10 @@ Três ressalvas, na ordem em que doem:
         ditado pela menor célula. O custo de refinar é $(1/h)^{D+1}$, e o
         refinamento local ataca apenas $D$ desse expoente.
 \end{enumerate}
+
+Das três, apenas a primeira foi resolvida. A segunda \textbf{não} foi: o núcleo
+continua normalizado para um único $h$, e a restrição --- corpo inteiramente
+dentro de um nível --- é imposta e verificada, não superada.
 
 \subsection{Próximos passos}
 
