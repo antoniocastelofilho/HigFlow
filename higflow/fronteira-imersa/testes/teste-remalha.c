@@ -40,8 +40,11 @@
 #define YCORTE  0.50
 #define FOLGA   1.0e-9
 
+static int g_constante = 0;      // 1: campo uniforme, para o oraculo de facetas
+
 static real campo_centro(const Point x)
 {
+    if (g_constante) return 7.25;
     real v = 1.0 + x[0] + 10.0 * x[1];
 #if DIM == 3
     v += 100.0 * x[2];
@@ -50,6 +53,7 @@ static real campo_centro(const Point x)
 }
 static real campo_faceta(int dim, const Point x)
 {
+    if (g_constante) return 7.25 + 100.0 * dim;   // constante, distinta por direcao
     return 1000.0 * (dim + 1) + campo_centro(x);
 }
 
@@ -204,6 +208,249 @@ static void checa(int rank, const char *o_que, int ok)
     if (rank == 0) printf("  %-54s %s\n", o_que, todos ? "ok" : "FALHOU");
 }
 
+// A integral do campo: soma valor * volume nas celulas PROPRIAS.  E' a
+// quantidade que a interpolacao conservativa tem de preservar, qualquer que
+// seja o campo -- e' isso que "conservativa" quer dizer.
+typedef struct { distributed_property *dp; double soma; } Integral;
+
+static void _integra_c(int lid, const Point x, void *v)
+{
+    (void) x;
+    Integral *I = (Integral *) v;
+    I->soma += dp_get_value(I->dp, lid);     // peso entra fora, ver abaixo
+}
+
+// Para celula e faceta o peso e' o volume (ou a area) da entidade.  Como a
+// malha e' dyadica e o valor e' constante por entidade, e' preciso o tamanho --
+// entao a soma e' feita percorrendo a malha diretamente, e nao pelo visitante.
+static double integral_centro(Malha *M)
+{
+    mp_mapper *m = sd_get_domain_mapper(M->sd);
+    const int nloc = M->dpc->pdata->local_count;
+    double s = 0.0;
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(M->sd); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        const int lid = mp_lookup(m, hig_get_cid(c));
+        if (lid < 0 || lid >= nloc) continue;
+        Point cl, ch;
+        hig_get_lowpoint(c, cl);
+        hig_get_highpoint(c, ch);
+        double vol = 1.0;
+        for (int d = 0; d < DIM; d++) vol *= (ch[d] - cl[d]);
+        s += dp_get_value(M->dpc, lid) * vol;
+    }
+    higcit_destroy(it);
+    return s;
+}
+
+static double integral_faceta(Malha *M, int dim)
+{
+    mp_mapper *m = M->sfd[dim]->fm;
+    const int nloc = M->dpu[dim]->pdata->local_count;
+    double s = 0.0;
+    for (int k = 0; k < sd_get_num_higtrees(M->sd); k++) {
+        hig_cell *root = sd_get_higtree(M->sd, k);
+        Point blo, bhi;
+        POINT_ASSIGN_SCALAR(blo, -1.0); POINT_ASSIGN_SCALAR(bhi, 2.0);
+        higfit_facetiterator *fit;
+        for (fit = higfit_create_bounding_box_facets(root,
+                    M->sfd[dim]->dimofinterest, blo, bhi);
+             !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+            hig_facet *f = higfit_getfacet(fit);
+            const int lid = mp_lookup(m, hig_get_fid(f));
+            if (lid < 0 || lid >= nloc) continue;
+            hig_cell *c = hig_get_facet_cell(f);
+            Point cl, ch;
+            hig_get_lowpoint(c, cl);
+            hig_get_highpoint(c, ch);
+            double area = 1.0;               // area da faceta: o produto das
+            for (int d = 0; d < DIM; d++)    // extensoes MENOS a normal
+                if (d != dim) area *= (ch[d] - cl[d]);
+            s += dp_get_value(M->dpu[dim], lid) * area;
+        }
+        higfit_destroy(fit);
+    }
+    return s;
+}
+
+static double global(double x)
+{
+    double g = 0.0;
+    MPI_Allreduce(&x, &g, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    return g;
+}
+
+// Uma transferencia completa: colhe de `de`, planta em `para`, interpola o que
+// faltou, e afirma as tres coisas que importam.
+static int transfere(int rank, int ntasks, const char *nome, Malha *de, Malha *para)
+{
+    // Semeia a origem e mede a integral dela.
+    { Semeia s = { de->dpc, -1 }; percorre_centro(de, _semeia_c, &s); }
+    for (int d = 0; d < DIM; d++) { Semeia s = { de->dpu[d], d }; percorre_faceta(de, d, _semeia_f, &s); }
+
+    double Ic_antes = global(integral_centro(de));
+    double If_antes[DIM];
+    for (int d = 0; d < DIM; d++) If_antes[d] = global(integral_faceta(de, d));
+
+    // SONDA: quantas facetas PROPRIAS existem no plano x = 1,0 (a fronteira do
+    // dominio) na origem?  Se forem zero, a colheita nao as publica, e o pai do
+    // plano do meio adjacente a' borda nunca sera' achado.
+    if (getenv("REMALHA_ONDE") != NULL) {
+        mp_mapper *mm = de->sfd[0]->fm;
+        const int nl = de->dpu[0]->pdata->local_count;
+        long na_borda = 0, total = 0;
+        for (int k = 0; k < sd_get_num_higtrees(de->sd); k++) {
+            hig_cell *root = sd_get_higtree(de->sd, k);
+            Point blo, bhi;
+            POINT_ASSIGN_SCALAR(blo, -1.0); POINT_ASSIGN_SCALAR(bhi, 2.0);
+            higfit_facetiterator *fit;
+            for (fit = higfit_create_bounding_box_facets(root,
+                        de->sfd[0]->dimofinterest, blo, bhi);
+                 !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+                hig_facet *ff = higfit_getfacet(fit);
+                const int lid = mp_lookup(mm, hig_get_fid(ff));
+                if (lid < 0 || lid >= nl) continue;
+                Point fc;
+                hig_get_facet_center(ff, fc);
+                total++;
+                {
+                    const char *xs = getenv("REMALHA_PLANO");
+                    const double xp = xs ? atof(xs) : 1.0;
+                    if (fabs(fc[0] - xp) < 1e-9) na_borda++;
+                }
+            }
+            higfit_destroy(fit);
+        }
+        printf("     [sonda] origem dim 0: %ld facetas proprias, %ld no plano pedido\n",
+               total, na_borda);
+        fflush(stdout);
+    }
+
+    rem_colheita *hc = rem_colhe_centro(de->sd, de->dpc);
+    rem_colheita *hf[DIM];
+    for (int d = 0; d < DIM; d++) hf[d] = rem_colhe_faceta(de->sfd[d], de->dpu[d]);
+
+    // Zera o destino, para que "ficou com valor" signifique "foi preenchido".
+    for (int i = 0; i < para->dpc->pdata->total_count; i++) dp_set_value(para->dpc, i, 0.0);
+    for (int d = 0; d < DIM; d++)
+        for (int i = 0; i < para->dpu[d]->pdata->total_count; i++) dp_set_value(para->dpu[d], i, 0.0);
+
+    char *ac = (char *) calloc((size_t) para->dpc->pdata->total_count, 1);
+    rem_planta_centro(hc, para->sd, para->dpc, ac);
+    long exatos_c = 0;
+    { Confere C = { para->dpc, ac, -1, 0, 0, 0 }; percorre_centro(para, _confere, &C);
+      exatos_c = C.erradas; }
+
+    long faltam = rem_interpola_centro(hc, para->sd, para->dpc, ac);
+    for (int d = 0; d < DIM; d++) {
+        char *af = (char *) calloc((size_t) para->dpu[d]->pdata->total_count, 1);
+        rem_planta_faceta(hf[d], para->sfd[d], para->dpu[d], af);
+        faltam += rem_interpola_faceta(hf[d], para->sfd[d], para->dpu[d], af);
+        free(af);
+    }
+    free(ac);
+
+    double Ic_dep = global(integral_centro(para));
+    double If_dep[DIM];
+    for (int d = 0; d < DIM; d++) If_dep[d] = global(integral_faceta(para, d));
+
+    long g[2] = { faltam, exatos_c }, gs[2];
+    MPI_Allreduce(g, gs, 2, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    long refino = 0, engross = 0, gr[2], gg[2];
+    rem_interpolou(&refino, &engross);
+    gr[0] = refino; gr[1] = engross;
+    MPI_Allreduce(gr, gg, 2, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+    if (rank == 0) printf("\n%s  (np = %d)\n", nome, ntasks);
+
+    const double rel_c = fabs(Ic_dep - Ic_antes) / (fabs(Ic_antes) + 1e-300);
+    double rel_f = 0.0;
+    for (int d = 0; d < DIM; d++) {
+        const double r = fabs(If_dep[d] - If_antes[d]) / (fabs(If_antes[d]) + 1e-300);
+        if (r > rel_f) rel_f = r;
+    }
+
+    // Conferir o campo em TODA entidade do destino -- inclusive as que a
+    // interpolacao preencheu.  Com campo constante, as tres rotas tem de
+    // devolver a constante exata: filha recebe o da mae, mae recebe a media das
+    // filhas, e a faceta do meio recebe a media das duas paralelas.
+    long fora_c = 0, fora_f = 0;
+    if (g_constante) {
+        Confere C = { para->dpc, NULL, -1, 0, 0, 0 };
+        percorre_centro(para, _confere, &C);
+        fora_c = C.erradas;
+        for (int d = 0; d < DIM; d++) {
+            Confere F = { para->dpu[d], NULL, d, 0, 0, 0 };
+            percorre_faceta(para, d, _confere, &F);
+            fora_f += F.erradas;
+        }
+        // ONDE falham.  "Falha" sem sitio nao e' diagnostico.
+        if (getenv("REMALHA_ONDE") != NULL) {
+            for (int d = 0; d < DIM; d++) {
+                mp_mapper *mm = para->sfd[d]->fm;
+                const int nl = para->dpu[d]->pdata->local_count;
+                int mostrados = 0;
+                for (int k = 0; k < sd_get_num_higtrees(para->sd) && mostrados < 6; k++) {
+                    hig_cell *root = sd_get_higtree(para->sd, k);
+                    Point blo, bhi;
+                    POINT_ASSIGN_SCALAR(blo, -1.0); POINT_ASSIGN_SCALAR(bhi, 2.0);
+                    higfit_facetiterator *fit;
+                    for (fit = higfit_create_bounding_box_facets(root,
+                                para->sfd[d]->dimofinterest, blo, bhi);
+                         !higfit_isfinished(fit) && mostrados < 6; higfit_nextfacet(fit)) {
+                        hig_facet *ff = higfit_getfacet(fit);
+                        const int lid = mp_lookup(mm, hig_get_fid(ff));
+                        if (lid < 0 || lid >= nl) continue;
+                        Point fc;
+                        hig_get_facet_center(ff, fc);
+                        const real esp = campo_faceta(d, fc);
+                        const real got = dp_get_value(para->dpu[d], lid);
+                        if (got == esp) continue;
+                        hig_cell *cc = hig_get_facet_cell(ff);
+                        Point cl, ch;
+                        hig_get_lowpoint(cc, cl); hig_get_highpoint(cc, ch);
+                        printf("     FALHA dim=%d faceta (%.4f,%.4f) celula %.4fx%.4f "
+                               "valor %.3f esperado %.3f\n",
+                               d, fc[0], fc[1], ch[0]-cl[0], ch[1]-cl[1], got, esp);
+                        mostrados++;
+                    }
+                    higfit_destroy(fit);
+                }
+            }
+            fflush(stdout);
+        }
+    }
+    long gf[2] = { fora_c, fora_f }, gfs[2];
+    MPI_Allreduce(gf, gfs, 2, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+    checa(rank, "1. nada ficou sem valor", gs[0] == 0);
+    checa(rank, "2. o que veio exato esta' bit a bit igual", gs[1] == 0);
+    checa(rank, "3. integral de centro preservada", rel_c < 1e-12);
+    // A INTEGRAL DE FACETA NAO E' INVARIANTE, e exigi-la era erro meu.  Refinar
+    // cria faceta no plano do MEIO, que no nivel grosso era interior: ela soma
+    // fluxo que antes nao existia.  Somar u*A sobre TODAS as facetas portanto
+    // muda, e deve mudar.  O que a transferencia tem de garantir e' que o campo
+    // constante saia constante -- e isso vale nas tres rotas.
+    if (g_constante) {
+        checa(rank, "4. campo constante reproduzido em toda celula", gfs[0] == 0);
+        checa(rank, "5. campo constante reproduzido em toda faceta", gfs[1] == 0);
+    }
+    // Sem isto, uma transferencia que nunca interpolasse passaria em 1-4.
+    checa(rank, "6. a interpolacao foi exercitada", gg[0] + gg[1] > 0);
+    if (rank == 0)
+        printf("     (%ld por refino, %ld por engrossamento; erro relativo na\n"
+               "      integral: centro %.2e, faceta %.2e)\n",
+               gg[0], gg[1], rel_c, rel_f);
+
+    for (int d = 0; d < DIM; d++) rem_destroi(hf[d]);
+    rem_destroi(hc);
+    (void) rel_f;
+    return (gs[0] != 0) || (gs[1] != 0) || !(rel_c < 1e-12) ||
+           (gg[0] + gg[1] == 0) || (gfs[0] != 0) || (gfs[1] != 0);
+}
+
 int main(int argc, char *argv[])
 {
     MPI_Init(&argc, &argv);
@@ -212,68 +459,25 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
 
-    Malha A = monta(rank, 0);
-    { Semeia s = { A.dpc, -1 }; percorre_centro(&A, _semeia_c, &s); }
-    for (int d = 0; d < DIM; d++) { Semeia s = { A.dpu[d], d }; percorre_faceta(&A, d, _semeia_f, &s); }
-
-    rem_colheita *hc = rem_colhe_centro(A.sd, A.dpc);
-    long colisoes = rem_colisoes();
-    rem_colheita *hf[DIM];
-    for (int d = 0; d < DIM; d++) { hf[d] = rem_colhe_faceta(A.sfd[d], A.dpu[d]); colisoes += rem_colisoes(); }
+    Malha A = monta(rank, 0);      // sem a regiao extra
+    Malha B = monta(rank, 1);      // com a regiao extra refinada
 
     int falhou = 0;
-    for (int parte = 0; parte < 2; parte++) {
-        const int extra = parte;      // 0: mesma malha.  1: malha mudada.
-        Malha D = monta(rank, extra);
-
-        char *ac = (char *) calloc((size_t) D.dpc->pdata->total_count, 1);
-        long perdidas = rem_planta_centro(hc, D.sd, D.dpc, ac);
-        long fora = rem_vieram_de_outro_rank();
-        Confere Cc = { D.dpc, ac, -1, 0, 0, 0 };
-        percorre_centro(&D, _confere, &Cc);
-
-        long erradas = Cc.erradas, buracos = Cc.buracos_fora, novas = Cc.novas;
-        for (int d = 0; d < DIM; d++) {
-            char *af = (char *) calloc((size_t) D.dpu[d]->pdata->total_count, 1);
-            perdidas += rem_planta_faceta(hf[d], D.sfd[d], D.dpu[d], af);
-            fora += rem_vieram_de_outro_rank();
-            Confere Cf = { D.dpu[d], af, d, 0, 0, 0 };
-            percorre_faceta(&D, d, _confere, &Cf);
-            erradas += Cf.erradas; buracos += Cf.buracos_fora; novas += Cf.novas;
-            free(af);
-        }
-        free(ac);
-
-        long g[6] = { colisoes, perdidas, fora, erradas, buracos, novas }, gs[6];
-        MPI_Allreduce(g, gs, 6, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-
+    // As DUAS direcoes.  So' refinar deixaria o caminho de engrossamento sem
+    // teste nenhum, e ele e' metade do codigo.
+    for (int passo = 0; passo < 2; passo++) {
+        g_constante = passo;
         if (rank == 0)
-            printf("\nPARTE %d -- malha %s, np = %d\n", parte + 1,
-                   extra ? "MUDADA (B refina x>0,75 e y>0,5)" : "IGUAL", ntasks);
-
-        checa(rank, "1. sem colisao de chave na colheita", gs[0] == 0);
-        checa(rank, "2. todo valor achado voltou bit a bit igual", gs[3] == 0);
-        checa(rank, "3. nenhum buraco fora da regiao que mudou", gs[4] == 0);
-        if (!extra) {
-            checa(rank, "4. malha igual: nada ficou sem valor", gs[1] == 0);
-            if (rank == 0)
-                printf("     (particao igual: %ld valores mudaram de rank --\n"
-                       "      por isso esta parte NAO afirma a redistribuicao)\n", gs[2]);
-            falhou |= (gs[0] != 0) || (gs[3] != 0) || (gs[4] != 0) || (gs[1] != 0);
-        } else {
-            checa(rank, "4. malha mudada: houve celula nova, e foi reportada", gs[5] > 0);
-            if (ntasks > 1)
-                checa(rank, "5. houve valor vindo de OUTRO rank (nao vazio)", gs[2] > 0);
-            if (rank == 0)
-                printf("     (%ld valores mudaram de rank, %ld posicoes novas)\n",
-                       gs[2], gs[5]);
-            falhou |= (gs[0] != 0) || (gs[3] != 0) || (gs[4] != 0) || (gs[5] == 0) ||
-                      (ntasks > 1 && gs[2] == 0);
-        }
+            printf("\n========== campo %s ==========\n",
+                   g_constante ? "CONSTANTE (afirma toda entidade, inclusive as interpoladas)"
+                               : "analitico (afirma exatidao do que casou, e a integral de centro)");
+        falhou |= transfere(rank, ntasks, "A -> B  (refina)", &A, &B);
+        falhou |= transfere(rank, ntasks, "B -> A  (engrossa)", &B, &A);
     }
 
-    rem_destroi(hc);
-    for (int d = 0; d < DIM; d++) rem_destroi(hf[d]);
+    if (rank == 0)
+        printf("\n%s\n", falhou ? "FALHOU" : "todas as afirmacoes passaram");
+
     PetscFinalize();
     MPI_Finalize();
     return falhou;

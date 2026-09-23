@@ -412,6 +412,374 @@ long rem_planta_faceta(rem_colheita *h, sim_facet_domain *sfd,
     return perdidas;
 }
 
+// -----------------------------------------------------------------------------
+// Interpolacao conservativa
+// -----------------------------------------------------------------------------
+
+static long _por_refino = 0, _por_engrossamento = 0, _parciais = 0;
+
+void rem_interpolou(long *r, long *e)
+{
+    if (r) *r = _por_refino;
+    if (e) *e = _por_engrossamento;
+}
+
+long rem_engrossamento_parcial(void) { return _parciais; }
+
+// Consulta em lote: `nk` chaves por item, `n` itens.  Devolve, por chave, se foi
+// achada e o valor.  E' o `_planta` sem a escrita, e sem amarrar a id local.
+static void _consulta(rem_colheita *h, const Chave *chaves, long total,
+                      char *achou, real *valor)
+{
+    int ntasks, rank;
+    MPI_Comm_size (h->comm, &ntasks);
+    MPI_Comm_rank (h->comm, &rank);
+
+    int *destino = (int *) malloc ((size_t) (total > 0 ? total : 1) * sizeof *destino);
+    for (long i = 0; i < total; i++) destino[i] = _anfitriao (chaves[i].k, ntasks);
+
+    int *env_cnt  = (int *) malloc ((size_t) ntasks * sizeof *env_cnt);
+    int *env_desl = (int *) malloc ((size_t) ntasks * sizeof *env_desl);
+    int *rec_cnt  = (int *) malloc ((size_t) ntasks * sizeof *rec_cnt);
+    int *rec_desl = (int *) malloc ((size_t) ntasks * sizeof *rec_desl);
+
+    long nped = 0;
+    Chave *chegou = (Chave *) _troca (chaves, destino, total, sizeof (Chave),
+                                      h->comm, &nped,
+                                      env_cnt, env_desl, rec_cnt, rec_desl);
+
+    Par *resp = (Par *) malloc ((size_t) (nped > 0 ? nped : 1) * sizeof *resp);
+    for (long i = 0; i < nped; i++) {
+        const Par *p = _acha (h->hosp, h->n_hosp, chegou[i].k);
+        resp[i].v = (p != NULL) ? p->v : 0.0;
+        resp[i].origem = (p != NULL) ? p->origem : -1;
+        memcpy (resp[i].k, chegou[i].k, sizeof resp[i].k);
+    }
+    free (chegou);
+
+    const long prev = (long) env_desl[ntasks-1] + env_cnt[ntasks-1];
+    Par *devolvido = (Par *) malloc ((size_t) (prev > 0 ? prev : 1) * sizeof *devolvido);
+    MPI_Datatype item;
+    MPI_Type_contiguous ((int) sizeof (Par), MPI_BYTE, &item);
+    MPI_Type_commit (&item);
+    MPI_Alltoallv (resp, rec_cnt, rec_desl, item,
+                   devolvido, env_cnt, env_desl, item, h->comm);
+    MPI_Type_free (&item);
+
+    int *cursor = (int *) malloc ((size_t) ntasks * sizeof *cursor);
+    memcpy (cursor, env_desl, (size_t) ntasks * sizeof *cursor);
+    for (long i = 0; i < total; i++) {
+        const Par *r = &devolvido[cursor[destino[i]]++];
+        achou[i] = (r->origem >= 0);
+        valor[i] = r->v;
+    }
+    free (cursor); free (devolvido); free (resp); free (destino);
+    free (env_cnt); free (env_desl); free (rec_cnt); free (rec_desl);
+}
+
+// O nucleo, comum a celula e faceta: dadas as posicoes que faltam e o tamanho
+// de cada uma, tenta PAI (2^DIM candidatos, no maximo um existe) e depois
+// FILHAS (2^DIM, todas tem de existir).
+//
+// `dir_livre[d]` diz em que direcoes a entidade se subdivide.  Para celula sao
+// todas; para faceta, todas MENOS a normal -- uma faceta nao se parte na
+// direcao em que ela e' plana.
+// `exige_todas` distingue celula de faceta.  Para CELULA as 2^DIM filhas sempre
+// existem, e aceitar menos mascararia defeito.  Para FACETA nao: numa interface
+// de refino a malha de origem pode nao carregar as sub-facetas como graus de
+// liberdade -- MEDIDO, a malha refinada do teste tem 16 facetas no plano da
+// interface onde a grossa tem 24.
+static long _interpola_nucleo(rem_colheita *h, const Point *pos, const Point *tam,
+                              const int *dir_livre, long n, real *saida, char *ok,
+                              int exige_todas)
+{
+    // SEM SAIDA ANTECIPADA POR n == 0.  `_consulta` e' COLETIVA: um rank que
+    // nao tenha nada a interpolar e volte aqui deixa os outros esperando para
+    // sempre no MPI_Alltoall.  Eu escrevi o aviso disso em `rem_interpola_centro`
+    // e mesmo assim pus um `if (n <= 0) return` aqui -- e travou em np=3.
+    // Com n == 0 os lacos nao iteram e a troca vai com contagem zero, que e'
+    // legitima.
+
+    int nlivres = 0;
+    for (int d = 0; d < DIM; d++) if (dir_livre[d]) nlivres++;
+    const int nc = 1 << nlivres;          // candidatos a pai, e filhas
+
+    Chave *q = (Chave *) malloc ((size_t) n * nc * sizeof *q);
+    char  *a = (char *)  malloc ((size_t) n * nc);
+    real  *v = (real *)  malloc ((size_t) n * nc * sizeof *v);
+
+    // --- PAI: centro +- tam/2 nas direcoes livres -----------------------------
+    for (long i = 0; i < n; i++) {
+        for (int c = 0; c < nc; c++) {
+            Point x;
+            POINT_ASSIGN (x, pos[i]);
+            int bit = 0;
+            for (int d = 0; d < DIM; d++) {
+                if (!dir_livre[d]) continue;
+                x[d] += ((c >> bit) & 1) ? 0.5 * tam[i][d] : -0.5 * tam[i][d];
+                bit++;
+            }
+            _chave (x, q[i * nc + c].k);
+        }
+    }
+    _consulta (h, q, (long) n * nc, a, v);
+
+    long faltam = 0;
+    for (long i = 0; i < n; i++) {
+        if (ok[i]) continue;
+        int achados = 0;
+        real val = 0.0;
+        for (int c = 0; c < nc; c++)
+            if (a[i * nc + c]) { achados++; val = v[i * nc + c]; }
+        if (achados == 1) {          // exatamente um pai: o caso sem ambiguidade
+            saida[i] = val;
+            ok[i] = 1;
+            _por_refino++;
+        }
+    }
+
+    // --- FILHAS: centro +- tam/4 nas direcoes livres, TODAS necessarias -------
+    for (long i = 0; i < n; i++) {
+        for (int c = 0; c < nc; c++) {
+            Point x;
+            POINT_ASSIGN (x, pos[i]);
+            int bit = 0;
+            for (int d = 0; d < DIM; d++) {
+                if (!dir_livre[d]) continue;
+                x[d] += ((c >> bit) & 1) ? 0.25 * tam[i][d] : -0.25 * tam[i][d];
+                bit++;
+            }
+            _chave (x, q[i * nc + c].k);
+        }
+    }
+    _consulta (h, q, (long) n * nc, a, v);
+
+    for (long i = 0; i < n; i++) {
+        if (ok[i]) continue;
+        int achados = 0;
+        real soma = 0.0;
+        for (int c = 0; c < nc; c++)
+            if (a[i * nc + c]) { achados++; soma += v[i * nc + c]; }
+        if (achados == nc) {         // volumes iguais: media simples E' em volume
+            saida[i] = soma / (real) nc;
+            ok[i] = 1;
+            _por_engrossamento++;
+        } else if (!exige_todas && achados > 0) {
+            // Interface de refino: a malha de origem pode nao carregar todas as
+            // sub-facetas como graus de liberdade.  A media do que existe e' a
+            // melhor informacao disponivel -- exata para campo constante -- e
+            // fica contada a' parte, para ser escolha visivel e nao silencio.
+            saida[i] = soma / (real) achados;
+            ok[i] = 1;
+            _por_engrossamento++;
+            _parciais++;
+        }
+    }
+
+    for (long i = 0; i < n; i++) if (!ok[i]) faltam++;
+    free (v); free (a); free (q);
+    return faltam;
+}
+
+long rem_interpola_centro(rem_colheita *h, sim_domain *sd,
+                          distributed_property *dp, char *achado)
+{
+    mp_mapper *m = sd_get_domain_mapper (sd);
+    const int nloc = dp->pdata->local_count;
+
+    Point *pos = (Point *) malloc ((size_t) (nloc > 0 ? nloc : 1) * sizeof *pos);
+    Point *tam = (Point *) malloc ((size_t) (nloc > 0 ? nloc : 1) * sizeof *tam);
+    int   *lids = (int *)  malloc ((size_t) (nloc > 0 ? nloc : 1) * sizeof *lids);
+    long n = 0;
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator (sd); !higcit_isfinished (it);
+         higcit_nextcell (it)) {
+        hig_cell *cel = higcit_getcell (it);
+        const int lid = mp_lookup (m, hig_get_cid (cel));
+        if (lid < 0 || lid >= nloc) continue;
+        if (achado != NULL && achado[lid]) continue;     // ja' veio exato
+        Point cc, cl, ch;
+        hig_get_center (cel, cc);
+        hig_get_lowpoint (cel, cl);
+        hig_get_highpoint (cel, ch);
+        POINT_ASSIGN (pos[n], cc);
+        for (int d = 0; d < DIM; d++) tam[n][d] = ch[d] - cl[d];
+        lids[n] = lid;
+        n++;
+    }
+    higcit_destroy (it);
+
+    // TODOS os ranks entram no nucleo, inclusive os que nao tem nada a
+    // interpolar: `_consulta` e' COLETIVA.  Um rank que saisse aqui travaria os
+    // outros -- e' a mesma armadilha do MPI_Allreduce dentro de `if (rank==0)`.
+    int dir[DIM];
+    for (int d = 0; d < DIM; d++) dir[d] = 1;
+    real *val = (real *) malloc ((size_t) (n > 0 ? n : 1) * sizeof *val);
+    char *ok  = (char *) calloc ((size_t) (n > 0 ? n : 1), 1);
+    const long faltam = _interpola_nucleo (h, pos, tam, dir, n, val, ok, 1);
+    for (long i = 0; i < n; i++)
+        if (ok[i]) {
+            dp_set_value (dp, lids[i], val[i]);
+            if (achado) achado[lids[i]] = 1;
+        }
+
+    free (ok); free (val); free (lids); free (tam); free (pos);
+    return faltam;
+}
+
+long rem_interpola_faceta(rem_colheita *h, sim_facet_domain *sfd,
+                          distributed_property *dp, char *achado)
+{
+    mp_mapper *m = sfd->fm;
+    const int nloc = dp->pdata->local_count;
+    const int dim = sfd_get_dim (sfd);
+
+    Point *pos = (Point *) malloc ((size_t) (nloc > 0 ? nloc : 1) * sizeof *pos);
+    Point *tam = (Point *) malloc ((size_t) (nloc > 0 ? nloc : 1) * sizeof *tam);
+    int   *lids = (int *)  malloc ((size_t) (nloc > 0 ? nloc : 1) * sizeof *lids);
+    long n = 0;
+    sim_domain *cd = sfd->cdom;
+    for (int k = 0; k < sd_get_num_higtrees (cd); k++) {
+        hig_cell *root = sd_get_higtree (cd, k);
+        Point blo, bhi;
+        POINT_ASSIGN_SCALAR (blo, -1.0e30);
+        POINT_ASSIGN_SCALAR (bhi,  1.0e30);
+        higfit_facetiterator *fit;
+        for (fit = higfit_create_bounding_box_facets (root, sfd->dimofinterest,
+                                                      blo, bhi);
+             !higfit_isfinished (fit); higfit_nextfacet (fit)) {
+            hig_facet *f = higfit_getfacet (fit);
+            const int lid = mp_lookup (m, hig_get_fid (f));
+            if (lid < 0 || lid >= nloc) continue;
+            if (achado != NULL && achado[lid]) continue;
+            Point fc, cl, ch;
+            hig_get_facet_center (f, fc);
+            hig_cell *cel = hig_get_facet_cell (f);
+            hig_get_lowpoint (cel, cl);
+            hig_get_highpoint (cel, ch);
+            POINT_ASSIGN (pos[n], fc);
+            for (int d = 0; d < DIM; d++) tam[n][d] = ch[d] - cl[d];
+            lids[n] = lid;
+            n++;
+        }
+        higfit_destroy (fit);
+    }
+
+    // A faceta nao se parte na direcao NORMAL a ela.
+    int dir[DIM];
+    for (int d = 0; d < DIM; d++) dir[d] = (d == dim) ? 0 : 1;
+
+    real *val = (real *) malloc ((size_t) (n > 0 ? n : 1) * sizeof *val);
+    char *ok  = (char *) calloc ((size_t) (n > 0 ? n : 1), 1);
+    long faltam = _interpola_nucleo (h, pos, tam, dir, n, val, ok, 0);
+
+    // O CASO QUE A CELULA NAO TEM: a faceta do plano do MEIO.  Refinar uma
+    // celula cria, na direcao normal, uma faceta que no nivel grosso era
+    // interior -- ela nao e' sub-faceta de faceta nenhuma, e o laco acima nao a
+    // acha.  Ela recebe a media das duas facetas paralelas que limitavam a
+    // celula antiga, a +- tam na direcao normal, o que preserva o balanco de
+    // fluxo atraves dela.
+    {
+        // As duas facetas paralelas ficam a +- tam na direcao normal, E a
+        // +- tam/2 nas TRANSVERSAIS: a faceta do meio pertence a uma celula
+        // fina cujo centro transversal esta' deslocado do centro da mae.
+        // Esquecer esse deslocamento foi o primeiro defeito aqui.
+        // CANDIDATOS TRANSVERSAIS, em ordem de prioridade.  O primeiro e' o
+        // deslocamento ZERO -- a vizinha na direcao normal, na MESMA posicao
+        // transversal.  Depois vem os +- tam/2, que sao os pais quando a
+        // faceta e' de fato do plano do meio.
+        //
+        // Deslocar SEMPRE era defeito: a faceta que simplesmente nao tem
+        // contraparte na origem (interface de refino) tem vizinha na mesma
+        // transversal, e a busca so' com deslocamento nunca a achava.  MEDIDO:
+        // 8 facetas com ZERO lados achados, todas no plano da interface.
+        const int nt = 1 + (1 << (DIM - 1));
+        const long nq = (long) n * 2 * nt;
+        Chave *q = (Chave *) malloc ((size_t) (nq > 0 ? nq : 1) * sizeof *q);
+        char  *a = (char *)  malloc ((size_t) (nq > 0 ? nq : 1));
+        real  *v = (real *)  malloc ((size_t) (nq > 0 ? nq : 1) * sizeof *v);
+        for (long i = 0; i < n; i++) {
+            for (int s = 0; s < 2; s++) {
+                for (int c = 0; c < nt; c++) {
+                    Point x;
+                    POINT_ASSIGN (x, pos[i]);
+                    x[dim] += (s ? 1.0 : -1.0) * tam[i][dim];
+                    if (c > 0) {              // c == 0 e' o deslocamento zero
+                        const int cc = c - 1;
+                        int bit = 0;
+                        for (int d = 0; d < DIM; d++) {
+                            if (d == dim) continue;
+                            x[d] += ((cc >> bit) & 1) ? 0.5 * tam[i][d] : -0.5 * tam[i][d];
+                            bit++;
+                        }
+                    }
+                    _chave (x, q[(i * 2 + s) * nt + c].k);
+                }
+            }
+        }
+        _consulta (h, q, nq, a, v);
+        long c0 = 0, c1 = 0, c2 = 0, cmuitos = 0;
+        for (long i = 0; i < n; i++) {
+            if (ok[i]) continue;
+            real lado[2] = {0.0, 0.0};
+            int achou_lado[2] = {0, 0};
+            for (int s = 0; s < 2; s++) {
+                // O PRIMEIRO que casar, na ordem de prioridade: deslocamento
+                // zero antes dos deslocados.
+                for (int c = 0; c < nt; c++)
+                    if (a[(i * 2 + s) * nt + c]) {
+                        lado[s] = v[(i * 2 + s) * nt + c];
+                        achou_lado[s] = 1;
+                        break;
+                    }
+            }
+            const int nl = achou_lado[0] + achou_lado[1];
+            if (nl == 0) c0++; else if (nl == 1) c1++; else c2++;
+            if (nl == 2) {
+                val[i] = 0.5 * (lado[0] + lado[1]);
+                ok[i] = 1; _por_refino++; faltam--;
+            } else if (nl == 1) {
+                // UM LADO SO': a faceta do meio encosta na borda EXTERNA do
+                // dominio, e ali nao ha' faceta paralela do outro lado.
+                //
+                // MEDIDO, e nao suposto: a sonda contou ZERO facetas proprias no
+                // plano x = 1,0 da malha de teste.  O iterador de facetas visita
+                // uma faceta por celula -- a de baixo --, entao a de cima da
+                // ultima celula nao e' visitada por ninguem.  A condicao de
+                // contorno ali vive em outro dominio, nao neste.
+                //
+                // Usar o unico lado disponivel e' exato para campo constante e
+                // de primeira ordem no geral.  Fica contado a' parte para que o
+                // chamador saiba quantas foram assim.
+                // O SINALIZADOR, nao o valor.  Escrito como `lado[0] ? ...`
+                // isto testava se o valor achado e' nao nulo -- e um valor
+                // legitimamente zero caia no outro lado, que esta' sem
+                // inicializar.  Aparecia como 1.000 onde se esperava 107.25.
+                val[i] = achou_lado[0] ? lado[0] : lado[1];
+                ok[i] = 1; _por_refino++; faltam--;
+            }
+        }
+        if (getenv ("REMALHA_ONDE") != NULL) {
+            int rk; MPI_Comm_rank (h->comm, &rk);
+            printf ("     [plano do meio] rank %d dim %d: %ld com 0 lados, "
+                    "%ld com 1, %ld com 2 (%ld candidatos por lado)\n",
+                    rk, dim, c0, c1, c2, (long) nt);
+            fflush (stdout);
+        }
+        (void) cmuitos;
+        free (v); free (a); free (q);
+    }
+
+    for (long i = 0; i < n; i++)
+        if (ok[i]) {
+            dp_set_value (dp, lids[i], val[i]);
+            if (achado) achado[lids[i]] = 1;
+        }
+
+    free (ok); free (val); free (lids); free (tam); free (pos);
+    return faltam;
+}
+
 void rem_destroi(rem_colheita *h)
 {
     if (h == NULL) return;
