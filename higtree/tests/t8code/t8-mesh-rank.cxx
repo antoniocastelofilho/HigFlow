@@ -206,6 +206,75 @@ emite_completas (const Point blo, const Point bhi, int nivel, Folha *fs, long n,
     saida[(*out)++] = raiz;
     return;
   }
+  // FUNDIR IRMAOS ANTES DE DESCER.  A recursao em quadrantes emite cada
+  // quadrante completo como arvore propria e nunca junta os irmaos: uma celula
+  // base cuja posse e' a metade inferior sai como DUAS arvores de uma celula,
+  // quando cabe UMA arvore 2x1.
+  //
+  // MEDIDO, e nao suposto: com a caixa de refino [1;8]x[1;3] em np=6 isto
+  // produziu quatro arvores de UMA celula (0,025 x 0,025) em torno de
+  // (3,575 ; 1,5125), e o escoamento explodiu exatamente ali -- |u| = 1,79e2 no
+  // segundo passo, com todo o resto do dominio em 1,0.  Uma arvore de uma celula
+  // nao tem interior: toda faceta dela e' de fronteira, e a franja declarada e'
+  // de cinco celulas.  Com a caixa [1;3,5], que nao gera lasca nenhuma, a mesma
+  // corrida fica sa.
+  //
+  // So' funde quando as folhas desta caixa estao TODAS no mesmo nivel.  E' o
+  // caso que aparece aqui, e e' o unico que se pode fundir sem mudar a malha:
+  // com niveis misturados uma caixa uniforme nao representaria o mesmo refino, e
+  // a recursao antiga continua valendo.
+  {
+    int lmin = fs[0].nivel, lmax = fs[0].nivel;
+    for (long k = 1; k < n; k++) {
+      if (fs[k].nivel < lmin) lmin = fs[k].nivel;
+      if (fs[k].nivel > lmax) lmax = fs[k].nivel;
+    }
+    // Teto de 4 niveis (grade 16 por direcao, 4096 celulas em 3D).  Sem ele
+    // `tot` e' 2^(DIM*(lmax-nivel)) e transborda muito antes de o alloc falhar.
+    // Acima disso vale a recursao antiga, que nao precisa de grade.
+    if (lmin == lmax && lmax > nivel && (lmax - nivel) <= 4) {
+      const int g = 1 << (lmax - nivel);
+      int gb[DIM];
+      long tot = 1;
+      Point hg;
+      for (int d = 0; d < DIM; d++) {
+        gb[d] = g; tot *= g;
+        hg[d] = (bhi[d] - blo[d]) / (double) g;
+      }
+      char *posse = (char *) calloc ((size_t) tot, 1);
+      for (long k = 0; k < n; k++) {
+        long pos = 0, mul = 1;
+        for (int d = 0; d < DIM; d++) {
+          int i = (int) floor ((fs[k].x[d] - blo[d]) / hg[d]);
+          if (i < 0) i = 0;
+          if (i >= g) i = g - 1;
+          pos += i * mul; mul *= g;
+        }
+        posse[pos] = 1;
+      }
+      // No MONTE, nao na pilha: T8_MAX_CAIXAS e' 4096, e isto esta' dentro de
+      // uma funcao RECURSIVA -- 64 KB por quadro em 2D, 96 KB em 3D, em todo
+      // quadro da descida, inclusive nos que nem entram aqui.
+      Caixa *cx = (Caixa *) malloc ((size_t) T8_MAX_CAIXAS * sizeof *cx);
+      const int ncx = agrupa (posse, gb, cx, T8_MAX_CAIXAS);
+      free (posse);
+      for (int c = 0; c < ncx && *out < max; c++) {
+        Point rlo, rhi;
+        int ext[DIM];
+        for (int d = 0; d < DIM; d++) {
+          rlo[d] = blo[d] + cx[c].i0[d] * hg[d];
+          rhi[d] = blo[d] + (cx[c].i1[d] + 1) * hg[d];
+          ext[d] = cx[c].i1[d] - cx[c].i0[d] + 1;
+        }
+        hig_cell *raiz = hig_create_root (rlo, rhi);
+        hig_refine_uniform (raiz, ext);   // nivel uniforme: nada mais a descer
+        saida[(*out)++] = raiz;
+      }
+      free (cx);
+      return;
+    }
+  }
+
   Point meio;
   for (int d = 0; d < DIM; d++) meio[d] = 0.5 * (blo[d] + bhi[d]);
   const int nf = 1 << DIM;
