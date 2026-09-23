@@ -153,6 +153,16 @@ long fi_suporte_perdidos(void);
 //!               canonico e' o simetrico, e ha' conserto
 //!   mapa        a faceta existe mas nao esta' no mapeador deste dominio
 //!   sem_faceta  nao ha' faceta naquele ponto (suporte saindo do dominio)
+//! Pontos de suporte caidos em celula de tamanho DIFERENTE do h do marcador --
+//! o suporte atravessou uma fronteira de refinamento.  DEVE SER ZERO.
+//!
+//! O nucleo so' e' normalizado para um h; atravessando, a particao da unidade
+//! deixa de valer e a forca sai errada naquele marcador, em silencio.  O
+//! tratamento correto e' o da versao ADAPTATIVA do metodo (Roma-Peskin-Berger),
+//! nao implementado -- entao a restricao e' que o corpo fique inteiramente
+//! dentro de um nivel de refinamento, com folga maior que o suporte.
+long fi_suporte_nivel_trocado(void);
+
 long fi_perdidos_espelho(void);
 long fi_perdidos_mapa(void);
 long fi_perdidos_sem_faceta(void);

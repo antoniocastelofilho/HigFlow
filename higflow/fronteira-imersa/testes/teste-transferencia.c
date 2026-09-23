@@ -44,7 +44,19 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
 
-    const real h = 1.0 / NC;
+    // DUAS ESCALAS QUE EU VINHA CONFUNDINDO POR SEREM IGUAIS:
+    //
+    //   h_celula   tamanho da celula onde o marcador esta'.  E' o h do NUCLEO,
+    //              e numa malha graduada ele VARIA -- o modulo tem de le-lo da
+    //              malha, nao receber um valor global.
+    //   ds         espacamento desejado entre marcadores, que so' subdivide a
+    //              curva.  E' geometrico e nao muda com a malha.
+    //
+    // Em malha uniforme os dois coincidem e o erro nao aparece.  Este teste os
+    // separa de proposito: fundo grosso, caixa fina em torno do corpo.
+    const real h_grosso = 1.0 / NC;
+    const real h_fino   = h_grosso / 2.0;
+    const real h        = h_fino;      // onde o corpo esta'
 
     partition_graph *pg = pg_create(MPI_COMM_WORLD);
     pg_set_fringe_size(pg, FRANJA);
@@ -57,6 +69,27 @@ int main(int argc, char *argv[])
         int nc[DIM];
         for (int d = 0; d < DIM; d++) nc[d] = NC;
         hig_refine_uniform(raiz, nc);
+
+        // MALHA GRADUADA: refina mais um nivel na caixa [0,15 ; 0,85], que
+        // contem o corpo (quadrado 0,25--0,75) com folga de 0,10 -- duas
+        // celulas finas, mais que o suporte do nucleo (1,5).  A folga e' o que
+        // mantem TODO suporte dentro do nivel fino.
+        {
+            int dois[DIM];
+            for (int d = 0; d < DIM; d++) dois[d] = 2;
+            higcit_celliterator *it;
+            for (it = higcit_create_all_leaves(raiz); !higcit_isfinished(it);
+                 higcit_nextcell(it)) {
+                hig_cell *c = higcit_getcell(it);
+                Point cc;
+                hig_get_center(c, cc);
+                int dentro = 1;
+                for (int d = 0; d < DIM; d++)
+                    if (cc[d] < 0.15 || cc[d] > 0.85) dentro = 0;
+                if (dentro) hig_refine_uniform(c, dois);
+            }
+            higcit_destroy(it);
+        }
         lb_add_input_tree(lb, raiz, true, 0);
     }
     lb_calc_partition(lb, pg);
@@ -106,7 +139,11 @@ int main(int argc, char *argv[])
     // Quadrado de lado 0,5, longe da borda do dominio para o suporte caber.
 #if DIM == 2
     Point v[4] = {{0.25,0.25},{0.75,0.25},{0.75,0.75},{0.25,0.75}};
-    fi_corpo *corpo = fi_cria_curva(sfd[0], (const Point *) v, 4, h);
+    // PASSA `h_grosso` COMO ESPACAMENTO DE MARCADOR, de proposito, enquanto as
+    // celulas ali sao `h_fino`.  Se o modulo usasse o argumento como h do
+    // NUCLEO, a particao da unidade quebraria e a afirmacao 2 falharia.  Ela
+    // passar prova que o h do nucleo vem da MALHA.
+    fi_corpo *corpo = fi_cria_curva(sfd[0], (const Point *) v, 4, h_grosso);
     const real medida = 2.0;                       // perimetro
     const char *nome_medida = "1. peso total = perimetro do quadrado";
 #else
@@ -163,6 +200,12 @@ int main(int argc, char *argv[])
                  (char)('a' + dim));
         checa(rank, nome, global, esperado[dim], 1e-9 * fabs(esperado[dim]) + 1e-12);
     }
+
+    // 4. O SUPORTE NAO ATRAVESSOU NIVEL DE REFINAMENTO.  Sem esta afirmacao a
+    //    malha graduada passaria mesmo com o corpo mal colocado -- o nucleo
+    //    sairia sem normalizacao e o erro seria silencioso.
+    checa(rank, "4. suporte nao cruzou nivel de refinamento",
+          (real) fi_suporte_nivel_trocado(), 0.0, 0.5);
 
     fi_destroi(corpo);
     if (rank == 0)

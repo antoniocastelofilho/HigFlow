@@ -12,8 +12,17 @@
 #include <string.h>
 
 struct fi_corpo {
-    DM       enxame;      // DMSwarm: posicao, peso, velocidade, forca
-    real     h;           // espacamento euleriano (malha uniforme)
+    DM       enxame;      // DMSwarm: posicao, peso, velocidade, forca, h
+    real     ds;          // espacamento ALVO entre marcadores (geometrico)
+    //
+    // O h do NUCLEO nao e' global: e' o tamanho da celula onde cada marcador
+    // esta', guardado no campo "h" do enxame.  Em malha uniforme todos sao
+    // iguais e a distincao nao aparece; numa malha graduada ela e' a diferenca
+    // entre funcionar e nao funcionar.
+    //
+    // `ds` e o h do nucleo SAO COISAS DIFERENTES que em malha uniforme calham
+    // de ser iguais: um e' espacamento de marcador (geometrico, escolhido), o
+    // outro e' tamanho de celula (da malha, lido).
     int      codim;       // codimensao do corpo -- ver _volume_marcador
     real     forca_passo[DIM];  // forca do PASSO, somada sobre as iteracoes
     MPI_Comm comm;
@@ -30,11 +39,33 @@ struct fi_corpo {
 // Em 3D daria h^2 para uma superficie: forca 1/h vezes pequena demais, e o
 // sintoma seria um corpo POROSO -- o fluido atravessando devagar -- que se le'
 // como "malha grosseira" em vez de como erro.
-static real _volume_marcador(const fi_corpo *c, real peso)
+static real _volume_marcador(const fi_corpo *c, real peso, real h_mar)
 {
     real v = peso;
-    for (int i = 0; i < c->codim; i++) v *= c->h;
+    for (int i = 0; i < c->codim; i++) v *= h_mar;
     return v;
+}
+
+//! O tamanho da celula que contem `x`, na direcao 0.  E' o h do nucleo para um
+//! marcador ali.  Devolve 0 se nao houver celula.
+static real _h_da_celula(sim_facet_domain *sfd, const Point x)
+{
+    hig_cell *cel = sfd_get_cell_with_point(sfd, (real *) x);
+    if (cel == NULL) {
+        // Ponto sobre fronteira de celula: cutuca.  Mesmo motivo do _suporte.
+        const real eps = 1e-9;
+        const int combos = 1 << DIM;
+        for (int m = 0; m < combos && cel == NULL; m++) {
+            Point q;
+            for (int d = 0; d < DIM; d++)
+                q[d] = x[d] + (((m >> d) & 1) ? eps : -eps);
+            cel = sfd_get_cell_with_point(sfd, q);
+        }
+    }
+    if (cel == NULL) return 0.0;
+    Point delta;
+    hig_get_delta(cel, delta);
+    return delta[0];
 }
 
 // ------------------------------------------------------------------ o nucleo
@@ -87,7 +118,7 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     _try_initialize_petsc();
 
     fi_corpo *c = (fi_corpo *) malloc(sizeof *c);
-    c->h     = h;
+    c->ds    = h;          // o argumento e' o ESPACAMENTO alvo, nao o h do nucleo
     c->codim = codim;
     c->comm  = MPI_COMM_WORLD;
     for (int d = 0; d < DIM; d++) c->forca_passo[d] = 0.0;
@@ -98,6 +129,7 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     PetscCallAbort(c->comm, DMSwarmSetType(c->enxame, DMSWARM_BASIC));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "posicao",    DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "peso",         1, PETSC_REAL));
+    PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "h",            1, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "velocidade", DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "forca",      DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmFinalizeFieldRegister(c->enxame));
@@ -106,18 +138,28 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     for (int i = 0; i < ncand; i++) if (_possui(sfd, pts[i])) meus++;
 
     PetscCallAbort(c->comm, DMSwarmSetLocalSizes(c->enxame, meus, 4));
-    PetscReal *pos = NULL, *peso = NULL;
+    PetscReal *pos = NULL, *peso = NULL, *hmar = NULL;
     PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
     PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
+    PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "h",       NULL, NULL, (void **) &hmar));
     int k = 0;
     for (int i = 0; i < ncand; i++) {
         if (!_possui(sfd, pts[i])) continue;
         for (int d = 0; d < DIM; d++) pos[DIM*k + d] = pts[i][d];
         peso[k] = pesos[i];
+        // O h DO NUCLEO vem da malha, nao do argumento.  E' isto que permite
+        // malha graduada: cada marcador usa o tamanho da celula onde esta'.
+        hmar[k] = _h_da_celula(sfd, pts[i]);
+        if (!(hmar[k] > 0.0)) {
+            fprintf(stderr, "fronteira imersa: marcador em (%g,%g) sem celula\n",
+                    (double) pts[i][0], (double) pts[i][1]);
+            abort();
+        }
         k++;
     }
     PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
     PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
+    PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "h",       NULL, NULL, (void **) &hmar));
 
     // Cada marcador tem de ser reivindicado por EXATAMENTE um rank.  Marcador
     // sobre a face entre celulas de ranks diferentes e' o caso que quebra isso,
@@ -382,17 +424,19 @@ real fi_residuo_max(const fi_corpo *c)
 void fi_forca_total(const fi_corpo *c, real total[DIM])
 {
     PetscInt n = 0;
-    PetscReal *f = NULL, *peso = NULL;
+    PetscReal *f = NULL, *peso = NULL, *hmar = NULL;
     DMSwarmGetLocalSize(c->enxame, &n);
     DMSwarmGetField(c->enxame, "forca", NULL, NULL, (void **) &f);
     DMSwarmGetField(c->enxame, "peso",  NULL, NULL, (void **) &peso);
+    DMSwarmGetField(c->enxame, "h",     NULL, NULL, (void **) &hmar);
     real local[DIM];
     for (int d = 0; d < DIM; d++) local[d] = 0.0;
     for (PetscInt i = 0; i < n; i++)
         for (int d = 0; d < DIM; d++)
-            local[d] += f[DIM*i + d] * _volume_marcador(c, peso[i]);
+            local[d] += f[DIM*i + d] * _volume_marcador(c, peso[i], hmar[i]);
     DMSwarmRestoreField(c->enxame, "forca", NULL, NULL, (void **) &f);
     DMSwarmRestoreField(c->enxame, "peso",  NULL, NULL, (void **) &peso);
+    DMSwarmRestoreField(c->enxame, "h",     NULL, NULL, (void **) &hmar);
     MPI_Allreduce(local, total, DIM, MPI_DOUBLE, MPI_SUM, c->comm);
 }
 
@@ -418,6 +462,20 @@ static long _suporte_perdidos = 0;
 static long _perdidos_espelho = 0;   // fid < 0
 static long _perdidos_mapa    = 0;   // fid >= 0 mas nao esta' no mapeador
 static long _perdidos_sem_faceta = 0;// nao ha' faceta naquele ponto
+// Pontos de suporte que cairam numa celula de tamanho DIFERENTE do h do
+// marcador -- isto e', o suporte atravessou uma fronteira de refinamento.
+//
+// DEVE SER ZERO.  Atravessando, o nucleo deixa de ser normalizado: a particao
+// da unidade vale para um h so'.  O tratamento correto e' o do
+// Roma-Peskin-Berger (a versao ADAPTATIVA do metodo), que nao esta'
+// implementado -- entao a restricao e' que o corpo fique inteiramente dentro de
+// um nivel, com folga maior que o suporte (1,5 celulas).
+//
+// Contar em vez de abortar porque o numero diz QUANTO do corpo esta' fora da
+// regiao fina, o que orienta o ajuste da caixa de refino.
+static long _suporte_nivel_trocado = 0;
+
+long fi_suporte_nivel_trocado(void) { return _suporte_nivel_trocado; }
 
 long fi_perdidos_espelho(void)     { return _perdidos_espelho; }
 long fi_perdidos_mapa(void)        { return _perdidos_mapa; }
@@ -492,6 +550,20 @@ static int _suporte(sim_facet_domain *sfd, int dim, const Point X, real h,
             fprintf(stderr, "_suporte: mais de %d facetas no suporte\n", capac);
             abort();
         }
+        // O SUPORTE ATRAVESSOU UM NIVEL DE REFINAMENTO?
+        //
+        // O nucleo so' e' normalizado para um h.  Se a celula desta faceta tem
+        // outro tamanho, a soma dos pesos deixa de dar 1 e a forca sai errada
+        // naquele marcador -- silenciosamente.
+        {
+            hig_cell *cf_cel = sfd_get_cell_with_point(sfd, cf);
+            if (cf_cel != NULL) {
+                Point dcel;
+                hig_get_delta(cf_cel, dcel);
+                if (dcel[0] < 0.9*h || dcel[0] > 1.1*h) _suporte_nivel_trocado++;
+            }
+        }
+
         // O ID PODE NAO SER USAVEL, e isso nao e' excepcional.
         //
         // `sfd_adjust_facet_ids` (domain.h) marca a faceta compartilhada entre
@@ -547,10 +619,11 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
                   distributed_property *dpu[DIM])
 {
     PetscInt n = 0;
-    PetscReal *pos = NULL, *vel = NULL;
+    PetscReal *pos = NULL, *vel = NULL, *hmar = NULL;
     DMSwarmGetLocalSize(c->enxame, &n);
     DMSwarmGetField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
     DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    DMSwarmGetField(c->enxame, "h",          NULL, NULL, (void **) &hmar);
 
     int capac = FI_LARGURA;
     for (int d = 1; d < DIM; d++) capac *= FI_LARGURA;
@@ -561,7 +634,7 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
         Point X;
         for (int d = 0; d < DIM; d++) X[d] = pos[DIM*k + d];
         for (int dim = 0; dim < DIM; dim++) {
-            const int m = _suporte(sfd[dim], dim, X, c->h, lids, pesos, capac);
+            const int m = _suporte(sfd[dim], dim, X, hmar[k], lids, pesos, capac);
             real u = 0.0;
             // u(X) = SUM u(x) d_h(x-X) h^DIM, e o h^DIM cancela com o 1/h^DIM
             // do nucleo -- sobra a soma ponderada pelo produto de phi.
@@ -573,6 +646,7 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
     free(lids); free(pesos);
     DMSwarmRestoreField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
     DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    DMSwarmRestoreField(c->enxame, "h",          NULL, NULL, (void **) &hmar);
 }
 
 void fi_forca_corpo_rigido(fi_corpo *c, real dt)
@@ -653,11 +727,12 @@ void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
                            distributed_property *dpF[DIM], real escala)
 {
     PetscInt n = 0;
-    PetscReal *pos = NULL, *f = NULL, *peso = NULL;
+    PetscReal *pos = NULL, *f = NULL, *peso = NULL, *hmar = NULL;
     DMSwarmGetLocalSize(c->enxame, &n);
     DMSwarmGetField(c->enxame, "posicao", NULL, NULL, (void **) &pos);
     DMSwarmGetField(c->enxame, "forca",   NULL, NULL, (void **) &f);
     DMSwarmGetField(c->enxame, "peso",    NULL, NULL, (void **) &peso);
+    DMSwarmGetField(c->enxame, "h",       NULL, NULL, (void **) &hmar);
 
     int capac = FI_LARGURA;
     for (int d = 1; d < DIM; d++) capac *= FI_LARGURA;
@@ -678,16 +753,20 @@ void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
     // A CONSERVACAO NAO PEGA ISTO.  Ela afirma SUM F h^DIM = SUM f w, que e'
     // identidade em w seja qual for o significado dele.  Quem pega e' o
     // acoplamento com a equacao, ou uma conta de unidades.
-    real hd = 1.0;
-    for (int d = 0; d < DIM; d++) hd *= c->h;
 
     for (PetscInt k = 0; k < n; k++) {
         Point X;
         for (int d = 0; d < DIM; d++) X[d] = pos[DIM*k + d];
+        // h^DIM do MARCADOR: numa malha graduada ele muda de marcador para
+        // marcador, e usar um valor global erraria a normalizacao do nucleo.
+        real hd = 1.0;
+        for (int d = 0; d < DIM; d++) hd *= hmar[k];
+
         for (int dim = 0; dim < DIM; dim++) {
-            const int m = _suporte(sfd[dim], dim, X, c->h, lids, pesos, capac);
+            const int m = _suporte(sfd[dim], dim, X, hmar[k], lids, pesos, capac);
             // F(x) = SUM f_k d_h(x-X_k) w_k, com d_h = (1/h^DIM) prod phi.
-            const real esc = escala * f[DIM*k + dim] * _volume_marcador(c, peso[k]) / hd;
+            const real esc = escala * f[DIM*k + dim]
+                             * _volume_marcador(c, peso[k], hmar[k]) / hd;
             for (int i = 0; i < m; i++)
                 dp_add_value(dpF[dim], lids[i], esc * pesos[i]);
         }
@@ -697,6 +776,7 @@ void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
     DMSwarmRestoreField(c->enxame, "posicao", NULL, NULL, (void **) &pos);
     DMSwarmRestoreField(c->enxame, "forca",   NULL, NULL, (void **) &f);
     DMSwarmRestoreField(c->enxame, "peso",    NULL, NULL, (void **) &peso);
+    DMSwarmRestoreField(c->enxame, "h",       NULL, NULL, (void **) &hmar);
 
     // Agora a parte que o dp_sync nao faz: somar a franja no dono.
     for (int dim = 0; dim < DIM; dim++) {
