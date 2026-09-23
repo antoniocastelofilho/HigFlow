@@ -8,3 +8,12 @@ uniforme20   36080   5.725658  +2.616  +2.198  4.0291e-03   -
 uniforme40  144320   5.602506  +0.409   0.000  8.2844e-03  16.5
 refinada     42080   5.629576  +0.897  +0.483  8.3425e-03   2.0
 refinada_ext 52880   5.573406  -0.110  -0.520  8.2983e-03   2.8
+
+# Custo por caixa, 3 passos, np=6, maquina livre.  MEDIDO depois do conserto da
+# particao (set_for_coarsening) -- antes dele a [1;12] tinha malha degenerada.
+# x1  segundos_para_3_passos
+8.0     3
+9.0     4
+10.0    3
+11.0  337
+12.0  403

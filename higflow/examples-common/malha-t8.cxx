@@ -244,8 +244,18 @@ malha_t8_refinada (void *ctx, higio_amr_info **mi, int numhigs,
       Point tl, th;
       hig_get_lowpoint (prod.locais[i], tl);
       hig_get_highpoint (prod.locais[i], th);
-      printf ("ARVORE rank %d [%d] x[%.4f,%.4f] y[%.4f,%.4f]\n",
-              rk, i, tl[0], th[0], tl[1], th[1]);
+      // A CONTAGEM DE FOLHAS E' A CARGA.  Estas arvores sao as locais DESTE
+      // rank, entao a soma delas e' o que este rank vai resolver.  Sem este
+      // numero, "desbalanceamento" fica em suposicao.
+      long folhas = 0;
+      {
+        higcit_celliterator *it;
+        for (it = higcit_create_all_leaves (prod.locais[i]);
+             !higcit_isfinished (it); higcit_nextcell (it)) folhas++;
+        higcit_destroy (it);
+      }
+      printf ("ARVORE rank %d [%d] x[%.4f,%.4f] y[%.4f,%.4f] folhas=%ld\n",
+              rk, i, tl[0], th[0], tl[1], th[1], folhas);
       fflush (stdout);
     }
   }

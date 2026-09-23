@@ -1,0 +1,22 @@
+# O despenhadeiro de custo com o comprimento da caixa de refino.
+#
+# Malha base h=0,05, um nivel na caixa [1;x1]x[1;3], np=6, 3 passos, dt=5e-3.
+# Maquina livre (16 nucleos, nada mais rodando).  Malha SA nos cinco casos:
+# zero lascas, carga por rank balanceada em max/min = 1,00, escoamento com
+# Vmax = 1,49 (o pico do perfil de entrada).
+#
+# x1  celulas  segundos  iteracoes_KSP_por_solve
+8.0    52880      3      279 300 320
+9.0       -       4      -
+10.0      -       3      -
+11.0      -     337      -
+12.0   62480    403      314 315 326
+#
+# O salto entre 10 e 11 e' ABRUPTO: 3 s para 337 s com 3% mais celulas.
+# Nao e' o KSP (mesmas iteracoes), nao e' carga (max/min = 1,00), nao e'
+# memoria (0,51 GB numa maquina com 33 GB livres), nao e' o trabalho local
+# (flops sobem 28%).  O log_view poe 362 dos 399 s do KSPSolve em VecDot e
+# VecNorm -- os DOIS unicos eventos que fazem MPI_Allreduce.
+#
+# E escalona ao contrario: [1;12] leva 20 s em np=1, 46 s em np=2 e 390 s em
+# np=6.  Acrescentar processo piora.

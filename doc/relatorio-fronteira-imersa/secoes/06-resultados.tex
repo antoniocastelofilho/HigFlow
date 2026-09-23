@@ -311,3 +311,105 @@ escorregamento \emph{pior} ($8{,}3\times10^{-3}$ contra $4{,}0\times10^{-3}$) e
 $\Cd$ \emph{melhor}. Resíduo e erro no arrasto não são a mesma quantidade: o
 primeiro mede escorregamento nos marcadores; o segundo depende de quão bem o
 escoamento em torno do corpo está resolvido.
+
+\subsection{Refino local em paralelo: dois defeitos de partição}
+
+O refinamento local só produziu os números acima depois de dois consertos na
+produção da malha, e vale registrá-los porque nenhum dos dois é o defeito que a
+analogia sugeria.
+
+\paragraph{O sintoma.} Com a caixa estendida $[1;8]$ em seis processos, o
+escoamento explodia num \emph{único} ponto já no segundo passo: $|u| = 179$ em
+$(3{,}575;\,1{,}5125)$, com todo o resto do domínio em $1{,}0$. A caixa curta
+$[1;3{,}5]$ era estável. Em \emph{série}, a mesma malha estendida era
+perfeitamente sã.
+
+\paragraph{O que não era.} A suspeita natural era o protocolo de franja da
+HiGTree na interface de refinamento --- há um defeito documentado dessa família
+no \texttt{example2d\_DynamicMeshAdapt}. Duas medições a descartaram. A primeira
+põe um campo analítico nas facetas próprias, envenena as de franja, sincroniza e
+confere faceta a faceta: com a interface de refinamento atravessando o domínio,
+$434$ facetas de franja \emph{sobre} a interface em seis processos, zero valores
+errados. A segunda mede o condicionamento do estêncil, $\sum|w|$ --- e não a
+reprodução de um campo linear, que um ajuste de mínimos quadrados de ordem dois
+reproduz por construção mesmo mal condicionado: $4{,}8086$ no mesmo ponto em
+$1$, $3$ e $6$ processos, idêntico ao último dígito.
+
+\paragraph{O que era: árvores de uma célula.} A decomposição agrupa as células
+base \emph{completas} em retângulos maximais, mas emitia as \emph{incompletas}
+--- aquelas que a partição corta --- descendo em quadrantes, uma árvore por
+quadrante, sem fundir irmãos. Quatro árvores de $0{,}025 \times 0{,}025$
+apareciam em torno do ponto que explodia. Uma árvore de uma célula não tem
+interior: toda faceta dela é de fronteira, com franja declarada de cinco
+células.
+
+\paragraph{E o segundo defeito, que a fusão não alcança.} Fundir irmãos resolve
+a família repartida \emph{dentro} de um rank. Não resolve o caso em que a
+partição dá a um rank um \emph{único} filho --- aí não há irmão com quem fundir.
+A cura está um nível acima: o t8code aceita \texttt{set\_for\_coarsening}, que
+garante que nenhuma família de irmãos do mesmo nível seja dividida entre
+processos. O outro produtor do mesmo arquivo já o usava; o produtor refinado não.
+
+\begin{center}
+\begin{tabular}{lrrr}
+  \toprule
+  caixa & {árvores} & {de uma célula} & {menor dimensão} \\
+  \midrule
+  $[1;8]$,  antes   & 18 & 2 & 0.0250 \\
+  $[1;8]$,  depois  & 16 & 0 & 0.0500 \\
+  $[1;12]$, antes   & -- & 3 & 0.0250 \\
+  $[1;12]$, depois  & 16 & 0 & 0.4500 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Com isso, $|u|_{\max}$ sobre a corrida passou a $1{,}4989$ na caixa estendida ---
+exatamente o valor da caixa curta, e exatamente o pico do perfil parabólico de
+entrada.
+
+\subsection{Um despenhadeiro de custo ainda sem explicação}
+
+Estendendo a caixa além de $x=10$, o custo salta de forma abrupta:
+
+\begin{center}
+\begin{tabular}{lrr}
+  \toprule
+  caixa & {células} & {segundos para 3 passos} \\
+  \midrule
+  $[1;8]$  & 52\,880 & 3 \\
+  $[1;9]$  & --      & 4 \\
+  $[1;10]$ & --      & 3 \\
+  $[1;11]$ & --      & 337 \\
+  $[1;12]$ & 62\,480 & 403 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Entre $x=10$ e $x=11$ o tempo cresce cem vezes com \emph{três por cento} mais
+células. O que foi descartado, cada um por medição:
+
+\begin{itemize}
+  \item \textbf{Não é o solver linear.} As iterações do \textsc{ksp} são praticamente as
+        mesmas: $279/300/320$ em $[1;8]$ contra $314/315/326$ em $[1;12]$.
+  \item \textbf{Não é desbalanceamento.} As células próprias por rank dão
+        $\max/\min = 1{,}00$ nos dois casos.
+  \item \textbf{Não é memória.} $0{,}51$~GB somados em seis processos, numa
+        máquina com $33$~GB livres.
+  \item \textbf{Não é a malha.} Zero árvores degeneradas, e o escoamento é são
+        ($|u|_{\max} = 1{,}4937$).
+  \item \textbf{Não é o trabalho local.} Os \emph{flops} sobem $28\%$.
+\end{itemize}
+
+O \texttt{-log\_view} localiza o custo: $362$ dos $399$ segundos do
+\texttt{KSPSolve} estão em \texttt{VecDot} e \texttt{VecNorm} --- os dois únicos
+eventos que fazem \texttt{MPI\_Allreduce}. Por chamada, a redução passa de
+$15\,\mu$s para $125$~ms. E o escalonamento é \emph{negativo}: a mesma caixa
+$[1;12]$ leva $20$~s em um processo, $46$~s em dois e $390$~s em seis.
+Acrescentar processo piora.
+
+Fica em aberto. É um limiar, não uma degradação suave, e limiar sugere algo
+discreto --- um tamanho de buffer, uma troca de algoritmo coletivo, um limite de
+protocolo --- e não uma propriedade contínua da malha. \textbf{Enquanto não for
+explicado, o estudo de convergência no comprimento da caixa não roda}, e a
+pergunta que ele responderia --- se o $\Cd$ para de andar depois de $x=8$ ---
+continua sem resposta.

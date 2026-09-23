@@ -140,3 +140,60 @@ dentro de um nível --- é imposta e verificada, não superada.
         força por passo, sem iterar), que é a alternativa estrutural ao
         forçamento iterado.
 \end{enumerate}
+
+\subsection{Rumo à adaptação dinâmica: a transferência de solução}
+
+O refinamento usado aqui é \emph{estático} --- a caixa é escolhida antes de
+particionar e não muda. Para o escoamento estacionário e simétrico de
+$\mathrm{Re}=20$ isso basta: a esteira não anda. Deixa de bastar no 2D-2
+($\mathrm{Re}=100$), onde a esteira de von Kármán oscila e nenhuma caixa fixa a
+cobre, e em três dimensões, onde uma caixa grande o suficiente sai cara demais.
+
+A peça difícil da adaptação dinâmica não é o critério de refinamento: é a
+\textbf{transferência da solução}. Refazer a malha muda a partição, e uma célula
+que era de um processo passa a ser de outro; o campo tem de acompanhar. Foi por
+aí que a adaptação dinâmica da HiGTree quebrou --- ela continua sem funcionar em
+dois processos.
+
+Está implementada e verificada, num módulo que não conhece o solver. A chave é a
+\textbf{posição}, não o identificador local: identificador local não sobrevive a
+uma repartição, pois é índice num mapeador que foi descartado. A busca é um
+encontro marcado: cada posição tem um processo anfitrião calculado dela mesma
+por uma função de espalhamento que todos computam igual; o dono antigo envia
+$(\text{posição},\text{valor})$ ao anfitrião, o dono novo pede. São duas trocas
+todos-para-todos, com memória $O(N/P)$ --- e não $O(N)$, que é o que custaria
+reunir tudo em cada processo.
+
+\paragraph{O oráculo, e o que quase o tornou vazio.} A transferência é cópia:
+não faz conta nenhuma, então o valor tem de voltar \emph{bit a bit} igual. Só
+que --- e isto foi medido, não suposto --- \textbf{o particionador é
+determinista no conjunto de células}: malha igual produz partição igual, e então
+nenhum valor troca de processo. Uma transferência inteiramente quebrada passa
+nesse oráculo, porque cada processo encontra em casa tudo o que pede. Duas
+tentativas de forçar partição diferente com a mesma malha --- pesos de grupo
+$1$ contra $9$, e decomposição em $8$ contra $4$ árvores --- deram partição
+idêntica, conferido pela contagem de células próprias por processo.
+
+Por isso o teste tem duas partes, e a segunda \emph{muda} a malha. Ela afirma
+três coisas, não uma: o que foi encontrado volta bit a bit igual; o que não foi
+encontrado está \emph{todo} dentro da região que mudou --- buraco fora dela seria
+perda silenciosa de campo; e houve célula nova, reportada como tal.
+
+\begin{center}
+\begin{tabular}{llrr}
+  \toprule
+  & {processos} & {valores que mudaram de processo} & {posições novas} \\
+  \midrule
+  2D & 3 & 111    & 360 \\
+  2D & 6 & 501    & 376 \\
+  3D & 3 & 4\,424 & 15\,488 \\
+  3D & 6 & 15\,292 & 16\,000 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{O limite, declarado.} A busca é \emph{exata}: célula genuinamente
+nova não é preenchida, é contada --- e o chamador recebe a lista de quais, não
+só quantas, porque quem vai interpolar precisa saber onde. Interpolar de forma
+conservativa para essas células é o passo seguinte, e é outro problema: a
+transferência aqui move o que existe, e não inventa o que não existia.
