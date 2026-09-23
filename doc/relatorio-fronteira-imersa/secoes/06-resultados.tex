@@ -367,49 +367,60 @@ Com isso, $|u|_{\max}$ sobre a corrida passou a $1{,}4989$ na caixa estendida --
 exatamente o valor da caixa curta, e exatamente o pico do perfil parabólico de
 entrada.
 
-\subsection{Um despenhadeiro de custo ainda sem explicação}
+\subsection{Um despenhadeiro de custo, e o que ele era}
 
-Estendendo a caixa além de $x=10$, o custo salta de forma abrupta:
+Estendendo a caixa além de $x=10$, o custo saltava de forma abrupta:
 
 \begin{center}
-\begin{tabular}{lrr}
+\begin{tabular}{lrrr}
   \toprule
-  caixa & {células} & {segundos para 3 passos} \\
+  caixa & {células} & {s / 3 passos} & {s / 3 passos, uma \emph{thread}} \\
   \midrule
-  $[1;8]$  & 52\,880 & 3 \\
-  $[1;9]$  & --      & 4 \\
-  $[1;10]$ & --      & 3 \\
-  $[1;11]$ & --      & 337 \\
-  $[1;12]$ & 62\,480 & 403 \\
+  $[1;8]$  & 52\,880 &   3 &  3 \\
+  $[1;9]$  & --      &   4 & -- \\
+  $[1;10]$ & --      &   3 & -- \\
+  $[1;11]$ & --      & 337 &  9 \\
+  $[1;12]$ & 62\,480 & 403 &  4 \\
+  $[1;16]$ & --      &  -- & 11 \\
   \bottomrule
 \end{tabular}
 \end{center}
 
-Entre $x=10$ e $x=11$ o tempo cresce cem vezes com \emph{três por cento} mais
-células. O que foi descartado, cada um por medição:
+Entre $x=10$ e $x=11$ o tempo crescia cem vezes com \emph{três por cento} mais
+células. Cinco explicações foram descartadas, cada uma por medição: não era o
+solver linear (as iterações do \textsc{ksp} são $279/300/320$ contra
+$314/315/326$); não era desbalanceamento de malha (células próprias por processo
+em $\max/\min = 1{,}00$); não era memória ($0{,}51$~GB somados, numa máquina com
+$33$~GB livres); não era a malha (zero árvores degeneradas, escoamento são com
+$|u|_{\max} = 1{,}4937$); não era o trabalho local (os \emph{flops} sobem
+$28\%$).
 
-\begin{itemize}
-  \item \textbf{Não é o solver linear.} As iterações do \textsc{ksp} são praticamente as
-        mesmas: $279/300/320$ em $[1;8]$ contra $314/315/326$ em $[1;12]$.
-  \item \textbf{Não é desbalanceamento.} As células próprias por rank dão
-        $\max/\min = 1{,}00$ nos dois casos.
-  \item \textbf{Não é memória.} $0{,}51$~GB somados em seis processos, numa
-        máquina com $33$~GB livres.
-  \item \textbf{Não é a malha.} Zero árvores degeneradas, e o escoamento é são
-        ($|u|_{\max} = 1{,}4937$).
-  \item \textbf{Não é o trabalho local.} Os \emph{flops} sobem $28\%$.
-\end{itemize}
+O \texttt{-log\_view} punha $362$ dos $399$ segundos do \texttt{KSPSolve} em
+\texttt{VecDot} e \texttt{VecNorm} --- os dois únicos eventos que fazem
+\texttt{MPI\_Allreduce} ---, com a redução passando de $15\,\mu$s para $125$~ms
+por chamada. E o escalonamento era \emph{negativo}: a mesma caixa custava $20$~s
+em um processo, $46$~s em dois e $390$~s em seis.
 
-O \texttt{-log\_view} localiza o custo: $362$ dos $399$ segundos do
-\texttt{KSPSolve} estão em \texttt{VecDot} e \texttt{VecNorm} --- os dois únicos
-eventos que fazem \texttt{MPI\_Allreduce}. Por chamada, a redução passa de
-$15\,\mu$s para $125$~ms. E o escalonamento é \emph{negativo}: a mesma caixa
-$[1;12]$ leva $20$~s em um processo, $46$~s em dois e $390$~s em seis.
-Acrescentar processo piora.
+\paragraph{Não era nada da simulação.} Era sobrescrição de \emph{threads}. O
+\textsc{openblas} tomava cerca de $3{,}5$ núcleos por processo; com seis
+processos, são $21$ \emph{threads} numa máquina de $16$ núcleos. Como a espera do
+\textsc{mpi} é ocupada, o processo que chega cedo na redução não dorme: queima
+núcleo girando. Medindo o \textsc{cpu} por processo durante a corrida, quatro
+estavam a $350\%$ --- girando na espera --- e dois a $45\%$, sem conseguir
+saturar sequer um núcleo: os que ainda tinham trabalho estavam sendo
+\emph{famintos} pelos que esperavam. É realimentação positiva, e explica o
+limiar: enquanto o total de \emph{threads} cabe nos núcleos não há disputa, e um
+passo além dela o colapso é abrupto.
 
-Fica em aberto. É um limiar, não uma degradação suave, e limiar sugere algo
-discreto --- um tamanho de buffer, uma troca de algoritmo coletivo, um limite de
-protocolo --- e não uma propriedade contínua da malha. \textbf{Enquanto não for
-explicado, o estudo de convergência no comprimento da caixa não roda}, e a
-pergunta que ele responderia --- se o $\Cd$ para de andar depois de $x=8$ ---
-continua sem resposta.
+Com \texttt{OMP\_NUM\_THREADS=1}, a caixa $[1;11]$ cai de $340$ para $9$
+segundos, e a curva de custo volta a ser suave e proporcional ao número de
+células. \textbf{Nenhuma conclusão física deste relatório dependia disso} --- os
+$\Cd$ medidos vêm de corridas que completaram ---, mas toda medida de
+\emph{tempo} tomada sob a configuração padrão mede a disputa por núcleo, e não o
+método.
+
+\paragraph{Fica a lição de método.} O sinal que levou ao diagnóstico foi o
+desequilíbrio de \textsc{cpu} entre processos, não nada dentro do código. A
+métrica que eu vinha usando --- células por processo --- dava $\max/\min =
+1{,}00$ e dizia ``balanceado''; contagem de células não é trabalho, e trabalho
+não é progresso quando o sistema operacional está no meio.

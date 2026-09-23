@@ -1,22 +1,36 @@
-# O despenhadeiro de custo com o comprimento da caixa de refino.
+# O despenhadeiro de custo com o comprimento da caixa de refino, E O QUE ELE ERA.
 #
-# Malha base h=0,05, um nivel na caixa [1;x1]x[1;3], np=6, 3 passos, dt=5e-3.
-# Maquina livre (16 nucleos, nada mais rodando).  Malha SA nos cinco casos:
-# zero lascas, carga por rank balanceada em max/min = 1,00, escoamento com
-# Vmax = 1,49 (o pico do perfil de entrada).
+# Malha base h=0,05, um nivel na caixa [1;x1]x[1;3], np=6, 3 passos, dt=5e-3,
+# maquina de 16 nucleos com nada mais rodando.
 #
-# x1  celulas  segundos  iteracoes_KSP_por_solve
-8.0    52880      3      279 300 320
-9.0       -       4      -
-10.0      -       3      -
-11.0      -     337      -
-12.0   62480    403      314 315 326
+# x1   s_padrao   s_com_OMP_NUM_THREADS=1
+8.0        3         3
+9.0        4         -
+10.0       3         -
+11.0     337         9
+12.0     403         4
+16.0       -        11
 #
-# O salto entre 10 e 11 e' ABRUPTO: 3 s para 337 s com 3% mais celulas.
-# Nao e' o KSP (mesmas iteracoes), nao e' carga (max/min = 1,00), nao e'
-# memoria (0,51 GB numa maquina com 33 GB livres), nao e' o trabalho local
-# (flops sobem 28%).  O log_view poe 362 dos 399 s do KSPSolve em VecDot e
-# VecNorm -- os DOIS unicos eventos que fazem MPI_Allreduce.
+# NAO ERA A SIMULACAO.  Era sobrescricao de threads: o OpenBLAS tomava ~3,5
+# nucleos por processo, 6 processos = 21 threads em 16 nucleos, e a espera do
+# MPI e' OCUPADA -- quem chega cedo na reducao queima nucleo girando.
 #
-# E escalona ao contrario: [1;12] leva 20 s em np=1, 46 s em np=2 e 390 s em
-# np=6.  Acrescentar processo piora.
+# MEDIDO durante a corrida, CPU por processo:
+#     quatro processos a 350%  (girando na espera)
+#     dois processos a  45%    (com trabalho, sem conseguir um nucleo inteiro)
+#
+# Os dois que tinham trabalho estavam sendo FAMINTOS pelos quatro que esperavam.
+# Realimentacao positiva, e explica o limiar ser abrupto: enquanto o total de
+# threads cabe nos nucleos nao ha' disputa; um passo alem, colapso.
+#
+# O que foi descartado antes de achar, cada um por medicao:
+#   KSP            279/300/320 contra 314/315/326  -- quase igual
+#   malha          zero arvores degeneradas, Vmax = 1,4937
+#   balanceamento  celulas proprias por rank, max/min = 1,00
+#   memoria        0,51 GB somados, 33 GB livres
+#   trabalho local flops sobem 28%
+#   algoritmo MPI  coll_tuned_allreduce_algorithm 0,1,2 -- sem diferenca
+#
+# LICAO: contagem de celulas por processo nao e' carga de trabalho, e carga de
+# trabalho nao e' progresso quando o sistema operacional esta' no meio.  O sinal
+# que resolveu foi o desequilibrio de %CPU entre processos.
