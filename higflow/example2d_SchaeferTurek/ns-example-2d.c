@@ -366,6 +366,11 @@ int main (int argc, char *argv[]) {
     if (obstaculo != NULL) {
         print0f("=+=+=+= RESIDUO_NAO_ESCORREGAMENTO %.6e  (dt = %.6e) =+=+=+=\n",
                 (double) fi_residuo_max(obstaculo), (double) ns->par.dt);
+        // DEVE SER ZERO.  Diferente de zero = o corpo atravessa uma fronteira de
+        // refinamento, e o nucleo sai sem normalizacao naqueles marcadores.
+        printf("=+=+=+= NIVEL_TROCADO rank %d: %ld =+=+=+=\n",
+               myrank, fi_suporte_nivel_trocado());
+        fflush(stdout);
 
         // ARRASTO E SUSTENTACAO.  Nesta escala (adimensionalizada por D e pela
         // velocidade media) tem-se rho = 1, u_media = 1, D = 1, entao

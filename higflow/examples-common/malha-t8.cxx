@@ -158,6 +158,76 @@ malha_t8_uniforme (void *ctx, higio_amr_info **mi, int numhigs,
 }
 
 // -------------------------------------------------------------- por rank
+// FONTE REFINADA EM TORNO DO CORPO.  Aqui a fonte deixa de REPRODUZIR o arquivo
+// AMR e passa a PRODUZIR uma malha: o criterio de refino vem da caixa dada, nao
+// do arquivo.  E' a diferenca que justifica existir uma fonte separada em vez de
+// afrouxar o `espec`.
+//
+// A caixa e o numero de refinos vem do ambiente, para o exemplo nao precisar
+// saber de t8code:
+//
+//   HIGFLOW_REFINO_CAIXA="x0,y0,x1,y1"   (ou com z0,z1 em 3D)
+//   HIGFLOW_REFINO_NIVEIS=1
+//
+// Sem a caixa, recusa -- refinar "em algum lugar" nao e' comportamento util.
+extern "C" int
+malha_t8_refinada (void *ctx, higio_amr_info **mi, int numhigs,
+                   hig_cell **arvores, int max)
+{
+  (void) ctx;
+  if (numhigs != 1) {
+    fprintf (stderr, "malha_t8_refinada: %d blocos; esta fonte cobre um so'\n",
+             numhigs);
+    return 0;
+  }
+
+  const char *scx = getenv ("HIGFLOW_REFINO_CAIXA");
+  if (scx == NULL) {
+    fprintf (stderr, "malha_t8_refinada: defina HIGFLOW_REFINO_CAIXA="
+                     "\"x0,y0,x1,y1\" (2D) -- refinar sem caixa nao e' util\n");
+    return 0;
+  }
+  Point cx_lo, cx_hi;
+  {
+    double v[2*DIM];
+    const char *p = scx;
+    for (int i = 0; i < 2*DIM; i++) {
+      char *fim;
+      v[i] = strtod (p, &fim);
+      if (fim == p) {
+        fprintf (stderr, "malha_t8_refinada: HIGFLOW_REFINO_CAIXA precisa de %d "
+                         "numeros separados por virgula\n", 2*DIM);
+        return 0;
+      }
+      p = (*fim == ',') ? fim + 1 : fim;
+    }
+    for (int d = 0; d < DIM; d++) { cx_lo[d] = v[d]; cx_hi[d] = v[DIM + d]; }
+  }
+  const char *sn = getenv ("HIGFLOW_REFINO_NIVEIS");
+  const int niveis = (sn != NULL) ? atoi (sn) : 1;
+
+  Point lo, hi; int nb[DIM];
+  if (!espec (mi[0], lo, hi, nb, "malha_t8_refinada")) return 0;
+
+  t8_producao_rank prod;
+  if (!t8_produz_por_rank_brick_refinado (lo, hi, nb, cx_lo, cx_hi, niveis, &prod))
+    return 0;
+
+  int n = 0;
+  for (int i = 0; i < prod.n_locais && n < max; i++) arvores[n++] = prod.locais[i];
+  // As arvores passam para o chamador; nao destruir aqui.
+  prod.n_locais = 0;
+  t8_producao_rank_destroi (&prod);
+
+  int rank; MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  if (rank == 0)
+    printf ("=+=+=+= malha do t8code REFINADA: %d niveis na caixa "
+            "[%g,%g]x[%g,%g] =+=+=+=\n", niveis,
+            (double) cx_lo[0], (double) cx_hi[0],
+            (double) cx_lo[1], (double) cx_hi[1]);
+  return n;
+}
+
 extern "C" int
 malha_t8_por_rank (void *ctx, higio_amr_info **mi, int numhigs,
                    hig_cell **arvores, int max)
@@ -223,12 +293,16 @@ malha_t8_instala (higflow_solver *ns, int myrank)
   } else if (strcmp (fonte, "t8code-rank") == 0) {
     if (myrank == 0) printf ("=+=+=+= Malha do t8code (por rank) =+=+=+=\n");
     higflow_set_fonte_de_malha (ns, malha_t8_por_rank, NULL);
+  } else if (strcmp (fonte, "t8code-refinada") == 0) {
+    if (myrank == 0) printf ("=+=+=+= Malha do t8code REFINADA em caixa =+=+=+=\n");
+    higflow_set_fonte_de_malha (ns, malha_t8_refinada, NULL);
   } else if (strcmp (fonte, "t8code-particao") == 0) {
     if (myrank == 0) printf ("=+=+=+= Malha e particao do t8code =+=+=+=\n");
     higflow_set_fonte_de_particao (ns, particao_t8, NULL);
   } else {
     if (myrank == 0)
       fprintf (stderr, "HIGFLOW_MALHA=%s nao e' uma fonte conhecida.  Use "
-                       "t8code, t8code-rank ou t8code-particao.\n", fonte);
+                       "t8code, t8code-rank, t8code-refinada ou "
+                       "t8code-particao.\n", fonte);
   }
 }

@@ -55,6 +55,17 @@ int t8_produz_por_rank(const Point lo, const Point hi, int nivel_base,
 int t8_produz_por_rank_brick(const Point lo, const Point hi, const int nb[DIM],
                              t8_producao_rank *out);
 
+//! \brief Brick com REFINO numa caixa.  `caixa_lo`/`caixa_hi` delimitam a
+//! regiao a refinar (em coordenadas do DOMINIO), e `refinos` e' quantos niveis.
+//!
+//! Nao pede balanceamento: a razao entre celulas vizinhas pode chegar a 4:1.
+//! Para fronteira imersa o corpo tem de ficar INTEIRAMENTE dentro do nivel
+//! fino, com folga maior que o suporte do nucleo (1,5 celulas) -- a guarda
+//! `fi_suporte_nivel_trocado` verifica isso.
+int t8_produz_por_rank_brick_refinado(const Point lo, const Point hi, const int nb[DIM],
+                                      const Point caixa_lo, const Point caixa_hi,
+                                      int refinos, t8_producao_rank *out);
+
 void t8_producao_rank_destroi(t8_producao_rank *p);
 
 #ifdef __cplusplus

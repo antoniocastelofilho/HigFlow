@@ -513,6 +513,100 @@ t8_produz_por_rank_brick (const Point lo, const Point hi, const int nb[DIM],
   return 1;
 }
 
+// Caixa de refino, em coordenadas do BRICK.  O brick cobre [0,nb[d]] e nao o
+// dominio, entao a caixa do usuario e' convertida uma vez, aqui, em vez de o
+// callback converter a cada elemento.
+static double g_cx_lo[DIM], g_cx_hi[DIM];
+
+static int
+adapt_caixa (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
+             const t8_eclass_t tree_class, t8_locidx_t lelement_id,
+             const t8_scheme_c *scheme, const int is_family, const int num_elements,
+             t8_element_t *elements[])
+{
+  double c[3];
+  t8_forest_element_centroid (forest_from, which_tree, elements[0], c);
+  for (int d = 0; d < DIM; d++)
+    if (c[d] < g_cx_lo[d] || c[d] > g_cx_hi[d]) return 0;
+  return 1;
+}
+
+// Brick com REFINO numa caixa.  Duplica o corpo de `t8_produz_por_rank_brick`
+// em vez de parametriza-lo: o caminho uniforme e' usado por exemplos que ja'
+// tem referencia gravada, e nao vale arriscar mudanca de comportamento neles
+// por economia de vinte linhas.
+//
+// NAO pede balanceamento (`t8_forest_set_balance` nao e' chamado), entao a razao
+// entre celulas vizinhas pode chegar a 4:1.  Para a fronteira imersa isso
+// importa: o corpo tem de ficar INTEIRAMENTE dentro do nivel fino, com folga
+// maior que o suporte do nucleo, e a guarda do modulo verifica isso.
+extern "C" int
+t8_produz_por_rank_brick_refinado (const Point lo, const Point hi, const int nb[DIM],
+                                   const Point caixa_lo, const Point caixa_hi,
+                                   int refinos, t8_producao_rank *out)
+{
+  if (out == NULL) return 0;
+  memset (out, 0, sizeof *out);
+  for (int d = 0; d < DIM; d++) if (nb[d] < 1 || !(hi[d] > lo[d])) return 0;
+  if (refinos < 0) return 0;
+
+  // dominio -> brick
+  for (int d = 0; d < DIM; d++) {
+    g_cx_lo[d] = (caixa_lo[d] - lo[d]) / (hi[d] - lo[d]) * (double) nb[d];
+    g_cx_hi[d] = (caixa_hi[d] - lo[d]) / (hi[d] - lo[d]) * (double) nb[d];
+    if (!(g_cx_hi[d] > g_cx_lo[d])) return 0;
+  }
+
+  t8_inicializa_uma_vez ();
+
+  t8_cmesh_t cmesh;
+  t8_cmesh_init (&cmesh);
+#if DIM == 2
+  t8_cmesh_new_brick_2d (cmesh, nb[0], nb[1], 0, 0, sc_MPI_COMM_WORLD);
+#else
+  t8_cmesh_new_brick_3d (cmesh, nb[0], nb[1], nb[2], 0, 0, 0, sc_MPI_COMM_WORLD);
+#endif
+  const t8_scheme_c *scheme = t8_scheme_new_default ();
+  t8_forest_t f = t8_forest_new_uniform (cmesh, scheme, 0, 1, sc_MPI_COMM_WORLD);
+
+  // Um nivel de cada vez: o t8code refina UMA vez por passada de adapt.
+  for (int r = 0; r < refinos; r++) {
+    t8_forest_t novo;
+    t8_forest_init (&novo);
+    t8_forest_set_adapt (novo, f, adapt_caixa, 0);
+    t8_forest_set_partition (novo, NULL, 0);
+    t8_forest_commit (novo);
+    f = novo;
+  }
+
+  out->n_global = (long) t8_forest_get_global_num_leaf_elements (f);
+  const t8_scheme_c *sch = t8_forest_get_scheme (f);
+  const t8_locidx_t nloc_trees = t8_forest_get_num_local_trees (f);
+
+  long n = (long) t8_forest_get_local_num_leaf_elements (f);
+  Folha *loc = (Folha *) malloc ((size_t) (n > 0 ? n : 1) * sizeof *loc);
+  long k = 0;
+  for (t8_locidx_t it = 0; it < nloc_trees; it++) {
+    const t8_eclass_t ec = t8_forest_get_tree_class (f, it);
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements (f, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const t8_element_t *e = t8_forest_get_leaf_element_in_tree (f, it, ie);
+      double c[3];
+      t8_forest_element_centroid (f, it, e, c);
+      for (int d = 0; d < DIM; d++)
+        loc[k].x[d] = lo[d] + (c[d] / (double) nb[d]) * (hi[d] - lo[d]);
+      loc[k].nivel = sch->element_get_level (ec, e);
+      k++;
+    }
+  }
+  out->n_local = k;
+  out->n_locais = monta_conjunto (lo, hi, nb, 0, loc, k, out->locais,
+                                  T8_MAX_CAIXAS, &out->base_dividida);
+  free (loc);
+  t8_forest_unref (&f);
+  return 1;
+}
+
 extern "C" void
 t8_producao_rank_destroi (t8_producao_rank *p)
 {
