@@ -334,6 +334,16 @@ int main (int argc, char *argv[]) {
             if (obstaculo != NULL) {
                 real Fq[DIM];
                 fi_forca_passo(obstaculo, Fq);
+                // marcadores locais e facetas de suporte achadas: separa
+                // "o marcador sumiu do rank" de "o marcador nao acha faceta"
+                real umax_l, fmax_l;
+                fi_locais_cru(obstaculo, &umax_l, &fmax_l);
+                printf("===> DIAG rank %d  t = %.4f  marcadores = %d  "
+                       "suporte = %ld  |u|loc = %.4e  |f|loc = %.4e\n",
+                       myrank, (double) ns->par.t,
+                       fi_num_locais(obstaculo), fi_suporte_achados(),
+                       (double) umax_l, (double) fmax_l);
+                fflush(stdout);
                 print0f("===> CD_TEMPO  t = %.4f   Cd = %.6f   Cl = %.6f   "
                         "residuo = %.4e\n", (double) ns->par.t,
                         (double) (-2.0*Fq[0]), (double) (-2.0*Fq[1]),

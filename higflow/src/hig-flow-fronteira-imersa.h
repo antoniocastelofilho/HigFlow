@@ -163,6 +163,15 @@ long fi_suporte_perdidos(void);
 //! dentro de um nivel de refinamento, com folga maior que o suporte.
 long fi_suporte_nivel_trocado(void);
 
+//! Facetas de suporte achadas na ULTIMA `fi_interpola`, somadas sobre
+//! marcadores e direcoes.  Com `fi_num_locais`, separa duas causas que dao o
+//! mesmo sintoma -- forca zero: marcador que sumiu do rank (num_locais cai), e
+//! marcador presente que nao acha faceta (achados cai, num_locais nao).
+long fi_suporte_achados(void);
+
+//! Maior |u| e |f| entre os marcadores DESTE rank, sem reducao.
+void fi_locais_cru(const fi_corpo *c, real *umax, real *fmax);
+
 long fi_perdidos_espelho(void);
 long fi_perdidos_mapa(void);
 long fi_perdidos_sem_faceta(void);

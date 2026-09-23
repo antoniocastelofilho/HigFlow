@@ -499,6 +499,35 @@ static long _perdidos_sem_faceta = 0;// nao ha' faceta naquele ponto
 // Contar em vez de abortar porque o numero diz QUANTO do corpo esta' fora da
 // regiao fina, o que orienta o ajuste da caixa de refino.
 static long _suporte_nivel_trocado = 0;
+// Quantas facetas de suporte a ULTIMA interpolacao achou, somadas sobre
+// marcadores e direcoes.  Com `fi_num_locais`, separa duas causas que dao o
+// mesmo sintoma (forca zero): marcador que sumiu do rank, e marcador que esta'
+// la' mas nao acha faceta.
+static long _suporte_achados = 0;
+
+long fi_suporte_achados(void) { return _suporte_achados; }
+
+//! Maior |u| e maior |f| entre os marcadores DESTE rank, SEM reducao.
+//! Existe para separar "o campo e' zero" de "a reducao esta' quebrada": os dois
+//! dao o mesmo sintoma no valor global.
+void fi_locais_cru(const fi_corpo *c, real *umax, real *fmax)
+{
+    PetscInt n = 0;
+    PetscReal *vel = NULL, *f = NULL;
+    DMSwarmGetLocalSize(c->enxame, &n);
+    DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    DMSwarmGetField(c->enxame, "forca",      NULL, NULL, (void **) &f);
+    real um = 0.0, fm = 0.0;
+    for (PetscInt k = 0; k < n; k++) {
+        for (int d = 0; d < DIM; d++) {
+            const real a = fabs(vel[DIM*k + d]); if (a > um) um = a;
+            const real b = fabs(f[DIM*k + d]);   if (b > fm) fm = b;
+        }
+    }
+    DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
+    DMSwarmRestoreField(c->enxame, "forca",      NULL, NULL, (void **) &f);
+    *umax = um; *fmax = fm;
+}
 
 long fi_suporte_nivel_trocado(void) { return _suporte_nivel_trocado; }
 
@@ -649,6 +678,7 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
     DMSwarmGetField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
     DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
     DMSwarmGetField(c->enxame, "h",          NULL, NULL, (void **) &hmar);
+    _suporte_achados = 0;      // conta a chamada CORRENTE, nao o acumulado
 
     int capac = FI_LARGURA;
     for (int d = 1; d < DIM; d++) capac *= FI_LARGURA;
@@ -660,6 +690,7 @@ void fi_interpola(fi_corpo *c, sim_facet_domain *sfd[DIM],
         for (int d = 0; d < DIM; d++) X[d] = pos[DIM*k + d];
         for (int dim = 0; dim < DIM; dim++) {
             const int m = _suporte(sfd[dim], dim, X, hmar[k], lids, pesos, capac);
+            _suporte_achados += m;
             real u = 0.0;
             // u(X) = SUM u(x) d_h(x-X) h^DIM, e o h^DIM cancela com o 1/h^DIM
             // do nucleo -- sobra a soma ponderada pelo produto de phi.
