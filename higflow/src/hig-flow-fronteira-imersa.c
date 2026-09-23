@@ -130,6 +130,14 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "posicao",    DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "peso",         1, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "h",            1, PETSC_REAL));
+    // INDICE AO LONGO DA CURVA.  A distribuicao por posse euleriana destroi a
+    // ordem -- cada rank fica com um subconjunto arbitrario --, entao sem este
+    // campo nao ha' como reconstruir a curva, nem para desenhar nem para
+    // calcular qualquer coisa que dependa de vizinhanca.
+    //
+    // E' tambem o que o caso de INTERFACE entre fluidos vai exigir: curvatura
+    // precisa de vizinhos.  Guardar agora custa um campo.
+    PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "indice",       1, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "velocidade", DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmRegisterPetscDatatypeField(c->enxame, "forca",      DIM, PETSC_REAL));
     PetscCallAbort(c->comm, DMSwarmFinalizeFieldRegister(c->enxame));
@@ -138,10 +146,11 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     for (int i = 0; i < ncand; i++) if (_possui(sfd, pts[i])) meus++;
 
     PetscCallAbort(c->comm, DMSwarmSetLocalSizes(c->enxame, meus, 4));
-    PetscReal *pos = NULL, *peso = NULL, *hmar = NULL;
+    PetscReal *pos = NULL, *peso = NULL, *hmar = NULL, *idx = NULL;
     PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
     PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
     PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "h",       NULL, NULL, (void **) &hmar));
+    PetscCallAbort(c->comm, DMSwarmGetField(c->enxame, "indice",  NULL, NULL, (void **) &idx));
     int k = 0;
     for (int i = 0; i < ncand; i++) {
         if (!_possui(sfd, pts[i])) continue;
@@ -149,6 +158,7 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
         peso[k] = pesos[i];
         // O h DO NUCLEO vem da malha, nao do argumento.  E' isto que permite
         // malha graduada: cada marcador usa o tamanho da celula onde esta'.
+        idx[k]  = (PetscReal) i;     // posicao GLOBAL na curva, antes de distribuir
         hmar[k] = _h_da_celula(sfd, pts[i]);
         if (!(hmar[k] > 0.0)) {
             fprintf(stderr, "fronteira imersa: marcador em (%g,%g) sem celula\n",
@@ -160,6 +170,7 @@ static fi_corpo *_de_candidatos(sim_facet_domain *sfd, real h, int codim,
     PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "posicao", NULL, NULL, (void **) &pos));
     PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "peso",    NULL, NULL, (void **) &peso));
     PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "h",       NULL, NULL, (void **) &hmar));
+    PetscCallAbort(c->comm, DMSwarmRestoreField(c->enxame, "indice",  NULL, NULL, (void **) &idx));
 
     // Cada marcador tem de ser reivindicado por EXATAMENTE um rank.  Marcador
     // sobre a face entre celulas de ranks diferentes e' o caso que quebra isso,
@@ -339,12 +350,14 @@ void fi_escreve_vtk(const fi_corpo *c, const char *prefixo, int quadro)
     }
 
     PetscInt n = 0;
-    PetscReal *pos = NULL, *vel = NULL, *f = NULL, *peso = NULL;
+    PetscReal *pos = NULL, *vel = NULL, *f = NULL, *peso = NULL, *hmar = NULL, *idx = NULL;
     DMSwarmGetLocalSize(c->enxame, &n);
     DMSwarmGetField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
     DMSwarmGetField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
     DMSwarmGetField(c->enxame, "forca",      NULL, NULL, (void **) &f);
     DMSwarmGetField(c->enxame, "peso",       NULL, NULL, (void **) &peso);
+    DMSwarmGetField(c->enxame, "h",          NULL, NULL, (void **) &hmar);
+    DMSwarmGetField(c->enxame, "indice",     NULL, NULL, (void **) &idx);
 
     fprintf(fp, "# vtk DataFile Version 3.0\n"
                 "malha lagrangeana da fronteira imersa\n"
@@ -372,11 +385,23 @@ void fi_escreve_vtk(const fi_corpo *c, const char *prefixo, int quadro)
     // volume -- ver `fi_forca_total` para a diferenca, que ja' custou caro.
     fprintf(fp, "SCALARS peso float 1\nLOOKUP_TABLE default\n");
     for (PetscInt k = 0; k < n; k++) fprintf(fp, "%g\n", (double) peso[k]);
+    // O h DA CELULA onde o marcador esta'.  Num corpo sobre malha graduada ele
+    // varia, e ver isso e' o jeito mais direto de conferir que o corpo ficou no
+    // nivel que se pretendia.
+    fprintf(fp, "SCALARS h_celula float 1\nLOOKUP_TABLE default\n");
+    for (PetscInt k = 0; k < n; k++) fprintf(fp, "%g\n", (double) hmar[k]);
+    // O INDICE ao longo da curva.  Sem ele a malha lagrangeana e' uma nuvem de
+    // pontos: a posse euleriana embaralha a ordem entre os ranks.  No ParaView,
+    // colorir ou ordenar por este campo reconstitui a curva.
+    fprintf(fp, "SCALARS indice float 1\nLOOKUP_TABLE default\n");
+    for (PetscInt k = 0; k < n; k++) fprintf(fp, "%g\n", (double) idx[k]);
 
     DMSwarmRestoreField(c->enxame, "posicao",    NULL, NULL, (void **) &pos);
     DMSwarmRestoreField(c->enxame, "velocidade", NULL, NULL, (void **) &vel);
     DMSwarmRestoreField(c->enxame, "forca",      NULL, NULL, (void **) &f);
     DMSwarmRestoreField(c->enxame, "peso",       NULL, NULL, (void **) &peso);
+    DMSwarmRestoreField(c->enxame, "h",          NULL, NULL, (void **) &hmar);
+    DMSwarmRestoreField(c->enxame, "indice",     NULL, NULL, (void **) &idx);
     fclose(fp);
 }
 
