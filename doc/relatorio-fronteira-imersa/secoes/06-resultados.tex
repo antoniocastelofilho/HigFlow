@@ -239,6 +239,9 @@ caixa $[1;3{,}5]\times[1;3]$ em torno do cilindro --- produzida pelo t8code
   refinada, caixa $[1;3{,}5]$ &  42\,080 & 5.629576 & {$+0{,}90\%$} & 2.0 \\
   refinada, caixa $[1;8]$      &  52\,880 & 5.629705 & {$+0{,}90\%$} & 2.8 \\
   refinada, caixa $[1;12]$     &  62\,480 & 5.629705 & {$+0{,}90\%$} & --- \\
+  \midrule
+  uniforme, 80 cél./$D$        & 577\,320 & 5.502503 & {$-1{,}38\%$} & --- \\
+  \textbf{refinada, 2 níveis}  &  66\,632 & 5.536951 & {$-0{,}76\%$} & 3.4 \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -301,6 +304,50 @@ não pode ser de atenção, e sim processual: \textbf{ao mudar qualquer coisa na
 geração da malha, toda medição anterior que dependa dela deixa de valer até ser
 refeita.} A tabela acima já segue essa regra --- as três linhas de refinamento
 local foram medidas depois dos dois consertos de partição.
+
+\subsection{Dois níveis: o refinamento local reproduz a sequência uniforme}
+
+O teste decisivo do refinamento local não é o valor absoluto do $\Cd$ --- é se
+ele \emph{responde ao refinamento} da mesma maneira que a malha uniforme.
+Dobrando a resolução junto ao corpo, de $h=0{,}025$ para $h=0{,}0125$:
+
+\begin{center}
+\begin{tabular}{lSS}
+  \toprule
+  & {$\Cd$ com $h=0{,}025$} & {$\Cd$ com $h=0{,}0125$} \\
+  \midrule
+  uniforme & 5.602506 & 5.502503 \\
+  refinada & 5.629705 & 5.536951 \\
+  \midrule
+  variação & {$-0{,}1000$} & {$-0{,}0928$} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+As duas variações diferem em sete por cento. \textbf{O refinamento local não é
+uma aproximação grosseira do uniforme: ele responde ao refinamento da mesma
+maneira.} E o desvio contra a malha uniforme equivalente fica em $+0{,}49\%$ e
+$+0{,}63\%$ --- quase constante, que é assinatura de erro \emph{sistemático}, e
+o candidato é a resolução do campo distante.
+
+O custo é o argumento: $66\,632$ células contra $577\,320$, e $34$ minutos de
+máquina contra as cerca de $43$ horas estimadas para a uniforme de oitenta.
+
+\paragraph{Esta medição foi refeita, e vale registrar por quê.} A primeira
+corrida de dois níveis deu $\Cd = 5{,}536935$, numa malha com um \textbf{buraco}
+de doze células e duas árvores degeneradas, introduzidos por um conserto
+anterior da decomposição em caixas. Refeita com a malha corrigida, o valor é
+$5{,}536951$ --- diferença de $0{,}0003\%$, cinco algarismos iguais.
+
+Que o buraco não tenha afetado o arrasto \emph{não} o torna inofensivo. É
+comportamento indefinido --- a busca de célula devolve nulo ali --- e uma das
+árvores degeneradas caiu dentro do cilindro, onde a velocidade é forçada a zero
+de qualquer modo. Um defeito da mesma família, em outra posição, produziu
+$|u| = 179$ e destruiu uma corrida. \textbf{A lição é sobre tolerância: o mesmo
+defeito é catastrófico ou invisível conforme onde cai}, e portanto não se pode
+julgar pelo resultado se a malha estava sã. É o que torna obrigatória, e não
+apenas prudente, a verificação de que as folhas materializadas batem com as que
+o t8code produziu.
 
 \paragraph{O custo cai mais do que a contagem de células sugere.} São $3{,}4$
 vezes menos células que a uniforme fina, mas \textbf{oito vezes} menos tempo de

@@ -11,6 +11,11 @@ uniforme40   144320   5.602506  +0.409   0.000  8.2844e-03  16.5
 refinada_3.5  42080   5.629576  +0.897  +0.483  8.3425e-03   2.0
 refinada_8    52880   5.629705  +0.900  +0.485  8.3426e-03   2.8
 refinada_12   62480   5.629705  +0.900  +0.485       -        -
+refinada_2niv 66632   5.536951  -0.764  -0.626  1.6911e-02   3.4
+#
+# A LINHA DE DOIS NIVEIS: h = 0,0125 junto ao corpo, HIGFLOW_H = 0,0125 (251
+# marcadores), caixa [1;3,5].  A comparar com a uniforme de 80, que tem o mesmo
+# h junto ao corpo.
 #
 # RETIRADO: uma medicao anterior da caixa [1;8] deu Cd = 5,573406, e eu a
 # reportei como "a borda da caixa vale 1% no arrasto".  ERRADO.  Aquela corrida
@@ -20,3 +25,16 @@ refinada_12   62480   5.629705  +0.900  +0.485       -        -
 #
 # O 1% era a MALHA, nao a caixa.  Duas coisas mudaram entre as duas medicoes e
 # eu creditei uma so'.  Mesmo erro do estudo de refinamento com dt fixo.
+
+# SOBRE A MEDICAO DE DOIS NIVEIS.  Uma primeira corrida deu 5,536935 em malha
+# com BURACO de 12 celulas e duas lascas.  Refeita com a malha corrigida:
+# 5,536951.  Diferenca de 0,0003% -- cinco algarismos iguais.
+#
+# O buraco nao afetou o arrasto, e isso NAO o torna inofensivo: e' comportamento
+# indefinido, e uma das lascas caiu em (2,30 ; 2,00), DENTRO do cilindro, onde a
+# velocidade e' forcada a zero de qualquer modo.  Hoje mesmo uma lasca em
+# posicao diferente produziu |u| = 179 e destruiu a corrida.
+#
+# A licao e' sobre TOLERANCIA: o mesmo defeito e' catastrofico ou invisivel
+# conforme onde cai.  Logo, nao se julga pelo resultado se a malha estava sa --
+# a clausula de cobertura do teste e' obrigatoria, nao prudente.
