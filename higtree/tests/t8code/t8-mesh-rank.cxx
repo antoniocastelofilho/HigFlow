@@ -655,7 +655,19 @@ t8_produz_por_rank_brick_refinado (const Point lo, const Point hi, const int nb[
     t8_forest_init (&novo);
     t8_forest_set_adapt (novo, f, adapt_caixa, 0);
     t8_forest_set_balance (novo, NULL, 0);
-    t8_forest_set_partition (novo, NULL, 0);
+    // set_for_coarsening = 1, como o outro produtor deste arquivo (linha ~469) --
+    // eu havia posto 0 aqui, e essa inconsistencia E' a causa das lascas.
+    //
+    // O t8code garante que "no full family of (same-level) siblings is split
+    // between processes".  Sem isso, a particao corta uma celula base pelo meio:
+    // MEDIDO com a caixa [1;12]x[1;3] em np=6, a celula base
+    // [7,15;7,20]x[1,05;1,10] saiu com o filho de baixo-esquerda no rank 0 e os
+    // outros tres no rank 1 -- e o rank 0 ficou com uma arvore de UMA celula.
+    //
+    // Fundir irmaos nao resolve esse caso e nao tinha como: quando o rank possui
+    // um filho so', nao ha' irmao com quem fundir.  A fusao trata a familia
+    // repartida DENTRO de um rank; isto impede que ela seja repartida.
+    t8_forest_set_partition (novo, NULL, 1);
     t8_forest_commit (novo);
     f = novo;
   }
