@@ -373,20 +373,105 @@ int main (int argc, char *argv[]) {
                    myrank, passada, m, onde[passada][0], onde[passada][1]);
             fflush(stdout);
         }
+        // DIAGNOSTICO QUE ESCOLHE O CONSERTO: nas celulas onde o residuo MLS
+        // sobra, comparar com a divergencia por SOMA DE FLUXOS -- sub-faceta a
+        // sub-faceta, u*A somado com sinal e dividido pelo volume, a
+        // divergencia de volumes finitos genuina.  Se a FV for ~0 onde a MLS
+        // marca 1,7, o campo ja' e' solenoidal no sentido FV e o defeito e' do
+        // FUNCIONAL (sonda MLS no ponto da face); se a FV tambem marcar 1,7,
+        // ha' vazamento real e o conserto e' a montagem composta.
+        if (getenv("HIGFLOW_TESTE_PROJECAO_FV") != NULL) {
+            sim_domain *sdp2 = psd_get_local_domain(ns->psdp);
+            sim_facet_domain *sf2[DIM];
+            for (int dim = 0; dim < DIM; dim++)
+                sf2[dim] = psfd_get_local_domain(ns->psfdu[dim]);
+            const hig_mesh_snapshot *hms2 = sd_get_snapshot(sdp2);
+            int mostrados = 0;
+            for (int clid = 0; clid < hms2->n && mostrados < 6; clid++) {
+                Point cc, cd, cl, ch;
+                hms_center(hms2, clid, cc);
+                hms_delta(hms2, clid, cd);
+                hms_low(hms2, clid, cl);
+                hms_high(hms2, clid, ch);
+                if (cc[0] < 0.2 || cc[0] > 21.8 || cc[1] < 0.2 || cc[1] > 3.9)
+                    continue;
+                // MLS, como na medicao
+                real mls = 0.0;
+                for (int dim = 0; dim < DIM; dim++) {
+                    int infacet;
+                    real ul = compute_facet_u_left (sf2[dim], cc, cd, dim, 0.5,
+                                                    ns->dpu[dim], ns->stn, &infacet);
+                    real ur = compute_facet_u_right(sf2[dim], cc, cd, dim, 0.5,
+                                                    ns->dpu[dim], ns->stn, &infacet);
+                    mls += compute_facet_dudxc(cd, dim, 0.5, ul, ul, ur);
+                }
+                if (fabs(mls) < 0.02) continue;
+                // FV: fluxo pelas sub-facetas de cada face
+                real vol = 1.0;
+                for (int d = 0; d < DIM; d++) vol *= cd[d];
+                real fv = 0.0;
+                long sem_id = 0;
+                for (int dim = 0; dim < DIM; dim++) {
+                    sim_domain *cdom = sf2[dim]->cdom;
+                    for (int lado = 0; lado < 2; lado++) {
+                        const real plano = lado ? ch[dim] : cl[dim];
+                        Point blo, bhi;
+                        POINT_ASSIGN(blo, cl);
+                        POINT_ASSIGN(bhi, ch);
+                        blo[dim] = plano - 1e-9;
+                        bhi[dim] = plano + 1e-9;
+                        for (int k = 0; k < sd_get_num_higtrees(cdom); k++) {
+                            higfit_facetiterator *fit;
+                            for (fit = higfit_create_bounding_box_facets(
+                                        sd_get_higtree(cdom, k),
+                                        sf2[dim]->dimofinterest, blo, bhi);
+                                 !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+                                hig_facet *f = higfit_getfacet(fit);
+                                Point fc2;
+                                hig_get_facet_center(f, fc2);
+                                if (fabs(fc2[dim] - plano) > 1e-9) continue;
+                                int dentro2 = 1;
+                                for (int d = 0; d < DIM; d++)
+                                    if (d != dim && (fc2[d] < cl[d] + 1e-9 ||
+                                                     fc2[d] > ch[d] - 1e-9)) dentro2 = 0;
+                                if (!dentro2) continue;
+                                const int lid2 = mp_lookup(sf2[dim]->fm, hig_get_fid(f));
+                                if (lid2 < 0) { sem_id++; continue; }
+                                hig_cell *celf = hig_get_facet_cell(f);
+                                Point fl2, fh2;
+                                hig_get_lowpoint(celf, fl2);
+                                hig_get_highpoint(celf, fh2);
+                                real area = 1.0;
+                                for (int d = 0; d < DIM; d++)
+                                    if (d != dim) area *= (fh2[d] - fl2[d]);
+                                fv += (lado ? 1.0 : -1.0)
+                                    * dp_get_value(ns->dpu[dim], lid2) * area / vol;
+                            }
+                            higfit_destroy(fit);
+                        }
+                    }
+                }
+                printf("===> PROJECAO FV rank %d celula (%.4f,%.4f) h=%.4f: "
+                       "div MLS = %+.4e  div FLUXO = %+.4e  (sem_id=%ld)\n",
+                       myrank, cc[0], cc[1], cd[0], mls, fv, sem_id);
+                fflush(stdout);
+                mostrados++;
+            }
+        }
+
         const real final = pior[npass-1];
-        // CRITERIO DIFERENCIADO, e o motivo importa.  Em malha uniforme a
-        // projecao remove a divergencia ate' o solver linear (razao ~1e-6) e o
-        // criterio e' 1e-3.  Em malha refinada sobra um PONTO FIXO na celula
-        // grossa adjacente a' interface: o Laplaciano MONTADO (sd_get_stencil a
-        // +-h) e a composicao div o grad APLICADA (correcao por faceta) nao sao
-        // a mesma discretizacao ali, e a diferenca tem direcao nula -- iterar a
-        // projecao da' contracao exatamente 1,00, e o residuo SEGUE a borda da
-        // perturbacao ao longo da linha da interface (medido movendo o sino:
-        // (3,52;2,78) -> (3,52;2,58)).  E' o par de PRODUCAO do solver -- todo
-        // passo em malha graduada carrega isso --, nao a projecao nova.
-        // O teto 6e-2 e' MEDIDO (3,7-3,9e-2 nas duas malhas), nao meta;
-        // consertar o par e' decisao de formulacao.
-        const real teto = (getenv("HIGFLOW_MALHA") != NULL) ? 6.0e-2 : 1.0e-3;
+        // CRITERIO DIFERENCIADO, e o motivo mudou com o conserto.  Em malha
+        // uniforme a projecao remove a divergencia ate' o solver linear
+        // (razao ~1e-6); criterio 1e-3.  Em malha refinada, DEPOIS da montagem
+        // composta nas celulas de interface, a divergencia POR FLUXO tambem cai
+        // ao nivel do solver (~1e-6, medido com HIGFLOW_TESTE_PROJECAO_FV); o
+        // que esta sonda MLS ainda ve (~5,5e-2 absoluto, razao ~1,3e-3) e' a
+        // DIFERENCA ENTRE FUNCIONAIS -- a sonda pontual le a media de fluxo de
+        // outro jeito no mesmo campo solenoidal.  Criterio 5e-3: razao medida
+        // 1,3-1,5e-3, folga de 3x.  Antes do conserto a razao era 3,7-3,9e-2
+        // com ponto fixo REAL (fluxo tambem vazava); este criterio pega a
+        // regressao.
+        const real teto = (getenv("HIGFLOW_MALHA") != NULL) ? 5.0e-3 : 1.0e-3;
         const int ok = (pior[0] > 1.0) && (final < teto * pior[0]);
         for (int q = 1; q < npass; q++)
             print0f("===> PROJECAO passe %d: div_max = %.4e  (contracao %.2e)\n",

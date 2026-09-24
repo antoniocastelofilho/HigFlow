@@ -105,6 +105,57 @@ void higflow_pressure(higflow_solver *ns) {
         // Get the delta of the cell
         Point cdelta;
         hms_delta(hms, clid, cdelta);
+        // ---------------------------------------------------------------------
+        // A PORTA DA INTERFACE.  Uma celula cuja vizinha tem tamanho diferente
+        // entra na montagem COMPOSTA abaixo; todas as outras seguem pelo
+        // caminho original, intocado -- nos 15 dominios da suite a porta nunca
+        // dispara, e os casos dourados ficam bit a bit identicos por
+        // construcao.
+        //
+        // POR QUE A MONTAGEM COMPOSTA EXISTE.  O Laplaciano original sonda a
+        // pressao em ccenter +- h; a correcao de higflow_final_velocity aplica,
+        // por faceta, (p(fc+fd/2) - p(fc-fd/2))/fd.  Em malha uniforme as duas
+        // discretizacoes coincidem ponto a ponto.  Na interface 2:1 NAO -- e a
+        // diferenca tem direcao nula: MEDIDO, um campo projetado guardava
+        // div ~ 1,7 na celula grossa adjacente a' interface, iterar a projecao
+        // dava contracao exatamente 1,00, e a divergencia por SOMA DE FLUXOS
+        // confirmou vazamento real (1,697 contra 1,646 da sonda).  O sistema
+        // resolvia uma equacao, a correcao aplicava outra.
+        //
+        // A linha composta e' exatamente M o G: a divergencia por fluxo das
+        // sub-facetas (M) composta com o gradiente que a correcao de fato
+        // aplica (G), sub-faceta a sub-faceta, com as MESMAS sondas de
+        // compute_center_p_left/right.  O que se monta e' o que se aplica.
+        // ---------------------------------------------------------------------
+        int face_composta[DIM][2];
+        int com_interface = 0;
+        {
+            Point clow, chigh;
+            hms_low(hms, clid, clow);
+            hms_high(hms, clid, chigh);
+            for(int dim = 0; dim < DIM; dim++) {
+                for(int lado = 0; lado < 2; lado++) {
+                    face_composta[dim][lado] = 0;
+                    Point q;
+                    POINT_ASSIGN(q, ccenter);
+                    q[dim] = (lado ? chigh[dim] : clow[dim])
+                           + (lado ? 1.0 : -1.0) * 1.0e-6 * cdelta[dim];
+                    hig_cell *viz = NULL;
+                    for(int k = 0; k < sd_get_num_higtrees(sdp) && viz == NULL; k++)
+                        viz = hig_get_cell_with_point(sd_get_higtree(sdp, k), q);
+                    if (viz == NULL) continue;          // face de contorno: caminho classico
+                    Point vl, vh;
+                    hig_get_lowpoint(viz, vl);
+                    hig_get_highpoint(viz, vh);
+                    for(int d = 0; d < DIM; d++)
+                        if (fabs((vh[d] - vl[d]) - cdelta[d]) > 1.0e-6 * cdelta[d])
+                            face_composta[dim][lado] = 1;
+                    com_interface |= face_composta[dim][lado];
+                }
+            }
+        }
+
+        if (!com_interface) {
         // Calculate the divergence of the intermediate velocity
         real sumdudx = 0.0;
         for(int dim = 0; dim < DIM; dim++) {
@@ -140,6 +191,138 @@ void higflow_pressure(higflow_solver *ns) {
         }
         // Get the stencil
         sd_get_stencil(sdp, ccenter, ccenter, alpha, ns->stn);
+        } else {
+        // --------------------------- MONTAGEM COMPOSTA -----------------------
+        // DUAS FASES, e a ordem e' obrigatoria: compute_facet_u_left/right usam
+        // ns->stn como RASCUNHO (stn_reset dentro) -- e' por isso que o caminho
+        // original calcula o RHS inteiro ANTES do stn_reset.  Misturar RHS e
+        // linha numa passada so' destruiria a linha em acumulacao.
+        Point clow, chigh;
+        hms_low(hms, clid, clow);
+        hms_high(hms, clid, chigh);
+
+        // ---- fase 1: o RHS, a divergencia de u* por fluxo -------------------
+        real divfv = 0.0;
+        for(int dim = 0; dim < DIM; dim++) {
+            for(int lado = 0; lado < 2; lado++) {
+                const real sinal = lado ? 1.0 : -1.0;
+                if (!face_composta[dim][lado]) {
+                    int infacet;
+                    const real uf = lado
+                        ? compute_facet_u_right(sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpustar[dim], ns->stn, &infacet)
+                        : compute_facet_u_left (sfdu[dim], ccenter, cdelta, dim, 0.5, ns->dpustar[dim], ns->stn, &infacet);
+                    divfv += sinal * uf / cdelta[dim];
+                    continue;
+                }
+                const real plano = lado ? chigh[dim] : clow[dim];
+                real fluxo = 0.0, area_vista = 0.0;
+                sim_domain *cdom = sfdu[dim]->cdom;
+                for(int k = 0; k < sd_get_num_higtrees(cdom); k++) {
+                    Point blo, bhi;
+                    POINT_ASSIGN(blo, clow);
+                    POINT_ASSIGN(bhi, chigh);
+                    blo[dim] = plano - 1.0e-6 * cdelta[dim];
+                    bhi[dim] = plano + 1.0e-6 * cdelta[dim];
+                    higfit_facetiterator *fit;
+                    for(fit = higfit_create_bounding_box_facets(
+                                sd_get_higtree(cdom, k),
+                                sfdu[dim]->dimofinterest, blo, bhi);
+                        !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+                        hig_facet *f = higfit_getfacet(fit);
+                        Point fc;
+                        hig_get_facet_center(f, fc);
+                        if (fabs(fc[dim] - plano) > 1.0e-6 * cdelta[dim]) continue;
+                        int dentro = 1;
+                        for(int d = 0; d < DIM; d++)
+                            if (d != dim && (fc[d] < clow[d] + 1.0e-9 ||
+                                             fc[d] > chigh[d] - 1.0e-9)) dentro = 0;
+                        if (!dentro) continue;
+                        hig_cell *celf = hig_get_facet_cell(f);
+                        Point fl, fh;
+                        hig_get_lowpoint(celf, fl);
+                        hig_get_highpoint(celf, fh);
+                        real af = 1.0;
+                        for(int d = 0; d < DIM; d++)
+                            if (d != dim) af *= (fh[d] - fl[d]);
+                        const int flid = mp_lookup(sfdu[dim]->fm, hig_get_fid(f));
+                        if (flid >= 0) {
+                            fluxo += af * dp_get_value(ns->dpustar[dim], flid);
+                            area_vista += af;
+                        }
+                    }
+                    higfit_destroy(fit);
+                }
+                if (area_vista > 0.0)
+                    divfv += sinal * (fluxo / area_vista) / cdelta[dim];
+            }
+        }
+
+        // ---- fase 2: a linha, M o G sub-faceta a sub-faceta -----------------
+        stn_reset(ns->stn);
+        stn_set_rhs(ns->stn, divfv / ns->par.dt);
+        for(int dim = 0; dim < DIM; dim++) {
+            real aface = 1.0;
+            for(int d = 0; d < DIM; d++) if (d != dim) aface *= cdelta[d];
+            for(int lado = 0; lado < 2; lado++) {
+                const real sinal = lado ? 1.0 : -1.0;
+                if (!face_composta[dim][lado]) {
+                    // Face uniforme ou de contorno: o termo classico DESTA
+                    // face -- a soma das duas reproduz o par +-h e o -2/h^2.
+                    const real w = 1.0/(cdelta[dim]*cdelta[dim]);
+                    Point p;
+                    POINT_ASSIGN(p, ccenter);
+                    p[dim] = ccenter[dim] + sinal * cdelta[dim];
+                    sd_get_stencil(sdp, ccenter, p, w, ns->stn);
+                    sd_get_stencil(sdp, ccenter, ccenter, -w, ns->stn);
+                    continue;
+                }
+                const real plano = lado ? chigh[dim] : clow[dim];
+                sim_domain *cdom = sfdu[dim]->cdom;
+                for(int k = 0; k < sd_get_num_higtrees(cdom); k++) {
+                    Point blo, bhi;
+                    POINT_ASSIGN(blo, clow);
+                    POINT_ASSIGN(bhi, chigh);
+                    blo[dim] = plano - 1.0e-6 * cdelta[dim];
+                    bhi[dim] = plano + 1.0e-6 * cdelta[dim];
+                    higfit_facetiterator *fit;
+                    for(fit = higfit_create_bounding_box_facets(
+                                sd_get_higtree(cdom, k),
+                                sfdu[dim]->dimofinterest, blo, bhi);
+                        !higfit_isfinished(fit); higfit_nextfacet(fit)) {
+                        hig_facet *f = higfit_getfacet(fit);
+                        Point fc;
+                        hig_get_facet_center(f, fc);
+                        if (fabs(fc[dim] - plano) > 1.0e-6 * cdelta[dim]) continue;
+                        int dentro = 1;
+                        for(int d = 0; d < DIM; d++)
+                            if (d != dim && (fc[d] < clow[d] + 1.0e-9 ||
+                                             fc[d] > chigh[d] - 1.0e-9)) dentro = 0;
+                        if (!dentro) continue;
+                        hig_cell *celf = hig_get_facet_cell(f);
+                        Point fl, fh, fdelta;
+                        hig_get_lowpoint(celf, fl);
+                        hig_get_highpoint(celf, fh);
+                        real af = 1.0;
+                        for(int d = 0; d < DIM; d++) {
+                            fdelta[d] = fh[d] - fl[d];
+                            if (d != dim) af *= fdelta[d];
+                        }
+                        // As MESMAS sondas de compute_center_p_left/right: o
+                        // que se monta e' o que a correcao aplica.
+                        const real gama = sinal * af
+                            / (aface * cdelta[dim] * fdelta[dim]);
+                        Point pp;
+                        POINT_ASSIGN(pp, fc);
+                        pp[dim] = fc[dim] + 0.5 * fdelta[dim];
+                        sd_get_stencil(sdp, fc, pp, gama, ns->stn);
+                        pp[dim] = fc[dim] - 0.5 * fdelta[dim];
+                        sd_get_stencil(sdp, fc, pp, -gama, ns->stn);
+                    }
+                    higfit_destroy(fit);
+                }
+            }
+        }
+        }
         // Get the index of the stencil
         int *ids   = psd_stn_get_gids(ns->psdp, ns->stn);
         // Get the value of the stencil
