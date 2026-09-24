@@ -59,3 +59,19 @@ refinada_2niv 66632   5.536660  -0.769  -0.632  1.6911e-02   3.4
 # A deriva de celulas existe nos dois: transiente encolhendo a regiao |w|>theta.
 # Comparar Cd de trajetorias NAO convergidas nao e' o oraculo cruzado; ele vale
 # no par com histerese.
+
+# F3 COM HISTERESE (manter exige |w| > theta/2), t=10, N=200, np=6:
+#     backend  Cd        Cl       celulas(trajetoria)        |w|max
+#     t8code   5.550859  0.0131   67,9k -> 72.377 monotona   24,8-25,2 estavel
+#     mtree    5.551328  0.0110   66,6k -> 72.227 monotona   24,8-25,0 estavel
+#
+# ORACULO CRUZADO: diferenca de Cd entre backends = 4,7e-4 (0,0085%), com
+# malhas construidas por caminhos completamente diferentes.  Cl simetrico e
+# colado na referencia (0,0106).  Incrementos de celulas em decaimento
+# geometrico (2223 -> 1245 -> ... -> 15 -> 12): plato assintotico; nenhuma
+# PULADA em t=10 porque a tabela ainda muda por ~10 celulas/ciclo.
+#
+# CORRECAO da leitura sem histerese: os picos de |w| do t8 nao eram do backend
+# em si -- eram a suscetibilidade dele ao flapping.  Com histerese, some nos
+# dois.  A decisao de histerese fica decidida por medicao: sem ela nem o
+# escoamento estacionario converge; com ela, tudo fecha.

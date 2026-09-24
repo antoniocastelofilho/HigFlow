@@ -1,7 +1,9 @@
 # Refinamento adaptativo dinâmico
 
-Documento vivo.  Estado em 24/09/2026: **F1 e F2 concluídas; F3 rodada com
-veredito misto** — a máquina passa, a física do critério sem histerese não.
+Documento vivo.  Estado em 24/09/2026: **F1, F2 e F3 concluídas**, com o
+ciclo validado em DOIS backends (t8code e MTree, Cd a 0,0085% um do outro).
+Com histerese a malha converge monotonicamente; sem, nem o estacionário
+converge.  Próxima: F4 (2D-2, Re=100).
 
 ## Por quê, e por quê agora
 

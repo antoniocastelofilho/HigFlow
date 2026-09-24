@@ -290,3 +290,29 @@ células cruzando os limiares a cada ciclo, a malha mudando, o remalhamento
 perturbando o campo, e a perturbação realimentando o critério. O resultado
 negativo é o dado: sem histerese, o critério por limiar seco não converge nem
 em escoamento estacionário --- e é exatamente para isso que a histerese existe.
+
+\paragraph{Com histerese, os três portões fecham de uma vez.} Repetindo as duas
+corridas com a regra ``manter exige $|\omega| > \theta/2$'' --- sair da malha
+fina mais difícil que entrar:
+
+\begin{center}
+\begin{tabular}{lSSl}
+  \toprule
+  \emph{backend} & {$\Cd$} & {$\Cl$} & células \\
+  \midrule
+  t8code & 5.550859 & 0.0131 & $67{,}9$k $\to$ $72\,377$, monótona \\
+  MTree  & 5.551328 & 0.0110 & $66{,}6$k $\to$ $72\,227$, monótona \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+A malha converge com incrementos em decaimento geométrico ($2223 \to 1245 \to
+\dots \to 15 \to 12$ células por ciclo), $|\omega|_{\max}$ fica cravado em
+$24{,}8$--$25{,}2$ nos dois \emph{backends} --- os picos da corrida sem
+histerese eram a suscetibilidade ao \emph{flapping}, não propriedade de malha
+--- e o $\Cl$ volta simétrico, colado na referência. E o \textbf{oráculo
+cruzado} do ciclo dinâmico fecha: dois \emph{backends} de malha, construções
+completamente diferentes, $\Cd$ a $0{,}0085\%$ um do outro. A decisão de
+histerese, marcada desde o plano como do usuário, chega decidida por medição:
+sem ela nem o escoamento estacionário converge; com ela, converge nos dois
+\emph{backends} para a mesma física.
