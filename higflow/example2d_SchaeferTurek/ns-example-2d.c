@@ -519,6 +519,20 @@ int main (int argc, char *argv[]) {
     // Begin Loop for the Navier-Stokes equations integration
     // ********************************************************
 
+    // F2 DO AMR DINAMICO (HIGFLOW_REMALHA_N=<N>): a cada N passos o dominio e'
+    // reconstruido com a MESMA fonte de malha -- que e' determinista, entao o
+    // ciclo reproduz a caixa estatica.  E' o ciclo inteiro sem a maquinaria de
+    // criterio.  Instrumentado: custo por remalhamento e VmRSS, que mede o
+    // vazamento deliberado documentado em higflow_reconstroi_dominio.
+    //
+    // SEM projecao por padrao: com malha identica a transferencia e' exata, e
+    // projetar poria no ciclo uma limpeza que a corrida-base nao tem --
+    // contaminaria a comparacao de Cd.  HIGFLOW_REMALHA_PROJETA=1 liga, para
+    // medir o efeito em separado.
+    const char *s_remn = getenv("HIGFLOW_REMALHA_N");
+    const int   remalha_n = (s_remn != NULL) ? atoi(s_remn) : 0;
+    int    remalha_conta = 0;
+    double remalha_custo = 0.0;
     for (int step0 = ns->par.initstep; ns->par.step <= ns->par.finalstep; ns->par.step++) {
         // Print the step
         print0f("===> Step:        %7d <====> t  = %15.10lf <===\n", ns->par.step, ns->par.t);
@@ -526,6 +540,30 @@ int main (int argc, char *argv[]) {
         if (ns->par.step == step0)  START_CLOCK(firstiter); 
         // Update velocities and pressure using the projection method 
         higflow_solver_step(ns);
+
+        if (remalha_n > 0 && ns->par.step > 0 && ns->par.step % remalha_n == 0
+            && ns->par.step < ns->par.finalstep) {
+            const double t0 = MPI_Wtime();
+            long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank, 1, 2, 2);
+            if (getenv("HIGFLOW_REMALHA_PROJETA") != NULL)
+                higflow_projecao_remalha(ns);
+            const double dt_rem = MPI_Wtime() - t0;
+            remalha_custo += dt_rem;
+            remalha_conta++;
+            long rss = 0;
+            {
+                FILE *f = fopen("/proc/self/status", "r");
+                char lin[256];
+                if (f != NULL) {
+                    while (fgets(lin, sizeof lin, f))
+                        if (sscanf(lin, "VmRSS: %ld", &rss) == 1) break;
+                    fclose(f);
+                }
+            }
+            print0f("===> REMALHA %d  passo %d  %.3f s  sem valor = %ld  "
+                    "VmRSS rank0 = %ld kB\n",
+                    remalha_conta, ns->par.step, dt_rem, faltam, rss);
+        }
 
         // F1 DO AMR DINAMICO (HIGFLOW_TESTE_F1=<passo>): no passo dado,
         // reconstroi o dominio com a MESMA malha e afirma a identidade.
@@ -677,6 +715,10 @@ int main (int argc, char *argv[]) {
     // ********************************************************
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
+
+    if (remalha_conta > 0)
+        print0f("===> REMALHA TOTAL  %d remalhamentos  %.3f s  media %.3f s\n",
+                remalha_conta, remalha_custo, remalha_custo / remalha_conta);
 
     // Estado final comparavel entre corridas (portao de continuacao da F1).
     if (getenv("HIGFLOW_ESTADO") != NULL) {
