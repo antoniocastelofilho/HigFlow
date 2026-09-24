@@ -205,6 +205,9 @@ real get_boundary_viscosity(int id, Point center, real q, real t) {
 static const real CRIT_LX = 22.0, CRIT_LY = 4.1;
 static const real CRIT_CX = 2.0,  CRIT_CY = 2.0, CRIT_R = 0.5;
 
+// A tabela reduzida do ciclo anterior -- e' a memoria da histerese e do pulo.
+static signed char *tab_anterior = NULL;
+
 // A zona estatica: so' geometria, vale antes de existir escoamento.
 static void criterio_estatico(signed char *tab)
 {
@@ -270,18 +273,75 @@ static real criterio_vorticidade(higflow_solver *ns, signed char *tab)
         const real ub = compute_facet_value_at_point(sfdu[0], cc, p, 1.0, ns->dpu[0], ns->stn);
         const real om = fabs((vr - vl) / (2.0*cd2[0]) - (ut - ub) / (2.0*cd2[1]));
         if (!(om <= omax)) omax = om;
+        int i = (int) (cc[0] / hx), j = (int) (cc[1] / hy);
+        if (i < 0) i = 0; if (i >= CRIT_NX) i = CRIT_NX-1;
+        if (j < 0) j = 0; if (j >= CRIT_NY) j = CRIT_NY-1;
         signed char alvo = 0;
         if (om > v2) alvo = 2; else if (om > v1) alvo = 1;
+        // HISTERESE (HIGFLOW_CRIT_HISTERESE=1): quem JA' ESTAVA refinado so'
+        // engrossa se |omega| cair abaixo de METADE do limiar.  Sem isto, a F3
+        // mediu flapping: celulas cruzando o limiar seco a cada ciclo, a malha
+        // derivando (67,9k -> 71,1k -> 64,9k), picos de |omega| (24 -> 60) e
+        // Cd = 5,752 com Cl = -0,52.  O limiar de manter e' deliberadamente
+        // largo: sair da malha fina tem de ser mais dificil que entrar.
+        if (getenv("HIGFLOW_CRIT_HISTERESE") != NULL && tab_anterior != NULL) {
+            const signed char antes = tab_anterior[i + j*CRIT_NX];
+            if (antes >= 2 && om > 0.5*v2 && alvo < 2) alvo = 2;
+            if (antes >= 1 && om > 0.5*v1 && alvo < 1) alvo = 1;
+        }
         if (alvo > 0) {
-            int i = (int) (cc[0] / hx), j = (int) (cc[1] / hy);
-            if (i < 0) i = 0; if (i >= CRIT_NX) i = CRIT_NX-1;
-            if (j < 0) j = 0; if (j >= CRIT_NY) j = CRIT_NY-1;
             if (tab[i + j*CRIT_NX] < alvo) tab[i + j*CRIT_NX] = alvo;
         }
     }
     real gmax = 0.0;
     MPI_Allreduce(&omax, &gmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     return gmax;
+}
+
+// O MESMO ciclo, backend MTree: a tabela vira um arquivo .amr multinivel que o
+// caminho PADRAO (ler .amr + lbal) consome -- zero produtor novo.  E' o oraculo
+// cruzado do ciclo dinamico: mesma tabela, dois backends, o Cd tem de coincidir
+// dentro do ruido de KSP.
+//
+// A SEMANTICA DO FORMATO (higio_read_from_amr_info) dita duas regras:
+//   - initcell dos niveis >= 1 e' deslocamento 0-based em celulas DAQUELE nivel;
+//   - cada sonda refina UM passo: mancha de nivel 2 sobre celula base renderia
+//     0,025 e nao 0,0125.  Por isso o nivel 1 cobre TUDO que tem alvo >= 1
+//     (inclusive o que tem alvo 2), e o nivel 2 refina por cima.
+static void criterio_escreve_amr(const signed char *tab, const char *caminho)
+{
+    FILE *f = fopen(caminho, "w");
+    if (f == NULL) { perror(caminho); abort(); }
+    fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) CRIT_LX, (double) CRIT_LY);
+    long n1 = 0, n2 = 0;
+    for (long q = 0; q < (long) CRIT_NX * CRIT_NY; q++) {
+        if (tab[q] >= 1) n1++;
+        if (tab[q] >= 2) n2++;
+    }
+    const int niveis = (n2 > 0) ? 3 : (n1 > 0 ? 2 : 1);
+    fprintf(f, "%d\n", niveis);
+    fprintf(f, "%.10g %.10g\n1\n0 0 %d %d\n",
+            (double) (CRIT_LX / CRIT_NX), (double) (CRIT_LY / CRIT_NY),
+            CRIT_NX, CRIT_NY);
+    if (niveis >= 2) {
+        fprintf(f, "%.10g %.10g\n%ld\n",
+                (double) (CRIT_LX / CRIT_NX / 2.0),
+                (double) (CRIT_LY / CRIT_NY / 2.0), n1);
+        for (int j = 0; j < CRIT_NY; j++)
+            for (int i = 0; i < CRIT_NX; i++)
+                if (tab[i + j*CRIT_NX] >= 1)
+                    fprintf(f, "%d %d 2 2\n", 2*i, 2*j);
+    }
+    if (niveis >= 3) {
+        fprintf(f, "%.10g %.10g\n%ld\n",
+                (double) (CRIT_LX / CRIT_NX / 4.0),
+                (double) (CRIT_LY / CRIT_NY / 4.0), n2);
+        for (int j = 0; j < CRIT_NY; j++)
+            for (int i = 0; i < CRIT_NX; i++)
+                if (tab[i + j*CRIT_NX] >= 2)
+                    fprintf(f, "%d %d 4 4\n", 4*i, 4*j);
+    }
+    fclose(f);
 }
 
 extern "C" void malha_t8_criterio_define(const signed char *tabela, long n, int max_nivel);
@@ -335,6 +395,23 @@ int main (int argc, char *argv[]) {
             free(tab);
         }
     }
+#endif
+    // Backend MTree do mesmo ciclo: a tabela estatica vira o .amr inicial, que
+    // o caminho padrao le.  So' o rank 0 escreve; todos leem depois da barreira.
+    {
+        const char *fm = getenv("HIGFLOW_MALHA");
+        if (fm != NULL && strcmp(fm, "mtree-criterio") == 0) {
+            if (myrank == 0) {
+                signed char *tab = (signed char *) calloc((size_t) CRIT_NX*CRIT_NY, 1);
+                criterio_estatico(tab);
+                criterio_escada(tab);
+                criterio_escreve_amr(tab, "amrs/criterio/dominio.amr");
+                free(tab);
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
+    }
+#ifdef HIGFLOW_COM_T8CODE
 #endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
 
@@ -658,19 +735,34 @@ int main (int argc, char *argv[]) {
             // reconstruir.  Se a tabela reduzida nao mudou, o remalhamento e'
             // PULADO -- e' o "custo -> 0 depois da convergencia" do portao.
             const char *fm3 = getenv("HIGFLOW_MALHA");
-            const int criterio_ativo =
+            const int criterio_t8 =
                 (fm3 != NULL && strcmp(fm3, "t8code-criterio") == 0);
-            static signed char *tab_anterior = NULL;
+            const int criterio_mtree =
+                (fm3 != NULL && strcmp(fm3, "mtree-criterio") == 0);
+            const int criterio_ativo = criterio_t8 || criterio_mtree;
+            /* tab_anterior: escopo de arquivo, ver criterio_vorticidade */
             real omax3 = 0.0;
             if (criterio_ativo) {
                 signed char *tab = (signed char *) calloc((size_t) CRIT_NX*CRIT_NY, 1);
                 criterio_estatico(tab);
                 omax3 = criterio_vorticidade(ns, tab);
                 criterio_escada(tab);
-                malha_t8_criterio_define(tab, (long) CRIT_NX*CRIT_NY, 2);
+                const long ntab0 = (long) CRIT_NX * CRIT_NY;
+                const signed char *red = NULL;
+                long ntab = ntab0;
+                static signed char *tab_mtree = NULL;
+                if (criterio_mtree) {
+                    // reducao MAX propria (o define e' do caminho t8)
+                    if (tab_mtree == NULL)
+                        tab_mtree = (signed char *) malloc((size_t) ntab0);
+                    MPI_Allreduce(tab, tab_mtree, (int) ntab0, MPI_SIGNED_CHAR,
+                                  MPI_MAX, MPI_COMM_WORLD);
+                    red = tab_mtree;
+                } else {
+                    malha_t8_criterio_define(tab, ntab0, 2);
+                    red = malha_t8_criterio_tabela(&ntab);
+                }
                 free(tab);
-                long ntab = 0;
-                const signed char *red = malha_t8_criterio_tabela(&ntab);
                 if (tab_anterior != NULL &&
                     memcmp(tab_anterior, red, (size_t) ntab) == 0) {
                     print0f("===> REMALHA passo %d PULADA (tabela igual; "
@@ -680,6 +772,11 @@ int main (int argc, char *argv[]) {
                 if (tab_anterior == NULL)
                     tab_anterior = (signed char *) malloc((size_t) ntab);
                 memcpy(tab_anterior, red, (size_t) ntab);
+                if (criterio_mtree) {
+                    if (myrank == 0)
+                        criterio_escreve_amr(red, "amrs/criterio/dominio.amr");
+                    MPI_Barrier(MPI_COMM_WORLD);
+                }
             }
             {
             long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank, 1, 2, 2);
@@ -797,6 +894,17 @@ int main (int argc, char *argv[]) {
         }
         // Time update 
         ns->par.t += ns->par.dt;
+
+        // F4 (HIGFLOW_SERIE_CL=1): a serie temporal de Cd/Cl a CADA passo,
+        // independente do dtp -- o Strouhal vem dela, e amarra-la ao dtp
+        // arrastaria centenas de quadros de VTK que ninguem quer.  A forca ja'
+        // foi acumulada pelo gancho neste passo; imprimir custa nada.
+        if (obstaculo != NULL && getenv("HIGFLOW_SERIE_CL") != NULL) {
+            real Fs[DIM];
+            fi_forca_passo(obstaculo, Fs);
+            print0f("SERIE %.5f %.6f %.6f\n", (double) ns->par.t,
+                    (double) (-2.0 * Fs[0]), (double) (-2.0 * Fs[1]));
+        }
         // Stop the first step time
         if (ns->par.step == step0) STOP_CLOCK(firstiter); 
         // Printing
