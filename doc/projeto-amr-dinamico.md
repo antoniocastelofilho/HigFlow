@@ -1,6 +1,7 @@
 # Refinamento adaptativo dinâmico
 
-Documento vivo.  Estado em 24/09/2026: **F1 e F2 concluídas e medidas**; F3 (critério) a seguir.
+Documento vivo.  Estado em 24/09/2026: **F1 e F2 concluídas; F3 rodada com
+veredito misto** — a máquina passa, a física do critério sem histerese não.
 
 ## Por quê, e por quê agora
 
@@ -121,7 +122,19 @@ transferidos, Cd no fim igual ao da corrida estática.  *Portão: Cd da corrida
 com N remalhamentos == Cd da corrida sem nenhum (referência: a remedição de
 dois níveis com o conserto, em curso).  Medir o custo por remalhamento aqui.*
 
-**F3 — critério dinâmico no 2D-1.**  Escoamento estacionário: a malha deve
+**F3 — critério dinâmico no 2D-1.  RODADA; PORTÃO DE CONVERGÊNCIA NÃO FECHOU.**
+2000 passos, remalha a cada 200, critério híbrido (VORT1=1,5, VORT2=6, SEM
+histerese).  O que passou: guardas zeradas nos 9 ciclos, resíduo do corpo
+igual ao estático (1,73e-2), custo 5,2 s/remalha, toda posição preenchida.  O
+que não passou: a malha DERIVA (67,9k → 71,1k → 64,9k células, nenhuma
+pulada), |ω|max oscila em picos (24 → 60 → 25 → 41) num escoamento que deveria
+assentar, Cd = 5,752 (pior que uniforme-20) e Cl = −0,516.  Assinatura de
+**flapping**: células cruzando os limiares a cada ciclo, malha mudando,
+remalha perturbando, realimentação.  É o dado que a decisão de histerese
+(que é do usuário) pedia; um experimento com histerese está programado para
+gerar a comparação.
+
+Como planejada: **F3 —**  Escoamento estacionário: a malha deve
 **convergir** para uma malha fixa e parar de mudar.  *Portão: número de células
 estabiliza; Cd igual ao estático; custo de remalha → 0 depois da convergência.*
 

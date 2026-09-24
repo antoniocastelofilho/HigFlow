@@ -275,3 +275,18 @@ com as guardas do corpo imerso zeradas em todos os quadros.
 Os números de convergência --- a contagem de células estabilizando, os ciclos
 pulados aparecendo, e o $\Cd$ contra a tabela das malhas estáticas --- entram
 quando a corrida longa terminar.
+
+\paragraph{A corrida de convergência: a máquina passa, o critério sem histerese
+não.} Dois mil passos com remalhamento a cada duzentos. O maquinário fechou
+todos os seus portões: guardas do corpo zeradas nos nove ciclos, resíduo de não
+escorregamento igual ao da malha estática ($1{,}73\times10^{-2}$ contra
+$1{,}69\times10^{-2}$), custo médio de $5{,}2$~s por remalhamento, toda posição
+preenchida. O critério, não: a malha \emph{deriva} ($67{,}9$~mil $\to$
+$71{,}1$~mil $\to$ $64{,}9$~mil células, nenhum ciclo pulado), $|\omega|_{\max}$
+oscila em picos ($24 \to 60 \to 25 \to 41$) num escoamento que deveria assentar,
+e o arrasto sai errado ($\Cd = 5{,}75$, pior que a malha grossa uniforme, com
+$\Cl = -0{,}52$ de assimetria). É a assinatura clássica de \emph{flapping}:
+células cruzando os limiares a cada ciclo, a malha mudando, o remalhamento
+perturbando o campo, e a perturbação realimentando o critério. O resultado
+negativo é o dado: sem histerese, o critério por limiar seco não converge nem
+em escoamento estacionário --- e é exatamente para isso que a histerese existe.
