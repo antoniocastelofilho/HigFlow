@@ -50,3 +50,12 @@ refinada_2niv 66632   5.536660  -0.769  -0.632  1.6911e-02   3.4
 # A licao e' sobre TOLERANCIA: o mesmo defeito e' catastrofico ou invisivel
 # conforme onde cai.  Logo, nao se julga pelo resultado se a malha estava sa --
 # a clausula de cobertura do teste e' obrigatoria, nao prudente.
+
+# F3 -- AMR DINAMICO, criterio hibrido SEM histerese, dois backends, t=10:
+#     backend  Cd        Cl       celulas(inicio->fim)  |w|max        custo/remalha
+#     t8code   5.752129  -0.5156  67,9k -> 64,9k        24->60 picos  5,2 s
+#     mtree    5.686350  -0.0834  66,6k -> 62,2k        24-26 estavel 3,9 s
+# Os picos de |w| sao do backend t8, nao da fisica (mesma tabela, mesmo ciclo).
+# A deriva de celulas existe nos dois: transiente encolhendo a regiao |w|>theta.
+# Comparar Cd de trajetorias NAO convergidas nao e' o oraculo cruzado; ele vale
+# no par com histerese.
