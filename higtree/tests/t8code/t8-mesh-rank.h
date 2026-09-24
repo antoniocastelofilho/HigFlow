@@ -47,6 +47,17 @@ typedef struct t8_producao_rank {
 int t8_produz_por_rank(const Point lo, const Point hi, int nivel_base,
                        const Point alvo, int refinos, t8_producao_rank *out);
 
+//! \brief Producao guiada por TABELA DE NIVEL-ALVO por celula base (o criterio
+//! do AMR dinamico).  `tabela[i + j*nb[0] (+ k*nb[0]*nb[1])]` da' o nivel alvo
+//! (0 = base) da celula base; um elemento refina enquanto o nivel dele for
+//! menor que o alvo da celula base onde o centroide cai.  A tabela tem de ser
+//! IGUAL em todos os ranks (o chamador faz o Allreduce MAX).  Balanceamento e
+//! particao com set_for_coarsening, como o produtor de caixa.
+int t8_produz_por_rank_brick_criterio(const Point lo, const Point hi,
+                                      const int nb[DIM],
+                                      const signed char *tabela, int max_nivel,
+                                      t8_producao_rank *out);
+
 //! \brief A mesma decomposicao, com cmesh de BRICK: malha uniforme de dimensoes
 //! quaisquer (160x40, por exemplo), que o hipercubo nao representa.
 //!

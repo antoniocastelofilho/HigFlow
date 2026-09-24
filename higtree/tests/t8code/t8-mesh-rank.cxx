@@ -682,6 +682,98 @@ adapt_caixa (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree
   return 1;
 }
 
+// Producao guiada por tabela de nivel-alvo por celula base -- o criterio do
+// AMR dinamico.  O callback consulta a tabela pelo centroide; a escada de duas
+// camadas ja' vem DILATADA na tabela pelo chamador, entao aqui nao ha' folga a
+// aplicar.  Balanceamento e set_for_coarsening como no produtor de caixa: os
+// mesmos dois consertos (lasca por fusao e familia rachada) valem aqui.
+static const signed char *g_tabela = NULL;
+static int g_nb_tab[DIM];
+
+static int
+adapt_tabela (t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
+              const t8_eclass_t tree_class, t8_locidx_t lelement_id,
+              const t8_scheme_c *scheme, const int is_family, const int num_elements,
+              t8_element_t *elements[])
+{
+  double c[3];
+  t8_forest_element_centroid (forest_from, which_tree, elements[0], c);
+  long idx = 0, mul = 1;
+  for (int d = 0; d < DIM; d++) {
+    int i = (int) c[d];                       // coordenadas de brick: base = 1
+    if (i < 0) i = 0;
+    if (i >= g_nb_tab[d]) i = g_nb_tab[d] - 1;
+    idx += (long) i * mul;
+    mul *= g_nb_tab[d];
+  }
+  const int nivel = scheme->element_get_level (tree_class, elements[0]);
+  return (nivel < (int) g_tabela[idx]) ? 1 : 0;
+}
+
+extern "C" int
+t8_produz_por_rank_brick_criterio (const Point lo, const Point hi,
+                                   const int nb[DIM],
+                                   const signed char *tabela, int max_nivel,
+                                   t8_producao_rank *out)
+{
+  if (out == NULL || tabela == NULL) return 0;
+  memset (out, 0, sizeof *out);
+  for (int d = 0; d < DIM; d++) if (nb[d] < 1 || !(hi[d] > lo[d])) return 0;
+  if (max_nivel < 0) return 0;
+
+  t8_inicializa_uma_vez ();
+  g_tabela = tabela;
+  for (int d = 0; d < DIM; d++) g_nb_tab[d] = nb[d];
+
+  t8_cmesh_t cmesh;
+  t8_cmesh_init (&cmesh);
+#if DIM == 2
+  t8_cmesh_new_brick_2d (cmesh, nb[0], nb[1], 0, 0, sc_MPI_COMM_WORLD);
+#else
+  t8_cmesh_new_brick_3d (cmesh, nb[0], nb[1], nb[2], 0, 0, 0, sc_MPI_COMM_WORLD);
+#endif
+  const t8_scheme_c *scheme = t8_scheme_new_default ();
+  t8_forest_t f = t8_forest_new_uniform (cmesh, scheme, 0, 1, sc_MPI_COMM_WORLD);
+
+  for (int r = 0; r < max_nivel; r++) {
+    t8_forest_t novo;
+    t8_forest_init (&novo);
+    t8_forest_set_adapt (novo, f, adapt_tabela, 0);
+    t8_forest_set_balance (novo, NULL, 0);
+    t8_forest_set_partition (novo, NULL, 1);
+    t8_forest_commit (novo);
+    f = novo;
+  }
+
+  out->n_global = (long) t8_forest_get_global_num_leaf_elements (f);
+  const t8_scheme_c *sch = t8_forest_get_scheme (f);
+  const t8_locidx_t nloc_trees = t8_forest_get_num_local_trees (f);
+
+  long n = (long) t8_forest_get_local_num_leaf_elements (f);
+  Folha *loc = (Folha *) malloc ((size_t) (n > 0 ? n : 1) * sizeof *loc);
+  long k = 0;
+  for (t8_locidx_t it = 0; it < nloc_trees; it++) {
+    const t8_eclass_t ec = t8_forest_get_tree_class (f, it);
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements (f, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const t8_element_t *e = t8_forest_get_leaf_element_in_tree (f, it, ie);
+      double c[3];
+      t8_forest_element_centroid (f, it, e, c);
+      for (int d = 0; d < DIM; d++)
+        loc[k].x[d] = lo[d] + (c[d] / (double) nb[d]) * (hi[d] - lo[d]);
+      loc[k].nivel = sch->element_get_level (ec, e);
+      k++;
+    }
+  }
+  out->n_local = k;
+  out->n_locais = monta_conjunto (lo, hi, nb, 0, loc, k, out->locais,
+                                  T8_MAX_CAIXAS, &out->base_dividida);
+  free (loc);
+  t8_forest_unref (&f);
+  g_tabela = NULL;
+  return 1;
+}
+
 // Brick com REFINO numa caixa.  Duplica o corpo de `t8_produz_por_rank_brick`
 // em vez de parametriza-lo: o caminho uniforme e' usado por exemplos que ja'
 // tem referencia gravada, e nao vale arriscar mudanca de comportamento neles

@@ -43,12 +43,20 @@
 
 static int falhou = 0;
 
+static int n_casos = 0;
+
+// O protocolo do executor (ci/run_higtree_tests.py):
+//     caso <nome> PASS | caso <nome> FAIL <numeros>
+//     resumo <n> casos, <k> falharam
+// A primeira versao imprimia "ok"/"FALHOU" em formato proprio: rc=0 e o
+// executor marcando ERRO "sem linha de resumo" -- seis vermelhos que nao eram.
 static void caso(int rank, const char *nome, int ok)
 {
     int todos = 0;
     MPI_Allreduce(&ok, &todos, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     if (!todos) falhou = 1;
-    if (rank == 0) printf("  %-34s %s\n", nome, todos ? "ok" : "FALHOU");
+    n_casos++;
+    if (rank == 0) printf("caso %s %s\n", nome, todos ? "PASS" : "FAIL");
 }
 
 // O nivel de uma folha, a partir do tamanho dela contra a celula base.
@@ -211,6 +219,8 @@ int main(int argc, char *argv[])
                    "     cruza a particao nao esta' visivel.\n");
     }
 
+    if (rank == 0)
+        printf("resumo %d casos, %d falharam\n", n_casos, falhou ? 1 : 0);
     t8_producao_rank_destroi(&p);
     MPI_Finalize();
     return falhou;

@@ -325,6 +325,86 @@ particao_t8 (void *ctx, higio_amr_info **mi, int numhigs, sim_domain *sd,
 // ---------------------------------------------------------------------------
 // INSTALADOR: uma linha por exemplo.
 //
+// -----------------------------------------------------------------------------
+// A fonte guiada por CRITERIO (F3 do AMR dinamico).
+//
+// O exemplo avalia o criterio na malha corrente, preenche a tabela de
+// nivel-alvo por celula base e chama `malha_t8_criterio_define` ANTES de
+// reconstruir; a reconstrucao chega ao gancho de fonte de malha, que produz a
+// floresta guiada pela tabela.  A tabela e' reduzida com MAX entre os ranks
+// aqui dentro -- o chamador so' preenche o que e' dele.
+// -----------------------------------------------------------------------------
+static signed char *g_crit_tabela = NULL;
+static long         g_crit_n = 0;
+static int          g_crit_max_nivel = 0;
+
+extern "C" void
+malha_t8_criterio_define (const signed char *tabela, long n, int max_nivel)
+{
+  if (g_crit_tabela == NULL || g_crit_n != n) {
+    free (g_crit_tabela);
+    g_crit_tabela = (signed char *) malloc ((size_t) n);
+    g_crit_n = n;
+  }
+  MPI_Allreduce (tabela, g_crit_tabela, (int) n, MPI_SIGNED_CHAR, MPI_MAX,
+                 MPI_COMM_WORLD);
+  g_crit_max_nivel = max_nivel;
+}
+
+//! A tabela corrente, para o chamador decidir se algo mudou (custo -> 0 do
+//! portao da F3: tabela igual = remalhamento pulado).
+extern "C" const signed char *
+malha_t8_criterio_tabela (long *n)
+{
+  if (n) *n = g_crit_n;
+  return g_crit_tabela;
+}
+
+static int
+malha_t8_criterio (void *ctx, higio_amr_info **mi, int numhigs,
+                   hig_cell **arvores, int max)
+{
+  (void) ctx;
+  if (numhigs != 1) {
+    fprintf (stderr, "malha_t8_criterio: so' um dominio (ha' %d)\n", numhigs);
+    return 0;
+  }
+  if (g_crit_tabela == NULL) {
+    fprintf (stderr, "malha_t8_criterio: chame malha_t8_criterio_define antes\n");
+    return 0;
+  }
+  Point lo, hi; int nb[DIM];
+  if (!espec (mi[0], lo, hi, nb, "malha_t8_criterio")) return 0;
+  long esperado = 1;
+  for (int d = 0; d < DIM; d++) esperado *= nb[d];
+  if (esperado != g_crit_n) {
+    fprintf (stderr, "malha_t8_criterio: tabela tem %ld celulas, dominio tem %ld\n",
+             g_crit_n, esperado);
+    return 0;
+  }
+
+  t8_producao_rank prod;
+  if (!t8_produz_por_rank_brick_criterio (lo, hi, nb, g_crit_tabela,
+                                          g_crit_max_nivel, &prod))
+    return 0;
+  if (prod.n_locais > max) {
+    int rank; MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+    if (rank == 0)
+      fprintf (stderr, "malha_t8_criterio: %d caixas e o solver aceita %d\n",
+               prod.n_locais, max);
+    t8_producao_rank_destroi (&prod);
+    return 0;
+  }
+  if (getenv ("HIGFLOW_REFINO_LISTA") != NULL) {
+    int rk; MPI_Comm_rank (MPI_COMM_WORLD, &rk);
+    if (rk == 0)
+      printf ("GLOBAL t8code = %ld folhas\n", prod.n_global);
+  }
+  int n = 0;
+  for (int i = 0; i < prod.n_locais; i++) arvores[n++] = prod.locais[i];
+  return n;
+}
+
 // Le' HIGFLOW_MALHA e instala o gancho correspondente.  Sem a variavel, nada e'
 // instalado e o exemplo segue lendo o arquivo AMR -- que e' o que a suite padrao
 // exercita.
@@ -344,6 +424,9 @@ malha_t8_instala (higflow_solver *ns, int myrank)
   } else if (strcmp (fonte, "t8code-rank") == 0) {
     if (myrank == 0) printf ("=+=+=+= Malha do t8code (por rank) =+=+=+=\n");
     higflow_set_fonte_de_malha (ns, malha_t8_por_rank, NULL);
+  } else if (strcmp (fonte, "t8code-criterio") == 0) {
+    if (myrank == 0) printf ("=+=+=+= Malha do t8code por CRITERIO =+=+=+=\n");
+    higflow_set_fonte_de_malha (ns, malha_t8_criterio, NULL);
   } else if (strcmp (fonte, "t8code-refinada") == 0) {
     if (myrank == 0) printf ("=+=+=+= Malha do t8code REFINADA em caixa =+=+=+=\n");
     higflow_set_fonte_de_malha (ns, malha_t8_refinada, NULL);
@@ -353,7 +436,7 @@ malha_t8_instala (higflow_solver *ns, int myrank)
   } else {
     if (myrank == 0)
       fprintf (stderr, "HIGFLOW_MALHA=%s nao e' uma fonte conhecida.  Use "
-                       "t8code, t8code-rank, t8code-refinada ou "
+                       "t8code, t8code-rank, t8code-refinada, t8code-criterio ou "
                        "t8code-particao.\n", fonte);
   }
 }

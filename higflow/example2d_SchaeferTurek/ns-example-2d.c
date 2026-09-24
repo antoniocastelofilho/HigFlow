@@ -191,6 +191,102 @@ real get_boundary_viscosity(int id, Point center, real q, real t) {
 // *******************************************************************
 
 // Main program for the Navier-Stokes simulation 
+// ============================================================================
+// F3: O CRITERIO HIBRIDO (zona estatica do corpo + vorticidade na esteira)
+//
+// Avaliado na granularidade da CELULA BASE (440 x 82): uma tabela de
+// nivel-alvo, reduzida com MAX entre os ranks pelo `malha_t8_criterio_define`.
+// A escada de duas camadas vira dilatacao na tabela: quem tem alvo >= L impoe
+// alvo >= L-1 na vizinhanca de uma celula base (uma celula base = duas celulas
+// do nivel 1: a folga que o MLS pede).
+// ============================================================================
+#define CRIT_NX 440
+#define CRIT_NY 82
+static const real CRIT_LX = 22.0, CRIT_LY = 4.1;
+static const real CRIT_CX = 2.0,  CRIT_CY = 2.0, CRIT_R = 0.5;
+
+// A zona estatica: so' geometria, vale antes de existir escoamento.
+static void criterio_estatico(signed char *tab)
+{
+    const char *sm = getenv("HIGFLOW_CRIT_MARGEM");
+    const real margem = (sm != NULL) ? atof(sm) : 0.30;
+    const real hx = CRIT_LX / CRIT_NX, hy = CRIT_LY / CRIT_NY;
+    for (int j = 0; j < CRIT_NY; j++)
+        for (int i = 0; i < CRIT_NX; i++) {
+            const real x = (i + 0.5) * hx, y = (j + 0.5) * hy;
+            const real d = sqrt((x-CRIT_CX)*(x-CRIT_CX) + (y-CRIT_CY)*(y-CRIT_CY));
+            if (d < CRIT_R + margem) tab[i + j*CRIT_NX] = 2;
+        }
+}
+
+// A dilatacao da escada: alvo >= L impoe alvo >= L-1 a um raio de 1 celula base.
+static void criterio_escada(signed char *tab)
+{
+    signed char *cop = (signed char *) malloc((size_t) CRIT_NX * CRIT_NY);
+    for (int L = 2; L >= 1; L--) {
+        memcpy(cop, tab, (size_t) CRIT_NX * CRIT_NY);
+        for (int j = 0; j < CRIT_NY; j++)
+            for (int i = 0; i < CRIT_NX; i++) {
+                if (cop[i + j*CRIT_NX] < L) continue;
+                for (int dj = -1; dj <= 1; dj++)
+                    for (int di = -1; di <= 1; di++) {
+                        const int ii = i+di, jj = j+dj;
+                        if (ii < 0 || ii >= CRIT_NX || jj < 0 || jj >= CRIT_NY) continue;
+                        if (tab[ii + jj*CRIT_NX] < L-1) tab[ii + jj*CRIT_NX] = L-1;
+                    }
+            }
+    }
+    free(cop);
+}
+
+// O sensor dinamico: |omega| interpolado no centro de cada celula LOCAL da
+// malha corrente; a celula base que a contem recebe o alvo.  Acima de VORT2
+// pede nivel 2, acima de VORT1 nivel 1.
+static real criterio_vorticidade(higflow_solver *ns, signed char *tab)
+{
+    const char *s1 = getenv("HIGFLOW_CRIT_VORT1");
+    const char *s2 = getenv("HIGFLOW_CRIT_VORT2");
+    const real v1 = (s1 != NULL) ? atof(s1) : 1.5;
+    const real v2 = (s2 != NULL) ? atof(s2) : 6.0;
+    const real hx = CRIT_LX / CRIT_NX, hy = CRIT_LY / CRIT_NY;
+
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    sim_facet_domain *sfdu[DIM];
+    for (int d = 0; d < DIM; d++) sfdu[d] = psfd_get_local_domain(ns->psfdu[d]);
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    real omax = 0.0;
+    for (int clid = 0; clid < hms->n; clid++) {
+        Point cc, cd2;
+        hms_center(hms, clid, cc);
+        hms_delta(hms, clid, cd2);
+        Point p;
+        POINT_ASSIGN(p, cc); p[0] = cc[0] + cd2[0];
+        const real vr = compute_facet_value_at_point(sfdu[1], cc, p, 1.0, ns->dpu[1], ns->stn);
+        p[0] = cc[0] - cd2[0];
+        const real vl = compute_facet_value_at_point(sfdu[1], cc, p, 1.0, ns->dpu[1], ns->stn);
+        POINT_ASSIGN(p, cc); p[1] = cc[1] + cd2[1];
+        const real ut = compute_facet_value_at_point(sfdu[0], cc, p, 1.0, ns->dpu[0], ns->stn);
+        p[1] = cc[1] - cd2[1];
+        const real ub = compute_facet_value_at_point(sfdu[0], cc, p, 1.0, ns->dpu[0], ns->stn);
+        const real om = fabs((vr - vl) / (2.0*cd2[0]) - (ut - ub) / (2.0*cd2[1]));
+        if (!(om <= omax)) omax = om;
+        signed char alvo = 0;
+        if (om > v2) alvo = 2; else if (om > v1) alvo = 1;
+        if (alvo > 0) {
+            int i = (int) (cc[0] / hx), j = (int) (cc[1] / hy);
+            if (i < 0) i = 0; if (i >= CRIT_NX) i = CRIT_NX-1;
+            if (j < 0) j = 0; if (j >= CRIT_NY) j = CRIT_NY-1;
+            if (tab[i + j*CRIT_NX] < alvo) tab[i + j*CRIT_NX] = alvo;
+        }
+    }
+    real gmax = 0.0;
+    MPI_Allreduce(&omax, &gmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return gmax;
+}
+
+extern "C" void malha_t8_criterio_define(const signed char *tabela, long n, int max_nivel);
+extern "C" const signed char *malha_t8_criterio_tabela(long *n);
+
 int main (int argc, char *argv[]) {
     // Initialize the total time counting
     START_CLOCK(total);
@@ -225,6 +321,20 @@ int main (int argc, char *argv[]) {
     // Sem HIGFLOW_MALHA no ambiente nada muda, e a suite padrao afirma isso.
 #ifdef HIGFLOW_COM_T8CODE
     malha_t8_instala(ns, myrank);
+#endif
+#ifdef HIGFLOW_COM_T8CODE
+    // F3: com a fonte por criterio, a malha INICIAL vem da zona estatica --
+    // geometria pura, o escoamento ainda nao existe.
+    {
+        const char *fm = getenv("HIGFLOW_MALHA");
+        if (fm != NULL && strcmp(fm, "t8code-criterio") == 0) {
+            signed char *tab = (signed char *) calloc((size_t) CRIT_NX*CRIT_NY, 1);
+            criterio_estatico(tab);
+            criterio_escada(tab);
+            malha_t8_criterio_define(tab, (long) CRIT_NX*CRIT_NY, 2);
+            free(tab);
+        }
+    }
 #endif
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet); 
 
@@ -544,8 +654,36 @@ int main (int argc, char *argv[]) {
         if (remalha_n > 0 && ns->par.step > 0 && ns->par.step % remalha_n == 0
             && ns->par.step < ns->par.finalstep) {
             const double t0 = MPI_Wtime();
+            // F3: com a fonte por criterio, reavalia o hibrido ANTES de
+            // reconstruir.  Se a tabela reduzida nao mudou, o remalhamento e'
+            // PULADO -- e' o "custo -> 0 depois da convergencia" do portao.
+            const char *fm3 = getenv("HIGFLOW_MALHA");
+            const int criterio_ativo =
+                (fm3 != NULL && strcmp(fm3, "t8code-criterio") == 0);
+            static signed char *tab_anterior = NULL;
+            real omax3 = 0.0;
+            if (criterio_ativo) {
+                signed char *tab = (signed char *) calloc((size_t) CRIT_NX*CRIT_NY, 1);
+                criterio_estatico(tab);
+                omax3 = criterio_vorticidade(ns, tab);
+                criterio_escada(tab);
+                malha_t8_criterio_define(tab, (long) CRIT_NX*CRIT_NY, 2);
+                free(tab);
+                long ntab = 0;
+                const signed char *red = malha_t8_criterio_tabela(&ntab);
+                if (tab_anterior != NULL &&
+                    memcmp(tab_anterior, red, (size_t) ntab) == 0) {
+                    print0f("===> REMALHA passo %d PULADA (tabela igual; "
+                            "|w|max = %.3f)\n", ns->par.step, omax3);
+                    goto remalha_fim;
+                }
+                if (tab_anterior == NULL)
+                    tab_anterior = (signed char *) malloc((size_t) ntab);
+                memcpy(tab_anterior, red, (size_t) ntab);
+            }
+            {
             long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank, 1, 2, 2);
-            if (getenv("HIGFLOW_REMALHA_PROJETA") != NULL)
+            if (criterio_ativo || getenv("HIGFLOW_REMALHA_PROJETA") != NULL)
                 higflow_projecao_remalha(ns);
             const double dt_rem = MPI_Wtime() - t0;
             remalha_custo += dt_rem;
@@ -560,9 +698,13 @@ int main (int argc, char *argv[]) {
                     fclose(f);
                 }
             }
+            long ncel = sd_get_snapshot(psd_get_local_domain(ns->psdp))->n, gcel = 0;
+            MPI_Allreduce(&ncel, &gcel, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
             print0f("===> REMALHA %d  passo %d  %.3f s  sem valor = %ld  "
-                    "VmRSS rank0 = %ld kB\n",
-                    remalha_conta, ns->par.step, dt_rem, faltam, rss);
+                    "celulas = %ld  |w|max = %.3f  VmRSS rank0 = %ld kB\n",
+                    remalha_conta, ns->par.step, dt_rem, faltam, gcel, omax3, rss);
+            }
+            remalha_fim: ;
         }
 
         // F1 DO AMR DINAMICO (HIGFLOW_TESTE_F1=<passo>): no passo dado,

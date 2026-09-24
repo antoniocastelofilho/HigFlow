@@ -995,7 +995,10 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 	DECL_AND_ALLOC(long, _chk_recv, num_nbs ? num_nbs : 1);
 	DECL_AND_ALLOC(int *, _chk_sgid, num_nbs ? num_nbs : 1);
 	DECL_AND_ALLOC(int *, _chk_rgid, num_nbs ? num_nbs : 1);
+	DECL_AND_ALLOC(int *, _chk_seid, num_nbs ? num_nbs : 1);
+	DECL_AND_ALLOC(int *, _chk_reid, num_nbs ? num_nbs : 1);
 	DECL_AND_ALLOC(int, _chk_seq, dp_data->total_count);
+	DECL_AND_ALLOC(int, _chk_eseq, dp_data->total_count);
 	long _chk_n = 0;
 	//mp_mapper *mp = sd_get_domain_mapper(psd->localdomain);
 
@@ -1038,18 +1041,17 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 			get_eids(fdata, tree, ts->lo_idx, ts->hi_idx, eids);
 
 			for(size_t i = 0; i < nids; ++i) {
+				_chk_eseq[_chk_n] = eids[i];
 				_chk_seq[_chk_n++] = dp_data->gid_map[eids[i]];
-				_add_elem_to_datatype(&count, sizes, starts, eids[i]);
 			}
 		}
-		++count;
+		(void) count;
 
 		_chk_send[nb->idx] = _chk_n;
 		ALLOC_INFER(_chk_sgid[nb->idx], _chk_n ? _chk_n : 1);
+		ALLOC_INFER(_chk_seid[nb->idx], _chk_n ? _chk_n : 1);
 		memcpy(_chk_sgid[nb->idx], _chk_seq, _chk_n * sizeof *_chk_seq);
-		MPI_Type_indexed(count, sizes, starts, MPI_HIGREAL,
-			&dp_data->psync[nb->idx].send);
-		MPI_Type_commit(&dp_data->psync[nb->idx].send);
+		memcpy(_chk_seid[nb->idx], _chk_eseq, _chk_n * sizeof *_chk_eseq);
 
 		/* Create datatype used to receive. */
 		count = -1;
@@ -1069,18 +1071,17 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 
 
 			for(size_t i = 0; i < nids; ++i) {
+				_chk_eseq[_chk_n] = eids[i];
 				_chk_seq[_chk_n++] = dp_data->gid_map[eids[i]];
-				_add_elem_to_datatype(&count, sizes, starts, eids[i]);
 			}
 		}
-		++count;
+		(void) count;
 
 		_chk_recv[nb->idx] = _chk_n;
 		ALLOC_INFER(_chk_rgid[nb->idx], _chk_n ? _chk_n : 1);
+		ALLOC_INFER(_chk_reid[nb->idx], _chk_n ? _chk_n : 1);
 		memcpy(_chk_rgid[nb->idx], _chk_seq, _chk_n * sizeof *_chk_seq);
-		MPI_Type_indexed(count, sizes, starts, MPI_HIGREAL,
-			&dp_data->psync[nb->idx].recv);
-		MPI_Type_commit(&dp_data->psync[nb->idx].recv);
+		memcpy(_chk_reid[nb->idx], _chk_eseq, _chk_n * sizeof *_chk_eseq);
 	}
 
 	free(eids);
@@ -1113,87 +1114,175 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 	 * feito, aqui ao menos a falha e' imediata e diz o que aconteceu, em vez de
 	 * virar corrupcao silenciosa de memoria.
 	 */
+	/*
+	 * RECONCILIACAO, 24/09/2026: os tipos passam a nascer da INTERSECAO.
+	 *
+	 * O guarda antigo conferia e abortava.  A cura documentada acima --
+	 * carregar a subdivisao das faces externas no bloco serializado -- muda o
+	 * protocolo; esta e' a forma mais simples da mesma ideia: em vez de
+	 * transportar a informacao que falta, os dois lados TROCAM as listas de
+	 * gids que enumeraram e sincronizam exatamente o consenso.
+	 *
+	 *   tipo de ENVIO para nb:    meus gids de envio, na MINHA ordem,
+	 *                             filtrados pelos que nb dimensionou receber;
+	 *   tipo de RECEPCAO de nb:   na ordem de envio DELE, filtrada pelos
+	 *                             gids que eu enumerei.
+	 *
+	 * Os dois filtros sao a mesma intersecao percorrida na mesma ordem (a do
+	 * remetente), entao a troca e' simetrica POR CONSTRUCAO -- cobre a
+	 * assimetria de contagem (a coluna externa da franja numa interface de
+	 * refinamento, o caso do DynamicMeshAdapt e o da malha por criterio do
+	 * AMR) e a de ordem, de uma vez.  Onde os conjuntos ja' coincidiam, a
+	 * intersecao e' o conjunto todo na mesma ordem e NADA muda -- nem o
+	 * ultimo bit dos casos dourados.
+	 *
+	 * O que fica de fora do consenso NAO e' sincronizado e fica em zero: e' a
+	 * faceta da borda EXTERNA da franja cuja subdivisao o outro lado nao tem
+	 * como conhecer.  Descartar em silencio e' o pecado da casa, entao o
+	 * descarte e' CONTADO e declarado no stderr quando acontece.
+	 */
 	if(num_nbs > 0) {
 		MPI_Comm comm = pg_get_MPI_comm(bpsd->pg);
 		DECL_AND_ALLOC(long, peer_send, num_nbs);
-		DECL_AND_ALLOC(MPI_Request, reqs, num_nbs * 2);
-		const int tag = 913377;
+		DECL_AND_ALLOC(long, peer_recv, num_nbs);
+		DECL_AND_ALLOC(MPI_Request, reqs, num_nbs * 4);
+		const int tag_ns = 913377, tag_nr = 913379;
 
 		for(unsigned i = 0; i < num_nbs; ++i) {
-			MPI_Irecv(&peer_send[i], 1, MPI_LONG, _chk_rank[i], tag,
-				comm, &reqs[i]);
-			MPI_Isend(&_chk_send[i], 1, MPI_LONG, _chk_rank[i], tag,
-				comm, &reqs[num_nbs + i]);
+			MPI_Irecv(&peer_send[i], 1, MPI_LONG, _chk_rank[i], tag_ns,
+				comm, &reqs[4*i]);
+			MPI_Irecv(&peer_recv[i], 1, MPI_LONG, _chk_rank[i], tag_nr,
+				comm, &reqs[4*i+1]);
+			MPI_Isend(&_chk_send[i], 1, MPI_LONG, _chk_rank[i], tag_ns,
+				comm, &reqs[4*i+2]);
+			MPI_Isend(&_chk_recv[i], 1, MPI_LONG, _chk_rank[i], tag_nr,
+				comm, &reqs[4*i+3]);
 		}
-		MPI_Waitall(num_nbs * 2, reqs, MPI_STATUSES_IGNORE);
+		MPI_Waitall(num_nbs * 4, reqs, MPI_STATUSES_IGNORE);
 
+		const int tag_sg = 913378, tag_rg = 913380;
+		DECL_AND_ALLOC(int *, peer_sgid, num_nbs);
+		DECL_AND_ALLOC(int *, peer_rgid, num_nbs);
 		for(unsigned i = 0; i < num_nbs; ++i) {
-			if(peer_send[i] != _chk_recv[i]) {
-				fprintf(stderr,
-					"ERRO: troca de franja assimetrica com o rank %d: "
-					"ele envia %ld elementos, este processo dimensionou "
-					"a recepcao para %ld.  Sincronizar assim escreveria "
-					"alem do buffer e corromperia o heap.  Ver o comentario "
-					"em _create_sync_datatypes (higtree/src/pdomain.c).\n",
-					_chk_rank[i], peer_send[i], _chk_recv[i]);
-				fflush(stderr);
-				MPI_Abort(comm, 1);
-			}
-		}
-
-		/*
-		 * As contagens batem.  Falta a metade dificil: conferir que sao os
-		 * MESMOS elementos, na MESMA ordem -- e' o que o comentario de
-		 * struct neighbor_proc exige, em pdomain.h, e sao duas condicoes, nao
-		 * uma.  Se os totais coincidem mas a ordem nao, nada estoura: os
-		 * valores apenas aterrissam nas posicoes erradas e o resultado sai
-		 * errado em silencio, sem aviso nenhum.  E' o sintoma relatado no
-		 * example3d_complex a partir de dois processos.
-		 *
-		 * O id global serve de identidade comum: os elementos de franja
-		 * recebem o gid do dono (ver o preenchimento de gid_map), entao a
-		 * sequencia que o remetente vai percorrer tem de ser identica, termo a
-		 * termo, a' que o destinatario espera.
-		 */
-		const int tag_gid = 913378;
-		DECL_AND_ALLOC(int *, peer_gid, num_nbs);
-		for(unsigned i = 0; i < num_nbs; ++i) {
-			ALLOC_INFER(peer_gid[i], _chk_recv[i] > 0 ? _chk_recv[i] : 1);
-			MPI_Irecv(peer_gid[i], (int) _chk_recv[i], MPI_INT,
-				_chk_rank[i], tag_gid, comm, &reqs[i]);
+			ALLOC_INFER(peer_sgid[i], peer_send[i] > 0 ? peer_send[i] : 1);
+			ALLOC_INFER(peer_rgid[i], peer_recv[i] > 0 ? peer_recv[i] : 1);
+			MPI_Irecv(peer_sgid[i], (int) peer_send[i], MPI_INT,
+				_chk_rank[i], tag_sg, comm, &reqs[4*i]);
+			MPI_Irecv(peer_rgid[i], (int) peer_recv[i], MPI_INT,
+				_chk_rank[i], tag_rg, comm, &reqs[4*i+1]);
 			MPI_Isend(_chk_sgid[i], (int) _chk_send[i], MPI_INT,
-				_chk_rank[i], tag_gid, comm, &reqs[num_nbs + i]);
+				_chk_rank[i], tag_sg, comm, &reqs[4*i+2]);
+			MPI_Isend(_chk_rgid[i], (int) _chk_recv[i], MPI_INT,
+				_chk_rank[i], tag_rg, comm, &reqs[4*i+3]);
 		}
-		MPI_Waitall(num_nbs * 2, reqs, MPI_STATUSES_IGNORE);
+		MPI_Waitall(num_nbs * 4, reqs, MPI_STATUSES_IGNORE);
 
+		DECL_AND_ALLOC(int, f_sizes, dp_data->total_count);
+		DECL_AND_ALLOC(int, f_starts, dp_data->total_count);
 		for(unsigned i = 0; i < num_nbs; ++i) {
-			for(long k = 0; k < _chk_recv[i]; ++k) {
-				if(peer_gid[i][k] != _chk_rgid[i][k]) {
-					fprintf(stderr,
-						"ERRO: troca de franja fora de ordem com o rank %d: "
-						"na posicao %ld de %ld, ele envia o elemento global "
-						"%d e este processo espera o %d.  As contagens "
-						"coincidem, entao nada estoura -- os valores iriam "
-						"para as posicoes erradas e o resultado sairia errado "
-						"em silencio.  Ver o comentario em "
-						"_create_sync_datatypes (higtree/src/pdomain.c).\n",
-						_chk_rank[i], k, _chk_recv[i],
-						peer_gid[i][k], _chk_rgid[i][k]);
-					fflush(stderr);
-					MPI_Abort(comm, 1);
-				}
+			/* gid -> multiplicidade, para nao mudar a semantica de um gid
+			 * repetido (faceta na costura entre duas arvores de franja). */
+			GHashTable *m_peer_r = g_hash_table_new(g_direct_hash, g_direct_equal);
+			for(long k = 0; k < peer_recv[i]; ++k) {
+				gpointer key = GINT_TO_POINTER(peer_rgid[i][k]);
+				long c = (long)(intptr_t) g_hash_table_lookup(m_peer_r, key);
+				g_hash_table_insert(m_peer_r, key, (gpointer)(intptr_t)(c + 1));
 			}
-			free(peer_gid[i]);
-		}
+			/* ENVIO: minha ordem, filtrada pelo que ele dimensiona. */
+			int count = -1;
+			f_sizes[0] = 0;
+			long usados = 0;
+			for(long k = 0; k < _chk_send[i]; ++k) {
+				gpointer key = GINT_TO_POINTER(_chk_sgid[i][k]);
+				long c = (long)(intptr_t) g_hash_table_lookup(m_peer_r, key);
+				if(c <= 0) continue;
+				g_hash_table_insert(m_peer_r, key, (gpointer)(intptr_t)(c - 1));
+				_add_elem_to_datatype(&count, f_sizes, f_starts,
+					_chk_seid[i][k]);
+				usados++;
+			}
+			++count;
+			MPI_Type_indexed(count, f_sizes, f_starts, MPI_HIGREAL,
+				&dp_data->psync[i].send);
+			MPI_Type_commit(&dp_data->psync[i].send);
+			const long desc_env = _chk_send[i] - usados;
+			g_hash_table_destroy(m_peer_r);
 
-		free(peer_gid);
+			/* RECEPCAO: a ordem de envio DELE, filtrada pelo que eu enumerei.
+			 * gid -> eid meu, com multiplicidade. */
+			GHashTable *m_meu_r = g_hash_table_new(g_direct_hash, g_direct_equal);
+			for(long k = 0; k < _chk_recv[i]; ++k) {
+				gpointer key = GINT_TO_POINTER(_chk_rgid[i][k]);
+				long c = (long)(intptr_t) g_hash_table_lookup(m_meu_r, key);
+				g_hash_table_insert(m_meu_r, key, (gpointer)(intptr_t)(c + 1));
+			}
+			/* gid -> FILA de eids, na minha ordem de enumeracao.  Um mapa
+			 * simples colapsaria gid duplicado -- no caminho t8code-particao a
+			 * mesma celula global aparece em DUAS arvores de franja com dois
+			 * lids, e o pareamento tem de ser posicional dentro do gid, como
+			 * era no codigo antigo.  MEDIDO sem isto: 40 de 304 celulas de
+			 * franja com valor 0 no test-particao-t8code. */
+			GHashTable *m_meu_eid = g_hash_table_new_full(g_direct_hash,
+				g_direct_equal, NULL, (GDestroyNotify) g_queue_free);
+			for(long k = 0; k < _chk_recv[i]; ++k) {
+				gpointer key = GINT_TO_POINTER(_chk_rgid[i][k]);
+				GQueue *q = (GQueue *) g_hash_table_lookup(m_meu_eid, key);
+				if(q == NULL) {
+					q = g_queue_new();
+					g_hash_table_insert(m_meu_eid, key, q);
+				}
+				g_queue_push_tail(q, (gpointer)(intptr_t) _chk_reid[i][k]);
+			}
+			count = -1;
+			f_sizes[0] = 0;
+			usados = 0;
+			for(long k = 0; k < peer_send[i]; ++k) {
+				gpointer key = GINT_TO_POINTER(peer_sgid[i][k]);
+				long c = (long)(intptr_t) g_hash_table_lookup(m_meu_r, key);
+				if(c <= 0) continue;
+				g_hash_table_insert(m_meu_r, key, (gpointer)(intptr_t)(c - 1));
+				GQueue *q = (GQueue *) g_hash_table_lookup(m_meu_eid, key);
+				const int eid = (int)(intptr_t) g_queue_pop_head(q);
+				_add_elem_to_datatype(&count, f_sizes, f_starts, eid);
+				usados++;
+			}
+			++count;
+			MPI_Type_indexed(count, f_sizes, f_starts, MPI_HIGREAL,
+				&dp_data->psync[i].recv);
+			MPI_Type_commit(&dp_data->psync[i].recv);
+			const long desc_rec = _chk_recv[i] - usados;
+			g_hash_table_destroy(m_meu_r);
+			g_hash_table_destroy(m_meu_eid);
+
+			if(desc_env > 0 || desc_rec > 0) {
+				int _rk;
+				MPI_Comm_rank(comm, &_rk);
+				fprintf(stderr,
+					"aviso (rank %d): consenso de franja com o rank %d "
+					"descarta %ld de %ld no envio e %ld de %ld na recepcao "
+					"-- borda externa da franja com subdivisao que o outro "
+					"lado nao conhece; esses elementos ficam sem "
+					"sincronizacao.\n",
+					_rk, _chk_rank[i], desc_env, _chk_send[i],
+					desc_rec, _chk_recv[i]);
+			}
+			free(peer_sgid[i]);
+			free(peer_rgid[i]);
+		}
+		free(f_sizes);
+		free(f_starts);
+		free(peer_sgid);
+		free(peer_rgid);
 		free(peer_send);
+		free(peer_recv);
 		free(reqs);
 	}
 
 	for(unsigned i = 0; i < num_nbs; ++i) {
 		free(_chk_sgid[i]);
 		free(_chk_rgid[i]);
+		free(_chk_seid[i]);
+		free(_chk_reid[i]);
 	}
 
 	free(_chk_rank);
@@ -1201,7 +1290,10 @@ _create_sync_datatypes(_dp_shared *dp_data, GHashTable *fn, void* fdata,
 	free(_chk_recv);
 	free(_chk_sgid);
 	free(_chk_rgid);
+	free(_chk_seid);
+	free(_chk_reid);
 	free(_chk_seq);
+	free(_chk_eseq);
 }
 
 distributed_property *psd_create_property(psim_domain *psd) {

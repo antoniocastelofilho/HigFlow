@@ -91,6 +91,35 @@ static int _possui(sim_facet_domain *sfd, const Point x)
 {
     hig_cell *c = sfd_get_cell_with_point(sfd, (real *) x);
     if (c == NULL) return 0;
+
+    // CONVENCAO MEIO-ABERTA [lo, hi): marcador exatamente sobre a face ALTA da
+    // celula pertence a' vizinha.  Sem isto, um marcador sobre a face entre
+    // arvores de ranks diferentes e' achado como "meu" pelos DOIS lados -- a
+    // busca de cada rank e' inclusiva na borda da sua arvore -- e a guarda de
+    // reivindicacao aborta.  MEDIDO com a malha do criterio (F3): 252
+    // reivindicacoes para 251 marcadores.  A malha da caixa nunca poe fronteira
+    // de particao sobre marcador; a do criterio pos.
+    //
+    // A re-consulta com o ponto empurrado escolhe a vizinha; se nao houver
+    // (borda externa do dominio), a celula original fica -- ali nao ha' outro
+    // rank para disputar.
+    {
+        Point cl, ch, q;
+        hig_get_lowpoint(c, cl);
+        hig_get_highpoint(c, ch);
+        POINT_ASSIGN(q, x);
+        int na_face = 0;
+        for (int d = 0; d < DIM; d++)
+            if (fabs(x[d] - ch[d]) <= 1e-9 * (ch[d] - cl[d])) {
+                q[d] = ch[d] + 1e-6 * (ch[d] - cl[d]);
+                na_face = 1;
+            }
+        if (na_face) {
+            hig_cell *v = sfd_get_cell_with_point(sfd, q);
+            if (v != NULL) c = v;
+        }
+    }
+
     hig_cell *raiz = c;
     while (hig_get_parent(raiz) != NULL) raiz = hig_get_parent(raiz);
 
