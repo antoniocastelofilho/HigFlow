@@ -479,3 +479,48 @@ desequilíbrio de \textsc{cpu} entre processos, não nada dentro do código. A
 métrica que eu vinha usando --- células por processo --- dava $\max/\min =
 1{,}00$ e dizia ``balanceado''; contagem de células não é trabalho, e trabalho
 não é progresso quando o sistema operacional está no meio.
+
+\subsection{O par de projeção na interface: montava-se uma equação, aplicava-se outra}
+
+A projeção pós-remalhamento (seção seguinte) expôs um defeito do próprio passo
+de tempo em malha graduada. O Laplaciano de pressão era montado sondando $p$ em
+$c \pm h$; a correção de velocidade aplica, por faceta,
+$(p(f+\tfrac{fd}{2}) - p(f-\tfrac{fd}{2}))/fd$. Em malha uniforme as duas
+discretizações coincidem ponto a ponto; na interface $2{:}1$ \emph{não} --- e a
+diferença tem direção nula. O sintoma medido: projetando um campo com
+divergência conhecida, sobrava um \textbf{ponto fixo} de $\mathrm{div} \approx
+1{,}7$ na célula grossa adjacente à interface; iterar a projeção dava contração
+de exatamente $1{,}00$, e o resíduo \emph{seguia a borda da perturbação} ao
+longo da linha da interface quando a perturbação se movia.
+
+Duas hipóteses, decididas por medição: a divergência por \emph{soma de fluxos}
+das sub-facetas deu $1{,}697$ onde a sonda pontual dava $1{,}646$ ---
+vazamento real, não artefato do funcional. O conserto é a \textbf{montagem
+composta}: nas células cuja vizinha tem tamanho diferente, a linha do sistema
+passa a ser exatamente $M \circ G$ --- a divergência por fluxo das sub-facetas
+composta com o gradiente que a correção de fato aplica, com as mesmas sondas
+--- e o lado direito dessas células também vira fluxo. O que se monta é o que
+se aplica.
+
+\begin{center}
+\begin{tabular}{lSS}
+  \toprule
+  & {razão div depois/antes} & {} \\
+  malha & {antes do conserto} & {depois} \\
+  \midrule
+  uniforme, $np=1$      & 1.53e-6 & 1.53e-6 \\
+  uniforme, $np=6$      & 2.70e-6 & 2.70e-6 \\
+  refinada, 1 nível     & 3.71e-2 & 1.26e-3 \\
+  refinada, 2 níveis    & 3.89e-2 & 1.53e-3 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+A divergência \emph{por fluxo} nas células que vazavam cai a ${\sim}10^{-6}$
+--- o nível do solver linear; o que a sonda pontual ainda vê ($5{,}5 \times
+10^{-2}$ absoluto) é diferença entre funcionais sobre o mesmo campo solenoidal.
+As linhas uniformes saem \emph{dígito a dígito} iguais às de antes: a porta
+``vizinha de tamanho diferente'' nunca dispara em malha uniforme, e o caminho
+original fica intocado --- nenhum caso do conjunto dourado muda. O alcance vai
+além do remalhamento: \textbf{todo passo de tempo em malha graduada usa este
+par}.

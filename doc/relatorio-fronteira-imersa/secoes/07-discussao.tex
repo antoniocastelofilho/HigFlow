@@ -197,3 +197,50 @@ nova não é preenchida, é contada --- e o chamador recebe a lista de quais, n�
 só quantas, porque quem vai interpolar precisa saber onde. Interpolar de forma
 conservativa para essas células é o passo seguinte, e é outro problema: a
 transferência aqui move o que existe, e não inventa o que não existia.
+
+\subsection{Da transferência ao ciclo: as peças que faltavam, medidas}
+
+O passo seguinte foi dado, e mais dois atrás dele.
+
+\paragraph{Interpolação conservativa.} A célula que não existia recebe valor
+pelos dois casos que um passo de adaptação produz: a mais \emph{fina} recebe o
+da que a continha (conservativo por construção para campo constante por
+célula); a mais \emph{grossa} recebe a média das que contém (filhos de volumes
+iguais: média simples é média em volume). O pai é achado \emph{sem conhecer a
+malha antiga}: os $2^d$ candidatos são calculáveis do próprio box, e no máximo
+um existe --- dois seriam células do mesmo tamanho sobrepondo-se parcialmente.
+A faceta tem dois casos próprios, ambos achados por medição: a do \emph{plano
+do meio} (que no nível grosso era interior) recebe a média das duas paralelas;
+a \emph{sem contraparte} na interface de refinamento usa a média do que existe,
+contada à parte. E o oráculo teve de mudar no caminho: para célula é a
+integral, preservada a $0{,}0$; para faceta a integral \textbf{não é
+invariante} --- refinar cria faceta de plano do meio, que soma fluxo novo ---
+e o oráculo certo é campo constante reproduzido exatamente, válido nas três
+rotas.
+
+\paragraph{Projeção com o par do próprio solver.} Depois de transferir, o
+campo conserva fluxo mas não divergência. A projeção usa exatamente o par do
+passo de tempo --- \texttt{higflow\_pressure} +
+\texttt{higflow\_final\_velocity} --- de modo que ``divergência nula''
+significa o mesmo que no resto do solver. De propósito não existe um segundo
+operador: seria uma segunda verdade, e as duas divergiriam em silêncio. Razão
+de remoção: $10^{-6}$ em malha uniforme; em malha graduada ela expôs a
+inconsistência do par na interface, consertada na seção de resultados.
+
+\paragraph{Reconstrução do domínio no meio da corrida (F1 do plano).} A peça
+sem precedente: destruir e recriar domínios, propriedades, solvers e condições
+de contorno mantendo o estado temporal, reusando o caminho do arranque. Medida
+com o corpo imerso ativo: identidade \emph{bit a bit} no rebuild em malha
+uniforme; identidade a menos de permutação de índices na malha refinada (a
+produção reordena árvores; somas invariantes batem a $10^{-14}$); e a
+continuação com/sem rebuild difere exatamente pela tolerância do solver linear
+--- $2{,}5\times10^{-3}$ relativo em $\sum p$ com $rtol=10^{-5}$,
+$8\times10^{-10}$ com $rtol=10^{-12}$, sete ordens ao apertar sete ordens.
+\textbf{A reconstrução não introduz erro próprio.} O ciclo completo custa
+$0{,}54$~s por remalhamento nesta malha --- meio passo de tempo --- com um
+vazamento deliberado e medido de ${\sim}9$~MB por ciclo (posse de árvores
+compartilhada com o balanceador; apertar antes de corridas longas).
+
+O que falta para a adaptação dinâmica de fato: o critério físico e a sua
+histerese, a cadência, e a validação no 2D-2 --- onde a esteira oscila e o
+refinamento estático deixa de bastar.
