@@ -241,7 +241,7 @@ caixa $[1;3{,}5]\times[1;3]$ em torno do cilindro --- produzida pelo t8code
   refinada, caixa $[1;12]$     &  62\,480 & 5.629705 & {$+0{,}90\%$} & --- \\
   \midrule
   uniforme, 80 cél./$D$        & 577\,320 & 5.502503 & {$-1{,}38\%$} & --- \\
-  \textbf{refinada, 2 níveis}  &  66\,632 & 5.536951 & {$-0{,}76\%$} & 3.4 \\
+  \textbf{refinada, 2 níveis}  &  66\,632 & 5.536660 & {$-0{,}77\%$} & 3.4 \\
   \bottomrule
 \end{tabular}
 \end{center}
@@ -333,11 +333,16 @@ o candidato é a resolução do campo distante.
 O custo é o argumento: $66\,632$ células contra $577\,320$, e $34$ minutos de
 máquina contra as cerca de $43$ horas estimadas para a uniforme de oitenta.
 
-\paragraph{Esta medição foi refeita, e vale registrar por quê.} A primeira
-corrida de dois níveis deu $\Cd = 5{,}536935$, numa malha com um \textbf{buraco}
-de doze células e duas árvores degeneradas, introduzidos por um conserto
-anterior da decomposição em caixas. Refeita com a malha corrigida, o valor é
-$5{,}536951$ --- diferença de $0{,}0003\%$, cinco algarismos iguais.
+\paragraph{Esta medição foi refeita duas vezes, e cada uma mediu uma coisa.}
+A primeira corrida deu $5{,}536935$ numa malha com um \emph{buraco} de doze
+células; corrigida a malha, $5{,}536951$ --- $0{,}0003\%$, o buraco caíra em
+região inerte. Corrigido depois o par de projeção na interface (seção acima),
+$5{,}536660$ --- $0{,}005\%$: a inconsistência corrompia a conservação de massa
+localmente, mas o arrasto quase não a sentia, coerente com a divergência criada
+por passo ser pequena. Os três números ficam registrados porque a
+\emph{sequência} é o dado: cada defeito estrutural achado valia ordens de
+grandeza no campo local e quase nada no funcional integral --- e é exatamente
+por isso que nenhum deles teria sido achado olhando só o $\Cd$.
 
 Que o buraco não tenha afetado o arrasto \emph{não} o torna inofensivo. É
 comportamento indefinido --- a busca de célula devolve nulo ali --- e uma das
@@ -479,6 +484,30 @@ desequilíbrio de \textsc{cpu} entre processos, não nada dentro do código. A
 métrica que eu vinha usando --- células por processo --- dava $\max/\min =
 1{,}00$ e dizia ``balanceado''; contagem de células não é trabalho, e trabalho
 não é progresso quando o sistema operacional está no meio.
+
+\subsection{O ciclo de remalhamento não custa nada no arrasto (F2)}
+
+Com as peças da discussão --- transferência, interpolação conservativa,
+reconstrução de domínio --- o ciclo completo foi medido no caso de dois níveis:
+o domínio inteiro destruído e reconstruído \textbf{a cada 200 passos}, nove
+vezes ao longo de $t=10$, com os campos transferidos pela posição.
+
+\begin{center}
+\begin{tabular}{lS}
+  \toprule
+  & {$\Cd$ em $t=10$} \\
+  \midrule
+  corrida contínua (baseline)            & 5.536660 \\
+  ciclo com 9 reconstruções               & 5.536659 \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+Diferença de $10^{-6}$ absoluto. Nenhuma posição ficou sem valor em nenhuma das
+nove; o custo médio é $0{,}9$~s por reconstrução --- $8{,}2$~s em ${\sim}35$
+minutos de corrida, $0{,}4\%$ --- e o vazamento deliberado de memória mede
+${\sim}15$~MB por ciclo no processo 0. O maquinário de remalhamento está
+pronto; o que falta para a adaptação dinâmica é o critério.
 
 \subsection{O par de projeção na interface: montava-se uma equação, aplicava-se outra}
 

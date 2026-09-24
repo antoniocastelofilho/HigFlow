@@ -11,7 +11,19 @@ uniforme40   144320   5.602506  +0.409   0.000  8.2844e-03  16.5
 refinada_3.5  42080   5.629576  +0.897  +0.483  8.3425e-03   2.0
 refinada_8    52880   5.629705  +0.900  +0.485  8.3426e-03   2.8
 refinada_12   62480   5.629705  +0.900  +0.485       -        -
-refinada_2niv 66632   5.536951  -0.764  -0.626  1.6911e-02   3.4
+refinada_2niv 66632   5.536660  -0.769  -0.632  1.6911e-02   3.4
+#
+# refinada_2niv acima: COM o conserto da interface (montagem composta).  A
+# corrida anterior, antes do conserto, dava 5,536951: o conserto moveu o Cd em
+# 0,005% -- a inconsistencia corrompia a conservacao de massa localmente, mas o
+# arrasto quase nao a sentia (a divergencia criada por passo e' pequena).
+#
+# F2 DO AMR DINAMICO: a mesma corrida com o dominio RECONSTRUIDO a cada 200
+# passos (9 remalhamentos, transferencia por posicao, sem valor = 0 em todos):
+#     ciclo:    Cd = 5.536659
+#     baseline: Cd = 5.536660
+# Diferenca de 1e-6 absoluto.  Custo: 0,9 s/remalhamento (8,2 s em ~35 min,
+# 0,4%), vazamento deliberado ~15 MB/remalhamento no rank 0 (104 -> 239 MB).
 #
 # A LINHA DE DOIS NIVEIS: h = 0,0125 junto ao corpo, HIGFLOW_H = 0,0125 (251
 # marcadores), caixa [1;3,5].  A comparar com a uniforme de 80, que tem o mesmo

@@ -1,6 +1,6 @@
 # Refinamento adaptativo dinâmico
 
-Documento vivo.  Estado em 23/09/2026: **F1 concluída e medida**; F2 a seguir.
+Documento vivo.  Estado em 24/09/2026: **F1 e F2 concluídas e medidas**; F3 (critério) a seguir.
 
 ## Por quê, e por quê agora
 
@@ -109,7 +109,13 @@ o corpo imerso ativo (Uhlmann, 5 iterações), rebuild no passo 15 de 30:
   liberados (posse compartilhada com o balanceador); custo por remalhamento, a
   medir na F2.
 
-**F2 — remalha estático-equivalente.**  O ciclo inteiro rodando no 2D-1, com um
+**F2 — remalha estático-equivalente.  CONCLUÍDA.**  Cd do ciclo com 9
+reconstruções (N=200) = 5,536659 contra 5,536660 da corrida contínua —
+diferença de 1e-6.  Custo: 0,9 s por reconstrução (0,4% do tempo total);
+vazamento deliberado ~15 MB/ciclo no rank 0 (104 → 239 MB em 9) — apertar
+antes de corridas longas de F4.  Nada sem valor em nenhuma das nove.
+
+Como planejada: **F2 —**  O ciclo inteiro rodando no 2D-1, com um
 critério que reproduz a caixa estática a cada ciclo: malha igual, campos
 transferidos, Cd no fim igual ao da corrida estática.  *Portão: Cd da corrida
 com N remalhamentos == Cd da corrida sem nenhum (referência: a remedição de
