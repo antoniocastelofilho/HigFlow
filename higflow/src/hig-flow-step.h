@@ -45,7 +45,13 @@ void higflow_pressure(higflow_solver *ns);
 void higflow_final_velocity(higflow_solver *ns); 
 
 // Navier-Stokes final pressure using the projection method
-void higflow_final_pressure(higflow_solver *ns); 
+void higflow_final_pressure(higflow_solver *ns);
+
+//! \brief Projeta o campo corrente de velocidade para divergencia nula, com o
+//! MESMO par que o passo usa (higflow_pressure + higflow_final_velocity).
+//! Para depois de um remalhamento: a transferencia conserva fluxo, nao
+//! divergencia.  Ver o comentario na implementacao.
+void higflow_projecao_remalha(higflow_solver *ns); 
 
 // Computing the necessary term for the Navier-Stokes equation
 void higflow_compute_rate_of_deformation(higflow_solver *ns); 

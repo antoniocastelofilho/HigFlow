@@ -385,6 +385,57 @@ void higflow_final_pressure(higflow_solver *ns) {
     }
 }
 
+// =============================================================================
+// PROJECAO POS-REMALHA
+//
+// A transferencia de solucao (hig-flow-remalha) conserva fluxo, NAO
+// divergencia: o campo que chega da malha antiga nao satisfaz div u = 0 no
+// operador discreto DESTA malha.  Esta funcao projeta o campo corrente usando
+// exatamente o par que o passo de tempo usa -- higflow_pressure e
+// higflow_final_velocity -- de modo que "divergencia nula" aqui significa o
+// mesmo que no resto do solver: mesmo estencil, mesmas condicoes de contorno,
+// mesmo sistema linear.
+//
+// DE PROPOSITO NAO EXISTE um segundo operador de projecao: duplicar a
+// discretizacao seria criar uma segunda verdade, e as duas divergiriam em
+// silencio.
+//
+// O dt entra e sai: higflow_pressure divide div(u*) por dt e
+// higflow_final_velocity multiplica o gradiente por dt, entao o resultado nao
+// depende do valor de dt.
+//
+// No metodo INCREMENTAL o potencial cai em dpdeltap e a pressao e' atualizada
+// p += deltap, como num passo normal -- a pressao transferida continua sendo a
+// base.  No NAO incremental higflow_pressure SOBRESCREVE dpp com o potencial;
+// como o proposito aqui e' corrigir u e nao recalcular p, a pressao
+// transferida e' salva antes e devolvida depois.
+// =============================================================================
+void higflow_projecao_remalha(higflow_solver *ns) {
+    // u -> u*: o que se projeta e' o campo CORRENTE, nao um preditor.
+    for (int dim = 0; dim < DIM; dim++) {
+        const int n = ns->dpu[dim]->pdata->local_count;
+        for (int flid = 0; flid < n; flid++)
+            dp_set_value(ns->dpustar[dim], flid, dp_get_value(ns->dpu[dim], flid));
+        dp_sync(ns->dpustar[dim]);
+    }
+    real *p_salva = NULL;
+    if (ns->contr.projtype != INCREMENTAL) {
+        const int n = ns->dpp->pdata->local_count;
+        p_salva = (real *) malloc((size_t)(n > 0 ? n : 1) * sizeof *p_salva);
+        for (int i = 0; i < n; i++) p_salva[i] = dp_get_value(ns->dpp, i);
+    }
+    higflow_pressure(ns);
+    higflow_final_velocity(ns);
+    if (ns->contr.projtype == INCREMENTAL) {
+        higflow_final_pressure(ns);
+    } else {
+        const int n = ns->dpp->pdata->local_count;
+        for (int i = 0; i < n; i++) dp_set_value(ns->dpp, i, p_salva[i]);
+        free(p_salva);
+        dp_sync(ns->dpp);
+    }
+}
+
 // Navier-Stokes calculate the source term
 void higflow_calculate_source_term(higflow_solver *ns) {
     // Get the local sub-domain

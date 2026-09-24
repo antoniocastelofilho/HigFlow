@@ -113,8 +113,10 @@ long rem_interpola_centro(rem_colheita *c, sim_domain *sd,
 //!
 //! CONSERVA FLUXO, NAO DIVERGENCIA.  A soma de u*A e' preservada faceta a
 //! faceta, mas o campo resultante NAO e' de divergencia nula na malha nova.
-//! Depois de remalhar, o chamador precisa de uma projecao -- e isto aqui nao a
-//! faz.
+//! Depois de remalhar, chame `higflow_projecao_remalha` (hig-flow-step.h): ela
+//! projeta com o MESMO par do passo de tempo.  Em malha uniforme remove a
+//! divergencia ate' o solver linear; em malha refinada sobra o residuo de
+//! interface do proprio par do solver -- ver o comentario dela.
 long rem_interpola_faceta(rem_colheita *c, sim_facet_domain *sfd,
                           distributed_property *dp, char *achado);
 
