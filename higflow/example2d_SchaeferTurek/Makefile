@@ -78,6 +78,7 @@ OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
 # exemplos que instalam um corpo precisam destes dois -- o passo chama por
 # ponteiro de funcao, entao os demais nao referenciam simbolo nenhum.
 OBJ1 += ../src/hig-flow-fronteira-imersa.o fronteira-imersa.o
+OBJ1 += ../src/hig-flow-remalha.o
 OBJ1 += $(T8OBJ)
 
 ns-example: $(OBJ1)

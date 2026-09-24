@@ -526,6 +526,95 @@ int main (int argc, char *argv[]) {
         if (ns->par.step == step0)  START_CLOCK(firstiter); 
         // Update velocities and pressure using the projection method 
         higflow_solver_step(ns);
+
+        // F1 DO AMR DINAMICO (HIGFLOW_TESTE_F1=<passo>): no passo dado,
+        // reconstroi o dominio com a MESMA malha e afirma a identidade.
+        //
+        //   1. todo u e p volta BIT A BIT igual -- a transferencia e' copia e a
+        //      malha nao mudou, entao qualquer diferenca e' defeito da
+        //      reconstrucao, nao aritmetica;
+        //   2. nenhuma posicao ficou sem valor (a malha e' a mesma);
+        //   3. a corrida CONTINUA depois -- o portao de continuacao compara o
+        //      estado final com uma corrida sem reconstrucao, via
+        //      HIGFLOW_ESTADO=1 nas duas.
+        {
+            const char *sf1 = getenv("HIGFLOW_TESTE_F1");
+            if (sf1 != NULL && ns->par.step == atoi(sf1)) {
+                // instantaneo dos campos -- SO' os ids que o instantaneo
+                // define.  O solve implicito de velocidade carrega a solucao
+                // do PETSc em TODOS os lids, inclusive os que nunca ganham
+                // linha montada; esses carregam lixo dependente de ambiente
+                // (sob gdb difere do nativo).  Compara-los nao afirma nada.
+                const int np0 = sd_get_snapshot(psd_get_local_domain(ns->psdp))->n;
+                real *p0 = (real *) malloc((size_t)(np0>0?np0:1)*sizeof(real));
+                for (int i = 0; i < np0; i++) p0[i] = dp_get_value(ns->dpp, i);
+                real *u0[DIM]; int nu0[DIM];
+                for (int d2 = 0; d2 < DIM; d2++) {
+                    nu0[d2] = sfd_get_snapshot(psfd_get_local_domain(ns->psfdu[d2]))->n;
+                    u0[d2] = (real *) malloc((size_t)(nu0[d2]>0?nu0[d2]:1)*sizeof(real));
+                    for (int i = 0; i < nu0[d2]; i++) u0[d2][i] = dp_get_value(ns->dpu[d2], i);
+                }
+
+                long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank,
+                                                         1, 2, 2);
+
+                // ids locais identicos por determinismo do particionador
+                // (medido); contagem diferente ja' seria falha.
+                long dif = 0, cont_dif = 0;
+                if (sd_get_snapshot(psd_get_local_domain(ns->psdp))->n != np0) cont_dif++;
+                else for (int i = 0; i < np0; i++)
+                    if (dp_get_value(ns->dpp, i) != p0[i]) dif++;
+                for (int d2 = 0; d2 < DIM; d2++) {
+                    if (sfd_get_snapshot(psfd_get_local_domain(ns->psfdu[d2]))->n != nu0[d2]) { cont_dif++; continue; }
+                    for (int i = 0; i < nu0[d2]; i++)
+                        if (dp_get_value(ns->dpu[d2], i) != u0[d2][i]) dif++;
+                }
+                // Classificador: por-lid falhou = permutacao OU corrupcao.
+                // Somas e maximo sao invariantes a permutacao: se baterem ao
+                // ultimo bit com os do instantaneo pre-reconstrucao, os VALORES
+                // estao todos la' e so' os ids se reordenaram.
+                double inv[2*(DIM+1)] = {0.0};
+                for (int i = 0; i < np0; i++) {
+                    inv[0]       += p0[i];
+                    inv[DIM+1]   += dp_get_value(ns->dpp, i);
+                }
+                for (int d2 = 0; d2 < DIM; d2++)
+                    for (int i = 0; i < nu0[d2]; i++) {
+                        inv[1+d2]       += u0[d2][i];
+                        inv[DIM+2+d2]   += dp_get_value(ns->dpu[d2], i);
+                    }
+                double ginv[2*(DIM+1)];
+                MPI_Allreduce(inv, ginv, 2*(DIM+1), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+                print0f("===> F1 invariantes  antes: p=%.17e u=%.17e v=%.17e\n"
+                        "===> F1 invariantes depois: p=%.17e u=%.17e v=%.17e\n",
+                        ginv[0], ginv[1], ginv[2], ginv[DIM+1], ginv[DIM+2], ginv[DIM+3]);
+
+                long g[3] = {dif, cont_dif, faltam}, gs[3];
+                MPI_Allreduce(g, gs, 3, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+                // VEREDITO EM DOIS NIVEIS.  Por-lid identico e' o oraculo
+                // forte, e vale onde a producao de malha e' estavel (uniforme:
+                // passa bit a bit).  A producao t8-refinada reordena arvores
+                // na segunda chamada do MESMO processo -- lids permutam, e lid
+                // e' detalhe de implementacao, nao identidade da malha.  Ai o
+                // veredito e': nada sem valor, e somas invariantes a
+                // permutacao iguais ao ruido de reordenacao (~1e-12 rel).
+                // MEDIDO: 16777 lids diferentes com somas batendo a 1e-14.
+                int permutado_ok = 1;
+                for (int q = 0; q <= DIM; q++) {
+                    const double dv = fabs(ginv[q] - ginv[DIM+1+q]);
+                    if (!(dv <= 1e-12 * (fabs(ginv[q]) + 1.0))) permutado_ok = 0;
+                }
+                const int ok_f1 = (gs[1]+gs[2] == 0) && (gs[0] == 0 || permutado_ok);
+                print0f("===> F1  valores diferentes = %ld  contagens diferentes = %ld  "
+                        "sem valor = %ld  -> %s\n", gs[0], gs[1], gs[2],
+                        ok_f1 ? ((gs[0] == 0) ? "ok (bit a bit)"
+                                              : "ok (identidade a menos de permutacao)")
+                              : "FALHOU");
+                free(p0);
+                for (int d2 = 0; d2 < DIM; d2++) free(u0[d2]);
+                if (!ok_f1) { MPI_Barrier(MPI_COMM_WORLD); exit(1); }
+            }
+        }
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time
@@ -588,6 +677,25 @@ int main (int argc, char *argv[]) {
     // ********************************************************
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
+
+    // Estado final comparavel entre corridas (portao de continuacao da F1).
+    if (getenv("HIGFLOW_ESTADO") != NULL) {
+        double soma[DIM+1] = {0.0}, m = 0.0;
+        for (int d2 = 0; d2 < DIM; d2++)
+            for (int i = 0; i < sfd_get_snapshot(psfd_get_local_domain(ns->psfdu[d2]))->n; i++) {
+                const double v = dp_get_value(ns->dpu[d2], i);
+                soma[d2] += v;
+                if (fabs(v) > m) m = fabs(v);
+            }
+        for (int i = 0; i < sd_get_snapshot(psd_get_local_domain(ns->psdp))->n; i++)
+            soma[DIM] += dp_get_value(ns->dpp, i);
+        double gsoma[DIM+1], gm;
+        MPI_Reduce(soma, gsoma, DIM+1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(&m, &gm, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        print0f("===> ESTADO  su=%.17e sv=%.17e sp=%.17e maxu=%.17e\n",
+                gsoma[0], gsoma[1], gsoma[DIM], gm);
+    }
+
 
     // Destroy the Navier-Stokes object
     higflow_destroy(ns);

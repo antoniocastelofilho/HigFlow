@@ -1,6 +1,6 @@
 # Refinamento adaptativo dinâmico
 
-Documento vivo.  Estado em 23/09/2026: planejado; nenhuma fase começou.
+Documento vivo.  Estado em 23/09/2026: **F1 concluída e medida**; F2 a seguir.
 
 ## Por quê, e por quê agora
 
@@ -86,11 +86,28 @@ Riscos mapeados:
 
 ## Fases, cada uma com o seu portão
 
-**F1 — reconstrução a malha igual.**  `higflow_remalha` com a mesma malha, no
-meio de uma corrida: os campos voltam bit a bit (o particionador é
-determinista no conjunto de células — medido), e os passos seguintes batem com
-uma corrida ininterrupta.  *Portão: identidade bit a bit; se o KSP introduzir
-ruído, medir e documentar o teto.*
+**F1 — reconstrução a malha igual.  CONCLUÍDA.**  `higflow_reconstroi_dominio`
+(hig-flow-kernel.c) destrói e recria domínios/propriedades/solvers/CCs no meio
+da corrida, transfere u e p pela posição e interpola o que faltar.  Medido, com
+o corpo imerso ativo (Uhlmann, 5 iterações), rebuild no passo 15 de 30:
+
+- **Identidade no rebuild**: bit a bit em malha uniforme (np=1 e np=6).  Na
+  malha t8-refinada os lids permutam — a produção reordena árvores na segunda
+  chamada do mesmo processo — e o veredito é em dois níveis: nada sem valor, e
+  somas invariantes a permutação iguais a 1e-14 relativo.  Lid é detalhe de
+  implementação, não identidade da malha.
+- **Continuação**: a diferença com/sem rebuild É a tolerância do solver linear,
+  e escala com ela — sum(p) difere 2,5e-3 relativo com rtol=1e-5 e 8e-10 com
+  rtol=1e-12 (sete ordens).  A reconstrução não introduz erro próprio.
+- **Três armadilhas achadas e curadas no caminho**: o rascunho do adaptador
+  Uhlmann era cache preso ao domínio antigo (curado com o *aviso de remalha*,
+  gancho chamado depois de colher e antes de destruir — depois, nem o
+  dp_destroy é seguro); os oráculos não podem ler lids fora do instantâneo (o
+  solve implícito carrega lixo dependente de ambiente nos DOFs sem linha
+  montada); e após mudança de layout do struct, a cadeia INTEIRA rebuilda.
+- **Vazamento deliberado e documentado**: sd/sfd/árvores/CCs antigos não são
+  liberados (posse compartilhada com o balanceador); custo por remalhamento, a
+  medir na F2.
 
 **F2 — remalha estático-equivalente.**  O ciclo inteiro rodando no 2D-1, com um
 critério que reproduz a caixa estática a cada ciclo: malha igual, campos

@@ -1331,7 +1331,12 @@ typedef struct higflow_solver {
     //! impoe o nao escorregamento a O(dt), a pos-preditor tira esse termo.
     //! Instalar as duas ao mesmo tempo aplicaria a forca duas vezes.
     higflow_fronteira_imersa fronteira_imersa_pos_preditor;
+    //! \brief Aviso de remalha: chamado depois de colher e ANTES de destruir os
+    //! dominios, para que caches presos a eles (dp de rascunho) sejam
+    //! destruidos enquanto ainda se pode.  NULL = ninguem a avisar.
+    higflow_fronteira_imersa remalha_avisa;
     void                    *fronteira_imersa_ctx;
+    void                    *remalha_avisa_ctx;
 
     //! \brief Fonte da malha.  NULL = ler da informacao AMR, como sempre.
     higflow_fonte_de_malha fonte_de_malha;
@@ -1374,7 +1379,18 @@ void higflow_realloc_solver(higflow_solver *ns);
 // *******************************************************************
 
 // Create the simulation domain for NS object
-void higflow_create_domain (higflow_solver *ns, int cache, int order); 
+void higflow_create_domain (higflow_solver *ns, int cache, int order);
+
+//! \brief Reconstroi dominios/propriedades/solvers/CCs no meio da corrida e
+//! transfere u e p pela posicao.  F1 do AMR dinamico; ver
+//! doc/projeto-amr-dinamico.md.  Devolve quantas posicoes ficaram sem valor
+//! (zero quando a malha nao mudou ou mudou de um nivel).
+long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
+                                int cache, int order_center, int order_facet);
+
+//! \brief Registra o aviso de remalha.  Ver o campo `remalha_avisa`.
+void higflow_set_remalha_avisa(higflow_solver *ns,
+                               higflow_fronteira_imersa avisa, void *ctx); 
 
 // Create the simulation domain for generalized newtonian flow
 void higflow_create_domain_generalized_newtonian(higflow_solver *ns, int cache, int order,

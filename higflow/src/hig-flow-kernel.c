@@ -29,6 +29,9 @@
 // built the fringe and the graph.
 
 #include "hig-flow-kernel.h"
+#include "hig-flow-remalha.h"
+#include "hig-flow-ic.h"
+#include "hig-flow-bc.h"
 
 // *******************************************************************
 // Navier-Stokes Create and Destroy Object
@@ -42,6 +45,8 @@ higflow_solver *higflow_create (void) {
     ns->fronteira_imersa_aplica = NULL;
     ns->fronteira_imersa_pos_preditor = NULL;
     ns->fronteira_imersa_ctx = NULL;
+    ns->remalha_avisa = NULL;
+    ns->remalha_avisa_ctx = NULL;
     ns->fonte_de_malha = NULL;
     ns->fonte_de_malha_ctx = NULL;
     ns->fonte_de_particao = NULL;
@@ -52,6 +57,122 @@ higflow_solver *higflow_create (void) {
 }
 
 // Destroy the NS object
+// =============================================================================
+// RECONSTRUCAO DO DOMINIO NO MEIO DA CORRIDA (F1 do AMR dinamico)
+//
+// Destroi e recria dominios, propriedades, solvers e CCs, mantendo ns->par e o
+// estado temporal, e transfere os campos pela posicao (hig-flow-remalha).  A
+// malha nova vem do MESMO caminho do arranque -- fonte de malha instalada ou
+// arquivos AMR --, entao com a mesma fonte a malha volta identica e a
+// transferencia e' identidade bit a bit (o particionador e' determinista no
+// conjunto de celulas; medido).
+//
+// SO' NEWTONIANO por enquanto: os campos transportados sao u e p.  O resto do
+// estado de um passo (u*, deltap, fontes, forca da fronteira imersa) e'
+// recomputado pelo proprio passo a partir de u e p.  Estender a outros modelos
+// e' transportar tambem os tensores deles -- o mecanismo e' o mesmo.
+//
+// ORDEM DA DESTRUICAO, e ela e' obrigatoria: dp_destroy antes de
+// psfd/psd_destroy (que liberam os tipos MPI da sincronizacao), psfd antes de
+// psd (psfd_destroy le psd->filtered_neighbors), pg por ultimo.
+//
+// VAZAMENTO DELIBERADO E CONTADO: sd/sfd/arvores/CCs antigos nao sao liberados
+// nesta versao -- a posse das arvores e' compartilhada entre sd, sfd->cdom e o
+// balanceador, e liberar dos dois lados seria dupla liberacao.  E' custo por
+// remalhamento, nao por passo; fica medido na F2 e apertado depois.
+//
+// \return quantas posicoes proprias ficaram SEM valor depois de transferencia
+//          e interpolacao -- zero quando a malha nao mudou (F1) e zero quando
+//          so' mudou de um nivel (o que uma adaptacao produz por passo).
+// =============================================================================
+long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
+                                int cache, int order_center, int order_facet) {
+    if (ns->contr.flowtype != NEWTONIAN || ns->contr.eoflow == true) {
+        print0f("higflow_reconstroi_dominio: so' NEWTONIANO por enquanto\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // ---- 1. colher os campos que sobrevivem: u e p --------------------------
+    rem_colheita *cp = rem_colhe_centro(psd_get_local_domain(ns->psdp), ns->dpp);
+    rem_colheita *cu[DIM];
+    for (int dim = 0; dim < DIM; dim++)
+        cu[dim] = rem_colhe_faceta(psfd_get_local_domain(ns->psfdu[dim]),
+                                   ns->dpu[dim]);
+
+    // ---- 1b. avisar quem guarda cache sobre os dominios ---------------------
+    // O aviso vem DEPOIS da colheita e ANTES da destruicao, de proposito: quem
+    // tem um dp de rascunho preso ao psfd velho so' pode destrui-lo enquanto o
+    // psd ainda vive -- depois, o proprio dp_destroy tocaria memoria liberada.
+    // MEDIDO: o rascunho do adaptador Uhlmann, criado uma vez do primeiro
+    // psfdu, corrompeu o heap dois passos depois da reconstrucao
+    // ("malloc(): smallbin double linked list corrupted", longe da causa).
+    if (ns->remalha_avisa != NULL)
+        ns->remalha_avisa(ns, ns->remalha_avisa_ctx);
+
+    // ---- 2. destruir, na ordem obrigatoria ----------------------------------
+    partition_graph *pg_velho = psfd_get_partition_graph(ns->psfdu[0]);
+    slv_destroy(ns->slvp);
+    if (ns->contr.tempdiscrtype == SEMI_IMPLICIT_EULER ||
+        ns->contr.tempdiscrtype == SEMI_IMPLICIT_CN ||
+        ns->contr.tempdiscrtype == SEMI_IMPLICIT_BDF2)
+        for (int dim = 0; dim < DIM; dim++) slv_destroy(ns->slvu[dim]);
+    dp_destroy(ns->dpp);
+    dp_destroy(ns->dpdeltap);
+    dp_destroy(ns->dpF);
+    for (int dim = 0; dim < DIM; dim++) {
+        dp_destroy(ns->dpu[dim]);
+        dp_destroy(ns->dpustar[dim]);
+        dp_destroy(ns->dpuaux[dim]);
+        dp_destroy(ns->dpFU[dim]);
+    }
+    stn_destroy(ns->stn);
+    for (int dim = 0; dim < DIM; dim++) {
+        psfd_destroy(ns->psfdu[dim]);
+        psfd_destroy(ns->psfdF[dim]);
+    }
+    psd_destroy(ns->psdp);
+    psd_destroy(ns->psdF);
+    pg_destroy(pg_velho);
+
+    // ---- 3. recriar pelo caminho do arranque --------------------------------
+    higflow_create_domain(ns, cache, order_center);
+    higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet);
+    higflow_initialize_boundaries_yaml(ns);
+    higflow_create_distributed_properties(ns);
+    higflow_create_solver(ns);
+
+    // ---- 4. plantar, interpolar o que for novo, sincronizar -----------------
+    long faltam = 0;
+    {
+        sim_domain *sd_novo = psd_get_local_domain(ns->psdp);
+        const int np = ns->dpp->pdata->local_count;
+        char *achado = (char *) calloc((size_t)(np > 0 ? np : 1), 1);
+        rem_planta_centro(cp, sd_novo, ns->dpp, achado);
+        faltam += rem_interpola_centro(cp, sd_novo, ns->dpp, achado);
+        free(achado);
+        dp_sync(ns->dpp);
+        // deltap comeca zerado: o proximo passo o recomputa.
+        for (int i = 0; i < ns->dpdeltap->pdata->local_count; i++)
+            dp_set_value(ns->dpdeltap, i, 0.0);
+        dp_sync(ns->dpdeltap);
+    }
+    for (int dim = 0; dim < DIM; dim++) {
+        sim_facet_domain *sf_novo = psfd_get_local_domain(ns->psfdu[dim]);
+        const int nf = ns->dpu[dim]->pdata->local_count;
+        char *achado = (char *) calloc((size_t)(nf > 0 ? nf : 1), 1);
+        rem_planta_faceta(cu[dim], sf_novo, ns->dpu[dim], achado);
+        faltam += rem_interpola_faceta(cu[dim], sf_novo, ns->dpu[dim], achado);
+        free(achado);
+        dp_sync(ns->dpu[dim]);
+    }
+    rem_destroi(cp);
+    for (int dim = 0; dim < DIM; dim++) rem_destroi(cu[dim]);
+
+    long g = 0;
+    MPI_Allreduce(&faltam, &g, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    return g;
+}
+
 void higflow_destroy (higflow_solver *ns) {
     // Destroy the distributed properties
     if(ns->contr.equation != VISCOUS_BURGERS &&
@@ -1446,6 +1567,15 @@ static void _adiciona_franja_aos_dominios(higflow_solver *ns, hig_cell *root)
     }
     if ((ns->contr.flowtype == SUSPENSIONS))
         sd_add_fringe_higtree(ns->ed.stsp.sdphi, root);
+}
+
+// O aviso de remalha: chamado por higflow_reconstroi_dominio depois de colher
+// e antes de destruir.  Quem guarda cache preso aos dominios (um dp de
+// rascunho, por exemplo) destroi aqui, enquanto ainda se pode.
+void higflow_set_remalha_avisa(higflow_solver *ns,
+                               higflow_fronteira_imersa avisa, void *ctx) {
+    ns->remalha_avisa     = avisa;
+    ns->remalha_avisa_ctx = ctx;
 }
 
 void higflow_set_fronteira_imersa(higflow_solver *ns,

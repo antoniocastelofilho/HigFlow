@@ -37,6 +37,21 @@ static void _aplica_defasado(higflow_solver *ns, void *ctx)
     fi_espalha(corpo, ns->sfdF, ns->dpFU);
 }
 
+// Cache do Uhlmann, preso ao psfdu corrente.  Criado sob demanda; destruido
+// pelo aviso de remalha ANTES de os dominios morrerem -- depois nem o
+// dp_destroy seria seguro.  MEDIDO sem isto: heap corrompido dois passos apos
+// a reconstrucao, com a falha longe da causa.
+static distributed_property *rascunho[DIM] = {NULL};
+
+static void _remalha_avisa(higflow_solver *ns, void *ctx)
+{
+    (void) ns; (void) ctx;
+    for (int dim = 0; dim < DIM; dim++) {
+        if (rascunho[dim] != NULL) dp_destroy(rascunho[dim]);
+        rascunho[dim] = NULL;
+    }
+}
+
 static void _corrige_uhlmann(higflow_solver *ns, void *ctx)
 {
     fi_corpo *corpo = (fi_corpo *) ctx;
@@ -51,7 +66,7 @@ static void _corrige_uhlmann(higflow_solver *ns, void *ctx)
     // acumula franja->dono, o que sobre `dpustar` somaria a velocidade de
     // franja nos donos.  Medido: com alfa = 0 -- forca anulada -- a corrida
     // ainda divergia para 1e96, o que prova que a corrupcao nao vinha da forca.
-    static distributed_property *rascunho[DIM] = {NULL};
+    // O rascunho e' cache PRESO AO DOMINIO: ver _remalha_avisa abaixo.
     for (int dim = 0; dim < DIM; dim++)
         if (rascunho[dim] == NULL)
             rascunho[dim] = psfd_create_property(ns->psfdu[dim]);
@@ -106,6 +121,7 @@ extern "C" void fronteira_imersa_instala(higflow_solver *ns, fi_corpo *corpo)
     }
     if (modo != NULL && strcmp(modo, "uhlmann") == 0) {
         higflow_set_fronteira_imersa_pos_preditor(ns, _corrige_uhlmann, corpo);
+        higflow_set_remalha_avisa(ns, _remalha_avisa, NULL);
         const char *sa0 = getenv("HIGFLOW_FI_ALFA");
         const char *si0 = getenv("HIGFLOW_FI_ITER");
         print0f("=+=+=+= Fronteira imersa: UHLMANN (pos-preditor), alfa = %s, "
