@@ -244,3 +244,34 @@ compartilhada com o balanceador; apertar antes de corridas longas).
 O que falta para a adaptação dinâmica de fato: o critério físico e a sua
 histerese, a cadência, e a validação no 2D-2 --- onde a esteira oscila e o
 refinamento estático deixa de bastar.
+
+\subsection{O critério híbrido (F3), e o que ele destravou}
+
+O critério escolhido para a adaptação dinâmica é híbrido: uma \emph{zona
+estática} em torno do corpo --- só geometria, válida antes de existir
+escoamento, mantendo a vizinhança do cilindro sempre no nível mais fino com
+folga maior que o suporte do núcleo --- e um \emph{sensor de esteira} pela
+vorticidade, $|\omega|$ interpolada no centro de cada célula, com dois
+limiares: acima do maior pede o nível fino, acima do menor o intermediário.
+
+A avaliação é na granularidade da \emph{célula base} ($440 \times 82$): uma
+tabela de nível-alvo, reduzida com máximo entre os processos, que o produtor de
+malha consulta pelo centroide no próprio \emph{callback} de adaptação do
+t8code. A exigência de duas camadas do MLS vira \emph{dilatação} na tabela; e
+quando a tabela reduzida não muda entre ciclos, o remalhamento é
+\textbf{pulado} --- em escoamento estacionário, o custo de adaptar converge a
+zero junto com o escoamento, por construção.
+
+A primeira malha guiada por dados expôs, em vinte passos, dois defeitos que
+nenhuma malha de caixa havia exposto: um marcador exatamente sobre uma
+fronteira de partição reivindicado por dois processos --- curado com a
+convenção meio-aberta $[lo, hi)$ na posse, com a guarda de reivindicação
+apontando o caso --- e a assimetria de franja da seção de resultados. Com os
+dois curados, o ciclo inteiro roda: o critério vê o escoamento nascer
+($|\omega|_{\max}$ de $32$ a $113$ no arranque impulsivo) e a malha o segue,
+$48{,}6$~mil $\to$ $77{,}4$~mil $\to$ $90{,}2$~mil $\to$ $80{,}3$~mil células,
+com as guardas do corpo imerso zeradas em todos os quadros.
+
+Os números de convergência --- a contagem de células estabilizando, os ciclos
+pulados aparecendo, e o $\Cd$ contra a tabela das malhas estáticas --- entram
+quando a corrida longa terminar.

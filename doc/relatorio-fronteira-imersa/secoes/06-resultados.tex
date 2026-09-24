@@ -553,3 +553,40 @@ As linhas uniformes saem \emph{dígito a dígito} iguais às de antes: a porta
 original fica intocado --- nenhum caso do conjunto dourado muda. O alcance vai
 além do remalhamento: \textbf{todo passo de tempo em malha graduada usa este
 par}.
+
+\subsection{O consenso de franja: a troca simétrica por construção}
+
+A malha guiada por critério (seção de discussão) tornou inevitável um defeito
+histórico do protocolo de franja da HiGTree, documentado no código havia anos e
+contornado até aqui: a enumeração de facetas na borda \emph{externa} da franja
+depende de vizinhos que o destinatário não recebeu. Quando a fronteira de
+refinamento cai ali, o remetente enumera $869$ elementos onde o destinatário
+dimensionou $870$, e a guarda de simetria aborta --- corretamente, porque
+sincronizar assim corromperia o \emph{heap}.
+
+A cura implementada muda o contrato: os tipos de sincronização passam a nascer
+do \textbf{consenso}. Na montagem do mapeador, os dois lados trocam as listas
+de identificadores globais que enumeraram; o tipo de envio é a ordem do
+remetente filtrada pelo que o destinatário dimensiona, e o de recepção é a
+ordem de envio do parceiro filtrada pelo que o destinatário enumerou. Os dois
+filtros são a mesma interseção percorrida na mesma ordem --- a simetria deixa de
+ser uma esperança conferida por guarda e vira propriedade \emph{por
+construção}, cobrindo de uma vez a assimetria de contagem e a de ordem. O que
+fica fora do consenso não é sincronizado, e é \textbf{contado e declarado},
+nunca descartado em silêncio.
+
+Onde os conjuntos já coincidiam --- toda malha uniforme, toda malha graduada
+benigna --- a interseção é o conjunto inteiro na mesma ordem e nada muda, nem o
+último bit: os $75$ casos dourados de exemplos passam intactos.
+
+\paragraph{A suíte pegou em 35 minutos o que o raciocínio não pegou.} A
+primeira versão pareava por identificador global com um mapa simples. No
+caminho em que a partição vem do t8code, a \emph{mesma} célula global aparece em
+\emph{duas} árvores de franja com dois índices locais; o mapa colapsava os dois
+num só e o outro ficava com zero --- $40$ de $304$ células de franja com valor
+errado, apontadas pelo caso \texttt{franja\_recebe\_o\_valor\_da\_propria\_posicao}.
+O pareamento tem de ser \emph{posicional dentro do identificador}: uma fila de
+índices por identificador, consumida na ordem de envio do parceiro --- a
+semântica do código antigo, restaurada dentro do consenso. Ficam os dois fatos:
+a rede de segurança funcionou exatamente como desenhada, e nenhuma leitura de
+código teria encontrado isso tão rápido.
