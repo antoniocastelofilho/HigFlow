@@ -394,17 +394,14 @@ void hig_refine_empty(hig_cell * cell, int numcells[DIM]) {
 void hig_destroy(hig_cell *cell) {
 	assert(cell != NULL);
 
-	// Registro de liberacao (ativo so' no teardown do remalhamento): no' ja'
-	// visto por outra arvore que compartilha -> nao re-libera.  Cobre nos
-	// internos, que o refcount de raiz nao alcanca.
-	if (_hig_reg_ativo && _hig_reg_visto((void *) cell)) return;
-
-	// REFCOUNT: raiz compartilhada so' e' liberada na ULTIMA chamada.
-	// refcount==0 e' o caso legado (temporaria, no' do lbal, nunca
-	// adicionada): libera direto.
+	// ORDEM: refcount ANTES do registro.  Raiz compartilhada por N listas
+	// recebe N chamadas; so' a ultima prossegue.  (Com o registro antes, ele
+	// bloqueava as chamadas seguintes e o refcount travava acima de zero.)
 	if (cell->parent == NULL && cell->refcount > 0) {
 		if (--cell->refcount > 0) return;
 	}
+	// registro protege a recursao contra nos ja' liberados por outra arvore.
+	if (_hig_reg_ativo && _hig_reg_visto((void *) cell)) return;
 
 	if (cell->children != NULL) {
 		int numChildren = hig_get_number_of_children(cell);
