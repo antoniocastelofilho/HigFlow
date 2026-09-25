@@ -1,6 +1,9 @@
 # Escoamento bifásico com front-tracking
 
-Documento vivo. Estado em 24/09/2026: **planejado; nenhuma fase começou.**
+Documento vivo. Estado em 26/09/2026: **B1 feita e verificada** (advecção
+cinemática, teste reversível de Rider-Kothe); B2 em andamento. Núcleo em
+`higflow/src/hig-flow-front-tracking.{c,h}`, arreio com portão em
+`higflow/tests/front-tracking/`. Ver `doc/relatorio-front-tracking.md`.
 Seção separada de propósito, para não sobrecarregar a fronteira imersa rígida
 nem o AMR dinâmico — mas construída sobre a maquinaria dos dois.
 

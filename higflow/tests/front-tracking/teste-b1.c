@@ -79,16 +79,24 @@ int main(void)
     printf("\n--- COM cirurgia (Delta s ~ ds_alvo mantido) ---\n");
     printf("%6s %8s | %12s %12s %8s\n",
            "nmarc", "dt", "cons_max", "reversao", "n_final");
+    real ec_fino = 0, er_fino = 0; int nf_fino = 0;
     for (int i = 0; i < 3; i++) {
         real ec, er; int nf;
         roda(Ns[i], dts[i], T, 1, 0, &ec, &er, &nf);
         printf("%6d %8.4f | %12.4e %12.4e %8d\n", Ns[i], dts[i], ec, er, nf);
+        ec_fino = ec; er_fino = er; nf_fino = nf;  // guarda o mais fino
     }
+    (void) nf_fino;
 
-    // Uma corrida com VTK para inspecao visual (a mais fina, com cirurgia).
-    real ec, er; int nf;
-    roda(256, 0.005, T, 1, 1, &ec, &er, &nf);
-    printf("\nVTK da corrida fina em scratchpad/rk_ft_*.vtk\n");
-
-    return 0;
+    // PORTAO: no mais fino (256, dt=0,005) com cirurgia, a conservacao de area
+    // ao longo da corrida e a reversao em t=T tem de ficar abaixo dos limiares.
+    // Medido em 2026-09-26: cons_max=9,9e-5, reversao=3,6e-5 -- os limiares dao
+    // margem folgada e pegam regressao de sinal, escala ou ordem.
+    const real TETO_CONS = 2.0e-4;
+    const real TETO_REV  = 1.0e-4;
+    int falhou = (ec_fino > TETO_CONS) || (er_fino > TETO_REV);
+    printf("\nPORTAO B1 (256, dt=0,005): cons_max=%.3e (teto %.0e)  "
+           "reversao=%.3e (teto %.0e)  ==> %s\n",
+           ec_fino, TETO_CONS, er_fino, TETO_REV, falhou ? "FALHOU" : "PASSOU");
+    return falhou ? 1 : 0;
 }
