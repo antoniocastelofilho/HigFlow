@@ -316,3 +316,27 @@ completamente diferentes, $\Cd$ a $0{,}0085\%$ um do outro. A decisão de
 histerese, marcada desde o plano como do usuário, chega decidida por medição:
 sem ela nem o escoamento estacionário converge; com ela, converge nos dois
 \emph{backends} para a mesma física.
+
+\subsection{F4 --- 2D-2 (\texorpdfstring{$\mathrm{Re}=100$}{Re=100}): a máquina roda, o Strouhal ainda não sai limpo}
+
+A corrida completa: $t=40$, oito mil passos, setenta e nove remalhamentos,
+guardas de suporte zeradas em todos os processos. O escoamento \emph{despende}
+--- o $\Cl$ oscila com amplitude da ordem de $1$ a $1{,}5$, o desprendimento de
+von Kármán está lá. Mas a série temporal do $\Cl$ \textbf{não} entrega um número
+de Strouhal confiável, e vale registrar por quê em vez de forçar um valor.
+
+Dois contaminantes, ambos medidos na série da força sobre o corpo. Primeiro,
+cada remalhamento --- a cada $t=0{,}5$ com $N=100$ --- injeta no $\Cl$ um pico
+de $+4$ a $+7$ seguido de rebote: é o salto da força ao ser recomputada na malha
+nova, e são cerca de $11\%$ dos pontos da cauda. A projeção pós-remalhamento
+limpa o \emph{campo}, não a força integrada no corpo. Segundo, $N=100$ é
+frequente demais para o período de desprendimento: há um a dois remalhamentos
+por ciclo, perturbando a dinâmica antes de o ciclo fechar. Extrair o Strouhal
+dessa série dá valores fisicamente impossíveis ($St$ entre $1$ e $4$), que é o
+sintoma, não a medida.
+
+O próximo experimento isola o Strouhal do artefato: adaptar a malha apenas
+durante o transiente (até $t \approx 15$), \emph{congelá-la} quando a histerese
+já a estabilizou, e medir a cauda numa malha fixa --- sem saltos de força de
+remalhamento. É o que separa ``o método de desprendimento funciona'' (mostrado)
+de ``o Strouhal bate com o benchmark'' (pendente).

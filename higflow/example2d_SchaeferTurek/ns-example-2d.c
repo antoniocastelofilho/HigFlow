@@ -910,6 +910,13 @@ int main (int argc, char *argv[]) {
         // Printing
         if (ns->par.t >= ns->par.tp) {
             print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
+            // A MALHA LAGRANGEANA POR QUADRO (HIGFLOW_VTK_LAGR=1): o escritor do
+            // solver grava so' a malha euleriana; sem isto o corpo nao aparece
+            // na animacao.  Guardado por env para nao pesar nas corridas de
+            // medicao, onde dtp e' grosso de proposito.  Usa ns->par.frame, que
+            // ja' e' o contador de quadro do solver -- casa com os v.print.
+            if (obstaculo != NULL && getenv("HIGFLOW_VTK_LAGR") != NULL)
+                fi_escreve_vtk(obstaculo, argv[3], ns->par.frame);
             // Cd A CADA QUADRO, porque o que interessa nao e' o valor final e
             // sim ver se ele ESTACIONOU.  Um Cd sozinho no fim nao distingue
             // convergido de ainda caindo.

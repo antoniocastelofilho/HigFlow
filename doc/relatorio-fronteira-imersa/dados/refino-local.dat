@@ -75,3 +75,23 @@ refinada_2niv 66632   5.536660  -0.769  -0.632  1.6911e-02   3.4
 # em si -- eram a suscetibilidade dele ao flapping.  Com histerese, some nos
 # dois.  A decisao de histerese fica decidida por medicao: sem ela nem o
 # escoamento estacionario converge; com ela, tudo fecha.
+
+# F4 -- 2D-2 (Re=100), AMR dinamico criterio+histerese, t=40, 8000 passos, 79
+# remalhas, N=100, np=6.  Guardas NIVEL_TROCADO=0 em todos os ranks.
+#
+# RESULTADO HONESTO: a maquina rodou ate' o fim e a esteira DESPRENDE (o Cl
+# oscila com amplitude ~1-1,5), mas a serie de Cl NAO da' um Strouhal limpo:
+# vies negativo forte, periodo irregular, extracao dando St impossivel (1-4).
+#
+# DIAGNOSTICO (nao suposicao): dois contaminantes na serie da forca do corpo.
+#  1. Cada remalhamento (a cada t=0,5) injeta um PICO de +-4 a +7 no Cl, com
+#     rebote -- o salto de forca ao recomputar na malha nova.  ~11% dos pontos.
+#     A projecao pos-remalha limpa o CAMPO, nao a forca integrada do corpo.
+#  2. N=100 (remalha a cada 0,5) e' frequente demais para o periodo de
+#     desprendimento: 1-2 remalhas por ciclo, perturbando a dinamica antes de
+#     o ciclo fechar.
+#
+# PENDENTE: medir St com remalha mais espacada (N grande, malha ja' convergida
+# pela histerese) OU sem remalha na fase de medicao (adaptar so' ate' t~15,
+# depois congelar a malha e medir a cauda limpa).  O segundo isola o Strouhal
+# do artefato de remalha e e' o proximo experimento.

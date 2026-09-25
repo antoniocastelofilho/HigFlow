@@ -3,7 +3,7 @@
 Documento vivo.  Estado em 24/09/2026: **F1, F2 e F3 concluídas**, com o
 ciclo validado em DOIS backends (t8code e MTree, Cd a 0,0085% um do outro).
 Com histerese a malha converge monotonicamente; sem, nem o estacionário
-converge.  Próxima: F4 (2D-2, Re=100).
+converge.  F4 (2D-2, Re=100): a maquina roda ate' o fim e a esteira despende, mas o Strouhal nao sai limpo -- remalha a cada 0,5 injeta picos de forca (11% da serie) e N=100 perturba o ciclo.  Proximo: congelar a malha apos o transiente e medir a cauda fixa.
 
 ## Por quê, e por quê agora
 
