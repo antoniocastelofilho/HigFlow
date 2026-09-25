@@ -148,7 +148,37 @@ A força espalhada na malha escalonada IGUALA a dos marcadores a ~1e-15 — o ce
 do acoplamento está correto. (O integral dos marcadores ~1e-13 confirma o
 equilíbrio de Laplace no círculo.)
 
-**Falta (passo 5d):** o teste de Laplace de fato — BCs estáticas (sem entrada,
-a copiar do canal seria fluxo forçado), medir Δp interno/externo vs σ/R e as
-correntes parasitas max|u|. É a parte que depende de setup de contorno cuja
-correção só o próprio oráculo (u≈0 e Δp certo) confirma.
+**Passo 5d — o teste de Laplace, FEITO e PASSOU.**
+
+**Oráculo:** gota em repouso → salto de pressão Δp = σ/R através da interface, e
+correntes parasitas (max|u|) pequenas e estáveis. Setup estático: entrada zerada
+(`boundary_velocity` id=0 → 0), gota R=0,25 em (2,0), σ=1 → Δp esperado = 4,0.
+O `ns-example-2d.c` amostra a pressão no centro (dentro) e em (2, 0,9) (fora).
+
+**Resultado (200 passos, dt=0,001, np=1):**
+
+    LAPLACE  p_in=4.001181  p_out=0.000568  Dp=4.000613  sigma/R=4.000000  erro_rel=0.0002
+
+- **Δp = 4,0006 vs σ/R = 4,0000 — erro relativo 0,02%.** Salto de Laplace exato.
+- **Correntes parasitas: Vmax ≈ 8,2e-4, estáveis** (8,2039e-4 em passos
+  consecutivos, não crescem). A gota fica em repouso, como Laplace exige.
+
+O acoplamento completo produz a física correta — não é só andaime. A força
+σκ⃗ espalhada na malha escalonada equilibra o gradiente de pressão e gera o salto.
+
+## Resumo da corrida autônoma
+
+Cinco passos, todos verificados por oráculo e commitados:
+1. B1 (advecção + cirurgia) — Rider-Kothe reversível, área a 6e-5.
+2. Portão do B1 (código de saída para CI).
+3. Curvatura — círculo exato, elipse 2ª ordem.
+4. Força de tensão σκn — conservação 1e-16 (standalone).
+5. Acoplamento com o solver — conservação no domínio real 1e-15; **Laplace
+   Δp=σ/R a 0,02%, correntes parasitas 8e-4**.
+
+**B2 (gota estática, lei de Laplace) alcançado.** Aberto para quando o usuário
+voltar: (a) advecção acoplada + correntes parasitas ao longo do tempo (o campo
+interpolado nos marcadores, `FT_ADVECTA`); (b) paralelo (reduce de franja no
+espalhamento); (c) B3 (oscilação de gota, frequência de Lamb). Decisões de
+formulação (#2/#3, salto de propriedade) seguem adiadas — propriedades iguais
+bastaram para o Laplace.

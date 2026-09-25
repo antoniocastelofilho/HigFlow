@@ -89,12 +89,10 @@ public:
             case 0:
                 switch (dim) {
                     case 0: ;
-                        //set max velocity = 8.0e-4 
-                        //value = 3.2e-3*(-center[1]*center[1] + center[1]);
-                        //value = 4.0*(-center[1]*center[1] + 0.25);
-                        //set max velocity = 1.5 
-                        //value = -4.0*center[1]*(center[1] - 1.0);
-                        value = 1.5*(1.0 - center[1]*center[1]);
+                        // GOTA ESTATICA (Laplace): sem entrada.  A unica
+                        // dinamica e' a tensao superficial; a velocidade na
+                        // parada tem de ficar ~0 (correntes parasitas).
+                        value = 0.0;
                         //value = 1.25*(1.0 - center[1]*center[1]*center[1]*center[1]);
                         //value = 1.0*(1.0 - fabs(center[1]));
                         //value = 2.0*(1.0 - sqrt(fabs(center[1])));
@@ -326,15 +324,39 @@ int main (int argc, char *argv[]) {
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
 
+    // O ORACULO DO B2: o salto de Laplace.  ANTES de destruir o solver: amostra
+    // a pressao no centro da gota (dentro) e num ponto longe (fora), e compara
+    // Dp = p_in - p_out com sigma/R.
+    {
+        Point p_in  = {2.0, 0.0};   // centro da gota
+        Point p_out = {2.0, 0.9};   // fora, perto da parede de cima
+        for (int d = 2; d < DIM; d++) { p_in[d] = 0.0; p_out[d] = 0.0; }
+        sim_stencil *stn = stn_create();
+        real pin = 0.0, pout = 0.0;
+        hig_cell *ci = sd_get_cell_with_point(ns->sdp, p_in);
+        hig_cell *co = sd_get_cell_with_point(ns->sdp, p_out);
+        if (ci != NULL) {
+            Point cc; hig_get_center(ci, cc);
+            pin = compute_value_at_point(ns->sdp, cc, p_in, 1.0, ns->dpp, stn);
+        }
+        if (co != NULL) {
+            Point cc; hig_get_center(co, cc);
+            pout = compute_value_at_point(ns->sdp, cc, p_out, 1.0, ns->dpp, stn);
+        }
+        stn_destroy(stn);
+        const real R = 0.25, sigma = 1.0;
+        print0f("=+=+=+= LAPLACE  p_in=%.6f  p_out=%.6f  Dp=%.6f  "
+                "sigma/R=%.6f  erro_rel=%.4f =+=+=+=\n",
+                (double) pin, (double) pout, (double)(pin - pout),
+                (double)(sigma / R),
+                (double) fabs((pin - pout) - sigma / R) / (sigma / R));
+    }
+    (void) gota;
+
     // Destroy the Navier-Stokes object
     higflow_destroy(ns);
     // Stop the total time
     STOP_CLOCK(total);
-    // Getting the execution time 
-    // O oraculo do B2 (salto de Laplace e correntes parasitas) e' medido do
-    // campo de pressao/velocidade, nao dos marcadores.  A conservacao do
-    // espalhamento e' conferida no adaptador (FT_DIAG_CONSERVA).
-    (void) gota;
 
     if(myrank == 0) {
         DEBUG_INSPECT(GET_NSEC_CLOCK(total)/1.0e9, %lf);

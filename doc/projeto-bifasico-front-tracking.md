@@ -1,9 +1,11 @@
 # Escoamento bifásico com front-tracking
 
-Documento vivo. Estado em 26/09/2026: **B1 feita e verificada** (advecção
-cinemática, teste reversível de Rider-Kothe); B2 em andamento. Núcleo em
-`higflow/src/hig-flow-front-tracking.{c,h}`, arreio com portão em
-`higflow/tests/front-tracking/`. Ver `doc/relatorio-front-tracking.md`.
+Documento vivo. Estado em 26/09/2026: **B1 e B2 (estático) feitos e verificados.**
+B1 = advecção cinemática (Rider-Kothe reversível, área a 6e-5). B2 = gota estática
+com tensão superficial, **lei de Laplace Δp=σ/R a 0,02%**, correntes parasitas
+8e-4. Núcleo em `higflow/src/hig-flow-front-tracking.{c,h}`, adaptador do solver
+em `higflow/examples-common/front-tracking.c`, exemplo `example2d_FrontTracking`,
+arreios em `higflow/tests/front-tracking/`. Ver `doc/relatorio-front-tracking.md`.
 Seção separada de propósito, para não sobrecarregar a fronteira imersa rígida
 nem o AMR dinâmico — mas construída sobre a maquinaria dos dois.
 
