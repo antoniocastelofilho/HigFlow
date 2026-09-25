@@ -88,6 +88,12 @@ typedef struct hig_cell {
 	int posinparent;
 	struct hig_cell **children;
 	uniqueid ids[NUMIDS];
+	// refcount: numero de listas de dominio que referenciam esta RAIZ.
+	// Cada sd_add_higtree incrementa, cada hig_destroy decrementa; a raiz
+	// so' e' liberada em zero.  APPEND no fim: a serializacao copia so' os
+	// membros lideres, entao este campo nao a afeta.  Zero = no'-filho ou
+	// raiz nunca adicionada (hig_destroy libera direto, como antes).
+	int refcount;
 } hig_cell;
 
 //! \brief hig_facet represents a facet in the mesh. <BR>

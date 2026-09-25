@@ -468,6 +468,9 @@ point_location sd_classify_point(sim_domain *d, CPPoint x)
 int sd_add_higtree(sim_domain *d, hig_cell *c) {
 	_sd_snapshot_ainda_nao(d, __func__);
 	_sd_make_room_for_tree(d);
+	/* refcount: uma lista a mais referencia esta raiz.  Casado com o
+	 * decremento em hig_destroy; ver o campo em higtree.h. */
+	if (c->parent == NULL) c->refcount++;
 
 	/* Sets the added tree is not fringe. */
 	/* Place first fringe tree on the newly added last position. */
@@ -483,6 +486,10 @@ int sd_add_fringe_higtree(sim_domain *d, hig_cell *c)
 {
 	_sd_snapshot_ainda_nao(d, __func__);
 	_sd_make_room_for_tree(d);
+	/* refcount tambem para franja: uma arvore de franja pode compartilhar
+	 * ponteiro com a local de outro dominio (medido no diagnostico), e o
+	 * refcount cobre isso sem precisar saber. */
+	if (c->parent == NULL) c->refcount++;
 
 	d->higtrees[d->numhigtrees] = c;
 	return d->numhigtrees++;
@@ -2769,10 +2776,14 @@ void sd_destroy(sim_domain *d) {
 	for(int i = 0; i < d->numneumann_bcs; i++) {
 		sb_destroy(d->neumann_bcs[i]);
 	}
-	if (d->is_own_hig) {
-		for(int i = 0; i < d->numhigtrees; i++) {
-			hig_destroy(d->higtrees[i]);
-		}
+	// REFCOUNT decide a liberacao, nao is_own_hig: cada dominio chama
+	// hig_destroy em TODAS as suas arvores (locais e franja), e so' a ultima
+	// chamada sobre cada raiz compartilhada a libera de fato.  is_own_hig
+	// continua existindo para as CCs (sb), abaixo, mas nao para as arvores.
+	// A guarda !=NULL cobre a fase de teardown onde uma entrada pode ja' ter
+	// sido zerada.
+	for(int i = 0; i < d->numhigtrees; i++) {
+		if (d->higtrees[i] != NULL) hig_destroy(d->higtrees[i]);
 	}
 	if (d->snapshot != NULL) hms_destroy(d->snapshot);
 	mp_destroy(d->m);

@@ -229,6 +229,7 @@ void hig_fill_empty(hig_cell *cell, Point lowpoint, Point highpoint)
 	POINT_ASSIGN_SCALAR(cell->numcells, 0);
 
 	cell->children = NULL;
+	cell->refcount = 0;
 	for(int i = 0; i < NUMIDS; i++) {
 		cell->ids[i] = uid_getuniqueid();
 	}
@@ -247,6 +248,7 @@ hig_cell * hig_create_empty_leaf(hig_cell *parent, int pp) {
 	hig_cell *c = parent->children[pp];
 	c->parent = parent;
 	c->posinparent = pp;
+	c->refcount = 0;
 
 	return c;
 }
@@ -341,6 +343,13 @@ void hig_refine_empty(hig_cell * cell, int numcells[DIM]) {
 
 void hig_destroy(hig_cell *cell) {
 	assert(cell != NULL);
+
+	// REFCOUNT: raiz compartilhada so' e' liberada na ULTIMA chamada.
+	// refcount==0 e' o caso legado (temporaria, no' do lbal, nunca
+	// adicionada): libera direto.
+	if (cell->parent == NULL && cell->refcount > 0) {
+		if (--cell->refcount > 0) return;
+	}
 
 	if (cell->children != NULL) {
 		int numChildren = hig_get_number_of_children(cell);
