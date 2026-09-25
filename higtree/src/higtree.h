@@ -24,6 +24,7 @@
 
 #ifndef MTREE_H
 #define MTREE_H
+#include <stddef.h>
 
 #include <stdio.h>
 #include <math.h>
@@ -210,6 +211,12 @@ void hig_fill_empty(hig_cell *cell, Point lowpoint, Point highpoint);
 
 //! Destroys a cell and all its children, recursively.
 void hig_destroy(hig_cell *cell);
+
+//! \brief Ativa/desativa o registro de liberacao que protege a destruicao de
+//! arvores que compartilham subarvores (o teardown do remalhamento).  Chame
+//! hig_reg_begin(numero_de_celulas) antes de destruir e hig_reg_end() depois.
+void hig_reg_begin(size_t hint);
+void hig_reg_end(void);
 
 //! Computes in the coordinates of the children of cell which contains point.
 void hig_get_cell_coords_of_point(hig_cell *cell, const Point point, int pp[DIM]);

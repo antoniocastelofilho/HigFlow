@@ -126,6 +126,7 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
         dp_destroy(ns->dpFU[dim]);
     }
     stn_destroy(ns->stn);
+    stn_destroy(ns->stnF);   // par de higflow_create_stencil -- eu so' destruia o stn
     for (int dim = 0; dim < DIM; dim++) {
         psfd_destroy(ns->psfdu[dim]);
         psfd_destroy(ns->psfdF[dim]);
@@ -133,6 +134,30 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
     psd_destroy(ns->psdp);
     psd_destroy(ns->psdF);
     pg_destroy(pg_velho);
+
+    // OS DOMINIOS SERIAIS EM SI -- o vazamento residual inteiro (psd/psfd_destroy
+    // soltam so' a camada particionada; sdp/sdF/sfd e suas ARVORES ficavam).
+    // Agora e' seguro: o registro de liberacao (hig_reg_*) protege a destruicao
+    // de arvores que compartilham subarvores -- no' ja' liberado por uma nao e'
+    // re-liberado pela outra.  Dimensiono o registro pelo total de celulas
+    // locais (n do instantaneo e' proximo; uso um teto generoso).
+    {
+        long ncel = 0;
+        for (int i = 0; i < sd_get_num_higtrees(ns->sdp); i++) {
+            higcit_celliterator *it;
+            for (it = higcit_create_all_leaves(sd_get_higtree(ns->sdp, i));
+                 !higcit_isfinished(it); higcit_nextcell(it)) ncel++;
+            higcit_destroy(it);
+        }
+        hig_reg_begin((size_t) ncel * 3 + 1024);   // folga p/ nos internos
+        for (int dim = 0; dim < DIM; dim++) {
+            sfd_destroy(ns->sfdu[dim]);
+            sfd_destroy(ns->sfdF[dim]);
+        }
+        sd_destroy(ns->sdp);
+        sd_destroy(ns->sdF);
+        hig_reg_end();
+    }
 
     // ---- 3. recriar pelo caminho do arranque --------------------------------
     higflow_create_domain(ns, cache, order_center);

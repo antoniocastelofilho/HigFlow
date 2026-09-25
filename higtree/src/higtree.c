@@ -26,6 +26,56 @@
 
 #include "Debug-c.h"
 
+// =============================================================================
+// REGISTRO DE LIBERACAO (para o teardown do remalhamento)
+//
+// O remalhamento destroi varios dominios que COMPARTILHAM subarvores -- nao so'
+// raizes (o refcount de raiz cobre essas), mas NOS INTERNOS: medido, a recursao
+// de hig_destroy crashava num filho ja' liberado por outra arvore.  Achar cada
+// ponto de compartilhamento no lbal/produtor e' fragil; este registro resolve
+// de forma geral.
+//
+// Enquanto ativo, hig_destroy consulta o registro ANTES de recorrer: no' ja'
+// visto -> pula (nao re-libera, nao re-recorre).  E' seguro porque:
+//  - so' fica ativo durante o teardown, onde NADA aloca -- entao malloc nao
+//    reusa um endereco recem-liberado e nao ha' falso positivo;
+//  - o chamador zera o registro a cada teardown.
+// Set de ponteiros por sondagem linear (open addressing), sem malloc por
+// insercao depois do dimensionamento.
+static void   **_hig_reg = NULL;
+static size_t   _hig_reg_cap = 0, _hig_reg_n = 0;
+static int      _hig_reg_ativo = 0;
+
+void hig_reg_begin(size_t hint) {
+    _hig_reg_ativo = 1;
+    _hig_reg_n = 0;
+    size_t cap = 1024;
+    while (cap < hint * 2) cap <<= 1;   // fator de carga <= 0,5
+    if (cap != _hig_reg_cap) {
+        free(_hig_reg);
+        _hig_reg = (void **) malloc(cap * sizeof *_hig_reg);
+        _hig_reg_cap = cap;
+    }
+    for (size_t i = 0; i < _hig_reg_cap; i++) _hig_reg[i] = NULL;
+}
+
+void hig_reg_end(void) { _hig_reg_ativo = 0; }
+
+// devolve 1 se JA' estava registrado; senao insere e devolve 0.
+static int _hig_reg_visto(void *p) {
+    size_t mask = _hig_reg_cap - 1;
+    size_t i = ((size_t) p >> 4) & mask;   // >>4: enderecos alinhados
+    while (_hig_reg[i] != NULL) {
+        if (_hig_reg[i] == p) return 1;
+        i = (i + 1) & mask;
+    }
+    // se encher demais, para de registrar (degrada para o comportamento antigo,
+    // mas o dimensionamento com folga 2x evita isso)
+    if (_hig_reg_n * 2 >= _hig_reg_cap) return 0;
+    _hig_reg[i] = p; _hig_reg_n++;
+    return 0;
+}
+
 #ifdef HASFACETID
 int hig_requires_facet_ids() {
 	return 1;
@@ -343,6 +393,11 @@ void hig_refine_empty(hig_cell * cell, int numcells[DIM]) {
 
 void hig_destroy(hig_cell *cell) {
 	assert(cell != NULL);
+
+	// Registro de liberacao (ativo so' no teardown do remalhamento): no' ja'
+	// visto por outra arvore que compartilha -> nao re-libera.  Cobre nos
+	// internos, que o refcount de raiz nao alcanca.
+	if (_hig_reg_ativo && _hig_reg_visto((void *) cell)) return;
 
 	// REFCOUNT: raiz compartilhada so' e' liberada na ULTIMA chamada.
 	// refcount==0 e' o caso legado (temporaria, no' do lbal, nunca
