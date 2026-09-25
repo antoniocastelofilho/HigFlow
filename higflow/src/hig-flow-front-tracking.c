@@ -183,6 +183,81 @@ void ft_curvatura(const ft_frente *f, real *kappa)
     free(kv);
 }
 
+// --- forca de tensao superficial ------------------------------------------
+
+real ft_delta_roma(real r)
+{
+    r = fabs(r);
+    if (r <= 0.5) return (1.0 / 3.0) * (1.0 + sqrt(1.0 - 3.0 * r * r));
+    if (r <= 1.5) {
+        real s = 1.0 - r;
+        return (1.0 / 6.0) * (5.0 - 3.0 * r - sqrt(1.0 - 3.0 * s * s));
+    }
+    return 0.0;
+}
+
+// Comprimento de arco que o marcador `i` representa: metade de cada segmento
+// vizinho (o do lado anterior e o do proximo).  A soma sobre i da' o perimetro.
+static real _ds_marcador(const ft_frente *f, int i)
+{
+    const real *p = f->x[(i - 1 + f->n) % f->n];
+    const real *a = f->x[i];
+    const real *q = f->x[(i + 1) % f->n];
+    real d0 = sqrt((a[0]-p[0])*(a[0]-p[0]) + (a[1]-p[1])*(a[1]-p[1]));
+    real d1 = sqrt((q[0]-a[0])*(q[0]-a[0]) + (q[1]-a[1])*(q[1]-a[1]));
+    return 0.5 * (d0 + d1);
+}
+
+void ft_integral_curvatura(const ft_frente *f, real integral[DIM])
+{
+    Point *kv = (Point *) malloc((size_t) f->n * sizeof(Point));
+    ft_vetor_curvatura(f, kv);
+    integral[0] = 0.0; integral[1] = 0.0;
+    for (int i = 0; i < f->n; i++) {
+        real ds = _ds_marcador(f, i);
+        integral[0] += kv[i][0] * ds;
+        integral[1] += kv[i][1] * ds;
+    }
+    free(kv);
+}
+
+void ft_espalha_tensao(const ft_frente *f, real sigma,
+                       real ox, real oy, real h, int nx, int ny,
+                       real *fx, real *fy)
+{
+    Point *kv = (Point *) malloc((size_t) f->n * sizeof(Point));
+    ft_vetor_curvatura(f, kv);
+
+    for (int k = 0; k < f->n; k++) {
+        real ds = _ds_marcador(f, k);
+        real Fx = sigma * kv[k][0] * ds;
+        real Fy = sigma * kv[k][1] * ds;
+        const real *X = f->x[k];
+
+        // Celula que contem o marcador, e janela de +-2 celulas (suporte 1,5h).
+        int ic = (int) floor((X[0] - ox) / h - 0.5);
+        int jc = (int) floor((X[1] - oy) / h - 0.5);
+        for (int j = jc - 2; j <= jc + 2; j++) {
+            if (j < 0 || j >= ny) continue;
+            real yc = oy + (j + 0.5) * h;
+            real wy = ft_delta_roma((yc - X[1]) / h);
+            if (wy == 0.0) continue;
+            for (int i = ic - 2; i <= ic + 2; i++) {
+                if (i < 0 || i >= nx) continue;
+                real xc = ox + (i + 0.5) * h;
+                real wx = ft_delta_roma((xc - X[0]) / h);
+                if (wx == 0.0) continue;
+                // delta_h = (1/h^2) phi(x) phi(y); a forca DENSIDADE recebe
+                // F_k * delta_h.  (Conservacao: SUM delta_h * h^2 = 1.)
+                real d = wx * wy / (h * h);
+                fx[j * nx + i] += Fx * d;
+                fy[j * nx + i] += Fy * d;
+            }
+        }
+    }
+    free(kv);
+}
+
 // --- adveccao -------------------------------------------------------------
 
 void ft_advecta(ft_frente *f, ft_campo_u u, void *ctx, real t, real dt)

@@ -78,3 +78,36 @@ B2: **marcador recém-inserido pela cirurgia (ponto médio, sobre a corda) tem �
 até ser advectado** para fora da reta. No B2 estático a frente quase não se move
 e a cirurgia raramente dispara, então a curvatura é medida na distribuição
 inicial bem-posta — mas fica o registro para quando a interface se mover (B3+).
+
+## Passo 4 — força de tensão superficial σκn (kernel de Roma)
+
+**Oráculo:** dois testes que o arranjo standalone permite, ambos no nível de
+máquina para uma gota em repouso:
+- **conservação** — Σ_grade F·h² = σ·(integral do vetor curvatura), porque o
+  kernel de Roma soma 1 (partição da unidade). Testa o espalhamento.
+- **equilíbrio** — σ·∮κ⃗ds → 0 para curva fechada. Testa que a curvatura fecha
+  em zero ao redor do círculo (força líquida nula = Laplace).
+
+**Feito:** `ft_delta_roma` (mesmo kernel do corpo rígido, repetido para o módulo
+ficar standalone), `ft_espalha_tensao` (espalha σκ⃗ numa malha uniforme centrada
+na célula, peso ds_k por marcador), `ft_integral_curvatura`. Arreio
+`teste-tensao.c` no `make check`.
+
+**Resultado (círculo R=0,15, σ=0,7, malha 64²):**
+
+    nmarc    conserv (x,y)      equilib |F|
+       64    3e-16, 1e-15        2,9e-14
+      128    1e-16, 3e-16        1,6e-13
+      256    6e-16, 9e-16        2,8e-13
+      512    5e-16, 8e-16        1,2e-12
+
+Conservação no nível de máquina (~1e-16) — o espalhamento de Roma é exato.
+Equilíbrio ~1e-13 — a integral do vetor curvatura no círculo é zero (por simetria
+do círculo, é máquina-zero, não convergência; é a resposta forte para o alvo de
+Laplace). Portão PASSOU.
+
+**Nota de honestidade sobre o oráculo de equilíbrio:** ser máquina-zero vem da
+simetria do círculo. Uma curva fechada assimétrica daria equilíbrio convergindo
+de um valor finito — teste mais exigente, mas o círculo É o caso de Laplace do
+B2, então máquina-zero é o resultado certo aqui. O teste FORTE deste passo é a
+conservação (1e-16), que não depende de simetria.

@@ -93,6 +93,40 @@ void ft_vetor_curvatura(const ft_frente *f, Point *kv);
 //! de raio R, todo marcador da' 1/R.  `kappa` deve caber `ft_num` reais.
 void ft_curvatura(const ft_frente *f, real *kappa);
 
+// --- forca de tensao superficial ------------------------------------------
+
+//! Nucleo regularizado de Roma, 3 pontos (o MESMO do corpo rigido -- repetido
+//! aqui para o modulo ficar standalone).  Argumento r = (x - X)/h.  Suporte 1,5
+//! celulas para cada lado; particao da unidade em r inteiro+fase.
+real ft_delta_roma(real r);
+
+//! Espalha a forca de tensao superficial F = sigma * kappa * n dos marcadores
+//! numa MALHA UNIFORME CENTRADA NA CELULA (a versao standalone; o acoplamento
+//! com a malha escalonada do solver vem na fase seguinte).  ACUMULA em fx/fy.
+//!
+//! Cada marcador leva f_k = sigma * (vetor curvatura)_k com peso ds_k (o
+//! comprimento de arco que ele representa: metade de cada segmento vizinho).
+//! O espalhamento usa o produto tensorial do nucleo de Roma nas duas direcoes.
+//!
+//! Grade: nx*ny celulas, origem (ox,oy), espacamento h; a celula (i,j) tem
+//! centro em (ox+(i+0.5)h, oy+(j+0.5)h).  fx/fy tem nx*ny reais (indice j*nx+i).
+//!
+//! DOIS ORACULOS que este arranjo permite:
+//!   conservacao  SUM_grade F * h^2 == sigma * SUM_k (vetor curvatura)_k * ds_k,
+//!                porque o nucleo soma 1 (particao da unidade).  Precisao de
+//!                maquina se o suporte nao vazar da grade.
+//!   equilibrio   sigma * SUM_k (vetor curvatura)_k * ds_k -> 0 para curva
+//!                fechada (a integral do vetor curvatura ao redor e' nula) --
+//!                a forca liquida da tensao superficial numa gota em repouso.
+void ft_espalha_tensao(const ft_frente *f, real sigma,
+                       real ox, real oy, real h, int nx, int ny,
+                       real *fx, real *fy);
+
+//! A soma dos vetores curvatura ponderados pelo arco, por direcao:
+//! SUM_k (vetor curvatura)_k * ds_k.  E' a forca total (sem sigma) que DEVE
+//! chegar a' grade, e que tende a zero para curva fechada.  Usado no oraculo.
+void ft_integral_curvatura(const ft_frente *f, real integral[DIM]);
+
 // --- adveccao + cirurgia --------------------------------------------------
 
 //! Avanca a frente um passo `dt` a partir do instante `t`, no campo `u`:
