@@ -207,6 +207,20 @@ real fi_residuo_max(const fi_corpo *c);
 //! perimetro, mas nao e' o que a equacao pede.
 void fi_forca_total(const fi_corpo *c, real total[DIM]);
 
+//! Acha as facetas escalonadas da direcao `dim` no suporte do nucleo de Roma em
+//! torno de `X` (celula-ancora + grade de deslocamentos), devolvendo os ids
+//! locais em `lids` e os pesos de Roma em `pesos`; retorna quantas achou.  E' o
+//! miolo geometrico de `fi_espalha`/`fi_interpola`, EXPOSTO para o front-tracking
+//! espalhar a forca de tensao superficial na malha escalonada sem duplicar a
+//! busca de faceta (que trata cutucada de fronteira, id negativo canonico e
+//! troca de nivel de refino).  `lids`/`pesos` devem caber
+//! `fi_suporte_capacidade()` elementos.  NAO muda estado global do corpo rigido.
+int fi_suporte_facetas(sim_facet_domain *sfd, int dim, const Point X, real h,
+                       int *lids, real *pesos, int capac);
+
+//! A capacidade a alocar para `fi_suporte_facetas` -- FI_LARGURA^DIM.
+int fi_suporte_capacidade(void);
+
 #ifdef __cplusplus
 }
 #endif

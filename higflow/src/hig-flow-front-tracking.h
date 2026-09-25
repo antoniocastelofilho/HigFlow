@@ -127,6 +127,14 @@ void ft_espalha_tensao(const ft_frente *f, real sigma,
 //! chegar a' grade, e que tende a zero para curva fechada.  Usado no oraculo.
 void ft_integral_curvatura(const ft_frente *f, real integral[DIM]);
 
+//! Preenche, por marcador: posicao, forca de tensao superficial
+//! F = sigma * (vetor curvatura), e peso ds (comprimento de arco -- metade de
+//! cada segmento vizinho).  Os arrays devem caber `ft_num` elementos.  E' o que
+//! o adaptador do solver espalha na malha escalonada: mantem a geometria (que e'
+//! testada aqui) fora do adaptador.  A soma de F*ds tende a zero (Laplace).
+void ft_forcas_tensao(const ft_frente *f, real sigma,
+                      Point *pos, Point *forca, real *ds);
+
 // --- adveccao + cirurgia --------------------------------------------------
 
 //! Avanca a frente um passo `dt` a partir do instante `t`, no campo `u`:

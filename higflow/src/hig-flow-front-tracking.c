@@ -221,6 +221,21 @@ void ft_integral_curvatura(const ft_frente *f, real integral[DIM])
     free(kv);
 }
 
+void ft_forcas_tensao(const ft_frente *f, real sigma,
+                      Point *pos, Point *forca, real *ds)
+{
+    Point *kv = (Point *) malloc((size_t) f->n * sizeof(Point));
+    ft_vetor_curvatura(f, kv);
+    for (int i = 0; i < f->n; i++) {
+        pos[i][0] = f->x[i][0];
+        pos[i][1] = f->x[i][1];
+        forca[i][0] = sigma * kv[i][0];
+        forca[i][1] = sigma * kv[i][1];
+        ds[i] = _ds_marcador(f, i);
+    }
+    free(kv);
+}
+
 void ft_espalha_tensao(const ft_frente *f, real sigma,
                        real ox, real oy, real h, int nx, int ny,
                        real *fx, real *fy)

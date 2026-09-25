@@ -823,6 +823,22 @@ static PetscSF _grafo_de(distributed_property *dp, MPI_Comm comm,
     return sf;
 }
 
+// Exposicao publica do miolo geometrico, para o front-tracking reusar sem
+// duplicar a busca de faceta.  Wrapper fino: nao muda o comportamento do corpo
+// rigido, so' torna _suporte alcancavel de fora.
+int fi_suporte_facetas(sim_facet_domain *sfd, int dim, const Point X, real h,
+                       int *lids, real *pesos, int capac)
+{
+    return _suporte(sfd, dim, X, h, lids, pesos, capac);
+}
+
+int fi_suporte_capacidade(void)
+{
+    int capac = FI_LARGURA;
+    for (int d = 1; d < DIM; d++) capac *= FI_LARGURA;
+    return capac;
+}
+
 void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],
                 distributed_property *dpF[DIM])
 {
