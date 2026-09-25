@@ -46,3 +46,35 @@ de sinal, escala ou ordem.
 a escrita de VTK com caminho quebrado. Doc do projeto atualizado (B1 feita).
 
 **Resultado:** `PORTAO B1 ... ==> PASSOU`, `EXIT=0`.
+
+## Passo 3 — curvatura κ e normal (física do B2)
+
+**Oráculo:** curvatura por círculo osculador de 3 marcadores consecutivos,
+contra dois casos analíticos — círculo (κ=1/R em todo marcador) e elipse
+(κ(t)=ab/(a²sin²t+b²cos²t)^{3/2}). Erro relativo deve cair com o refino.
+
+**Feito:** `ft_vetor_curvatura` (κ·n, aponta para o centro osculador — o lado
+côncavo — com módulo 1/R, independente da orientação da curva) e `ft_curvatura`
+(escalar) no módulo. Arreio `teste-curvatura.c`; `make check` roda os dois
+arreios como oráculos.
+
+**Resultado:**
+
+    circulo   nmarc  err_rel_max        elipse   nvert  err_rel_max
+                32   5,3e-15                       128   1,8e-3
+                64   4,4e-14                       256   4,5e-4
+               128   1,7e-13                       512   1,1e-4
+               256   7,3e-13                      1024   2,8e-5
+
+Círculo EXATO (precisão de máquina — 3 pontos num círculo definem o próprio
+círculo). Elipse converge em 2ª ordem. Portão PASSOU.
+
+**Caveat descoberto e documentado** (custou uma iteração do arreio): o método de
+3 pontos lê **κ=0 em tripla colinear**. A primeira versão do teste de elipse
+usava `ft_cria_curva` com reamostragem, que põe marcadores colineares sobre as
+cordas → κ=0 onde a elipse tem κ≠0 → erro de 100%. Não é defeito da curvatura (o
+tip dava 19,86 vs 20,0 correto), é da inicialização. Consequência real para o
+B2: **marcador recém-inserido pela cirurgia (ponto médio, sobre a corda) tem κ=0
+até ser advectado** para fora da reta. No B2 estático a frente quase não se move
+e a cirurgia raramente dispara, então a curvatura é medida na distribuição
+inicial bem-posta — mas fica o registro para quando a interface se mover (B3+).

@@ -75,6 +75,24 @@ real ft_perimetro(const ft_frente *f);
 //! pontos).  Usado pelo arreio para medir o desvio de forma sem abrir a struct.
 void ft_posicoes(const ft_frente *f, Point *dst);
 
+// --- geometria: curvatura e normal ----------------------------------------
+
+//! VETOR CURVATURA de cada marcador -- kappa*n, apontando para o centro do
+//! circulo osculador (o lado concavo), com modulo 1/R.  E' a quantidade que a
+//! forca de tensao superficial pede: F = sigma * (vetor curvatura), espalhada
+//! pelo nucleo.  Independe da orientacao (horaria/anti-horaria) da curva: o
+//! centro osculador esta' sempre do lado concavo, entao numa gota convexa
+//! aponta para dentro e a pressao sobe dentro -- Laplace.
+//!
+//! Calculado pelo circulo que passa por tres marcadores consecutivos
+//! (i-1, i, i+1).  Onde os tres sao quase colineares (curva reta), o vetor e'
+//! ~zero.  `kv` deve caber `ft_num` pontos.
+void ft_vetor_curvatura(const ft_frente *f, Point *kv);
+
+//! Curvatura ESCALAR (modulo 1/R) de cada marcador -- o oraculo: para um circulo
+//! de raio R, todo marcador da' 1/R.  `kappa` deve caber `ft_num` reais.
+void ft_curvatura(const ft_frente *f, real *kappa);
+
 // --- adveccao + cirurgia --------------------------------------------------
 
 //! Avanca a frente um passo `dt` a partir do instante `t`, no campo `u`:

@@ -135,6 +135,54 @@ void ft_posicoes(const ft_frente *f, Point *dst)
     memcpy(dst, f->x, (size_t) f->n * sizeof(Point));
 }
 
+// --- geometria: curvatura e normal ----------------------------------------
+
+// Centro do circulo que passa por tres pontos (circuncentro).  Devolve 0 e nao
+// escreve `centro` se os tres forem quase colineares (D ~ 0).
+static int _circuncentro(const real *A, const real *B, const real *C,
+                         real centro[2])
+{
+    real D = 2.0 * (A[0] * (B[1] - C[1])
+                  + B[0] * (C[1] - A[1])
+                  + C[0] * (A[1] - B[1]));
+    if (fabs(D) < 1e-300) return 0;
+    real A2 = A[0] * A[0] + A[1] * A[1];
+    real B2 = B[0] * B[0] + B[1] * B[1];
+    real C2 = C[0] * C[0] + C[1] * C[1];
+    centro[0] = (A2 * (B[1] - C[1]) + B2 * (C[1] - A[1]) + C2 * (A[1] - B[1])) / D;
+    centro[1] = (A2 * (C[0] - B[0]) + B2 * (A[0] - C[0]) + C2 * (B[0] - A[0])) / D;
+    return 1;
+}
+
+void ft_vetor_curvatura(const ft_frente *f, Point *kv)
+{
+    for (int i = 0; i < f->n; i++) {
+        const real *p0 = f->x[(i - 1 + f->n) % f->n];
+        const real *p1 = f->x[i];
+        const real *p2 = f->x[(i + 1) % f->n];
+        real c[2];
+        if (!_circuncentro(p0, p1, p2, c)) {
+            kv[i][0] = 0.0; kv[i][1] = 0.0;   // trecho reto: curvatura nula
+            continue;
+        }
+        // Vetor de p1 ao centro; |dif| = R.  kappa*n = dif / R^2, modulo 1/R,
+        // apontando para o centro (lado concavo).
+        real dx = c[0] - p1[0], dy = c[1] - p1[1];
+        real R2 = dx * dx + dy * dy;
+        kv[i][0] = dx / R2;
+        kv[i][1] = dy / R2;
+    }
+}
+
+void ft_curvatura(const ft_frente *f, real *kappa)
+{
+    Point *kv = (Point *) malloc((size_t) f->n * sizeof(Point));
+    ft_vetor_curvatura(f, kv);
+    for (int i = 0; i < f->n; i++)
+        kappa[i] = sqrt(kv[i][0] * kv[i][0] + kv[i][1] * kv[i][1]);
+    free(kv);
+}
+
 // --- adveccao -------------------------------------------------------------
 
 void ft_advecta(ft_frente *f, ft_campo_u u, void *ctx, real t, real dt)
