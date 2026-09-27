@@ -166,6 +166,63 @@ O `ns-example-2d.c` amostra a pressão no centro (dentro) e em (2, 0,9) (fora).
 O acoplamento completo produz a física correta — não é só andaime. A força
 σκ⃗ espalhada na malha escalonada equilibra o gradiente de pressão e gera o salto.
 
+## Passo 6 — advecção acoplada (os marcadores andam com o fluido)
+
+É a **mudança 1** das três do projeto, e o que separa o front-tracking da
+fronteira imersa rígida: onde o corpo rígido interpola u para calcular a força
+que impõe u=0, aqui interpola u para **mover** o marcador. Mesma interpolação,
+destino oposto.
+
+**Implementação:** `_campo_da_malha` no adaptador interpola a velocidade da malha
+escalonada nos marcadores — mesma fórmula de `fi_interpola`
+(`u(X) = Σ u(faceta)·peso`, os pesos de Roma somando 1), reusando
+`fi_suporte_facetas`. É passada como callback ao `ft_advecta` já verificado no B1.
+Ligada por `FT_ADVECTA=1`; **o padrão continua frente fixa**, para não alterar o
+resultado B2 já commitado.
+
+**Ordem no passo:** o gancho roda pré-preditor, quando `ns->dpu` é u^n — a
+velocidade final **já projetada** (discretamente livre de divergência) do passo
+anterior. Então: move a frente com u^n → cirurgia → espalha a força nas posições
+novas, que é o que o preditor vê. Campo congelado em u^n dentro do passo (não
+existe u em t+dt/2), então o RK2 do `ft_advecta` vira avaliação de ponto médio no
+**espaço** e o esquema é de primeira ordem no tempo — coerente com o resto do
+acoplamento explícito.
+
+**Oráculos (gota estática, 200 passos, `FT_ADVECTA=1`):**
+
+    passo    n     area        dA/A      deriva    circ      unidade   max|u_marc|
+        0  128  0.19627070  0.00e+00  0.00e+00  0.999799  1.23e-14   0.000e+00
+       50  128  0.19626975  4.83e-06  2.49e-11  0.999799  1.23e-14   2.410e-04
+      100  128  0.19626878  9.75e-06  7.99e-11  0.999799  1.24e-14   2.410e-04
+      150  128  0.19626782  1.46e-05  1.50e-10  0.999799  1.24e-14   2.410e-04
+
+- **Partição da unidade 1,2e-14** — os pesos somam 1 em precisão de máquina. É o
+  oráculo forte: prova que um campo uniforme seria interpolado exatamente, e pega
+  suporte incompleto (que daria velocidade pequena demais, em silêncio). Foi esta
+  checagem que pegou a força "exatamente pela metade" no corpo rígido.
+- **Área conservada a 1,5e-5 em 150 passos** — advecção por campo livre de
+  divergência preserva a área fechada.
+- **Deriva do centroide 1,5e-10** e **circularidade constante** (0,999799 é o
+  valor de discretização do polígono de 128 lados, não deriva) — a gota fica
+  parada e circular, como o equilíbrio de Laplace exige.
+- **Laplace segue valendo:** Δp=4,000549 vs 4,0 → **0,01%**.
+
+**A checagem que evitou um falso verde:** uma gota que fica parada é exatamente o
+que se veria se a interpolação devolvesse **zero em silêncio** — área perfeita,
+deriva nula, circularidade constante. Por isso o `max|u_marc|`: ele dá 2,41e-4
+(não-nulo, e **exatamente 0,000e+00 no passo 0**, quando a condição inicial é
+u=0, então o número acompanha a realidade do campo). O campo euleriano tem
+Vmax=8,05e-4; os marcadores veem 2,41e-4 porque o kernel suaviza os picos do
+campo parasita no suporte de 1,5 células.
+
+**Sem regressão:** com o flag desligado o Laplace reproduz o commit `ffc8718`
+bit a bit (Δp=4.000613, erro 0,0002) e nenhum diagnóstico vaza.
+
+**O que este teste NÃO exercita, honestamente:** a gota não deforma, então `n`
+fica 128 o tempo todo — a **cirurgia não dispara** no regime acoplado, e o caveat
+da curvatura (marcador recém-inserido sobre a corda tem κ=0) segue não exercitado
+aqui. Os dois entram em cena no B3 (oscilação) e no B4 (bolha subindo).
+
 ## Resumo da corrida autônoma
 
 Cinco passos, todos verificados por oráculo e commitados:
