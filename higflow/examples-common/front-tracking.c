@@ -144,6 +144,278 @@ static real _maior_u_marcador = 0.0;
 // passo (nao existe u em t+dt/2), entao `t` e' ignorado: o RK2 do ft_advecta
 // vira avaliacao de ponto medio no ESPACO, e o esquema segue de primeira ordem
 // no tempo -- coerente com o resto do acoplamento explicito.
+// ORACULO PARA DECIDIR O DESENHO DA ADVECCAO PARALELA.
+//
+// Ha' duas formas de tornar a adveccao correta em np>1, e elas NAO sao
+// equivalentes:
+//
+//   (A) cada rank interpola o que enxerga e os SOMATORIOS PARCIAIS sao reduzidos
+//       entre os ranks.  Simples e barato.  So' esta' certo se a posse das
+//       facetas do suporte for uma PARTICAO -- se dois ranks encontrarem a mesma
+//       faceta (um como dona, outro como copia de franja), a soma conta duas
+//       vezes.
+//
+//   (B) reunir as posicoes, cada rank interpola apenas os marcadores cujo
+//       suporte ele tem INTEIRO, e as velocidades sao reunidas.  Correto por
+//       construcao, mais caro, e falha se algum marcador nao for de ninguem.
+//
+// Argumentar qual e' o certo e' desnecessario: a particao da unidade mede.
+// `_suporte` localiza facetas no dominio LOCAL, que inclui franja, entao a
+// pergunta e' factual -- a soma GLOBAL dos pesos por marcador da' 1, mais que 1,
+// ou menos que 1?
+//
+//   == 1   a posse e' particao: (A) esta' exatamente certa, e vence por ser mais
+//          simples e mais barata.
+//    > 1   ha' duplicacao de franja: (A) precisa de filtro de posse, ou (B).
+//    < 1   ha' ponto de suporte que nao e' de ninguem: (B) tambem falharia ali,
+//          e o problema e' a largura da franja, nao o desenho da reducao.
+//
+// Uma reducao por marcador seria inviavel em producao; aqui e' UMA reducao do
+// vetor inteiro, so' quando FT_DIAG_UNIDADE_PAR esta' no ambiente.
+// FILTRO DE POSSE: a interpolacao de velocidade correta em np>1.
+//
+// O DEFEITO QUE ISTO SUBSTITUI.  `_campo_da_malha` desistia com
+// `if (h <= 0.0) return;`, devolvendo velocidade ZERO para todo marcador fora do
+// dominio do rank.  A frente e' replicada, entao cada rank advectava a sua copia
+// com a velocidade que enxergava e congelava o resto: MEDIDO em np=2, 109 dos 252
+// marcadores (43%) nao se moveram, numa faixa contigua -- o pedaco da bolha do
+// outro rank.  Sem erro, sem aviso, codigo de saida zero.
+//
+// POR QUE O FILTRO, E NAO UMA SOMA.  Tres desenhos foram considerados e a
+// PARTICAO DA UNIDADE decidiu entre eles, por medida e nao por argumento:
+//
+//   somar os parciais            duplica.  `_suporte` acha facetas no dominio
+//                                local, que inclui FRANJA, e 172 das 504
+//                                entradas eram encontradas COMPLETAS pelos dois
+//                                ranks: a soma daria exatamente o dobro.
+//   normalizar pela soma dos     nao serve.  12 entradas tinham um rank COMPLETO
+//   pesos                        e outro PARCIAL; dividir mistura a interpolacao
+//                                boa com uma estimativa parcial diferente.
+//   filtro de posse (este)       so' contribui o rank cuja soma local de pesos e'
+//                                1, isto e', que tem o suporte INTEIRO.  A media
+//                                entre os ranks completos e' exata: eles somam
+//                                sobre o MESMO conjunto de facetas.
+//
+// E a medida mostrou que ele e' sempre aplicavel aqui: `parcial orfa` = 0 e
+// `sem ninguem` = 0, ou seja TODA entrada tem ao menos um rank completo (172 tem
+// dois, 332 tem um).  Onde isso falhar nao existe resposta certa a dar, e por
+// isso ABORTA -- devolver zero seria repor o defeito original com outra roupa.
+static void _campo_da_malha_lote(const Point *x, int n, real t, void *vctx,
+                                 Point *u)
+{
+    interp_ctx *ic = (interp_ctx *) vctx;
+    (void) t;
+
+    const int capac = fi_suporte_capacidade();
+    int  *lids  = (int  *) malloc((size_t) capac * sizeof(int));
+    real *pesos = (real *) malloc((size_t) capac * sizeof(real));
+
+    // val_loc[k*DIM+d] = interpolacao deste rank, SE ele tem o suporte inteiro.
+    // cnt_loc[k*DIM+d] = 1 nesse caso, 0 caso contrario.
+    real *val_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+    real *cnt_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+
+    for (int k = 0; k < n; k++) {
+        const real h = _h_em(ic->sfd[0], x[k]);
+        if (h <= 0.0) continue;            // este rank nao enxerga: contribui 0
+        for (int dim = 0; dim < DIM; dim++) {
+            const int m = fi_suporte_facetas(ic->sfd[dim], dim, x[k], h,
+                                             lids, pesos, capac);
+            real val = 0.0, soma = 0.0;
+            for (int i = 0; i < m; i++) {
+                val  += dp_get_value(ic->dpu[dim], lids[i]) * pesos[i];
+                soma += pesos[i];
+            }
+            // SUPORTE INTEIRO?  E' esta comparacao que faz o filtro.  A tolerancia
+            // e' folgada de proposito: os pesos de Roma somam 1 em aritmetica
+            // exata, e o desvio observado em serie e' da ordem de 1e-14.
+            if (fabs(soma - 1.0) < 1e-9) {
+                val_loc[k*DIM + dim] = val;
+                cnt_loc[k*DIM + dim] = 1.0;
+            }
+            const real desvio = fabs(soma - 1.0);
+            if (desvio > _pior_desvio_unidade) _pior_desvio_unidade = desvio;
+            if (fabs(val) > _maior_u_marcador) _maior_u_marcador = fabs(val);
+        }
+    }
+
+    int ntasks = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    real *val_g, *cnt_g;
+    if (ntasks == 1) {
+        // Serial: a reducao e' identidade.  Evita-la mantem o caminho de np=1
+        // bit a bit o mesmo, que e' a condicao para as corridas ja' feitas
+        // continuarem comparaveis.
+        val_g = val_loc; cnt_g = cnt_loc;
+    } else {
+        val_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+        cnt_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+        MPI_Allreduce(val_loc, val_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(cnt_loc, cnt_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+    }
+
+    for (int k = 0; k < n; k++)
+        for (int dim = 0; dim < DIM; dim++) {
+            const real c = cnt_g[k*DIM + dim];
+            if (c < 0.5) {
+                // NENHUM rank tem o suporte inteiro deste marcador nesta direcao.
+                // Nao ha' velocidade correta a devolver.  Abortar e' a unica
+                // resposta honesta: zero aqui e' exatamente o defeito que este
+                // codigo veio consertar, e ele nao se anuncia.
+                int rank = 0; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                if (rank == 0)
+                    fprintf(stderr,
+                        "_campo_da_malha_lote: marcador %d em (%.6f,%.6f), "
+                        "direcao %d: NENHUM rank tem o suporte inteiro do nucleo. "
+                        "A franja e' estreita demais para esta particao -- "
+                        "ver a subsecao do paralelo no relatorio.\n",
+                        k, (double) x[k][0], (double) x[k][1], dim);
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+            // Media entre os ranks completos.  Eles somam sobre o MESMO conjunto
+            // de facetas, entao a media e' o proprio valor; dividir e' o que
+            // desfaz a contagem multipla da franja.
+            u[k][dim] = val_g[k*DIM + dim] / c;
+        }
+
+    free(lids); free(pesos);
+    if (ntasks > 1) { free(val_g); free(cnt_g); }
+    free(val_loc); free(cnt_loc);
+}
+
+static void _diag_unidade_paralela(ft_frente *frente, sim_facet_domain **sfd,
+                                   int passo)
+{
+    const int n = ft_num(frente);
+    Point *pos = (Point *) malloc((size_t) n * sizeof(Point));
+    ft_posicoes(frente, pos);
+
+    const int capac = fi_suporte_capacidade();
+    int  *lids  = (int  *) malloc((size_t) capac * sizeof(int));
+    real *pesos = (real *) malloc((size_t) capac * sizeof(real));
+
+    // soma_loc[k*DIM+dim] = soma dos pesos que ESTE rank encontra.
+    real *soma_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+    real *cont_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+
+    for (int k = 0; k < n; k++) {
+        real h = _h_em(sfd[0], pos[k]);
+        if (h <= 0.0) continue;               // este rank nao enxerga: contribui 0
+        for (int dim = 0; dim < DIM; dim++) {
+            int m = fi_suporte_facetas(sfd[dim], dim, pos[k], h, lids, pesos, capac);
+            real sw = 0.0;
+            for (int i = 0; i < m; i++) sw += pesos[i];
+            soma_loc[k*DIM + dim] = sw;
+            cont_loc[k*DIM + dim] = (real) m;
+        }
+    }
+
+    real *soma_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+    real *cont_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+    MPI_Allreduce(soma_loc, soma_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(cont_loc, cont_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+
+    real menor = 1e300, maior = -1e300;
+    int  n_zero = 0, n_acima = 0, n_abaixo = 0;
+    real cmin = 1e300, cmax = -1e300;
+    for (int k = 0; k < n * DIM; k++) {
+        if (soma_g[k] < menor) menor = soma_g[k];
+        if (soma_g[k] > maior) maior = soma_g[k];
+        if (cont_g[k] < cmin) cmin = cont_g[k];
+        if (cont_g[k] > cmax) cmax = cont_g[k];
+        if (soma_g[k] == 0.0)            n_zero++;
+        else if (soma_g[k] > 1.0 + 1e-9) n_acima++;
+        else if (soma_g[k] < 1.0 - 1e-9) n_abaixo++;
+    }
+    // AS SOMAS LOCAIS, POR RANK.  A soma GLOBAL nao distingue "um rank com o
+    // suporte inteiro" de "dois ranks com 0,7 e 0,3" -- as duas dao 1.  A
+    // distincao decide se normalizar pela soma dos pesos e' exato:
+    //
+    //   todo rank com 0 ou 1  -> normalizar e' EXATO (u = SUM valor / SUM peso),
+    //                            tanto na particao quanto na duplicacao
+    //   algum rank PARCIAL    -> normalizar mistura interpolacao completa com
+    //                            parcial e sai errado; e' preciso filtro de posse
+    int loc_zero = 0, loc_um = 0, loc_parcial = 0;
+    real pmin = 1e300, pmax = -1e300;
+    for (int k = 0; k < n * DIM; k++) {
+        const real v = soma_loc[k];
+        if (v == 0.0)                   loc_zero++;
+        else if (fabs(v - 1.0) < 1e-9)  loc_um++;
+        else {
+            loc_parcial++;
+            if (v < pmin) pmin = v;
+            if (v > pmax) pmax = v;
+        }
+    }
+
+    // A PERGUNTA QUE DECIDE: alguma entrada tem um rank COMPLETO e outro PARCIAL?
+    //
+    // Parciais por si nao condenam normalizar pela soma dos pesos.  O que
+    // condena e' a COEXISTENCIA na mesma entrada:
+    //
+    //   dois completos (1+1)                  -> 2u/2 = u          correto
+    //   dois parciais que particionam (0,6+0,4) -> u/1 = u          correto
+    //   um completo + um parcial (1 + 0,6)    -> mistura u com uma
+    //                                            estimativa parcial  ERRADO
+    //
+    // Entao classifica-se cada entrada por QUANTOS ranks a tem completa e
+    // quantos a tem parcial.  (A contagem "acima de 1" da soma global NAO
+    // responde isso: 1+1 e 1+0,6 caem no mesmo balde.)
+    real *comp_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+    real *parc_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+    for (int k = 0; k < n * DIM; k++) {
+        const real v = soma_loc[k];
+        if (v == 0.0)                  continue;
+        if (fabs(v - 1.0) < 1e-9)      comp_loc[k] = 1.0;
+        else                           parc_loc[k] = 1.0;
+    }
+    real *comp_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+    real *parc_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+    MPI_Allreduce(comp_loc, comp_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(parc_loc, parc_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+
+    int b_misto = 0, b_dup = 0, b_unico = 0, b_part = 0, b_orfa = 0, b_nada = 0;
+    for (int k = 0; k < n * DIM; k++) {
+        const int c = (int) (comp_g[k] + 0.5), pa = (int) (parc_g[k] + 0.5);
+        if      (c >= 1 && pa >= 1) b_misto++;   // <-- mata a normalizacao
+        else if (c >= 2)            b_dup++;     // duplicacao exata
+        else if (c == 1)            b_unico++;   // um dono so': limpo
+        else if (pa >= 2)           b_part++;    // parciais que particionam
+        else if (pa == 1)           b_orfa++;    // parcial sozinha: soma < 1
+        else                        b_nada++;    // ninguem enxerga
+    }
+
+    int rank = 0; MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // Cada rank imprime a SUA distribuicao: com poucos ranks isso e' mais
+    // informativo que uma reducao, porque mostra o desequilibrio entre eles.
+    fprintf(stderr, "UNIDADE-LOC passo %d rank %d: de %d entradas -- "
+            "%d zeradas, %d com soma 1, %d PARCIAIS%s\n",
+            passo, rank, n * DIM, loc_zero, loc_um, loc_parcial,
+            loc_parcial > 0 ? "" : "  (nenhuma parcial)");
+    if (loc_parcial > 0)
+        fprintf(stderr, "UNIDADE-LOC passo %d rank %d: parciais entre "
+                "%.12f e %.12f\n", passo, rank, (double) pmin, (double) pmax);
+
+    if (rank == 0) {
+        int ntasks = 1; MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+        fprintf(stderr, "UNIDADE-PAR passo %d np=%d: soma global dos pesos por "
+                "marcador -- min %.12f  max %.12f | de %d entradas: "
+                "%d zeradas, %d acima de 1, %d abaixo de 1 | "
+                "pontos de suporte por entrada: %.0f a %.0f\n",
+                passo, ntasks, (double) menor, (double) maior, n * DIM,
+                n_zero, n_acima, n_abaixo, (double) cmin, (double) cmax);
+        fprintf(stderr, "UNIDADE-CLS passo %d np=%d: por entrada -- "
+                "MISTO(completo+parcial) %d | duplicada %d | dono unico %d | "
+                "parciais que particionam %d | parcial orfa %d | sem ninguem %d"
+                "   ==> normalizar pela soma dos pesos %s\n",
+                passo, ntasks, b_misto, b_dup, b_unico, b_part, b_orfa, b_nada,
+                (b_misto == 0 && b_orfa == 0) ? "E' EXATO" : "NAO SERVE");
+    }
+    free(comp_loc); free(parc_loc); free(comp_g); free(parc_g);
+    free(pos); free(lids); free(pesos);
+    free(soma_loc); free(cont_loc); free(soma_g); free(cont_g);
+}
+
 static void _campo_da_malha(const Point x, real t, void *vctx, real u[DIM])
 {
     interp_ctx *ic = (interp_ctx *) vctx;
@@ -379,8 +651,13 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
     ft_ctx *ctx = (ft_ctx *) vctx;
 
     if (ctx->advecta) {
+        if (getenv("FT_DIAG_UNIDADE_PAR") != NULL)
+            _diag_unidade_paralela(ctx->frente, ns->sfdu, ctx->passo);
         interp_ctx ic = { ns->sfdu, ns->dpu };
-        ft_advecta(ctx->frente, _campo_da_malha, &ic, ns->par.t, ns->par.dt);
+        // Adveccao em LOTE, com o filtro de posse: em np>1 a velocidade de um
+        // marcador nao e' calculavel localmente, e uma reducao por marcador seria
+        // inviavel.  Em np=1 o caminho e' bit a bit o mesmo de antes.
+        ft_advecta_lote(ctx->frente, _campo_da_malha_lote, &ic, ns->par.t, ns->par.dt);
         ft_cirurgia(ctx->frente);
 
         static int cada = 0;

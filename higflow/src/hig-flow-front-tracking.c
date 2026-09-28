@@ -402,6 +402,33 @@ static real _tri_area(const real *p, const real *a, const real *b)
                     - (b[0] - p[0]) * (a[1] - p[1]));
 }
 
+void ft_advecta_lote(ft_frente *f, ft_campo_u_lote u, void *ctx, real t, real dt)
+{
+    // MESMO RK2 do ponto medio de `ft_advecta`, so' que cada estagio avalia o
+    // campo para TODOS os marcadores de uma vez.  A equivalencia e' exata: as
+    // contas por marcador sao as mesmas, apenas reordenadas.
+    const int n = f->n;
+    Point *k1 = (Point *) malloc((size_t) n * sizeof(Point));
+    Point *k2 = (Point *) malloc((size_t) n * sizeof(Point));
+    Point *xm = (Point *) malloc((size_t) n * sizeof(Point));
+    if (k1 == NULL || k2 == NULL || xm == NULL) {
+        fprintf(stderr, "ft_advecta_lote: malloc de %d marcadores falhou\n", n);
+        exit(1);
+    }
+
+    u(f->x, n, t, ctx, k1);
+    for (int i = 0; i < n; i++)
+        for (int d = 0; d < DIM; d++)
+            xm[i][d] = f->x[i][d] + 0.5 * dt * k1[i][d];
+
+    u(xm, n, t + 0.5 * dt, ctx, k2);
+    for (int i = 0; i < n; i++)
+        for (int d = 0; d < DIM; d++)
+            f->x[i][d] += dt * k2[i][d];
+
+    free(k1); free(k2); free(xm);
+}
+
 int ft_cirurgia(ft_frente *f)
 {
     const real l_max = 2.0 * f->ds_alvo;   // segmento acima disto: inserir
