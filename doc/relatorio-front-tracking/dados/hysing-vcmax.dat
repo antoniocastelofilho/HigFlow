@@ -1,0 +1,6 @@
+grandeza                        FT         VOF        publicado
+Vc-maximo-amostrado             0.241563   0.240746   0.2417-0.2421
+Vc-maximo-por-parabola          0.241577   0.240786   --
+instante-do-maximo              0.9057     0.9153     0.9213-0.9313
+desvio-do-limite-inferior       -0.051pc   -0.378pc   --
+dispersao-mutua-dos-tres        --         --         0.165pc

@@ -1,0 +1,3 @@
+metodo  malha-fixa   com-AMR-ate-t    amostras-monotonas
+VOF     2.9e-15      1.01e-03-(2.15)  35-descidas-0-subidas
+FT      1.3e-05      1.30e-03-(1.65)  29-descidas-4-subidas

@@ -72,11 +72,20 @@ A \'ultima se\c{c}\~ao monta o \emph{benchmark} de bolha ascendente de Hysing
 et al., que \'e o primeiro or\'aculo \emph{externo} deste trabalho --- todos os
 anteriores s\~ao anal\'iticos ou m\'utuos, e duas implementa\c{c}\~oes que
 compartilhem um erro de formula\c{c}\~ao concordariam entre si perfeitamente.
-O fechamento contra os valores publicados \textbf{n\~ao} est\'a neste texto: as
-corridas at\'e $t=3$ n\~ao terminaram a tempo. O que est\'a medido \'e o trecho
-inicial, em que os dois m\'etodos concordam em \num{1e-5} no centro de massa ---
-concord\^ancia m\'utua, que \'e precisamente o que o or\'aculo externo viria
-suprir.
+O fechamento \emph{completo} n\~ao est\'a neste texto --- as corridas at\'e $t=3$
+n\~ao terminaram a tempo --- mas o primeiro dos tr\^es alvos publicados fechou, e
+com desfecho: na velocidade m\'axima de ascens\~ao o front-tracking cai dentro da
+dispers\~ao dos tr\^es c\'odigos de refer\^encia e o VOF fica fora dela, o que
+responsabiliza o tratamento de interface e n\~ao a discretiza\c{c}\~ao comum.
+
+Duas outras medidas desse mesmo trecho corrigem o pr\'oprio relat\'orio. A
+concord\^ancia m\'utua entre os m\'etodos, que as se\c{c}\~oes anteriores
+tratam como forte, \textbf{n\~ao sobrevive \`a deforma\c{c}\~ao}: a diferen\c{c}a
+em $V_c$ cresce 68 vezes e chega a \SI{3.4}{\percent}. E a conserva\c{c}\~ao de
+massa do VOF, descrita como propriedade de constru\c{c}\~ao, vale em malha
+\textbf{fixa}: com malha adaptativa ela deriva \num{1e-3}, na mesma ordem do
+front-tracking. A vantagem era do esquema de advec\c{c}\~ao, n\~ao do m\'etodo em
+uso.
 \end{abstract}
 
 \tableofcontents

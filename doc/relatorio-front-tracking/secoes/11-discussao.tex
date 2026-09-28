@@ -12,7 +12,8 @@ curvatura / salto de press\~ao & exata no c\'irculo; erro \num{1.7e-7}
   & derivada de campo suavizado; erro \num{4.7e-3} \\
 correntes par\'asitas & $<\num{5e-11}$, decaindo & \num{5.2e-5}, decaindo \\
 massa & conservada enquanto o escoamento \'e est\'atico; deriva com o movimento
-  & conservada por constru\c{c}\~ao, sempre \\
+  & conservada por constru\c{c}\~ao em malha FIXA; com remalhamento adaptativo
+    deriva \num{1e-3}, como o front-tracking (Se\c{c}\~ao~\ref{sec:massa-amr}) \\
 topologia (coalesc\^encia, quebra) & manual, fora do escopo & autom\'atica \\
 custo de estrutura & marcadores ordenados, cirurgia, indicadora por c\'elula
   & campo euleriano a mais \\

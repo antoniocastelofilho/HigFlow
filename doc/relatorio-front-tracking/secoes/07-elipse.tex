@@ -131,7 +131,9 @@ Se\c{c}\~ao~\ref{sec:balanco} advertiu que a conserva\c{c}\~ao perfeita do
 front-tracking balanceado vinha de o escoamento \emph{ser} est\'atico, e que ``em
 escoamento de verdade a deriva volta''. Voltou: \num{1.1e-4} e \num{2.3e-4}
 contra \num{2.5e-13} do VOF. Este \'e o primeiro teste com movimento real, e ele
-confirma a advert\^encia.
+confirma a advert\^encia. (O \num{2.5e-13} do VOF vale em malha fixa; com
+remalhamento adaptativo a deriva dele sobe para \num{1e-03} --- ver a
+Se\c{c}\~ao~\ref{sec:massa-amr}.)
 
 \paragraph{3. Os tr\^es m\'etodos concordam na f\'isica.} Os saltos finais ficam
 em $5{,}909$, $5{,}924$ e $5{,}929$ para um valor exato de $6$. O d\'eficit comum

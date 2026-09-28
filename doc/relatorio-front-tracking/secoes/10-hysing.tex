@@ -248,6 +248,106 @@ espera de uma bolha que come\c{c}a a se deformar. Nenhum desses n\'umeros
 no tempo simulado. Registr\'a-los como progresso \'e leg\'itimo; registr\'a-los
 como concord\^ancia n\~ao seria.
 
+\subsection{Primeiro alvo fechado: a velocidade m\'axima de ascens\~ao}
+\label{sec:vcmax}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/FT/.style={column name={front-tracking}},
+  columns/VOF/.style={column name={VOF}},
+  columns/publicado/.style={column name={publicado}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-vcmax.dat}}
+
+A amostragem \'e a cada $\Delta t = 0{,}05$, e o pico real cai entre amostras;
+por isso a linha do refinamento por par\'abola, que corrige \num{4e-5} --- pouco,
+o que diz que a amostragem grossa n\~ao \'e o que separa do alvo.
+
+\paragraph{O front-tracking acerta; o VOF n\~ao, por pouco.} O crit\'erio de
+compara\c{c}\~ao \'e a dispers\~ao \emph{m\'utua} dos tr\^es c\'odigos publicados:
+\SI{0.165}{\percent}. O front-tracking fica a \SI{0.051}{\percent} do limite
+inferior da faixa --- \emph{dentro} dela, dado que a faixa \'e a discord\^ancia
+entre eles. O VOF fica a \SI{0.378}{\percent}, cerca de $2{,}3$ vezes fora.
+
+Pela leitura declarada na Se\c{c}\~ao~\ref{sec:hysing} \emph{antes} de os
+n\'umeros serem conhecidos, este \'e o terceiro desfecho: n\~ao \'e ``os dois
+juntos fora da faixa'' --- o que apontaria o que eles compartilham (malha, passo,
+contorno, discretiza\c{c}\~ao do momento) --- e sim cada um em sua posi\c{c}\~ao,
+com o front-tracking nitidamente mais pr\'oximo. Isso responsabiliza o
+\textbf{tratamento de interface}, e \'e coerente com o mecanismo que este
+relat\'orio j\'a mediu duas vezes: a curvatura do front-tracking sai da geometria
+expl\'icita da frente, a do VOF de derivadas de um campo de fra\c{c}\~ao
+suavizado.
+
+Uma ressalva sobre o \emph{instante}: $0{,}9057$ e $0{,}9153$ contra
+$0{,}9213$--$0{,}9313$ dos tr\^es c\'odigos. Os dois nossos vem \textbf{cedo}, e o
+front-tracking \'e o mais cedo dos cinco. A diferen\c{c}a excede a
+dispers\~ao entre eles ($0{,}010$), por\'em pouco.
+
+\subsection{A concord\^ancia m\'utua n\~ao sobreviveu \`a deforma\c{c}\~ao}
+\label{sec:divergencia}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/t/.style={column name={$t$}},
+  columns/difyc/.style={column name={dif.\ em $y_c$}},
+  columns/difvc/.style={column name={dif.\ em $V_c$}},
+  columns/difvcrelativa/.style={column name={dif.\ relativa em $V_c$}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-divergencia.dat}}
+
+Em $t=1{,}6$ a diferen\c{c}a em $V_c$ \'e \SI{3.4}{\percent} do valor. N\~ao \'e
+mais ru\'ido num\'erico: \'e discord\^ancia entre os m\'etodos.
+
+\textbf{Isto corrige uma leitura desta pr\'opria se\c{c}\~ao.} A subse\c{c}\~ao do
+resultado parcial concluiu, do trecho $t\le0{,}35$, que a concord\^ancia m\'utua
+``concentra a suspeita no que \'e comum'' aos dois m\'etodos. A conclus\~ao valia
+para o regime \emph{quase circular} em que foi obtida, e n\~ao sobreviveu \`a
+deforma\c{c}\~ao --- que \'e exatamente onde este \emph{benchmark} morde. Uma
+concord\^ancia medida num regime n\~ao se estende ao seguinte, e aqui n\~ao se
+estendeu.
+
+Note a assimetria: $y_c$ estabiliza em $\sim\!\num{4e-5}$ enquanto $V_c$ cresce 68
+vezes. \'E o que se espera de uma integral contra a sua derivada --- $y_c$ suaviza
+o que $V_c$ amplifica --- e serve de aviso sobre escolher m\'etrica: comparar
+apenas centros de massa daria a impress\~ao de concord\^ancia que a velocidade
+desmente.
+
+\subsection{Sob malha adaptativa, o VOF perde a conserva\c{c}\~ao exata}
+\label{sec:massa-amr}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/metodo/.style={column name={m\'etodo}},
+  columns/malha-fixa/.style={column name={malha fixa}},
+  columns/com-AMR-ate-t/.style={column name={com AMR (at\'e $t$)}},
+  columns/amostras-monotonas/.style={column name={monotonicidade}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-massa-amr.dat}}
+
+\textbf{Esta \'e a corre\c{c}\~ao mais importante deste relat\'orio.} As
+Se\c{c}\~oes~\ref{sec:comparacao}, \ref{sec:balanco} e \ref{sec:elipse} afirmam
+que o VOF conserva massa \emph{por constru\c{c}\~ao} --- \num{2.9e-15}, ``zero de
+m\'aquina'', ``$A$ em todos os d\'igitos''. Tudo isso foi medido em malha
+\textbf{fixa}, e continua verdadeiro ali.
+
+Com remalhamento adaptativo, n\~ao: a fra\c{c}\~ao \'e colhida e replantada a cada
+reconstru\c{c}\~ao do dom\'inio, e a deriva chega a \num{1.01e-03} em
+$t=2{,}15$ --- doze ordens de grandeza acima do valor em malha fixa, e da
+\emph{mesma ordem} da deriva do front-tracking. A monotonicidade descarta ru\'ido:
+35 amostras descendo e \textbf{nenhuma} subindo.
+
+A consequ\^encia para a compara\c{c}\~ao \'e direta e desagrad\'avel: a vantagem
+que este relat\'orio atribui ao VOF como \emph{estrutural} --- ``conservar \'e
+propriedade de constru\c{c}\~ao'' --- \'e estrutural apenas do \emph{esquema de
+advec\c{c}\~ao}, e n\~ao do m\'etodo em uso. Basta adaptar a malha para que ela se
+dissolva. Num c\'alculo que precise de malha adaptativa, e este precisa, os dois
+m\'etodos derivam na mesma ordem.
+
 \subsection{O que decidir\'a}
 
 Quando as corridas fecharem, tr\^es n\'umeros de cada m\'etodo v\~ao contra a

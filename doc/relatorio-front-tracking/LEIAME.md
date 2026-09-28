@@ -35,6 +35,9 @@ texto discordarem depois de uma correção.
 | `paralelo.dat` | o que $n_p=2$ mede nos dois métodos (seção de discussão) |
 | `paralelo-consertos.dat` | o que foi consertado no paralelo, e o que se revelou não ser defeito |
 | `paralelo-posse.dat` | as três regras de posse no espalhamento, medidas |
+| `hysing-vcmax.dat` | o primeiro alvo publicado fechado: $V_{c,\max}$ nos dois métodos |
+| `hysing-divergencia.dat` | a divergência entre os métodos crescendo com a deformação |
+| `hysing-massa-amr.dat` | a conservação do VOF em malha fixa contra malha adaptativa |
 | `formas/hy_ft_*.dat`, `formas/hy_vof_*.dat` | a interface nos dois métodos nos mesmos instantes |
 
 ## Estado da verificação deste projeto LaTeX
@@ -81,9 +84,9 @@ $t=3$ (12 000 passos, ~6 h cada) não terminaram a tempo do texto. O que está
 medido é `hysing-parcial.dat`, o trecho $t\in[0;0{,}35]$, e a subseção que o
 apresenta diz isso na primeira linha.
 
-Para fechar: substituir a subseção "Resultado parcial" pelos três números de
-cada método ($c_{\min}$ e seu instante, $V_{c,\max}$ e seu instante,
-$y_c(t=3)$) contra `hysing-referencia.dat`.
+Estado dos três alvos: **$V_{c,\max}$ fechado** (seção `sec:vcmax`), circularidade
+mínima e $y_c(t=3)$ pendentes. Para fechar os dois que faltam, acrescentar os
+números medidos contra `hysing-referencia.dat` na subseção "O que decidirá".
 
 As figuras de forma são regeneráveis:
 
