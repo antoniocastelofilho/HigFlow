@@ -31,6 +31,8 @@ texto discordarem depois de uma correção.
 | `parasitas-serie.dat` | série temporal das correntes parasitas nos dois métodos |
 | `hysing-referencia.dat` | os valores publicados por Hysing et al., três códigos e o consenso |
 | `hysing-parcial.dat` | Hysing: $y_c$ e $V_c$ nos dois métodos, **trecho parcial** $t\in[0;0{,}35]$ |
+| `hysing-forma.dat` | Hysing: concordância de forma entre os dois métodos |
+| `formas/hy_ft_*.dat`, `formas/hy_vof_*.dat` | a interface nos dois métodos nos mesmos instantes |
 
 ## Estado da verificação deste projeto LaTeX
 
@@ -79,6 +81,24 @@ apresenta diz isso na primeira linha.
 Para fechar: substituir a subseção "Resultado parcial" pelos três números de
 cada método ($c_{\min}$ e seu instante, $V_{c,\max}$ e seu instante,
 $y_c(t=3)$) contra `hysing-referencia.dat`.
+
+As figuras de forma são regeneráveis:
+
+```bash
+higflow/scripts/gera-formas-hysing.sh 0.0 1.0 2.0 3.0
+```
+
+Ele copia o despejo lagrangeano do front-tracking e extrai o contorno
+`FracVol=0,5` do VTK do VOF (via `higflow/scripts/contorno-vof.py`) para os
+mesmos instantes, escrevendo `dados/formas/hy_ft_<k>.dat` e `hy_vof_<k>.dat`. A
+figura do relatório lê esses nomes, então trocar os instantes não exige editar o
+`.tex` — só ajustar os rótulos do eixo e a janela do painel ampliado.
+
+O extrator do contorno foi conferido contra o círculo analítico em $t=0$: desvio
+radial máximo 1,34e-4, erro de área 3,25e-4. Ele mediania os valores de célula
+nos vértices antes do *marching squares*, o que **suaviza** — serve para
+desenhar a forma, não para medir perímetro, e é por isso que a circularidade do
+lado VOF continua não sendo reportada.
 
 A linhagem do código está citada explicitamente na introdução: Freeflow →
 GENSMAC → o front-tracking do próprio grupo (de Sousa et al., JCP 198, 2004) →

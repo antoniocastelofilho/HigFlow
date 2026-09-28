@@ -156,6 +156,75 @@ $t \in [0;\,0{,}35]$, medido nos dois m\'etodos antes da interrup\c{c}\~ao.
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-parcial.dat}}
 
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  name=cheia, width=6.4cm, height=6.4cm, axis equal image,
+  xlabel={$x$}, ylabel={$y$}, grid=major,
+  xmin=0.23, xmax=0.77, ymin=0.28, ymax=0.82,
+  title={$t=0{,}45$, a bolha inteira}, title style={font=\small},
+  legend style={font=\scriptsize, at={(0.5,-0.22)}, anchor=north},
+  legend columns=2, legend cell align=left,
+]
+\addplot[thick]         table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
+\addlegendentry{front-tracking}
+\addplot[densely dashed] table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
+\addlegendentry{VOF}
+\end{axis}
+\begin{axis}[
+  at={(cheia.right of south east)}, anchor=left of south west,
+  width=6.4cm, height=6.4cm, axis equal image,
+  xlabel={$x$}, grid=major,
+  xmin=0.676, xmax=0.692, ymin=0.365, ymax=0.381,
+  title={ampliado onde a diferen\c{c}a \'e maior}, title style={font=\small},
+  scaled ticks=false, tick label style={font=\tiny, /pgf/number format/fixed},
+]
+\addplot[thick]         table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
+\addplot[densely dashed] table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
+\end{axis}
+\end{tikzpicture}
+\caption{A interface nos dois m\'etodos no mesmo instante. \`A esquerda, na
+escala da bolha, as duas curvas s\~ao indistingu\'iveis; \`a direita, ampliado
+25 vezes em torno do ponto de maior discrep\^ancia, aparece a separa\c{c}\~ao de
+\num{1.7e-4} --- cerca de \SI{2.7}{\percent} de uma c\'elula fina. \textbf{Em
+$t=0{,}45$ a bolha ainda \'e praticamente circular}, ent\~ao esta figura mostra
+a \emph{concord\^ancia} entre as duas representa\c{c}\~oes, e n\~ao
+deforma\c{c}\~ao: a forma deformada, que \'e o que este \emph{benchmark} testa,
+s\'o aparece a partir de $t\approx1$ e est\'a fora do alcance dos dados
+dispon\'iveis para este texto. A curva do VOF \'e o contorno
+$\mathrm{FracVol}=0{,}5$ obtido por \emph{marching squares} com os valores de
+c\'elula medianizados nos v\'ertices --- confer\~ido contra o c\'irculo
+anal\'itico em $t=0$ (desvio radial m\'aximo \num{1.34e-4}), e adequado para
+desenhar a forma, n\~ao para medir per\'imetro.}
+\label{fig:hysing-forma}
+\end{figure}
+
+A concord\^ancia de forma, medida:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/t/.style={column name={$t$}},
+  columns/areaft/.style={column name={\'area FT}},
+  columns/areavof/.style={column name={\'area VOF}},
+  columns/difarea/.style={column name={dif.}},
+  columns/desloccentro/.style={column name={$|\Delta y_c|$}},
+  columns/difradial/.style={column name={dif. radial m\'ax.}},
+  columns/emdoraio/.style={column name={\% do raio}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-forma.dat}}
+
+A leitura desta tabela tem uma sutileza que convém n\~ao perder: das
+\num{1.65e-4} de discrep\^ancia radial em $t=0{,}45$, \num{1.06e-4} j\'a existem
+em $t=0$ --- s\~ao a diferen\c{c}a de \emph{inicializa\c{c}\~ao} entre um
+pol\'igono de 252 lados inscrito no c\'irculo e o contorno extra\'ido do campo de
+fra\c{c}\~ao, e n\~ao diverg\^encia din\^amica. O que as duas
+discretiza\c{c}\~oes acumulam de fato em 1800 passos \'e a diferen\c{c}a entre
+esses dois n\'umeros, cerca de \num{6e-5}. \'E o mesmo efeito que a
+Se\c{c}\~ao~\ref{sec:comparacao} registrou no d\'eficit de \'area do pol\'igono:
+uma parte do que parece erro de m\'etodo \'e escolha de inicializa\c{c}\~ao.
+
 Duas leituras, e nenhuma delas \'e o fechamento.
 
 \paragraph{1. A concord\^ancia m\'utua \'e forte.} O centro de massa difere em
