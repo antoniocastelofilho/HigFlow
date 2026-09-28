@@ -402,12 +402,15 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
         // por quadro com x y por marcador, fechando no primeiro.  E' o que as
         // figuras do relatorio desenham -- a forma, nao so' o numero.
         { const char *pre = getenv("FT_DUMP_FRENTE");
-          static int cadaq = 0, quadro = 0;
+          static int cadaq = 0;
           if (cadaq == 0) { const char *c = getenv("FT_DUMP_CADA");
                             cadaq = (c != NULL) ? atoi(c) : 100; if (cadaq < 1) cadaq = 100; }
           if (pre != NULL && ctx->passo % cadaq == 0) {
+              // Nome pelo PASSO, e nao por um contador de quadros: numa retomada
+              // o contador privado voltaria a zero e sobrescreveria os quadros
+              // anteriores a' queda.  O passo tambem da' o instante (t=passo*dt).
               char nome[512];
-              snprintf(nome, sizeof nome, "%s_%04d.dat", pre, quadro++);
+              snprintf(nome, sizeof nome, "%s_%07d.dat", pre, ctx->passo);
               FILE *fp = fopen(nome, "w");
               if (fp != NULL) {
                   int nn = ft_num(ctx->frente);
@@ -438,6 +441,16 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
 //! Instala o front-tracking (tensao superficial) no solver.  `sigma` e' o
 //! coeficiente; a frente e' o corpo ja' criado (ft_cria_circulo etc.).
 //! extern "C": compilado como C++, mas o exemplo o declara com ligacao C.
+// Passo em que a corrida COMECA.  Numa retomada nao e' zero, e isso importa para
+// o despejo da frente: um contador privado reiniciado em zero sobrescreveria os
+// arquivos dos quadros ja' escritos antes da queda.
+static int _passo_inicial = 0;
+
+extern "C" void front_tracking_passo_inicial(int passo)
+{
+    _passo_inicial = (passo > 0) ? passo : 0;
+}
+
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                        real sigma)
 {
@@ -446,7 +459,7 @@ extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
     ctx->sigma  = sigma;
     const char *sa = getenv("FT_ADVECTA");
     ctx->advecta = (sa != NULL) ? atoi(sa) : 0;   // padrao: frente fixa (Laplace)
-    ctx->passo   = 0;
+    ctx->passo   = _passo_inicial;
     { const char *s = getenv("FT_BALANCEADO"); ctx->balanceado = (s != NULL) ? atoi(s) : 0; }
 
     // Referencias para as metricas do oraculo: area e centroide iniciais.

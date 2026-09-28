@@ -27,6 +27,7 @@ extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 #include "../examples-common/malha-adaptativa.h"   // B4: refino adaptativo
 #include "../examples-common/hysing-metricas.h"      // grandezas do benchmark
 #include "../src/hig-flow-fronteira-imersa.h"       // contadores de suporte
+extern "C" void front_tracking_passo_inicial(int passo);
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                         real sigma);
 extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
@@ -282,12 +283,24 @@ int main (int argc, char *argv[]) {
             real ly0 = 2.0; if ((e = getenv("FT_AMR_LY")) != NULL) ly0 = atof(e);
             const char *cam0 = getenv("FT_AMR_CAMINHO");
             if (cam0 == NULL) cam0 = "amrs-hysing/criterio/dominio.amr";
-            Point c0; c0[0] = cx0; c0[1] = cy0;
-            for (int d = 2; d < DIM; d++) c0[d] = 0.0;
-            ft_frente *f0 = ft_cria_circulo(c0, r0, nm0);
-            ft_escreve_amr_criterio(NULL, f0, lx0, ly0, nx0, ny0, niv, cel0, cam0);
-            ft_destroi(f0);
-            print0f("===> malha inicial JA' adaptada, do criterio\n");
+            // RETOMADA: NAO reescrever o .amr quando a corrida esta' sendo
+            // continuada.  O arquivo em disco JA' e' a malha correta: ele e'
+            // reescrito a cada remalhamento, e a malha so' muda ali -- entao em
+            // qualquer ponto de salvamento o .amr em disco E' a malha em
+            // memoria.  Reescreve-lo do estado INICIAL poria os campos salvos
+            // (que sao gravados com a posicao junto) numa malha diferente da
+            // que os gerou: celula que sumiu perde o valor, celula que apareceu
+            // nao recebe nenhum.
+            if (ns->par.step == 0) {
+                Point c0; c0[0] = cx0; c0[1] = cy0;
+                for (int d = 2; d < DIM; d++) c0[d] = 0.0;
+                ft_frente *f0 = ft_cria_circulo(c0, r0, nm0);
+                ft_escreve_amr_criterio(NULL, f0, lx0, ly0, nx0, ny0, niv, cel0, cam0);
+                ft_destroi(f0);
+                print0f("===> malha inicial JA' adaptada, do criterio\n");
+            } else {
+                print0f("===> retomada: mantendo a malha adaptada de %s\n", cam0);
+            }
         }
     }
 
@@ -437,6 +450,9 @@ int main (int argc, char *argv[]) {
                     "area=%.8f, ds_alvo=%.6f\n", nomef, ft_num(gota),
                     (double) ft_area(gota), (double) ft_ds_alvo(gota));
         }
+        // O passo em que a corrida comeca, para o despejo nomear os arquivos
+        // pelo passo real e nao reiniciar a contagem numa retomada.
+        front_tracking_passo_inicial(ns->par.step);
         front_tracking_instala(ns, gota, sigma);
         // A FRACAO TEM FONTE EXTERNA: a frente a regenera da geometria a cada
         // passo, e e' replicada -- sobrevive intocada ao remalhamento.  E' a

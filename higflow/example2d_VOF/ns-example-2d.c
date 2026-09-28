@@ -581,8 +581,20 @@ int main (int argc, char *argv[]) {
 			if ((e = getenv("VOF_AMR_LY")) != NULL) ly0 = atof(e);
 			const char *cam0 = getenv("VOF_AMR_CAMINHO");
 			if (cam0 == NULL) cam0 = "amrs-hysing/criterio/dominio.amr";
-			vof_escreve_amr_inicial(lx0, ly0, nx0, ny0, niv, cel0, cam0);
-			print0f("===> malha inicial JA' adaptada, do criterio analitico\n");
+			// RETOMADA: NAO reescrever o .amr quando a corrida esta' sendo
+			// continuada.  O arquivo em disco JA' e' a malha correta: ele e'
+			// reescrito a cada remalhamento, e a malha so' muda ali -- entao em
+			// qualquer ponto de salvamento o .amr em disco E' a malha em
+			// memoria.  Reescreve-lo do estado INICIAL poria os campos salvos
+			// (que sao gravados com a posicao junto) numa malha diferente da
+			// que os gerou: celula que sumiu perde o valor, celula que apareceu
+			// nao recebe nenhum.
+			if (ns->par.step == 0) {
+			    vof_escreve_amr_inicial(lx0, ly0, nx0, ny0, niv, cel0, cam0);
+			    print0f("===> malha inicial JA' adaptada, do criterio analitico\n");
+			} else {
+			    print0f("===> retomada: mantendo a malha adaptada de %s\n", cam0);
+			}
 		}
 	}
 
