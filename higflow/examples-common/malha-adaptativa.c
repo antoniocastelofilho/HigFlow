@@ -547,7 +547,11 @@ void malha_adapt_limiares(real h_base, int niveis, int cel_min, real *thr)
 {
     real h_fino = h_base;
     for (int l = 0; l < niveis; l++) h_fino *= 0.5;
-    const real margem = 0.5 * h_base + h_fino;
+    // MARGEM DE UM h_base INTEIRO, e a medida e' que decidiu isto.  Com
+    // 0,5*h_base a banda medida dava 4,02 celulas finas onde a regra pedia 5.
+    // A razao e' que o criterio decide por CELULA BASE: o teste e' no centro
+    // dela (incerteza h_base/2) e a celula ainda se estende outro h_base/2 alem.
+    const real margem = h_base + h_fino;
     const real banda_fina = cel_min * h_fino + margem;
     // Limiares DECRESCENTES: thr[niveis-1] e' o do nivel mais fino.  Os niveis
     // intermediarios recebem bandas progressivamente maiores, para a malha
@@ -582,9 +586,17 @@ real malha_adapt_mede_banda(higflow_solver *ns, int niveis, real h_base)
     real h_fino = h_base;
     for (int l = 0; l < niveis; l++) h_fino *= 0.5;
 
-    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    // O DOMINIO CERTO E' O DA PRESSAO, e essa distincao custou uma medida vazia.
+    // O sdmult do HiGFlow e' UNIFORME no nivel mais fino POR DESENHO
+    // (higflow_create_amr_info_mult: "this uniform mesh has the same size as the
+    // last level of the original mesh"), entao la' nao existe celula grossa e a
+    // busca devolvia -1 sempre -- um oraculo que nunca podia falhar, que e' o
+    // mesmo que nao ter oraculo.  As SEMENTES continuam vindo do sdmult, onde o
+    // fracvol vive; o tamanho de celula e' julgado no dominio ADAPTADO.
+    sim_domain *sdm = psd_get_local_domain(ns->psdp);
     real d2min = 1e300, dmin_v = 1e300, dmax_v = 0.0;
     long ncel_v = 0, ngrossa_v = 0;
+    Point pior_c = {0,0}; real pior_d = 0.0;
     higcit_celliterator *it;
     for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
          higcit_nextcell(it)) {
@@ -606,18 +618,27 @@ real malha_adapt_mede_banda(higflow_solver *ns, int niveis, real h_base)
             }
             if (k == 0 || s < dd) dd = s;
         }
-        if (dd < d2min) d2min = dd;
+        if (dd < d2min) { d2min = dd; pior_c[0]=cc[0]; pior_c[1]=cc[1]; pior_d=d[0]; }
     }
     higcit_destroy(it);
     free(sem);
     if (getenv("FT_DIAG_MALHA") != NULL)
         fprintf(stderr, "  [banda] celulas=%ld delta[%.5f,%.5f] h_fino=%.5f "
-                "grossas=%ld d2min=%.4e\n", ncel_v, (double) dmin_v,
-                (double) dmax_v, (double) h_fino, ngrossa_v, (double) d2min);
+                "grossas=%ld d2min=%.4e  pior em (%.4f,%.4f) delta=%.5f\n", ncel_v,
+                (double) dmin_v, (double) dmax_v, (double) h_fino, ngrossa_v,
+                (double) d2min, (double) pior_c[0], (double) pior_c[1],
+                (double) pior_d);
     if (d2min > 1e299) return -1.0;
-    // Desconta a incerteza da semente (centro de celula de interface) para nao
-    // CREDITAR banda que nao existe: o numero devolvido e' o pior caso.
-    real dist = sqrt(d2min) - 0.5 * h_base;
+    // O QUE DESCONTAR, e eu errei isto na primeira versao.  A distancia medida
+    // e' de CENTRO a CENTRO.  Para saber ate' onde a regiao fina se estende sao
+    // duas correcoes, e nenhuma e' h_base:
+    //   - a celula grossa mais proxima: sua BORDA esta' a meia-largura DELA do
+    //     centro (pior_d/2), nao h_base/2 -- ela pode ser de nivel intermediario;
+    //   - a semente: e' o centro de uma celula do dominio da fracao, que e'
+    //     uniforme no nivel fino, entao a interface real esta' a ate' h_fino/2.
+    // Subtrair h_base/2 (o que eu fazia) penalizava a medida em quase o dobro:
+    // relatava 3,52 celulas onde a banda de verdade tinha ~4,9.
+    real dist = sqrt(d2min) - 0.5 * pior_d - 0.5 * h_fino;
     if (dist < 0.0) dist = 0.0;
     return dist / h_fino;
 }

@@ -513,7 +513,12 @@ int main (int argc, char *argv[]) {
                         ns->par.step, faltam);
         }
 
-        // ORACULOS DA MALHA ADAPTADA, uma vez por remalhamento (FT_DIAG_MALHA):
+        if (ns->contr.flowtype == MULTIPHASE)
+            higflow_solver_step_multiphase(ns);
+        else
+            higflow_solver_step(ns);
+        // ORACULOS DA MALHA ADAPTADA, DEPOIS do passo -- antes dele o fracvol esta'
+        // zerado pelo remalhamento e nao ha' semente que colher (FT_DIAG_MALHA):
         //   banda   -- a regra das celulas minimas foi CUMPRIDA de fato?  Tem de
         //              dar >= FT_AMR_CELMIN.  Nunca foi medida ate' agora.
         //   nivel   -- pontos de suporte do nucleo caidos em celula de TAMANHO
@@ -531,10 +536,6 @@ int main (int argc, char *argv[]) {
                     fi_suporte_nivel_trocado(), fi_suporte_perdidos());
         }
 
-        if (ns->contr.flowtype == MULTIPHASE)
-            higflow_solver_step_multiphase(ns);
-        else
-            higflow_solver_step(ns);
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time

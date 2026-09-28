@@ -497,7 +497,10 @@ extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
     // Limiares derivados da regra (mesma formula de malha_adapt_limiares).
     real h_fino = h_base;
     for (int l = 0; l < niveis; l++) h_fino *= 0.5;
-    const real margem = 0.5 * h_base + h_fino;
+    // Um h_base INTEIRO: o criterio decide por celula base, entao a borda da
+    // banda e' incerta em h_base/2 pelo teste no centro E a celula se estende
+    // outro h_base/2 alem.  Medido: com 0,5*h_base a banda dava 4,02 celulas.
+    const real margem = h_base + h_fino;
     const real banda_fina = cel_min * h_fino + margem;
     real *thr = (real *) malloc((size_t) niveis * sizeof(real));
     for (int l = niveis - 1; l >= 0; l--) {
@@ -616,7 +619,12 @@ extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
     int niv_esc = 1;
     for (int l = 1; l <= niveis; l++) if (cont[l] > 0) niv_esc = l + 1;
     fprintf(f, "%d\n", niv_esc);
-    fprintf(f, "%.10g %.10g\n1\n0 0 %d %d\n", (double) hx, (double) hy, nx, ny);
+    // INDICE BASE 1, como os .amr simples do repositorio ("1 1 61 61").  Com
+    // base 0 a contagem de celulas finas saia CERTA e as posicoes ERRADAS --
+    // deslocadas de uma celula do nivel --, e a banda medida caia de 5 para 1,5
+    // celulas.  Contagem certa com posicao errada e' o modo de falha que nao
+    // aparece em nenhum total.
+    fprintf(f, "%.10g %.10g\n1\n1 1 %d %d\n", (double) hx, (double) hy, nx, ny);
     for (int l = 1; l < niv_esc; l++) {
         int fator = 1 << l;
         fprintf(f, "%.10g %.10g\n%ld\n",
@@ -624,7 +632,7 @@ extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
         for (int j = 0; j < ny; j++)
             for (int i = 0; i < nx; i++)
                 if (tab[i + (long) j * nx] >= l)
-                    fprintf(f, "%d %d %d %d\n", fator*i, fator*j, fator, fator);
+                    fprintf(f, "%d %d %d %d\n", fator*i + 1, fator*j + 1, fator, fator);
     }
     fclose(f);
     fprintf(stderr, "FT amr: %ld sementes, niveis=%d, limiares=", nsem, niv_esc-1);
