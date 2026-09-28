@@ -1,0 +1,6 @@
+conserto                          estado      evidencia
+gather-das-sementes-do-VOF        FEITO       2709-posicoes-sem-valor-para-ZERO
+guarda-de-rank-na-escrita         FEITO       np1-e-np2-identicos-com-remalhamento
+barreira-antes-da-releitura       FEITO       idem
+adveccao-global-do-FT             FEITO       109-congelados-para-ZERO
+reducao-franja-no-espalhamento    REFUTADO    nao-era-defeito-e-aplicada-PIORA

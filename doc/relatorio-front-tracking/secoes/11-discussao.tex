@@ -62,10 +62,12 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
     estendido. Foi o suficiente para estabilizar a elipse, mas n\~ao foi testada
     em geometria com curvatura fortemente vari\'avel ou com mudan\c{c}a de
     sinal.
-  \item \textbf{Serial --- e agora medido, n\~ao suposto.} Tudo neste
-    relat\'orio \'e $n_p=1$. O que mudou \'e que $n_p=2$ foi \emph{testado} nos
-    dois m\'etodos, e a subse\c{c}\~ao~\ref{sec:paralelo} traz o resultado: nenhum
-    dos dois produz a resposta certa, e nenhum dos dois falha.
+  \item \textbf{Serial nas medidas, mas n\~ao mais por impedimento.} Todos os
+    n\'umeros deste relat\'orio s\~ao $n_p=1$. O que mudou \'e que $n_p=2$ foi
+    testado e \emph{consertado} onde precisava: as subse\c{c}\~oes
+    \ref{sec:paralelo} e \ref{sec:posse} tra\c{c}am o que quebrava, o que foi
+    corrigido e o que se revelou nunca ter estado quebrado. Falta rodar em
+    paralelo um caso longo e refazer as medidas --- o que nao foi feito.
   \item \textbf{Propriedades iguais.} A terceira mudan\c{c}a estrutural --- o
     salto de $\rho$ e $\mu$ --- est\'a adiada nos dois lados. Em escoamento com
     raz\~ao de densidade alta as conclus\~oes podem mudar.
@@ -122,20 +124,102 @@ para as quais a colheita n\~ao tinha valor. A mensagem que o imprime existia nos
 dois exemplos e vinha imprimindo zero desde sempre, porque em s\'erie \'e zero.
 Era um or\'aculo instalado que nunca havia disparado.
 
-\paragraph{Os quatro consertos, e a ordem deles.} Dois s\~ao pequenos e s\~ao o
-que falta ao VOF: os escritores de crit\'erio fazem \texttt{fopen(...,"w")} do
-\emph{mesmo} caminho em todos os processos, sem guarda de \emph{rank} e sem
-barreira antes da releitura. O terceiro n\~ao se cura com guarda: as sementes do
-VOF saem do dom\'inio \emph{local} sem \emph{gather}, de modo que mesmo o
-processo 0 escreveria uma malha refinada s\'o em torno do peda\c{c}o de interface
-que ele possui --- e a fun\c{c}\~ao que resolveria isso j\'a existe em
-\texttt{malha-adaptativa.c}, por\'em \texttt{static} e sem uso. (No
-front-tracking esse terceiro n\~ao aparece: a frente \'e replicada, ent\~ao todo
-processo tem a geometria completa. A assimetria \'e o inverso da da
-advec\c{c}\~ao.) O quarto \'e o \'unico sem c\'odigo pronto para copiar: a
-advec\c{c}\~ao precisa de velocidade \emph{global} nos marcadores. O
-espalhamento, por sua vez, precisa da redu\c{c}\~ao franja$\to$dono que
-\texttt{fi\_espalha} j\'a faz vinte linhas adiante, no mesmo arquivo.
+\paragraph{Os consertos, e o que aconteceu com cada um.}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/conserto/.style={column name={conserto}},
+  columns/estado/.style={column name={estado}},
+  columns/evidencia/.style={column name={evid\^encia}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{paralelo-consertos.dat}}
+
+Dois s\~ao mec\^anicos: os escritores de crit\'erio faziam
+\texttt{fopen(...,"w")} do \emph{mesmo} caminho em todos os processos, sem guarda
+de \emph{rank} e sem barreira antes da releitura --- e os dois s\~ao necess\'arios,
+porque a guarda sozinha n\~ao faz ningu\'em esperar.
+
+O terceiro n\~ao se cura com guarda: as sementes do VOF saem do dom\'inio
+\emph{local} sem \emph{gather}, de modo que mesmo o processo 0 escreveria uma
+malha refinada s\'o em torno do peda\c{c}o de interface que ele possui. A
+evid\^encia de que o \emph{gather} resolveu veio da pr\'opria contagem de
+sementes: antes, os dois processos relatavam $122+186=308$ num remalhamento e
+$150+158=308$ no seguinte; depois, ambos relatam 308. A soma das partes antes \'e
+exatamente o todo depois. (No front-tracking esse defeito n\~ao existe: a frente
+\'e replicada, ent\~ao todo processo tem a geometria completa.)
+
+O quarto era o \'unico sem c\'odigo pronto para copiar, e est\'a descrito na
+subse\c{c}\~ao seguinte.
+
+\subsection{A advec\c{c}\~ao paralela, e uma analogia que enganou nos dois sentidos}
+\label{sec:posse}
+
+A velocidade de um marcador \emph{n\~ao \'e calcul\'avel localmente}: o suporte do
+n\'ucleo pode estar repartido entre processos. Tr\^es desenhos foram considerados,
+e a parti\c{c}\~ao da unidade decidiu entre eles por medida:
+
+\begin{itemize}
+  \item \textbf{somar os parciais} --- duplica. \texttt{\_suporte} localiza
+    facetas no dom\'inio local, que inclui \emph{franja}: 172 das 504 entradas
+    eram encontradas \textbf{completas} pelos dois processos, e a soma daria o
+    dobro exato.
+  \item \textbf{normalizar pela soma dos pesos} --- n\~ao serve. 12 entradas
+    tinham um processo \textbf{completo} e outro \textbf{parcial}; dividir mistura
+    a interpola\c{c}\~ao boa com uma estimativa parcial diferente.
+  \item \textbf{filtro de posse} --- contribui apenas o processo cuja soma
+    \emph{local} de pesos \'e 1, e divide pela \emph{contagem} de processos
+    completos. Exato, porque eles somam sobre o \emph{mesmo} conjunto de facetas.
+\end{itemize}
+
+O resultado: os marcadores congelados passam de 109 a \textbf{zero}, e a frente de
+$n_p=2$ fica a \num{1.5e-11} da serial --- abaixo da toler\^ancia do solver linear
+(\num{1e-10}), contra \num{2.3e-6} do defeito. Em $n_p=1$ o caminho permanece
+\textbf{id\^entico byte a byte}, que \'e a condi\c{c}\~ao para as corridas j\'a
+feitas seguirem compar\'aveis.
+
+A medida tamb\'em mostrou que o filtro \'e sempre aplic\'avel aqui --- nenhuma
+entrada ficou sem ao menos um processo completo. Onde isso falhar (mais processos,
+outra parti\c{c}\~ao) n\~ao existe resposta certa a dar, e o c\'odigo
+\textbf{aborta}: devolver zero seria repor o defeito original com outra roupa.
+
+\paragraph{O quinto conserto n\~ao existia.} Este relat\'orio afirmou, numa vers\~ao
+anterior desta se\c{c}\~ao, que o \emph{espalhamento} do front-tracking precisava
+da redu\c{c}\~ao franja$\to$dono que \texttt{fi\_espalha} faz vinte linhas adiante.
+Medido, cai:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/regra-de-posse-no-espalhamento/.style={column name={regra de posse no espalhamento}},
+  columns/np1/.style={column name={$n_p=1$}},
+  columns/np2contraserial/.style={column name={$n_p=2$ vs serial}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{paralelo-posse.dat}}
+
+A regra original j\'a estava correta, e a redu\c{c}\~ao era a \'unica das tr\^es
+que \emph{quebrava}. O motivo \'e que o dono de uma faceta acumula de todos os
+marcadores que consegue localizar, e todo marcador cujo suporte toca aquela faceta
+est\'a a no m\'aximo $1{,}5$ c\'elula dela --- portanto dentro do dom\'inio dele
+\emph{com franja}. A acumula\c{c}\~ao do dono j\'a \'e completa, e o
+\texttt{dp\_sync} descartar o que os outros escreveram na franja \'e precisamente
+o que torna o espalhamento de frente \textbf{replicada} correto sem
+comunica\c{c}\~ao nenhuma.
+
+A analogia com o corpo r\'igido enganou nos \emph{dois} sentidos: fez ver defeito
+onde n\~ao havia --- porque l\'a a redu\c{c}\~ao \'e necess\'aria --- e ofereceu a
+cura errada, porque l\'a o \texttt{DMSwarm} reparte os marcadores por posse
+exclusiva e aqui a frente \'e replicada. Mesmo arquivo, modelos de
+distribui\c{c}\~ao incompat\'iveis.
+
+\paragraph{E a conserva\c{c}\~ao n\~ao decidiu nada.} As tr\^es regras produziram
+n\'umeros de conserva\c{c}\~ao \emph{id\^enticos em todos os d\'igitos} ---
+inclusive a que degrada a frente em cinco ordens de grandeza. Numa gota em repouso
+os dois lados s\~ao \num{4.4e-12}: zero contra zero. A soma n\~ao v\^e \emph{onde}
+a for\c{c}a foi posta, e decidir por ela teria escolhido qualquer uma das tr\^es.
+\'E a mesma li\c{c}\~ao da Se\c{c}\~ao~\ref{sec:verificacao}, onde a
+conserva\c{c}\~ao passava e a parti\c{c}\~ao da unidade acusava metade da
+for\c{c}a.
 
 \paragraph{Uma armadilha de medi\c{c}\~ao, de gra\c{c}a.} O caso com remalhamento
 rodou em \SI{64}{\second} em $n_p=2$ contra \SI{170}{\second} em $n_p=1$: $2{,}7$
@@ -159,10 +243,13 @@ Em ordem de valor:
   \item \textbf{Fase B3}, oscila\c{c}\~ao de gota contra a frequ\^encia de Lamb:
     exercita din\^amica acoplada e, por deformar a interface, finalmente p\~oe a
     cirurgia \`a prova com o solver no circuito.
-  \item \textbf{Paralelo.} A subse\c{c}\~ao~\ref{sec:paralelo} localiza os
-    quatro consertos e os ordena: dois deles s\~ao pequenos e habilitam o VOF;
-    a advec\c{c}\~ao global do front-tracking \'e o \'unico que n\~ao tem
-    c\'odigo pronto para copiar.
+  \item \textbf{Paralelo: repetir as medidas.} Os consertos das
+    subse\c{c}\~oes~\ref{sec:paralelo} e \ref{sec:posse} foram verificados em
+    casos de dez passos, com $n_p=2$ e uma \'unica parti\c{c}\~ao. Falta refazer
+    as compara\c{c}\~oes deste relat\'orio em corrida longa e com mais
+    processos --- e em particular conferir se o filtro de posse continua
+    encontrando processo completo para todo marcador, que \'e a condi\c{c}\~ao
+    sob a qual ele aborta.
   \item \textbf{Fechar o Hysing}: a Se\c{c}\~ao~\ref{sec:hysing} monta a
     compara\c{c}\~ao contra os valores publicados e declara de antem\~ao como
     ler cada desfecho, mas as corridas at\'e $t=3$ n\~ao terminaram a tempo

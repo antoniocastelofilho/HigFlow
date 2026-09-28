@@ -33,6 +33,8 @@ texto discordarem depois de uma correção.
 | `hysing-parcial.dat` | Hysing: $y_c$ e $V_c$ nos dois métodos, **trecho parcial** $t\in[0;0{,}35]$ |
 | `hysing-forma.dat` | Hysing: concordância de forma entre os dois métodos |
 | `paralelo.dat` | o que $n_p=2$ mede nos dois métodos (seção de discussão) |
+| `paralelo-consertos.dat` | o que foi consertado no paralelo, e o que se revelou não ser defeito |
+| `paralelo-posse.dat` | as três regras de posse no espalhamento, medidas |
 | `formas/hy_ft_*.dat`, `formas/hy_vof_*.dat` | a interface nos dois métodos nos mesmos instantes |
 
 ## Estado da verificação deste projeto LaTeX
