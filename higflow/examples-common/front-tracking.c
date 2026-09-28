@@ -252,7 +252,8 @@ static real _maior_u_marcador = 0.0;
 // vetor inteiro, so' quando FT_DIAG_UNIDADE_PAR esta' no ambiente.
 // FILTRO DE POSSE: a interpolacao de velocidade correta em np>1.
 //
-// O DEFEITO QUE ISTO SUBSTITUI.  `_campo_da_malha` desistia com
+// O DEFEITO QUE ISTO SUBSTITUI.  A versao por marcador (`_campo_da_malha`,
+// removida quando esta passou a ser a unica em uso) desistia com
 // `if (h <= 0.0) return;`, devolvendo velocidade ZERO para todo marcador fora do
 // dominio do rank.  A frente e' replicada, entao cada rank advectava a sua copia
 // com a velocidade que enxergava e congelava o resto: MEDIDO em np=2, 109 dos 252
@@ -492,38 +493,6 @@ static void _diag_unidade_paralela(ft_frente *frente, sim_facet_domain **sfd,
     free(comp_loc); free(parc_loc); free(comp_g); free(parc_g);
     free(pos); free(lids); free(pesos);
     free(soma_loc); free(cont_loc); free(soma_g); free(cont_g);
-}
-
-static void _campo_da_malha(const Point x, real t, void *vctx, real u[DIM])
-{
-    interp_ctx *ic = (interp_ctx *) vctx;
-    (void) t;
-
-    for (int d = 0; d < DIM; d++) u[d] = 0.0;
-
-    real h = _h_em(ic->sfd[0], x);
-    if (h <= 0.0) return;                 // fora do dominio: marcador nao anda
-
-    int capac = fi_suporte_capacidade();
-    int  *lids  = (int  *) malloc((size_t) capac * sizeof(int));
-    real *pesos = (real *) malloc((size_t) capac * sizeof(real));
-
-    for (int dim = 0; dim < DIM; dim++) {
-        int m = fi_suporte_facetas(ic->sfd[dim], dim, x, h, lids, pesos, capac);
-        real soma = 0.0, val = 0.0;
-        // u(X) = SUM u(x) d_h(x-X) h^DIM, e o h^DIM cancela o 1/h^DIM do nucleo:
-        // sobra a soma ponderada pelo produto de phi -- a MESMA de fi_interpola.
-        for (int i = 0; i < m; i++) {
-            val  += dp_get_value(ic->dpu[dim], lids[i]) * pesos[i];
-            soma += pesos[i];
-        }
-        u[dim] = val;
-        real desvio = fabs(soma - 1.0);
-        if (desvio > _pior_desvio_unidade) _pior_desvio_unidade = desvio;
-        if (fabs(val) > _maior_u_marcador) _maior_u_marcador = fabs(val);
-    }
-
-    free(lids); free(pesos);
 }
 
 // Metricas de forma da gota, para o oraculo do B2 dinamico: area, deriva do
