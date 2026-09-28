@@ -1714,6 +1714,34 @@ void higflow_partition_domain (higflow_solver *ns, partition_graph *pg, int numh
     // Setting the fringe size of the sub-domain
     // The fringe is a buffer around the cells of a given node
     pg_set_fringe_size(pg, 5);
+
+    // PROCEDENCIA DA MALHA, SEMPRE E INCONDICIONALMENTE.
+    //
+    // Este e' o unico ponto onde a escolha de fato acontece, entao e' daqui que
+    // ela deve ser relatada -- relatar do exemplo deixaria a mensagem e a decisao
+    // livres para divergirem.
+    //
+    // O caso PADRAO tambem imprime, e e' esse o ponto.  Antes, so' a instalacao
+    // de uma fonte imprimia: a unica evidencia do mtree era a AUSENCIA de uma
+    // linha, e ausencia de linha nao e' registro -- para saber de onde vinha a
+    // malha de uma corrida em andamento foi preciso recorrer a `strings` no
+    // binario.  Um log que nao diz qual malha produziu os numeros nao permite
+    // reproduzi-los.
+    if (myrank == 0) {
+        const char *sel = getenv("HIGFLOW_MALHA");
+        if (ns->fonte_de_particao != NULL)
+            printf("=+=+=+= Malha: FONTE DE PARTICAO externa"
+                   " (HIGFLOW_MALHA=%s) =+=+=+=\n", sel ? sel : "(nao lida)");
+        else if (ns->fonte_de_malha != NULL)
+            printf("=+=+=+= Malha: FONTE DE MALHA externa"
+                   " (HIGFLOW_MALHA=%s) =+=+=+=\n", sel ? sel : "(nao lida)");
+        else
+            printf("=+=+=+= Malha: mtree, lida de %d arquivo(s) .amr"
+                   " (padrao; HIGFLOW_MALHA %s) =+=+=+=\n", numhigs,
+                   sel ? "esta' definida mas nenhuma fonte foi instalada --"
+                         " o exemplo foi compilado SEM t8code?" : "nao definida");
+    }
+
     /* Partitioning the grid from AMR information */
     // A FONTE DE PARTICAO entrega o resultado ja' repartido: nao ha' `lbal`.
     if(ns->fonte_de_particao != NULL) {
@@ -1763,6 +1791,31 @@ void higflow_partition_domain_multiphase (higflow_solver *ns, partition_graph *p
     if(ns->contr.flowtype == MULTIPHASE) {
         // The fringe is a buffer around the cells of a given node
         pg_set_fringe_size(pg, 5);
+
+        // PROCEDENCIA DA MALHA, SEMPRE -- e aqui ela tem uma ressalva a dar.
+        //
+        // Este caminho NAO consulta `fonte_de_malha` nem `fonte_de_particao`: le'
+        // os .amr direto, sempre.  Quem pedir HIGFLOW_MALHA=t8code num caso
+        // MULTIFASICO tem a fonte instalada pelo exemplo e ignorada aqui, sem
+        // erro e sem aviso -- a escolha do usuario nao e' lida.  Enquanto nao for,
+        // ao menos e' DITA: a linha abaixo denuncia a discrepancia entre o que
+        // foi pedido e o que foi usado.
+        if (myrank == 0) {
+            const char *sel = getenv("HIGFLOW_MALHA");
+            const bool pediu_fonte = (ns->fonte_de_malha != NULL ||
+                                      ns->fonte_de_particao != NULL);
+            printf("=+=+=+= Malha: mtree, lida de %d arquivo(s) .amr"
+                   " (caminho MULTIFASICO)", numhigs);
+            if (pediu_fonte)
+                printf("  ATENCAO: HIGFLOW_MALHA=%s instalou uma fonte externa,"
+                       " e o caminho multifasico NAO a consulta -- o pedido esta'"
+                       " sendo ignorado", sel ? sel : "(?)");
+            else if (sel != NULL)
+                printf("  (HIGFLOW_MALHA=%s definida, mas nenhuma fonte foi"
+                       " instalada -- compilado sem t8code?)", sel);
+            printf(" =+=+=+=\n");
+        }
+
         /* Partitioning the grid from AMR information */
         load_balancer *lb = lb_create(MPI_COMM_WORLD, 2);
         for(unsigned i = myrank; i < numhigs; i += ntasks) {
