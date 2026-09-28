@@ -181,6 +181,16 @@ static void vof_escreve_amr_criterio(higflow_solver *ns, real lx, real ly,
     }
     higcit_destroy(it);
 
+    // AS SEMENTES SAO LOCAIS, E A MALHA E' GLOBAL.  O laco acima percorre
+    // `psd_get_local_domain`: cada rank ve' so' o pedaco de interface que possui.
+    // Montar a tabela de distancias dessas sementes escreveria um .amr refinado
+    // apenas em torno daquele pedaco, e a regra das celulas minimas ficaria
+    // violada exatamente onde ninguem esta' olhando.  Em np=1 a reuniao e'
+    // identidade, entao o caminho serial nao muda.
+    long nsem_g = 0;
+    Point *sem_g = malha_adapt_reune_sementes(sem, nsem, &nsem_g);
+    free(sem); sem = sem_g; nsem = nsem_g;
+
     signed char *tab = (signed char *) calloc((size_t) ncel, 1);
     for (int j = 0; j < ny; j++)
         for (int i = 0; i < nx; i++) {
@@ -195,8 +205,21 @@ static void vof_escreve_amr_criterio(higflow_solver *ns, real lx, real ly,
             tab[i + (long) j * nx] = (signed char) nivel;
         }
 
+    // SO' O RANK 0 ESCREVE, E TODOS ESPERAM.  Sem a guarda, todos os ranks
+    // truncam e reescrevem o MESMO arquivo ao mesmo tempo; sem a barreira, um
+    // rank pode relê-lo (em higflow_reconstroi_dominio, logo adiante) enquanto o
+    // rank 0 ainda escreve.  Os dois sao necessarios: a guarda sozinha nao faz
+    // ninguem esperar.
+    int meurank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &meurank);
+    if (meurank != 0) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        free(tab); free(sem);
+        return;
+    }
     FILE *f = fopen(caminho, "w");
-    if (f == NULL) { perror(caminho); free(tab); free(sem); return; }
+    if (f == NULL) { perror(caminho); MPI_Barrier(MPI_COMM_WORLD);
+                     free(tab); free(sem); return; }
     fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) lx, (double) ly);
     long cont[8] = {0};
     for (long q = 0; q < ncel; q++)
@@ -219,6 +242,7 @@ static void vof_escreve_amr_criterio(higflow_solver *ns, real lx, real ly,
     for (int l = 0; l < niveis; l++) fprintf(stderr, " %.5f", (double) thr[l]);
     fprintf(stderr, "  (>=%d celulas finas por lado)\n", cel_min);
     free(tab); free(sem);
+    MPI_Barrier(MPI_COMM_WORLD);   // o arquivo esta' completo no retorno
 }
 
 
@@ -270,8 +294,21 @@ static void vof_escreve_amr_inicial(real lx, real ly, int nx, int ny,
                 if (d2 <= thr[l]*thr[l]) { nivel = l + 1; break; }
             tab[i + (long) j * nx] = (signed char) nivel;
         }
+    // SO' O RANK 0 ESCREVE, E TODOS ESPERAM.  Sem a guarda, todos os ranks
+    // truncam e reescrevem o MESMO arquivo ao mesmo tempo; sem a barreira, um
+    // rank pode relê-lo (em higflow_reconstroi_dominio, logo adiante) enquanto o
+    // rank 0 ainda escreve.  Os dois sao necessarios: a guarda sozinha nao faz
+    // ninguem esperar.
+    int meurank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &meurank);
+    if (meurank != 0) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        free(tab); free(sem);
+        return;
+    }
     FILE *f = fopen(caminho, "w");
-    if (f == NULL) { perror(caminho); free(tab); free(sem); return; }
+    if (f == NULL) { perror(caminho); MPI_Barrier(MPI_COMM_WORLD);
+                     free(tab); free(sem); return; }
     fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) lx, (double) ly);
     long cont[8] = {0};
     for (long q = 0; q < ncel; q++)
@@ -291,6 +328,7 @@ static void vof_escreve_amr_inicial(real lx, real ly, int nx, int ny,
     fclose(f);
     fprintf(stderr, "VOF amr inicial: %ld sementes, niveis=%d\n", nsem, niv_esc-1);
     free(tab); free(sem);
+    MPI_Barrier(MPI_COMM_WORLD);   // o arquivo esta' completo no retorno
 }
 
 // Volume fraction

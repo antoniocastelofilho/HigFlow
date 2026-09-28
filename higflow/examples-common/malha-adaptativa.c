@@ -738,3 +738,52 @@ void malha_adapt_reconstroi(higflow_solver *ns, higflow_solver *ns2,
     higflow_create_solver(ns2);
     print0f("===> AMR: rank %d solver created\n", myrank);
 }
+
+// =====================================================================
+// Reuniao das sementes de interface entre os ranks.  Ver o .h para o porque.
+//
+// Mesma mecanica do `gather_seeds_mpi` acima (que e' static e serve ao caminho
+// de refino no lugar): Allgather das contagens, Allgatherv do conteudo em bytes.
+// Exposta porque os criterios dos EXEMPLOS tambem precisam dela, e sem ela o
+// .amr sai refinado so' em torno do pedaco de interface de quem o escreveu.
+// =====================================================================
+Point *malha_adapt_reune_sementes(const Point *locais, long n_locais,
+                                  long *n_total)
+{
+    int ntasks = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+
+    // np=1: identidade, para o caminho serial continuar bit a bit o mesmo.
+    if (ntasks == 1) {
+        Point *copia = (Point *) malloc((size_t)(n_locais > 0 ? n_locais : 1)
+                                        * sizeof(Point));
+        if (n_locais > 0) memcpy(copia, locais, (size_t) n_locais * sizeof(Point));
+        *n_total = n_locais;
+        return copia;
+    }
+
+    int *cnt  = (int *) malloc((size_t) ntasks * sizeof(int));
+    int *desl = (int *) malloc((size_t) ntasks * sizeof(int));
+    int meu = (int) n_locais;
+    MPI_Allgather(&meu, 1, MPI_INT, cnt, 1, MPI_INT, MPI_COMM_WORLD);
+
+    long total = 0;
+    for (int r = 0; r < ntasks; r++) total += cnt[r];
+
+    const int sz = (int) sizeof(Point);
+    int *bcnt  = (int *) malloc((size_t) ntasks * sizeof(int));
+    int *bdesl = (int *) malloc((size_t) ntasks * sizeof(int));
+    for (int r = 0, d = 0; r < ntasks; r++) {
+        bcnt[r]  = cnt[r] * sz;
+        bdesl[r] = d;
+        d += bcnt[r];
+    }
+
+    Point *global = (Point *) malloc((size_t)(total > 0 ? total : 1) * sizeof(Point));
+    MPI_Allgatherv((void *) locais, meu * sz, MPI_BYTE,
+                   global, bcnt, bdesl, MPI_BYTE, MPI_COMM_WORLD);
+
+    free(cnt); free(desl); free(bcnt); free(bdesl);
+    *n_total = total;
+    return global;
+}

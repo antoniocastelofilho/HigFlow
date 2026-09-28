@@ -623,8 +623,23 @@ extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
     }
 
     // Escrita do .amr multinivel (mesmo formato do modo criterio).
+    //
+    // SO' O RANK 0 ESCREVE, E TODOS ESPERAM.  As sementes aqui NAO precisam de
+    // reuniao entre ranks -- ao contrario do criterio do VOF, que as colhe do
+    // dominio local, estas saem da FRENTE, que e' replicada e portanto completa
+    // em todo rank.  O que precisa de conserto e' so' a escrita: sem a guarda
+    // todos truncam o mesmo arquivo ao mesmo tempo, e sem a barreira alguem pode
+    // rele-lo (em higflow_reconstroi_dominio, logo adiante) antes de estar pronto.
+    int meurank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &meurank);
+    if (meurank != 0) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        free(tab); free(sem); free(thr);
+        return;
+    }
     FILE *f = fopen(caminho, "w");
-    if (f == NULL) { perror(caminho); free(tab); free(sem); free(thr); return; }
+    if (f == NULL) { perror(caminho); MPI_Barrier(MPI_COMM_WORLD);
+                     free(tab); free(sem); free(thr); return; }
     fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) lx, (double) ly);
     long cont[8] = {0};
     for (long q = 0; q < ncel; q++)
@@ -652,4 +667,5 @@ extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
     for (int l = 0; l < niveis; l++) fprintf(stderr, " %.5f", (double) thr[l]);
     fprintf(stderr, "  (>=%d celulas finas por lado)\n", cel_min);
     free(tab); free(sem); free(thr);
+    MPI_Barrier(MPI_COMM_WORLD);   // o arquivo esta' completo no retorno
 }

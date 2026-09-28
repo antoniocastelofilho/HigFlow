@@ -30,6 +30,23 @@ void malha_adapt_reconstroi(higflow_solver *ns, higflow_solver *ns2,
 //! Refina a arvore do solver no lugar, pelo criterio.
 void higflow_refine_tree_inplace(higflow_solver *ns, real *thresholds);
 
+//! Reune em TODOS os ranks as sementes de interface locais de todos eles, e
+//! devolve o vetor global (que o chamador libera com `free`).  `n_total` recebe
+//! o numero de sementes reunidas.
+//!
+//! POR QUE E' NECESSARIA.  O criterio de refino percorre o dominio LOCAL: cada
+//! rank ve' apenas o pedaco de interface que possui.  Escrever o .amr dessas
+//! sementes -- ainda que so' o rank 0 escreva -- produz uma malha refinada
+//! apenas em torno daquele pedaco, e a regra das celulas minimas fica violada
+//! exatamente onde ninguem esta' olhando.  MEDIDO em np=2: o contador do
+//! remalhamento acusou 265 posicoes sem valor no primeiro remalhamento e 2709 no
+//! segundo, com 77% de erro em Vc.
+//!
+//! Em np=1 e' identidade (devolve copia das locais), entao o caminho serial
+//! continua bit a bit o mesmo.
+Point *malha_adapt_reune_sementes(const Point *locais, long n_locais,
+                                  long *n_total);
+
 #ifdef __cplusplus
 }
 #endif
