@@ -54,6 +54,26 @@ real func (Point p) {
 // eram identicas em cinco exemplos e passaram a viver num lugar so'.
 #include "../examples-common/vof-geometry-2d.c"
 
+// MODO GOTA ESTATICA (VOF_ESTATICO=1), para a comparacao com o front-tracking.
+//
+// O contorno id=1 deste exemplo IMPOE velocidade que cresce no tempo
+// (8*(1+tanh(8t-4))*x^2*(1-x)^2): e' escoamento forcado, nao repouso.  Com ele
+// ligado a velocidade medida NAO e' corrente parasita -- e' parasita mais
+// escoamento imposto, e comparar isso com o front-tracking estatico mediria
+// coisas diferentes.  Este modo zera o forcamento para que o caso seja a gota
+// estatica de Laplace de verdade.
+//
+// ATRAS DE UM FLAG de proposito: o padrao preserva o comportamento do exemplo, e
+// portanto a referencia da suite.
+static int _vof_estatico(void) {
+	static int lido = -1;
+	if (lido < 0) {
+		const char *s = getenv("VOF_ESTATICO");
+		lido = (s != NULL) ? atoi(s) : 0;
+	}
+	return lido;
+}
+
 // Volume fraction
 
 // ---------------------------------------------------------------------------
@@ -138,7 +158,9 @@ public:
     					value = 0.0;
     					break;
     				case 1: ;
-    					value = 8.0*(1.0 + tanh(8.0*t - 4.0))*x*x*(1.0 - x)*(1.0 - x);
+    					// Forcamento da tampa; zerado no modo gota estatica.
+    					value = _vof_estatico() ? 0.0
+    					      : 8.0*(1.0 + tanh(8.0*t - 4.0))*x*x*(1.0 - x)*(1.0 - x);
     					break;
     				case 2: ;
     					value = 0.0;
@@ -254,6 +276,31 @@ public:
 
 static VofProblem problema;
 
+// Massa da gota: integral da fracao volumetrica sobre o dominio.  Mesma conta do
+// example2d_DynamicMeshAdapt (compute_total_fracvol), trazida para ca' porque nao
+// esta' na biblioteca.  Serve a comparacao com o front-tracking, onde o analogo e'
+// a area fechada pela frente (ft_area, formula do laco).
+real compute_total_fracvol_local(higflow_solver *ns) {
+	sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+	mp_mapper *mp = sd_get_domain_mapper(sdm);
+	real total = 0.0;
+	higcit_celliterator *it;
+	for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+		hig_cell *c = higcit_getcell(it);
+		int clid = mp_lookup(mp, hig_get_cid(c));
+		if (clid < 0) continue;
+		Point delta;
+		hig_get_delta(c, delta);
+		real volcell = delta[0] * delta[1];
+		real fracvol = dp_get_value(ns->ed.mult.dpfracvol, clid);
+		total += fracvol * volcell;
+	}
+	higcit_destroy(it);
+	real global_total;
+	MPI_Allreduce(&total, &global_total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	return global_total;
+}
+
 // Value of the boundary viscosity
 real get_boundary_viscosity(int id, Point center, real q, real t) {
 	real value = 1.0;
@@ -312,6 +359,17 @@ int main (int argc, char *argv[]) {
 	higflow_create_distributed_properties(ns);
 	// Initialize distributed properties
     if (ns->par.step == 0) higflow_initialize_distributed_properties(ns);
+
+	// Volume INICIAL, para separar DERIVA de erro de INICIALIZACAO.  Sem isto a
+	// comparacao com o front-tracking mediria coisas diferentes: o desvio contra
+	// a area analitica mistura a discretizacao inicial do circulo com a perda de
+	// massa ao longo do tempo, e e' a segunda que caracteriza o metodo.
+	real vol_inicial = -1.0;
+	if (getenv("VOF_DIAG_LAPLACE") != NULL) {
+		vol_inicial = compute_total_fracvol_local(ns);
+		print0f("=+=+=+= VOF MASSA INICIAL  vol0=%.8f =+=+=+=\n",
+		        (double) vol_inicial);
+	}
 	// Create the linear system solvers
 	higflow_create_solver(ns);
 
@@ -388,6 +446,72 @@ int main (int argc, char *argv[]) {
 	// ********************************************************
 	// End Loop for the Navier-Stokes equations integration
 	// ********************************************************
+
+	// ------------------------------------------------------------------
+	// SONDAS DE COMPARACAO COM O FRONT-TRACKING (mesmas metricas, mesma
+	// forma de medir).  Ligadas por VOF_DIAG_LAPLACE.
+	//
+	// Este caso E' a gota estatica de Laplace: gota circular R=1/6 em
+	// (0,5;0,5), newtoniana bifasica com PROPRIEDADES IGUAIS (rho=mu=1 nas
+	// duas fases), u=0 inicial, tensao superficial ligada.  A forca entra
+	// como IF/(We*rho) com We=Ca*Re=1, entao sigma_efetivo = 1 e o salto
+	// esperado e' sigma/R = 6,0 -- exatamente a mesma fisica que o
+	// front-tracking resolve em example2d_FrontTracking, so' mudando a
+	// representacao da interface.
+	//
+	// As correntes parasitas saem do proprio print do solver (Vmin/Vmax),
+	// que e' o MESMO codigo nos dois exemplos -- comparaveis sem ajuste.
+	// ------------------------------------------------------------------
+	if (getenv("VOF_DIAG_LAPLACE") != NULL) {
+		// Massa: integral da fracao volumetrica.  Conservacao por construcao
+		// e' a vantagem classica do VOF -- aqui ela e' MEDIDA, nao suposta.
+		real vol = compute_total_fracvol_local(ns);
+		const real R = 1.0/6.0;
+		const real vol_exato = M_PI * R * R;
+
+		// Salto de pressao: dentro (centro da gota) e fora (longe dela).
+		Point p_in, p_out;
+		p_in[0]  = 0.5; p_in[1]  = 0.5;
+		p_out[0] = 0.5; p_out[1] = 0.9;
+		for (int d = 2; d < DIM; d++) { p_in[d] = 0.0; p_out[d] = 0.0; }
+		sim_stencil *stn = stn_create();
+		real pin = 0.0, pout = 0.0;
+		hig_cell *ci = sd_get_cell_with_point(ns->sdp, p_in);
+		hig_cell *co = sd_get_cell_with_point(ns->sdp, p_out);
+		if (ci != NULL) {
+			Point cc; hig_get_center(ci, cc);
+			pin = compute_value_at_point(ns->sdp, cc, p_in, 1.0, ns->dpp, stn);
+		}
+		if (co != NULL) {
+			Point cc; hig_get_center(co, cc);
+			pout = compute_value_at_point(ns->sdp, cc, p_out, 1.0, ns->dpp, stn);
+		}
+		stn_destroy(stn);
+
+		const real We = ns->ed.mult.spar.Ca * ns->par.Re;   // = 1
+		const real sigma = 1.0 / We;
+		const real dp_exato = sigma / R;
+		print0f("=+=+=+= VOF LAPLACE  p_in=%.6f  p_out=%.6f  Dp=%.6f  "
+		        "sigma/R=%.6f  erro_rel=%.4f =+=+=+=\n",
+		        (double) pin, (double) pout, (double)(pin - pout),
+		        (double) dp_exato,
+		        (double) fabs((pin - pout) - dp_exato) / dp_exato);
+		// DUAS medidas distintas, e a distincao importa:
+		//   deriva      |vol(t) - vol(0)|/vol(0) -- perda de massa NO TEMPO, que
+		//               e' o que caracteriza o metodo.  Comparavel com o dA/A do
+		//               front-tracking.
+		//   inicializacao |vol(0) - pi R^2|/(pi R^2) -- quao bem a discretizacao
+		//               representa o circulo no instante zero.  No front-tracking
+		//               o analogo e' o deficit de area do poligono de N lados.
+		print0f("=+=+=+= VOF MASSA  vol=%.8f  vol0=%.8f  deriva_rel=%.3e  "
+		        "exato=%.8f  inicializacao_rel=%.3e =+=+=+=\n",
+		        (double) vol, (double) vol_inicial,
+		        (vol_inicial > 0.0)
+		            ? (double) (fabs(vol - vol_inicial) / vol_inicial) : -1.0,
+		        (double) vol_exato,
+		        (vol_inicial > 0.0)
+		            ? (double) (fabs(vol_inicial - vol_exato) / vol_exato) : -1.0);
+	}
 
 	// Destroy the Navier-Stokes object
 	higflow_destroy(ns);

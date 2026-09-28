@@ -235,14 +235,30 @@ int main (int argc, char *argv[]) {
     // de equilibrar o gradiente de pressao, com u ~ 0 (correntes parasitas
     // pequenas).  sigma via codigo (nao ha' campo bifasico aqui -- e' um fluido
     // so' com forca singular na interface).
+    // Geometria da gota por ambiente, para poder rodar o MESMO binario no setup
+    // do example2d_VOF e comparar os dois metodos no mesmo problema:
+    //   FT_R, FT_CX, FT_CY, FT_SIGMA, FT_NMARC
+    // Os padroes reproduzem o caso original (R=0,25 em (2,0), sigma=1).
     ft_frente *gota = NULL;
+    real R_gota = 0.25, cx_gota = 2.0, cy_gota = 0.0;
     {
-        Point centro; centro[0] = 2.0; centro[1] = 0.0;
-        const real R = 0.25, sigma = 1.0;
-        gota = ft_cria_circulo(centro, R, 128);
+        const char *s;
+        if ((s = getenv("FT_R"))     != NULL) R_gota  = atof(s);
+        if ((s = getenv("FT_CX"))    != NULL) cx_gota = atof(s);
+        if ((s = getenv("FT_CY"))    != NULL) cy_gota = atof(s);
+        real sigma = 1.0;
+        if ((s = getenv("FT_SIGMA")) != NULL) sigma = atof(s);
+        int nmarc = 128;
+        if ((s = getenv("FT_NMARC")) != NULL) nmarc = atoi(s);
+
+        Point centro; centro[0] = cx_gota; centro[1] = cy_gota;
+        for (int d = 2; d < DIM; d++) centro[d] = 0.0;
+        gota = ft_cria_circulo(centro, R_gota, nmarc);
         front_tracking_instala(ns, gota, sigma);
-        print0f("=+=+=+= Front-tracking: gota R=0,25 em (2,0), sigma=1, "
-                "Laplace esperado Dp=%.4f =+=+=+=\n", sigma / R);
+        print0f("=+=+=+= Front-tracking: gota R=%.5f em (%.3f,%.3f), sigma=%.3f, "
+                "%d marcadores, Laplace esperado Dp=%.4f =+=+=+=\n",
+                (double) R_gota, (double) cx_gota, (double) cy_gota,
+                (double) sigma, nmarc, (double)(sigma / R_gota));
     }
 
     // Initialize the boundaries
@@ -328,8 +344,12 @@ int main (int argc, char *argv[]) {
     // a pressao no centro da gota (dentro) e num ponto longe (fora), e compara
     // Dp = p_in - p_out com sigma/R.
     {
-        Point p_in  = {2.0, 0.0};   // centro da gota
-        Point p_out = {2.0, 0.9};   // fora, perto da parede de cima
+        // Dentro = centro da gota; fora = deslocado 2,4R em y (bem fora da gota,
+        // e dentro do dominio nos dois setups).  FT_POUT_Y sobrepoe se preciso.
+        Point p_in, p_out;
+        p_in[0]  = cx_gota;  p_in[1]  = cy_gota;
+        p_out[0] = cx_gota;  p_out[1] = cy_gota + 2.4 * R_gota;
+        { const char *s = getenv("FT_POUT_Y"); if (s != NULL) p_out[1] = atof(s); }
         for (int d = 2; d < DIM; d++) { p_in[d] = 0.0; p_out[d] = 0.0; }
         sim_stencil *stn = stn_create();
         real pin = 0.0, pout = 0.0;
@@ -344,12 +364,14 @@ int main (int argc, char *argv[]) {
             pout = compute_value_at_point(ns->sdp, cc, p_out, 1.0, ns->dpp, stn);
         }
         stn_destroy(stn);
-        const real R = 0.25, sigma = 1.0;
+        real sigma = 1.0;
+        { const char *s = getenv("FT_SIGMA"); if (s != NULL) sigma = atof(s); }
+        const real dp_exato = sigma / R_gota;
         print0f("=+=+=+= LAPLACE  p_in=%.6f  p_out=%.6f  Dp=%.6f  "
                 "sigma/R=%.6f  erro_rel=%.4f =+=+=+=\n",
                 (double) pin, (double) pout, (double)(pin - pout),
-                (double)(sigma / R),
-                (double) fabs((pin - pout) - sigma / R) / (sigma / R));
+                (double) dp_exato,
+                (double) fabs((pin - pout) - dp_exato) / dp_exato);
     }
     (void) gota;
 
