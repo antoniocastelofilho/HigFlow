@@ -13,6 +13,7 @@
 
 #include "ns-example-2d.h"
 #include "../examples-common/malha-adaptativa.h"   // oraculo da banda
+#include "../examples-common/hysing-metricas.h"      // grandezas do benchmark
 
 #ifdef HIGFLOW_COM_T8CODE
 // Definida em ../examples-common/malha-t8.cxx, compilada so' com T8CODE.
@@ -709,6 +710,26 @@ int main (int argc, char *argv[]) {
 		}
 
 		higflow_solver_step_multiphase(ns);
+
+		// GRANDEZAS DO BENCHMARK DE HYSING (VOF_HYSING=1).  yc e Vc pela MESMA
+		// formula do front-tracking.  O PERIMETRO nao sai de graca do campo: a
+		// reconstrucao PLIC do solver nao esta' exposta, entao a circularidade
+		// do lado VOF NAO e' reportada -- e' melhor faltar do que sair por uma
+		// aproximacao diferente da do outro lado, que tornaria a comparacao
+		// entre os dois uma comparacao de definicoes.
+		if (getenv("VOF_HYSING") != NULL) {
+			static int cada_h = 0;
+			if (cada_h == 0) { const char *c = getenv("VOF_HYSING_CADA");
+			                   cada_h = (c != NULL) ? atoi(c) : 50;
+			                   if (cada_h < 1) cada_h = 50; }
+			if (ns->par.step % cada_h == 0) {
+				real Ah, ych, vch;
+				hysing_medidas(ns, &Ah, &ych, &vch);
+				print0f("HYSING %10.5f %12.6f %12.6f %12.8f\n",
+				        (double) ns->par.t, (double) ych, (double) vch,
+				        (double) Ah);
+			}
+		}
 		ns->par.stepaux=ns->par.stepaux+1;
 		
 		// Time update

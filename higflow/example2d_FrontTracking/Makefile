@@ -97,7 +97,7 @@ OBJ1 += ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-9-cells.o
 OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature.o
 OBJ1 += ../src/hig-flow-vof-elvira.o
 # Transferencia por posicao: o remalhamento verificado da fronteira imersa.
-OBJ1 += ../src/hig-flow-remalha.o
+OBJ1 += ../src/hig-flow-remalha.o hysing-metricas.o
 OBJ1 += ../src/hig-flow-front-tracking.o front-tracking.o malha-adaptativa.o
 OBJ1 += ../src/hig-flow-fronteira-imersa.o
 OBJ1 += $(T8OBJ)
@@ -168,3 +168,6 @@ rebuild_all:
 	$(MAKE)
 
 .PHONY: run clean compilerflags
+
+hysing-metricas.o: ../examples-common/hysing-metricas.c
+	$(CC) $(CFLAGS) -I../src -I../examples-common -c $< -o $@
