@@ -62,8 +62,10 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
     estendido. Foi o suficiente para estabilizar a elipse, mas n\~ao foi testada
     em geometria com curvatura fortemente vari\'avel ou com mudan\c{c}a de
     sinal.
-  \item \textbf{Serial.} $n_p=1$; o espalhamento paralelo n\~ao est\'a
-    implementado.
+  \item \textbf{Serial --- e agora medido, n\~ao suposto.} Tudo neste
+    relat\'orio \'e $n_p=1$. O que mudou \'e que $n_p=2$ foi \emph{testado} nos
+    dois m\'etodos, e a subse\c{c}\~ao~\ref{sec:paralelo} traz o resultado: nenhum
+    dos dois produz a resposta certa, e nenhum dos dois falha.
   \item \textbf{Propriedades iguais.} A terceira mudan\c{c}a estrutural --- o
     salto de $\rho$ e $\mu$ --- est\'a adiada nos dois lados. Em escoamento com
     raz\~ao de densidade alta as conclus\~oes podem mudar.
@@ -72,6 +74,80 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
     forte, que exigiria \emph{inser\c{c}\~ao} sustentada, segue sem teste
     acoplado.
 \end{itemize}
+
+\subsection{Paralelo: o que foi medido em $n_p=2$}
+\label{sec:paralelo}
+
+Este relat\'orio dizia, at\'e aqui, apenas que o trabalho era serial. Isso era
+verdade e insuficiente: ``n\~ao implementado'' e ``implementado e errado'' pedem
+provid\^encias diferentes, e a diferen\c{c}a s\'o se conhece rodando. Rodou-se,
+em \'arvore de trabalho isolada, o mesmo caso curto com $n_p=1$ e $n_p=2$ nos
+dois m\'etodos.
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/np1/.style={column name={$n_p=1$}},
+  columns/np2/.style={column name={$n_p=2$}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{paralelo.dat}}
+
+\paragraph{O front-tracking congela quase metade da frente.} Em $n_p=2$,
+\textbf{109 dos 252 marcadores n\~ao se moveram} em 10 passos, e formam uma faixa
+\emph{cont\'igua} em $y$ --- a parte da bolha que cai no subdom\'inio do outro
+processo. A causa \'e uma linha da interpola\c{c}\~ao de velocidade, que em s\'erie
+nunca dispara:
+\begin{center}
+\texttt{if (h <= 0.0) return;\qquad // fora do dominio: marcador nao anda}
+\end{center}
+A frente \'e \emph{replicada}: cada processo advecta a sua pr\'opria c\'opia com
+a velocidade que enxerga, e as c\'opias divergem no primeiro passo. A prova
+direta \'e que os dois processos relatam desvios de parti\c{c}\~ao da unidade
+\emph{diferentes} ($0{,}402$ e $0{,}795$) --- n\~ao est\~ao vendo o mesmo
+est\^encil. Contra \num{3.05e-14} em s\'erie, \'e a mesma assinatura que
+identificou a ``for\c{c}a exatamente pela metade'' no corpo r\'igido: pesos que
+n\~ao somam 1 devolvem velocidade pequena demais, sem erro vis\'ivel.
+
+\paragraph{O VOF acerta o solver e erra o remalhamento.} Sem remalhar, as
+s\'eries de $n_p=1$ e $n_p=2$ saem \textbf{id\^enticas em todos os d\'igitos
+impressos}: o caminho multif\'asico do solver e as m\'etricas (que reduzem com
+\texttt{MPI\_Allreduce}) est\~ao corretos em paralelo. Com remalhamento, n\~ao:
+o pr\'oprio contador do remalhamento acusa \textbf{265 posi\c{c}\~oes sem valor}
+no primeiro remalhamento e \textbf{2709} no segundo, e $V_c$ sai com
+\SI{77}{\percent} de erro --- \emph{caindo} quando devia subir.
+
+Vale notar o que esse contador \'e: o n\'umero de posi\c{c}\~oes da malha nova
+para as quais a colheita n\~ao tinha valor. A mensagem que o imprime existia nos
+dois exemplos e vinha imprimindo zero desde sempre, porque em s\'erie \'e zero.
+Era um or\'aculo instalado que nunca havia disparado.
+
+\paragraph{Os quatro consertos, e a ordem deles.} Dois s\~ao pequenos e s\~ao o
+que falta ao VOF: os escritores de crit\'erio fazem \texttt{fopen(...,"w")} do
+\emph{mesmo} caminho em todos os processos, sem guarda de \emph{rank} e sem
+barreira antes da releitura. O terceiro n\~ao se cura com guarda: as sementes do
+VOF saem do dom\'inio \emph{local} sem \emph{gather}, de modo que mesmo o
+processo 0 escreveria uma malha refinada s\'o em torno do peda\c{c}o de interface
+que ele possui --- e a fun\c{c}\~ao que resolveria isso j\'a existe em
+\texttt{malha-adaptativa.c}, por\'em \texttt{static} e sem uso. (No
+front-tracking esse terceiro n\~ao aparece: a frente \'e replicada, ent\~ao todo
+processo tem a geometria completa. A assimetria \'e o inverso da da
+advec\c{c}\~ao.) O quarto \'e o \'unico sem c\'odigo pronto para copiar: a
+advec\c{c}\~ao precisa de velocidade \emph{global} nos marcadores. O
+espalhamento, por sua vez, precisa da redu\c{c}\~ao franja$\to$dono que
+\texttt{fi\_espalha} j\'a faz vinte linhas adiante, no mesmo arquivo.
+
+\paragraph{Uma armadilha de medi\c{c}\~ao, de gra\c{c}a.} O caso com remalhamento
+rodou em \SI{64}{\second} em $n_p=2$ contra \SI{170}{\second} em $n_p=1$: $2{,}7$
+vezes em dois processos, \emph{superlinear}. A superlinearidade \'e a assinatura
+de resolver um problema \emph{menor}, e n\~ao mais r\'apido. Quem medisse
+escalabilidade neste estado veria um resultado excelente.
+
+\paragraph{E o que os tr\^es testes t\^em em comum.} Nenhum quebrou. Tr\^es
+execu\c{c}\~oes com c\'odigo de sa\'ida zero, resultados de aspecto plaus\'ivel,
+e defeitos de \SI{43}{\percent}, \SI{77}{\percent} e \SI{100}{\percent}. O que os
+separou do correto foram os or\'aculos --- um deles j\'a instalado e nunca
+disparado.
 
 \subsection{Pr\'oximos passos}
 
@@ -83,9 +159,10 @@ Em ordem de valor:
   \item \textbf{Fase B3}, oscila\c{c}\~ao de gota contra a frequ\^encia de Lamb:
     exercita din\^amica acoplada e, por deformar a interface, finalmente p\~oe a
     cirurgia \`a prova com o solver no circuito.
-  \item \textbf{Paralelo}, com a redu\c{c}\~ao de franja no espalhamento -- e
-    agora tamb\'em no remalhamento, que a Se\c{c}\~ao~\ref{sec:amr} deixou
-    funcionando apenas em $n_p=1$.
+  \item \textbf{Paralelo.} A subse\c{c}\~ao~\ref{sec:paralelo} localiza os
+    quatro consertos e os ordena: dois deles s\~ao pequenos e habilitam o VOF;
+    a advec\c{c}\~ao global do front-tracking \'e o \'unico que n\~ao tem
+    c\'odigo pronto para copiar.
   \item \textbf{Fechar o Hysing}: a Se\c{c}\~ao~\ref{sec:hysing} monta a
     compara\c{c}\~ao contra os valores publicados e declara de antem\~ao como
     ler cada desfecho, mas as corridas at\'e $t=3$ n\~ao terminaram a tempo

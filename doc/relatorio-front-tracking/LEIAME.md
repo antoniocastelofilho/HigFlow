@@ -32,6 +32,7 @@ texto discordarem depois de uma correção.
 | `hysing-referencia.dat` | os valores publicados por Hysing et al., três códigos e o consenso |
 | `hysing-parcial.dat` | Hysing: $y_c$ e $V_c$ nos dois métodos, **trecho parcial** $t\in[0;0{,}35]$ |
 | `hysing-forma.dat` | Hysing: concordância de forma entre os dois métodos |
+| `paralelo.dat` | o que $n_p=2$ mede nos dois métodos (seção de discussão) |
 | `formas/hy_ft_*.dat`, `formas/hy_vof_*.dat` | a interface nos dois métodos nos mesmos instantes |
 
 ## Estado da verificação deste projeto LaTeX

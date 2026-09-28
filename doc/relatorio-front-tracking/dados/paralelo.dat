@@ -1,0 +1,11 @@
+grandeza                              np1          np2
+marcadores-parados-em-10-passos       0-de-252     109-de-252
+particao-da-unidade                   3.05e-14     0.402-e-0.795
+discrepancia-sobre-deslocamento       --           47pc-medio-100pc-pior
+VOF-solver-serie-de-metricas          referencia   identica-em-todos-os-digitos
+VOF-remalha-passo-4-posicoes-sem-valor 0           265
+VOF-remalha-passo-8-posicoes-sem-valor 0           2709
+VOF-Vc-em-t-0.002                     0.001204     0.000281
+VOF-massa-apos-2-remalhamentos        0.19634938   0.19634865
+tempo-total-de-parede                 170s         64s
+codigo-de-saida                       0            0
