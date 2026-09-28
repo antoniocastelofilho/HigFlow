@@ -105,8 +105,29 @@ static void ft_espalha_tensao_solver(ft_frente *frente, real sigma,
     free(lids); free(pesos);
     free(pos); free(F); free(ds);
 
-    // Serial: sem reduce de franja.  As facetas de franja em np>1 precisariam do
-    // PetscSFReduce como em fi_espalha -- deixado para o paralelo.
+    // FRANJA: AINDA SEM CONSERTO, E A TENTATIVA OBVIA PIORA.  MEDIDO.
+    //
+    // O laco acima acumula com dp_add_value nas facetas que este rank encontra, e
+    // `fi_suporte_facetas` busca no dominio local, que INCLUI FRANJA.  Uma
+    // contribuicao que caia em faceta de franja nunca chega ao dono, e `dp_sync`
+    // nao resolve -- ele manda dono->franja e SOBRESCREVE.
+    //
+    // A tentativa obvia era chamar `fi_reduz_franja`, a MESMA reducao que o
+    // espalhamento do corpo rigido usa.  MEDIDA: a discrepancia do np=2 contra o
+    // serial PIOROU de 1,5e-11 para 8,3e-6 -- pior que o defeito original.
+    //
+    // A razao e' que a reducao supoe que cada contribuicao foi feita UMA VEZ.  No
+    // corpo rigido isso vale: o DMSwarm reparte os marcadores por posse
+    // exclusiva.  Aqui a frente e' REPLICADA e a franja cria sobreposicao -- um
+    // marcador na costura e' visto pelos DOIS ranks e espalhado pelos dois.  Antes
+    // da reducao, a contribuicao do nao-dono caia na copia de franja e era
+    // descartada pelo dp_sync: acidentalmente menos errada.  Com a reducao, ela e'
+    // somada no dono e aquele marcador conta duas vezes.
+    //
+    // O conserto pede a mesma coisa que a adveccao pediu -- uma regra de POSSE,
+    // decidida por medida e nao por analogia com o corpo rigido, cujo modelo de
+    // distribuicao de marcadores e' outro.  Ate' entao, o espalhamento do FT
+    // continua correto so' em np=1.
     for (int dim = 0; dim < DIM; dim++) dp_sync(dpF[dim]);
 }
 

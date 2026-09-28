@@ -900,28 +900,35 @@ void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
     DMSwarmRestoreField(c->enxame, "peso",    NULL, NULL, (void **) &peso);
     DMSwarmRestoreField(c->enxame, "h",       NULL, NULL, (void **) &hmar);
 
-    // Agora a parte que o dp_sync nao faz: somar a franja no dono.
-    for (int dim = 0; dim < DIM; dim++) {
-        int *fr = NULL, nfr = 0;
-        PetscSF sf = _grafo_de(dpF[dim], c->comm, &fr, &nfr);
+    // Agora a parte que o dp_sync nao faz: somar a franja no dono.  A mecanica
+    // esta' em `fi_reduz_franja` -- exposta no .h porque o espalhamento do
+    // front-tracking precisa exatamente dela, e duas copias da mesma reducao
+    // divergiriam.
+    for (int dim = 0; dim < DIM; dim++)
+        fi_reduz_franja(dpF[dim], c->comm);
+}
 
-        PetscReal *folha = (PetscReal *) malloc((nfr > 0 ? nfr : 1) * sizeof *folha);
-        for (int i = 0; i < nfr; i++) folha[i] = dp_get_value(dpF[dim], fr[i]);
+void fi_reduz_franja(distributed_property *dp, MPI_Comm comm)
+{
+    int *fr = NULL, nfr = 0;
+    PetscSF sf = _grafo_de(dp, comm, &fr, &nfr);
 
-        PetscCallAbort(c->comm, PetscSFReduceBegin(sf, MPIU_REAL, folha,
-                                                   dpF[dim]->values, MPI_SUM));
-        PetscCallAbort(c->comm, PetscSFReduceEnd  (sf, MPIU_REAL, folha,
-                                                   dpF[dim]->values, MPI_SUM));
+    PetscReal *folha = (PetscReal *) malloc((nfr > 0 ? nfr : 1) * sizeof *folha);
+    for (int i = 0; i < nfr; i++) folha[i] = dp_get_value(dp, fr[i]);
 
-        // A franja ja' entregou o que tinha; zera para nao entregar duas vezes
-        // se `fi_espalha` for chamada de novo antes de um sync.
-        for (int i = 0; i < nfr; i++) dp_set_value(dpF[dim], fr[i], 0.0);
+    PetscCallAbort(comm, PetscSFReduceBegin(sf, MPIU_REAL, folha,
+                                            dp->values, MPI_SUM));
+    PetscCallAbort(comm, PetscSFReduceEnd  (sf, MPIU_REAL, folha,
+                                            dp->values, MPI_SUM));
 
-        free(folha); free(fr);
-        PetscSFDestroy(&sf);
+    // A franja ja' entregou o que tinha; zera para nao entregar duas vezes se a
+    // funcao for chamada de novo antes de um sync.
+    for (int i = 0; i < nfr; i++) dp_set_value(dp, fr[i], 0.0);
 
-        // Agora o dono tem o total; o sync reparte de volta para as franjas,
-        // que e' a direcao que ele sabe fazer.
-        dp_sync(dpF[dim]);
-    }
+    free(folha); free(fr);
+    PetscSFDestroy(&sf);
+
+    // Agora o dono tem o total; o sync reparte de volta para as franjas, que e' a
+    // direcao que ele sabe fazer.
+    dp_sync(dp);
 }
