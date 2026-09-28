@@ -12,6 +12,7 @@
 // misleads; here both phases are newtonian.
 
 #include "ns-example-2d.h"
+#include "../examples-common/malha-adaptativa.h"   // oraculo da banda
 
 #ifdef HIGFLOW_COM_T8CODE
 // Definida em ../examples-common/malha-t8.cxx, compilada so' com T8CODE.
@@ -121,6 +122,174 @@ static void _vof_deformacao(higflow_solver *ns, int passo) {
 	print0f("VOF passo %5d: A=%.8f  a=%.6f  b=%.6f  D=%+.6e\n",
 	        passo, (double) A, (double) a, (double) b,
 	        (double)((a-b)/(a+b)));
+}
+
+
+// ---------------------------------------------------------------------------
+// REFINO ADAPTATIVO (VOF), pelo MESMO criterio e pela MESMA maquina do
+// front-tracking: celulas com 0<fracvol<1 sao SEMENTES, a distancia define o
+// nivel, os limiares saem da REGRA DAS CELULAS MINIMAS, e o
+// higflow_reconstroi_dominio rele' o .amr pelo caminho normal de arranque.
+//
+// A diferenca para o front-tracking e' de onde vem a fracao: la' da geometria da
+// frente, aqui do proprio campo advectado -- que e' justamente o que a
+// comparacao entre os dois isola.
+//
+// AQUI A FRACAO E' ESTADO e viaja no remalhamento (o reconstroi a transporta).
+// ---------------------------------------------------------------------------
+static void vof_escreve_amr_criterio(higflow_solver *ns, real lx, real ly,
+                                     int nx, int ny, int niveis, int cel_min,
+                                     const char *caminho)
+{
+    const real hx = lx / nx, hy = ly / ny;
+    const real h_base = (hx < hy) ? hx : hy;
+    real h_fino = h_base;
+    for (int l = 0; l < niveis; l++) h_fino *= 0.5;
+    const real margem = h_base + h_fino;          // ver malha-adaptativa.c
+    const real banda_fina = cel_min * h_fino + margem;
+    real thr[8];
+    for (int l = niveis - 1; l >= 0; l--) {
+        thr[l] = banda_fina;
+        real h_nivel = h_base;
+        for (int k = 0; k < l + 1; k++) h_nivel *= 0.5;
+        for (int k = 0; k < niveis - 1 - l; k++) thr[l] += cel_min * h_nivel;
+    }
+
+    // Sementes: celulas de interface do CAMPO de fracao.
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    mp_mapper *mp = sd_get_domain_mapper(sdm);
+    const long ncel = (long) nx * ny;
+    Point *sem = (Point *) malloc((size_t) ncel * 4 * sizeof(Point));
+    long nsem = 0;
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid < 0) continue;
+        real f;
+        if (ns->par.step == 0) {
+            Point xc, d; hig_get_center(c, xc); hig_get_delta(c, d);
+            f = ns->ed.mult.problem->fracvol(xc, d, ns->par.t);
+        } else {
+            f = dp_get_value(ns->ed.mult.dpfracvol, clid);
+        }
+        if (f > 0.001 && f < 0.999 && nsem < ncel * 4) {
+            hig_get_center(c, sem[nsem]); nsem++;
+        }
+    }
+    higcit_destroy(it);
+
+    signed char *tab = (signed char *) calloc((size_t) ncel, 1);
+    for (int j = 0; j < ny; j++)
+        for (int i = 0; i < nx; i++) {
+            real cx = (i + 0.5) * hx, cy = (j + 0.5) * hy, d2 = 1e300;
+            for (long k = 0; k < nsem; k++) {
+                real a = cx - sem[k][0], b = cy - sem[k][1];
+                real q = a*a + b*b; if (q < d2) d2 = q;
+            }
+            int nivel = 0;
+            for (int l = niveis - 1; l >= 0; l--)
+                if (d2 <= thr[l]*thr[l]) { nivel = l + 1; break; }
+            tab[i + (long) j * nx] = (signed char) nivel;
+        }
+
+    FILE *f = fopen(caminho, "w");
+    if (f == NULL) { perror(caminho); free(tab); free(sem); return; }
+    fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) lx, (double) ly);
+    long cont[8] = {0};
+    for (long q = 0; q < ncel; q++)
+        for (int l = 1; l <= niveis; l++) if (tab[q] >= l) cont[l]++;
+    int niv_esc = 1;
+    for (int l = 1; l <= niveis; l++) if (cont[l] > 0) niv_esc = l + 1;
+    fprintf(f, "%d\n", niv_esc);
+    // indice base 1, como os .amr do repositorio
+    fprintf(f, "%.10g %.10g\n1\n1 1 %d %d\n", (double) hx, (double) hy, nx, ny);
+    for (int l = 1; l < niv_esc; l++) {
+        int fator = 1 << l;
+        fprintf(f, "%.10g %.10g\n%ld\n", (double)(hx/fator), (double)(hy/fator), cont[l]);
+        for (int j = 0; j < ny; j++)
+            for (int i = 0; i < nx; i++)
+                if (tab[i + (long) j * nx] >= l)
+                    fprintf(f, "%d %d %d %d\n", fator*i+1, fator*j+1, fator, fator);
+    }
+    fclose(f);
+    fprintf(stderr, "VOF amr: %ld sementes, niveis=%d, limiares=", nsem, niv_esc-1);
+    for (int l = 0; l < niveis; l++) fprintf(stderr, " %.5f", (double) thr[l]);
+    fprintf(stderr, "  (>=%d celulas finas por lado)\n", cel_min);
+    free(tab); free(sem);
+}
+
+
+// Criterio de ARRANQUE: sem dominio ainda, a fracao sai da forma analitica
+// (func(), a mesma que inicializa o fracvol).  Mesma regra e mesmos limiares.
+static void vof_escreve_amr_inicial(real lx, real ly, int nx, int ny,
+                                    int niveis, int cel_min, const char *caminho)
+{
+    const real hx = lx / nx, hy = ly / ny;
+    const real h_base = (hx < hy) ? hx : hy;
+    real h_fino = h_base;
+    for (int l = 0; l < niveis; l++) h_fino *= 0.5;
+    const real margem = h_base + h_fino;
+    const real banda_fina = cel_min * h_fino + margem;
+    real thr[8];
+    for (int l = niveis - 1; l >= 0; l--) {
+        thr[l] = banda_fina;
+        real h_nivel = h_base;
+        for (int k = 0; k < l + 1; k++) h_nivel *= 0.5;
+        for (int k = 0; k < niveis - 1 - l; k++) thr[l] += cel_min * h_nivel;
+    }
+    const long ncel = (long) nx * ny;
+    Point *sem = (Point *) malloc((size_t) ncel * sizeof(Point));
+    long nsem = 0;
+    for (int j = 0; j < ny; j++)
+        for (int i = 0; i < nx; i++) {
+            // celula cortada = os quatro cantos nao concordam em sinal de func()
+            int dentro = 0;
+            for (int a = 0; a < 2; a++)
+                for (int b = 0; b < 2; b++) {
+                    Point q; q[0] = (i + a) * hx; q[1] = (j + b) * hy;
+                    if (func(q) > 0.0) dentro++;
+                }
+            if (dentro > 0 && dentro < 4) {
+                sem[nsem][0] = (i + 0.5) * hx; sem[nsem][1] = (j + 0.5) * hy;
+                nsem++;
+            }
+        }
+    signed char *tab = (signed char *) calloc((size_t) ncel, 1);
+    for (int j = 0; j < ny; j++)
+        for (int i = 0; i < nx; i++) {
+            real cx = (i + 0.5) * hx, cy = (j + 0.5) * hy, d2 = 1e300;
+            for (long k = 0; k < nsem; k++) {
+                real a = cx - sem[k][0], b = cy - sem[k][1];
+                real q = a*a + b*b; if (q < d2) d2 = q;
+            }
+            int nivel = 0;
+            for (int l = niveis - 1; l >= 0; l--)
+                if (d2 <= thr[l]*thr[l]) { nivel = l + 1; break; }
+            tab[i + (long) j * nx] = (signed char) nivel;
+        }
+    FILE *f = fopen(caminho, "w");
+    if (f == NULL) { perror(caminho); free(tab); free(sem); return; }
+    fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) lx, (double) ly);
+    long cont[8] = {0};
+    for (long q = 0; q < ncel; q++)
+        for (int l = 1; l <= niveis; l++) if (tab[q] >= l) cont[l]++;
+    int niv_esc = 1;
+    for (int l = 1; l <= niveis; l++) if (cont[l] > 0) niv_esc = l + 1;
+    fprintf(f, "%d\n", niv_esc);
+    fprintf(f, "%.10g %.10g\n1\n1 1 %d %d\n", (double) hx, (double) hy, nx, ny);
+    for (int l = 1; l < niv_esc; l++) {
+        int fator = 1 << l;
+        fprintf(f, "%.10g %.10g\n%ld\n", (double)(hx/fator), (double)(hy/fator), cont[l]);
+        for (int j = 0; j < ny; j++)
+            for (int i = 0; i < nx; i++)
+                if (tab[i + (long) j * nx] >= l)
+                    fprintf(f, "%d %d %d %d\n", fator*i+1, fator*j+1, fator, fator);
+    }
+    fclose(f);
+    fprintf(stderr, "VOF amr inicial: %ld sementes, niveis=%d\n", nsem, niv_esc-1);
+    free(tab); free(sem);
 }
 
 // Volume fraction
@@ -390,6 +559,32 @@ int main (int argc, char *argv[]) {
 	int cache = 1;
 
 	// Create the simulation domain
+	// MALHA INICIAL JA' ADAPTADA, e aqui ela e' obrigatoria, nao otimizacao.
+	//
+	// O sdmult do HiGFlow e' sempre UNIFORME no nivel mais fino.  Comecando na
+	// malha base e remalhando para 2 niveis, ele salta de h para h/4 DE UMA VEZ
+	// -- e a transferencia por posicao so' promete salto de UM nivel.  MEDIDO:
+	// a massa caiu a 1/4 exato (0,19635 -> 0,04909) no primeiro remalhamento.
+	// Nascendo ja' no nivel final, o sdmult nao muda mais e a fracao viaja
+	// sempre em salto de um nivel -- ou em nenhum.
+	{
+		const char *e; int niv = 0;
+		if ((e = getenv("VOF_AMR_NIVEIS")) != NULL) niv = atoi(e);
+		if (niv > 0) {
+			int nx0 = 40, ny0 = 80, cel0 = 5;
+			real lx0 = 1.0, ly0 = 2.0;
+			if ((e = getenv("VOF_AMR_NX")) != NULL) nx0 = atoi(e);
+			if ((e = getenv("VOF_AMR_NY")) != NULL) ny0 = atoi(e);
+			if ((e = getenv("VOF_AMR_CELMIN")) != NULL) cel0 = atoi(e);
+			if ((e = getenv("VOF_AMR_LX")) != NULL) lx0 = atof(e);
+			if ((e = getenv("VOF_AMR_LY")) != NULL) ly0 = atof(e);
+			const char *cam0 = getenv("VOF_AMR_CAMINHO");
+			if (cam0 == NULL) cam0 = "amrs-hysing/criterio/dominio.amr";
+			vof_escreve_amr_inicial(lx0, ly0, nx0, ny0, niv, cel0, cam0);
+			print0f("===> malha inicial JA' adaptada, do criterio analitico\n");
+		}
+	}
+
 	higflow_create_domain(ns, cache, order_center);
 	// Create the simulation domain for non newtonian simulation
 	// higflow_create_domain_generalized_newtonian(ns, cache, order_center, get_viscosity);
@@ -462,6 +657,23 @@ int main (int argc, char *argv[]) {
 	// Begin Loop for the Navier-Stokes equations integration
 	// ********************************************************
 
+    // Parametros do refino adaptativo, por ambiente.
+    int  vof_amr_niveis = 0, vof_amr_celmin = 5, vof_amr_cada = 0;
+    int  vof_amr_nx = 40, vof_amr_ny = 80;
+    real vof_amr_lx = 1.0, vof_amr_ly = 2.0;
+    const char *vof_amr_caminho = "amrs-hysing/criterio/dominio.amr";
+    {
+        const char *e;
+        if ((e = getenv("VOF_AMR_NIVEIS")) != NULL) vof_amr_niveis = atoi(e);
+        if ((e = getenv("VOF_AMR_CELMIN")) != NULL) vof_amr_celmin = atoi(e);
+        if ((e = getenv("VOF_AMR_CADA"))   != NULL) vof_amr_cada   = atoi(e);
+        if ((e = getenv("VOF_AMR_NX"))     != NULL) vof_amr_nx     = atoi(e);
+        if ((e = getenv("VOF_AMR_NY"))     != NULL) vof_amr_ny     = atoi(e);
+        if ((e = getenv("VOF_AMR_LX"))     != NULL) vof_amr_lx     = atof(e);
+        if ((e = getenv("VOF_AMR_LY"))     != NULL) vof_amr_ly     = atof(e);
+        if ((e = getenv("VOF_AMR_CAMINHO"))!= NULL) vof_amr_caminho = e;
+    }
+
     for (int step0 = ns->par.initstep; ns->par.step <= ns->par.finalstep; ns->par.step++) {
 		// Print the step
         print0f("===> Step:        %7d <====> t  = %15.10lf <===\n", ns->par.step, ns->par.t);
@@ -473,6 +685,29 @@ int main (int argc, char *argv[]) {
 		// real max_IF1 = max_dp(ns, ns->ed.mult.dpIF[1]);
 		// printf("===> max_IF0 = %f <=== \n",max_IF0);
 		// printf("===> max_IF1 = %f <=== \n",max_IF1);
+		// REMALHAMENTO ADAPTATIVO (VOF_AMR_NIVEIS>0), mesma maquina do
+		// front-tracking.  Aqui a fracao E' estado: o reconstroi a transporta
+		// junto com u e p, com interpolacao conservativa para salto de um nivel.
+		if (vof_amr_niveis > 0 && vof_amr_cada > 0 && ns->par.step > 0 &&
+		    ns->par.step % vof_amr_cada == 0) {
+			vof_escreve_amr_criterio(ns, vof_amr_lx, vof_amr_ly,
+			                         vof_amr_nx, vof_amr_ny,
+			                         vof_amr_niveis, vof_amr_celmin,
+			                         vof_amr_caminho);
+			long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank,
+			                                         cache, order_center,
+			                                         order_facet);
+			if (faltam != 0)
+				print0f("===> remalha passo %d: %ld posicoes sem valor\n",
+				        ns->par.step, faltam);
+			if (getenv("VOF_DIAG_MALHA") != NULL)
+				print0f("===> MALHA passo %d: banda=%.2f celulas finas "
+				        "(exigido >=%d)\n", ns->par.step,
+				        (double) malha_adapt_mede_banda(ns, vof_amr_niveis,
+				                                        vof_amr_lx/vof_amr_nx),
+				        vof_amr_celmin);
+		}
+
 		higflow_solver_step_multiphase(ns);
 		ns->par.stepaux=ns->par.stepaux+1;
 		

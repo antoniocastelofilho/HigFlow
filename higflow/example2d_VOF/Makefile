@@ -75,6 +75,8 @@ endif
 OBJ1 = ns-example-2d.o 
 OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-io.o ../src/hig-flow-eval.o ../src/hig-flow-discret.o
 OBJ1 += ../src/hig-flow-bc.o ../src/hig-flow-ic.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
+# Remalhamento verificado + oraculo da banda, compartilhados com o FT.
+OBJ1 += ../src/hig-flow-remalha.o malha-adaptativa.o
 OBJ1 += ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-adap-hf.o ../src/hig-flow-vof-plic.o
 OBJ1 += ../src/hig-flow-vof-9-cells.o ../src/hig-flow-vof-finite-difference-normal-curvature.o 
 OBJ1 += ../src/hig-flow-vof-elvira.o
@@ -136,3 +138,6 @@ rebuild_all:
 	$(MAKE)
 
 .PHONY: run clean compilerflags
+
+malha-adaptativa.o: ../examples-common/malha-adaptativa.c
+	$(CC) $(CFLAGS) -I../src -I../examples-common -c $< -o $@

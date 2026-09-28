@@ -98,12 +98,22 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
     // O VOF PURO CONTINUA FORA, e de proposito: ali o fracvol E' o estado, e
     // transporta-lo pede interpolacao CONSERVATIVA -- justamente onde esta' a
     // vantagem do metodo.  Deixar passar sem isso perderia massa em silencio.
-    const bool mult_com_fonte_externa =
-        (ns->contr.flowtype == MULTIPHASE) && (ns->fracvol_externo == true);
-    if ((ns->contr.flowtype != NEWTONIAN && !mult_com_fonte_externa)
-        || ns->contr.eoflow == true) {
-        print0f("higflow_reconstroi_dominio: NEWTONIANO, ou MULTIFASICO com "
-                "fonte externa de fracao (higflow_set_fracvol_externo)\n");
+    const bool eh_mult = (ns->contr.flowtype == MULTIPHASE);
+    const bool mult_com_fonte_externa = eh_mult && (ns->fracvol_externo == true);
+    // MULTIFASICO SEM fonte externa -- o VOF puro -- tambem passa, mas entao a
+    // fracao E' estado e viaja junto com u e p.  A transferencia serve: para
+    // celula que refina, o filho recebe o valor do pai, o que para campo
+    // constante por celula e' CONSERVATIVO; para celula que engrossa, a media
+    // dos 2^DIM filhos de volumes iguais, que tambem e'.  Ver hig-flow-remalha.h.
+    //
+    // O QUE ELA NAO PRESERVA, e convem dizer: ao refinar uma celula CORTADA, os
+    // filhos recebem todos o mesmo valor fracionario do pai.  A massa se
+    // conserva; a interface AFIADA nao -- o PLIC tera' de reconstrui-la do campo
+    // borrado.  E' degradacao geometrica, nao perda de massa, e e' menor que
+    // abortar -- mas nao e' nula.
+    const bool mult_transporta = eh_mult && !mult_com_fonte_externa;
+    if ((ns->contr.flowtype != NEWTONIAN && !eh_mult) || ns->contr.eoflow == true) {
+        print0f("higflow_reconstroi_dominio: NEWTONIANO ou MULTIFASICO\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
@@ -113,6 +123,13 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
     for (int dim = 0; dim < DIM; dim++)
         cu[dim] = rem_colhe_faceta(psfd_get_local_domain(ns->psfdu[dim]),
                                    ns->dpu[dim]);
+    // A FRACAO VOLUMETRICA quando ela e' estado (VOF puro).  Com fonte externa
+    // nao se colhe: a frente a regenera, e colher seria transportar um campo que
+    // vai ser sobrescrito.
+    rem_colheita *cfrac = NULL;
+    if (mult_transporta)
+        cfrac = rem_colhe_centro(psd_get_local_domain(ns->ed.mult.psdmult),
+                                 ns->ed.mult.dpfracvol);
 
     // ---- 1b. avisar quem guarda cache sobre os dominios ---------------------
     // O aviso vem DEPOIS da colheita e ANTES da destruicao, de proposito: quem
@@ -140,7 +157,7 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
         dp_destroy(ns->dpuaux[dim]);
         dp_destroy(ns->dpFU[dim]);
     }
-    if (mult_com_fonte_externa) {
+    if (eh_mult) {
         // Mesma ordem obrigatoria do resto: as dp antes do dominio que as mapeia.
         dp_destroy(ns->ed.mult.dpvisc);
         dp_destroy(ns->ed.mult.dpdens);
@@ -198,7 +215,7 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
     // higflow_initialize_domain_yaml cria o dominio particionado e os estenceis
     // (hig-flow-ic.c), e higflow_create_distributed_properties cria as dp.
     // O objeto de problema e' EXTERNO e sobrevive: reusa-se o mesmo ponteiro.
-    if (mult_com_fonte_externa)
+    if (eh_mult)
         higflow_create_domain_multiphase(ns, cache, order_center,
                                          ns->ed.mult.problem);
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet);
@@ -220,6 +237,23 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
         for (int i = 0; i < ns->dpdeltap->pdata->local_count; i++)
             dp_set_value(ns->dpdeltap, i, 0.0);
         dp_sync(ns->dpdeltap);
+    }
+    if (cfrac != NULL) {
+        sim_domain *sdm_novo = psd_get_local_domain(ns->ed.mult.psdmult);
+        const int nm = ns->ed.mult.dpfracvol->pdata->local_count;
+        char *achado = (char *) calloc((size_t)(nm > 0 ? nm : 1), 1);
+        rem_planta_centro(cfrac, sdm_novo, ns->ed.mult.dpfracvol, achado);
+        faltam += rem_interpola_centro(cfrac, sdm_novo, ns->ed.mult.dpfracvol,
+                                       achado);
+        free(achado);
+        // A fracao vive em [0,1]; a interpolacao pode sair de faixa por
+        // arredondamento, e PLIC com fracao fora de faixa nao tem significado.
+        for (int i = 0; i < nm; i++) {
+            real v = dp_get_value(ns->ed.mult.dpfracvol, i);
+            if (v < 0.0) dp_set_value(ns->ed.mult.dpfracvol, i, 0.0);
+            else if (v > 1.0) dp_set_value(ns->ed.mult.dpfracvol, i, 1.0);
+        }
+        dp_sync(ns->ed.mult.dpfracvol);
     }
     for (int dim = 0; dim < DIM; dim++) {
         sim_facet_domain *sf_novo = psfd_get_local_domain(ns->psfdu[dim]);
