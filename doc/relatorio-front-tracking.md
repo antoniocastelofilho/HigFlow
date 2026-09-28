@@ -355,6 +355,61 @@ teste tem de ser gota elíptica.
 
 **Sem regressão:** o caminho padrão (espalhado) reproduz `Dp=5.995400` bit a bit.
 
+## Passo 9 — gota elíptica: o teste que achou um defeito
+
+**O caso:** elipse a=0,2357 b=0,1179 (razão 2:1, **mesma área** do círculo R=1/6),
+que relaxa para o círculo de mesma área → R_eq=1/6 → Δp final esperado = **6,0**.
+1200 passos (t=1,2, ~4 tempos de relaxação). É também o **primeiro caso em que a
+frente deforma**, logo o primeiro que exercita a **cirurgia** com o solver no
+circuito (n: 108 → 102-104).
+
+**O balanceado FALHOU.** Circularidade sobe normal até o passo 900 (0,9887) e
+então **reverte** — 0,976 → 0,962 — com a velocidade crescendo. Δp = 10,99
+contra 6,0: **83% de erro**. A falha aparece exatamente quando a gota fica quase
+circular, isto é, quando a força física que a movia já decaiu e o artefato ficou
+sozinho.
+
+**A causa era a simplificação que eu já tinha registrado como limitação:** κ na
+faceta vinha do **marcador mais próximo**. No círculo é exato (κ constante). Na
+elipse é um campo **descontínuo** — salta quando a atribuição troca de marcador.
+As descontinuidades movem a frente, o que muda a atribuição, o que muda a
+força: realimentação.
+
+**Conserto dirigido confirmou o diagnóstico:** troquei κ por **média ponderada**
+dos marcadores vizinhos (kernel de Roma, largura h). Nada mais. A instabilidade
+**sumiu**, e a trajetória passou a coincidir com a do espalhado até a 4ª casa
+(0,998477 vs 0,998491). **Sem regressão no círculo**: Δp=6,000001, u<5e-11 —
+κ constante, e a média ponderada de constante devolve a constante.
+
+**Resultados (relaxação da elipse):**
+
+| grandeza | espalhado | bal. κ vizinho | bal. κ suave | VOF |
+|---|---|---|---|---|
+| circularidade final | 0,998491 | **0,961697** (revertendo) | 0,998477 | — |
+| Δp final (exato 6,0) | 5,9239 | **10,99** | 5,9089 | 5,9285 |
+| erro rel. do salto | 1,27% | **83%** | 1,52% | 1,19% |
+| deriva de massa | 1,09e-04 | 3,20e-05 | 2,25e-04 | **2,47e-13** |
+
+**Três leituras, duas delas corrigindo impressões anteriores:**
+
+1. **Na elipse o balanço NÃO traz vantagem** — 1,27% / 1,52% / 1,19%, os três
+   dentro de 0,3% um do outro. O ganho espetacular do passo 8 era **específico
+   do caso estático com κ constante**, onde o balanço exato é alcançável.
+2. **A vantagem estrutural do VOF em massa aparece agora.** Eu havia advertido
+   que a conservação perfeita do balanceado vinha de o escoamento *ser* estático
+   e que "em escoamento de verdade a deriva volta". Voltou: 1e-4/2e-4 contra
+   **2,5e-13** do VOF. Este é o primeiro teste com movimento real.
+3. **Os três concordam na física** — 5,909 / 5,924 / 5,929 para o exato 6,0. O
+   déficit comum de 1,2% não é de método: é relaxação incompleta (circ ainda
+   0,9985, velocidade residual ~9e-3 contribuindo pressão dinâmica). Três
+   discretizações independentes errando *junto* e pelo mesmo tanto é o que se
+   espera de erro físico compartilhado.
+
+**A lição de método:** o resultado do círculo era verdadeiro e continua válido —
+faltava saber *sobre o que* ele falava. Um caso em que uma quantidade é
+constante não distingue uma implementação que a trata bem de outra que a trata
+de qualquer jeito, e aqui a diferença era entre funcionar e ir à instabilidade.
+
 ## Resumo da corrida autônoma
 
 Cinco passos, todos verificados por oráculo e commitados:

@@ -1,0 +1,128 @@
+\section{Gota el\'iptica: curvatura vari\'avel}
+\label{sec:elipse}
+
+\subsection{O teste que faltava}
+
+A Se\c{c}\~ao~\ref{sec:balanco} fechou com uma ressalva expl\'icita: o balan\c{c}o
+\'e \emph{exato} apenas quando $\kappa$ \'e constante, pois a\'i
+$\sigma\kappa\nabla H = \nabla(\sigma\kappa H)$. Com curvatura vari\'avel sobra
+um res\'iduo, e a gota circular n\~ao o mede. Esta se\c{c}\~ao mede.
+
+O caso: elipse de semieixos $a=0{,}2357$ e $b=0{,}1179$ --- raz\~ao $2{:}1$ e
+\'area \emph{id\^entica} \`a do c\'irculo $R=1/6$ das se\c{c}\~oes anteriores.
+A gota n\~ao est\'a em equil\'ibrio; a tens\~ao superficial a relaxa para o
+c\'irculo de mesma \'area, de modo que o raio de equil\'ibrio \'e
+$R_{\text{eq}}=\sqrt{ab}=1/6$ e o salto final esperado volta a ser
+$\Delta p = 6$. Mesma malha, mesmas propriedades, 1200 passos ($t=1{,}2$, cerca
+de quatro tempos de relaxa\c{c}\~ao).
+
+\'E tamb\'em o primeiro caso em que a frente \textbf{deforma}, e portanto o
+primeiro em que a \textbf{cirurgia dispara} com o solver no circuito: o n\'umero
+de marcadores cai de 108 para 102--104 conforme a elipse se contrai no eixo
+maior.
+
+\subsection{O defeito que o c\'irculo escondia}
+
+Na primeira corrida, a formula\c{c}\~ao balanceada \textbf{falhou}. A
+circularidade sobe normalmente at\'e o passo~900, chega a $0{,}9887$ --- e ent\~ao
+\emph{reverte}, caindo a $0{,}9617$, com a velocidade crescendo. O salto de
+press\~ao final sai $10{,}99$ contra os $6$ esperados: \SI{83}{\percent} de erro.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+  width=12cm, height=6.4cm,
+  xlabel={passo}, ylabel={circularidade $4\pi A/P^{2}$},
+  legend pos=south east, grid=major, legend cell align=left,
+  ymin=0.83, ymax=1.01,
+]
+\addplot table[x=passo, y=espalhado]  {\dat{elipse-circularidade.dat}};
+\addlegendentry{espalhado}
+\addplot table[x=passo, y=balsuave]   {\dat{elipse-circularidade.dat}};
+\addlegendentry{balanceado, $\kappa$ suavizado}
+\addplot table[x=passo, y=balvizinho] {\dat{elipse-circularidade.dat}};
+\addlegendentry{balanceado, $\kappa$ do vizinho}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+O instante da falha \'e a pista: ela aparece justamente quando a gota fica quase
+circular, isto \'e, quando a for\c{c}a f\'isica que a movia j\'a decaiu. Enquanto
+havia um sinal grande, o artefato ficava submerso; ao ficar sozinho, dominou.
+
+A causa estava numa simplifica\c{c}\~ao que a pr\'opria
+Se\c{c}\~ao~\ref{sec:discussao} havia registrado como limita\c{c}\~ao: a
+curvatura na faceta era a do \textbf{marcador mais pr\'oximo}. No c\'irculo isso
+\'e exato, porque $\kappa$ \'e constante. Na elipse \'e um campo
+\emph{descont\'inuo}: salta quando a atribui\c{c}\~ao troca de marcador. As
+descontinuidades produzem saltos de for\c{c}a que movem a frente, o que muda a
+atribui\c{c}\~ao, o que muda a for\c{c}a --- realimenta\c{c}\~ao.
+
+\subsection{Conserto dirigido, e a confirma\c{c}\~ao do diagn\'ostico}
+
+Trocou-se apenas isso: a curvatura na faceta passou a ser a \textbf{m\'edia
+ponderada} das curvaturas dos marcadores vizinhos, com o n\'ucleo de Roma de
+largura $h$. Nada mais mudou.
+
+Com $\kappa$ suavizado a instabilidade \textbf{desaparece}, e a trajet\'oria
+passa a coincidir com a da formula\c{c}\~ao espalhada at\'e a quarta casa:
+$0{,}922213$ contra $0{,}922220$ no passo~200; $0{,}998477$ contra $0{,}998491$
+no passo~1150. Duas formula\c{c}\~oes de for\c{c}a diferentes produzindo a mesma
+din\^amica \'e evid\^encia forte de que ambas est\~ao certas.
+
+\paragraph{Sem regress\~ao no c\'irculo.} A curvatura \'e constante ali, e a
+m\'edia ponderada de um valor constante devolve esse valor exatamente: o
+resultado da Se\c{c}\~ao~\ref{sec:balanco} se mant\'em --- $\Delta p = 6{,}000001$
+e $\max\lvert u\rvert < \num{5e-11}$.
+
+\subsection{Resultados, e o que eles corrigem}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/espalhado/.style={column name={espalhado}},
+  columns/balvizinho/.style={column name={bal., $\kappa$ vizinho}},
+  columns/balsuave/.style={column name={bal., $\kappa$ suave}},
+  columns/vof/.style={column name={VOF}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{elipse-resultados.dat}}
+
+Tr\^es leituras, e duas delas corrigem impress\~oes deixadas pelas se\c{c}\~oes
+anteriores.
+
+\paragraph{1. Na elipse, o balan\c{c}o n\~ao traz vantagem.} Espalhado
+\SI{1.27}{\percent}, balanceado \SI{1.52}{\percent}, VOF \SI{1.19}{\percent} ---
+os tr\^es dentro de \SI{0.3}{\percent} um do outro. O ganho espetacular da
+Se\c{c}\~ao~\ref{sec:balanco} era \emph{espec\'ifico do caso est\'atico com
+$\kappa$ constante}, onde o balan\c{c}o exato \'e alcan\c{c}\'avel. Sob
+movimento real e curvatura vari\'avel, as duas formula\c{c}\~oes s\~ao
+equivalentes dentro da medida.
+
+\paragraph{2. A vantagem estrutural do VOF em massa aparece agora.} A
+Se\c{c}\~ao~\ref{sec:balanco} advertiu que a conserva\c{c}\~ao perfeita do
+front-tracking balanceado vinha de o escoamento \emph{ser} est\'atico, e que ``em
+escoamento de verdade a deriva volta''. Voltou: \num{1.1e-4} e \num{2.3e-4}
+contra \num{2.5e-13} do VOF. Este \'e o primeiro teste com movimento real, e ele
+confirma a advert\^encia.
+
+\paragraph{3. Os tr\^es m\'etodos concordam na f\'isica.} Os saltos finais ficam
+em $5{,}909$, $5{,}924$ e $5{,}929$ para um valor exato de $6$. O d\'eficit comum
+de \SI{1.2}{\percent} n\~ao \'e de m\'etodo: \'e de relaxa\c{c}\~ao incompleta ---
+em $t=1{,}2$ a circularidade ainda \'e $0{,}9985$, e resta velocidade da ordem de
+\num{9e-3}, que contribui press\~ao din\^amica. Que tr\^es discretiza\c{c}\~oes
+independentes errem \emph{junto}, e pelo mesmo tanto, \'e o que se espera de um
+erro f\'isico compartilhado, e n\~ao de defeito em qualquer uma delas.
+
+\subsection{A li\c{c}\~ao de m\'etodo}
+
+O resultado da gota circular era verdadeiro e continua v\'alido; o que faltava
+era saber \emph{sobre o que} ele falava. Um caso em que uma quantidade \'e
+constante n\~ao distingue uma implementa\c{c}\~ao que trata bem essa quantidade
+de outra que a trata de qualquer jeito --- e aqui a diferen\c{c}a era entre
+funcionar e ir \`a instabilidade.
+
+A limita\c{c}\~ao estava registrada por escrito antes de ser testada, o que
+tornou o diagn\'ostico r\'apido: bastou olhar para o \'unico ingrediente que
+mudava de comportamento entre c\'irculo e elipse. Registrar uma limita\c{c}\~ao
+conhecida no momento em que ela \'e aceita paga-se quando ela cobra.

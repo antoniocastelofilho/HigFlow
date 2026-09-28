@@ -43,7 +43,14 @@ real func (Point p) {
 	// value = min(outcirc, incav);
 
 	c[0] = 0.5; c[1] = 0.5;
+	// Raios por ambiente (VOF_RA, VOF_RB): a formula ja' e' de ELIPSE -- os dois
+	// raios so' estavam iguais.  Com raios distintos a gota nao esta' em
+	// equilibrio e a tensao superficial a relaxa para o circulo de mesma area,
+	// que e' o teste de curvatura VARIAVEL.  Sem as variaveis, o caso original.
 	r[0] = 1.0/6.0; r[1] = 1.0/6.0;
+	{ const char *e;
+	  if ((e = getenv("VOF_RA")) != NULL) r[0] = atof(e);
+	  if ((e = getenv("VOF_RB")) != NULL) r[1] = atof(e); }
 	pc[0] = p[0] - c[0]; pc[1] = p[1] - c[1];
 	real outcirc = 1.0 - (pc[0]*pc[0]/(r[0]*r[0]) + pc[1]*pc[1]/(r[1]*r[1]));
 	value = outcirc;
@@ -466,8 +473,14 @@ int main (int argc, char *argv[]) {
 		// Massa: integral da fracao volumetrica.  Conservacao por construcao
 		// e' a vantagem classica do VOF -- aqui ela e' MEDIDA, nao suposta.
 		real vol = compute_total_fracvol_local(ns);
-		const real R = 1.0/6.0;
-		const real vol_exato = M_PI * R * R;
+		// Raio de EQUILIBRIO: a gota relaxa para o circulo de mesma area, entao
+		// R_eq = sqrt(ra*rb) -- que para ra=rb devolve o proprio raio.
+		real ra = 1.0/6.0, rb = 1.0/6.0;
+		{ const char *e;
+		  if ((e = getenv("VOF_RA")) != NULL) ra = atof(e);
+		  if ((e = getenv("VOF_RB")) != NULL) rb = atof(e); }
+		const real R = sqrt(ra * rb);
+		const real vol_exato = M_PI * ra * rb;
 
 		// Salto de pressao: dentro (centro da gota) e fora (longe dela).
 		Point p_in, p_out;

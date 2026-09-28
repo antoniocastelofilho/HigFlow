@@ -253,7 +253,45 @@ int main (int argc, char *argv[]) {
 
         Point centro; centro[0] = cx_gota; centro[1] = cy_gota;
         for (int d = 2; d < DIM; d++) centro[d] = 0.0;
-        gota = ft_cria_circulo(centro, R_gota, nmarc);
+
+        // ELIPSE (FT_A e FT_B): a gota deixa de estar em equilibrio, e a tensao
+        // superficial a relaxa para o circulo de MESMA AREA.  E' o teste que
+        // mede o que a gota circular esconde: com kappa VARIAVEL ao longo da
+        // frente, sigma*kappa*grad(H) deixa de ser exatamente grad(sigma*kappa*H)
+        // e sobra um residuo de balanco.  Tambem e' o primeiro caso em que a
+        // frente deforma, e portanto o primeiro que exercita a CIRURGIA com o
+        // solver no circuito.
+        real ea = 0.0, eb = 0.0;
+        if ((s = getenv("FT_A")) != NULL) ea = atof(s);
+        if ((s = getenv("FT_B")) != NULL) eb = atof(s);
+        if (ea > 0.0 && eb > 0.0) {
+            Point *v = (Point *) malloc((size_t) nmarc * sizeof(Point));
+            for (int k = 0; k < nmarc; k++) {
+                real th = 2.0 * M_PI * (real) k / (real) nmarc;
+                v[k][0] = centro[0] + ea * cos(th);
+                v[k][1] = centro[1] + eb * sin(th);
+                for (int d = 2; d < DIM; d++) v[k][d] = 0.0;
+            }
+            // ds_alvo = o espacamento medio dos vertices que acabei de gerar.
+            // Assim `ft_cria_curva` NAO reamostra (nsub=1 em todo segmento) e os
+            // marcadores ficam EXATAMENTE sobre a elipse -- tres pontos sobre
+            // uma corda dariam curvatura zero --, mas o alvo fica registrado
+            // para a cirurgia usar quando a frente deformar.
+            real per = 0.0;
+            for (int k = 0; k < nmarc; k++) {
+                const real *p = v[k], *q = v[(k + 1) % nmarc];
+                per += sqrt((q[0]-p[0])*(q[0]-p[0]) + (q[1]-p[1])*(q[1]-p[1]));
+            }
+            gota = ft_cria_curva(v, nmarc, per / nmarc * 1.0001);
+            free(v);
+            R_gota = sqrt(ea * eb);       // raio de equilibrio: mesma area
+            print0f("=+=+=+= Front-tracking: ELIPSE a=%.5f b=%.5f, area=%.6f, "
+                    "R_eq=%.5f, Laplace final esperado Dp=%.4f =+=+=+=\n",
+                    (double) ea, (double) eb, (double) ft_area(gota),
+                    (double) R_gota, (double)(sigma / R_gota));
+        } else {
+            gota = ft_cria_circulo(centro, R_gota, nmarc);
+        }
         front_tracking_instala(ns, gota, sigma);
         print0f("=+=+=+= Front-tracking: gota R=%.5f em (%.3f,%.3f), sigma=%.3f, "
                 "%d marcadores, Laplace esperado Dp=%.4f =+=+=+=\n",

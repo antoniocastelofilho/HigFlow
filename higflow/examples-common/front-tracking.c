@@ -248,23 +248,34 @@ static void _preenche_indicadora(higflow_solver *ns, ft_frente *frente)
     dp_sync(_dpH);
 }
 
-// Curvatura do marcador mais proximo de `x`.  So' e' consultada onde grad(H) e'
-// nao nulo, isto e', a menos de uma celula da frente -- ali o marcador mais
-// proximo esta' a menos de ds/2 e a curvatura varia pouco.  No circulo e'
-// constante, entao e' exata.
-static real _kappa_perto(const Point *pos, const Point *forca, int n,
-                         real sigma, const Point x)
+// Curvatura interpolada dos marcadores em `x`, por MEDIA PONDERADA com o nucleo
+// de Roma de largura `h`.  So' e' consultada onde grad(H) e' nao nulo, a menos
+// de uma celula da frente.
+//
+// A VERSAO ANTERIOR USAVA O MARCADOR MAIS PROXIMO, e isso custou uma corrida.
+// No circulo era exato (kappa constante) e o teste passou espetacularmente.  Na
+// ELIPSE, com kappa variavel, o campo do vizinho mais proximo e' descontinuo:
+// salta quando a atribuicao troca de marcador.  Enquanto a gota ainda estava
+// longe do circulo a forca fisica dominava e nada aparecia; assim que ela ficou
+// quase circular (passo ~900, circ 0,9887) o artefato passou a dominar, a
+// circularidade REVERTEU e a corrida foi a instabilidade.  A descontinuidade
+// alimenta a adveccao, que move a frente, que muda a atribuicao -- realimentacao.
+//
+// Fora do suporte de qualquer marcador devolve 0; ali grad(H) tambem e' nulo.
+static real _kappa_interp(const Point *pos, const Point *forca, int n,
+                          real sigma, const Point x, real h)
 {
-    int melhor = 0;
-    real d2min = 1e300;
+    real num = 0.0, den = 0.0;
     for (int k = 0; k < n; k++) {
-        real dx = pos[k][0] - x[0], dy = pos[k][1] - x[1];
-        real d2 = dx * dx + dy * dy;
-        if (d2 < d2min) { d2min = d2; melhor = k; }
+        real w = ft_delta_roma((pos[k][0] - x[0]) / h)
+               * ft_delta_roma((pos[k][1] - x[1]) / h);
+        if (w == 0.0) continue;
+        // |forca| = sigma*kappa, por construcao de ft_forcas_tensao.
+        real fx = forca[k][0], fy = forca[k][1];
+        num += w * sqrt(fx * fx + fy * fy) / sigma;
+        den += w;
     }
-    // |forca| = sigma*kappa, por construcao de ft_forcas_tensao.
-    real fx = forca[melhor][0], fy = forca[melhor][1];
-    return sqrt(fx * fx + fy * fy) / sigma;
+    return (den > 0.0) ? num / den : 0.0;
 }
 
 static void ft_espalha_tensao_balanceada(higflow_solver *ns, ft_frente *frente,
@@ -300,7 +311,9 @@ static void ft_espalha_tensao_balanceada(higflow_solver *ns, ft_frente *frente,
             real dHdx = compute_dpdx_at_point(fdelta, dim, 0.5, Hl, Hr);
             if (dHdx == 0.0) continue;          // longe da interface
 
-            real kappa = _kappa_perto(pos, F, n, sigma, fcenter);
+            real hcel = _h_em(sfd[dim], fcenter);
+            if (hcel <= 0.0) hcel = fdelta[dim];
+            real kappa = _kappa_interp(pos, F, n, sigma, fcenter, hcel);
             dp_add_value(dpF[dim], flid, sigma * kappa * dHdx);
         }
     }
