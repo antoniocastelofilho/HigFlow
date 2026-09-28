@@ -17,6 +17,8 @@
 #include "hig-flow-fronteira-imersa.h"   // fi_suporte_facetas, fi_suporte_capacidade
 #include "hig-flow-front-tracking.h"
 #include "hig-mesh-snapshot.h"           // hig_facet_snapshot, hfs_center (para o oraculo)
+#include "hig-flow-eval.h"               // compute_center_p_left/right
+#include "hig-flow-discret.h"            // compute_dpdx_at_point
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -25,6 +27,7 @@ typedef struct {
     ft_frente *frente;
     real       sigma;
     int        advecta;      // 0 = frente fixa (Laplace puro); 1 = advecta
+    int        balanceado;   // 1 = forca como sigma*kappa*grad(H) balanceado
     int        passo;        // contador proprio, para o diagnostico periodico
     Point      centro_ini;   // centroide inicial, para medir deriva
     real       area_ini;     // area inicial, para medir conservacao
@@ -193,6 +196,119 @@ static void _metricas(const ft_frente *f, const Point centro_ini,
     free(p);
 }
 
+// ---------------------------------------------------------------------------
+// FORCA BALANCEADA (FT_BALANCEADO=1) -- o teste da hipotese do balanco.
+//
+// A forma padrao espalha sigma*kappa*n pelo nucleo de Roma direto nas facetas.
+// Esse operador NAO e' o gradiente discreto de escalar nenhum que a projecao
+// produza, e o descasamento entre ele e o gradiente de pressao aparece como
+// corrente parasita -- e' a hipotese levantada pela comparacao com o VOF.
+//
+// Aqui a forca e' montada como
+//
+//     F = sigma * kappa * grad(H),
+//
+// com H a fracao de area da gota por celula (da GEOMETRIA da frente, via
+// ft_area_na_caixa) e `grad` o MESMO operador que higflow_final_velocity usa
+// para corrigir a velocidade:
+//
+//     compute_center_p_left/right  +  compute_dpdx_at_point
+//
+// Com kappa constante -- que e' o caso do circulo -- isso e' exatamente
+// grad(sigma*kappa*H), isto e', a forca PERTENCE a' imagem do gradiente
+// discreto, e a pressao pode cancela-la termo a termo.  Se a hipotese estiver
+// certa, as correntes parasitas caem sem que o salto de pressao piore.
+// Ver Francois et al. (2006).
+// ---------------------------------------------------------------------------
+
+// Campo H por celula, preso ao dominio corrente.  Criado sob demanda.
+static distributed_property *_dpH = NULL;
+
+static void _preenche_indicadora(higflow_solver *ns, ft_frente *frente)
+{
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    mp_mapper  *mp  = sd_get_domain_mapper(sdp);
+    if (_dpH == NULL) _dpH = psd_create_property(ns->psdp);
+
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdp); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid < 0) continue;
+        Point lo, hi;
+        hig_get_lowpoint(c, lo);
+        hig_get_highpoint(c, hi);
+        real vol = 1.0;
+        for (int d = 0; d < DIM; d++) vol *= (hi[d] - lo[d]);
+        real a = ft_area_na_caixa(frente, lo, hi);
+        dp_set_value(_dpH, clid, (vol > 0.0) ? a / vol : 0.0);
+    }
+    higcit_destroy(it);
+    dp_sync(_dpH);
+}
+
+// Curvatura do marcador mais proximo de `x`.  So' e' consultada onde grad(H) e'
+// nao nulo, isto e', a menos de uma celula da frente -- ali o marcador mais
+// proximo esta' a menos de ds/2 e a curvatura varia pouco.  No circulo e'
+// constante, entao e' exata.
+static real _kappa_perto(const Point *pos, const Point *forca, int n,
+                         real sigma, const Point x)
+{
+    int melhor = 0;
+    real d2min = 1e300;
+    for (int k = 0; k < n; k++) {
+        real dx = pos[k][0] - x[0], dy = pos[k][1] - x[1];
+        real d2 = dx * dx + dy * dy;
+        if (d2 < d2min) { d2min = d2; melhor = k; }
+    }
+    // |forca| = sigma*kappa, por construcao de ft_forcas_tensao.
+    real fx = forca[melhor][0], fy = forca[melhor][1];
+    return sqrt(fx * fx + fy * fy) / sigma;
+}
+
+static void ft_espalha_tensao_balanceada(higflow_solver *ns, ft_frente *frente,
+                                         real sigma,
+                                         sim_facet_domain *sfd[DIM],
+                                         distributed_property *dpF[DIM])
+{
+    _preenche_indicadora(ns, frente);
+
+    int n = ft_num(frente);
+    Point *pos = (Point *) malloc((size_t) n * sizeof(Point));
+    Point *F   = (Point *) malloc((size_t) n * sizeof(Point));
+    real  *ds  = (real  *) malloc((size_t) n * sizeof(real));
+    ft_forcas_tensao(frente, sigma, pos, F, ds);
+
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+
+    for (int dim = 0; dim < DIM; dim++) {
+        mp_mapper *mu = sfd_get_domain_mapper(sfd[dim]);
+        (void) mu;
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfd[dim]);
+        for (int flid = 0; flid < hfs->n; flid++) {
+            Point fcenter, fdelta;
+            hfs_center(hfs, flid, fcenter);
+            hfs_delta(hfs, flid, fdelta);
+
+            // O MESMO par de amostragem que higflow_final_velocity usa para a
+            // pressao -- e' o que torna a forca cancelavel pelo gradiente.
+            real Hl = compute_center_p_left (sdp, fcenter, fdelta, dim, 0.5,
+                                             _dpH, ns->stn);
+            real Hr = compute_center_p_right(sdp, fcenter, fdelta, dim, 0.5,
+                                             _dpH, ns->stn);
+            real dHdx = compute_dpdx_at_point(fdelta, dim, 0.5, Hl, Hr);
+            if (dHdx == 0.0) continue;          // longe da interface
+
+            real kappa = _kappa_perto(pos, F, n, sigma, fcenter);
+            dp_add_value(dpF[dim], flid, sigma * kappa * dHdx);
+        }
+    }
+
+    free(pos); free(F); free(ds);
+    for (int dim = 0; dim < DIM; dim++) dp_sync(dpF[dim]);
+}
+
 // Gancho: roda antes do preditor.  Nesse ponto `ns->dpu` e' u^n -- a velocidade
 // final, JA' PROJETADA (discretamente livre de divergencia), do passo anterior.
 // Entao a ordem e': move a frente com u^n, faz a cirurgia, e espalha a forca de
@@ -224,7 +340,11 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
         ctx->passo++;
     }
 
-    ft_espalha_tensao_solver(ctx->frente, ctx->sigma, ns->sfdF, ns->dpFU);
+    if (ctx->balanceado)
+        ft_espalha_tensao_balanceada(ns, ctx->frente, ctx->sigma,
+                                     ns->sfdF, ns->dpFU);
+    else
+        ft_espalha_tensao_solver(ctx->frente, ctx->sigma, ns->sfdF, ns->dpFU);
 }
 
 //! Instala o front-tracking (tensao superficial) no solver.  `sigma` e' o
@@ -239,6 +359,7 @@ extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
     const char *sa = getenv("FT_ADVECTA");
     ctx->advecta = (sa != NULL) ? atoi(sa) : 0;   // padrao: frente fixa (Laplace)
     ctx->passo   = 0;
+    { const char *s = getenv("FT_BALANCEADO"); ctx->balanceado = (s != NULL) ? atoi(s) : 0; }
 
     // Referencias para as metricas do oraculo: area e centroide iniciais.
     {

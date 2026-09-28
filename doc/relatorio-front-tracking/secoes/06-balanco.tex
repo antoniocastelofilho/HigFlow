@@ -1,0 +1,131 @@
+\section{A hip\'otese do balan\c{c}o, testada}
+\label{sec:balanco}
+
+\subsection{A hip\'otese}
+
+A compara\c{c}\~ao deixou um resultado desconfort\'avel: o front-tracking obt\'em
+a curvatura \emph{melhor} --- exata no c\'irculo --- e ainda assim produz
+correntes par\'asitas dez vezes maiores. Os dois fatos s\'o convivem se o
+problema n\~ao estiver na curvatura.
+
+A hip\'otese \'e que ele est\'a no \textbf{balan\c{c}o discreto}. Para a gota em
+equil\'ibrio o cont\'inuo exige
+\begin{equation}
+  \nabla p = \sigma\kappa\mathbf{n}\,\delta_S,
+  \label{eq:equil}
+\end{equation}
+e a velocidade par\'asita mede exatamente o quanto os \emph{operadores
+discretos} dos dois lados falham em satisfazer \eqref{eq:equil}. N\~ao basta que
+cada lado esteja individualmente correto: \'e preciso que a for\c{c}a discreta
+\textbf{perten\c{c}a \`a imagem do gradiente discreto} que a proje\c{c}\~ao
+inverte. \'E a propriedade de \emph{balanced-force} de Francois et
+al.~\cite{francois2006}.
+
+No VOF com CSF a for\c{c}a \'e $\sigma\kappa\nabla f$; numa gota circular $\kappa$
+\'e constante, de sorte que $\sigma\kappa\nabla f = \nabla(\sigma\kappa f)$ ---
+a for\c{c}a \emph{\'e} um gradiente discreto, e pode ser cancelada. Na forma
+espalhada do front-tracking, a for\c{c}a sai do n\'ucleo de Roma sobre facetas
+escalonadas, e esse operador n\~ao \'e o gradiente discreto de escalar nenhum que
+a proje\c{c}\~ao produza.
+
+\subsection{A reformula\c{c}\~ao}
+
+Para testar, a for\c{c}a foi remontada como
+\begin{equation}
+  \mathbf{F} = \sigma\,\kappa\,\nabla H,
+  \label{eq:balanceada}
+\end{equation}
+com duas exig\^encias:
+
+\begin{enumerate}
+  \item $H$ \'e a \textbf{fra\c{c}\~ao de \'area da gota por c\'elula}, calculada
+    da \emph{geometria} da frente por recorte de pol\'igono
+    (Sutherland--Hodgman) seguido da f\'ormula do la\c{c}o. \'E o an\'alogo exato
+    do campo de cor do VOF, s\'o que derivado da interface em vez de advectado.
+  \item $\nabla$ \'e o \textbf{mesmo} operador discreto que
+    \texttt{higflow\_final\_velocity} usa para corrigir a velocidade pela
+    press\~ao --- a mesma amostragem das duas c\'elulas vizinhas e a mesma
+    diferen\c{c}a dividida. Esta \'e a exig\^encia que faz o m\'etodo
+    ``balanceado''; qualquer outro gradiente, ainda que consistente, n\~ao
+    cancelaria.
+\end{enumerate}
+
+Com $\kappa$ constante --- o caso do c\'irculo --- \eqref{eq:balanceada} \'e
+exatamente $\nabla(\sigma\kappa H)$, e a press\~ao pode cancel\'a-la termo a
+termo.
+
+\paragraph{A indicadora foi verificada antes de ser usada.} Somar
+$H$ vezes a \'area da c\'elula sobre uma grade que cobre a frente tem de devolver
+a \'area do pol\'igono, exatamente, porque as c\'elulas particionam o plano.
+Medido sobre quatro frentes e quatro grades: pior erro \num{3.7e-15}. C\'elula
+inteiramente dentro devolve a \'area da c\'elula (\num{4.0e-14}); inteiramente
+fora devolve zero exato.
+
+\subsection{Resultado}
+
+Mesmo caso, mesma malha, mesma gota, mesmo tudo --- trocando apenas a
+formula\c{c}\~ao da for\c{c}a:
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+ & FT espalhado & FT balanceado & fator \\
+\midrule
+erro relativo de $\Delta p$        & \num{7.67e-04} & \num{1.7e-07}  & $4500\times$ \\
+correntes par\'asitas (final)      & \num{5.06e-04} & $<\num{5e-11}$ & $>10^{4}\times$ \\
+deriva de \'area                   & \num{1.29e-05} & \num{1.9e-15}  & $7\times10^{9}$ \\
+deriva do centroide                & \num{3.4e-07}  & \num{1.9e-14}  & $2\times10^{7}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{A hip\'otese se confirma, e nos dois sentidos que ela previa:} as
+correntes par\'asitas caem mais de quatro ordens de grandeza \emph{e} o salto de
+press\~ao \emph{melhora} --- n\~ao piora. Fosse a curvatura o problema, n\~ao
+haveria como as duas coisas andarem juntas.
+
+\paragraph{A assinatura temporal \'e ainda mais clara que os n\'umeros finais.}
+Na forma espalhada as par\'asitas sobem e \emph{estacionam} num patamar de
+\num{5e-4}: h\'a um for\c{c}amento esp\'urio persistente, que a viscosidade
+equilibra mas n\~ao elimina. Na balanceada elas decaem monotonicamente ---
+\num{2.4e-7}, \num{1.6e-9}, \num{2e-10} --- at\'e sumirem sob a precis\~ao de
+impress\~ao do solver. N\~ao h\'a for\c{c}amento esp\'urio a equilibrar; o que se
+v\^e \'e um transiente inicial sendo amortecido.
+
+\paragraph{E a for\c{c}a n\~ao sumiu.} Velocidade nula \'e tamb\'em o que se veria
+se a for\c{c}a simplesmente n\~ao estivesse sendo aplicada --- o mesmo modo de
+falso verde que j\'a apareceu na verifica\c{c}\~ao da advec\c{c}\~ao. O que
+descarta essa leitura \'e o pr\'oprio salto de press\~ao: $\Delta p = 6{,}000001$
+contra o exato $6$. Sem for\c{c}a n\~ao haveria salto nenhum. As duas medidas
+juntas --- press\~ao certa \emph{e} velocidade nula --- s\~ao a assinatura do
+equil\'ibrio, e nenhuma delas sozinha bastaria.
+
+\subsection{Consequ\^encia para a compara\c{c}\~ao}
+
+Com a for\c{c}a balanceada, o front-tracking passa a superar o VOF nas tr\^es
+m\'etricas medidas, e n\~ao mais em uma s\'o:
+
+\begin{center}
+\begin{tabular}{lrrl}
+\toprule
+ & FT balanceado & VOF & vantagem \\
+\midrule
+erro relativo de $\Delta p$   & \num{1.7e-07}  & \num{4.73e-03} & $2{,}8\times10^{4}$ \\
+correntes par\'asitas         & $<\num{5e-11}$ & \num{5.23e-05} & $>10^{6}$ \\
+deriva de massa               & \num{1.9e-15}  & \num{2.9e-15}  & equivalentes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A conserva\c{c}\~ao de massa deixou de ser desvantagem do front-tracking, mas por
+uma raz\~ao que convém explicitar para n\~ao superestimar o resultado: a \'area
+deixa de derivar porque o escoamento \emph{\'e} est\'atico, e marcadores parados
+n\~ao perdem \'area. Num escoamento de verdade a deriva volta, e a
+conserva\c{c}\~ao por constru\c{c}\~ao do VOF continua sendo uma vantagem
+estrutural que este teste n\~ao mede.
+
+\paragraph{O que o teste custou, em c\'odigo.} Uma fun\c{c}\~ao de geometria no
+n\'ucleo (\texttt{ft\_area\_na\_caixa}, com seu arreio) e uma rotina de montagem
+no adaptador. A formula\c{c}\~ao antiga continua sendo a padr\~ao; a balanceada
+entra por seletor, de modo que os dois caminhos coexistem e podem ser comparados
+a qualquer momento --- que foi, afinal, como esta se\c{c}\~ao p\^ode ser escrita.

@@ -5,6 +5,7 @@
 #   teste-b1         adveccao cinematica + cirurgia (Rider-Kothe reversivel)
 #   teste-curvatura  curvatura contra oraculos analiticos (circulo, elipse)
 #   teste-tensao     forca de tensao superficial espalhada (conservacao, equilibrio)
+#   teste-indicadora fracao de area por celula (particao, celula cheia/vazia)
 #
 # Cada arreio devolve codigo de saida (0 passou, 1 falhou) -- sao oraculos, nao
 # so' impressoes.  `make check` roda todos e falha se algum falhar.
@@ -13,7 +14,7 @@ CFLAGS  = -O2 -Wall -DDIM=2 -I../../../higtree/src -I../../src
 MOD     = ../../src/hig-flow-front-tracking.c
 DEP     = $(MOD) ../../src/hig-flow-front-tracking.h
 
-ARREIOS = teste-b1 teste-curvatura teste-tensao
+ARREIOS = teste-b1 teste-curvatura teste-tensao teste-indicadora
 
 all: $(ARREIOS)
 
@@ -25,6 +26,9 @@ teste-curvatura: teste-curvatura.c $(DEP)
 
 teste-tensao: teste-tensao.c $(DEP)
 	$(CC) $(CFLAGS) teste-tensao.c $(MOD) -lm -o $@
+
+teste-indicadora: teste-indicadora.c $(DEP)
+	$(CC) $(CFLAGS) teste-indicadora.c $(MOD) -lm -o $@
 
 run: teste-b1
 	./teste-b1

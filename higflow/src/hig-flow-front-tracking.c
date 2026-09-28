@@ -183,6 +183,82 @@ void ft_curvatura(const ft_frente *f, real *kappa)
     free(kv);
 }
 
+// --- funcao indicadora (para a forca balanceada) ---------------------------
+
+// Recorte de Sutherland-Hodgman por UMA aresta do retangulo.  `lado` escolhe a
+// aresta (0=x>=lo, 1=x<=hi, 2=y>=lo, 3=y<=hi) e `val` o seu valor.  Escreve o
+// resultado em `saida` e devolve quantos vertices ele tem.
+//
+// A caixa e' CONVEXA, que e' a condicao para o recorte sucessivo pelas quatro
+// arestas dar a intersecao correta.
+static int _recorta_aresta(const Point *ent, int n, int lado, real val,
+                           Point *saida)
+{
+    int m = 0;
+    if (n == 0) return 0;
+    for (int i = 0; i < n; i++) {
+        const real *A = ent[i];
+        const real *B = ent[(i + 1) % n];
+        // "dentro" para cada uma das quatro arestas
+        real da, db;
+        switch (lado) {
+            case 0: da = A[0] - val; db = B[0] - val; break;  // x >= lo
+            case 1: da = val - A[0]; db = val - B[0]; break;  // x <= hi
+            case 2: da = A[1] - val; db = B[1] - val; break;  // y >= lo
+            default: da = val - A[1]; db = val - B[1]; break; // y <= hi
+        }
+        const int A_dentro = (da >= 0.0), B_dentro = (db >= 0.0);
+
+        if (A_dentro) { saida[m][0] = A[0]; saida[m][1] = A[1]; m++; }
+        if (A_dentro != B_dentro) {
+            // Interseccao com a reta da aresta: parametro pela razao das
+            // distancias com sinal, que e' exata para segmento contra reta.
+            real t = da / (da - db);
+            saida[m][0] = A[0] + t * (B[0] - A[0]);
+            saida[m][1] = A[1] + t * (B[1] - A[1]);
+            m++;
+        }
+    }
+    return m;
+}
+
+real ft_area_na_caixa(const ft_frente *f, const real lo[DIM], const real hi[DIM])
+{
+    // Caminho rapido: caixa fora da envoltoria da frente nao pode conter area
+    // nenhuma dela -- tudo que a frente fecha esta' dentro da propria
+    // envoltoria.
+    real bx0 = f->x[0][0], bx1 = f->x[0][0];
+    real by0 = f->x[0][1], by1 = f->x[0][1];
+    for (int i = 1; i < f->n; i++) {
+        if (f->x[i][0] < bx0) bx0 = f->x[i][0];
+        if (f->x[i][0] > bx1) bx1 = f->x[i][0];
+        if (f->x[i][1] < by0) by0 = f->x[i][1];
+        if (f->x[i][1] > by1) by1 = f->x[i][1];
+    }
+    if (hi[0] <= bx0 || lo[0] >= bx1 || hi[1] <= by0 || lo[1] >= by1) return 0.0;
+
+    // Recorte sucessivo pelas quatro arestas.  Cada recorte pode acrescentar no
+    // maximo um vertice por aresta do poligono, dai' a folga na alocacao.
+    const int cap = 2 * f->n + 8;
+    Point *a = (Point *) malloc((size_t) cap * sizeof(Point));
+    Point *b = (Point *) malloc((size_t) cap * sizeof(Point));
+    memcpy(a, f->x, (size_t) f->n * sizeof(Point));
+    int n = f->n;
+
+    n = _recorta_aresta(a, n, 0, lo[0], b);  memcpy(a, b, (size_t) n * sizeof(Point));
+    n = _recorta_aresta(a, n, 1, hi[0], b);  memcpy(a, b, (size_t) n * sizeof(Point));
+    n = _recorta_aresta(a, n, 2, lo[1], b);  memcpy(a, b, (size_t) n * sizeof(Point));
+    n = _recorta_aresta(a, n, 3, hi[1], b);  memcpy(a, b, (size_t) n * sizeof(Point));
+
+    real soma = 0.0;
+    for (int i = 0; i < n; i++) {
+        const real *p = b[i], *q = b[(i + 1) % n];
+        soma += p[0] * q[1] - q[0] * p[1];
+    }
+    free(a); free(b);
+    return 0.5 * fabs(soma);
+}
+
 // --- forca de tensao superficial ------------------------------------------
 
 real ft_delta_roma(real r)

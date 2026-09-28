@@ -290,6 +290,71 @@ GENSMAC (Tomé & McKee, 1994), o front-tracking do próprio grupo (de Sousa et
 al., JCP 198, 2004) e o HiGFlow (Sousa et al., JCP 396, 2019). **Não compilado**
 — não há pdflatex na máquina; o que foi verificado está no LEIAME.
 
+## Passo 8 — a hipótese do balanço, TESTADA E CONFIRMADA
+
+**A hipótese:** as correntes parasitas não vêm da curvatura (onde o FT é
+melhor), vêm do **balanço discreto**. A força precisa *pertencer à imagem do
+gradiente discreto que a projeção inverte* — não basta cada lado estar certo.
+
+**A reformulação** (`FT_BALANCEADO=1`): força remontada como **F = σκ∇H**, com
+- **H** = fração de área da gota por célula, da *geometria* da frente (recorte
+  de polígono Sutherland–Hodgman + fórmula do laço) — `ft_area_na_caixa`;
+- **∇** = o **mesmo** operador que `higflow_final_velocity` usa para a pressão
+  (`compute_center_p_left/right` + `compute_dpdx_at_point`). Essa é a exigência
+  que faz "balanceado"; outro gradiente, ainda que consistente, não cancelaria.
+
+Com κ constante (o círculo), isso é exatamente ∇(σκH) → a pressão cancela termo
+a termo.
+
+**Indicadora verificada antes de usar:** somar H·área_célula sobre uma grade que
+cobre a frente devolve a área do polígono — **3,7e-15** (4 frentes × 4 grades).
+Célula cheia 4,0e-14, célula vazia exatamente 0.
+
+**Resultado — mesmo caso, só trocando a formulação:**
+
+| métrica | FT espalhado | FT balanceado | fator |
+|---|---|---|---|
+| erro rel. de Δp | 7,67e-04 | **1,7e-07** | 4500× |
+| correntes parasitas (final) | 5,06e-04 | **<5e-11** | >10⁴× |
+| deriva de área | 1,29e-05 | **1,9e-15** | 7e9× |
+| deriva do centroide | 3,4e-07 | **1,9e-14** | 2e7× |
+
+**Confirmada nos dois sentidos que previa:** as parasitas caem >4 ordens **e** o
+salto de pressão *melhora* (não piora). Se a curvatura fosse o problema, as duas
+coisas não andariam juntas.
+
+**A assinatura temporal é mais clara que os números finais:** o espalhado sobe e
+**estaciona** em 5e-4 (forçamento espúrio persistente que a viscosidade
+equilibra mas não elimina); o balanceado **decai** monotonicamente — 2,4e-7,
+1,6e-9, 2e-10 — até sumir sob a precisão de impressão. Não há o que equilibrar.
+
+**Falso verde descartado:** velocidade nula é também o que eu veria se a força
+não estivesse sendo aplicada. O que descarta é o próprio salto: **Δp = 6,000001**
+contra o exato 6. Sem força não haveria salto nenhum. As duas medidas juntas —
+pressão certa *e* velocidade nula — são a assinatura do equilíbrio; nenhuma
+sozinha bastaria.
+
+**Consequência para a comparação** — o FT balanceado passa a superar o VOF nas
+três métricas:
+
+| métrica | FT balanceado | VOF | vantagem |
+|---|---|---|---|
+| erro rel. de Δp | **1,7e-07** | 4,73e-03 | 2,8e4× |
+| correntes parasitas | **<5e-11** | 5,23e-05 | >10⁶× |
+| deriva de massa | 1,9e-15 | 2,9e-15 | equivalentes |
+
+A massa deixou de ser desvantagem, mas **por uma razão que não se deve
+superestimar**: a área não deriva porque o escoamento *é* estático, e marcador
+parado não perde área. Em escoamento de verdade a deriva volta, e a conservação
+por construção do VOF continua sendo vantagem *estrutural*.
+
+**A limitação mais importante:** o balanço é *exato* só com κ constante, pois aí
+σκ∇H = ∇(σκH). Com curvatura variável sobra um resíduo ~H∇(σκ) que **este teste
+não mede** — e é justamente ele que governaria uma gota deformada. O próximo
+teste tem de ser gota elíptica.
+
+**Sem regressão:** o caminho padrão (espalhado) reproduz `Dp=5.995400` bit a bit.
+
 ## Resumo da corrida autônoma
 
 Cinco passos, todos verificados por oráculo e commitados:

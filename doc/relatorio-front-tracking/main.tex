@@ -50,9 +50,16 @@ duas expectativas da literatura e contrariam uma terceira: o front-tracking
 obt\'em o salto de press\~ao de Laplace com erro seis vezes menor, o VOF conserva
 massa em precis\~ao de m\'aquina contra uma deriva de \num{1.3e-5}, e --- ao
 contr\'ario do que se esperava --- o VOF apresenta correntes par\'asitas cerca de
-dez vezes menores. Argumenta-se que a \'ultima diferen\c{c}a n\~ao vem da
-curvatura, que \'e exatamente onde o front-tracking \'e melhor, mas do
+dez vezes menores.
+
+Essa terceira discrep\^ancia revelou-se defeito de implementa\c{c}\~ao, e n\~ao
+propriedade do m\'etodo. Levantou-se a hip\'otese de que a causa n\~ao estava na
+curvatura --- que \'e exatamente onde o front-tracking \'e melhor --- mas no
 \emph{balan\c{c}o discreto} entre a for\c{c}a espalhada e o gradiente de press\~ao.
+A hip\'otese foi testada remontando a for\c{c}a como $\sigma\kappa\nabla H$ com
+o mesmo operador discreto que a proje\c{c}\~ao inverte, e confirmou-se nos dois
+sentidos que previa: as correntes par\'asitas ca\'iram mais de quatro ordens de
+grandeza \emph{e} o salto de press\~ao melhorou, em vez de piorar.
 \end{abstract}
 
 \tableofcontents
@@ -62,7 +69,8 @@ curvatura, que \'e exatamente onde o front-tracking \'e melhor, mas do
 \input{secoes/03-implementacao}
 \input{secoes/04-verificacao}
 \input{secoes/05-comparacao}
-\input{secoes/06-discussao}
+\input{secoes/06-balanco}
+\input{secoes/07-discussao}
 
 \bibliographystyle{plain}
 \bibliography{referencias}

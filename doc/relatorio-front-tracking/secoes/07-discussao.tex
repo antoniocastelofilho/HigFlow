@@ -1,0 +1,94 @@
+\section{Discuss\~ao}
+\label{sec:discussao}
+
+\subsection{O que os dois m\'etodos oferecem, pelo que foi medido}
+
+\begin{center}
+\begin{tabular}{p{4.6cm}p{4.6cm}p{4.6cm}}
+\toprule
+ & front-tracking (balanceado) & VOF \\
+\midrule
+curvatura / salto de press\~ao & exata no c\'irculo; erro \num{1.7e-7}
+  & derivada de campo suavizado; erro \num{4.7e-3} \\
+correntes par\'asitas & $<\num{5e-11}$, decaindo & \num{5.2e-5}, decaindo \\
+massa & conservada enquanto o escoamento \'e est\'atico; deriva com o movimento
+  & conservada por constru\c{c}\~ao, sempre \\
+topologia (coalesc\^encia, quebra) & manual, fora do escopo & autom\'atica \\
+custo de estrutura & marcadores ordenados, cirurgia, indicadora por c\'elula
+  & campo euleriano a mais \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A leitura n\~ao \'e ``um vence''. Nas m\'etricas deste teste o front-tracking
+balanceado sai \`a frente, mas o teste \'e uma gota est\'atica: n\~ao exercita
+topologia, n\~ao exercita deforma\c{c}\~ao grande, e n\~ao exercita a
+conserva\c{c}\~ao de massa sob movimento --- que \'e justamente onde o VOF tem
+vantagem \emph{estrutural}, e n\~ao circunstancial. Escoamento em que a massa da
+fase precisa ser conservada ao longo de muitos tempos, ou em que gotas coalescem
+e se partem, continua favorecendo o VOF. Com os dois no mesmo sistema, a escolha
+passa a ser informada por medida em vez de por prefer\^encia.
+
+\subsection{A compara\c{c}\~ao como verifica\c{c}\~ao m\'utua}
+
+Vale sublinhar um uso da compara\c{c}\~ao que n\~ao \'e o de escolher m\'etodo.
+Como a dire\c{c}\~ao de v\'arios resultados \'e conhecida \emph{a priori} pela
+literatura, eles funcionam como or\'aculo um para o outro: se o VOF tivesse
+sa\'ido melhor em curvatura, ou se o front-tracking espalhado tivesse conservado
+massa exatamente, o resultado apontaria defeito de implementa\c{c}\~ao, n\~ao
+descoberta sobre os m\'etodos.
+
+E foi exatamente assim que o defeito apareceu. O \'unico resultado que
+\emph{contrariou} a expectativa --- correntes par\'asitas maiores no
+front-tracking --- n\~ao era propriedade do m\'etodo: era uma deficiência da
+implementa\c{c}\~ao, localizada pela discrep\^ancia e removida na
+Se\c{c}\~ao~\ref{sec:balanco}. Sem o VOF ao lado, com o mesmo problema e as
+mesmas sondas, n\~ao haveria com o que estranhar \num{5e-4}: pareceria apenas
+``pequeno''.
+
+\subsection{Limita\c{c}\~oes}
+
+Para que o alcance dos n\'umeros n\~ao seja superestimado:
+
+\begin{itemize}
+  \item \textbf{Uma \'unica resolu\c{c}\~ao.} Tudo foi medido a $10{,}2$
+    c\'elulas por raio. Um estudo de converg\^encia --- refinar $h$ e obter a
+    taxa de cada m\'etrica --- n\~ao foi feito.
+  \item \textbf{Gota est\'atica, e $\kappa$ constante.} O balan\c{c}o \'e
+    \emph{exato} quando a curvatura \'e constante, porque a\'i
+    $\sigma\kappa\nabla H = \nabla(\sigma\kappa H)$. Com curvatura vari\'avel os
+    dois deixam de coincidir e resta um res\'iduo de ordem $H\nabla(\sigma\kappa)$.
+    \textbf{Este teste n\~ao mede esse res\'iduo}, e ele \'e justamente o que
+    governaria uma gota deformada. \'E a limita\c{c}\~ao mais importante desta
+    se\c{c}\~ao.
+  \item \textbf{A curvatura na faceta \'e a do marcador mais pr\'oximo.} Basta
+    para $\kappa$ constante; com curvatura vari\'avel pede um campo de curvatura
+    melhor construído.
+  \item \textbf{Serial.} $n_p=1$; o espalhamento paralelo n\~ao est\'a
+    implementado.
+  \item \textbf{Propriedades iguais.} A terceira mudan\c{c}a estrutural --- o
+    salto de $\rho$ e $\mu$ --- est\'a adiada nos dois lados. Em escoamento com
+    raz\~ao de densidade alta as conclus\~oes podem mudar.
+  \item \textbf{A cirurgia n\~ao foi exercitada} com o solver no circuito, porque
+    a gota est\'atica n\~ao deforma.
+\end{itemize}
+
+\subsection{Pr\'oximos passos}
+
+Em ordem de valor:
+
+\begin{enumerate}
+  \item \textbf{Curvatura vari\'avel.} \'E o teste que falta ao balan\c{c}o:
+    uma gota el\'iptica em relaxa\c{c}\~ao, onde $\kappa$ varia ao longo da
+    frente, mede o res\'iduo que a gota circular esconde.
+  \item \textbf{Converg\^encia em $h$} das tr\^es m\'etricas, nos dois m\'etodos.
+    D\'a \`a compara\c{c}\~ao o alcance que hoje lhe falta.
+  \item \textbf{Fase B3}, oscila\c{c}\~ao de gota contra a frequ\^encia de Lamb:
+    exercita din\^amica acoplada e, por deformar a interface, finalmente p\~oe a
+    cirurgia \`a prova com o solver no circuito.
+  \item \textbf{Paralelo}, com a redu\c{c}\~ao de franja no espalhamento.
+\end{enumerate}
+
+A compara\c{c}\~ao com o VOF pode acompanhar cada uma dessas etapas: o caso
+existe, as sondas est\~ao instaladas nos dois lados, e as duas formula\c{c}\~oes
+de for\c{c}a coexistem atr\'as de um seletor.

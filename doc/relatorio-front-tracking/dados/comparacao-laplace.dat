@@ -1,0 +1,5 @@
+metrica                        ft          ftbal       vof         melhor
+salto-de-pressao-(erro-rel)    7.67e-04    1.7e-07     4.73e-03    FT-bal
+correntes-parasitas-(max-u)    5.06e-04    5e-11       5.23e-05    FT-bal
+deriva-de-massa-no-tempo       1.29e-05    1.91e-15    2.86e-15    empate
+forma-na-inicializacao         1.61e-03    1.61e-03    1.27e-05    VOF

@@ -93,6 +93,24 @@ void ft_vetor_curvatura(const ft_frente *f, Point *kv);
 //! de raio R, todo marcador da' 1/R.  `kappa` deve caber `ft_num` reais.
 void ft_curvatura(const ft_frente *f, real *kappa);
 
+// --- funcao indicadora (para a forca balanceada) ---------------------------
+
+//! AREA da regiao fechada pela frente que cai DENTRO da caixa alinhada aos
+//! eixos [lo,hi].  Recorte de Sutherland-Hodgman do poligono pela caixa, e
+//! entao a formula do laco.  Caixa inteiramente dentro da frente devolve a area
+//! da caixa; inteiramente fora devolve 0; cortada devolve a fracao exata.
+//!
+//! E' a fracao volumetrica calculada DA GEOMETRIA da frente -- o analogo exato
+//! do campo de cor do VOF, so' que derivado da interface em vez de advectado.
+//! Serve a' formulacao BALANCEADA da tensao superficial: com ela, a forca vira
+//! sigma*kappa*grad(H), e o gradiente pode ser o MESMO operador discreto que a
+//! projecao inverte -- que e' a condicao para as correntes parasitas
+//! cancelarem.  Ver Francois et al. (2006).
+//!
+//! ORACULO: somar sobre uma particao do plano que contenha a frente devolve
+//! `ft_area`.
+real ft_area_na_caixa(const ft_frente *f, const real lo[DIM], const real hi[DIM]);
+
 // --- forca de tensao superficial ------------------------------------------
 
 //! Nucleo regularizado de Roma, 3 pontos (o MESMO do corpo rigido -- repetido

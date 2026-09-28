@@ -54,10 +54,10 @@ preserva o comportamento padr\~ao do exemplo.
 \pgfplotstabletypeset[
   string type,
   columns/metrica/.style={column name={m\'etrica}},
-  columns/ft/.style={column name={front-tracking}},
+  columns/ft/.style={column name={FT espalhado}},
+  columns/ftbal/.style={column name={FT balanceado}},
   columns/vof/.style={column name={VOF}},
-  columns/razao/.style={column name={raz\~ao}},
-  columns/vencedor/.style={column name={melhor}},
+  columns/melhor/.style={column name={melhor}},
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{comparacao-laplace.dat}}
@@ -67,7 +67,8 @@ Em valores brutos:
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
-  columns/ft/.style={column name={front-tracking}},
+  columns/ft/.style={column name={FT espalhado}},
+  columns/ftbal/.style={column name={FT balanceado}},
   columns/vof/.style={column name={VOF}},
   columns/exato/.style={column name={exato}},
   every head row/.style={before row=\toprule, after row=\midrule},
@@ -97,9 +98,13 @@ duas quantidades, a \num{1.3e-5} do VOF revelou-se erro de \emph{inicializa\c{c}
 (a discretiza\c{c}\~ao do c\'irculo em $t=0$) e a deriva verdadeira, zero de
 m\'aquina.
 
-\paragraph{Correntes par\'asitas: o VOF ganha, dez vezes --- e isso contraria a
-expectativa.} \'E o resultado que motiva a Se\c{c}\~ao~\ref{sec:discussao}.
-Ambas s\~ao est\'aveis e decaem; nenhuma cresce.
+\paragraph{Correntes par\'asitas: na forma espalhada o VOF ganha, dez vezes ---
+e isso contraria a expectativa.} \'E o resultado que motivou a
+Se\c{c}\~ao~\ref{sec:balanco}, onde a causa \'e identificada e removida: a
+coluna ``FT balanceado'' das tabelas acima j\'a traz o desfecho, e vem de l\'a.
+Na forma espalhada, as par\'asitas \emph{estacionam} num patamar; na balanceada,
+\emph{decaem} at\'e o piso de impress\~ao do solver --- a diferen\'ca entre um
+for\c{c}amento esp\'urio persistente e a aus\^encia dele.
 
 \begin{center}
 \begin{tikzpicture}
@@ -109,17 +114,19 @@ Ambas s\~ao est\'aveis e decaem; nenhuma cresce.
   legend pos=north east, grid=major,
   legend cell align=left,
 ]
-\addplot table[x=passo, y=ft]  {\dat{parasitas-serie.dat}};
-\addlegendentry{front-tracking}
-\addplot table[x=passo, y=vof] {\dat{parasitas-serie.dat}};
+\addplot table[x=passo, y=ft]    {\dat{parasitas-serie.dat}};
+\addlegendentry{FT espalhado}
+\addplot table[x=passo, y=vof]   {\dat{parasitas-serie.dat}};
 \addlegendentry{VOF}
+\addplot table[x=passo, y=ftbal] {\dat{parasitas-serie.dat}};
+\addlegendentry{FT balanceado}
 \end{semilogyaxis}
 \end{tikzpicture}
 \end{center}
 
 \subsection{Erro de forma na inicializa\c{c}\~ao}
 
-A \'ultima linha da tabela merece ressalva. O d\'eficit de \num{1.6e-3} do
+A linha da inicializa\c{c}\~ao merece ressalva. O d\'eficit de \num{1.6e-3} do
 front-tracking \'e o d\'eficit de \'area de um pol\'igono de 64 lados inscrito no
 c\'irculo --- artefato de \emph{como se inicializa}, n\~ao propriedade do
 m\'etodo. Ele melhora com mais marcadores, e desapareceria ao inscrever o
