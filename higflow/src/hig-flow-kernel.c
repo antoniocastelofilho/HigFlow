@@ -87,8 +87,23 @@ higflow_solver *higflow_create (void) {
 // =============================================================================
 long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
                                 int cache, int order_center, int order_facet) {
-    if (ns->contr.flowtype != NEWTONIAN || ns->contr.eoflow == true) {
-        print0f("higflow_reconstroi_dominio: so' NEWTONIANO por enquanto\n");
+    // NEWTONIANO sempre; MULTIFASICO so' quando a fracao volumetrica tem FONTE
+    // EXTERNA -- isto e', quando algo fora do solver a reconstroi depois do
+    // remalhamento.  E' o caso do front-tracking: a frente e' replicada e
+    // independente de malha, sobrevive intocada ao remalhamento, e regenera o
+    // fracvol da geometria a cada passo.  Dai' nao ha' o que transportar: dens,
+    // visc, curvatura e retas PLIC saem do fracvol no inicio de todo passo
+    // multifasico, e sobram u e p -- exatamente o que esta funcao ja' transporta.
+    //
+    // O VOF PURO CONTINUA FORA, e de proposito: ali o fracvol E' o estado, e
+    // transporta-lo pede interpolacao CONSERVATIVA -- justamente onde esta' a
+    // vantagem do metodo.  Deixar passar sem isso perderia massa em silencio.
+    const bool mult_com_fonte_externa =
+        (ns->contr.flowtype == MULTIPHASE) && (ns->fracvol_externo == true);
+    if ((ns->contr.flowtype != NEWTONIAN && !mult_com_fonte_externa)
+        || ns->contr.eoflow == true) {
+        print0f("higflow_reconstroi_dominio: NEWTONIANO, ou MULTIFASICO com "
+                "fonte externa de fracao (higflow_set_fracvol_externo)\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
@@ -124,6 +139,23 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
         dp_destroy(ns->dpustar[dim]);
         dp_destroy(ns->dpuaux[dim]);
         dp_destroy(ns->dpFU[dim]);
+    }
+    if (mult_com_fonte_externa) {
+        // Mesma ordem obrigatoria do resto: as dp antes do dominio que as mapeia.
+        dp_destroy(ns->ed.mult.dpvisc);
+        dp_destroy(ns->ed.mult.dpdens);
+        dp_destroy(ns->ed.mult.dpfracvol);
+        dp_destroy(ns->ed.mult.dpfracvolaux);
+        dp_destroy(ns->ed.mult.dpcurvature);
+        dp_destroy(ns->ed.mult.dpdistance);
+        for (int i = 0; i < DIM; i++) {
+            dp_destroy(ns->ed.mult.dpIF[i]);
+            dp_destroy(ns->ed.mult.dpnormal[i]);
+        }
+        stn_destroy(ns->ed.mult.stn);
+        stn_destroy(ns->ed.stn);
+        psd_destroy(ns->ed.mult.psdmult);
+        psd_destroy(ns->ed.psdED);
     }
     stn_destroy(ns->stn);
     stn_destroy(ns->stnF);   // par de higflow_create_stencil -- eu so' destruia o stn
@@ -161,6 +193,14 @@ long higflow_reconstroi_dominio(higflow_solver *ns, int ntasks, int myrank,
 
     // ---- 3. recriar pelo caminho do arranque --------------------------------
     higflow_create_domain(ns, cache, order_center);
+    // O unico pedaco multifasico que o arranque NAO cobre sozinho: o sdmult e o
+    // sdED nascem aqui.  O resto vem por despacho em flowtype --
+    // higflow_initialize_domain_yaml cria o dominio particionado e os estenceis
+    // (hig-flow-ic.c), e higflow_create_distributed_properties cria as dp.
+    // O objeto de problema e' EXTERNO e sobrevive: reusa-se o mesmo ponteiro.
+    if (mult_com_fonte_externa)
+        higflow_create_domain_multiphase(ns, cache, order_center,
+                                         ns->ed.mult.problem);
     higflow_initialize_domain_yaml(ns, ntasks, myrank, order_facet);
     higflow_initialize_boundaries_yaml(ns);
     higflow_create_distributed_properties(ns);

@@ -1336,6 +1336,11 @@ typedef struct higflow_solver {
     //! destruidos enquanto ainda se pode.  NULL = ninguem a avisar.
     higflow_fronteira_imersa remalha_avisa;
     void                    *fronteira_imersa_ctx;
+
+    //! Ver higflow_set_fracvol_externo: a fracao volumetrica tem fonte fora do
+    //! solver (a frente do front-tracking a regenera da geometria).  E' a
+    //! condicao para o remalhamento aceitar MULTIPHASE.
+    bool fracvol_externo;
     void                    *remalha_avisa_ctx;
 
     //! \brief Fonte da malha.  NULL = ler da informacao AMR, como sempre.

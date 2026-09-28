@@ -29,6 +29,16 @@ CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml hdf5)
 CFLAGS+= $(PETSC_CC_INCLUDES)
 CFLAGS+= -I$(SRCPATH) $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
 
+# Compilacao instrumentada: `make SANITIZE=1`.  O exemplo herdou o Makefile do
+# example2d_FronteiraImersa, que nao tinha este bloco -- e `make SANITIZE=1`
+# construia o binario NORMAL em silencio, o que custou um diagnostico inteiro
+# (os enderecos da pilha sairam identicos aos do build sem instrumentacao, que
+# foi o que denunciou).
+ifdef SANITIZE
+CFLAGS+= -g -ggdb -fsanitize=address -fno-omit-frame-pointer
+LDFLAGS+= -fsanitize=address
+endif
+
 LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
 LDFLAGS+= -L$(LIBPATH) $(OPTSOPT)
 
