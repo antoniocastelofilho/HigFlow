@@ -244,27 +244,31 @@ public:
     // --- modelo multifasico ---
     // Value of the viscosity
     real viscosity0(Point center, real t) {
-    	real value;
-    	value = 1.0;
-    	return value;
+    	// Propriedade por ambiente (VOF_MU0), para o VOF rodar o MESMO caso de
+    	// Hysing que o front-tracking.  Padrao 1.0 -- o comportamento original.
+    	const char *e = getenv("VOF_MU0");
+    	return (e != NULL) ? atof(e) : 1.0;
     }
     // Value of the viscosity
     real viscosity1(Point center, real t) {
-    	real value;
-    	value = 1.0;
-    	return value;
+    	// Propriedade por ambiente (VOF_MU1), para o VOF rodar o MESMO caso de
+    	// Hysing que o front-tracking.  Padrao 1.0 -- o comportamento original.
+    	const char *e = getenv("VOF_MU1");
+    	return (e != NULL) ? atof(e) : 1.0;
     }
     // Value of the density
     real density0(Point center, real t) {
-    	real value;
-    	value = 1.0;
-    	return value;
+    	// Propriedade por ambiente (VOF_RHO0), para o VOF rodar o MESMO caso de
+    	// Hysing que o front-tracking.  Padrao 1.0 -- o comportamento original.
+    	const char *e = getenv("VOF_RHO0");
+    	return (e != NULL) ? atof(e) : 1.0;
     }
     // Value of the density
     real density1(Point center, real t) {
-    	real value;
-    	value = 1.0;
-    	return value;
+    	// Propriedade por ambiente (VOF_RHO1), para o VOF rodar o MESMO caso de
+    	// Hysing que o front-tracking.  Padrao 1.0 -- o comportamento original.
+    	const char *e = getenv("VOF_RHO1");
+    	return (e != NULL) ? atof(e) : 1.0;
     }
     real fracvol(Point center, Point delta, real t) {
     	Point p0, p1, p2, p3;

@@ -167,7 +167,14 @@ public:
     // o caminho multifasico sem mudar a fisica, de modo que qualquer diferenca
     // no resultado seja do encanamento e nao do salto de propriedade.
     //
-    // Convencao do solver: fase 0 onde fracvol=1 (DENTRO da gota), fase 1 fora.
+    // CONVENCAO DO SOLVER, conferida no codigo e NAO suposta:
+    //   dens = (1 - fracvol)*dens0 + fracvol*dens1   (hig-flow-step-multiphase.c)
+    // ou seja fracvol=1 -> fase 1.  FASE 1 E' DENTRO da gota; FASE 0 e' FORA.
+    // Eu havia suposto o contrario, e o resultado foi uma bolha PESADA num meio
+    // leve: ela afundou ate' encostar na base, e a quebra apareceu primeiro na
+    // particao da unidade (6,7e-15 -> 0,53), porque os marcadores chegaram a'
+    // fronteira do dominio.  Quem localizou foi o despejo das FORMAS da frente;
+    // os numeros sozinhos so' diziam que o deslocamento parava de crescer.
     static real _amb(const char *nome, real padrao) {
         const char *s = getenv(nome);
         return (s != NULL) ? atof(s) : padrao;
