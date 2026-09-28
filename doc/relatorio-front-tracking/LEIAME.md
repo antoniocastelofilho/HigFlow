@@ -29,6 +29,8 @@ texto discordarem depois de uma correção.
 | `comparacao-laplace.dat` | **a comparação FT × VOF**, métricas relativas |
 | `comparacao-bruto.dat` | a mesma comparação em valores brutos |
 | `parasitas-serie.dat` | série temporal das correntes parasitas nos dois métodos |
+| `hysing-referencia.dat` | os valores publicados por Hysing et al., três códigos e o consenso |
+| `hysing-parcial.dat` | Hysing: $y_c$ e $V_c$ nos dois métodos, **trecho parcial** $t\in[0;0{,}35]$ |
 
 ## Estado da verificação deste projeto LaTeX
 
@@ -64,6 +66,19 @@ Duas observações que ficaram registradas no próprio `.bib`:
   "A. Castello F."; o correto é **Castelo**, e é assim que consta.
 - O tutorial do sistema FreeFlow data o artigo de 1999; o registro do editor diz
   2000 (Comput. Vis. Sci. 2(4), março de 2000). Prevalece o publicado.
+
+## A seção do Hysing está incompleta de propósito
+
+`secoes/10-hysing.tex` monta o *benchmark*, traz os valores publicados, registra
+o erro de definição da circularidade e declara de antemão como ler cada
+desfecho — mas **não** fecha contra os valores publicados. As corridas até
+$t=3$ (12 000 passos, ~6 h cada) não terminaram a tempo do texto. O que está
+medido é `hysing-parcial.dat`, o trecho $t\in[0;0{,}35]$, e a subseção que o
+apresenta diz isso na primeira linha.
+
+Para fechar: substituir a subseção "Resultado parcial" pelos três números de
+cada método ($c_{\min}$ e seu instante, $V_{c,\max}$ e seu instante,
+$y_c(t=3)$) contra `hysing-referencia.dat`.
 
 A linhagem do código está citada explicitamente na introdução: Freeflow →
 GENSMAC → o front-tracking do próprio grupo (de Sousa et al., JCP 198, 2004) →

@@ -1,0 +1,205 @@
+\section{O \emph{benchmark} de Hysing: bolha ascendente}
+\label{sec:hysing}
+
+\subsection{Por que este teste, e por que ele \'e o \'ultimo}
+
+Todos os or\'aculos anteriores foram \emph{internos} --- anal\'iticos (Laplace,
+Lamb, Rider-Kothe) ou m\'utuos (um m\'etodo contra o outro). S\~ao fortes, e
+foram o que localizou cada defeito deste relat\'orio, mas t\^em um limite
+comum: nenhum deles diz se o \emph{par} de implementa\c{c}\~oes concorda com o
+que outros grupos obt\^em no mesmo problema. Duas implementa\c{c}\~oes que
+compartilham um erro de formula\c{c}\~ao concordariam entre si perfeitamente.
+
+Hysing et al.~\cite{hysing2009} fecham essa lacuna. O artigo publica, para um
+problema de bolha ascendente completamente especificado, os valores obtidos por
+\textbf{tr\^es c\'odigos independentes} (TP2D, FreeLIFE e MooNMD), com
+resolu\c{c}\~ao refinada at\'e a converg\^encia e com as discrep\^ancias entre
+eles declaradas. \'E um or\'aculo \emph{externo}, e com barra de erro pr\'opria.
+
+\paragraph{O caso 1, exatamente como especificado.} Dom\'inio $[0,1]\times[0,2]$,
+bolha circular de raio $R=0{,}25$ centrada em $(0{,}5;\,0{,}5)$, sem escorregamento
+em cima e embaixo e paredes laterais, at\'e $t=3$:
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & fase externa (1) & bolha (2) \\
+\midrule
+densidade $\rho$    & 1000 & 100 \\
+viscosidade $\mu$   & 10   & 1   \\
+\bottomrule
+\end{tabular}
+\qquad
+\begin{tabular}{lr}
+\toprule
+$\sigma$ & 24{,}5 \\
+$g$      & 0{,}98 \\
+$Re$     & 35 \\
+$E\ddot{o}$ & 10 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Nesse regime a bolha se deforma mas \textbf{n\~ao se parte} --- condi\c{c}\~ao
+para que o front-tracking possa concorrer, j\'a que mudan\c{c}a de topologia est\'a
+fora do escopo deste trabalho (Se\c{c}\~ao~\ref{sec:discussao}). Foi por isso
+que se escolheu o caso 1 e n\~ao o caso 2, em que a bolha desenvolve filamentos
+e se rompe.
+
+\subsection{Os valores publicados}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/TP2D/.style={column name={TP2D}},
+  columns/FreeLIFE/.style={column name={FreeLIFE}},
+  columns/MooNMD/.style={column name={MooNMD}},
+  columns/consenso/.style={column name={consenso}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-referencia.dat}}
+
+A coluna \emph{consenso} \'e o que serve de alvo: onde os tr\^es c\'odigos
+concordam, a faixa \'e estreita (a circularidade m\'inima em
+$0{,}9012\pm0{,}0001$) e uma discrep\^ancia nossa acima dela \'e defeito nosso;
+onde eles divergem (o centro de massa em $t=3$ varia de $1{,}0799$ a $1{,}0817$
+entre os tr\^es), a faixa \'e o pr\'oprio limite do or\'aculo, e cair dentro
+dela \'e tudo o que se pode exigir.
+
+\subsection{Uma defini\c{c}\~ao errada, e o erro que ela inventou}
+
+Antes dos resultados, um erro meu que vale registrar porque n\~ao se manifestou
+como falha, e sim como um n\'umero ruim plaus\'ivel.
+
+A circularidade de Hysing \'e a raz\~ao entre o per\'imetro do c\'irculo de
+\'area equivalente e o per\'imetro da bolha:
+\begin{equation}
+  c = \frac{P_a}{P_b} = \frac{2\sqrt{\pi A}}{P} .
+  \label{eq:circ-hysing}
+\end{equation}
+Eu vinha medindo $4\pi A/P^{2}$, que \'e o \textbf{quadrado} de
+\eqref{eq:circ-hysing}. As duas s\~ao 1 no c\'irculo, as duas decrescem com a
+deforma\c{c}\~ao, e as duas ficam em $[0,1]$ --- nada no comportamento denuncia a
+troca. Mas elevar ao quadrado um n\'umero perto de $0{,}9$ afasta-o do alvo:
+medindo pela minha, reportei \SI{11}{\percent} de erro onde o valor compar\'avel
+ao do artigo era \SI{0.83}{\percent}. O erro estava na defini\c{c}\~ao, e n\~ao
+na simula\c{c}\~ao.
+
+A li\c{c}\~ao \'e espec\'ifica e \'util: comparar com valor publicado exige ler a
+\emph{defini\c{c}\~ao} publicada, e n\~ao reconhecer a grandeza pelo nome. Duas
+f\'ormulas que se comportam igual em todos os casos-limite podem diferir por
+composi\c{c}\~ao com uma fun\c{c}\~ao mon\'otona, e a compara\c{c}\~ao com um
+n\'umero de fora \'e justamente onde isso importa.
+
+\paragraph{A circularidade s\'o \'e reportada do lado front-tracking.} Ela pede o
+per\'imetro da interface. No front-tracking ele sai em forma fechada do
+pol\'igono; no VOF exigiria a reconstru\c{c}\~ao PLIC, que o solver n\~ao
+exp\~oe. Preferiu-se \textbf{faltar} a aproximar por outro caminho: com duas
+aproxima\c{c}\~oes diferentes, a compara\c{c}\~ao entre os m\'etodos viraria
+compara\c{c}\~ao entre defini\c{c}\~oes --- exatamente o erro do par\'agrafo
+anterior, agora entre as duas colunas em vez de contra o artigo. O centro de
+massa $y_c$ e a velocidade de ascens\~ao $V_c$ saem da integral do campo de
+fra\c{c}\~ao, que os dois m\'etodos t\^em, pela \emph{mesma} rotina
+(\texttt{examples-common/hysing-metricas.c}).
+
+\subsection{O que este caso exigiu de maquinaria}
+
+Vale listar, porque a lista \'e o conte\'udo real das se\c{c}\~oes anteriores e
+porque cada item foi um defeito encontrado:
+
+\begin{itemize}
+  \item \textbf{Malha adaptativa nos dois m\'etodos}, pelo mesmo crit\'erio e
+    pela m\'aquina verificada de remalhamento, com a regra das cinco c\'elulas
+    finas por lado cumprida e medida (Se\c{c}\~ao~\ref{sec:amr}).
+  \item \textbf{Espa\c{c}amento de marcadores derivado da malha}, e n\~ao fixado
+    \`a m\~ao: com 64 marcadores em $h=1/160$ a frente perde \num{2.1e-2} de
+    \'area; derivando $\Delta s \approx h$, \num{1.95e-5}. Aqui s\~ao 252
+    marcadores, de $\Delta s/h = 1{,}00$.
+  \item \textbf{Restri\c{c}\~ao capilar de passo.} $\Delta t < \sqrt{\rho
+    h^{3}/2\pi\sigma}$ escala como $h^{3/2}$, e com dois n\'iveis de refino
+    aperta 8 vezes; daqui vem $\Delta t = \num{2.5e-4}$, e as 12\,000 itera\c{c}\~oes
+    que $t=3$ custa.
+  \item \textbf{Persist\^encia da frente.} Uma corrida de 12\,000 passos leva
+    cerca de 6~h nesta m\'aquina, e a primeira tentativa morreu no meio. O
+    \texttt{h.save} do solver guarda \emph{campos}; a frente lagrangeana n\~ao \'e
+    campo, e nenhum campo a determina. Retomar sem grav\'a-la poria os campos no
+    instante salvo e os marcadores em $t=0$ --- e rodaria, em sil\^encio. A
+    grava\c{c}\~ao foi implementada e verificada: advectar 100 passos direto e
+    advectar 50, gravar, ler e advectar os outros 50 d\~ao o mesmo resultado
+    \textbf{bit a bit}. Do lado VOF, retomando do passo 1401 da corrida
+    interrompida, 19 dos 23 passos em comum saem id\^enticos em todos os d\'igitos
+    impressos e 4 diferem no \'ultimo --- \num{1e-10}, a toler\^ancia do solver
+    linear.
+\end{itemize}
+
+\subsection{Resultado parcial: os dois m\'etodos concordam entre si}
+
+\paragraph{Esta subse\c{c}\~ao est\'a incompleta, e de prop\'osito.} As corridas
+at\'e $t=3$ estavam em andamento quando este texto foi escrito. O fechamento
+contra os valores publicados --- circularidade m\'inima, velocidade m\'axima e
+centro de massa em $t=3$ --- \textbf{n\~ao est\'a medido aqui}, e a
+Se\c{c}\~ao~\ref{sec:amr} e a lista de pr\'oximos passos continuam valendo quando
+dizem que o Hysing segue sem fechar. O que est\'a abaixo \'e o trecho
+$t \in [0;\,0{,}35]$, medido nos dois m\'etodos antes da interrup\c{c}\~ao.
+
+\pgfplotstabletypeset[
+  string type,
+  columns/t/.style={column name={$t$}},
+  columns/ycft/.style={column name={$y_c$ FT}},
+  columns/ycvof/.style={column name={$y_c$ VOF}},
+  columns/difyc/.style={column name={dif.}},
+  columns/vcft/.style={column name={$V_c$ FT}},
+  columns/vcvof/.style={column name={$V_c$ VOF}},
+  columns/difvc/.style={column name={dif.}},
+  columns/circft/.style={column name={$c$ FT}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-parcial.dat}}
+
+Duas leituras, e nenhuma delas \'e o fechamento.
+
+\paragraph{1. A concord\^ancia m\'utua \'e forte.} O centro de massa difere em
+no m\'aximo \num{1e-5} e a velocidade de ascens\~ao em \num{7.4e-5} ao longo de
+1400 passos --- quatro a cinco ordens de grandeza abaixo das pr\'oprias
+grandezas. S\~ao duas representa\c{c}\~oes de interface completamente diferentes,
+uma lagrangeana e uma euleriana, com c\'alculos de curvatura e de for\c{c}a sem
+nada em comum, produzindo a mesma trajet\'oria. Isso \emph{n\~ao} prova que a
+trajet\'oria est\'a certa --- \'e a limita\c{c}\~ao do or\'aculo m\'utuo, e \'e
+exatamente por isso que o or\'aculo externo importa --- mas torna improv\'avel
+que o erro esteja em algo que os dois m\'etodos n\~ao compartilham, e concentra
+a suspeita no que \'e comum: malha, passo, condi\c{c}\~oes de contorno e a
+discretiza\c{c}\~ao do momento.
+
+\paragraph{2. A tend\^encia aponta para o alvo, o que n\~ao \'e o mesmo que
+acert\'a-lo.} Em $t=0{,}35$ a velocidade de ascens\~ao est\'a em $0{,}152$ e
+subindo; o m\'aximo publicado \'e $0{,}2417$--$0{,}2421$ perto de $t=0{,}92$. A
+circularidade come\c{c}a a cair --- $0{,}999974$ para $0{,}999919$ --- como se
+espera de uma bolha que come\c{c}a a se deformar. Nenhum desses n\'umeros
+\emph{compara} com o publicado, porque nenhum dos tr\^es alvos foi alcan\c{c}ado
+no tempo simulado. Registr\'a-los como progresso \'e leg\'itimo; registr\'a-los
+como concord\^ancia n\~ao seria.
+
+\subsection{O que decidir\'a}
+
+Quando as corridas fecharem, tr\^es n\'umeros de cada m\'etodo v\~ao contra a
+tabela de refer\^encia: $c_{\min}$ e o instante em que ocorre, $V_{c,\max}$ e o
+seu instante, e $y_c(t=3)$. A leitura j\'a est\'a decidida de antemão, para que
+o resultado n\~ao seja interpretado depois de conhecido:
+
+\begin{itemize}
+  \item \textbf{Dentro da faixa de consenso} nos tr\^es: o par de
+    implementa\c{c}\~oes est\'a verificado contra a literatura, e a compara\c{c}\~ao
+    FT $\times$ VOF deste relat\'orio passa a valer como compara\c{c}\~ao entre
+    m\'etodos, e n\~ao apenas entre duas implementa\c{c}\~oes nossas.
+  \item \textbf{Fora da faixa, e os dois m\'etodos juntos}: o defeito est\'a no
+    que eles compartilham --- malha, passo, contorno, discretiza\c{c}\~ao do
+    momento --- e n\~ao no tratamento de interface. \'E o desfecho mais
+    prov\'avel dado o padr\~ao da tabela parcial, e o mais informativo, porque
+    aponta um lugar estreito.
+  \item \textbf{Fora da faixa, e cada um para um lado}: o tratamento de interface
+    responde, e a diferen\c{c}a entre as duas colunas diz qual.
+\end{itemize}
+
+As tr\^es leituras s\~ao distintas e caem em lugares diferentes do c\'odigo;
+declar\'a-las antes \'e o que impede a quarta, que \'e explicar qualquer
+resultado como esperado.

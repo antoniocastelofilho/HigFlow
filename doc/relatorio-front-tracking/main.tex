@@ -61,12 +61,22 @@ o mesmo operador discreto que a proje\c{c}\~ao inverte, e confirmou-se nos dois
 sentidos que previa: as correntes par\'asitas ca\'iram mais de quatro ordens de
 grandeza \emph{e} o salto de press\~ao melhorou, em vez de piorar.
 
-Uma \'ultima se\c{c}\~ao leva os dois m\'etodos para malha adaptativa, pelo mesmo
+Uma se\c{c}\~ao leva os dois m\'etodos para malha adaptativa, pelo mesmo
 crit\'erio e pela mesma m\'aquina de remalhamento, com uma regra de resolu\c{c}\~ao
 m\'inima na interface que \'e derivada e depois \emph{medida} na malha
 constru\'ida. Cinco hip\'oteses foram refutadas por medida ao longo desse
 trabalho, e o defeito que mais custou n\~ao estava no refino: estava em o
 espa\c{c}amento dos marcadores n\~ao acompanhar a malha.
+
+A \'ultima se\c{c}\~ao monta o \emph{benchmark} de bolha ascendente de Hysing
+et al., que \'e o primeiro or\'aculo \emph{externo} deste trabalho --- todos os
+anteriores s\~ao anal\'iticos ou m\'utuos, e duas implementa\c{c}\~oes que
+compartilhem um erro de formula\c{c}\~ao concordariam entre si perfeitamente.
+O fechamento contra os valores publicados \textbf{n\~ao} est\'a neste texto: as
+corridas at\'e $t=3$ n\~ao terminaram a tempo. O que est\'a medido \'e o trecho
+inicial, em que os dois m\'etodos concordam em \num{1e-5} no centro de massa ---
+concord\^ancia m\'utua, que \'e precisamente o que o or\'aculo externo viria
+suprir.
 \end{abstract}
 
 \tableofcontents
@@ -80,7 +90,8 @@ espa\c{c}amento dos marcadores n\~ao acompanhar a malha.
 \input{secoes/07-elipse}
 \input{secoes/08-lamb}
 \input{secoes/09-amr}
-\input{secoes/10-discussao}
+\input{secoes/10-hysing}
+\input{secoes/11-discussao}
 
 \bibliographystyle{plain}
 \bibliography{referencias}
