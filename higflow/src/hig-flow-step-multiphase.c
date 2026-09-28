@@ -2428,6 +2428,20 @@ void higflow_solver_step_multiphase(higflow_solver *ns) {
     higflow_calculate_source_term(ns);
     higflow_calculate_facet_source_term(ns);
 
+    // FRONT-TRACKING (fase B4): o gancho entra AQUI, e a posicao e' o ponto
+    // inteiro da integracao.  Ele roda depois dos termos fonte e ANTES do
+    // calculo de viscosidade e densidade, de modo que pode sobrescrever
+    // `dpfracvol` a partir da GEOMETRIA da frente e as propriedades saem ja' da
+    // fracao nova.  A frente substitui a adveccao PLIC da fracao; todo o resto
+    // -- rho(x), mu(x), momento de coeficiente variavel -- e' o mesmo maquinario
+    // que o VOF usa, o que torna a comparacao entre os dois um teste da
+    // representacao da interface e de mais nada.
+    //
+    // Ponteiro de funcao, nulo por padrao: quem nao instala frente nao e'
+    // afetado em bit nenhum, e os casos VOF da suite seguem identicos.
+    if (ns->fronteira_imersa_aplica != NULL)
+        ns->fronteira_imersa_aplica(ns, ns->fronteira_imersa_ctx);
+
     // Interpolate the viscosity and density
     higflow_compute_viscosity_multiphase(ns);
     higflow_compute_density_multiphase(ns);

@@ -41,7 +41,7 @@ real L = 8.0;
 // registro passa a ser higflow_set_problem com a instancia abaixo.  Os corpos
 // sao os mesmos, so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class NewtProblem : public HigFlowProblem {
+class NewtProblem : public HigFlowProblem, public HigFlowMultiphaseProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -160,6 +160,43 @@ public:
         real value = 0.0;
         return value; 
     }
+
+    // --- interface multifasica (fase B4) ---
+    // Propriedades por ambiente: FT_RHO0/FT_RHO1 e FT_MU0/FT_MU1.  Os padroes
+    // sao IGUAIS nas duas fases, que e' o estagio B4.0: mover o encanamento para
+    // o caminho multifasico sem mudar a fisica, de modo que qualquer diferenca
+    // no resultado seja do encanamento e nao do salto de propriedade.
+    //
+    // Convencao do solver: fase 0 onde fracvol=1 (DENTRO da gota), fase 1 fora.
+    static real _amb(const char *nome, real padrao) {
+        const char *s = getenv(nome);
+        return (s != NULL) ? atof(s) : padrao;
+    }
+    real viscosity0(Point center, real t) { return _amb("FT_MU0", 1.0); }
+    real viscosity1(Point center, real t) { return _amb("FT_MU1", 1.0); }
+    real density0(Point center, real t)   { return _amb("FT_RHO0", 1.0); }
+    real density1(Point center, real t)   { return _amb("FT_RHO1", 1.0); }
+
+    // A fracao INICIAL.  Depois do primeiro passo quem manda e' a frente, pelo
+    // gancho -- esta funcao so' serve a' condicao inicial.  Usa a mesma elipse
+    // (ou circulo) que a frente, para que as duas nascam coerentes.
+    real fracvol(Point center, Point delta, real t) {
+        real cx = _amb("FT_CX", 2.0), cy = _amb("FT_CY", 0.0);
+        real a  = _amb("FT_A", 0.0),  b  = _amb("FT_B", 0.0);
+        if (a <= 0.0 || b <= 0.0) { a = _amb("FT_R", 0.25); b = a; }
+        // Subamostragem 16x16, como o exemplo VOF faz: a celula cortada recebe a
+        // fracao integrada, nao o teste do centro.
+        const int N = 16;
+        int dentro = 0;
+        for (int i = 0; i < N; i++)
+            for (int j = 0; j < N; j++) {
+                real x = center[0] - 0.5*delta[0] + (i + 0.5)*delta[0]/N;
+                real y = center[1] - 0.5*delta[1] + (j + 0.5)*delta[1]/N;
+                real dx = (x - cx)/a, dy = (y - cy)/b;
+                if (dx*dx + dy*dy <= 1.0) dentro++;
+            }
+        return (real) dentro / (real) (N*N);
+    }
 };
 
 static NewtProblem problema;
@@ -206,7 +243,11 @@ int main (int argc, char *argv[]) {
     int cache = 1;
 
     // Create the simulation domain
-    higflow_create_domain(ns, cache, order_center); 
+    // B4: o multifasico e' uma ADICAO ao dominio base, nao um substituto -- e'
+    // assim que o example2d_VOF faz, e trocar um pelo outro custou um SEGV.
+    higflow_create_domain(ns, cache, order_center);
+    if (ns->contr.flowtype == MULTIPHASE)
+        higflow_create_domain_multiphase(ns, cache, order_center, &problema);
     
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
@@ -353,7 +394,13 @@ int main (int argc, char *argv[]) {
         // Start the first step time
         if (ns->par.step == step0)  START_CLOCK(firstiter); 
         // Update velocities and pressure using the projection method 
-        higflow_solver_step(ns);
+        // B4: o passo multifasico e' outra rotina, e e' nela que o gancho do
+        // front-tracking foi instalado -- chamar o monofasico com config
+        // multifasica roda sem forca nenhuma, em silencio.
+        if (ns->contr.flowtype == MULTIPHASE)
+            higflow_solver_step_multiphase(ns);
+        else
+            higflow_solver_step(ns);
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time

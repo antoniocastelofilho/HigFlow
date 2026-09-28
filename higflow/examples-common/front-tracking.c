@@ -328,6 +328,45 @@ static void ft_espalha_tensao_balanceada(higflow_solver *ns, ft_frente *frente,
     for (int dim = 0; dim < DIM; dim++) dp_sync(dpF[dim]);
 }
 
+
+// ---------------------------------------------------------------------------
+// FASE B4: a frente alimenta o CAMPO DE FRACAO do caminho multifasico.
+//
+// E' a terceira mudanca estrutural do projeto -- as propriedades saltam --, e a
+// forma escolhida reusa tudo que o VOF ja' tem: em vez de advectar a fracao com
+// PLIC, ela e' RECALCULADA da geometria da frente a cada passo, e dai' para
+// frente rho(x), mu(x) e o momento de coeficiente variavel sao o mesmo codigo
+// que o VOF usa.  A comparacao entre os dois passa a isolar exatamente a
+// representacao da interface.
+//
+// Convencao: fracvol = 1 DENTRO da gota.  ft_area_na_caixa devolve a area da
+// frente dentro da celula; dividida pelo volume da celula da' a fracao.
+// ---------------------------------------------------------------------------
+static void _preenche_fracvol(higflow_solver *ns, ft_frente *frente)
+{
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    mp_mapper  *mp  = sd_get_domain_mapper(sdm);
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid < 0) continue;
+        Point lo, hi;
+        hig_get_lowpoint(c, lo);
+        hig_get_highpoint(c, hi);
+        real vol = 1.0;
+        for (int d = 0; d < DIM; d++) vol *= (hi[d] - lo[d]);
+        real a = ft_area_na_caixa(frente, lo, hi);
+        real f = (vol > 0.0) ? a / vol : 0.0;
+        if (f < 0.0) f = 0.0;
+        if (f > 1.0) f = 1.0;
+        dp_set_value(ns->ed.mult.dpfracvol, clid, f);
+    }
+    higcit_destroy(it);
+    dp_sync(ns->ed.mult.dpfracvol);
+}
+
 // Gancho: roda antes do preditor.  Nesse ponto `ns->dpu` e' u^n -- a velocidade
 // final, JA' PROJETADA (discretamente livre de divergencia), do passo anterior.
 // Entao a ordem e': move a frente com u^n, faz a cirurgia, e espalha a forca de
@@ -382,6 +421,12 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
           } }
         ctx->passo++;
     }
+
+    // MULTIFASICO: a frente manda na fracao, e as propriedades saem dela.
+    // Tem de acontecer ANTES de higflow_compute_viscosity/density_multiphase,
+    // que e' exatamente onde o gancho foi posto no passo multifasico.
+    if (ns->contr.flowtype == MULTIPHASE)
+        _preenche_fracvol(ns, ctx->frente);
 
     if (ctx->balanceado)
         ft_espalha_tensao_balanceada(ns, ctx->frente, ctx->sigma,

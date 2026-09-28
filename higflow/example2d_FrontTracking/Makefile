@@ -78,6 +78,14 @@ OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
 # solver (front-tracking.o, de examples-common) e o modulo do corpo rigido
 # (hig-flow-fronteira-imersa.o), de onde o adaptador reusa fi_suporte_facetas --
 # a busca de faceta escalonada.  O nucleo constroi pela regra generica %.o: %.c.
+# B4: o caminho multifasico -- a frente alimenta o campo de fracao e o solver
+# multifasico cuida de rho(x), mu(x) e do momento de coeficiente variavel.  Sao
+# os MESMOS objetos que o example2d_VOF liga; a comparacao entre os dois passa a
+# isolar a representacao da interface.
+OBJ1 += ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-adap-hf.o
+OBJ1 += ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-9-cells.o
+OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature.o
+OBJ1 += ../src/hig-flow-vof-elvira.o
 OBJ1 += ../src/hig-flow-front-tracking.o front-tracking.o
 OBJ1 += ../src/hig-flow-fronteira-imersa.o
 OBJ1 += $(T8OBJ)
