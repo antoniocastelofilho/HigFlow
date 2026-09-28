@@ -24,6 +24,7 @@ extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 // rigido: a frente ORDENADA carrega tensao superficial sigma*kappa*n, espalhada
 // pelo adaptador examples-common/front-tracking.c.
 #include "../src/hig-flow-front-tracking.h"
+#include "../examples-common/malha-adaptativa.h"   // B4: refino adaptativo
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                         real sigma);
 
@@ -352,8 +353,58 @@ int main (int argc, char *argv[]) {
     //higflow_initialize_boundaries(ns);
     higflow_initialize_boundaries_yaml(ns);
 
+    // ------------------------------------------------------------------
+    // REFINO ADAPTATIVO (FT_AMR_NIVEIS>0).  O MESMO criterio do VOF: as
+    // sementes sao celulas com 0,001<fracvol<0,999, e o front-tracking escreve
+    // o fracvol da geometria da frente -- entao os dois adaptam identicamente e
+    // a comparacao isola a representacao da interface.
+    //
+    // Os limiares saem da REGRA DAS CELULAS MINIMAS (>= FT_AMR_CELMIN celulas do
+    // nivel mais fino de cada lado da interface), nao de numero digitado, e a
+    // regra e' CONFERIDA POR MEDIDA na malha construida.
+    // ------------------------------------------------------------------
+    int amr_pronto = 0;
+    real amr_limiares[8];
+    int  amr_niveis = 0, amr_celmin = 5;
+    real amr_hbase = 0.025;
+    {
+        const char *e;
+        if ((e = getenv("FT_AMR_NIVEIS")) != NULL) amr_niveis = atoi(e);
+        if ((e = getenv("FT_AMR_CELMIN")) != NULL) amr_celmin = atoi(e);
+        if ((e = getenv("FT_AMR_HBASE"))  != NULL) amr_hbase  = atof(e);
+    }
+    if (amr_niveis > 0 && ns->par.step == 0) {
+        malha_adapt_limiares(amr_hbase, amr_niveis, amr_celmin, amr_limiares);
+        print0f("===> AMR: %d niveis, >=%d celulas finas por lado, h_base=%.5f\n",
+                amr_niveis, amr_celmin, (double) amr_hbase);
+        for (int l = 0; l < amr_niveis; l++)
+            print0f("===>      limiar nivel %d = %.6f\n", l+1, (double) amr_limiares[l]);
+
+        higflow_solver *ns2 = higflow_create();
+        memset(ns2, 0, sizeof(higflow_solver));
+        higflow_load_data_file_names(argc, argv, ns2);
+        higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
+        higflow_set_problem(ns2, &problema);
+        higflow_create_domain(ns2, cache, order_center);
+        higflow_create_domain_multiphase(ns2, cache, order_center, &problema);
+
+        const char *amr_base = getenv("FT_AMR_BASE");
+        if (amr_base == NULL) amr_base = "amrs-hysing/domain/ch-d-0.amr";
+        malha_adapt_reconstroi(ns, ns2, myrank, ntasks, cache, order_center,
+                               amr_limiares, amr_base);
+
+        char *np_ = ns2->par.nameprint, *nl_ = ns2->par.nameload, *nsv_ = ns2->par.namesave;
+        ns2->par = ns->par;
+        ns2->par.nameprint = np_; ns2->par.nameload = nl_; ns2->par.namesave = nsv_;
+        higflow_solver *ns_velho = ns;
+        ns = ns2;
+        amr_pronto = 1;
+        higflow_destroy(ns_velho);
+        print0f("===> AMR inicial aplicado\n");
+    }
+
     // Creating distributed property  
-    higflow_create_distributed_properties(ns);
+    if (!amr_pronto) higflow_create_distributed_properties(ns);
     // Initialize distributed properties
     if (ns->par.step == 0) higflow_initialize_distributed_properties(ns);
     // Create the linear system solvers

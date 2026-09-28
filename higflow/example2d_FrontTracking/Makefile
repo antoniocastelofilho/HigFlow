@@ -86,7 +86,7 @@ OBJ1 += ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-adap-hf.o
 OBJ1 += ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-9-cells.o
 OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature.o
 OBJ1 += ../src/hig-flow-vof-elvira.o
-OBJ1 += ../src/hig-flow-front-tracking.o front-tracking.o
+OBJ1 += ../src/hig-flow-front-tracking.o front-tracking.o malha-adaptativa.o
 OBJ1 += ../src/hig-flow-fronteira-imersa.o
 OBJ1 += $(T8OBJ)
 
@@ -100,6 +100,10 @@ ns-example: $(OBJ1)
 # t8code, e la' dentro o exemplo nao construiria sem T8CODE=.
 front-tracking.o: ../examples-common/front-tracking.c
 	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+# Refino adaptativo compartilhado com o example2d_VOF: MESMO criterio nos dois.
+malha-adaptativa.o: ../examples-common/malha-adaptativa.c
+	$(CC) $(CFLAGS) -I../src -I../examples-common -c $< -o $@
 
 ifdef T8CODE
 # A fonte vive em ../examples-common: ela le' a especificacao do proprio arquivo
@@ -133,7 +137,7 @@ compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 
 clean :
-		$(RM) -f ns-example-2d.o ns-example malha-t8.o front-tracking.o ../src/hig-flow-front-tracking.o
+		$(RM) -f ns-example-2d.o ns-example malha-t8.o front-tracking.o malha-adaptativa.o ../src/hig-flow-front-tracking.o
 
 rebuild_higflow:
 	$(MAKE) -C .. clean
