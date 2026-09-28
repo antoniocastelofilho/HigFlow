@@ -1,0 +1,79 @@
+\section{Formula\c{c}\~ao}
+
+\subsection{As tr\^es mudan\c{c}as em rela\c{c}\~ao \`a fronteira imersa r\'igida}
+
+O HiGFlow j\'a possu\'ia fronteira imersa com for\c{c}amento direto: marcadores
+lagrangeanos desconexos sobre um corpo r\'igido e fixo, com o n\'ucleo
+regularizado de Roma~\cite{roma1999} fazendo a transfer\^encia entre malha
+euleriana e marcadores. O front-tracking \'e, estruturalmente, essa mesma
+maquinaria com tr\^es mudan\c{c}as.
+
+\paragraph{1. Os marcadores advectam.} Onde o corpo r\'igido \emph{interpola} a
+velocidade para calcular a for\c{c}a que imp\~oe $\mathbf{u}=0$, aqui se interpola
+a velocidade para \emph{mover} o marcador:
+\begin{equation}
+  \mathbf{X}^{n+1} = \mathbf{X}^{n} + \Delta t\, \mathbf{u}(\mathbf{X}^{n}).
+\end{equation}
+\'E a mesma interpola\c{c}\~ao, com destino oposto.
+
+\paragraph{2. A for\c{c}a \'e de tens\~ao superficial.} No lugar do multiplicador
+de Lagrange do corpo r\'igido --- que vale o que for preciso para impor a
+velocidade, sem lei constitutiva --- entra uma for\c{c}a \emph{constitutiva},
+\begin{equation}
+  \mathbf{F} = \sigma\,\kappa\,\mathbf{n}\,\delta(\mathbf{x}-\mathbf{X}),
+  \label{eq:tensao}
+\end{equation}
+espalhada pelo mesmo n\'ucleo. O que \'e novo \'e que $\kappa$ (curvatura) e
+$\mathbf{n}$ (normal) v\^em da \emph{geometria} da frente, e portanto da
+conectividade dos marcadores --- que o caso r\'igido n\~ao precisava ter.
+
+\paragraph{3. As propriedades saltam.} $\rho$ e $\mu$ mudam atrav\'es da
+interface. \textbf{Esta terceira mudan\c{c}a est\'a deliberadamente adiada:} todos
+os resultados deste relat\'orio usam propriedades iguais nas duas fases
+($\rho=\mu=1$), de modo a isolar a tens\~ao superficial de qualquer efeito de
+salto de propriedade. \'E tamb\'em o que torna a compara\c{c}\~ao com o VOF
+leg\'itima, como se ver\'a: o caso VOF dispon\'ivel tem exatamente as mesmas
+propriedades iguais.
+
+\subsection{Representa\c{c}\~ao da frente e curvatura}
+
+A frente \'e uma polilinha fechada de marcadores \textbf{ordenados}, com a
+conectividade impl\'icita na ordem do vetor: o marcador $i$ liga em $i+1$, e o
+\'ultimo no primeiro. Isso a distingue do corpo r\'igido, onde os marcadores s\~ao
+distribu\'idos por posse euleriana e a ordem da curva \'e destru\'ida --- correto
+l\'a, invi\'avel aqui, porque a curvatura precisa de vizinhos.
+
+A curvatura sai do c\'irculo osculador por tr\^es marcadores consecutivos. Para
+$\mathbf{p}_{i-1},\mathbf{p}_i,\mathbf{p}_{i+1}$, o circuncentro $\mathbf{c}$
+define o vetor curvatura
+\begin{equation}
+  \kappa\mathbf{n} = \frac{\mathbf{c}-\mathbf{p}_i}{\lVert\mathbf{c}-\mathbf{p}_i\rVert^{2}},
+  \label{eq:curvatura}
+\end{equation}
+de m\'odulo $1/R$ e apontando para o lado c\^oncavo. A forma
+\eqref{eq:curvatura} independe da orienta\c{c}\~ao (hor\'aria ou anti-hor\'aria)
+da curva, o que elimina uma fonte cl\'assica de erro de sinal.
+
+\paragraph{Uma consequ\^encia a registrar.} Tr\^es pontos colineares d\~ao
+$\kappa=0$ --- raio osculador infinito. N\~ao \'e defeito, \'e o m\'etodo; mas
+implica que um marcador rec\'em-inserido pela cirurgia, que nasce sobre a corda,
+tem curvatura nula at\'e ser advectado para fora da reta.
+
+\subsection{Cirurgia da frente}
+
+Quando a interface estica, os marcadores se afastam e a curva perde
+resolu\c{c}\~ao; quando comprime, amontoam-se. A cirurgia reamostra: insere o
+ponto m\'edio onde o segmento passa de $2\,\Delta s$, remove marcador onde o
+segmento cai abaixo de $\Delta s/2$, com $\Delta s \approx h$.
+
+A remo\c{c}\~ao exige uma guarda que a inser\c{c}\~ao n\~ao exige, e o motivo \'e
+geom\'etrico: o ponto m\'edio cai \emph{sobre a corda}, logo a inser\c{c}\~ao \'e
+neutra em \'area; j\'a remover o marcador $\mathbf{p}_i$ entre $\mathbf{p}_{i-1}$
+e $\mathbf{p}_{i+1}$ descarta o tri\^angulo que eles formam, perdendo \'area
+sistematicamente. A remo\c{c}\~ao s\'o acontece, portanto, onde esse tri\^angulo
+\'e min\'usculo --- isto \'e, onde a curva \'e quase reta. A
+Se\c{c}\~ao~\ref{sec:b1} mostra o que custou descobrir isso por medida.
+
+\paragraph{Mudan\c{c}a de topologia} (gotas coalescendo ou se partindo) \'e o
+calcanhar do front-tracking: ao contr\'ario do VOF, n\~ao \'e autom\'atica. Fica
+fora do escopo; as fases iniciais assumem topologia fixa.

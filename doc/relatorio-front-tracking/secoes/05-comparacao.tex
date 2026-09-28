@@ -1,0 +1,128 @@
+\section{Compara\c{c}\~ao com o VOF}
+\label{sec:comparacao}
+
+\subsection{Por que a compara\c{c}\~ao \'e leg\'itima}
+
+Comparar dois m\'etodos s\'o informa se eles resolverem o mesmo problema. O
+HiGFlow j\'a possu\'ia um caso VOF que, examinado, \emph{\'e} o teste de gota
+est\'atica de Laplace, sem nenhuma adapta\c{c}\~ao: gota circular de raio
+$R=1/6$ centrada em $(0{,}5;\,0{,}5)$, dom\'inio $[0,1]^2$, duas fases
+newtonianas, tens\~ao superficial ligada e velocidade inicial nula.
+
+Trocando em mi\'udos, os dois lados coincidem em tudo que importa:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+ & front-tracking & VOF \\
+\midrule
+dom\'inio            & \multicolumn{2}{c}{$[0,1]^2$, malha $61\times61$, $h=1/61$} \\
+gota                 & \multicolumn{2}{c}{c\'irculo $R=1/6$ em $(0{,}5;\,0{,}5)$} \\
+c\'elulas por raio   & \multicolumn{2}{c}{$10{,}2$} \\
+propriedades         & \multicolumn{2}{c}{$\rho=\mu=1$ nas duas fases} \\
+$\sigma$ efetivo     & \multicolumn{2}{c}{$1$} \\
+$Re$, $\Delta t$, passos & \multicolumn{2}{c}{$1$; $10^{-3}$; $101$} \\
+salto esperado       & \multicolumn{2}{c}{$\Delta p = \sigma/R = 6$} \\
+\midrule
+interface            & polilinha de 64 marcadores & fra\c{c}\~ao volum\'etrica \\
+tens\~ao superficial & $\sigma\kappa\mathbf{n}$ espalhada (Roma) & CSF~\cite{brackbill1992} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+O $\sigma$ efetivo merece uma palavra, porque n\~ao \'e \'obvio que coincida. No
+caminho multif\'asico, a for\c{c}a interfacial entra na equa\c{c}\~ao de momento
+como $\mathbf{IF}/(We\,\rho)$ com $We = Ca\cdot Re$. Com $Ca=Re=1$ e $\rho=1$,
+resulta $We=1$ e portanto $\sigma_{\text{ef}}=1$ --- exatamente o $\sigma$ que o
+front-tracking usa explicitamente. A coincid\^encia \'e feliz e foi verificada no
+c\'odigo, n\~ao suposta.
+
+Al\'em disso: mesmo solver, mesmo passo no tempo, mesmas sondas de press\~ao nos
+mesmos pontos, e as correntes par\'asitas lidas do \emph{mesmo} bloco de
+impress\~ao do solver nos dois casos.
+
+\paragraph{Um confundidor que precisou ser removido.} O caso VOF, como
+distribu\'ido, imp\~oe na parede superior uma velocidade que \emph{cresce no
+tempo}, $8\,(1+\tanh(8t-4))\,x^{2}(1-x)^{2}$. Com ela ligada, a velocidade medida
+n\~ao \'e corrente par\'asita: \'e par\'asita mais escoamento for\c{c}ado, e
+compar\'a-la com a gota est\'atica do front-tracking mediria coisas diferentes.
+O for\c{c}amento foi zerado para a compara\c{c}\~ao, atr\'as de um seletor que
+preserva o comportamento padr\~ao do exemplo.
+
+\subsection{Resultados}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/metrica/.style={column name={m\'etrica}},
+  columns/ft/.style={column name={front-tracking}},
+  columns/vof/.style={column name={VOF}},
+  columns/razao/.style={column name={raz\~ao}},
+  columns/vencedor/.style={column name={melhor}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{comparacao-laplace.dat}}
+
+Em valores brutos:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/ft/.style={column name={front-tracking}},
+  columns/vof/.style={column name={VOF}},
+  columns/exato/.style={column name={exato}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{comparacao-bruto.dat}}
+
+\subsection{Leitura dos tr\^es resultados}
+
+\paragraph{Salto de press\~ao: o front-tracking ganha, seis vezes.}
+$\Delta p = 5{,}9954$ contra $6{,}0284$, para o valor exato $6$. \'E o resultado
+esperado, e a raz\~ao \'e direta: a curvatura do front-tracking sai da geometria
+expl\'icita da frente e \'e exata para um c\'irculo (Se\c{c}\~ao~\ref{sec:verificacao}),
+enquanto a do VOF vem de derivadas de um campo de fra\c{c}\~ao suavizado --- o
+ponto historicamente fr\'agil do m\'etodo.
+
+\paragraph{Conserva\c{c}\~ao de massa: o VOF ganha, por nove ordens de grandeza.}
+A deriva no tempo do VOF \'e \num{2.9e-15}, isto \'e, zero de m\'aquina: ele
+advecta um escalar conservado, e conservar \'e propriedade de constru\c{c}\~ao.
+O front-tracking deriva \num{1.3e-5} em 100 passos. Tamb\'em esperado, e \'e o
+outro lado da mesma moeda.
+
+Aqui vale registrar um erro de medi\c{c}\~ao cometido e corrigido no caminho:
+a primeira compara\c{c}\~ao punha os dois lados em \num{1.3e-5} e parecia empate.
+Era artefato de medir coisas diferentes --- para o VOF, desvio contra a \'area
+anal\'itica; para o front-tracking, deriva contra a \'area inicial. Separadas as
+duas quantidades, a \num{1.3e-5} do VOF revelou-se erro de \emph{inicializa\c{c}\~ao}
+(a discretiza\c{c}\~ao do c\'irculo em $t=0$) e a deriva verdadeira, zero de
+m\'aquina.
+
+\paragraph{Correntes par\'asitas: o VOF ganha, dez vezes --- e isso contraria a
+expectativa.} \'E o resultado que motiva a Se\c{c}\~ao~\ref{sec:discussao}.
+Ambas s\~ao est\'aveis e decaem; nenhuma cresce.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{semilogyaxis}[
+  width=12cm, height=6.4cm,
+  xlabel={passo}, ylabel={$\max\lvert u\rvert$},
+  legend pos=north east, grid=major,
+  legend cell align=left,
+]
+\addplot table[x=passo, y=ft]  {\dat{parasitas-serie.dat}};
+\addlegendentry{front-tracking}
+\addplot table[x=passo, y=vof] {\dat{parasitas-serie.dat}};
+\addlegendentry{VOF}
+\end{semilogyaxis}
+\end{tikzpicture}
+\end{center}
+
+\subsection{Erro de forma na inicializa\c{c}\~ao}
+
+A \'ultima linha da tabela merece ressalva. O d\'eficit de \num{1.6e-3} do
+front-tracking \'e o d\'eficit de \'area de um pol\'igono de 64 lados inscrito no
+c\'irculo --- artefato de \emph{como se inicializa}, n\~ao propriedade do
+m\'etodo. Ele melhora com mais marcadores, e desapareceria ao inscrever o
+pol\'igono com a \'area correta. O VOF, que integra a fra\c{c}\~ao com
+subdivis\~ao $16\times16$ por c\'elula, parte muito mais pr\'oximo. A compara\c{c}\~ao
+nesta linha \'e entre escolhas de implementa\c{c}\~ao, e n\~ao entre m\'etodos.

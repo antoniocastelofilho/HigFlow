@@ -1,0 +1,70 @@
+\section{Implementa\c{c}\~ao}
+
+\subsection{Arquitetura: n\'ucleo puro, adaptador na borda}
+
+A implementa\c{c}\~ao se divide em tr\^es pe\c{c}as, e a divis\~ao foi escolhida
+para minimizar risco ao que j\'a funcionava:
+
+\begin{center}
+\begin{tabular}{llp{6.6cm}}
+\toprule
+Pe\c{c}a & Onde & Papel \\
+\midrule
+n\'ucleo & \texttt{higflow/src/hig-flow-front-tracking.\{c,h\}} &
+  frente ordenada, advec\c{c}\~ao, cirurgia, curvatura, \'area. \textbf{N\~ao
+  conhece o solver}: compila com \texttt{gcc} simples e \'e test\'avel sozinho \\
+adaptador & \texttt{higflow/examples-common/front-tracking.c} &
+  a ponte com o solver: espalha $\sigma\kappa\mathbf{n}$ na malha escalonada e
+  interpola $\mathbf{u}$ nos marcadores. Compilado \textbf{por exemplo}, fora da
+  biblioteca \\
+exemplo & \texttt{higflow/example2d\_FrontTracking} &
+  a gota, os par\^ametros e as sondas \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Manter o adaptador fora da biblioteca n\~ao \'e detalhe de organiza\c{c}\~ao: a
+biblioteca \'e compilada tamb\'em em 3D e \'e ligada por todos os exemplos, de
+modo que um erro ali se propaga para casos que nada t\^em com front-tracking. Com
+o adaptador por exemplo, quem n\~ao instala uma frente n\~ao referencia
+s\'imbolo nenhum, e as su\'ites permanecem intocadas.
+
+\subsection{O reuso que evitou duplicar a parte dif\'icil}
+
+Espalhar e interpolar sobre malha \emph{escalonada} exige achar, para cada
+marcador, as facetas no suporte do n\'ucleo --- e essa busca \'e delicada: precisa
+ancorar na c\'elula (n\~ao numa faceta, que pode n\~ao existir naquela
+dire\c{c}\~ao), cutucar quando o ponto cai exatamente sobre a fronteira de
+c\'elula, tratar a conven\c{c}\~ao de identificador negativo em faceta
+compartilhada, e detectar suporte atravessando n\'ivel de refinamento. Essa
+l\'ogica j\'a existia, testada, dentro do m\'odulo de fronteira imersa r\'igida.
+
+Em vez de reescrev\^e-la, ela foi \textbf{exposta} (\texttt{fi\_suporte\_facetas}),
+num invólucro que n\~ao altera o comportamento do corpo r\'igido. O adaptador de
+front-tracking a consome. \'E a diferen\c{c}a entre reusar c\'odigo verificado e
+criar uma segunda c\'opia para divergir com o tempo.
+
+\subsection{Acoplamento: onde a for\c{c}a entra no passo}
+
+O gancho do front-tracking roda \textbf{antes do preditor}, no mesmo ponto em que
+a fronteira imersa r\'igida injeta sua for\c{c}a, e depois que o termo fonte de
+faceta foi escrito. Nesse instante o campo \texttt{dpu} guarda $\mathbf{u}^{n}$ ---
+a velocidade final do passo anterior, \emph{j\'a projetada} e portanto
+discretamente livre de diverg\^encia. A ordem dentro do gancho \'e:
+
+\begin{enumerate}
+  \item move a frente com $\mathbf{u}^{n}$ (advec\c{c}\~ao);
+  \item cirurgia;
+  \item espalha $\sigma\kappa\mathbf{n}$ nas posi\c{c}\~oes novas, somando no campo
+    de fonte que a equa\c{c}\~ao de momento l\^e.
+\end{enumerate}
+
+Como n\~ao existe $\mathbf{u}$ em $t+\Delta t/2$, o campo fica congelado em
+$\mathbf{u}^{n}$ dentro do passo: o RK2 de ponto m\'edio usado na advec\c{c}\~ao
+vira avalia\c{c}\~ao de ponto m\'edio no \emph{espa\c{c}o}, e o esquema \'e de
+primeira ordem no tempo --- coerente com o restante do acoplamento expl\'icito.
+
+\paragraph{Limita\c{c}\~ao atual: serial.} O espalhamento n\~ao faz a
+redu\c{c}\~ao das facetas de franja para os donos, que em $n_p>1$ seria
+necess\'aria (o m\'odulo r\'igido a faz com \texttt{PetscSFReduce}). Todos os
+resultados deste relat\'orio s\~ao $n_p=1$, onde n\~ao h\'a franja.

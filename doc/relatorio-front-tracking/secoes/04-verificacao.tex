@@ -1,0 +1,128 @@
+\section{Verifica\c{c}\~ao}
+\label{sec:verificacao}
+
+Cada pe\c{c}a foi verificada contra um or\'aculo \emph{exato} antes de a
+pr\'oxima ser constru\'ida. Os arreios est\~ao em
+\texttt{higflow/tests/front-tracking} e devolvem c\'odigo de sa\'ida: s\~ao
+port\~oes, n\~ao impress\~oes.
+
+\subsection{B1: advec\c{c}\~ao cinem\'atica reversivel}
+\label{sec:b1}
+
+O teste de Rider--Kothe~\cite{rider1998}: um c\'irculo advectado no campo de
+v\'ortice \'unico
+\begin{align}
+  u &= \phantom{-}\sin^{2}(\pi x)\sin(2\pi y)\cos(\pi t/T),\\
+  v &= -\sin(2\pi x)\sin^{2}(\pi y)\cos(\pi t/T),
+\end{align}
+que \'e livre de diverg\^encia e se inverte em $t=T/2$, de modo que a frente deve
+voltar \`a forma inicial em $t=T$. Dois or\'aculos: a \emph{conserva\c{c}\~ao} de
+\'area ao longo de toda a corrida, e a \emph{revers\~ao} em $t=T$.
+
+\pgfplotstabletypeset[
+  columns/nmarc/.style={column name={$N$}, int detect},
+  columns/dt/.style={column name={$\Delta t$}, fixed, precision=3},
+  columns/conssem/.style={column name={cons.\ sem cir.}, sci, sci zerofill, precision=2},
+  columns/revsem/.style={column name={rev.\ sem cir.}, sci, sci zerofill, precision=2},
+  columns/conscom/.style={column name={cons.\ com cir.}, sci, sci zerofill, precision=2},
+  columns/revcom/.style={column name={rev.\ com cir.}, sci, sci zerofill, precision=2},
+  columns/nfinal/.style={column name={$N$ final}, int detect},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{b1-rider-kothe.dat}}
+
+A advec\c{c}\~ao \'e de segunda ordem: sem cirurgia, a revers\~ao cai
+\num{3.2e-4} $\to$ \num{4.0e-5} $\to$ \num{5.0e-6}. Com cirurgia, a
+conserva\c{c}\~ao de \'area fica \emph{uma ordem de grandeza melhor} sob
+esticamento, porque manter $\Delta s \approx h$ preserva a resolu\c{c}\~ao do
+filamento; em troca, a revers\~ao perfeita se perde, o que \'e o compromisso
+correto.
+
+\paragraph{O que custou uma itera\c{c}\~ao.} A primeira vers\~ao da cirurgia
+removia marcador de segmento curto \emph{sem guarda de curvatura}, e cortava
+canto: o erro de \'area passou a ser dominado pela pr\'opria cirurgia, com a
+assinatura inconfund\'ivel de o erro m\'aximo coincidir com o erro final. A
+guarda descrita na Se\c{c}\~ao~2.3 corrigiu, e o teste mostrou a melhora.
+
+\subsection{Curvatura}
+
+Contra dois or\'aculos anal\'iticos: c\'irculo ($\kappa=1/R$ em todo marcador) e
+elipse ($\kappa(t) = ab/(a^{2}\sin^{2}t + b^{2}\cos^{2}t)^{3/2}$).
+
+\pgfplotstabletypeset[
+  columns/n/.style={column name={$N$ (c\'irculo)}, int detect},
+  columns/circulo/.style={column name={erro rel.\ c\'irculo}, sci, sci zerofill, precision=2},
+  columns/nelipse/.style={column name={$N$ (elipse)}, int detect},
+  columns/elipse/.style={column name={erro rel.\ elipse}, sci, sci zerofill, precision=2},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{curvatura.dat}}
+
+No c\'irculo a curvatura \'e \textbf{exata} em precis\~ao de m\'aquina --- tr\^es
+pontos sobre um c\'irculo definem esse mesmo c\'irculo. Na elipse converge em
+segunda ordem. Esse resultado \'e o que autoriza, mais adiante, usar
+$\sigma/R$ como refer\^encia exata para o salto de press\~ao: a curvatura que a
+for\c{c}a \eqref{eq:tensao} aplica numa gota circular \'e $1/R$ sem erro de
+discretiza\c{c}\~ao.
+
+\subsection{Espalhamento da for\c{c}a}
+
+Dois or\'aculos sobre uma gota em repouso, ambos em precis\~ao de m\'aquina:
+\emph{conserva\c{c}\~ao} --- $\sum_{\text{malha}} \mathbf{F}\,h^{2}$ deve igualar
+$\sigma\sum_k \kappa\mathbf{n}_k\,\mathrm{d}s_k$, porque o n\'ucleo de Roma soma
+1 (parti\c{c}\~ao da unidade) --- e \emph{equil\'ibrio}, $\oint \kappa\mathbf{n}\,
+\mathrm{d}s \to 0$ para curva fechada, que \'e a for\c{c}a l\'iquida nula exigida
+pela lei de Laplace.
+
+\pgfplotstabletypeset[
+  columns/nmarc/.style={column name={$N$}, int detect},
+  columns/conservx/.style={column name={conserv.\ $x$}, sci, sci zerofill, precision=2},
+  columns/conservy/.style={column name={conserv.\ $y$}, sci, sci zerofill, precision=2},
+  columns/equilib/.style={column name={equil\'ibrio $\lvert\mathbf{F}\rvert$}, sci, sci zerofill, precision=2},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tensao-conservacao.dat}}
+
+\paragraph{Honestidade sobre o segundo or\'aculo.} O equil\'ibrio dar
+m\'aquina-zero vem da \emph{simetria do c\'irculo}; uma curva fechada
+assim\'etrica daria um valor finito convergindo. Como o c\'irculo \'e exatamente
+o caso de Laplace, m\'aquina-zero \'e a resposta certa aqui --- mas o teste forte
+desta subse\c{c}\~ao \'e a conserva\c{c}\~ao, que n\~ao depende de simetria.
+
+\subsection{Advec\c{c}\~ao acoplada}
+
+Com o solver no circuito, a frente passa a se mover com a velocidade
+interpolada da malha. A gota est\'atica serve de or\'aculo: ela deve ficar parada,
+circular e com \'area preservada, j\'a que o campo projetado \'e livre de
+diverg\^encia.
+
+\pgfplotstabletypeset[
+  columns/passo/.style={column name={passo}, int detect},
+  columns/n/.style={column name={$N$}, int detect},
+  columns/area/.style={column name={\'area}, fixed, precision=8},
+  columns/driftrel/.style={column name={$\Delta A/A$}, sci, sci zerofill, precision=2},
+  columns/deriva/.style={column name={deriva centr.}, sci, sci zerofill, precision=2},
+  columns/circ/.style={column name={circularidade}, fixed, precision=6},
+  columns/unidade/.style={column name={part.\ unidade}, sci, sci zerofill, precision=2},
+  columns/umarc/.style={column name={$\max\lvert u_{\text{marc}}\rvert$}, sci, sci zerofill, precision=2},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{adveccao-acoplada.dat}}
+
+A \emph{parti\c{c}\~ao da unidade} em \num{6.9e-15} \'e o or\'aculo forte: os
+pesos somam 1 em precis\~ao de m\'aquina, o que prova que um campo uniforme seria
+interpolado exatamente e pega suporte incompleto --- que daria velocidade pequena
+demais, em sil\^encio.
+
+\paragraph{A checagem que evitou um falso verde.} Uma gota que fica parada \'e
+\emph{exatamente} o que se veria se a interpola\c{c}\~ao devolvesse zero em
+sil\^encio: \'area perfeita, deriva nula, circularidade constante. Da\'i a
+\'ultima coluna. Ela vale \num{2.9e-4} --- n\~ao nula --- e vale
+\emph{exatamente zero no passo 0}, quando a condi\c{c}\~ao inicial \'e
+$\mathbf{u}=0$. O n\'umero acompanha o campo, logo a advec\c{c}\~ao est\'a de
+fato operando.
+
+\paragraph{O que estes testes n\~ao exercitam.} A gota est\'atica n\~ao deforma:
+$N$ permanece constante e \textbf{a cirurgia nunca dispara} no regime acoplado.
+O caveat de $\kappa=0$ em marcador rec\'em-inserido segue, portanto, sem
+verifica\c{c}\~ao com o solver no circuito. Ambos entram em cena em B3 e B4.

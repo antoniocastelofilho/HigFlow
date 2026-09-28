@@ -223,6 +223,73 @@ fica 128 o tempo todo — a **cirurgia não dispara** no regime acoplado, e o ca
 da curvatura (marcador recém-inserido sobre a corda tem κ=0) segue não exercitado
 aqui. Os dois entram em cena no B3 (oscilação) e no B4 (bolha subindo).
 
+## Passo 7 — comparação com o VOF (gota estática)
+
+**Por que é legítima:** o `example2d_VOF` já É o teste de Laplace, sem adaptação
+— gota circular R=1/6 em (0,5;0,5), duas fases newtonianas, tensão superficial
+ligada, u=0 inicial. Alinhei tudo o que importa: mesma malha ([0,1]², 61×61,
+h=1/61), mesma gota, **10,2 células por raio nos dois**, ρ=μ=1, σ_efetivo=1,
+Re=1, dt=1e-3, 101 passos, np=1, mesmo solver, mesmas sondas.
+
+O σ efetivo do VOF não era óbvio: a força entra como `IF/(We·ρ)` com
+`We = Ca·Re = 1`, logo σ=1 — o mesmo do FT. Verificado no código, não suposto.
+
+**Um confundidor removido:** o caso VOF impõe na parede superior uma velocidade
+que *cresce no tempo* (`8(1+tanh(8t-4))x²(1-x)²`). Com ela ligada a velocidade
+medida não é corrente parasita — é parasita **mais escoamento forçado**. Zerada
+atrás de `VOF_ESTATICO=1`, preservando o padrão do exemplo.
+
+**Resultado:**
+
+| métrica | front-tracking | VOF | razão | melhor |
+|---|---|---|---|---|
+| salto de pressão (erro rel.) | **7,67e-04** | 4,73e-03 | 6,2× | **FT** |
+| correntes parasitas (max\|u\|) | 5,06e-04 | **5,23e-05** | 9,7× | **VOF** |
+| deriva de massa no tempo | 1,29e-05 | **2,86e-15** | 4,5e9× | **VOF** |
+| forma na inicialização | 1,61e-03 | **1,27e-05** | 127× | **VOF** |
+
+Ambas as correntes parasitas são estáveis e decaem; nenhuma cresce.
+
+**Dois resultados confirmam a literatura, um a contraria:**
+
+1. **FT ganha no salto de pressão (6×)** — esperado: a curvatura do FT é exata
+   no círculo (7e-13, medido no passo 3); a do VOF vem de derivadas de um campo
+   de fração suavizado.
+2. **VOF conserva massa em zero de máquina** — esperado: advecta um escalar
+   conservado.
+3. **VOF ganha nas correntes parasitas (10×)** — **contraria** a expectativa.
+
+**A explicação da nº 3, e é testável:** o problema não é a curvatura (onde o FT
+é melhor), é o **balanço discreto**. Para a gota em equilíbrio o contínuo exige
+∇p = σκn·δ, e a velocidade parasita mede quanto os *operadores discretos* dos
+dois lados falham em satisfazer isso. No VOF/CSF a força é σκ∇f, e com κ quase
+constante no círculo isso é ≈ ∇(σκf) — quase exatamente um gradiente discreto,
+cancelável pelo gradiente de pressão (propriedade *balanced-force*, Francois et
+al. 2006). No meu FT a força é espalhada pelo kernel de Roma em facetas
+escalonadas, e esse operador **não é** o gradiente discreto de escalar nenhum
+que a projeção produza. Coerente com o salto sair melhor: a *integral* da força
+está certa (conservação 1e-15), a *distribuição* não se escreve como gradiente.
+
+*Como testar:* espalhar um potencial e tomar dele o **mesmo** gradiente discreto
+que a projeção usa. Se as parasitas caírem sem piorar o salto, confirma.
+
+**Um erro de medição meu, corrigido no caminho:** a primeira comparação dava
+empate em massa (1,3e-5 dos dois lados). Era artefato de **medir coisas
+diferentes** — no VOF eu comparava com a área analítica (inclui inicialização),
+no FT com a área inicial (deriva pura). Separadas, a 1,3e-5 do VOF é erro de
+*inicialização* e a deriva verdadeira é zero de máquina.
+
+**Limitações:** uma única resolução (10,2 células/raio, sem estudo de
+convergência em h), um único tempo (t=0,101), serial, propriedades iguais, e
+gota estática — que não deforma, logo não exercita a cirurgia.
+
+**Relatório LaTeX para Overleaf:** `doc/relatorio-front-tracking/` (main.tex +
+secoes/ + dados/ + referencias.bib). As 11 referências foram conferidas no
+Crossref, incluindo a linhagem do sistema: Freeflow (Castelo et al., 2000),
+GENSMAC (Tomé & McKee, 1994), o front-tracking do próprio grupo (de Sousa et
+al., JCP 198, 2004) e o HiGFlow (Sousa et al., JCP 396, 2019). **Não compilado**
+— não há pdflatex na máquina; o que foi verificado está no LEIAME.
+
 ## Resumo da corrida autônoma
 
 Cinco passos, todos verificados por oráculo e commitados:

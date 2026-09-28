@@ -1,0 +1,122 @@
+% Referencias do relatorio de front-tracking.
+%
+% TODAS as entradas abaixo foram conferidas contra o registro CANONICO do
+% editor via API do Crossref (api.crossref.org/works/<DOI>), nao contra memoria
+% nem contra citacao de terceiros.  Titulo, autores na ordem, volume, paginas e
+% ano vieram de la'.
+%
+% Uma correcao deliberada: o Crossref transcreve o primeiro autor do artigo do
+% Freeflow como "A. Castello F."; o nome correto e' Castelo (Antonio Castelo
+% Filho), e e' assim que consta aqui e no tutorial do proprio sistema.
+%
+% Nota sobre o ano do Freeflow: o tutorial do sistema diz 1999 e o registro do
+% editor diz 2000 (Comput. Vis. Sci. 2(4), marco de 2000).  Prevalece o
+% publicado; 1999 e' provavelmente submissao ou preprint.
+
+% ---------------------------------------------------------------------------
+% A linhagem do codigo: Freeflow -> GENSMAC -> front-tracking do grupo -> HiGFlow
+% ---------------------------------------------------------------------------
+
+@article{castelo2000,
+  author  = {Castelo F., A. and Tom\'e, M. F. and C\'esar, C. N. L. and
+             McKee, S. and Cuminato, J. A.},
+  title   = {Freeflow: an integrated simulation system for three-dimensional
+             free surface flows},
+  journal = {Computing and Visualization in Science},
+  volume  = {2}, number = {4}, pages = {199--210}, year = {2000},
+  doi     = {10.1007/s007910050040}
+}
+
+@article{tome1994,
+  author  = {Tom\'e, M. F. and McKee, S.},
+  title   = {{GENSMAC}: A Computational Marker and Cell Method for Free Surface
+             Flows in General Domains},
+  journal = {Journal of Computational Physics},
+  volume  = {110}, number = {1}, pages = {171--186}, year = {1994},
+  doi     = {10.1006/jcph.1994.1013}
+}
+
+% O front-tracking DO PROPRIO GRUPO, sobre o GENSMAC-3D.  E' a referencia mais
+% proxima deste relatorio: mesmo sistema, mesma familia de metodo, 3D.
+@article{sousa2004,
+  author  = {de Sousa, F. S. and Mangiavacchi, N. and Nonato, L. G. and
+             Castelo, A. and Tom\'e, M. F. and Ferreira, V. G. and
+             Cuminato, J. A. and McKee, S.},
+  title   = {A front-tracking/front-capturing method for the simulation of {3D}
+             multi-fluid flows with free surfaces},
+  journal = {Journal of Computational Physics},
+  volume  = {198}, number = {2}, pages = {469--499}, year = {2004},
+  doi     = {10.1016/j.jcp.2004.01.032}
+}
+
+% A fundacao do HiGTree/HiGFlow: malha em arvore nao graduada com interpolacao
+% sem malha -- a estrutura sobre a qual todo este trabalho roda.
+@article{sousa2019,
+  author  = {Sousa, F. S. and Lages, C. F. and Ansoni, J. L. and
+             Castelo, A. and Sim\~ao, A.},
+  title   = {A finite difference method with meshless interpolation for
+             incompressible flows in non-graded tree-based grids},
+  journal = {Journal of Computational Physics},
+  volume  = {396}, pages = {848--866}, year = {2019},
+  doi     = {10.1016/j.jcp.2019.07.011}
+}
+
+@article{tome2000,
+  author  = {Tom\'e, M. F. and Castelo, A. and Murakami, J. and
+             Cuminato, J. A. and Minghim, R. and Oliveira, M. C. F. and
+             Mangiavacchi, N. and McKee, S.},
+  title   = {Numerical Simulation of Axisymmetric Free Surface Flows},
+  journal = {Journal of Computational Physics},
+  volume  = {157}, number = {2}, pages = {441--472}, year = {2000},
+  doi     = {10.1006/jcph.1999.6348}
+}
+
+% ---------------------------------------------------------------------------
+% Os metodos
+% ---------------------------------------------------------------------------
+
+@article{tryggvason2001,
+  author  = {Tryggvason, G. and Bunner, B. and Esmaeeli, A. and Juric, D. and
+             Al-Rawahi, N. and Tauber, W. and Han, J. and Nas, S. and
+             Jan, Y.-J.},
+  title   = {A Front-Tracking Method for the Computations of Multiphase Flow},
+  journal = {Journal of Computational Physics},
+  volume  = {169}, pages = {708--759}, year = {2001},
+  doi     = {10.1006/jcph.2001.6726}
+}
+
+@article{brackbill1992,
+  author  = {Brackbill, J. U. and Kothe, D. B. and Zemach, C.},
+  title   = {A continuum method for modeling surface tension},
+  journal = {Journal of Computational Physics},
+  volume  = {100}, pages = {335--354}, year = {1992},
+  doi     = {10.1016/0021-9991(92)90240-Y}
+}
+
+@article{rider1998,
+  author  = {Rider, W. J. and Kothe, D. B.},
+  title   = {Reconstructing Volume Tracking},
+  journal = {Journal of Computational Physics},
+  volume  = {141}, pages = {112--152}, year = {1998},
+  doi     = {10.1006/jcph.1998.5906}
+}
+
+% A explicacao do resultado central deste relatorio: por que uma forca de tensao
+% superficial que NAO e' discretamente um gradiente deixa corrente parasita.
+@article{francois2006,
+  author  = {Francois, M. M. and Cummins, S. J. and Dendy, E. D. and
+             Kothe, D. B. and Sicilian, J. M. and Williams, M. W.},
+  title   = {A balanced-force algorithm for continuous and sharp interfacial
+             surface tension models within a volume tracking framework},
+  journal = {Journal of Computational Physics},
+  volume  = {213}, pages = {141--173}, year = {2006},
+  doi     = {10.1016/j.jcp.2005.08.004}
+}
+
+@article{roma1999,
+  author  = {Roma, A. M. and Peskin, C. S. and Berger, M. J.},
+  title   = {An Adaptive Version of the Immersed Boundary Method},
+  journal = {Journal of Computational Physics},
+  volume  = {153}, number = {2}, pages = {509--534}, year = {1999},
+  doi     = {10.1006/jcph.1999.6293}
+}

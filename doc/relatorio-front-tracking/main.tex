@@ -1,0 +1,70 @@
+% Relatorio: front-tracking bifasico no HiGFlow, e a comparacao com o VOF
+%
+% Compila com pdflatex + bibtex + pdflatex + pdflatex, ou latexmk -pdf main
+% No Overleaf: enviar a pasta inteira; o arquivo principal e' este.
+%
+% Os NUMEROS vivem em dados/*.dat e sao lidos por pgfplotstable, nao digitados
+% no texto -- mesma convencao do relatorio da fronteira imersa.  Regenerar uma
+% medida troca o .dat e o relatorio acompanha, sem a chance de a tabela e o
+% texto discordarem.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=2.7cm]{geometry}
+
+\pgfplotsset{compat=1.18}
+\sisetup{output-decimal-marker={,}, group-separator={.}}
+
+\newcommand{\dat}[1]{dados/#1}
+
+\title{Front-tracking bif\'asico no HiGFlow:\\
+       implementa\c{c}\~ao, verifica\c{c}\~ao e compara\c{c}\~ao com o VOF}
+\author{Relat\'orio t\'ecnico}
+\date{Setembro de 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este relat\'orio documenta a implementa\c{c}\~ao de um m\'etodo de
+\emph{front-tracking} para escoamento bif\'asico no HiGFlow, sua verifica\c{c}\~ao
+por or\'aculos exatos, e uma compara\c{c}\~ao direta com o m\'etodo VOF j\'a
+existente no mesmo sistema. A compara\c{c}\~ao foi montada de modo que os dois
+m\'etodos resolvam \emph{literalmente o mesmo problema} --- mesma malha, mesma
+gota, mesmas propriedades, mesmo solver e as mesmas sondas --- de sorte que a
+diferen\c{c}a medida seja do m\'etodo e n\~ao do arranjo. Os resultados confirmam
+duas expectativas da literatura e contrariam uma terceira: o front-tracking
+obt\'em o salto de press\~ao de Laplace com erro seis vezes menor, o VOF conserva
+massa em precis\~ao de m\'aquina contra uma deriva de \num{1.3e-5}, e --- ao
+contr\'ario do que se esperava --- o VOF apresenta correntes par\'asitas cerca de
+dez vezes menores. Argumenta-se que a \'ultima diferen\c{c}a n\~ao vem da
+curvatura, que \'e exatamente onde o front-tracking \'e melhor, mas do
+\emph{balan\c{c}o discreto} entre a for\c{c}a espalhada e o gradiente de press\~ao.
+\end{abstract}
+
+\tableofcontents
+
+\input{secoes/01-introducao}
+\input{secoes/02-formulacao}
+\input{secoes/03-implementacao}
+\input{secoes/04-verificacao}
+\input{secoes/05-comparacao}
+\input{secoes/06-discussao}
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}

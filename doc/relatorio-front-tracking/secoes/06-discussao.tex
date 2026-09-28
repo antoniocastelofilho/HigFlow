@@ -1,0 +1,111 @@
+\section{Discuss\~ao}
+\label{sec:discussao}
+
+\subsection{Por que as correntes par\'asitas contrariam a expectativa}
+
+A literatura costuma creditar ao front-tracking correntes par\'asitas menores,
+justamente por causa da curvatura mais precisa. Aqui a curvatura \emph{\'e} mais
+precisa --- o salto de press\~ao sai seis vezes melhor --- e ainda assim as
+correntes par\'asitas s\~ao dez vezes maiores. Como os dois fatos convivem?
+
+A hip\'otese, e ela \'e test\'avel, \'e que o problema n\~ao est\'a na curvatura e
+sim no \textbf{balan\c{c}o discreto} entre a for\c{c}a e o gradiente de press\~ao.
+Para uma gota em equil\'ibrio, o cont\'inuo exige
+\begin{equation}
+  \nabla p = \sigma\kappa\mathbf{n}\,\delta_S,
+  \label{eq:equilibrio}
+\end{equation}
+e a velocidade par\'asita mede exatamente o quanto os \emph{operadores
+discretos} dos dois lados deixam de satisfazer essa igualdade. N\~ao basta que
+cada lado esteja individualmente correto: \'e preciso que a for\c{c}a discreta
+perten\c{c}a \`a imagem do gradiente discreto que a proje\c{c}\~ao inverte. \'E a
+propriedade de \emph{balanced-force} de Francois et al.~\cite{francois2006}.
+
+Ora, no VOF com CSF a for\c{c}a \'e $\sigma\kappa\nabla f$; numa gota circular
+$\kappa$ \'e praticamente constante, de sorte que
+$\sigma\kappa\nabla f \approx \nabla(\sigma\kappa f)$ --- isto \'e, a for\c{c}a
+\'e quase exatamente um gradiente discreto, e pode ser cancelada pelo gradiente
+de press\~ao com precis\~ao muito boa.
+
+No front-tracking aqui implementado, a for\c{c}a \'e espalhada dos marcadores
+pelo n\'ucleo de Roma sobre facetas escalonadas. Esse operador de espalhamento
+\textbf{n\~ao \'e} o gradiente discreto de escalar nenhum que a proje\c{c}\~ao
+produza; o descasamento entre os dois operadores aparece como escoamento
+espúrio. Que o efeito seja de descasamento, e n\~ao de imprecis\~ao da for\c{c}a,
+\'e coerente com o salto de press\~ao sair melhor: a \emph{integral} da for\c{c}a
+est\'a certa --- a conserva\c{c}\~ao do espalhamento foi verificada em
+\num{1e-15} --- mas sua \emph{distribui\c{c}\~ao} n\~ao se deixa escrever como
+gradiente.
+
+\paragraph{Como testar a hip\'otese.} Um experimento decide: reformular o
+espalhamento de modo balanceado --- espalhar um potencial e tomar dele o
+\emph{mesmo} gradiente discreto que a proje\c{c}\~ao usa --- e medir de novo. Se
+as correntes par\'asitas ca\'irem sem que o salto de press\~ao piore, a
+hip\'otese se confirma. \'E o pr\'oximo passo natural do B2.
+
+\subsection{O que cada m\'etodo oferece, pelo que foi medido}
+
+\begin{center}
+\begin{tabular}{p{5.2cm}p{4.3cm}p{4.3cm}}
+\toprule
+ & front-tracking & VOF \\
+\midrule
+curvatura / salto de press\~ao & exata no c\'irculo; erro \num{7.7e-4}
+  & derivada de campo suavizado; erro \num{4.7e-3} \\
+massa & deriva \num{1.3e-5} em 100 passos & conservada em zero de m\'aquina \\
+correntes par\'asitas & \num{5.1e-4} & \num{5.2e-5} \\
+topologia (coalesc\^encia, quebra) & manual, fora do escopo & autom\'atica \\
+custo de estrutura & marcadores ordenados, cirurgia & campo euleriano a mais \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A leitura n\~ao \'e ``um vence''. Os dois erram em lugares diferentes, e a
+escolha depende do que o problema pune. Escoamento em que a massa da fase
+importa ao longo de muitos tempos favorece o VOF; problema em que a curvatura
+governa a din\^amica --- oscila\c{c}\~ao capilar, por exemplo --- favorece o
+front-tracking. Com os dois no mesmo sistema, a escolha passa a ser informada
+por medida em vez de por prefer\^encia.
+
+\subsection{Valor da compara\c{c}\~ao como verifica\c{c}\~ao m\'utua}
+
+Vale sublinhar um uso da compara\c{c}\~ao que n\~ao \'e o de escolher m\'etodo.
+Como a dire\c{c}\~ao dos dois primeiros resultados \'e conhecida \emph{a priori}
+pela literatura, eles funcionam como or\'aculo um para o outro: se o VOF tivesse
+sa\'ido melhor em curvatura, ou se o front-tracking tivesse conservado massa
+exatamente, o resultado apontaria defeito de implementa\c{c}\~ao, n\~ao
+descoberta sobre os m\'etodos. Ambos sa\'iram onde deveriam, o que \'e evid\^encia
+independente de que as duas implementa\c{c}\~oes est\~ao corretas naquilo que
+prometem.
+
+\subsection{Limita\c{c}\~oes}
+
+Para que o alcance dos n\'umeros acima n\~ao seja superestimado:
+
+\begin{itemize}
+  \item \textbf{Uma \'unica resolu\c{c}\~ao.} Tudo foi medido a $10{,}2$
+    c\'elulas por raio. Um estudo de converg\^encia --- refinar $h$ e obter a
+    taxa de cada m\'etrica --- n\~ao foi feito, e \'e ele que diria se as
+    raz\~oes acima se mant\^em, crescem ou se invertem com o refino.
+  \item \textbf{Um \'unico tempo.} $t=0{,}101$. As correntes par\'asitas ainda
+    decaem em ambos os casos ao fim da corrida.
+  \item \textbf{Serial.} $n_p=1$; o espalhamento paralelo n\~ao est\'a
+    implementado.
+  \item \textbf{Propriedades iguais.} A terceira mudan\c{c}a estrutural --- o
+    salto de $\rho$ e $\mu$ --- est\'a adiada nos dois lados. \'E o que torna a
+    compara\c{c}\~ao limpa e, ao mesmo tempo, o que a limita: em escoamento com
+    raz\~ao de densidade alta as conclus\~oes podem mudar.
+  \item \textbf{Gota est\'atica.} Sem deforma\c{c}\~ao, a cirurgia n\~ao dispara e
+    o front-tracking n\~ao \'e exercitado naquilo que tem de mais fr\'agil.
+\end{itemize}
+
+\subsection{Pr\'oximos passos}
+
+Em ordem de valor: (i) o teste da hip\'otese de balan\c{c}o, descrito acima;
+(ii) o estudo de converg\^encia em $h$ das tr\^es m\'etricas, que d\'a \`a
+compara\c{c}\~ao o alcance que hoje lhe falta; (iii) a fase B3 --- oscila\c{c}\~ao
+de gota contra a frequ\^encia de Lamb ---, que exercita a din\^amica acoplada e,
+por deformar a interface, finalmente p\~oe a cirurgia \`a prova com o solver no
+circuito; (iv) o paralelo. A compara\c{c}\~ao com o VOF pode acompanhar cada uma
+dessas etapas, j\'a que o caso existe e as sondas est\~ao instaladas nos dois
+lados.

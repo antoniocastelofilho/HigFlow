@@ -1,0 +1,70 @@
+\section{Introdu\c{c}\~ao}
+
+\subsection{Contexto: a linhagem do c\'odigo}
+
+O HiGFlow resolve as equa\c{c}\~oes de Navier--Stokes incompress\'iveis por
+diferen\c{c}as finitas sobre malhas em \'arvore n\~ao graduadas, com
+interpola\c{c}\~ao sem malha nas interfaces de refinamento~\cite{sousa2019}. Ele
+herda uma tradi\c{c}\~ao longa de simula\c{c}\~ao de escoamentos com superf\'icie
+livre no grupo: o sistema Freeflow~\cite{castelo2000}, constru\'ido sobre o
+m\'etodo GENSMAC~\cite{tome1994} e sua extens\~ao tridimensional, e a
+generaliza\c{c}\~ao para escoamentos multif\'asicos por
+\emph{front-tracking}~\cite{sousa2004}.
+
+Essa \'ultima refer\^encia \'e a mais pr\'oxima deste trabalho, e vale dizer
+explicitamente em que: \cite{sousa2004} implementa front-tracking sobre o
+GENSMAC-3D, com a frente representada por uma malha de superf\'icie
+lagrangeana acoplada a uma malha euleriana de diferen\c{c}as finitas. O que este
+relat\'orio documenta \'e a constru\c{c}\~ao do an\'alogo dentro do HiGFlow,
+come\c{c}ando em 2D, sobre a maquinaria de fronteira imersa que j\'a existia no
+sistema.
+
+\subsection{Front-tracking \'e alternativa ao VOF, n\~ao complemento}
+
+Os dois m\'etodos resolvem o mesmo problema f\'isico por representa\c{c}\~oes
+opostas da interface:
+
+\begin{itemize}
+  \item \textbf{VOF} (\emph{volume of fluid}) \emph{captura} a interface por um
+    campo euleriano de fra\c{c}\~ao volum\'etrica advectado com o escoamento. A
+    interface n\~ao existe como objeto; \'e reconstru\'ida da fra\c{c}\~ao quando
+    preciso. A tens\~ao superficial entra tipicamente pela formula\c{c}\~ao de
+    for\c{c}a de superf\'icie cont\'inua (CSF)~\cite{brackbill1992}.
+  \item \textbf{Front-tracking} \emph{rastreia} a interface por marcadores
+    lagrangeanos conectados que se movem com o fluido~\cite{tryggvason2001}. A
+    interface \'e um objeto geom\'etrico expl\'icito, com conectividade, e a
+    curvatura sai dessa geometria.
+\end{itemize}
+
+A decis\~ao de projeto, tomada no in\'icio e mantida, \'e que os dois ficam
+\textbf{separados no c\'odigo}: n\~ao se mistura a reconstru\c{c}\~ao geom\'etrica
+de um com a advec\c{c}\~ao de fra\c{c}\~ao do outro. \'E o que torna poss\'ivel a
+compara\c{c}\~ao da Se\c{c}\~ao~\ref{sec:comparacao}: h\'a dois m\'etodos
+independentes no mesmo sistema, sobre o mesmo solver.
+
+\subsection{Escopo: o que est\'a feito}
+
+O projeto est\'a organizado em fases, cada uma com um or\'aculo exato antes de a
+pr\'oxima introduzir f\'isica nova. O estado no momento deste relat\'orio:
+
+\begin{center}
+\begin{tabular}{llp{7.2cm}}
+\toprule
+Fase & Estado & Or\'aculo \\
+\midrule
+B1 & feita & advec\c{c}\~ao cinem\'atica reversivel de Rider--Kothe: a frente
+             volta \`a forma inicial em $t=T$ \\
+B2 & feita & gota est\'atica: o salto de press\~ao bate com a lei de Laplace
+             $\Delta p = \sigma/R$, e as correntes par\'asitas ficam abaixo de um
+             teto medido \\
+B3 & aberta & oscila\c{c}\~ao de gota na frequ\^encia de Lamb \\
+B4 & aberta & bolha subindo, \emph{benchmark} publicado \\
+B5 & aberta & 3D: superf\'icie triangulada \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A ordem \'e deliberada: B1 e B2 n\~ao t\^em din\^amica acoplada completa, e \'e
+neles que os defeitos de m\'aquina --- advec\c{c}\~ao, cirurgia, curvatura,
+espalhamento --- aparecem baratos. Tudo que se segue foi medido; onde um teste
+n\~ao exercita algo, isso est\'a dito.
