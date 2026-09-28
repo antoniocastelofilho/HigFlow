@@ -1637,6 +1637,15 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 //!
 //! A forca e' DEFASADA -- calculada com a velocidade do passo anterior, antes do
 //! preditor -- e o corpo e' RIGIDO e FIXO.  As tres decisoes estao no projeto.
+//! Declara que a fracao volumetrica tem FONTE EXTERNA: algo fora do solver a
+//! reconstroi depois do remalhamento -- o front-tracking a regenera da geometria
+//! da frente, que e' replicada e independente de malha.
+//!
+//! E' a condicao para higflow_reconstroi_dominio aceitar MULTIPHASE.  Sem ela o
+//! fracvol E' o estado e precisaria de transferencia CONSERVATIVA, que aquela
+//! funcao nao faz -- entao o VOF puro continua fora.
+void higflow_set_fracvol_externo(higflow_solver *ns, bool externo);
+
 void higflow_set_fronteira_imersa(higflow_solver *ns,
                                   higflow_fronteira_imersa f, void *ctx);
 

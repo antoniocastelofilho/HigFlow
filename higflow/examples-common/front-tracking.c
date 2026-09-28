@@ -465,3 +465,170 @@ extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
 
     higflow_set_fronteira_imersa(ns, _aplica_tensao, ctx);
 }
+
+// ---------------------------------------------------------------------------
+// FASE B4: a malha adaptada, pelo caminho VERIFICADO do remalhamento.
+//
+// Escreve um .amr MULTINIVEL a partir da geometria da frente, no mesmo formato
+// que o modo criterio do example2d_SchaeferTurek usa -- e entao
+// higflow_reconstroi_dominio o rele' pelo caminho normal de arranque.  E' a
+// maquina que a fronteira imersa verificou (F1-F3, t8code e mtree, consenso de
+// franja, transferencia por posicao), e nao a do example2d_DynamicMeshAdapt, que
+// a propria suite marca quebrada em np=2.
+//
+// O CRITERIO E' O MESMO DO VOF: celula com 0<fracvol<1 e' SEMENTE de interface, e
+// uma celula recebe o nivel L se estiver a menos de `limiar[L-1]` da semente mais
+// proxima.  Aqui o fracvol da malha base sai da geometria da frente
+// (ft_area_na_caixa) em vez de ser advectado -- mesma definicao, mesma conta.
+//
+// Os limiares vem da REGRA DAS CELULAS MINIMAS e sao DERIVADOS, nao digitados:
+// o nivel mais fino cobre ao menos `cel_min` celulas finas de cada lado da
+// interface, somada a margem que a discretizacao exige (a semente e' o CENTRO de
+// uma celula base, a ate' h/2 da interface real).
+// ---------------------------------------------------------------------------
+extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
+                                        real lx, real ly, int nx, int ny,
+                                        int niveis, int cel_min,
+                                        const char *caminho)
+{
+    const real hx = lx / nx, hy = ly / ny;
+    const real h_base = (hx < hy) ? hx : hy;
+
+    // Limiares derivados da regra (mesma formula de malha_adapt_limiares).
+    real h_fino = h_base;
+    for (int l = 0; l < niveis; l++) h_fino *= 0.5;
+    const real margem = 0.5 * h_base + h_fino;
+    const real banda_fina = cel_min * h_fino + margem;
+    real *thr = (real *) malloc((size_t) niveis * sizeof(real));
+    for (int l = niveis - 1; l >= 0; l--) {
+        thr[l] = banda_fina;
+        real h_nivel = h_base;
+        for (int k = 0; k < l + 1; k++) h_nivel *= 0.5;
+        for (int k = 0; k < niveis - 1 - l; k++) thr[l] += cel_min * h_nivel;
+    }
+
+    // Sementes: centros das celulas base cortadas pela frente.
+    const long ncel = (long) nx * ny;
+    Point *sem = (Point *) malloc((size_t) ncel * sizeof(Point));
+    long nsem = 0;
+    for (int j = 0; j < ny; j++) {
+        for (int i = 0; i < nx; i++) {
+            real lo[DIM], hi[DIM];
+            lo[0] = i * hx;  hi[0] = (i + 1) * hx;
+            lo[1] = j * hy;  hi[1] = (j + 1) * hy;
+            for (int d = 2; d < DIM; d++) { lo[d] = 0.0; hi[d] = 1.0; }
+            real f = ft_area_na_caixa(frente, lo, hi) / (hx * hy);
+            if (f > 0.001 && f < 0.999) {
+                sem[nsem][0] = lo[0] + 0.5 * hx;
+                sem[nsem][1] = lo[1] + 0.5 * hy;
+                nsem++;
+            }
+        }
+    }
+
+    // Tabela de nivel por celula base.
+    signed char *tab = (signed char *) calloc((size_t) ncel, 1);
+    for (int j = 0; j < ny; j++) {
+        for (int i = 0; i < nx; i++) {
+            real cx = (i + 0.5) * hx, cy = (j + 0.5) * hy;
+            real d2 = 1e300;
+            for (long k = 0; k < nsem; k++) {
+                real a = cx - sem[k][0], b = cy - sem[k][1];
+                real s = a * a + b * b;
+                if (s < d2) d2 = s;
+            }
+            int nivel = 0;
+            for (int l = niveis - 1; l >= 0; l--)
+                if (d2 <= thr[l] * thr[l]) { nivel = l + 1; break; }
+            tab[i + (long) j * nx] = (signed char) nivel;
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // A ESTEIRA.  A banda de interface sozinha nao cobre o rastro que a
+    // bolha deixa atras de si, e e' la' que a vorticidade vive.  O criterio
+    // vira o MAXIMO entre os dois: banda geometrica (a regra das celulas
+    // minimas) e vorticidade acima de limiar.  E' o criterio hibrido que a
+    // F3 da fronteira imersa usou.
+    //
+    // HISTERESE (FT_VORT_HISTERESE): quem JA' estava refinado so' engrossa se
+    // |omega| cair abaixo da METADE do limiar.  Sem isso a F3 mediu FLAPPING --
+    // celulas cruzando o limiar seco a cada ciclo, a malha derivando
+    // (67,9k -> 71,1k -> 64,9k) e o arrasto sujo.  Sair da malha fina tem de
+    // ser mais dificil que entrar.
+    // ---------------------------------------------------------------
+    static signed char *tab_ant = NULL;
+    static long ncel_ant = 0;
+    {
+        const char *e1 = getenv("FT_VORT1"), *e2 = getenv("FT_VORT2");
+        const real v1 = (e1 != NULL) ? atof(e1) : 0.0;
+        const real v2 = (e2 != NULL) ? atof(e2) : 0.0;
+        const int  hist = (getenv("FT_VORT_HISTERESE") != NULL);
+        // ns==NULL no ARRANQUE: a malha inicial sai so' da geometria da frente,
+        // porque ainda nao ha' campo de velocidade para medir esteira.
+        if (v1 > 0.0 && ns != NULL) {
+            sim_domain *sdp = psd_get_local_domain(ns->psdp);
+            sim_facet_domain *sfdu[DIM];
+            for (int d = 0; d < DIM; d++)
+                sfdu[d] = psfd_get_local_domain(ns->psfdu[d]);
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for (int clid = 0; clid < hms->n; clid++) {
+                Point cc, cd;
+                hms_center(hms, clid, cc);
+                hms_delta(hms, clid, cd);
+                Point pp;
+                POINT_ASSIGN(pp, cc); pp[0] = cc[0] + cd[0];
+                real vr = compute_facet_value_at_point(sfdu[1], cc, pp, 1.0, ns->dpu[1], ns->stn);
+                pp[0] = cc[0] - cd[0];
+                real vl = compute_facet_value_at_point(sfdu[1], cc, pp, 1.0, ns->dpu[1], ns->stn);
+                POINT_ASSIGN(pp, cc); pp[1] = cc[1] + cd[1];
+                real ut = compute_facet_value_at_point(sfdu[0], cc, pp, 1.0, ns->dpu[0], ns->stn);
+                pp[1] = cc[1] - cd[1];
+                real ub = compute_facet_value_at_point(sfdu[0], cc, pp, 1.0, ns->dpu[0], ns->stn);
+                real om = fabs((vr - vl) / (2.0*cd[0]) - (ut - ub) / (2.0*cd[1]));
+                int i = (int)(cc[0] / hx), j = (int)(cc[1] / hy);
+                if (i < 0) i = 0; if (i >= nx) i = nx - 1;
+                if (j < 0) j = 0; if (j >= ny) j = ny - 1;
+                long q = i + (long) j * nx;
+                signed char alvo = 0;
+                if (v2 > 0.0 && om > v2) alvo = (signed char) niveis;
+                else if (om > v1)        alvo = 1;
+                if (hist && tab_ant != NULL && ncel_ant == ncel && tab_ant[q] > alvo) {
+                    // manter exige so' METADE do limiar
+                    if (om > 0.5 * v1) alvo = tab_ant[q];
+                }
+                if (alvo > tab[q]) tab[q] = alvo;   // MAXIMO com a banda
+            }
+        }
+        if (ncel_ant != ncel) { free(tab_ant); tab_ant = NULL; }
+        if (tab_ant == NULL) tab_ant = (signed char *) malloc((size_t) ncel);
+        memcpy(tab_ant, tab, (size_t) ncel);
+        ncel_ant = ncel;
+    }
+
+    // Escrita do .amr multinivel (mesmo formato do modo criterio).
+    FILE *f = fopen(caminho, "w");
+    if (f == NULL) { perror(caminho); free(tab); free(sem); free(thr); return; }
+    fprintf(f, "0.0 %.10g 0.0 %.10g\n", (double) lx, (double) ly);
+    long cont[8] = {0};
+    for (long q = 0; q < ncel; q++)
+        for (int l = 1; l <= niveis; l++) if (tab[q] >= l) cont[l]++;
+    int niv_esc = 1;
+    for (int l = 1; l <= niveis; l++) if (cont[l] > 0) niv_esc = l + 1;
+    fprintf(f, "%d\n", niv_esc);
+    fprintf(f, "%.10g %.10g\n1\n0 0 %d %d\n", (double) hx, (double) hy, nx, ny);
+    for (int l = 1; l < niv_esc; l++) {
+        int fator = 1 << l;
+        fprintf(f, "%.10g %.10g\n%ld\n",
+                (double) (hx / fator), (double) (hy / fator), cont[l]);
+        for (int j = 0; j < ny; j++)
+            for (int i = 0; i < nx; i++)
+                if (tab[i + (long) j * nx] >= l)
+                    fprintf(f, "%d %d %d %d\n", fator*i, fator*j, fator, fator);
+    }
+    fclose(f);
+    fprintf(stderr, "FT amr: %ld sementes, niveis=%d, limiares=", nsem, niv_esc-1);
+    for (int l = 0; l < niveis; l++) fprintf(stderr, " %.5f", (double) thr[l]);
+    fprintf(stderr, "  (>=%d celulas finas por lado)\n", cel_min);
+    free(tab); free(sem); free(thr);
+}

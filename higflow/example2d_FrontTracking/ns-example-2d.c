@@ -27,6 +27,10 @@ extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 #include "../examples-common/malha-adaptativa.h"   // B4: refino adaptativo
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                         real sigma);
+extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
+                                        real lx, real ly,
+                                        int nx, int ny, int niveis, int cel_min,
+                                        const char *caminho);
 
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
@@ -251,6 +255,40 @@ int main (int argc, char *argv[]) {
     int cache = 1;
 
     // Create the simulation domain
+    // MALHA INICIAL JA' ADAPTADA.  A frente e' GEOMETRIA PURA -- nao depende de
+    // dominio nenhum --, entao pode nascer antes e ditar a malha do arranque.
+    //
+    // Sem isto o primeiro remalhamento saltava da malha uniforme para DOIS
+    // niveis de uma vez, e a transferencia por posicao nao preenchia: medido,
+    // 8820 posicoes sem valor, com a area da gota caindo 1,4% em 100 passos.
+    // A funcao so' promete preenchimento completo quando a malha muda de UM
+    // nivel -- que e' o que uma adaptacao por passo produz.
+    {
+        const char *e; int niv = 0;
+        if ((e = getenv("FT_AMR_NIVEIS")) != NULL) niv = atoi(e);
+        if (niv > 0) {
+            real cx0 = 2.0, cy0 = 0.0, r0 = 0.25;
+            int nm0 = 128;
+            if ((e = getenv("FT_CX"))    != NULL) cx0 = atof(e);
+            if ((e = getenv("FT_CY"))    != NULL) cy0 = atof(e);
+            if ((e = getenv("FT_R"))     != NULL) r0  = atof(e);
+            if ((e = getenv("FT_NMARC")) != NULL) nm0 = atoi(e);
+            int cel0 = 5;   if ((e = getenv("FT_AMR_CELMIN")) != NULL) cel0 = atoi(e);
+            int nx0 = 40;   if ((e = getenv("FT_AMR_NX")) != NULL) nx0 = atoi(e);
+            int ny0 = 80;   if ((e = getenv("FT_AMR_NY")) != NULL) ny0 = atoi(e);
+            real lx0 = 1.0; if ((e = getenv("FT_AMR_LX")) != NULL) lx0 = atof(e);
+            real ly0 = 2.0; if ((e = getenv("FT_AMR_LY")) != NULL) ly0 = atof(e);
+            const char *cam0 = getenv("FT_AMR_CAMINHO");
+            if (cam0 == NULL) cam0 = "amrs-hysing/criterio/dominio.amr";
+            Point c0; c0[0] = cx0; c0[1] = cy0;
+            for (int d = 2; d < DIM; d++) c0[d] = 0.0;
+            ft_frente *f0 = ft_cria_circulo(c0, r0, nm0);
+            ft_escreve_amr_criterio(NULL, f0, lx0, ly0, nx0, ny0, niv, cel0, cam0);
+            ft_destroi(f0);
+            print0f("===> malha inicial JA' adaptada, do criterio\n");
+        }
+    }
+
     // B4: o multifasico e' uma ADICAO ao dominio base, nao um substituto -- e'
     // assim que o example2d_VOF faz, e trocar um pelo outro custou um SEGV.
     higflow_create_domain(ns, cache, order_center);
@@ -342,6 +380,11 @@ int main (int argc, char *argv[]) {
             gota = ft_cria_circulo(centro, R_gota, nmarc);
         }
         front_tracking_instala(ns, gota, sigma);
+        // A FRACAO TEM FONTE EXTERNA: a frente a regenera da geometria a cada
+        // passo, e e' replicada -- sobrevive intocada ao remalhamento.  E' a
+        // condicao para higflow_reconstroi_dominio aceitar MULTIPHASE.
+        if (ns->contr.flowtype == MULTIPHASE)
+            higflow_set_fracvol_externo(ns, true);
         print0f("=+=+=+= Front-tracking: gota R=%.5f em (%.3f,%.3f), sigma=%.3f, "
                 "%d marcadores, Laplace esperado Dp=%.4f =+=+=+=\n",
                 (double) R_gota, (double) cx_gota, (double) cy_gota,
@@ -353,58 +396,24 @@ int main (int argc, char *argv[]) {
     //higflow_initialize_boundaries(ns);
     higflow_initialize_boundaries_yaml(ns);
 
-    // ------------------------------------------------------------------
-    // REFINO ADAPTATIVO (FT_AMR_NIVEIS>0).  O MESMO criterio do VOF: as
-    // sementes sao celulas com 0,001<fracvol<0,999, e o front-tracking escreve
-    // o fracvol da geometria da frente -- entao os dois adaptam identicamente e
-    // a comparacao isola a representacao da interface.
-    //
-    // Os limiares saem da REGRA DAS CELULAS MINIMAS (>= FT_AMR_CELMIN celulas do
-    // nivel mais fino de cada lado da interface), nao de numero digitado, e a
-    // regra e' CONFERIDA POR MEDIDA na malha construida.
-    // ------------------------------------------------------------------
-    int amr_pronto = 0;
-    real amr_limiares[8];
-    int  amr_niveis = 0, amr_celmin = 5;
-    real amr_hbase = 0.025;
+    // Parametros do refino adaptativo, por ambiente.
+    int  amr_niveis = 0, amr_celmin = 5, amr_cada = 0, amr_nx = 40, amr_ny = 80;
+    real amr_lx = 1.0, amr_ly = 2.0;
+    const char *amr_caminho = "amrs-hysing/criterio/dominio.amr";
     {
         const char *e;
         if ((e = getenv("FT_AMR_NIVEIS")) != NULL) amr_niveis = atoi(e);
         if ((e = getenv("FT_AMR_CELMIN")) != NULL) amr_celmin = atoi(e);
-        if ((e = getenv("FT_AMR_HBASE"))  != NULL) amr_hbase  = atof(e);
-    }
-    if (amr_niveis > 0 && ns->par.step == 0) {
-        malha_adapt_limiares(amr_hbase, amr_niveis, amr_celmin, amr_limiares);
-        print0f("===> AMR: %d niveis, >=%d celulas finas por lado, h_base=%.5f\n",
-                amr_niveis, amr_celmin, (double) amr_hbase);
-        for (int l = 0; l < amr_niveis; l++)
-            print0f("===>      limiar nivel %d = %.6f\n", l+1, (double) amr_limiares[l]);
-
-        higflow_solver *ns2 = higflow_create();
-        memset(ns2, 0, sizeof(higflow_solver));
-        higflow_load_data_file_names(argc, argv, ns2);
-        higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
-        higflow_set_problem(ns2, &problema);
-        higflow_create_domain(ns2, cache, order_center);
-        higflow_create_domain_multiphase(ns2, cache, order_center, &problema);
-
-        const char *amr_base = getenv("FT_AMR_BASE");
-        if (amr_base == NULL) amr_base = "amrs-hysing/domain/ch-d-0.amr";
-        malha_adapt_reconstroi(ns, ns2, myrank, ntasks, cache, order_center,
-                               amr_limiares, amr_base);
-
-        char *np_ = ns2->par.nameprint, *nl_ = ns2->par.nameload, *nsv_ = ns2->par.namesave;
-        ns2->par = ns->par;
-        ns2->par.nameprint = np_; ns2->par.nameload = nl_; ns2->par.namesave = nsv_;
-        higflow_solver *ns_velho = ns;
-        ns = ns2;
-        amr_pronto = 1;
-        higflow_destroy(ns_velho);
-        print0f("===> AMR inicial aplicado\n");
+        if ((e = getenv("FT_AMR_CADA"))   != NULL) amr_cada   = atoi(e);
+        if ((e = getenv("FT_AMR_NX"))     != NULL) amr_nx     = atoi(e);
+        if ((e = getenv("FT_AMR_NY"))     != NULL) amr_ny     = atoi(e);
+        if ((e = getenv("FT_AMR_LX"))     != NULL) amr_lx     = atof(e);
+        if ((e = getenv("FT_AMR_LY"))     != NULL) amr_ly     = atof(e);
+        if ((e = getenv("FT_AMR_CAMINHO"))!= NULL) amr_caminho = e;
     }
 
     // Creating distributed property  
-    if (!amr_pronto) higflow_create_distributed_properties(ns);
+    higflow_create_distributed_properties(ns);
     // Initialize distributed properties
     if (ns->par.step == 0) higflow_initialize_distributed_properties(ns);
     // Create the linear system solvers
@@ -455,6 +464,26 @@ int main (int argc, char *argv[]) {
         // B4: o passo multifasico e' outra rotina, e e' nela que o gancho do
         // front-tracking foi instalado -- chamar o monofasico com config
         // multifasica roda sem forca nenhuma, em silencio.
+        // REMALHAMENTO ADAPTATIVO, pelo caminho verificado da fronteira imersa.
+        // A frente escreve o .amr multinivel pelo criterio (o MESMO do VOF:
+        // celulas de interface como sementes, distancia define o nivel), com os
+        // limiares DERIVADOS da regra das celulas minimas; e entao o
+        // higflow_reconstroi_dominio o rele' pelo caminho normal de arranque.
+        //
+        // A frente NAO e' transferida: ela e' replicada e independente de malha,
+        // e regenera o fracvol no passo seguinte.  So' u e p viajam.
+        if (amr_niveis > 0 && amr_cada > 0 && ns->par.step > 0 &&
+            ns->par.step % amr_cada == 0) {
+            ft_escreve_amr_criterio(ns, gota, amr_lx, amr_ly, amr_nx, amr_ny,
+                                    amr_niveis, amr_celmin, amr_caminho);
+            long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank,
+                                                     cache, order_center,
+                                                     order_facet);
+            if (faltam != 0)
+                print0f("===> remalha passo %d: %ld posicoes sem valor\n",
+                        ns->par.step, faltam);
+        }
+
         if (ns->contr.flowtype == MULTIPHASE)
             higflow_solver_step_multiphase(ns);
         else

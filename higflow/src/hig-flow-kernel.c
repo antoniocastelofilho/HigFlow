@@ -1643,6 +1643,10 @@ void higflow_set_remalha_avisa(higflow_solver *ns,
     ns->remalha_avisa_ctx = ctx;
 }
 
+void higflow_set_fracvol_externo(higflow_solver *ns, bool externo) {
+    ns->fracvol_externo = externo;
+}
+
 void higflow_set_fronteira_imersa(higflow_solver *ns,
                                   higflow_fronteira_imersa f, void *ctx)
 {
