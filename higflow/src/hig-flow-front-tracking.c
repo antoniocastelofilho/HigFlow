@@ -479,3 +479,77 @@ void ft_escreve_vtk(const ft_frente *f, const char *prefixo, int quadro)
     fprintf(fp, " 0\n");
     fclose(fp);
 }
+
+// --- persistencia ---------------------------------------------------------
+//
+// POR QUE ISTO EXISTE.  O `h.save` do solver guarda CAMPOS na malha; a frente
+// nao e' campo -- e' estado lagrangeano que nenhum campo determina.  Sem
+// gravacao, retomar uma corrida punha os campos no instante salvo e os
+// marcadores em t=0, o que e' pior do que nao retomar: roda sem reclamar.
+//
+// MEDIDO: uma corrida de Hysing de 12000 passos leva ~6 h nesta maquina, e ja'
+// morreu uma vez no meio.  A retomada nao e' conveniencia.
+//
+// Formato de TEXTO, com %.17g -- que faz ida-e-volta exata em double.  Texto
+// porque o arquivo tambem serve de despejo para as figuras, e porque um estado
+// que nao se pode ler com `cat` e' um estado que nao se audita.
+
+int ft_grava(const ft_frente *f, const char *arquivo)
+{
+    FILE *fp = fopen(arquivo, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "ft_grava: nao abriu %s para escrita\n", arquivo);
+        return -1;
+    }
+    fprintf(fp, "# frente front-tracking v1\n");
+    fprintf(fp, "%d %.17g\n", f->n, (double) f->ds_alvo);
+    for (int i = 0; i < f->n; i++)
+        fprintf(fp, "%.17g %.17g\n", (double) f->x[i][0], (double) f->x[i][1]);
+    int erro = ferror(fp);
+    if (fclose(fp) != 0 || erro) {
+        fprintf(stderr, "ft_grava: escrita de %s falhou\n", arquivo);
+        return -1;
+    }
+    return f->n;
+}
+
+ft_frente *ft_le(const char *arquivo)
+{
+    FILE *fp = fopen(arquivo, "r");
+    if (fp == NULL) return NULL;        // ausencia NAO e' erro: quem chama decide
+
+    char linha[256];
+    if (fgets(linha, sizeof linha, fp) == NULL) { fclose(fp); return NULL; }
+    if (strncmp(linha, "# frente front-tracking v1", 26) != 0) {
+        fprintf(stderr, "ft_le: %s nao tem o cabecalho esperado\n", arquivo);
+        fclose(fp);
+        return NULL;
+    }
+    int n = 0; double ds = 0.0;
+    if (fscanf(fp, "%d %lf", &n, &ds) != 2 || n < 3 || !(ds > 0.0)) {
+        fprintf(stderr, "ft_le: %s com n=%d ds_alvo=%g invalidos\n",
+                arquivo, n, ds);
+        fclose(fp);
+        return NULL;
+    }
+    // Constroi a struct DIRETO, sem passar por ft_cria_curva: aquela reamostra,
+    // e reamostrar ao retomar deslocaria todos os marcadores -- a retomada
+    // deixaria de ser a continuacao da mesma corrida.
+    ft_frente *f = (ft_frente *) calloc(1, sizeof *f);
+    f->ds_alvo = (real) ds;
+    _garante_cap(f, n);
+    for (int i = 0; i < n; i++) {
+        double x = 0.0, y = 0.0;
+        if (fscanf(fp, "%lf %lf", &x, &y) != 2) {
+            fprintf(stderr, "ft_le: %s truncado no marcador %d de %d\n",
+                    arquivo, i, n);
+            fclose(fp); ft_destroi(f);
+            return NULL;
+        }
+        f->x[i][0] = (real) x;
+        f->x[i][1] = (real) y;
+    }
+    f->n = n;
+    fclose(fp);
+    return f;
+}

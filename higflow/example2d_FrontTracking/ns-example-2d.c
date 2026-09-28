@@ -25,6 +25,7 @@ extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 // pelo adaptador examples-common/front-tracking.c.
 #include "../src/hig-flow-front-tracking.h"
 #include "../examples-common/malha-adaptativa.h"   // B4: refino adaptativo
+#include "../examples-common/hysing-metricas.h"      // grandezas do benchmark
 #include "../src/hig-flow-fronteira-imersa.h"       // contadores de suporte
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                         real sigma);
@@ -408,6 +409,34 @@ int main (int argc, char *argv[]) {
         } else {
             gota = ft_cria_circulo(centro, R_gota, nmarc);
         }
+        // RETOMADA.  Se a corrida esta' sendo continuada de um `h.save`
+        // (init_par.step > 0), a frente vem do ARQUIVO, e nao da geometria
+        // inicial que acabou de ser construida.
+        //
+        // Sem isto a retomada seria INCOERENTE e silenciosa: os campos voltam no
+        // instante salvo e os marcadores no circulo de t=0.  O solver nao tem
+        // como notar -- a frente regenera o fracvol da propria geometria, o
+        // arranque fica plausivel, e a corrida segue medindo outra coisa.  Por
+        // isso a falta do arquivo ABORTA em vez de cair na geometria inicial:
+        // continuar aqui e' pior do que nao continuar.
+        if (ns->par.step > 0) {
+            char nomef[1024];
+            snprintf(nomef, sizeof nomef, "%s.frente", ns->par.namesave);
+            ft_frente *lida = ft_le(nomef);
+            if (lida == NULL) {
+                print0f("=+=+=+= ERRO: retomada no passo %d sem a frente "
+                        "gravada em %s.  A frente nao e' campo e nao sai do "
+                        "h.save; continuar poria os marcadores em t=0 com os "
+                        "campos em t=%g. =+=+=+=\n",
+                        ns->par.step, nomef, (double) ns->par.t);
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+            ft_destroi(gota);
+            gota = lida;
+            print0f("===> frente RETOMADA de %s: %d marcadores, "
+                    "area=%.8f, ds_alvo=%.6f\n", nomef, ft_num(gota),
+                    (double) ft_area(gota), (double) ft_ds_alvo(gota));
+        }
         front_tracking_instala(ns, gota, sigma);
         // A FRACAO TEM FONTE EXTERNA: a frente a regenera da geometria a cada
         // passo, e e' replicada -- sobrevive intocada ao remalhamento.  E' a
@@ -477,6 +506,11 @@ int main (int argc, char *argv[]) {
         print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
         higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
         higflow_save_properties(ns, myrank, ntasks);
+        if (gota != NULL) {   // a frente vai junto: o h.save nao a cobre
+            char nomef[1024];
+            snprintf(nomef, sizeof nomef, "%s.frente", ns->par.namesave);
+            ft_grava(gota, nomef);
+        }
         ns->par.ts += ns->par.dts;
     }
     
@@ -536,6 +570,24 @@ int main (int argc, char *argv[]) {
                     fi_suporte_nivel_trocado(), fi_suporte_perdidos());
         }
 
+        // GRANDEZAS DO BENCHMARK DE HYSING (FT_HYSING=1), nas definicoes do
+        // artigo: yc e Vc integrados no campo de fracao -- a MESMA formula que o
+        // VOF usa --, e a circularidade Pa/Pb com o perimetro exato do poligono.
+        if (getenv("FT_HYSING") != NULL) {
+            static int cada_h = 0;
+            if (cada_h == 0) { const char *c = getenv("FT_HYSING_CADA");
+                               cada_h = (c != NULL) ? atoi(c) : 50;
+                               if (cada_h < 1) cada_h = 50; }
+            if (ns->par.step % cada_h == 0) {
+                real Ah, ych, vch;
+                hysing_medidas(ns, &Ah, &ych, &vch);
+                real Ap = ft_area(gota), Pp = ft_perimetro(gota);
+                print0f("HYSING %10.5f %12.6f %12.6f %12.6f %12.8f\n",
+                        (double) ns->par.t, (double) ych, (double) vch,
+                        (double) hysing_circularidade(Ap, Pp), (double) Ah);
+            }
+        }
+
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time
@@ -553,6 +605,11 @@ int main (int argc, char *argv[]) {
             print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
             higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
             higflow_save_properties(ns, myrank, ntasks);
+            if (gota != NULL) {   // a frente vai junto: o h.save nao a cobre
+                char nomef[1024];
+                snprintf(nomef, sizeof nomef, "%s.frente", ns->par.namesave);
+                ft_grava(gota, nomef);
+            }
             ns->par.ts += ns->par.dts;
         }
     }

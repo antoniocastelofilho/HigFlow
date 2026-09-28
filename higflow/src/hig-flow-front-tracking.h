@@ -194,6 +194,28 @@ int ft_cirurgia(ft_frente *f);
 //! Nome: `<prefixo>_ft_<quadro>.vtk`.  Frente replicada: um arquivo so'.
 void ft_escreve_vtk(const ft_frente *f, const char *prefixo, int quadro);
 
+// --- persistencia ---------------------------------------------------------
+
+//! Grava a frente em TEXTO (numero de marcadores, ds_alvo, e as posicoes), com
+//! precisao de ida-e-volta exata.  Devolve o numero de marcadores gravados, ou
+//! -1 em erro.
+//!
+//! POR QUE E' NECESSARIA.  O `h.save` do solver guarda campos na malha, e a
+//! frente NAO e' campo: nenhum campo a determina (a fracao volumetrica que ela
+//! gera nao devolve a ordem nem o espacamento dos marcadores).  Retomar uma
+//! corrida sem este arquivo poe os campos no instante salvo e a frente em t=0 --
+//! e roda, em silencio, sobre um estado incoerente.
+int ft_grava(const ft_frente *f, const char *arquivo);
+
+//! Le uma frente gravada por `ft_grava`.  Devolve NULL se o arquivo nao existe
+//! (ausencia nao e' erro -- quem chama decide se cria a frente inicial) ou se o
+//! conteudo nao confere.
+//!
+//! NAO reamostra: os marcadores voltam nas posicoes exatas em que estavam.
+//! Passar pelo `ft_cria_curva` os deslocaria, e a corrida retomada deixaria de
+//! ser a continuacao da mesma.
+ft_frente *ft_le(const char *arquivo);
+
 #ifdef __cplusplus
 }
 #endif

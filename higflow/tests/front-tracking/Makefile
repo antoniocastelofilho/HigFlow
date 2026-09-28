@@ -6,6 +6,7 @@
 #   teste-curvatura  curvatura contra oraculos analiticos (circulo, elipse)
 #   teste-tensao     forca de tensao superficial espalhada (conservacao, equilibrio)
 #   teste-indicadora fracao de area por celula (particao, celula cheia/vazia)
+#   teste-persistencia  gravacao/leitura da frente (retomada de corrida)
 #
 # Cada arreio devolve codigo de saida (0 passou, 1 falhou) -- sao oraculos, nao
 # so' impressoes.  `make check` roda todos e falha se algum falhar.
@@ -14,7 +15,7 @@ CFLAGS  = -O2 -Wall -DDIM=2 -I../../../higtree/src -I../../src
 MOD     = ../../src/hig-flow-front-tracking.c
 DEP     = $(MOD) ../../src/hig-flow-front-tracking.h
 
-ARREIOS = teste-b1 teste-curvatura teste-tensao teste-indicadora
+ARREIOS = teste-b1 teste-curvatura teste-tensao teste-indicadora teste-persistencia
 
 all: $(ARREIOS)
 
@@ -29,6 +30,9 @@ teste-tensao: teste-tensao.c $(DEP)
 
 teste-indicadora: teste-indicadora.c $(DEP)
 	$(CC) $(CFLAGS) teste-indicadora.c $(MOD) -lm -o $@
+
+teste-persistencia: teste-persistencia.c $(DEP)
+	$(CC) $(CFLAGS) teste-persistencia.c $(MOD) -lm -o $@
 
 run: teste-b1
 	./teste-b1
