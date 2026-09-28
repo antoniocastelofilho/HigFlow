@@ -908,6 +908,12 @@ void fi_espalha_com_escala(fi_corpo *c, sim_facet_domain *sfd[DIM],
         fi_reduz_franja(dpF[dim], c->comm);
 }
 
+int fi_dp_num_proprias(distributed_property *dp)
+{
+    const _dp_shared *sh = (const _dp_shared *) dp->pdata;
+    return sh->local_count;
+}
+
 void fi_reduz_franja(distributed_property *dp, MPI_Comm comm)
 {
     int *fr = NULL, nfr = 0;

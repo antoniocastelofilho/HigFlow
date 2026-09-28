@@ -49,6 +49,15 @@ static real _h_em(sim_facet_domain *sfd, const Point X)
 // Conservacao (o mesmo oraculo do standalone): SUM_faceta valor*h^DIM = SUM_k
 // F_k*ds_k, porque o produto phi soma 1 no suporte.  Para curva fechada isso
 // tende a zero (Laplace: forca liquida nula).
+// Regra de posse do espalhamento, por ambiente.  Existe para MEDIR: as tres
+// variantes rodam no mesmo binario e o oraculo de conservacao global as separa.
+static int _posse_regra(void)
+{
+    static int r = -1;
+    if (r < 0) { const char *s = getenv("FT_POSSE"); r = (s != NULL) ? atoi(s) : 0; }
+    return r;
+}
+
 static void ft_espalha_tensao_solver(ft_frente *frente, real sigma,
                                      sim_facet_domain *sfd[DIM],
                                      distributed_property *dpF[DIM])
@@ -72,8 +81,20 @@ static void ft_espalha_tensao_solver(ft_frente *frente, real sigma,
         for (int dim = 0; dim < DIM; dim++) {
             int m = fi_suporte_facetas(sfd[dim], dim, pos[k], h, lids, pesos, capac);
             real esc = F[k][dim] * ds[k] / hd;
-            for (int i = 0; i < m; i++)
+            // REGRA DE POSSE (FT_POSSE), para medir qual da' conservacao exata:
+            //   0 = acumula em tudo que encontra (inclusive franja) + dp_sync
+            //       -- o estado atual: a contribuicao em franja se perde
+            //   1 = acumula em tudo + reducao franja->dono
+            //       -- MEDIDO pior, porque marcador da costura conta duas vezes
+            //   2 = acumula SO' em faceta PROPRIA + dp_sync
+            //       -- a frente e' replicada, entao o dono de uma faceta tem
+            //          todos os marcadores e calcula a contribuicao dela sozinho,
+            //          sem comunicacao nenhuma
+            for (int i = 0; i < m; i++) {
+                if (_posse_regra() == 2 && lids[i] >= fi_dp_num_proprias(dpF[dim]))
+                    continue;                      // faceta de franja: nao e' minha
                 dp_add_value(dpF[dim], lids[i], esc * pesos[i]);
+            }
         }
     }
 
@@ -99,6 +120,39 @@ static void ft_espalha_tensao_solver(ft_frente *frente, real sigma,
             fprintf(stderr, "FT conserva dim=%d: grade=%.6e  marcadores=%.6e  "
                     "erro=%.3e\n", dim, lado_grade, lado_marc,
                     fabs(lado_grade - lado_marc));
+        }
+    }
+
+    // ORACULO DE CONSERVACAO GLOBAL (FT_DIAG_CONSERVA_PAR), que e' o que separa
+    // as regras de posse.  O oraculo antigo soma as facetas do dominio local,
+    // franja inclusive, e por isso so' vale em serial.  Este soma apenas as
+    // PROPRIAS e reduz entre os ranks: e' a forca que de fato existe na malha.
+    // Tem de igualar SUM_k F_k*ds_k, que e' replicada e igual em todo rank.
+    if (getenv("FT_DIAG_CONSERVA_PAR") != NULL) {
+        static int ja = 0;
+        if (!ja) {
+            ja = 1;
+            real h = 0.0;
+            for (int k = 0; k < n && h <= 0.0; k++) h = _h_em(sfd[0], pos[k]);
+            real hd = 1.0; for (int d = 0; d < DIM; d++) hd *= h;
+            int rk = 0; MPI_Comm_rank(MPI_COMM_WORLD, &rk);
+            for (int dim = 0; dim < DIM; dim++) {
+                real marc = 0.0;
+                for (int k = 0; k < n; k++) marc += F[k][dim] * ds[k];
+                real loc = 0.0;
+                const int nprop = fi_dp_num_proprias(dpF[dim]);
+                for (int flid = 0; flid < nprop; flid++)
+                    loc += dp_get_value(dpF[dim], flid) * hd;
+                real glob = 0.0;
+                MPI_Allreduce(&loc, &glob, 1, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+                if (rk == 0) {
+                    int nt = 1; MPI_Comm_size(MPI_COMM_WORLD, &nt);
+                    fprintf(stderr, "POSSE=%d np=%d dim=%d: grade(propria,global)="
+                            "%+.8e  marcadores=%+.8e  erro=%.3e\n",
+                            _posse_regra(), nt, dim, (double) glob, (double) marc,
+                            (double) fabs(glob - marc));
+                }
+            }
         }
     }
 
@@ -128,7 +182,10 @@ static void ft_espalha_tensao_solver(ft_frente *frente, real sigma,
     // decidida por medida e nao por analogia com o corpo rigido, cujo modelo de
     // distribuicao de marcadores e' outro.  Ate' entao, o espalhamento do FT
     // continua correto so' em np=1.
-    for (int dim = 0; dim < DIM; dim++) dp_sync(dpF[dim]);
+    if (_posse_regra() == 1)
+        for (int dim = 0; dim < DIM; dim++) fi_reduz_franja(dpF[dim], MPI_COMM_WORLD);
+    else
+        for (int dim = 0; dim < DIM; dim++) dp_sync(dpF[dim]);
 }
 
 // --------------------------------------------------------------------------
