@@ -60,6 +60,13 @@ A hip\'otese foi testada remontando a for\c{c}a como $\sigma\kappa\nabla H$ com
 o mesmo operador discreto que a proje\c{c}\~ao inverte, e confirmou-se nos dois
 sentidos que previa: as correntes par\'asitas ca\'iram mais de quatro ordens de
 grandeza \emph{e} o salto de press\~ao melhorou, em vez de piorar.
+
+Uma \'ultima se\c{c}\~ao leva os dois m\'etodos para malha adaptativa, pelo mesmo
+crit\'erio e pela mesma m\'aquina de remalhamento, com uma regra de resolu\c{c}\~ao
+m\'inima na interface que \'e derivada e depois \emph{medida} na malha
+constru\'ida. Cinco hip\'oteses foram refutadas por medida ao longo desse
+trabalho, e o defeito que mais custou n\~ao estava no refino: estava em o
+espa\c{c}amento dos marcadores n\~ao acompanhar a malha.
 \end{abstract}
 
 \tableofcontents
@@ -72,7 +79,8 @@ grandeza \emph{e} o salto de press\~ao melhorou, em vez de piorar.
 \input{secoes/06-balanco}
 \input{secoes/07-elipse}
 \input{secoes/08-lamb}
-\input{secoes/09-discussao}
+\input{secoes/09-amr}
+\input{secoes/10-discussao}
 
 \bibliographystyle{plain}
 \bibliography{referencias}

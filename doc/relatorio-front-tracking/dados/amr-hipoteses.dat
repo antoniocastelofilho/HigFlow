@@ -1,0 +1,6 @@
+hipotese                            teste                          resultado          veredito
+o-remalhamento                      4-x-1-x-zero-remalhamentos     2.80e-2-nos-tres   refutada
+a-restricao-capilar                 dt-8x-menor-sob-o-limite       2.09e-2-x-2.10e-2  refutada
+suporte-cruzando-nivel-de-refino    contador-fi-suporte-nivel      zero               refutada
+a-malha-adaptada-em-si              uniforme-fina-SEM-AMR          2.10e-2-identico   refutada
+o-espacamento-dos-marcadores        256-marcadores-na-mesma-malha  2.28e-5            CONFIRMADA

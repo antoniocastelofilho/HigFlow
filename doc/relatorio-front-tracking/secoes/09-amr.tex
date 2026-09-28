@@ -1,0 +1,195 @@
+\section{Refino adaptativo, nos dois m\'etodos}
+\label{sec:amr}
+
+\subsection{Qual m\'aquina usar, e por que a primeira escolha foi errada}
+
+O HiGFlow tinha dois caminhos para reconstruir o dom\'inio no meio da corrida. O
+primeiro tentado foi o do \texttt{example2d\_DynamicMeshAdapt} --- por ser o
+\'unico que j\'a fazia isso \emph{com} multif\'asico. Foi um erro de escolha: a
+pr\'opria su\'ite o marca ``known broken em np=2''. O outro,
+\texttt{higflow\_reconstroi\_dominio}, \'e o da fronteira imersa, verificado nas
+fases F1--F3 em \textbf{dois \emph{backends}} (t8code e MTree), com consenso de
+franja, transfer\^encia por posi\c{c}\~ao e proje\c{c}\~ao consistente.
+
+A guarda daquela fun\c{c}\~ao (``s\'o NEWTONIANO por enquanto'') existia porque
+os campos transportados s\~ao $u$ e $p$, e o pr\'oprio coment\'ario dizia como
+estender: transportar tamb\'em o estado dos outros modelos. Para os dois
+m\'etodos deste relat\'orio a extens\~ao saiu pequena, mas por raz\~oes
+\emph{diferentes}, e a diferen\c{c}a \'e instrutiva:
+
+\begin{center}
+\begin{tabular}{p{3.1cm}p{5.6cm}p{5.6cm}}
+\toprule
+ & front-tracking & VOF \\
+\midrule
+a fra\c{c}\~ao volum\'etrica \'e & \emph{derivada} da frente, que \'e replicada
+  e independente de malha & o \textbf{estado}, advectado no campo \\
+no remalhamento & n\~ao viaja: \'e regenerada da geometria no passo seguinte
+  & viaja junto com $u$ e $p$ \\
+o que foi preciso & declarar a fonte externa
+  (\texttt{higflow\_set\_fracvol\_externo}) & transportar mais um campo, e
+  recort\'a-lo em $[0,1]$ ap\'os plantar \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A transfer\^encia conservativa que o VOF pedia \emph{j\'a existia}: c\'elula que
+refina recebe o valor do pai --- o que para campo constante por c\'elula \'e
+conservativo --- e c\'elula que engrossa recebe a m\'edia dos $2^{DIM}$ filhos,
+de volumes iguais. Eu havia registrado que isso seria ``trabalho pr\'oprio e
+maior''; estava errado.
+
+\subsection{A regra das c\'elulas m\'inimas: derivada, e ent\~ao medida}
+
+O VOF exige ao menos cinco c\'elulas do n\'ivel mais fino \emph{de cada lado} da
+interface para fechar o est\^encil de altura. Um limiar de refino escolhido a
+olho satisfaz ou n\~ao essa condi\c{c}\~ao \textbf{sem avisar}, e o sintoma
+seria curvatura ruim --- n\~ao um erro. Por isso a regra virou duas
+fun\c{c}\~oes: uma que \emph{deriva} o limiar dela, e outra que o \emph{confere
+por medida} na malha constru\'ida.
+
+O crit\'erio \'e o mesmo nos dois m\'etodos: c\'elulas com $0<f<1$ s\~ao
+sementes de interface, e uma c\'elula recebe o n\'ivel $L$ se estiver a menos de
+$\text{limiar}[L-1]$ da semente mais pr\'oxima. Ao crit\'erio de interface
+soma-se, pelo m\'aximo, um de \textbf{esteira} --- $\lvert\omega\rvert$ acima de
+limiar, com hist\'erese (manter exige apenas metade do limiar, porque sem isso a
+F3 mediu \emph{flapping}: a malha derivando \num{67900} $\to$ \num{71100} $\to$
+\num{64900} c\'elulas a cada ciclo).
+
+\paragraph{O or\'aculo reprovou, e achou tr\^es defeitos.} Ele existia h\'a
+v\'arios \emph{commits} e nunca havia sido executado. Ao rod\'a-lo:
+
+\begin{enumerate}
+  \item \textbf{Media o dom\'inio errado.} Iterava o dom\'inio da fra\c{c}\~ao,
+    que no HiGFlow \'e \textbf{uniforme no n\'ivel mais fino por desenho}
+    (\texttt{higflow\_create\_amr\_info\_mult}). L\'a n\~ao existe c\'elula
+    grossa, ent\~ao a busca devolvia $-1$ sempre: um or\'aculo que n\~ao podia
+    falhar, o que \'e o mesmo que n\~ao ter or\'aculo.
+  \item \textbf{\'Indice base 0 no arquivo de malha}, quando o carregador quer
+    base 1. O efeito \'e o modo de falha que nenhum total denuncia: a
+    \emph{contagem} de c\'elulas finas saía certa (\num{4160}) e as
+    \emph{posi\c{c}\~oes} saíam deslocadas de uma c\'elula. Banda medida
+    $1{,}54 \to 3{,}52$.
+  \item \textbf{Descontava a grandeza errada.} A dist\^ancia \'e de centro a
+    centro; subtraía-se $h_{\text{base}}/2$, quando as corre\c{c}\~oes certas
+    s\~ao a meia-largura da c\'elula grossa encontrada e a da c\'elula da
+    semente. Penalizava quase o dobro.
+\end{enumerate}
+
+Com a medida honesta a regra \emph{ainda} falhava ($4{,}02 < 5$), e a\'i o
+or\'aculo serviu ao que existe para: \textbf{calibrar o projeto}. A margem
+passou de $h_{\text{base}}/2$ para $h_{\text{base}}$ inteiro, porque o
+crit\'erio decide por \emph{c\'elula base} --- o teste \'e no centro dela e a
+c\'elula ainda se estende outro meio-passo al\'em.
+
+\pgfplotstabletypeset[
+  string type,
+  columns/metodo/.style={column name={m\'etodo}},
+  columns/passo0/.style={column name={1\textsuperscript{a}}},
+  columns/passo1/.style={column name={2\textsuperscript{a}}},
+  columns/passo2/.style={column name={3\textsuperscript{a}}},
+  columns/passo3/.style={column name={4\textsuperscript{a}}},
+  columns/exigido/.style={column name={exigido}},
+  every head row/.style={before row=\toprule
+    & \multicolumn{4}{c}{banda medida (c\'elulas finas)} & \\ \cmidrule(lr){2-5},
+    after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{amr-banda.dat}}
+
+\subsection{A perda de \'area, e quatro hip\'oteses refutadas}
+\label{sec:amr-area}
+
+Na malha adaptada a gota do front-tracking passou a perder \SI{2.8}{\percent} de
+\'area em $t=0{,}2$, contra \num{2e-4} na malha base --- 140 vezes pior. O
+diagn\'ostico levou quatro medidas, e \emph{todas as quatro primeiras
+hip\'oteses caíram}:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/hipotese/.style={column name={hip\'otese}},
+  columns/teste/.style={column name={teste}},
+  columns/resultado/.style={column name={resultado}},
+  columns/veredito/.style={column name={veredito}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{amr-hipoteses.dat}}
+
+O teste que decidiu foi o quarto: malha \textbf{uniforme fina}, sem
+adapta\c{c}\~ao nenhuma, perdeu exatamente o mesmo. Logo n\~ao era a
+adapta\c{c}\~ao --- era o \emph{refino}. E refinar s\'o pode piorar se algo
+deixar de acompanhar a malha.
+
+Era o espa\c{c}amento dos marcadores. A cria\c{c}\~ao da frente fixava
+$\Delta s = 2\pi R/N$, isto \'e, pelo \emph{n\'umero} de marcadores. O
+front-tracking exige $\Delta s \sim h$; fixado $N$ e refinada a malha, a rela\c{c}\~ao
+se rompe em sil\^encio:
+
+\pgfplotstabletypeset[
+  columns/h/.style={column name={$h$}, fixed, precision=5},
+  columns/nmarc/.style={column name={$N$}, int detect},
+  columns/ds/.style={column name={$\Delta s$}, fixed, precision=5},
+  columns/dsh/.style={column name={$\Delta s/h$}, fixed, precision=2},
+  columns/deriva/.style={column name={deriva de \'area}, sci, sci zerofill, precision=2},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{amr-ds-sobre-h.dat}}
+
+O conserto \'e na raiz: o n\'umero de marcadores passa a \emph{sair} de
+$\Delta s/h$ vezes o $h$ da malha mais fina que a frente vai encontrar, em vez de
+ser escolhido \`a m\~ao. Na malha adaptada isso leva a deriva de \num{2.8e-2} a
+\num{1.95e-5} --- \textbf{1400 vezes}.
+
+\subsection{O VOF adaptativo, e uma assimetria entre os m\'etodos}
+
+Do lado do VOF apareceram dois defeitos, e o primeiro exp\~oe uma diferen\c{c}a
+de natureza entre os m\'etodos.
+
+\paragraph{1. Diverg\^encia nove passos ap\'os o remalhamento.} Refinar aperta a
+restri\c{c}\~ao capilar de passo por $h^{3/2}$: dois n\'iveis a apertam oito
+vezes, e o $\Delta t$ em uso ficou cinco vezes acima do limite. \textbf{Para o
+front-tracking isso n\~ao importava} --- est\'a medido na
+Se\c{c}\~ao~\ref{sec:amr-area}: $\Delta t$ oito vezes menor n\~ao mudou nada,
+porque a curvatura vem da geometria da frente e \'e suave. Para o VOF importa: a
+tens\~ao superficial \'e CSF expl\'icita sobre o campo, muito mais r\'igida. A
+mesma malha, o mesmo passo, e um m\'etodo diverge enquanto o outro n\~ao nota.
+
+\paragraph{2. A massa caindo a um quarto exato.} Fator exato de quatro n\~ao \'e
+f\'isica, \'e contabilidade. O dom\'inio da fra\c{c}\~ao \'e sempre uniforme no
+n\'ivel mais fino; come\c{c}ando na malha base e refinando dois n\'iveis, ele
+salta de $h$ para $h/4$ \emph{de uma vez}, e a transfer\^encia s\'o promete salto
+de \emph{um} n\'ivel. A cura \'e a mesma que o front-tracking j\'a exigira ---
+nascer com a malha j\'a adaptada, de modo que o dom\'inio da fra\c{c}\~ao n\~ao
+mude mais:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/arranque/.style={column name={arranque}},
+  columns/massainicial/.style={column name={massa em $t=0$}},
+  columns/massafinal/.style={column name={massa ap\'os 2 remalhamentos}},
+  columns/derivarel/.style={column name={deriva}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{amr-vof-massa.dat}}
+
+\subsection{O que esta se\c{c}\~ao deixa em p\'e, e o que n\~ao}
+
+Em p\'e: os dois m\'etodos adaptam a malha pelo \emph{mesmo} crit\'erio e pela
+\emph{mesma} m\'aquina verificada, com a regra das cinco c\'elulas cumprida e
+\textbf{medida} em ambos, a fra\c{c}\~ao transportada sem perda no VOF
+(\num{1e-8}) e a \'area preservada no front-tracking (\num{1.95e-5}).
+
+N\~ao em p\'e, e convém n\~ao ler como pronto: tudo isto \'e $n_p=1$; o
+\emph{benchmark} de Hysing continua sem fechar contra os valores publicados
+(Se\c{c}\~ao~\ref{sec:comparacao} e seguintes); e o borr\~ao da interface ao
+refinar uma c\'elula cortada --- os filhos recebendo todos o valor fracion\'ario
+do pai --- conserva massa mas degrada geometria, o que este relat\'orio
+registra sem medir.
+
+\subsection{A li\c{c}\~ao, que \'e a mesma de antes}
+
+Cinco hip\'oteses foram refutadas por medida nesta se\c{c}\~ao, quatro delas
+minhas e plaus\'iveis. O que as derrubou n\~ao foi raciocinar melhor: foi
+construir o caso em que a hip\'otese \emph{teria} de aparecer e n\~ao apareceu.
+E o or\'aculo que mais ensinou foi o que nunca havia sido executado --- um
+or\'aculo que n\~ao pode falhar n\~ao \'e um or\'aculo, e o \'unico jeito de
+descobrir isso \'e rod\'a-lo.

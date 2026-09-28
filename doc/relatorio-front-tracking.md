@@ -467,6 +467,68 @@ depende.**
 frentes, de `dados/formas/*.dat`): Rider-Kothe círculo→filamento→círculo,
 relaxação da elipse, e as 4 fases de um período da oscilação.
 
+## Passo 11 — refino adaptativo nos dois métodos
+
+**Escolha de máquina, e a primeira foi errada.** Comecei pelo
+`example2d_DynamicMeshAdapt` — o único que já remalhava *com* multifásico — que
+a própria suíte marca "known broken em np=2". O certo era o
+`higflow_reconstroi_dominio` da fronteira imersa: verificado F1–F3, **t8code e
+mtree**, consenso de franja, transferência por posição.
+
+**A extensão saiu pequena nos dois, por razões diferentes:**
+
+| | front-tracking | VOF |
+|---|---|---|
+| a fração é | *derivada* da frente (replicada, independente de malha) | o **estado**, advectado |
+| no remalhamento | não viaja — é regenerada da geometria | viaja com u e p |
+| foi preciso | declarar a fonte externa | transportar mais um campo, recortar em [0,1] |
+
+A transferência conservativa que o VOF pedia **já existia** (célula que refina
+recebe o valor do pai; que engrossa, a média dos 2^DIM filhos). Eu havia dito
+que seria "trabalho próprio e maior" — **estava errado**.
+
+**A regra das 5 células: derivada, e então medida.** O oráculo existia há vários
+commits e nunca fora executado. Ao rodá-lo, reprovou — e achou **três defeitos**:
+(1) media o domínio errado (o da fração é uniforme no nível mais fino *por
+desenho*, então nunca havia célula grossa e a resposta era −1 sempre — um
+oráculo que não pode falhar); (2) índice base 0 no `.amr` quando o carregador
+quer base 1 — a **contagem** de células finas saía certa e as **posições**
+deslocadas; (3) descontava a grandeza errada na medida. Corrigidos os três, a
+regra ainda falhava (4,02 < 5), e aí o oráculo **calibrou o projeto**: a margem
+passou a h_base inteiro.
+
+Medido: banda **8,01 / 8,01 / 7,80 / 7,01** (FT) e **7,69 / 7,25** (VOF), sempre
+≥5.
+
+**A perda de área, e quatro hipóteses refutadas.** Na malha adaptada o FT perdia
+2,8% de área contra 2e-4 na base — 140× pior.
+
+| hipótese | teste | veredito |
+|---|---|---|
+| o remalhamento | 4 × 1 × zero remalhamentos | **refutada** (2,80e-2 nos três) |
+| a restrição capilar | dt 8× menor, sob o limite | **refutada** (2,09e-2 vs 2,10e-2) |
+| suporte cruzando nível | contador | **refutada** (zero) |
+| a malha adaptada em si | uniforme fina **sem AMR** | **refutada** (idêntico) |
+| **o espaçamento dos marcadores** | 256 marcadores na mesma malha | **CONFIRMADA** (2,28e-5) |
+
+A causa: `ft_cria_circulo` fixava Δs pelo **número** de marcadores. Com 64,
+Δs/h = 0,98 em h=1/40 mas **3,93** em h=1/160 — a frente ficava 4× grossa em
+relação à malha e a massa vazava entre marcadores. Corrigido na raiz (o número
+sai da malha): **2,80e-2 → 1,95e-5**, 1400×.
+
+**O VOF, e uma assimetria entre os métodos.** Dois defeitos:
+1. **Divergia 9 passos após remalhar** — a restrição capilar aperta 8× ao
+   refinar 2 níveis. **Para o FT isso não importava** (medido); para o VOF sim,
+   porque a tensão é CSF explícita sobre o campo, muito mais rígida. Mesma
+   malha, mesmo passo, e um método diverge enquanto o outro não nota.
+2. **A massa caía a ¼ exato** — fator exato de 4 é contabilidade, não física: o
+   domínio da fração salta dois níveis de uma vez e a transferência só promete
+   um. Cura: nascer já adaptado. **0,19634938 → 0,19634936 (deriva 1e-8).**
+
+**Não está pronto**: tudo é np=1, o Hysing continua sem bater contra os valores
+publicados, e o borrão da interface ao refinar célula cortada conserva massa mas
+degrada geometria — registrado sem medir.
+
 ## Resumo da corrida autônoma
 
 Cinco passos, todos verificados por oráculo e commitados:
