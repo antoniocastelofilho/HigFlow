@@ -25,6 +25,7 @@ extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 // pelo adaptador examples-common/front-tracking.c.
 #include "../src/hig-flow-front-tracking.h"
 #include "../examples-common/malha-adaptativa.h"   // B4: refino adaptativo
+#include "../src/hig-flow-fronteira-imersa.h"       // contadores de suporte
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                         real sigma);
 extern "C" void ft_escreve_amr_criterio(higflow_solver *ns, ft_frente *frente,
@@ -335,8 +336,39 @@ int main (int argc, char *argv[]) {
         if ((s = getenv("FT_CY"))    != NULL) cy_gota = atof(s);
         real sigma = 1.0;
         if ((s = getenv("FT_SIGMA")) != NULL) sigma = atof(s);
-        int nmarc = 128;
+        real ea = 0.0, eb = 0.0;
+        if ((s = getenv("FT_A")) != NULL) ea = atof(s);
+        if ((s = getenv("FT_B")) != NULL) eb = atof(s);
+        // NUMERO DE MARCADORES DERIVADO DA MALHA, nao escolhido a mao.
+        //
+        // O front-tracking exige Delta s ~ h.  Fixar o numero de marcadores e
+        // depois refinar a malha quebra essa relacao em silencio: MEDIDO, a
+        // mesma gota com 64 marcadores perde 2,1e-2 de area em h=1/160
+        // (Delta s/h = 3,93) e 2,3e-5 com 256 (Delta s/h = 0,98) -- 920 vezes.
+        // Nao era o AMR, nem o remalhamento, nem o passo de tempo: era a frente
+        // ficar relativamente grossa ao refinar, e a massa vazar entre
+        // marcadores.
+        //
+        // FT_NMARC continua existindo e VENCE quando dado, para reproduzir
+        // corridas antigas; sem ele o numero sai de FT_DS_SOBRE_H (padrao 1,0)
+        // vezes o h da malha mais fina que a frente vai encontrar.
+        int nmarc = 0;
         if ((s = getenv("FT_NMARC")) != NULL) nmarc = atoi(s);
+        if (nmarc <= 0) {
+            real h_base = 0.025, ds_h = 1.0;
+            int niv = 0;
+            if ((s = getenv("FT_AMR_LX")) != NULL && getenv("FT_AMR_NX") != NULL)
+                h_base = atof(s) / atoi(getenv("FT_AMR_NX"));
+            if ((s = getenv("FT_AMR_NIVEIS"))   != NULL) niv  = atoi(s);
+            if ((s = getenv("FT_DS_SOBRE_H"))   != NULL) ds_h = atof(s);
+            real h_fino = h_base;
+            for (int l = 0; l < niv; l++) h_fino *= 0.5;
+            real raio = (ea > 0.0 && eb > 0.0) ? sqrt(ea * eb) : R_gota;
+            nmarc = (int) ceil(2.0 * M_PI * raio / (ds_h * h_fino));
+            if (nmarc < 16) nmarc = 16;
+            print0f("===> frente: %d marcadores, de Delta s/h=%.2f com "
+                    "h_fino=%.5f\n", nmarc, (double) ds_h, (double) h_fino);
+        }
 
         Point centro; centro[0] = cx_gota; centro[1] = cy_gota;
         for (int d = 2; d < DIM; d++) centro[d] = 0.0;
@@ -348,9 +380,6 @@ int main (int argc, char *argv[]) {
         // e sobra um residuo de balanco.  Tambem e' o primeiro caso em que a
         // frente deforma, e portanto o primeiro que exercita a CIRURGIA com o
         // solver no circuito.
-        real ea = 0.0, eb = 0.0;
-        if ((s = getenv("FT_A")) != NULL) ea = atof(s);
-        if ((s = getenv("FT_B")) != NULL) eb = atof(s);
         if (ea > 0.0 && eb > 0.0) {
             Point *v = (Point *) malloc((size_t) nmarc * sizeof(Point));
             for (int k = 0; k < nmarc; k++) {
@@ -482,6 +511,24 @@ int main (int argc, char *argv[]) {
             if (faltam != 0)
                 print0f("===> remalha passo %d: %ld posicoes sem valor\n",
                         ns->par.step, faltam);
+        }
+
+        // ORACULOS DA MALHA ADAPTADA, uma vez por remalhamento (FT_DIAG_MALHA):
+        //   banda   -- a regra das celulas minimas foi CUMPRIDA de fato?  Tem de
+        //              dar >= FT_AMR_CELMIN.  Nunca foi medida ate' agora.
+        //   nivel   -- pontos de suporte do nucleo caidos em celula de TAMANHO
+        //              DIFERENTE do h do marcador.  DEVE SER ZERO: o nucleo so'
+        //              e' normalizado para um h, e atravessar nivel quebra a
+        //              particao da unidade -- em silencio, porque a soma dos
+        //              pesos pode continuar perto de 1.
+        if (getenv("FT_DIAG_MALHA") != NULL && amr_niveis > 0 &&
+            ns->par.step % (amr_cada > 0 ? amr_cada : 25) == 0) {
+            real banda = malha_adapt_mede_banda(ns, amr_niveis,
+                                                amr_lx / amr_nx);
+            print0f("===> MALHA passo %d: banda=%.2f celulas finas "
+                    "(exigido >=%d)  suporte_nivel_trocado=%ld  perdidos=%ld\n",
+                    ns->par.step, (double) banda, amr_celmin,
+                    fi_suporte_nivel_trocado(), fi_suporte_perdidos());
         }
 
         if (ns->contr.flowtype == MULTIPHASE)

@@ -575,20 +575,27 @@ real malha_adapt_mede_banda(higflow_solver *ns, int niveis, real h_base)
 {
     int n_sem = 0;
     InterfaceSeedAdapt *sem = collect_interface_seeds_local(ns, &n_sem);
+    if (getenv("FT_DIAG_MALHA") != NULL)
+        fprintf(stderr, "  [banda] sementes=%d passo=%d\n", n_sem, ns->par.step);
     if (n_sem == 0) { free(sem); return -1.0; }
 
     real h_fino = h_base;
     for (int l = 0; l < niveis; l++) h_fino *= 0.5;
 
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
-    real d2min = 1e300;
+    real d2min = 1e300, dmin_v = 1e300, dmax_v = 0.0;
+    long ncel_v = 0, ngrossa_v = 0;
     higcit_celliterator *it;
     for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
          higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
         Point d; hig_get_delta(c, d);
+        if (d[0] < dmin_v) dmin_v = d[0];
+        if (d[0] > dmax_v) dmax_v = d[0];
+        ncel_v++;
         // "nao esta' no nivel mais fino" = celula maior que h_fino com folga
         if (d[0] < 1.5 * h_fino) continue;
+        ngrossa_v++;
         Point cc; hig_get_center(c, cc);
         real dd = 0.0;
         for (int k = 0; k < n_sem; k++) {
@@ -603,6 +610,10 @@ real malha_adapt_mede_banda(higflow_solver *ns, int niveis, real h_base)
     }
     higcit_destroy(it);
     free(sem);
+    if (getenv("FT_DIAG_MALHA") != NULL)
+        fprintf(stderr, "  [banda] celulas=%ld delta[%.5f,%.5f] h_fino=%.5f "
+                "grossas=%ld d2min=%.4e\n", ncel_v, (double) dmin_v,
+                (double) dmax_v, (double) h_fino, ngrossa_v, (double) d2min);
     if (d2min > 1e299) return -1.0;
     // Desconta a incerteza da semente (centro de celula de interface) para nao
     // CREDITAR banda que nao existe: o numero devolvido e' o pior caso.
