@@ -81,6 +81,48 @@ static int _vof_estatico(void) {
 	return lido;
 }
 
+// Deformacao da gota pelos MOMENTOS de area do campo de fracao volumetrica:
+//   A = int f dV,  Mxx = int f (x-xc)^2 dV,  Myy = int f (y-yc)^2 dV
+//   a = 2 sqrt(Mxx/A),  b = 2 sqrt(Myy/A),  D = (a-b)/(a+b)
+// E' EXATAMENTE a grandeza que ft_semieixos mede do lado do front-tracking --
+// mesma definicao, nao duas parecidas --, o que e' a condicao para comparar a
+// oscilacao dos dois metodos.  Imprime com VOF_DIAG_D a cada VOF_DIAG_CADA passos.
+static void _vof_deformacao(higflow_solver *ns, int passo) {
+	sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+	mp_mapper *mp = sd_get_domain_mapper(sdm);
+	real A = 0.0, sx = 0.0, sy = 0.0;
+	higcit_celliterator *it;
+	for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+		hig_cell *c = higcit_getcell(it);
+		int clid = mp_lookup(mp, hig_get_cid(c));
+		if (clid < 0) continue;
+		Point delta, cc;
+		hig_get_delta(c, delta); hig_get_center(c, cc);
+		real w = dp_get_value(ns->ed.mult.dpfracvol, clid) * delta[0] * delta[1];
+		A += w; sx += w * cc[0]; sy += w * cc[1];
+	}
+	higcit_destroy(it);
+	if (A <= 0.0) return;
+	real xc = sx / A, yc = sy / A, Mxx = 0.0, Myy = 0.0;
+	for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+		hig_cell *c = higcit_getcell(it);
+		int clid = mp_lookup(mp, hig_get_cid(c));
+		if (clid < 0) continue;
+		Point delta, cc;
+		hig_get_delta(c, delta); hig_get_center(c, cc);
+		real w = dp_get_value(ns->ed.mult.dpfracvol, clid) * delta[0] * delta[1];
+		// Momento proprio da celula (+delta^2/12) para nao subestimar a largura
+		// nas celulas cortadas -- a celula tem extensao, nao e' um ponto.
+		Mxx += w * ((cc[0]-xc)*(cc[0]-xc) + delta[0]*delta[0]/12.0);
+		Myy += w * ((cc[1]-yc)*(cc[1]-yc) + delta[1]*delta[1]/12.0);
+	}
+	higcit_destroy(it);
+	real a = 2.0*sqrt(fabs(Mxx/A)), b = 2.0*sqrt(fabs(Myy/A));
+	print0f("VOF passo %5d: A=%.8f  a=%.6f  b=%.6f  D=%+.6e\n",
+	        passo, (double) A, (double) a, (double) b,
+	        (double)((a-b)/(a+b)));
+}
+
 // Volume fraction
 
 // ---------------------------------------------------------------------------
@@ -434,6 +476,12 @@ int main (int argc, char *argv[]) {
 		ns->par.t += ns->par.dt;
 		// Stop the first step time
         if (ns->par.step == step0) STOP_CLOCK(firstiter); 
+        { static int cada = 0;
+          if (cada == 0) { const char *c = getenv("VOF_DIAG_CADA");
+                           cada = (c != NULL) ? atoi(c) : 50; if (cada < 1) cada = 50; }
+          if (getenv("VOF_DIAG_D") != NULL && ns->par.step % cada == 0)
+              _vof_deformacao(ns, ns->par.step); }
+
 		// Printing
         if (ns->par.t >= ns->par.tp) {
 			print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);

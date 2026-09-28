@@ -153,6 +153,18 @@ void ft_integral_curvatura(const ft_frente *f, real integral[DIM]);
 void ft_forcas_tensao(const ft_frente *f, real sigma,
                       Point *pos, Point *forca, real *ds);
 
+//! Semieixos EQUIVALENTES da frente, pelos momentos de area de segunda ordem:
+//! a = 2*sqrt(Mxx/A), b = 2*sqrt(Myy/A), com Mxx = integral de (x-xc)^2 dA.
+//! Para uma elipse verdadeira devolve os semieixos exatos.
+//!
+//! E' a medida de deformacao usada na comparacao com o VOF: la' os mesmos
+//! momentos saem da integral da fracao volumetrica, entao os dois lados medem a
+//! MESMA grandeza, e nao duas parecidas.  A deformacao com sinal e'
+//! D = (a-b)/(a+b), que troca de sinal a cada meio periodo de oscilacao --
+//! diferente da circularidade, que e' sempre <= 1 e oscila no DOBRO da
+//! frequencia.
+void ft_semieixos(const ft_frente *f, real *a, real *b);
+
 // --- adveccao + cirurgia --------------------------------------------------
 
 //! Avanca a frente um passo `dt` a partir do instante `t`, no campo `u`:

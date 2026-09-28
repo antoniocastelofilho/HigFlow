@@ -180,7 +180,7 @@ static void _campo_da_malha(const Point x, real t, void *vctx, real u[DIM])
 // centroide e circularidade (4*pi*A/P^2, que vale 1 para o circulo).  Uma gota
 // estatica em equilibrio tem de manter as tres.
 static void _metricas(const ft_frente *f, const Point centro_ini,
-                      real *area, real *deriva, real *circ)
+                      real *area, real *deriva, real *circ, real *defor)
 {
     int n = ft_num(f);
     Point *p = (Point *) malloc((size_t) n * sizeof(Point));
@@ -193,6 +193,12 @@ static void _metricas(const ft_frente *f, const Point centro_ini,
     *area = ft_area(f);
     real P = ft_perimetro(f);
     *circ = (P > 0.0) ? 4.0 * M_PI * (*area) / (P * P) : 0.0;
+    // DEFORMACAO COM SINAL, pelos semieixos equivalentes (momentos de area).
+    // Troca de sinal a cada meio periodo -- a circularidade, sempre <= 1, nao
+    // trocaria, e oscilaria no dobro da frequencia.
+    real sa, sb;
+    ft_semieixos(f, &sa, &sb);
+    *defor = (sa + sb > 0.0) ? (sa - sb) / (sa + sb) : 0.0;
     free(p);
 }
 
@@ -338,18 +344,42 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
         ft_advecta(ctx->frente, _campo_da_malha, &ic, ns->par.t, ns->par.dt);
         ft_cirurgia(ctx->frente);
 
-        if (getenv("FT_DIAG_INTERP") != NULL && ctx->passo % 50 == 0) {
-            real area, deriva, circ;
-            _metricas(ctx->frente, ctx->centro_ini, &area, &deriva, &circ);
+        static int cada = 0;
+        if (cada == 0) { const char *c = getenv("FT_DIAG_CADA");
+                         cada = (c != NULL) ? atoi(c) : 50; if (cada < 1) cada = 50; }
+        if (getenv("FT_DIAG_INTERP") != NULL && ctx->passo % cada == 0) {
+            real area, deriva, circ, defor;
+            _metricas(ctx->frente, ctx->centro_ini, &area, &deriva, &circ, &defor);
             fprintf(stderr, "FT passo %5d: n=%4d  area=%.8f (dA/A=%.2e)  "
-                    "deriva=%.3e  circ=%.6f  unidade_pior=%.2e  "
+                    "deriva=%.3e  circ=%.6f  D=%+.6e  unidade_pior=%.2e  "
                     "max|u_marc|=%.3e\n",
                     ctx->passo, ft_num(ctx->frente), (double) area,
                     (double) fabs(area - ctx->area_ini) / ctx->area_ini,
-                    (double) deriva, (double) circ,
+                    (double) deriva, (double) circ, (double) defor,
                     (double) _pior_desvio_unidade,
                     (double) _maior_u_marcador);
         }
+        // Despejo das POSICOES da frente (FT_DUMP_FRENTE=prefixo): um arquivo
+        // por quadro com x y por marcador, fechando no primeiro.  E' o que as
+        // figuras do relatorio desenham -- a forma, nao so' o numero.
+        { const char *pre = getenv("FT_DUMP_FRENTE");
+          static int cadaq = 0, quadro = 0;
+          if (cadaq == 0) { const char *c = getenv("FT_DUMP_CADA");
+                            cadaq = (c != NULL) ? atoi(c) : 100; if (cadaq < 1) cadaq = 100; }
+          if (pre != NULL && ctx->passo % cadaq == 0) {
+              char nome[512];
+              snprintf(nome, sizeof nome, "%s_%04d.dat", pre, quadro++);
+              FILE *fp = fopen(nome, "w");
+              if (fp != NULL) {
+                  int nn = ft_num(ctx->frente);
+                  Point *pp = (Point *) malloc((size_t) nn * sizeof(Point));
+                  ft_posicoes(ctx->frente, pp);
+                  fprintf(fp, "x y\n");
+                  for (int i = 0; i <= nn; i++)
+                      fprintf(fp, "%.8f %.8f\n", pp[i % nn][0], pp[i % nn][1]);
+                  fclose(fp); free(pp);
+              }
+          } }
         ctx->passo++;
     }
 

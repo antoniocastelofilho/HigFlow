@@ -21,6 +21,33 @@ primeiro em que a \textbf{cirurgia dispara} com o solver no circuito: o n\'umero
 de marcadores cai de 108 para 102--104 conforme a elipse se contrai no eixo
 maior.
 
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=10cm, height=7.4cm, axis equal image,
+  xlabel={$x$}, ylabel={$y$}, grid=major,
+  xmin=0.24, xmax=0.76, ymin=0.31, ymax=0.69,
+  legend pos=outer north east, legend cell align=left, legend style={font=\small},
+]
+\addplot[thick]                 table[x=x,y=y] {\dat{formas/el_f0.dat}};
+\addlegendentry{$t=0$}
+\addplot[thin]                  table[x=x,y=y] {\dat{formas/el_f1.dat}};
+\addlegendentry{$t=0{,}2$}
+\addplot[thin, dashed]          table[x=x,y=y] {\dat{formas/el_f2.dat}};
+\addlegendentry{$t=0{,}6$}
+\addplot[thick, densely dotted] table[x=x,y=y] {\dat{formas/el_f3.dat}};
+\addlegendentry{$t=1{,}0$}
+\end{axis}
+\end{tikzpicture}
+\caption{Relaxa\c{c}\~ao da gota el\'iptica ($Re=1$, superamortecido). A
+tens\~ao superficial leva a elipse ao c\'irculo de mesma \'area de forma
+monot\^onica, sem oscilar. \'E neste caso que a cirurgia dispara pela primeira
+vez com o solver no circuito, removendo marcadores conforme a frente encurta.}
+\label{fig:elipse}
+\end{figure}
+
 \subsection{O defeito que o c\'irculo escondia}
 
 Na primeira corrida, a formula\c{c}\~ao balanceada \textbf{falhou}. A

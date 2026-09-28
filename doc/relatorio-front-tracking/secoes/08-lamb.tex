@@ -1,0 +1,184 @@
+\section{Fase B3: oscila\c{c}\~ao de gota e a frequ\^encia de Lamb}
+\label{sec:lamb}
+
+\subsection{O or\'aculo}
+
+Uma gota levemente deformada, solta do repouso, oscila. Na teoria inv\'iscida, o
+modo $n$ de uma gota bidimensional tem
+\begin{equation}
+  \omega_n^{2} = \frac{n(n^{2}-1)\,\sigma}{R^{3}(\rho_i + \rho_o)} .
+  \label{eq:lamb}
+\end{equation}
+Para $n=2$, $\sigma=1$, $\rho_i=\rho_o=1$ e $R=1/6$: $\omega = 25{,}456$ e
+per\'iodo $T = 0{,}24683$. \'E um or\'aculo de \emph{frequ\^encia}, portanto
+insens\'ivel \`a calibra\c{c}\~ao da medida de deforma\c{c}\~ao --- s\'o depende
+de quando ela cruza zero.
+
+\paragraph{Dois par\^ametros precisaram mudar, e ambos por raz\~ao medida.}
+Primeiro, $Re=1$ deixa o sistema \textbf{fortemente superamortecido}: a taxa
+viscosa $\beta \sim \nu k^{2} = 144$ contra $\omega = 25$, ou seja, nada oscila
+--- e \'e por isso que a elipse da Se\c{c}\~ao~\ref{sec:elipse} relaxou de forma
+monot\^onica. Usou-se $Re = 200$, que d\'a $\beta \approx 0{,}7$ e portanto
+oscila\c{c}\~ao vis\'ivel por v\'arios per\'iodos. Segundo, a restri\c{c}\~ao
+capilar de passo, $\Delta t < \sqrt{\rho h^{3}/2\pi\sigma} = \num{8.4e-4}$,
+revelou que o $\Delta t = 10^{-3}$ usado at\'e aqui estava \emph{acima} do
+limite; passou-se a $\Delta t = \num{5e-4}$.
+
+\paragraph{A medida.} Deforma\c{c}\~ao com sinal $D = (a-b)/(a+b)$, com $a$ e $b$
+os semieixos equivalentes pelos \textbf{momentos de \'area} de segunda ordem. No
+front-tracking saem do pol\'igono em forma fechada; no VOF, da integral da
+fra\c{c}\~ao volum\'etrica. \'E a \emph{mesma} grandeza dos dois lados, e n\~ao
+duas parecidas --- condi\c{c}\~ao para comparar. (A circularidade n\~ao serviria:
+sendo sempre $\le 1$, n\~ao troca de sinal e oscilaria no dobro da frequ\^encia.)
+A fun\c{c}\~ao foi conferida contra quatro elipses conhecidas: erro
+\num{1.3e-5}, o d\'eficit do pol\'igono de 512 lados.
+
+\subsection{Resultado}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=10cm, height=7.4cm, axis equal image,
+  xlabel={$x$}, ylabel={$y$}, grid=major,
+  xmin=0.31, xmax=0.69, ymin=0.31, ymax=0.69,
+  legend pos=outer north east, legend cell align=left, legend style={font=\small},
+]
+\addplot[thick]                 table[x=x,y=y] {\dat{formas/lamb_f0.dat}};
+\addlegendentry{$t=0$ (alongada em $x$)}
+\addplot[thin]                  table[x=x,y=y] {\dat{formas/lamb_f1.dat}};
+\addlegendentry{$t\approx T/4$}
+\addplot[thin, dashed]          table[x=x,y=y] {\dat{formas/lamb_f2.dat}};
+\addlegendentry{$t\approx T/2$ (alongada em $y$)}
+\addplot[thick, densely dotted] table[x=x,y=y] {\dat{formas/lamb_f3.dat}};
+\addlegendentry{$t\approx 3T/4$}
+\end{axis}
+\end{tikzpicture}
+\caption{Fases de um per\'iodo da oscila\c{c}\~ao do modo $n=2$ ($Re=200$). A
+gota troca de eixo maior a cada meio per\'iodo --- \'e essa troca de sinal que a
+deforma\c{c}\~ao $D=(a-b)/(a+b)$ registra, e que a circularidade, sempre $\le 1$,
+n\~ao registraria. A amplitude est\'a exagerada pelo recorte dos eixos: a
+deforma\c{c}\~ao inicial \'e de \SI{5}{\percent}.}
+\label{fig:lamb-fases}
+\end{figure}
+
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+  width=12.4cm, height=6.4cm,
+  xlabel={$t$}, ylabel={$D = (a-b)/(a+b)$},
+  legend pos=north east, grid=major, legend cell align=left,
+]
+\addplot table[x=t, y=ft]  {\dat{lamb-oscilacao.dat}};
+\addlegendentry{front-tracking}
+\addplot table[x=t, y=vof] {\dat{lamb-oscilacao.dat}};
+\addlegendentry{VOF}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/ftespalhado/.style={column name={front-tracking}},
+  columns/vof/.style={column name={VOF}},
+  columns/teoria/.style={column name={teoria}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{lamb-resultados.dat}}
+
+Os dois m\'etodos produzem \textbf{sete oscila\c{c}\~oes amortecidas limpas},
+com per\'iodo est\'avel ao longo da corrida (front-tracking: $0{,}2706$,
+$0{,}2709$, $0{,}2699$, $0{,}2657$, $0{,}2668$, $0{,}2637$) e amplitude decaindo
+monotonicamente. O per\'iodo fica \SI{8.5}{\percent} (front-tracking) e
+\SI{6.2}{\percent} (VOF) acima do valor inv\'iscido, e os dois concordam entre si
+dentro de \SI{2.2}{\percent}.
+
+O excesso comum sobre \eqref{eq:lamb} \'e esperado e n\~ao \'e defeito de
+nenhum dos dois: \eqref{eq:lamb} vale para gota inv\'iscida em dom\'inio
+\emph{ilimitado}, e aqui as paredes est\~ao a $2R$ da superf\'icie, o que aumenta
+a in\'ercia efetiva e portanto o per\'iodo. A corre\c{c}\~ao viscosa da
+frequ\^encia, $\omega_{\text{obs}} = \sqrt{\omega_0^{2}-\beta^{2}}$, responde por
+menos de \SI{0.5}{\percent} e n\~ao explica a diferen\c{c}a. Que duas
+discretiza\c{c}\~oes independentes errem para o \emph{mesmo lado} e quase pelo
+mesmo tanto \'e a assinatura de um efeito f\'isico compartilhado.
+
+O amortecimento medido ($1{,}61$ e $1{,}38$) fica acima do previsto pela teoria
+viscosa linear ($\approx 0{,}9$), nos dois m\'etodos: h\'a dissipa\c{c}\~ao
+num\'erica em ambos, um pouco maior no front-tracking.
+
+\subsection{A conserva\c{c}\~ao de massa, agora sob movimento sustentado}
+
+\'E aqui que a diferen\c{c}a estrutural entre os m\'etodos aparece com toda a
+for\c{c}a. Ao longo de 2000 passos de movimento cont\'inuo:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+front-tracking & \textbf{\SI{3.9}{\percent}} de perda de \'area \\
+VOF            & \textbf{zero} --- $A = 0{,}08726527$ em \emph{todos} os d\'igitos,
+                 em todas as amostras \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A progress\~ao ao longo deste relat\'orio conta a hist\'oria inteira: na gota
+est\'atica o front-tracking parecia conservar perfeitamente (\num{1.9e-15}), mas
+s\'o porque nada se movia; na relaxa\c{c}\~ao da elipse a deriva apareceu
+(\num{1.1e-4}); sob oscila\c{c}\~ao sustentada ela chega a \SI{3.9}{\percent}.
+O VOF advecta um escalar conservado e n\~ao perde nada em nenhum dos tr\^es
+regimes. Para escoamento longo em que a massa da fase importa, esta \'e a
+diferen\c{c}a decisiva, e nenhum ajuste da for\c{c}a a remove --- ela vem da
+advec\c{c}\~ao dos marcadores, n\~ao da formula\c{c}\~ao da tens\~ao superficial.
+
+\subsection{A formula\c{c}\~ao balanceada falha catastroficamente}
+
+A corrida com a for\c{c}a balanceada foi \textbf{abortada}. Com o amortecimento
+reduzido a $Re=200$, a instabilidade identificada na Se\c{c}\~ao~\ref{sec:elipse}
+--- que a suaviza\c{c}\~ao da curvatura havia contido, n\~ao curado --- reaparece
+e destr\'oi a solu\c{c}\~ao:
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & in\'icio & passo 1330 \\
+\midrule
+marcadores                & 64      & \textbf{136\,707} \\
+deriva de \'area          & 0       & \textbf{\SI{27.5}{\percent}} \\
+circularidade             & 0{,}999 & \textbf{0{,}000} \\
+parti\c{c}\~ao da unidade & \num{6e-15} & \textbf{0{,}833} \\
+$\max\lvert u\rvert$ nos marcadores & 0 & 9{,}08 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A frente se enruga em alta frequ\^encia, a cirurgia insere marcadores nas rugas,
+e o custo --- que \'e $O(\text{c\'elulas}\times N)$ --- torna a corrida
+impratic\'avel antes mesmo de terminar. A parti\c{c}\~ao da unidade caindo de
+\num{6e-15} para $0{,}833$ \'e a confirma\c{c}\~ao independente do colapso: o
+suporte do n\'ucleo deixou de estar bem posto.
+
+\paragraph{A conclus\~ao sobre o balan\c{c}o, revista pela terceira vez.} Na gota
+est\'atica ele foi espetacular (quatro ordens de grandeza); na elipse mostrou-se
+condicionalmente est\'avel e sem vantagem; sob oscila\c{c}\~ao pouco amortecida
+\'e \textbf{inutiliz\'avel}. A formula\c{c}\~ao espalhada, mais dissipativa, \'e
+a \'unica das duas que atravessou os tr\^es regimes. \textbf{A formula\c{c}\~ao
+padr\~ao continua sendo a espalhada}, e o seletor da balanceada permanece como
+instrumento de estudo, n\~ao como caminho de produ\c{c}\~ao.
+
+\subsection{Um erro de montagem que o pr\'oprio or\'aculo pegou}
+
+A primeira corrida do VOF n\~ao oscilou: a deforma\c{c}\~ao decaiu
+monotonicamente. A causa n\~ao era do m\'etodo. O $\sigma$ efetivo do caminho
+multif\'asico \'e $1/(Ca\cdot Re)$, de modo que \textbf{elevar $Re$ de 1 para 200
+dividiu por 200 a tens\~ao superficial do VOF} --- deixando-o superamortecido ---
+enquanto o front-tracking usa $\sigma$ expl\'icito e n\~ao foi afetado. Os dois
+deixaram de resolver o mesmo problema sem que nada no arranjo acusasse.
+
+Corrigiu-se com $Ca = 1/Re = 0{,}005$, que rep\~oe $\sigma_{\text{ef}} = 1$, e a
+oscila\c{c}\~ao apareceu. O epis\'odio vale registro porque a rela\c{c}\~ao
+$\sigma_{\text{ef}} = 1/(Ca\cdot Re)$ havia sido \emph{verificada no c\'odigo} na
+Se\c{c}\~ao~\ref{sec:comparacao}, quando $Re$ valia 1 --- e ainda assim a
+depend\^encia escapou ao mudar o par\^ametro. Uma equival\^encia conferida uma
+vez n\~ao permanece conferida quando se mexe em algo de que ela depende.

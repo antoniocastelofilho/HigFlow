@@ -38,6 +38,32 @@ esticamento, porque manter $\Delta s \approx h$ preserva a resolu\c{c}\~ao do
 filamento; em troca, a revers\~ao perfeita se perde, o que \'e o compromisso
 correto.
 
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=11cm, height=8cm, axis equal image,
+  xlabel={$x$}, ylabel={$y$}, grid=major,
+  xmin=0.1, xmax=0.9, ymin=0.3, ymax=1.0,
+  legend pos=south west, legend cell align=left, legend style={font=\small},
+]
+\addplot[thick]              table[x=x,y=y] {\dat{formas/b1_0.dat}};
+\addlegendentry{$t=0$ (c\'irculo)}
+\addplot[thin, dashed]       table[x=x,y=y] {\dat{formas/b1_2.dat}};
+\addlegendentry{$t=T/2$ (filamento)}
+\addplot[thick, densely dotted] table[x=x,y=y] {\dat{formas/b1_4.dat}};
+\addlegendentry{$t=T$ (retorno)}
+\end{axis}
+\end{tikzpicture}
+\caption{Teste revers\'ivel de Rider--Kothe. A frente estica em filamento at\'e
+$t=T/2$, quando o campo se inverte, e retorna \`a forma inicial em $t=T$. A
+cirurgia acompanha o esticamento inserindo marcadores (256 $\to$ 680) e os
+remove no retorno (654). A \'area fechada varia \num{6e-5} ao longo de todo o
+percurso.}
+\label{fig:b1}
+\end{figure}
+
 \paragraph{O que custou uma itera\c{c}\~ao.} A primeira vers\~ao da cirurgia
 removia marcador de segmento curto \emph{sem guarda de curvatura}, e cortava
 canto: o erro de \'area passou a ser dominado pela pr\'opria cirurgia, com a

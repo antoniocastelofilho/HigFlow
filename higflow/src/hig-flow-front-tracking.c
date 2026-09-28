@@ -349,6 +349,29 @@ void ft_espalha_tensao(const ft_frente *f, real sigma,
     free(kv);
 }
 
+void ft_semieixos(const ft_frente *f, real *a, real *b)
+{
+    // Formulas de poligono para area, centroide e momentos de segunda ordem.
+    real A2 = 0.0, cx = 0.0, cy = 0.0, Mxx = 0.0, Myy = 0.0;
+    for (int i = 0; i < f->n; i++) {
+        const real *p = f->x[i], *q = f->x[(i + 1) % f->n];
+        real cr = p[0] * q[1] - q[0] * p[1];          // produto cruzado
+        A2  += cr;
+        cx  += (p[0] + q[0]) * cr;
+        cy  += (p[1] + q[1]) * cr;
+        Mxx += (p[0]*p[0] + p[0]*q[0] + q[0]*q[0]) * cr;
+        Myy += (p[1]*p[1] + p[1]*q[1] + q[1]*q[1]) * cr;
+    }
+    real A = 0.5 * A2;
+    if (fabs(A) < 1e-300) { *a = *b = 0.0; return; }
+    cx /= (6.0 * A);  cy /= (6.0 * A);
+    Mxx = Mxx / 12.0 - A * cx * cx;                   // transporte ao centroide
+    Myy = Myy / 12.0 - A * cy * cy;
+    // Elipse de semieixos a,b tem Mxx = A a^2/4 e Myy = A b^2/4.
+    *a = 2.0 * sqrt(fabs(Mxx / A));
+    *b = 2.0 * sqrt(fabs(Myy / A));
+}
+
 // --- adveccao -------------------------------------------------------------
 
 void ft_advecta(ft_frente *f, ft_campo_u u, void *ctx, real t, real dt)

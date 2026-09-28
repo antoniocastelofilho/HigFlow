@@ -410,6 +410,63 @@ faltava saber *sobre o que* ele falava. Um caso em que uma quantidade é
 constante não distingue uma implementação que a trata bem de outra que a trata
 de qualquer jeito, e aqui a diferença era entre funcionar e ir à instabilidade.
 
+## Passo 10 — B3: oscilação de gota contra a frequência de Lamb
+
+**Oráculo:** ω² = n(n²−1)σ/[R³(ρ_i+ρ_o)] → para n=2, σ=1, ρ=1, R=1/6:
+**T = 0,24683**. É oráculo de *frequência*, insensível à calibração da medida.
+
+**Dois parâmetros mudaram, por razão medida:**
+- Re=1 é **fortemente superamortecido** (β≈144 contra ω=25) — por isso a elipse
+  relaxou monotonicamente. Usei **Re=200**.
+- A restrição capilar dá dt < 8,4e-4: **o dt=1e-3 que eu vinha usando estava
+  acima do limite**. Passei a 5e-4.
+
+**A medida:** D = (a−b)/(a+b) pelos **momentos de área** — no FT em forma fechada
+do polígono, no VOF da integral da fração. *Mesma* grandeza dos dois lados.
+Verificada contra 4 elipses: erro 1,3e-5.
+
+| grandeza | front-tracking | VOF | teoria |
+|---|---|---|---|
+| período medido | 0,26791 | 0,26210 | **0,24683** |
+| erro vs Lamb | 8,54% | 6,19% | — |
+| amortecimento | 1,613 | 1,377 | ~0,90 |
+| oscilações limpas | **7** | **7** | — |
+| deriva de massa | **3,9%** | **0** | 0 |
+
+Os dois dão **7 oscilações amortecidas limpas**, período estável, e concordam
+entre si a **2,2%**. O excesso comum de ~7% sobre Lamb é confinamento (paredes a
+2R) — a correção viscosa da frequência responde por <0,5%. Dois métodos
+independentes errando para o *mesmo lado* e quase pelo mesmo tanto é assinatura
+de efeito físico compartilhado.
+
+**A conservação de massa sob movimento sustentado é a diferença decisiva.** A
+progressão conta a história inteira: gota estática, o FT parecia conservar
+perfeitamente (1,9e-15) — mas só porque nada se movia; elipse relaxando, a
+deriva apareceu (1,1e-4); **oscilação sustentada, 3,9%**. O VOF manteve
+`A=0.08726527` em *todos* os dígitos nos três regimes. Isso vem da advecção dos
+marcadores, e nenhum ajuste da força remove.
+
+**O balanceado falhou catastroficamente** e a corrida foi abortada: marcadores
+64 → **136.707**, área −27,5%, circularidade 0, partição da unidade degradada de
+6e-15 para **0,833**. Com o amortecimento menor, a instabilidade que a suavização
+de κ havia *contido* (não curado) reapareceu e despedaçou a frente.
+
+**Conclusão sobre o balanço, revista pela terceira vez:** espetacular na gota
+estática (4 ordens), sem vantagem na elipse, **inutilizável** sob oscilação pouco
+amortecida. **A formulação padrão continua sendo a espalhada.**
+
+**Um erro de montagem que o próprio oráculo pegou:** a primeira corrida do VOF
+não oscilou. O σ efetivo dele é 1/(Ca·Re) — então **subir Re de 1 para 200
+dividiu o σ do VOF por 200**, deixando-o superamortecido, enquanto o FT usa σ
+explícito. Corrigi com Ca=1/Re=0,005. A relação tinha sido *verificada no código*
+quando Re valia 1, e ainda assim escapou ao mudar o parâmetro: **uma equivalência
+conferida uma vez não permanece conferida quando se mexe em algo de que ela
+depende.**
+
+**Figuras:** o relatório LaTeX ganhou 3 figuras geométricas (formas reais das
+frentes, de `dados/formas/*.dat`): Rider-Kothe círculo→filamento→círculo,
+relaxação da elipse, e as 4 fases de um período da oscilação.
+
 ## Resumo da corrida autônoma
 
 Cinco passos, todos verificados por oráculo e commitados:
