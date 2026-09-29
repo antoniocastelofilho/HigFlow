@@ -1,0 +1,122 @@
+\section{Converg\^encia em $h$: o protocolo}
+\label{sec:convergencia}
+
+\subsection{Por que este estudo, e por que agora}
+
+A Se\c{c}\~ao~\ref{sec:vies} deixou uma pergunta com nome: os cinco desvios contra
+os valores publicados s\~ao \emph{todos negativos}, em duas discretiza\c{c}\~oes
+independentes. Isso \'e assinatura de vi\'es compartilhado, e tr\^es candidatos
+foram nomeados sem que nenhum fosse medido --- a resolu\c{c}\~ao \'unica, a
+restri\c{c}\~ao capilar de passo, e o refino da esteira poder ser insuficiente.
+
+Um estudo de converg\^encia separa os tr\^es. Se os desvios encolhem com $h$ na
+taxa esperada, o vi\'es \'e erro de discretiza\c{c}\~ao e o par de
+implementa\c{c}\~oes est\'a correto; se n\~ao encolhem, a causa \'e outra, e o
+alvo da investiga\c{c}\~ao muda de lugar.
+
+Este relat\'orio listava converg\^encia em $h$ como pend\^encia desde a primeira
+vers\~ao, por completude metodol\'ogica. Ela passa a ser a \emph{pergunta aberta},
+por raz\~ao medida.
+
+\subsection{O que o custo obriga: engrossar, e n\~ao refinar}
+
+A escolha natural seria refinar. Ela \'e invi\'avel, e o motivo \'e a pr\'opria
+f\'isica do problema: a restri\c{c}\~ao capilar de passo, $\Delta t <
+\sqrt{\rho h^{3}/2\pi\sigma}$, escala como $h^{3/2}$. Dobrar a resolu\c{c}\~ao
+multiplica as c\'elulas por 4 \emph{e} os passos por $2{,}8$:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/malha/.style={column name={malha}},
+  columns/celraio/.style={column name={c\'el./raio}},
+  columns/dt/.style={column name={$\Delta t$}},
+  columns/passos/.style={column name={passos}},
+  columns/celulas/.style={column name={c\'elulas}},
+  columns/custo/.style={column name={custo}},
+  columns/horas/.style={column name={horas}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-custo.dat}}
+
+\SI{136}{\hour} --- quase seis dias --- para \emph{um} m\'etodo, e o estudo pede
+os dois. A malha refinada est\'a fora de alcance nesta m\'aquina.
+
+Engrossar custa quase nada e serve igualmente para estimar ordem. O estudo usa
+tr\^es pontos com raz\~ao de refino $\approx 1{,}41$ entre consecutivos --- quase
+uniforme, o que \'e condi\c{c}\~ao para extrapola\c{c}\~ao de Richardson --- e
+aproveita a corrida do fechamento como o ponto mais fino:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/corrida/.style={column name={corrida}},
+  columns/celraio/.style={column name={c\'el./raio}},
+  columns/dt/.style={column name={$\Delta t$}},
+  columns/proposito/.style={column name={prop\'osito}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-plano.dat}}
+
+\subsection{O confundidor, e a corrida que existe para remov\^e-lo}
+
+H\'a um problema de desenho que precisa ser dito antes dos resultados: como
+$\Delta t$ \'e fixado pela restri\c{c}\~ao capilar, \textbf{engrossar a malha
+tamb\'em engrossa o passo}. As corridas A, B e C variam os dois \emph{juntos}, e
+portanto medem o efeito combinado --- n\~ao a resolu\c{c}\~ao isolada.
+
+Sem cuidado, isso produziria uma conclus\~ao falsa de qualquer um dos dois lados:
+um desvio que encolhesse ao refinar seria atribu\'ido \`a malha quando poderia ser
+do passo, e um que n\~ao encolhesse absolveria a malha indevidamente.
+
+A corrida D existe s\'o para isso: mesma malha de A, com $\Delta t$ pela metade.
+A diferen\c{c}a entre A e D \'e efeito \emph{puro} de passo, na resolu\c{c}\~ao em
+que ele \'e barato de medir. Se ela for desprez\'ivel diante da diferen\c{c}a
+entre A e C, a varia\c{c}\~ao ao longo de A--B--C pode ser lida como efeito de
+malha; se n\~ao for, as duas contribui\c{c}\~oes precisam ser separadas antes de
+qualquer afirma\c{c}\~ao sobre ordem.
+
+\subsection{As leituras, declaradas antes dos n\'umeros}
+\label{sec:conv-leituras}
+
+Como na Se\c{c}\~ao~\ref{sec:leituras}, a interpreta\c{c}\~ao fica fixada agora,
+para que o resultado n\~ao seja explicado depois de conhecido. Os cinco desvios
+ser\~ao medidos em A, B e C, e a leitura depende de \emph{como} eles variam:
+
+\begin{itemize}
+  \item \textbf{Encolhem monotonicamente com $h$, com ordem entre 1 e 2.} O vi\'es
+    \'e erro de discretiza\c{c}\~ao, e as implementa\c{c}\~oes est\~ao corretas ---
+    a compara\c{c}\~ao com a literatura passa a ser uma quest\~ao de
+    resolu\c{c}\~ao, n\~ao de m\'etodo. \'E o desfecho esperado, e o menos
+    informativo.
+  \item \textbf{Encolhem, mas a extrapola\c{c}\~ao n\~ao chega \`a faixa
+    publicada.} Sobra vi\'es residual que o refino n\~ao remove, e os outros dois
+    candidatos --- contorno e refino da esteira --- passam a ser os suspeitos.
+  \item \textbf{N\~ao encolhem, ou encolhem em ordem menor que 1.} A causa n\~ao \'e
+    resolu\c{c}\~ao. \'E o desfecho mais informativo e o mais trabalhoso: aponta
+    formula\c{c}\~ao ou condi\c{c}\~ao de contorno, e invalida a explica\c{c}\~ao
+    mais confort\'avel.
+  \item \textbf{Variam sem monotonicidade.} O estudo n\~ao decide nada e o
+    problema \'e outro --- provavelmente a adapta\c{c}\~ao da malha mudando de
+    padr\~ao entre resolu\c{c}\~oes, j\'a que a banda do crit\'erio \'e contada em
+    \emph{c\'elulas} e portanto muda de largura f\'isica com $h$.
+\end{itemize}
+
+\subsection{O que este estudo n\~ao decide}
+
+Convém delimitar antes, e n\~ao depois:
+
+\begin{itemize}
+  \item \textbf{S\~ao tr\^es pontos, e dois n\'iveis de AMR fixos.} A raz\~ao
+    entre eles \'e $\approx 1{,}41$, e n\~ao $2$: a ordem estimada \'e mais
+    sens\'ivel a ru\'ido do que seria com raz\~ao maior.
+  \item \textbf{A banda do crit\'erio \'e contada em c\'elulas finas}, ent\~ao a
+    regi\~ao refinada tem largura \emph{f\'isica} diferente em cada
+    resolu\c{c}\~ao. O refino n\~ao \'e, a rigor, auto-semelhante --- e esse \'e
+    exatamente o quarto desfecho previsto acima.
+  \item \textbf{A resolu\c{c}\~ao mais fina \'e a atual}, n\~ao uma mais fina que
+    ela. O estudo estima a ordem a partir de malhas \emph{mais grossas}, e
+    extrapolar para $h\to0$ a partir dai' carrega mais incerteza do que
+    extrapolar de dentro de uma s\'erie refinada.
+  \item \textbf{Uma \'unica realiza\c{c}\~ao por ponto.} N\~ao h\'a barra de erro
+    pr\'opria; a refer\^encia para julgar signific\^ancia continua sendo a
+    dispers\~ao entre os tr\^es c\'odigos publicados.
+\end{itemize}

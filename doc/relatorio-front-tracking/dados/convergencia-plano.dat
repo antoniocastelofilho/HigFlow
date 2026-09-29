@@ -1,0 +1,5 @@
+corrida  celraio  dt          proposito
+A        $20$     capilar     {ponto grosso}
+B        $28$     capilar     {ponto intermediario}
+C        $40$     capilar     {ja' medido: a corrida do fechamento}
+D        $20$     {metade}    {controle: separa passo de resolucao}

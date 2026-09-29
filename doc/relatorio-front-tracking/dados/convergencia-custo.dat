@@ -1,0 +1,5 @@
+malha                celraio  dt              passos    celulas          custo           horas
+{grossa (A)}         $20$     \num{7.07e-4}   $4243$    {$0{,}25\times$} {$0{,}09\times$}  {$1{,}1$}
+{intermediaria (B)}  $28$     \num{4.16e-4}   $7212$    {$0{,}49\times$} {$0{,}29\times$}  {$3{,}5$}
+{atual (C)}          $40$     \num{2.50e-4}   $12000$   {$1\times$}      {$1\times$}       {$12$}
+{refinada}           $80$     \num{8.84e-5}   $33941$   {$4\times$}      {$11{,}3\times$}  {$136$}
