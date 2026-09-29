@@ -1,0 +1,12 @@
+# Saidas do LaTeX.  O main.pdf e' rastreado de proposito (ver LEIAME): ele e' o
+# artefato que se le, e tê-lo no repositorio evita depender de quem clona ter
+# texlive instalado.  O resto e' intermediario e se regenera.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz

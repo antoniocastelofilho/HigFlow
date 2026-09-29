@@ -162,7 +162,7 @@ indevidamente para o seguinte.
 \begin{axis}[
   name=evol, width=6.2cm, height=9.2cm, axis equal image,
   xlabel={$x$}, ylabel={$y$}, grid=major,
-  xmin=0.10, xmax=0.90, ymin=0.25, ymax=1.30,
+  xmin=0.11, xmax=0.89, ymin=0.22, ymax=1.32,
   title={a bolha, de $t=0$ a $t=3$}, title style={font=\small},
   legend style={font=\scriptsize, at={(0.5,-0.13)}, anchor=north},
   legend columns=2, legend cell align=left,
@@ -180,15 +180,16 @@ indevidamente para o seguinte.
 \end{axis}
 \begin{axis}[
   at={(evol.right of south east)}, anchor=left of south west,
-  width=6.6cm, height=9.2cm, axis equal image,
+  width=6.6cm, height=6.6cm, axis equal image,
   xlabel={$x$}, grid=major,
-  xmin=0.14, xmax=0.86, ymin=0.66, ymax=1.06,
-  title={$t=1{,}9$ e $t=3$, ampliado}, title style={font=\small},
+  xmin=0.147, xmax=0.167, ymin=0.794, ymax=0.814,
+  title={$t=1{,}9$, ampliado 34 vezes}, title style={font=\small},
+  scaled ticks=false, tick label style={font=\tiny, /pgf/number format/fixed,
+                                        /pgf/number format/precision=3},
+  xtick={0.150,0.155,0.160,0.165}, ytick={0.795,0.800,0.805,0.810},
 ]
 \addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_2.dat}};
 \addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_2.dat}};
-\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
-\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
 \end{axis}
 \end{tikzpicture}
 \caption{A interface nos dois m\'etodos, em $t=0$, $1$, $1{,}9$ e $3$. A bolha
@@ -196,8 +197,10 @@ sobe de $y_c=0{,}5$ a $1{,}08$ e se achata: a raz\~ao largura/altura vai de
 $1{,}00$ a $1{,}87$, e $t=1{,}9$ \'e o instante de m\'axima deforma\c{c}\~ao --- o
 mesmo da circularidade m\'inima. De $1{,}9$ a $3$ a forma praticamente n\~ao muda
 ($1{,}87$ para $1{,}86$): a bolha atinge regime. As duas curvas s\~ao
-\emph{indistingu\'iveis} em toda a evolu\c{c}\~ao, e o painel ampliado mostra que
-isso se mant\'em na deforma\c{c}\~ao m\'axima. A curva do VOF \'e o contorno
+\emph{indistingu\'iveis} em toda a evolu\c{c}\~ao; o painel da direita amplia 34
+vezes o ponto de \emph{maior} discrep\^ancia no instante de deforma\c{c}\~ao
+m\'axima, onde elas se separam por \num{4.7e-4} --- cerca de
+\SI{8}{\percent} de uma c\'elula fina. A curva do VOF \'e o contorno
 $\mathrm{FracVol}=0{,}5$ por \emph{marching squares} com os valores de c\'elula
 medianizados nos v\'ertices, conferido contra o c\'irculo anal\'itico em $t=0$
 (desvio radial m\'aximo \num{1.34e-4}).}

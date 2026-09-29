@@ -1,7 +1,7 @@
-grandeza                        FT           VOF
-passos-integrados               12000        12000
-retomadas-necessarias           0            0
-amostras-do-benchmark           61           53
-deriva-de-massa-ate-t3          2.44e-03     1.41e-03
-marcadores-inicio-e-fim         252-e-272    --
-circularidade-em-t3             0.919419     nao-reportada
+grandeza                            FT               VOF
+{passos integrados}                 $12\,000$        $12\,000$
+{retomadas necess\'arias}           $0$              $0$
+{amostras do benchmark}             $61$             $53$
+{deriva de massa at\'e $t=3$}       \num{2.44e-03}   \num{1.41e-03}
+{marcadores, in\'icio e fim}        {de 252 a 272}    ---
+{circularidade em $t=3$}            $0{,}919419$     {n\~ao reportada}

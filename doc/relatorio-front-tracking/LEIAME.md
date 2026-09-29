@@ -44,18 +44,37 @@ texto discordarem depois de uma correção.
 
 ## Estado da verificação deste projeto LaTeX
 
-**Não foi compilado.** Não há `pdflatex` nem `bibtex` na máquina onde o relatório
-foi escrito, então o PDF não foi gerado nem conferido. O que *foi* verificado,
-por conferência estática automatizada:
+**Compilado.** `latexmk -pdf main` roda limpo: 32 páginas A4, **zero erros, zero
+estouros de margem, zero referências ou citações não resolvidas**. O PDF está em
+`main.pdf`.
 
-- todos os `\input` existem;
+Além da compilação, uma conferência estática automatizada verifica:
+
+- todos os `\input` existem, e nenhuma seção está órfã;
 - todos os `\dat{...}` apontam para arquivos que existem;
-- toda coluna referenciada em `columns/<nome>/` existe no cabeçalho do `.dat`
-  correspondente, **e** toda coluna do `.dat` tem `column name` (nenhuma sairia
-  com o nome cru);
+- toda coluna referenciada em `columns/<nome>/` existe no cabeçalho do `.dat`,
+  **e** toda coluna do `.dat` tem `column name`;
 - toda `\cite` tem entrada no `.bib`; toda `\ref`/`\eqref` tem `\label`;
 - chaves balanceadas em cada arquivo;
-- número de colunas consistente em cada `.dat`.
+- número de colunas consistente em cada `.dat`, **contando com reconhecimento de
+  `{agrupamento}`** — sem isso, uma célula com espaços dentro de chaves conta
+  errado.
+
+### Duas armadilhas que só a compilação pegou
+
+**Tabela vazia sem erro.** O `pgfplotstable` pode descartar todas as linhas de
+dados e ainda assim compilar limpo — cabeçalho impresso, corpo em branco, código
+de saída zero. Aconteceu com `hysing-fechamento.dat`, que é a tabela principal do
+relatório. A causa era célula composta sem `{chaves}`. **Verificar código de saída
+não basta:** é preciso conferir que o conteúdo apareceu.
+
+**Janela de eixo cortando a curva.** O painel ampliado da figura da bolha tinha
+`ymax` abaixo do topo das formas, e mostrava fragmentos. Nenhuma verificação
+estática vê isso — só renderizar a página e olhar.
+
+Para repetir as duas checagens: compile, extraia o texto (`pdftotext main.pdf -`)
+e procure um número distintivo da última linha de cada tabela; e renderize as
+páginas de figura (`pdftoppm -f N -l N -r 110 -png main.pdf saida`).
 
 Sublinhados foram removidos dos `.dat` de propósito: em coluna `string type` eles
 quebram a compilação (`Missing $ inserted`).
