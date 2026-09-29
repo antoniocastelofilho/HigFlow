@@ -1,0 +1,10 @@
+tipodeescoamento              modulo                                          linhas
+{\texttt{NEWTONIAN}}          {\texttt{hig-flow-step.c}}                      {$1\,640$}
+{\texttt{GENERALIZED\_NEWTONIAN}} {\texttt{step-generalized-newtonian.c}}     {$778$}
+{\texttt{MULTIPHASE}}         {\texttt{step-multiphase.c}}                    {$2\,513$}
+{\texttt{VISCOELASTIC}}       {\texttt{step-viscoelastic.c}}                  {$1\,915$}
+{\texttt{VISCOELASTIC\_INTEGRAL}} {\texttt{step-viscoelastic-integral.c}}     {$2\,301$}
+{\texttt{VISCOELASTIC\_VAR\_VISCOSITY}} {\texttt{step-viscoelastic-variable-viscosity.c}} {$2\,435$}
+{\texttt{SHEAR\_BANDING}}     {\texttt{step-viscoelastic-shear-banding.c}}    {$3\,225$}
+{\texttt{ELASTOVISCOPLASTIC}} {\texttt{step-elastoviscoplastic.c}}            {$1\,680$}
+{\texttt{SUSPENSIONS}}        {\texttt{step-shear-thickening-suspension.c}}   {$3\,413$}

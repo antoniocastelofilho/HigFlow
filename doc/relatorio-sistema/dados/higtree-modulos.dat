@@ -1,0 +1,9 @@
+modulo                  linhas      papel
+{\texttt{domain.c}}     {$3\,316$}  {dom\'inio serial: c\'elulas, facetas, estênceis, mapeadores}
+{\texttt{lbal.c}}       {$1\,979$}  {balanceamento de carga e parti\c{c}\~ao das \'arvores}
+{\texttt{higtree-io.c}} {$1\,826$}  {leitura do \texttt{.amr}, escrita de VTK}
+{\texttt{pdomain.c}}    {$1\,799$}  {dom\'inio \emph{distribu\'ido}: franja, sincroniza\c{c}\~ao, tipos MPI}
+{\texttt{higtree.c}}    {$843$}     {a \'arvore em si: refino, busca, geometria de c\'elula}
+{\texttt{higtree-iterator.c}} {$832$} {iteradores sobre c\'elulas e facetas}
+{\texttt{wls.c}}        {$624$}     {m\'inimos quadrados ponderados, base da interpola\c{c}\~ao}
+{\texttt{hig-mesh-snapshot.c}} {$213$} {instantâneo da malha, para o oráculo de faceta}

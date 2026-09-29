@@ -1,0 +1,6 @@
+modulo                                                    linhas     acopla
+{\texttt{step-electroosmotic.c}}                          {$2\,624$} {eletrocin\'etica ao escoamento}
+{\texttt{step-multiphase-electroosmotic.c}}               {$2\,172$} {duas fases + eletrocin\'etica}
+{\texttt{step-multiphase-viscoelastic.c}}                 {$903$}    {duas fases + viscoelasticidade}
+{\texttt{step-electroosmotic-viscoelastic.c}}             {$31$}     {esqueleto: despacha para os dois}
+{\texttt{step-multiphase-electroosmotic-viscoelastic.c}}  {$28$}     {esqueleto: despacha para os tr\^es}

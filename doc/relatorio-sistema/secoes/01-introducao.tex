@@ -1,0 +1,84 @@
+\section{Introdu\c{c}\~ao}
+
+\subsection{O que \'e o sistema}
+
+O HiGFlow \'e um simulador de escoamentos incompress\'iveis constru\'ido sobre o
+HiGTree, uma biblioteca de malhas em \'arvore \textbf{n\~ao graduada} com
+interpola\c{c}\~ao sem malha. A funda\c{c}\~ao do m\'etodo est\'a em Sousa et
+al.~\cite{sousa2019}: diferen\c{c}as finitas em \'arvore onde c\'elulas vizinhas
+podem diferir de mais de um n\'ivel de refino, com a interpola\c{c}\~ao por
+m\'inimos quadrados ponderados cobrindo o que o estêncil regular n\~ao alcan\c{c}a.
+
+A escolha de n\~ao exigir gradua\c{c}\~ao \'e o que separa o sistema da maioria
+dos c\'odigos de AMR, e ela aparece em toda parte: no
+\texttt{domain.c}, que monta estênceis sem supor vizinhan\c{c}a uniforme; no
+\texttt{wls.c}, que \'e a interpola\c{c}\~ao que torna isso poss\'ivel; e no custo
+--- cada avalia\c{c}\~ao fora do estêncil regular resolve um sistema local.
+
+\subsection{A linhagem}
+
+O sistema n\~ao come\c{c}ou em 2019. Ele \'e a terceira gera\c{c}\~ao de uma
+linha de simuladores do mesmo grupo:
+
+\begin{itemize}
+  \item \textbf{GENSMAC}~\cite{tome1994} --- marcadores e c\'elulas para
+    superf\'icie livre em dom\'inios gerais, 1994;
+  \item \textbf{Freeflow}~\cite{castelo2000} --- o sistema integrado 3D que
+    embrulhou o GENSMAC em ambiente de simula\c{c}\~ao, 2000, com a vers\~ao
+    axissim\'etrica em~\cite{tome2000};
+  \item \textbf{o front-tracking do pr\'oprio grupo}~\cite{sousa2004} --- a
+    combina\c{c}\~ao de rastreamento e captura de frente para multifluido 3D,
+    2004, que \'e o antecedente direto do m\'odulo de front-tracking descrito
+    adiante;
+  \item \textbf{HiGTree/HiGFlow}~\cite{sousa2019} --- a malha em \'arvore n\~ao
+    graduada, 2019.
+\end{itemize}
+
+Ler a lista na ordem explica escolhas do c\'odigo que de outro modo pareceriam
+arbitr\'arias --- a presen\c{c}a simult\^anea de VOF e front-tracking, por
+exemplo, reproduz a coexist\^encia que~\cite{sousa2004} j\'a propunha.
+
+\subsection{O que este relat\'orio \'e, e o que n\~ao \'e}
+
+\'E um \textbf{invent\'ario}: o que existe no c\'odigo, em quantas linhas, e qual
+o papel de cada m\'odulo. Os n\'umeros vem de contagem direta da \'arvore, n\~ao
+de estimativa.
+
+N\~ao \'e uma avalia\c{c}\~ao de corre\c{c}\~ao. Dizer que um m\'odulo existe
+n\~ao \'e dizer que ele est\'a certo, nem que est\'a verificado, nem que \'e
+usado. Onde houver verifica\c{c}\~ao conhecida, ela est\'a marcada; onde n\~ao
+houver, a aus\^encia tamb\'em.
+
+\subsection{Sobre as refer\^encias, e o limite desta busca}
+
+As entradas da bibliografia foram conferidas contra o registro do editor via API
+do Crossref, e n\~ao contra mem\'oria.
+
+\paragraph{A p\'os-gradua\c{c}\~ao sobre o sistema.} A busca localizou
+\textbf{uma} disserta\c{c}\~ao da USP com o sistema no t\'itulo ---
+Godoi~\cite{godoi2022}, ICMC/S\~ao Carlos, aprovada em novembro de 2022, sobre
+modelos viscoel\'asticos com viscosidade vari\'avel. Ela corresponde diretamente
+a um m\'odulo desta \'arvore, o
+\texttt{hig-flow-step-viscoelastic-variable-viscosity.c}, com suas 2\,435 linhas.
+
+\textbf{E aqui o limite precisa ser dito, porque ele \'e grande.} O Crossref
+indexa metadados --- t\'itulo, autores, resumo ---, e n\~ao texto integral. Uma
+tese que \emph{use} o HiGFlow sem nome\'a-lo no t\'itulo n\~ao aparece nessa
+busca. Dado que o sistema tem m\'odulos para tixotropia, bandas de cisalhamento,
+suspens\~oes, eletro-osmose e viscoelasticidade integral --- cada um com milhares
+de linhas, e cada um o tipo de assunto que rende uma disserta\c{c}\~ao ---, \'e
+quase certo que existam outras. Elas n\~ao est\~ao aqui porque \textbf{n\~ao foram
+encontradas}, e n\~ao porque n\~ao existam.
+
+Listar refer\^encias prov\'aveis sem conferi-las seria pior que omiti-las: um
+relat\'orio de sistema \'e consultado justamente para saber o que citar. O
+caminho para completar esta se\c{c}\~ao \'e uma busca de texto integral no
+reposit\'orio de teses da USP, que est\'a fora do alcance das ferramentas usadas
+aqui.
+
+\paragraph{Os contribuidores do reposit\'orio.} O hist\'orico Git cobre de
+setembro de 2020 a setembro de 2026, com 358 \emph{commits}. Os nomes que
+aparecem s\~ao Antonio Castelo Filho, Juniormar Organista, Daniel Garcia,
+Johnatas e Pedro Vin\'icius. Isso \'e autoria de \emph{commit}, que n\~ao
+coincide necessariamente com autoria dos m\'odulos nem com as teses ---
+registro o dado, n\~ao a infer\^encia.

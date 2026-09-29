@@ -1,0 +1,49 @@
+\section{O que o invent\'ario mostra}
+
+\subsection{Onde est\~ao as linhas}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/camada/.style={column name={camada}},
+  columns/arquivos/.style={column name={arquivos}},
+  columns/linhas/.style={column name={linhas}},
+  columns/papel/.style={column name={papel}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tamanhos.dat}}
+
+Tr\^es observa\c{c}\~oes que a contagem torna dif\'iceis de ignorar.
+
+\paragraph{A E/S \'e o maior m\'odulo isolado do sistema.} \texttt{hig-flow-io.c}
+sozinho tem \SI{20}{\percent} do HiGFlow e mais linhas que o dom\'inio serial e o
+distribu\'ido somados. A causa \'e estrutural: cada \texttt{flowtype} $\times$
+dimens\~ao $\times$ opera\c{c}\~ao tem o seu par de leitura e escrita, e o
+crescimento \'e multiplicativo.
+
+\paragraph{Os modelos dominam o solver.} Dezenove mil e novecentas linhas em
+passos de escoamento, contra cerca de seis mil de infraestrutura (\texttt{kernel},
+\texttt{discret}, \texttt{bc}, \texttt{ic}, \texttt{eval}, \texttt{terms}). O
+sistema \'e, em volume, uma cole\c{c}\~ao de modelos reol\'ogicos com um solver
+de Navier--Stokes dentro.
+
+\paragraph{A combinat\'oria est\'a declarada mais do que realizada.} H\'a nove
+\texttt{flowtype}, cinco acoplamentos, doze modelos constitutivos, seis
+discretiza\c{c}\~oes temporais e duas proje\c{c}\~oes. O produto \'e enorme, e
+dois dos acoplamentos t\^em menos de trinta linhas. Uma lista de capacidades
+lida como cat\'alogo superestima o que est\'a exercitado.
+
+\subsection{O que este invent\'ario n\~ao diz}
+
+\begin{itemize}
+  \item \textbf{nada sobre corre\c{c}\~ao}. Contagem de linhas n\~ao \'e
+    verifica\c{c}\~ao, e a presen\c{c}a de um m\'odulo n\~ao diz se ele foi
+    validado contra or\'aculo algum;
+  \item \textbf{nada sobre uso}. N\~ao foi medido quais m\'odulos os exemplos
+    de fato exercitam, e h\'a sinais de duplica\c{c}\~ao --- duas variantes do
+    solver de PETSc, dois de \texttt{solver.c};
+  \item \textbf{nada sobre paralelismo}. Quais m\'odulos funcionam em $n_p>1$
+    \'e outra pergunta, e a resposta varia por m\'odulo;
+  \item \textbf{a p\'os-gradua\c{c}\~ao associada est\'a incompleta}, pelas
+    raz\~oes da introdu\c{c}\~ao: a busca alcan\c{c}a metadados, n\~ao texto
+    integral.
+\end{itemize}

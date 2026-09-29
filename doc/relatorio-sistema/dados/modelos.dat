@@ -1,0 +1,6 @@
+familia                           modelos
+{viscoel\'astico diferencial}     {UCM, Oldroyd-B, Giesekus, LPTT, GPTT}
+{viscoel\'astico integral}        {KBKZ, KBKZ fracion\'ario}
+{elastoviscopl\'astico}           {Oldroyd-B/Bingham, Oldroyd-B/Herschel--Bulkley, LPTT/Bingham}
+{tixotr\'opico}                   {BMP, BMP com solvente}
+{suspens\~oes}                    {engrossamento por cisalhamento}

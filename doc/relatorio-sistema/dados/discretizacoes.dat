@@ -1,0 +1,6 @@
+eixo                              opcoes
+{tempo}                           {Euler expl\'icito, RK2, RK3, Euler semi-impl\'icito, Crank--Nicolson, BDF2}
+{convec\c{c}\~ao (1a ordem)}      {central, primeira ordem, segunda ordem}
+{convec\c{c}\~ao (alta ordem)}    {MCU, CUBISTA e demais esquemas de limita\c{c}\~ao}
+{espacial}                        {segunda e quarta ordem}
+{proje\c{c}\~ao}                  {n\~ao incremental, incremental}

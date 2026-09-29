@@ -1,0 +1,18 @@
+exemplo                              o-que-exercita
+{\texttt{example2d\_Newt}}           {Navier--Stokes newtoniano}
+{\texttt{example2d\_Newt\_contraction}} {contra\c{c}\~ao 4:1}
+{\texttt{example2d\_Oldroyd}}        {viscoel\'astico diferencial}
+{\texttt{example2d\_Gptt}}           {GPTT}
+{\texttt{example2d\_KBKZ}}           {viscoel\'astico integral}
+{\texttt{example2d\_BMP}}            {tixotropia}
+{\texttt{example2d\_ElectroOsmotic}} {eletro-osmose}
+{\texttt{example2d\_VOF}}            {duas fases por VOF}
+{\texttt{example2d\_VOF\_Oldroyd}}   {duas fases viscoel\'asticas}
+{\texttt{example2d\_VOF\_Gptt}}      {duas fases GPTT}
+{\texttt{example2d\_FrontTracking}}  {duas fases por front-tracking}
+{\texttt{example2d\_FronteiraImersa}} {corpo r\'igido imerso}
+{\texttt{example2d\_DynamicMeshAdapt}} {adapta\c{c}\~ao din\^amica de malha}
+{\texttt{example2d\_SchaeferTurek}}  {\emph{benchmark} de cilindro}
+{\texttt{example3d\_SchaeferTurek}}  {o mesmo em 3D}
+{\texttt{example3d\_lid\_driven}}    {cavidade 3D}
+{\texttt{example3d\_complex}}        {geometria complexa 3D}

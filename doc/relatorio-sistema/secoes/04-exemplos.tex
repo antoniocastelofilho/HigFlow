@@ -1,0 +1,56 @@
+\section{Exemplos e c\'odigo compartilhado}
+
+\subsection{Os dezessete casos}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/exemplo/.style={column name={exemplo}},
+  columns/o-que-exercita/.style={column name={o que exercita}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{exemplos.dat}}
+
+Cada exemplo \'e um programa pr\'oprio, com o seu \texttt{main} e o seu
+\texttt{Makefile}, que linka os objetos de \texttt{higflow/src} de que precisa.
+N\~ao h\'a biblioteca \'unica do HiGFlow: h\'a uma cole\c{c}\~ao de objetos e
+dezessete formas de combin\'a-los.
+
+\subsection{\texttt{examples-common}: o que os exemplos compartilham}
+
+Cinco mil seiscentas e cinquenta e oito linhas fora de \texttt{src}, e \'e onde
+vive o c\'odigo que \'e demais para um exemplo e de menos para a biblioteca:
+
+\begin{itemize}
+  \item \texttt{utilities-2d.c} (2\,024 linhas) --- condi\c{c}\~oes de contorno e
+    iniciais compartilhadas;
+  \item \texttt{front-tracking.c} (995) --- o adaptador entre o n\'ucleo
+    lagrangeano e o solver;
+  \item \texttt{malha-adaptativa.c} (789) --- crit\'erio de refino e
+    reconstru\c{c}\~ao, compartilhado entre VOF e front-tracking;
+  \item \texttt{malha-t8.cxx} (442) --- as fontes de malha do t8code, compiladas
+    apenas quando \texttt{T8CODE} \'e passado ao \texttt{make};
+  \item \texttt{vof-geometry-2d.c} e \texttt{eo-droplet-2d.c} --- geometrias
+    iniciais espec\'ificas.
+\end{itemize}
+
+\subsection{Integra\c{c}\~ao com o t8code}
+
+O t8code entra como \emph{fonte de malha} opcional, com dupla ades\~ao: em tempo
+de compila\c{c}\~ao (\texttt{T8CODE=<prefixo>}) e em tempo de execu\c{c}\~ao
+(\texttt{HIGFLOW\_MALHA=}). Sem as duas, o caminho \'e o mtree, lendo o
+\texttt{.amr}.
+
+Duas limita\c{c}\~oes, ambas verificadas no c\'odigo:
+
+\begin{enumerate}
+  \item o caminho \textbf{multif\'asico} n\~ao consulta a fonte de malha ---
+    \texttt{higflow\_partition\_domain\_multiphase} l\^e o \texttt{.amr} sempre.
+    A fronteira imersa funciona com t8code porque \'e monof\'asica e passa por
+    outra fun\c{c}\~ao;
+  \item as fontes do t8code \textbf{recusam} \texttt{.amr} multin\'ivel, com
+    mensagem expl\'icita (``recusar \'e melhor que aproximar''). Como o
+    crit\'erio adaptativo escreve exatamente isso, integrar o t8code ao caso
+    adaptativo exige uma fonte que \emph{leia} a lista de refino --- que o
+    \texttt{higio\_amr\_info} carrega e entrega, e que hoje \'e descartada em
+    favor s\'o da caixa envolvente.
+\end{enumerate}

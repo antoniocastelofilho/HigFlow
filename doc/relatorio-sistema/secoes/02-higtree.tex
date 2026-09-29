@@ -1,0 +1,33 @@
+\section{HiGTree: a camada de malha}
+
+Trinta e tr\^es fontes, 15\,869 linhas. \'E a biblioteca sobre a qual tudo o mais
+se ap\'oia, e ela n\~ao sabe nada de Navier--Stokes.
+
+\pgfplotstabletypeset[
+  string type,
+  columns/modulo/.style={column name={m\'odulo}},
+  columns/linhas/.style={column name={linhas}},
+  columns/papel/.style={column name={papel}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{higtree-modulos.dat}}
+
+\paragraph{A divis\~ao que mais importa \'e \texttt{domain} contra
+\texttt{pdomain}.} O primeiro \'e o dom\'inio serial --- c\'elulas, facetas,
+estênceis, mapeadores. O segundo \'e o distribu\'ido, e \'e onde vivem a
+\emph{franja} (as c\'opias de c\'elulas de outro \emph{rank}), a
+sincroniza\c{c}\~ao e os tipos derivados de MPI. Juntos s\~ao
+5\,115 linhas, quase um ter\c{c}o da biblioteca: a distribui\c{c}\~ao \'e o
+assunto mais caro dela.
+
+\paragraph{Solvers lineares: cinco implementa\c{c}\~oes atr\'as de uma
+interface.} PETSc, HYPRE, SOR, centralizado e um de depura\c{c}\~ao que
+simplesmente grava o sistema. O de PETSc \'e o usado na pr\'atica. Existe
+tamb\'em um \texttt{solver-petsc.camila.c}, variante paralela do principal ---
+duas c\'opias de 576 e 555 linhas que divergir\~ao na primeira mudan\c{c}a de
+protocolo.
+
+\paragraph{\texttt{wls.c} \'e o cora\c{c}\~ao do m\'etodo.} Sem os m\'inimos
+quadrados ponderados, a \'arvore n\~ao graduada n\~ao fecha: \'e ele que produz
+valor onde o estêncil regular n\~ao existe. As 624 linhas s\~ao pequenas para o
+peso que carregam.

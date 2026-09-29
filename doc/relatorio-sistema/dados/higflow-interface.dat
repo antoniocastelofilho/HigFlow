@@ -1,0 +1,7 @@
+familia                       modulos  papel
+{VOF --- advec\c{c}\~ao}      {$2$}    {2D e 3D, transporte da fra\c{c}\~ao volum\'etrica}
+{VOF --- reconstru\c{c}\~ao}  {$4$}    {PLIC 2D/3D, ELVIRA, Mehta}
+{VOF --- curvatura}           {$5$}    {altura de fluido (HF), diferen\c{c}as finitas, Shirani, 9 c\'elulas}
+{front-tracking}              {$1$}    {polilinha lagrangeana ordenada (n\'ucleo standalone)}
+{fronteira imersa}            {$1$}    {marcadores por posse, DMSwarm, espalhamento com franja}
+{remalhamento}                {$1$}    {transfer\^encia por posi\c{c}\~ao, consciente de MPI}

@@ -1,0 +1,86 @@
+\section{HiGFlow: o solver}
+
+Quarenta e dois fontes, 54\,457 linhas --- tr\^es vezes e meia a HiGTree. A maior
+parte disso s\~ao \emph{modelos}, n\~ao infraestrutura.
+
+\subsection{Um m\'odulo de passo por tipo de escoamento}
+
+O \texttt{flowtype} da configura\c{c}\~ao seleciona qual passo roda:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/tipodeescoamento/.style={column name={\texttt{flowtype}}},
+  columns/modulo/.style={column name={m\'odulo}},
+  columns/linhas/.style={column name={linhas}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{higflow-passos.dat}}
+
+S\~ao 19\,900 linhas s\'o em passos de escoamento. O maior deles ---
+suspens\~oes, com 3\,413 --- \'e maior que \texttt{domain.c}, o n\'ucleo da
+HiGTree.
+
+\subsection{E os acoplamentos entre eles}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/modulo/.style={column name={m\'odulo}},
+  columns/linhas/.style={column name={linhas}},
+  columns/acopla/.style={column name={acopla}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{higflow-acoplados.dat}}
+
+Os dois \'ultimos t\^em 31 e 28 linhas: s\~ao despachantes, n\~ao
+implementa\c{c}\~oes. A combinat\'oria de f\'isicas est\'a declarada mais do que
+realizada, e vale saber disso antes de contar com ela.
+
+\subsection{Modelos constitutivos}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/familia/.style={column name={fam\'ilia}},
+  columns/modelos/.style={column name={modelos}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{modelos.dat}}
+
+\subsection{Discretiza\c{c}\~oes, por eixo}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/eixo/.style={column name={eixo}},
+  columns/opcoes/.style={column name={op\c{c}\~oes}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{discretizacoes.dat}}
+
+O produto cartesiano dessas op\c{c}\~oes \'e grande, e nada garante que todas as
+combina\c{c}\~oes tenham sido exercitadas --- esta \'e uma lista do que o c\'odigo
+\emph{aceita}, n\~ao do que foi verificado.
+
+\subsection{Tratamento de interface}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/familia/.style={column name={fam\'ilia}},
+  columns/modulos/.style={column name={m\'odulos}},
+  columns/papel/.style={column name={papel}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{higflow-interface.dat}}
+
+Onze m\'odulos de VOF, contra um de front-tracking e um de fronteira imersa. A
+assimetria conta a hist\'oria do sistema: o VOF \'e o caminho maduro, com
+variantes de reconstru\c{c}\~ao e de curvatura acumuladas ao longo de anos; o
+front-tracking \'e recente e tem uma implementa\c{c}\~ao s\'o.
+
+\subsection{Entrada e sa\'ida: o m\'odulo mais improv\'avel}
+
+\texttt{hig-flow-io.c} tem \textbf{10\,972 linhas} --- \SI{20}{\percent} de todo o
+HiGFlow, e mais que a soma de \texttt{domain.c} e \texttt{pdomain.c}. Ele l\^e as
+configura\c{c}\~oes em YAML, grava e rel\^e o estado, e escreve VTK. Cada
+combina\c{c}\~ao de \texttt{flowtype} com dimens\~ao tem o seu par de
+leitura/escrita, e \'e da\'i que vem o tamanho.
+
+\'E o m\'odulo que ningu\'em planeja e que cresce sozinho.

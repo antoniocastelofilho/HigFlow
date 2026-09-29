@@ -1,0 +1,40 @@
+\begin{thebibliography}{1}
+
+\bibitem{castelo2000}
+A.~Castelo~F., M.~F. Tom\'e, C.~N.~L. C\'esar, S.~McKee, and J.~A. Cuminato.
+\newblock Freeflow: an integrated simulation system for three-dimensional free
+  surface flows.
+\newblock {\em Computing and Visualization in Science}, 2(4):199--210, 2000.
+
+\bibitem{sousa2004}
+F.~S. de~Sousa, N.~Mangiavacchi, L.~G. Nonato, A.~Castelo, M.~F. Tom\'e, V.~G.
+  Ferreira, J.~A. Cuminato, and S.~McKee.
+\newblock A front-tracking/front-capturing method for the simulation of {3D}
+  multi-fluid flows with free surfaces.
+\newblock {\em Journal of Computational Physics}, 198(2):469--499, 2004.
+
+\bibitem{godoi2022}
+Rameyli Godoi.
+\newblock Implementa\c{c}\~ao de modelos viscoel\'aticos com viscosidade
+  vari\'avel no sistema {HiGFlow}.
+\newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2022.
+
+\bibitem{sousa2019}
+F.~S. Sousa, C.~F. Lages, J.~L. Ansoni, A.~Castelo, and A.~Sim\~ao.
+\newblock A finite difference method with meshless interpolation for
+  incompressible flows in non-graded tree-based grids.
+\newblock {\em Journal of Computational Physics}, 396:848--866, 2019.
+
+\bibitem{tome2000}
+M.~F. Tom\'e, A.~Castelo, J.~Murakami, J.~A. Cuminato, R.~Minghim, M.~C.~F.
+  Oliveira, N.~Mangiavacchi, and S.~McKee.
+\newblock Numerical simulation of axisymmetric free surface flows.
+\newblock {\em Journal of Computational Physics}, 157(2):441--472, 2000.
+
+\bibitem{tome1994}
+M.~F. Tom\'e and S.~McKee.
+\newblock {GENSMAC}: A computational marker and cell method for free surface
+  flows in general domains.
+\newblock {\em Journal of Computational Physics}, 110(1):171--186, 1994.
+
+\end{thebibliography}

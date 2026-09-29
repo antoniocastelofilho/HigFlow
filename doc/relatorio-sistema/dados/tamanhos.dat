@@ -1,0 +1,5 @@
+camada                       arquivos  linhas     papel
+{HiGTree --- malha}          {$33$}    {$15\,869$} {\'arvore, dom\'inio, parti\c{c}\~ao, E/S, solvers lineares}
+{HiGFlow --- solver}         {$42$}    {$54\,457$} {Navier--Stokes e os modelos constitutivos}
+{examples-common}            {$12$}    {$5\,658$}  {adaptadores compartilhados entre exemplos}
+{exemplos}                   {$17$}    ---         {casos execut\'aveis, 2D e 3D}
