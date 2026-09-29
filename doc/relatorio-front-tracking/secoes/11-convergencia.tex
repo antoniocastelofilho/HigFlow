@@ -183,6 +183,23 @@ e \'e por isso que a s\'erie n\~ao decide.
 \texttt{celmin} escalado para manter a banda f\'isica constante --- 5, 7 e 10
 c\'elulas nas tr\^es resolu\c{c}\~oes --- e ver se a monotonicidade aparece.
 
+\paragraph{O crit\'erio j\'a foi consertado; a s\'erie \'e que falta refazer.} Os
+dois exemplos passaram a aceitar \texttt{AMR\_BANDA}, que d\'a a largura em
+unidades \emph{f\'isicas} e faz \texttt{celmin} sair dela:
+$\text{celmin} = \text{banda}/h_{\text{fino}}$. Com banda $0{,}0625$, o valor
+derivado sai \textbf{5, 7 e 10} nas tr\^es resolu\c{c}\~oes --- verificado rodando
+nos dois m\'etodos, e exatamente os n\'umeros previstos acima.
+
+O piso de cinco c\'elulas do VOF continua valendo e est\'a no c\'odigo: a banda
+deve ser ancorada na resolu\c{c}\~ao mais \emph{grossa} da s\'erie, onde
+$\text{celmin}=5$, para que as mais finas apenas ganhem c\'elulas. Sem a
+vari\'avel, nada muda, e as corridas que produziram o fechamento seguem
+id\^enticas.
+
+O que falta \'e caro e n\~ao foi feito: refazer as seis corridas com a banda
+constante e ver se a monotonicidade aparece. At\'e l\'a, a hip\'otese continua
+hip\'otese --- o conserto a torna \emph{test\'avel}, n\~ao testada.
+
 \subsection{O confundidor do passo, medido}
 
 A corrida D fez o que existia para fazer:
@@ -292,12 +309,46 @@ corrida chega a ser \emph{mais lenta} que em s\'erie. O gargalo n\~ao \'e a
 maquinaria de malha: \'e que este caso --- cerca de 9\,400 c\'elulas --- \'e
 pequeno demais para o paralelismo render.
 
-Duas causas plaus\'iveis, \textbf{nenhuma medida}: a comunica\c{c}\~ao dominando
-num problema pequeno, e o precondicionador \texttt{bjacobi} perdendo qualidade ao
-ser dividido em mais blocos --- o que significa que $n_p=1$ e $n_p=8$ n\~ao
-resolvem o mesmo sistema linear, e comparar tempo de parede entre eles mistura
-escalonamento com converg\^encia do solver. Registrar a contagem de
-itera\c{c}\~oes do KSP separaria os dois, e n\~ao est\'a instrumentado.
+Duas causas eram plaus\'iveis: a comunica\c{c}\~ao dominando num problema pequeno,
+e o precondicionador \texttt{bjacobi} perdendo qualidade ao ser dividido em mais
+blocos --- o que significaria que $n_p=1$ e $n_p=8$ n\~ao resolvem o mesmo sistema
+linear, e que comparar tempo de parede entre eles mistura escalonamento com
+converg\^encia do solver.
+
+\textbf{A contagem de itera\c{c}\~oes do KSP separa as duas}, e ela j\'a era
+colhida --- \texttt{KSPGetIterationNumber} est\'a em \texttt{solver-petsc.c} desde
+sempre, guardando em \texttt{SolverIterations}. Faltava apenas relat\'a-la:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/np/.style={column name={$n_p$}},
+  columns/pressao/.style={column name={press\~ao}},
+  columns/vsbase/.style={column name={vs.\ base}},
+  columns/velocidade/.style={column name={velocidade}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{fase0-ksp.dat}}
+
+\textbf{As duas causas s\~ao reais, e a medida as ordena.} As itera\c{c}\~oes da
+press\~ao crescem \SI{11.2}{\percent} de um para oito processos: o
+precondicionador \emph{de fato} degrada, e os sistemas resolvidos n\~ao s\~ao os
+mesmos. Mas isso limitaria a acelera\c{c}\~ao a $8/1{,}112 = 7{,}2\times$, e o
+medido \'e $1{,}76\times$ --- o \texttt{bjacobi} responde por cerca de
+\SI{13}{\percent} da acelera\c{c}\~ao perdida. Os outros \SI{87}{\percent} s\~ao o
+problema ser pequeno demais.
+
+A press\~ao domina o custo linear com folga --- 110 itera\c{c}\~oes contra 4 a 6
+da velocidade ---, como se espera da equa\c{c}\~ao de Poisson da proje\c{c}\~ao.
+
+\paragraph{Uma contamina\c{c}\~ao de medida, e como ela foi contornada.} A rodada
+que produziu estas contagens teve os tempos de parede corrompidos: compila\c{c}\~oes
+do pr\'oprio relat\'orio rodaram na mesma m\'aquina enquanto ela media, e o
+$n_p=1$ saiu \SI{57}{\percent} mais lento que numa rodada limpa. As contagens de
+itera\c{c}\~ao, por serem determin\'isticas dado o mesmo problema, sobreviveram
+intactas --- e \'e por isso que a tabela acima vale e os tempos dela n\~ao. Os
+tempos reportados na tabela anterior vem da rodada limpa; a coincid\^encia entre
+as duas em $n_p=4$ (\SI{870}{\second} contra \SI{865}{\second}) \'e o que autoriza
+combin\'a-las.
 
 \paragraph{O alcance desta conclus\~ao, e o seu limite.} Vale para \emph{este}
 tamanho de problema. Num caso grande o equil\'ibrio muda: o solver escalaria
