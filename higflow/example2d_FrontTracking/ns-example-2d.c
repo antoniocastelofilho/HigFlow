@@ -553,11 +553,26 @@ int main (int argc, char *argv[]) {
         // e regenera o fracvol no passo seguinte.  So' u e p viajam.
         if (amr_niveis > 0 && amr_cada > 0 && ns->par.step > 0 &&
             ns->par.step % amr_cada == 0) {
+            // FASE 0 do escalonamento (HIGFLOW_CRONO_REMALHA): cronometra o
+            // criterio e a reconstrucao SEPARADOS do resto.  A pergunta e' se o
+            // remalhamento domina, e ela so' se responde medindo os dois lados.
+            // Barreira antes de cada marca: sem ela mede-se desbalanceamento
+            // acumulado, nao o custo da etapa.
+            const bool crono = (getenv("HIGFLOW_CRONO_REMALHA") != NULL);
+            double t0 = 0.0, t1 = 0.0, t2 = 0.0;
+            if (crono) { MPI_Barrier(MPI_COMM_WORLD); t0 = MPI_Wtime(); }
             ft_escreve_amr_criterio(ns, gota, amr_lx, amr_ly, amr_nx, amr_ny,
                                     amr_niveis, amr_celmin, amr_caminho);
+                        if (crono) { MPI_Barrier(MPI_COMM_WORLD); t1 = MPI_Wtime(); }
             long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank,
                                                      cache, order_center,
                                                      order_facet);
+            if (crono) {
+                MPI_Barrier(MPI_COMM_WORLD); t2 = MPI_Wtime();
+                int nt = 1; MPI_Comm_size(MPI_COMM_WORLD, &nt);
+                print0f("CRONO np=%d passo %d: criterio %.4f s  reconstrucao %.4f s  total %.4f s\n",
+                        nt, ns->par.step, t1 - t0, t2 - t1, t2 - t0);
+            }
             if (faltam != 0)
                 print0f("===> remalha passo %d: %ld posicoes sem valor\n",
                         ns->par.step, faltam);
