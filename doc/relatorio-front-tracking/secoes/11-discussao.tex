@@ -239,8 +239,8 @@ disparado.
 Em ordem de valor:
 
 \begin{enumerate}
-  \item \textbf{Converg\^encia em $h$} das tr\^es m\'etricas, nos dois m\'etodos.
-    D\'a \`a compara\c{c}\~ao o alcance que hoje lhe falta.
+  \item \textbf{Converg\^encia em $h$} das tr\^es m\'etricas, nos dois m\'etodos ---
+    ver o item abaixo, que lhe d\'a motivo concreto.
   \item \textbf{Fase B3}, oscila\c{c}\~ao de gota contra a frequ\^encia de Lamb:
     exercita din\^amica acoplada e, por deformar a interface, finalmente p\~oe a
     cirurgia \`a prova com o solver no circuito.
@@ -251,11 +251,12 @@ Em ordem de valor:
     processos --- e em particular conferir se o filtro de posse continua
     encontrando processo completo para todo marcador, que \'e a condi\c{c}\~ao
     sob a qual ele aborta.
-  \item \textbf{Fechar o Hysing}: a Se\c{c}\~ao~\ref{sec:hysing} monta a
-    compara\c{c}\~ao contra os valores publicados e declara de antem\~ao como
-    ler cada desfecho, mas as corridas at\'e $t=3$ n\~ao terminaram a tempo
-    deste texto -- o fechamento segue pendente, e \'e o \'unico item desta
-    lista que j\'a est\'a em execu\c{c}\~ao.
+  \item \textbf{Converg\^encia em $h$, e agora por raz\~ao medida.} O Hysing
+    fechou (Se\c{c}\~ao~\ref{sec:fechamento}) e os cinco desvios s\~ao
+    \emph{negativos}: h\'a vi\'es compartilhado pelos dois m\'etodos, e os tr\^es
+    candidatos --- resolu\c{c}\~ao \'unica, restri\c{c}\~ao capilar de passo,
+    refino da esteira --- s\'o se separam refinando. Isto deixa de ser item de
+    completude e passa a ser a pergunta aberta do trabalho.
 \end{enumerate}
 
 A compara\c{c}\~ao com o VOF pode acompanhar cada uma dessas etapas: o caso

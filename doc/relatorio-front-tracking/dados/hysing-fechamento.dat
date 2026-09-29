@@ -1,0 +1,6 @@
+alvo         metodo  nosso      publicado        desvio    emunidadesdafaixa
+Vc-maximo    FT      0.241577   0.2417-0.2421    -0.051pc  0.31x
+Vc-maximo    VOF     0.240786   0.2417-0.2421    -0.378pc  2.29x
+c-minima     FT      0.900344   0.9011-0.9013    -0.094pc  4.27x
+yc-em-t3     FT      1.078587   1.0799-1.0817    -0.122pc  0.73x
+yc-em-t3     VOF     1.078645   1.0799-1.0817    -0.116pc  0.70x

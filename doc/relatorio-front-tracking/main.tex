@@ -72,11 +72,14 @@ A \'ultima se\c{c}\~ao monta o \emph{benchmark} de bolha ascendente de Hysing
 et al., que \'e o primeiro or\'aculo \emph{externo} deste trabalho --- todos os
 anteriores s\~ao anal\'iticos ou m\'utuos, e duas implementa\c{c}\~oes que
 compartilhem um erro de formula\c{c}\~ao concordariam entre si perfeitamente.
-O fechamento \emph{completo} n\~ao est\'a neste texto --- as corridas at\'e $t=3$
-n\~ao terminaram a tempo --- mas o primeiro dos tr\^es alvos publicados fechou, e
-com desfecho: na velocidade m\'axima de ascens\~ao o front-tracking cai dentro da
-dispers\~ao dos tr\^es c\'odigos de refer\^encia e o VOF fica fora dela, o que
-responsabiliza o tratamento de interface e n\~ao a discretiza\c{c}\~ao comum.
+O \emph{benchmark} fechou, nos dois m\'etodos e nos tr\^es alvos publicados. Tr\^es
+dos cinco resultados caem dentro da discord\^ancia que os tr\^es c\'odigos de
+refer\^encia t\^em entre si --- que \'e o limite do or\'aculo. E h\'a um achado que
+vale mais que os cinco n\'umeros: \textbf{os cinco desvios s\~ao negativos}, em
+duas discretiza\c{c}\~oes independentes. Cinco de cinco na mesma dire\c{c}\~ao
+aponta vi\'es \emph{compartilhado}: a diferen\c{c}a entre os m\'etodos responde ao
+tratamento de interface, mas o vi\'es comum n\~ao, e isso p\~oe um estudo de
+converg\^encia em $h$ como a pergunta aberta do trabalho.
 
 Duas outras medidas desse mesmo trecho corrigem o pr\'oprio relat\'orio. A
 concord\^ancia m\'utua entre os m\'etodos, que as se\c{c}\~oes anteriores

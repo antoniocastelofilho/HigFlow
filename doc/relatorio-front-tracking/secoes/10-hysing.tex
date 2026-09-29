@@ -134,13 +134,13 @@ porque cada item foi um defeito encontrado:
 
 \subsection{Resultado parcial: os dois m\'etodos concordam entre si}
 
-\paragraph{Esta subse\c{c}\~ao est\'a incompleta, e de prop\'osito.} As corridas
-at\'e $t=3$ estavam em andamento quando este texto foi escrito. O fechamento
-contra os valores publicados --- circularidade m\'inima, velocidade m\'axima e
-centro de massa em $t=3$ --- \textbf{n\~ao est\'a medido aqui}, e a
-Se\c{c}\~ao~\ref{sec:amr} e a lista de pr\'oximos passos continuam valendo quando
-dizem que o Hysing segue sem fechar. O que est\'a abaixo \'e o trecho
-$t \in [0;\,0{,}35]$, medido nos dois m\'etodos antes da interrup\c{c}\~ao.
+\paragraph{O trecho inicial, e por que ele ficou no texto.} O que segue \'e
+$t \in [0;\,0{,}35]$, medido nos dois m\'etodos. Foi escrito quando as corridas
+at\'e $t=3$ ainda estavam em andamento, e est\'a mantido porque a
+Se\c{c}\~ao~\ref{sec:divergencia} mostra que a conclus\~ao tirada dele
+\emph{n\~ao} se estende ao regime deformado --- apagar o trecho apagaria a
+evid\^encia de que uma concord\^ancia medida num regime foi generalizada
+indevidamente para o seguinte.
 
 \pgfplotstabletypeset[
   string type,
@@ -348,7 +348,8 @@ advec\c{c}\~ao}, e n\~ao do m\'etodo em uso. Basta adaptar a malha para que ela 
 dissolva. Num c\'alculo que precise de malha adaptativa, e este precisa, os dois
 m\'etodos derivam na mesma ordem.
 
-\subsection{O que decidir\'a}
+\subsection{O que decidiria: as leituras declaradas de antem\~ao}
+\label{sec:leituras}
 
 Quando as corridas fecharem, tr\^es n\'umeros de cada m\'etodo v\~ao contra a
 tabela de refer\^encia: $c_{\min}$ e o instante em que ocorre, $V_{c,\max}$ e o
@@ -372,3 +373,96 @@ o resultado n\~ao seja interpretado depois de conhecido:
 As tr\^es leituras s\~ao distintas e caem em lugares diferentes do c\'odigo;
 declar\'a-las antes \'e o que impede a quarta, que \'e explicar qualquer
 resultado como esperado.
+
+\subsection{O fechamento: os cinco n\'umeros}
+\label{sec:fechamento}
+
+As duas corridas completaram os 12\,000 passos at\'e $t=3$, sem nenhuma retomada.
+
+\pgfplotstabletypeset[
+  string type,
+  columns/alvo/.style={column name={alvo}},
+  columns/metodo/.style={column name={m\'etodo}},
+  columns/nosso/.style={column name={nosso}},
+  columns/publicado/.style={column name={publicado}},
+  columns/desvio/.style={column name={desvio}},
+  columns/emunidadesdafaixa/.style={column name={em unidades da faixa}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-fechamento.dat}}
+
+A \'ultima coluna \'e a que importa, e merece explica\c{c}\~ao: ela mede o desvio
+em unidades da \emph{discord\^ancia que os tr\^es c\'odigos publicados t\^em entre
+si}. Essa discord\^ancia \'e o limite do or\'aculo --- exigir melhor que ela seria
+exigir mais precis\~ao do que a refer\^encia possui. \textbf{Tr\^es dos cinco
+resultados caem dentro dela.}
+
+\paragraph{No centro de massa final os dois m\'etodos voltam a concordar.}
+$1{,}078587$ contra $1{,}078645$: diferen\c{c}a de \num{5.8e-5}, depois de terem
+divergido \SI{3.4}{\percent} em $V_c$ em $t=1{,}6$
+(Se\c{c}\~ao~\ref{sec:divergencia}). \'E a assimetria integral/derivada outra vez:
+$y_c$ suaviza o que $V_c$ amplifica. Um relat\'orio que comparasse apenas centros
+de massa concluiria concord\^ancia excelente e perderia a discrep\^ancia inteira.
+
+\subsection{O achado que vale mais que os cinco n\'umeros}
+\label{sec:vies}
+
+\textbf{Os cinco desvios s\~ao negativos.} Nenhum do lado positivo. A bolha sai
+menos veloz, menos circular e menos alta que a literatura, em \emph{duas}
+discretiza\c{c}\~oes independentes --- uma lagrangeana e uma euleriana, com
+c\'alculos de curvatura e de for\c{c}a sem nada em comum.
+
+Cinco de cinco na mesma dire\c{c}\~ao n\~ao \'e coincid\^encia plaus\'ivel. \'E
+assinatura de \textbf{vi\'es compartilhado}, e era a segunda das tr\^es leituras
+declaradas na Se\c{c}\~ao~\ref{sec:leituras}: o defeito est\'a no que os dois
+m\'etodos t\^em em comum --- malha, passo, condi\c{c}\~oes de contorno,
+discretiza\c{c}\~ao do momento --- e n\~ao no tratamento de interface.
+
+\paragraph{E isto corrige a conclus\~ao que eu havia tirado com um alvo s\'o.}
+Quando apenas $V_{c,\max}$ havia fechado, a diferen\c{c}a entre front-tracking
+($0{,}31\times$) e VOF ($2{,}29\times$) me levou a responsabilizar o tratamento de
+interface. Com os cinco na mesa a leitura se divide, e as duas partes s\~ao
+compat\'iveis:
+
+\begin{itemize}
+  \item a \textbf{diferen\c{c}a entre os m\'etodos} responde ao tratamento de
+    interface --- e a dire\c{c}\~ao \'e a esperada, com a curvatura da geometria
+    expl\'icita batendo a curvatura de campo suavizado;
+  \item o \textbf{vi\'es comum}, que nenhum dos dois evita, n\~ao responde a isso.
+\end{itemize}
+
+Os candidatos ao vi\'es s\~ao tr\^es, e \textbf{nenhum foi medido}: a
+resolu\c{c}\~ao \'unica (40 c\'elulas por raio da bolha), a restri\c{c}\~ao
+capilar de passo, e o refino da esteira poder ser insuficiente. Um estudo de
+converg\^encia em $h$ separa os tr\^es, e \'e a primeira pend\^encia da lista de
+pr\'oximos passos --- agora com raz\~ao medida para estar em primeiro lugar, e
+n\~ao apenas por completude metodol\'ogica.
+
+\subsection{O que as corridas custaram, e o que sobreviveu}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/FT/.style={column name={front-tracking}},
+  columns/VOF/.style={column name={VOF}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-final.dat}}
+
+Duas leituras finais.
+
+A \textbf{deriva de massa} fecha em \num{2.44e-3} no front-tracking e
+\num{1.41e-3} no VOF --- a mesma ordem, e \'e o que a Se\c{c}\~ao~\ref{sec:massa-amr}
+j\'a anunciava: sob malha adaptativa a conserva\c{c}\~ao exata do VOF n\~ao
+sobrevive, e a vantagem estrutural que este relat\'orio lhe atribu\'ia vale em
+malha fixa.
+
+A \textbf{cirurgia} levou a frente de 252 a 272 marcadores. N\~ao \'e ru\'ido: o
+per\'imetro cresceu com o achatamento, e a reamostragem acompanhou. Mas
+acompanhou \emph{pouco} --- a Se\c{c}\~ao~\ref{sec:amr} registra que
+$\Delta s / h$ derivou de $1{,}00$ para $1{,}18$, porque a inser\c{c}\~ao s\'o
+dispara em $2\,\Delta s_{\text{alvo}}$. \'E a suspeita mais concreta sobre o
+\'unico alvo claramente fora da faixa, a circularidade m\'inima
+($4{,}27\times$), que \'e feita justamente do per\'imetro. \emph{Suspeita}, e
+n\~ao diagn\'ostico: o sinal do efeito que eu esperava \'e o oposto do observado,
+e enquanto isso n\~ao se resolver a atribui\c{c}\~ao fica em aberto.

@@ -38,6 +38,8 @@ texto discordarem depois de uma correção.
 | `hysing-vcmax.dat` | o primeiro alvo publicado fechado: $V_{c,\max}$ nos dois métodos |
 | `hysing-divergencia.dat` | a divergência entre os métodos crescendo com a deformação |
 | `hysing-massa-amr.dat` | a conservação do VOF em malha fixa contra malha adaptativa |
+| `hysing-fechamento.dat` | **os cinco alvos fechados**, com o desvio em unidades da dispersão dos códigos |
+| `hysing-final.dat` | o que as corridas custaram: passos, retomadas, deriva de massa, marcadores |
 | `formas/hy_ft_*.dat`, `formas/hy_vof_*.dat` | a interface nos dois métodos nos mesmos instantes |
 
 ## Estado da verificação deste projeto LaTeX
@@ -84,9 +86,19 @@ $t=3$ (12 000 passos, ~6 h cada) não terminaram a tempo do texto. O que está
 medido é `hysing-parcial.dat`, o trecho $t\in[0;0{,}35]$, e a subseção que o
 apresenta diz isso na primeira linha.
 
-Estado dos três alvos: **$V_{c,\max}$ fechado** (seção `sec:vcmax`), circularidade
-mínima e $y_c(t=3)$ pendentes. Para fechar os dois que faltam, acrescentar os
-números medidos contra `hysing-referencia.dat` na subseção "O que decidirá".
+## A seção do Hysing está FECHADA
+
+Os três alvos publicados foram medidos nos dois métodos (cinco resultados, porque
+a circularidade só existe no front-tracking). Ver `sec:fechamento` para a tabela e
+`sec:vies` para o achado principal: os cinco desvios são negativos, o que aponta
+viés compartilhado pelos dois métodos e põe a convergência em $h$ como a pergunta
+aberta.
+
+A subseção `sec:leituras` ("O que decidiria") foi **mantida como estava**, com as
+três leituras declaradas antes de os números existirem. Ela não foi reescrita de
+propósito: alterá-la apagaria a evidência de que a interpretação foi fixada de
+antemão. O mesmo vale para a subseção do resultado parcial, cuja conclusão a
+`sec:divergencia` mostra não se estender ao regime deformado.
 
 As figuras de forma são regeneráveis:
 
