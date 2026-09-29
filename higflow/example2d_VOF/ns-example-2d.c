@@ -138,6 +138,52 @@ static void _vof_deformacao(higflow_solver *ns, int passo) {
 //
 // AQUI A FRACAO E' ESTADO e viaja no remalhamento (o reconstroi a transporta).
 // ---------------------------------------------------------------------------
+
+// BANDA FISICA CONSTANTE, EM VEZ DE CONTAGEM DE CELULAS CONSTANTE.
+//
+// POR QUE ISTO EXISTE.  `celmin` conta CELULAS FINAS por lado da interface, entao
+// a regiao refinada tem largura FISICA diferente em cada resolucao: com celmin=5,
+// 0,0625 em h=1/80 e 0,0313 em h=1/160.  Dobrar a resolucao reduz a regiao
+// refinada a' METADE em extensao fisica, e a esteira -- onde yc e Vc se decidem --
+// fica progressivamente menos coberta.
+//
+// MEDIDO: e' o que impediu o estudo de convergencia.  Nenhuma das cinco series
+// ficou monotona nos dois metodos, e a nao-monotonicidade foi de 12 a 40 vezes o
+// piso de amostragem.  Comparar malhas que refinam regioes fisicamente diferentes
+// nao e' estudo de convergencia.
+//
+// Com VOF_AMR_BANDA=<largura>, `celmin` passa a SAIR da largura:
+// celmin = banda / h_fino.  A largura fisica fica constante entre resolucoes, e
+// e' a contagem de celulas que cresce ao refinar -- que e' o sentido certo.
+//
+// O PISO DE 5 NAO E' NEGOCIAVEL: o VOF exige ao menos cinco celulas finas por
+// lado para a reconstrucao funcionar, e isso e' correcao e nao ajuste.  Por isso
+// a banda deve ser ancorada na resolucao mais GROSSA da serie (onde celmin=5) --
+// ai' as mais finas so' ganham celulas.  Se a conta der menos de 5, o piso vence e
+// o aviso sai, porque nesse caso a banda pedida e' fina demais para a malha.
+//
+// Sem a variavel, nada muda: celmin continua vindo de VOF_AMR_CELMIN.
+static int _celmin_da_banda(const char *var, int celmin, real lx, int nx, int niveis)
+{
+    const char *b = getenv(var);
+    if (b == NULL) return celmin;
+    real banda = atof(b);
+    if (!(banda > 0.0)) return celmin;
+    real h_fino = lx / (real) nx;
+    for (int l = 0; l < niveis; l++) h_fino *= 0.5;
+    int novo = (int) (banda / h_fino + 0.5);
+    if (novo < 5) {
+        print0f("===> %s=%g pede %d celulas finas em h=%.5f; o piso de 5 do VOF "
+                "vence.  A banda efetiva sera' %.5f, nao %.5f\n",
+                var, (double) banda, novo, (double) h_fino,
+                (double) (5 * h_fino), (double) banda);
+        novo = 5;
+    }
+    print0f("===> banda fisica %.5f em h_fino=%.5f  ==>  celmin = %d "
+            "(era %d)\n", (double) banda, (double) h_fino, novo, celmin);
+    return novo;
+}
+
 static void vof_escreve_amr_criterio(higflow_solver *ns, real lx, real ly,
                                      int nx, int ny, int niveis, int cel_min,
                                      const char *caminho)
@@ -617,6 +663,8 @@ int main (int argc, char *argv[]) {
 			if ((e = getenv("VOF_AMR_CELMIN")) != NULL) cel0 = atoi(e);
 			if ((e = getenv("VOF_AMR_LX")) != NULL) lx0 = atof(e);
 			if ((e = getenv("VOF_AMR_LY")) != NULL) ly0 = atof(e);
+			// DEPOIS de lx0 e nx0 estarem lidos: a banda depende dos dois.
+			cel0 = _celmin_da_banda("VOF_AMR_BANDA", cel0, lx0, nx0, niv);
 			const char *cam0 = getenv("VOF_AMR_CAMINHO");
 			if (cam0 == NULL) cam0 = "amrs-hysing/criterio/dominio.amr";
 			// RETOMADA: NAO reescrever o .amr quando a corrida esta' sendo
@@ -723,6 +771,9 @@ int main (int argc, char *argv[]) {
         if ((e = getenv("VOF_AMR_LX"))     != NULL) vof_amr_lx     = atof(e);
         if ((e = getenv("VOF_AMR_LY"))     != NULL) vof_amr_ly     = atof(e);
         if ((e = getenv("VOF_AMR_CAMINHO"))!= NULL) vof_amr_caminho = e;
+        // DEPOIS de todas as leituras: a banda depende de lx e nx.
+        vof_amr_celmin = _celmin_da_banda("VOF_AMR_BANDA", vof_amr_celmin,
+                                          vof_amr_lx, vof_amr_nx, vof_amr_niveis);
     }
 
     for (int step0 = ns->par.initstep; ns->par.step <= ns->par.finalstep; ns->par.step++) {
@@ -775,6 +826,30 @@ int main (int argc, char *argv[]) {
 		}
 
 		higflow_solver_step_multiphase(ns);
+
+		// ITERACOES DO KSP (HIGFLOW_CRONO_KSP).  A fase 0 mediu eficiencia
+		// paralela de 22% em oito processos e levantou duas causas possiveis:
+		// comunicacao dominando num problema pequeno, ou o bjacobi perdendo
+		// qualidade ao ser dividido em mais blocos.  A segunda implica que np=1 e
+		// np=8 NAO resolvem o mesmo sistema linear -- e comparar tempo de parede
+		// entre eles misturaria escalonamento com convergencia do solver.
+		//
+		// A contagem ja' era colhida por KSPGetIterationNumber dentro do
+		// solver-petsc; so' nao era relatada.  Se ela CRESCER com np, a segunda
+		// causa esta' confirmada e o tempo de parede nao mede escalonamento.
+		if (getenv("HIGFLOW_CRONO_KSP") != NULL) {
+			static long itp = 0, itu = 0, n = 0;
+			itp += slv_get_iteration_count(ns->slvp);
+			for (int d = 0; d < DIM; d++) itu += slv_get_iteration_count(ns->slvu[d]);
+			n++;
+			if (ns->par.step % 100 == 0) {
+				int nt = 1; MPI_Comm_size(MPI_COMM_WORLD, &nt);
+				print0f("KSP np=%d passo %d: media por passo -- pressao %.1f  "
+				        "velocidade %.1f (somadas as %d direcoes)\n",
+				        nt, ns->par.step, (double) itp / n, (double) itu / n, DIM);
+				itp = itu = 0; n = 0;
+			}
+		}
 
 		// GRANDEZAS DO BENCHMARK DE HYSING (VOF_HYSING=1).  yc e Vc pela MESMA
 		// formula do front-tracking.  O PERIMETRO nao sai de graca do campo: a

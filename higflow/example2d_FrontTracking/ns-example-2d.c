@@ -233,6 +233,52 @@ real get_boundary_viscosity(int id, Point center, real q, real t) {
 // *******************************************************************
 
 // Main program for the Navier-Stokes simulation 
+
+// BANDA FISICA CONSTANTE, EM VEZ DE CONTAGEM DE CELULAS CONSTANTE.
+//
+// POR QUE ISTO EXISTE.  `celmin` conta CELULAS FINAS por lado da interface, entao
+// a regiao refinada tem largura FISICA diferente em cada resolucao: com celmin=5,
+// 0,0625 em h=1/80 e 0,0313 em h=1/160.  Dobrar a resolucao reduz a regiao
+// refinada a' METADE em extensao fisica, e a esteira -- onde yc e Vc se decidem --
+// fica progressivamente menos coberta.
+//
+// MEDIDO: e' o que impediu o estudo de convergencia.  Nenhuma das cinco series
+// ficou monotona nos dois metodos, e a nao-monotonicidade foi de 12 a 40 vezes o
+// piso de amostragem.  Comparar malhas que refinam regioes fisicamente diferentes
+// nao e' estudo de convergencia.
+//
+// Com FT_AMR_BANDA=<largura>, `celmin` passa a SAIR da largura:
+// celmin = banda / h_fino.  A largura fisica fica constante entre resolucoes, e
+// e' a contagem de celulas que cresce ao refinar -- que e' o sentido certo.
+//
+// O PISO DE 5 NAO E' NEGOCIAVEL: o VOF exige ao menos cinco celulas finas por
+// lado para a reconstrucao funcionar, e isso e' correcao e nao ajuste.  Por isso
+// a banda deve ser ancorada na resolucao mais GROSSA da serie (onde celmin=5) --
+// ai' as mais finas so' ganham celulas.  Se a conta der menos de 5, o piso vence e
+// o aviso sai, porque nesse caso a banda pedida e' fina demais para a malha.
+//
+// Sem a variavel, nada muda: celmin continua vindo de FT_AMR_CELMIN.
+static int _celmin_da_banda(const char *var, int celmin, real lx, int nx, int niveis)
+{
+    const char *b = getenv(var);
+    if (b == NULL) return celmin;
+    real banda = atof(b);
+    if (!(banda > 0.0)) return celmin;
+    real h_fino = lx / (real) nx;
+    for (int l = 0; l < niveis; l++) h_fino *= 0.5;
+    int novo = (int) (banda / h_fino + 0.5);
+    if (novo < 5) {
+        print0f("===> %s=%g pede %d celulas finas em h=%.5f; o piso de 5 do VOF "
+                "vence.  A banda efetiva sera' %.5f, nao %.5f\n",
+                var, (double) banda, novo, (double) h_fino,
+                (double) (5 * h_fino), (double) banda);
+        novo = 5;
+    }
+    print0f("===> banda fisica %.5f em h_fino=%.5f  ==>  celmin = %d "
+            "(era %d)\n", (double) banda, (double) h_fino, novo, celmin);
+    return novo;
+}
+
 int main (int argc, char *argv[]) {
     // Initialize the total time counting
     START_CLOCK(total);
@@ -281,6 +327,8 @@ int main (int argc, char *argv[]) {
             int ny0 = 80;   if ((e = getenv("FT_AMR_NY")) != NULL) ny0 = atoi(e);
             real lx0 = 1.0; if ((e = getenv("FT_AMR_LX")) != NULL) lx0 = atof(e);
             real ly0 = 2.0; if ((e = getenv("FT_AMR_LY")) != NULL) ly0 = atof(e);
+            // DEPOIS de lx0 e nx0: a banda depende dos dois.
+            cel0 = _celmin_da_banda("FT_AMR_BANDA", cel0, lx0, nx0, niv);
             const char *cam0 = getenv("FT_AMR_CAMINHO");
             if (cam0 == NULL) cam0 = "amrs-hysing/criterio/dominio.amr";
             // RETOMADA: NAO reescrever o .amr quando a corrida esta' sendo
@@ -478,6 +526,8 @@ int main (int argc, char *argv[]) {
         const char *e;
         if ((e = getenv("FT_AMR_NIVEIS")) != NULL) amr_niveis = atoi(e);
         if ((e = getenv("FT_AMR_CELMIN")) != NULL) amr_celmin = atoi(e);
+        amr_celmin = _celmin_da_banda("FT_AMR_BANDA", amr_celmin,
+                                      amr_lx, amr_nx, amr_niveis);
         if ((e = getenv("FT_AMR_CADA"))   != NULL) amr_cada   = atoi(e);
         if ((e = getenv("FT_AMR_NX"))     != NULL) amr_nx     = atoi(e);
         if ((e = getenv("FT_AMR_NY"))     != NULL) amr_ny     = atoi(e);
