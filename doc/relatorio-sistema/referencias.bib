@@ -76,3 +76,26 @@
   year    = {2022},
   doi     = {10.11606/d.55.2022.tde-02022023-154853}
 }
+
+% ---------------------------------------------------------------------------
+% ENCAIXE PARA AS DEMAIS TESES E DISSERTACOES
+%
+% A busca por metadados achou so' a de Godoi.  As outras entram aqui conforme os
+% nomes forem indicados.  Modelo, com os campos que o `plain` usa:
+%
+%   @mastersthesis{sobrenomeANO,            % ou @phdthesis para doutorado
+%     author  = {Sobrenome, Nome},
+%     title   = {T\'itulo como registrado},
+%     school  = {Universidade de S\~ao Paulo},
+%     address = {S\~ao Carlos},             % ou o campus correspondente
+%     year    = {ANO},
+%     doi     = {10.11606/...}              % se houver; o prefixo da USP e' 10.11606
+%   }
+%
+% CONFERIR ANTES DE COMITAR, como as demais:
+%   curl -s "https://api.crossref.org/works/<DOI>" | python3 -m json.tool | head -40
+%
+% Se a tese nao tiver DOI registrado, citar sem o campo e anotar aqui de onde
+% veio o dado -- a regra deste relatorio e' que a procedencia de cada entrada
+% seja rastreavel, nao que toda entrada tenha DOI.
+% ---------------------------------------------------------------------------
