@@ -69,6 +69,51 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
     \ref{sec:paralelo} e \ref{sec:posse} tra\c{c}am o que quebrava, o que foi
     corrigido e o que se revelou nunca ter estado quebrado. Falta rodar em
     paralelo um caso longo e refazer as medidas --- o que nao foi feito.
+  \item \textbf{Escalonamento: n\~ao medido, e a arquitetura atual o limita.}
+    Nenhum estudo de escalabilidade foi feito --- n\~ao havia como, porque at\'e
+    este trabalho o remalhamento estava errado em $n_p>1$ e o caso o exige. Mas
+    tr\^es fatos do c\'odigo, esses \emph{medidos}, dizem onde o limite estaria:
+    \begin{enumerate}
+      \item o caso tem \textbf{uma \'unica \'arvore}
+        (\texttt{number\_domains:\ 1}), e o la\c{c}o de leitura reparte
+        \emph{arquivos} entre \emph{ranks}: com um arquivo s\'o, o rank 0
+        materializa a malha global inteira em mem\'oria antes de o balanceador a
+        repartir. \'E um teto de mem\'oria por rank que n\~ao melhora com mais
+        processos;
+      \item \texttt{higflow\_reconstroi\_dominio} \textbf{reconstr\'oi o dom\'inio
+        do zero} a cada remalhamento --- \texttt{create\_domain} mais
+        \texttt{initialize\_domain\_yaml} --- em vez de adaptar no lugar;
+      \item o crit\'erio passa por \textbf{arquivo, escrito por um rank s\'o},
+        com barreira, e relido por todos (Se\c{c}\~ao~\ref{sec:paralelo}). Foi o
+        conserto correto para a \emph{corre\c{c}\~ao}, e \'e um trecho serial
+        proporcional \`a malha global a cada remalhamento.
+    \end{enumerate}
+    A consequ\^encia pr\'atica, e ela contraria a leitura natural: usar o t8code
+    apenas como \emph{particionador} --- que \'e o caminho barato, porque
+    \texttt{fonte\_de\_particao} j\'a existe --- melhoraria a qualidade da
+    parti\c{c}\~ao e \textbf{n\~ao} entregaria o escalonamento, que \'e a raz\~ao
+    de ser do t8code. Os tr\^es itens acima continuariam intactos. O que
+    entregaria \'e a adapta\c{c}\~ao din\^amica distribu\'ida: crit\'erio avaliado
+    localmente, floresta adaptada no lugar, e o \texttt{.amr} reduzido a formato
+    de \emph{arranque} em vez de via de remalhamento. Isso \'e reescrever o
+    caminho de remalhamento, n\~ao ligar um gancho.
+
+    A \'ultima frase merece a ressalva de sempre: que esses tr\^es gargalos
+    \emph{dominem} o escalonamento \'e infer\^encia, n\~ao medida. A medida seria
+    cronometrar o remalhamento separado do resto em 1, 2, 4 e 8 processos.
+  \item \textbf{t8code: integrado no monof\'asico, n\~ao no bif\'asico.} O gancho
+    \texttt{malha\_t8\_instala} existe nos dois exemplos e instala a fonte, mas
+    \texttt{higflow\_partition\_domain\_multiphase} n\~ao a consulta --- l\^e o
+    \texttt{.amr} sempre. A fronteira imersa funciona com t8code porque \'e
+    monof\'asica e passa por outro caminho. Desde este trabalho o pedido
+    ignorado \'e ao menos \emph{denunciado} na linha de proced\^encia da malha, em
+    vez de passar em sil\^encio. E h\'a um segundo impedimento atr\'as do
+    primeiro: as fontes do t8code recusam \texttt{.amr} multin\'ivel
+    (\texttt{numlevels != 1}, com a mensagem ``recusar \'e melhor que
+    aproximar''), e o crit\'erio adaptativo escreve exatamente isso. Integrar de
+    verdade exige uma fonte que \emph{leia} a lista de refino --- que o
+    \texttt{higio\_amr\_info} carrega e entrega, e que hoje \'e descartada em
+    favor s\'o da caixa.
   \item \textbf{Propriedades iguais.} A terceira mudan\c{c}a estrutural --- o
     salto de $\rho$ e $\mu$ --- est\'a adiada nos dois lados. Em escoamento com
     raz\~ao de densidade alta as conclus\~oes podem mudar.
