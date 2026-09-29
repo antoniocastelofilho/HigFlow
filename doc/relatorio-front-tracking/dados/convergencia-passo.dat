@@ -1,0 +1,6 @@
+metodo  grandeza       passopuro      combinado      fracaodopasso
+FT      $V_{c,\max}$   \num{3.26e-5}  \num{1.77e-4}  {$18\%$}
+FT      $c_{\min}$     \num{3.14e-6}  \num{1.43e-3}  {$0{,}2\%$}
+FT      $y_c(t{=}3)$   \num{8.84e-5}  \num{3.59e-4}  {$25\%$}
+VOF     $V_{c,\max}$   \num{5.22e-5}  \num{1.38e-4}  {$38\%$}
+VOF     $y_c(t{=}3)$   \num{1.55e-4}  \num{3.31e-4}  {$47\%$}

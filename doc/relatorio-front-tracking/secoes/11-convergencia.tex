@@ -120,3 +120,128 @@ Convém delimitar antes, e n\~ao depois:
     pr\'opria; a refer\^encia para julgar signific\^ancia continua sendo a
     dispers\~ao entre os tr\^es c\'odigos publicados.
 \end{itemize}
+
+\subsection{Resultado: nenhum dos dois converge monotonicamente}
+\label{sec:conv-resultado}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/celraio/.style={column name={c\'el./raio}},
+  columns/Vcmax/.style={column name={$V_{c,\max}$}},
+  columns/desvVc/.style={column name={desvio}},
+  columns/cmin/.style={column name={$c_{\min}$}},
+  columns/desvc/.style={column name={desvio}},
+  columns/yct3/.style={column name={$y_c(t{=}3)$}},
+  columns/desvyc/.style={column name={desvio}},
+  every head row/.style={before row=\toprule\multicolumn{7}{c}{\textbf{front-tracking}}\\\midrule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-ft.dat}}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/celraio/.style={column name={c\'el./raio}},
+  columns/Vcmax/.style={column name={$V_{c,\max}$}},
+  columns/desvVc/.style={column name={desvio}},
+  columns/yct3/.style={column name={$y_c(t{=}3)$}},
+  columns/desvyc/.style={column name={desvio}},
+  every head row/.style={before row=\toprule\multicolumn{5}{c}{\textbf{VOF}}\\\midrule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-vof.dat}}
+
+\textbf{Nenhuma das cinco s\'eries \'e monot\^onica.} No front-tracking a
+circularidade em 28 c\'elulas por raio \'e \emph{melhor} que em 40; no VOF o
+$V_{c,\max}$ piora e depois melhora. Ajustar ordem a s\'eries assim produz
+n\'umeros sem sentido --- entre pontos consecutivos do $V_{c,\max}$ do
+front-tracking saem $-2{,}79$ e $+5{,}14$ ---, e o \'unico uso leg\'itimo deles \'e
+como sintoma.
+
+As oscila\c{c}\~oes v\~ao de 12 a 40 vezes o limite de cadência de amostragem
+medido adiante, ent\~ao \textbf{n\~ao s\~ao ru\'ido}: s\~ao comportamento.
+
+\paragraph{\'E o quarto desfecho, e para os dois m\'etodos.} A
+Se\c{c}\~ao~\ref{sec:conv-leituras} previu quatro leituras e nomeou o suspeito do
+quarto antes de qualquer n\'umero existir: a banda do crit\'erio \'e contada em
+\emph{c\'elulas finas}, logo tem largura \emph{f\'isica} diferente em cada
+resolu\c{c}\~ao.
+
+\pgfplotstabletypeset[
+  string type,
+  columns/celraio/.style={column name={c\'el./raio}},
+  columns/hfino/.style={column name={$h$ fino}},
+  columns/bandafisica/.style={column name={largura f\'isica da banda}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-banda.dat}}
+
+Dobrar a resolu\c{c}\~ao \textbf{reduz a regi\~ao refinada \`a metade} em extens\~ao
+f\'isica. A esteira --- que \'e onde $y_c$ e $V_c$ se decidem --- fica
+progressivamente menos coberta \`a medida que a malha refina. Comparar malhas que
+refinam regi\~oes fisicamente diferentes n\~ao \'e um estudo de converg\^encia,
+e \'e por isso que a s\'erie n\~ao decide.
+
+\'E hip\'otese, n\~ao medida. O teste que a resolveria \'e refazer a s\'erie com
+\texttt{celmin} escalado para manter a banda f\'isica constante --- 5, 7 e 10
+c\'elulas nas tr\^es resolu\c{c}\~oes --- e ver se a monotonicidade aparece.
+
+\subsection{O confundidor do passo, medido}
+
+A corrida D fez o que existia para fazer:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/metodo/.style={column name={m\'etodo}},
+  columns/grandeza/.style={column name={grandeza}},
+  columns/passopuro/.style={column name={passo puro}},
+  columns/combinado/.style={column name={combinado}},
+  columns/fracaodopasso/.style={column name={fra\c{c}\~ao do passo}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-passo.dat}}
+
+No VOF, \textbf{quase metade} da varia\c{c}\~ao atribu\'ida ao refino \'e do passo
+de tempo. No front-tracking a fra\c{c}\~ao \'e menor, e na circularidade \'e
+praticamente nula --- \SI{0.2}{\percent}. Sem esta corrida, a s\'erie A--B--C
+seria lida como converg\^encia em $h$ quando metade dela, num dos m\'etodos, \'e
+converg\^encia em $\Delta t$ disfar\c{c}ada.
+
+\paragraph{Um limite de resolu\c{c}\~ao da pr\'opria medida.} A cadência de
+amostragem das corridas novas \'e $0{,}0707$ contra $0{,}05$ da corrida C. Para
+saber quanto isso pesa, reamostrou-se a corrida C a $0{,}10$ --- mais grosso que
+as novas --- e recalculou-se o extremo pela par\'abola: a diferen\c{c}a foi
+\num{4.0e-5}, ou \SI{0.017}{\percent}. Esse \'e o piso da medida em $V_{c,\max}$ e
+$c_{\min}$; em $y_c$, obtido por interpola\c{c}\~ao linear entre amostras
+vizinhas, o erro \'e da ordem de \num{1e-6}.
+
+O efeito puro do passo sobre o $V_{c,\max}$ --- \num{3.26e-5} no front-tracking,
+\num{5.22e-5} no VOF --- fica \emph{na ordem desse piso}. Nessa m\'etrica, o
+confundidor n\~ao \'e separ\'avel do ru\'ido de amostragem, e s\'o a
+circularidade, com margem de 36 vezes, permite a afirma\c{c}\~ao limpa.
+
+\subsection{O que este estudo entregou, e o que n\~ao}
+
+N\~ao entregou uma ordem de converg\^encia, e n\~ao confirma nem refuta o vi\'es
+compartilhado da Se\c{c}\~ao~\ref{sec:vies}: com s\'eries n\~ao mon\'otonas, os
+cinco desvios negativos do fechamento continuam sem causa atribu\'ida.
+
+Entregou tr\^es coisas, e as tr\^es s\~ao restri\c{c}\~oes sobre como medir, e
+n\~ao sobre o escoamento:
+
+\begin{enumerate}
+  \item \textbf{o crit\'erio de refino, como est\'a, impede estudo de
+    converg\^encia}, porque a banda muda de tamanho f\'isico com $h$. Isso
+    precisa ser consertado \emph{antes} de qualquer nova tentativa, e o conserto
+    \'e conhecido: escalar \texttt{celmin} com a resolu\c{c}\~ao;
+  \item \textbf{o passo responde por at\'e metade} da varia\c{c}\~ao entre
+    resolu\c{c}\~oes no VOF. Qualquer estudo futuro precisa da corrida de
+    controle, e n\~ao pode refinar $h$ e $\Delta t$ juntos sem separ\'a-los;
+  \item \textbf{a cadência de amostragem \'e um piso} de \num{4e-5} nos extremos.
+    Estudos que persigam desvios dessa ordem precisam amostrar mais denso, e o
+    custo disso \'e desprez\'ivel comparado ao de errar a conclus\~ao.
+\end{enumerate}
+
+\paragraph{E uma li\c{c}\~ao de m\'etodo, cara e repetida.} Com \emph{dois} pontos
+--- 20 e 40 c\'elulas por raio --- a leitura era limpa e errada: o front-tracking
+parecia convergir com ordem $1{,}5$ na circularidade e o VOF parecia divergir, o
+que sugeria causas diferentes para cada m\'etodo. O terceiro ponto, em 28, desfez
+as duas conclus\~oes. Dois pontos sempre d\~ao uma ordem; \'e o terceiro que diz
+se ela existe.
