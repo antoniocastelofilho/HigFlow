@@ -120,6 +120,28 @@ void fi_forca_corpo_rigido(fi_corpo *c, real dt);
 //! Para somar num campo povoado: espalhe num campo ZERADO proprio e some depois.
 //!
 //! Espalha a forca dos marcadores nas facetas, ACUMULANDO (dp_add_value).
+//! Soma no DONO as contribuicoes que cairam em faceta de FRANJA, e redistribui.
+//!
+//! `dp_sync` manda dono->franja e SOBRESCREVE; o que falta e' a direcao oposta,
+//! franja->dono, SOMANDO.  Sem isso toda contribuicao espalhada por um marcador
+//! cujo suporte atravessa a borda do rank se perde: a forca fica errada numa
+//! banda em volta de cada fronteira de particao, silenciosamente.
+//!
+//! So' e' correto se `dp` tiver sido POVOADO por acumulacao (dp_add_value) desde
+//! o ultimo sync -- um campo que carregue valores de outra origem teria a franja
+//! somada duas vezes.  Zera a franja depois de entregar, para nao entregar de
+//! novo se for chamada duas vezes antes de um sync.
+void fi_reduz_franja(distributed_property *dp, MPI_Comm comm);
+
+//! Numero de entradas PROPRIAS de `dp`: `lid < fi_dp_num_proprias(dp)` e' faceta (ou
+//! celula) cujo dono e' este rank; de ai' para cima e' copia de FRANJA.
+//!
+//! Exposto porque quem ACUMULA precisa saber onde escrever.  O espalhamento do
+//! corpo rigido nao precisava -- o DMSwarm reparte os marcadores por posse
+//! exclusiva, e a reducao franja->dono completa a conta.  Com frente REPLICADA
+//! nao ha' essa posse, e escrever em franja gera contagem dupla.
+int fi_dp_num_proprias(distributed_property *dp);
+
 //! Contribuicoes que caem em faceta de franja sao somadas no dono por
 //! PetscSFReduce -- o dp_sync nao serve, ele sobrescreve.
 void fi_espalha(fi_corpo *c, sim_facet_domain *sfd[DIM],

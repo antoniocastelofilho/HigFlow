@@ -167,6 +167,24 @@ void ft_semieixos(const ft_frente *f, real *a, real *b);
 
 // --- adveccao + cirurgia --------------------------------------------------
 
+//! Campo de velocidade avaliado em N posicoes DE UMA VEZ.  Preenche `u[i]` com a
+//! velocidade em `x[i]`.
+//!
+//! POR QUE ESTA VARIANTE EXISTE.  Em paralelo a velocidade de um marcador nao e'
+//! calculavel localmente: o suporte do nucleo pode estar repartido entre ranks, e
+//! decidir quem tem o suporte INTEIRO exige uma reducao coletiva.  Uma reducao
+//! por marcador seria inviavel (centenas por passo); em lote sao duas, do vetor
+//! inteiro.  A forma por marcador (`ft_campo_u`) continua servindo ao campo
+//! analitico dos arreios, que e' local por natureza.
+typedef void (*ft_campo_u_lote)(const Point *x, int n, real t, void *ctx,
+                                Point *u);
+
+//! Como `ft_advecta`, mas avaliando o campo em LOTE: uma chamada por estagio do
+//! RK2, com todos os marcadores.  Mesmo integrador e mesmo resultado; o que muda
+//! e' que o campo ve' todos os marcadores de uma vez e pode fazer a reducao
+//! coletiva que o paralelo exige.
+void ft_advecta_lote(ft_frente *f, ft_campo_u_lote u, void *ctx, real t, real dt);
+
 //! Avanca a frente um passo `dt` a partir do instante `t`, no campo `u`:
 //!
 //!     X^{n+1} = X^n + dt * u(X, t)
