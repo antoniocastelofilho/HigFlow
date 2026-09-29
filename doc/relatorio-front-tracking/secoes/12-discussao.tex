@@ -98,9 +98,14 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
     de \emph{arranque} em vez de via de remalhamento. Isso \'e reescrever o
     caminho de remalhamento, n\~ao ligar um gancho.
 
-    A \'ultima frase merece a ressalva de sempre: que esses tr\^es gargalos
-    \emph{dominem} o escalonamento \'e infer\^encia, n\~ao medida. A medida seria
-    cronometrar o remalhamento separado do resto em 1, 2, 4 e 8 processos.
+    \textbf{Isso foi medido, e a infer\^encia caiu.} A
+    Se\c{c}\~ao~\ref{sec:fase0} cronometra o remalhamento separado do resto em 1,
+    2, 4 e 8 processos: ele custa entre \SI{0.06}{\percent} e \SI{0.10}{\percent}
+    do tempo, e o trecho serial da escrita do \texttt{.amr} \'e \SI{3}{\percent}
+    \emph{disso}. Os tr\^es gargalos s\~ao reais como fatos de c\'odigo e
+    irrelevantes como custo, neste tamanho de problema. O que a medida encontrou
+    no lugar \'e que a efici\^encia paralela cai a \SI{22}{\percent} em oito
+    processos --- o caso \'e pequeno demais para o paralelismo render.
   \item \textbf{t8code: integrado no monof\'asico, n\~ao no bif\'asico.} O gancho
     \texttt{malha\_t8\_instala} existe nos dois exemplos e instala a fonte, mas
     \texttt{higflow\_partition\_domain\_multiphase} n\~ao a consulta --- l\^e o

@@ -245,3 +245,65 @@ parecia convergir com ordem $1{,}5$ na circularidade e o VOF parecia divergir, o
 que sugeria causas diferentes para cada m\'etodo. O terceiro ponto, em 28, desfez
 as duas conclus\~oes. Dois pontos sempre d\~ao uma ordem; \'e o terceiro que diz
 se ela existe.
+
+\section{O remalhamento \'e o gargalo? N\~ao.}
+\label{sec:fase0}
+
+A Se\c{c}\~ao~\ref{sec:convergencia} deixou o escalonamento como pergunta aberta,
+e a discuss\~ao listava tr\^es gargalos de arquitetura --- a malha global
+materializada num rank, a reconstru\c{c}\~ao do dom\'inio do zero, e o crit\'erio
+passando por arquivo escrito serialmente. A conclus\~ao natural seria que
+remalhar domina, e que valeria reescrever esse caminho sobre a adapta\c{c}\~ao
+distribu\'ida do t8code.
+
+\emph{Antes} de reescrever, mediu-se. O crit\'erio e a reconstru\c{c}\~ao foram
+cronometrados \textbf{separados do resto}, com barreira antes de cada marca, em
+$n_p = 1$, 2, 4 e 8:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/np/.style={column name={$n_p$}},
+  columns/parede/.style={column name={parede}},
+  columns/aceleracao/.style={column name={acelera\c{c}\~ao}},
+  columns/eficiencia/.style={column name={efici\^encia}},
+  columns/criterio/.style={column name={crit\'erio}},
+  columns/reconstrucao/.style={column name={reconstru\c{c}\~ao}},
+  columns/remalhatotal/.style={column name={remalha/total}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{fase0-escalonamento.dat}}
+
+\textbf{O remalhamento custa entre \SI{0.06}{\percent} e \SI{0.10}{\percent} do
+tempo, em todas as contagens de processo.} Reescrever esse caminho sobre
+adapta\c{c}\~ao distribu\'ida otimizaria um mil\'esimo da execu\c{c}\~ao. O
+port\~ao declarado antes da medida --- ``se a reconstru\c{c}\~ao for fra\c{c}\~ao
+pequena do total e n\~ao crescer com os \emph{ranks}, as fases seguintes n\~ao se
+justificam'' --- fecha com tr\^es ordens de grandeza de folga.
+
+\paragraph{E a medida contraria a pr\'opria hip\'otese que a motivou.} O trecho
+que este relat\'orio apontava como serial e cr\'itico --- a escrita do
+\texttt{.amr} por um processo s\'o --- \'e \SI{3}{\percent} do remalhamento, que
+\'e \SI{0.1}{\percent} do total. Quem domina o remalhamento \'e a
+reconstru\c{c}\~ao do dom\'inio, e mesmo ela \'e irrelevante na escala da corrida.
+
+\paragraph{O que a medida encontrou no lugar.} A efici\^encia paralela cai de
+\SI{41}{\percent} em dois processos para \SI{22}{\percent} em oito, e em $n_p=2$ a
+corrida chega a ser \emph{mais lenta} que em s\'erie. O gargalo n\~ao \'e a
+maquinaria de malha: \'e que este caso --- cerca de 9\,400 c\'elulas --- \'e
+pequeno demais para o paralelismo render.
+
+Duas causas plaus\'iveis, \textbf{nenhuma medida}: a comunica\c{c}\~ao dominando
+num problema pequeno, e o precondicionador \texttt{bjacobi} perdendo qualidade ao
+ser dividido em mais blocos --- o que significa que $n_p=1$ e $n_p=8$ n\~ao
+resolvem o mesmo sistema linear, e comparar tempo de parede entre eles mistura
+escalonamento com converg\^encia do solver. Registrar a contagem de
+itera\c{c}\~oes do KSP separaria os dois, e n\~ao est\'a instrumentado.
+
+\paragraph{O alcance desta conclus\~ao, e o seu limite.} Vale para \emph{este}
+tamanho de problema. Num caso grande o equil\'ibrio muda: o solver escalaria
+melhor, e o teto de mem\'oria --- um processo materializando a malha global ---
+passaria a morder, que \'e precisamente o que a adapta\c{c}\~ao distribu\'ida
+resolve. A conclus\~ao n\~ao \'e ``o t8code n\~ao serve''; \'e que a
+justificativa para integr\'a-lo \textbf{n\~ao pode ser} o custo do remalhamento
+neste regime, e que qualquer estudo de escalabilidade precisa antes de um caso em
+que o paralelismo renda alguma coisa.
