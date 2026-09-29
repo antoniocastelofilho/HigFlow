@@ -160,70 +160,82 @@ indevidamente para o seguinte.
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-  name=cheia, width=6.4cm, height=6.4cm, axis equal image,
+  name=evol, width=6.2cm, height=9.2cm, axis equal image,
   xlabel={$x$}, ylabel={$y$}, grid=major,
-  xmin=0.23, xmax=0.77, ymin=0.28, ymax=0.82,
-  title={$t=0{,}45$, a bolha inteira}, title style={font=\small},
-  legend style={font=\scriptsize, at={(0.5,-0.22)}, anchor=north},
+  xmin=0.10, xmax=0.90, ymin=0.25, ymax=1.30,
+  title={a bolha, de $t=0$ a $t=3$}, title style={font=\small},
+  legend style={font=\scriptsize, at={(0.5,-0.13)}, anchor=north},
   legend columns=2, legend cell align=left,
 ]
-\addplot[thick]         table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_0.dat}};
 \addlegendentry{front-tracking}
-\addplot[densely dashed] table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_0.dat}};
 \addlegendentry{VOF}
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_1.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_1.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_2.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_2.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
 \end{axis}
 \begin{axis}[
-  at={(cheia.right of south east)}, anchor=left of south west,
-  width=6.4cm, height=6.4cm, axis equal image,
+  at={(evol.right of south east)}, anchor=left of south west,
+  width=6.6cm, height=9.2cm, axis equal image,
   xlabel={$x$}, grid=major,
-  xmin=0.676, xmax=0.692, ymin=0.365, ymax=0.381,
-  title={ampliado onde a diferen\c{c}a \'e maior}, title style={font=\small},
-  scaled ticks=false, tick label style={font=\tiny, /pgf/number format/fixed},
+  xmin=0.14, xmax=0.86, ymin=0.66, ymax=1.06,
+  title={$t=1{,}9$ e $t=3$, ampliado}, title style={font=\small},
 ]
-\addplot[thick]         table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
-\addplot[densely dashed] table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_2.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_2.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
 \end{axis}
 \end{tikzpicture}
-\caption{A interface nos dois m\'etodos no mesmo instante. \`A esquerda, na
-escala da bolha, as duas curvas s\~ao indistingu\'iveis; \`a direita, ampliado
-25 vezes em torno do ponto de maior discrep\^ancia, aparece a separa\c{c}\~ao de
-\num{1.7e-4} --- cerca de \SI{2.7}{\percent} de uma c\'elula fina. \textbf{Em
-$t=0{,}45$ a bolha ainda \'e praticamente circular}, ent\~ao esta figura mostra
-a \emph{concord\^ancia} entre as duas representa\c{c}\~oes, e n\~ao
-deforma\c{c}\~ao: a forma deformada, que \'e o que este \emph{benchmark} testa,
-s\'o aparece a partir de $t\approx1$ e est\'a fora do alcance dos dados
-dispon\'iveis para este texto. A curva do VOF \'e o contorno
-$\mathrm{FracVol}=0{,}5$ obtido por \emph{marching squares} com os valores de
-c\'elula medianizados nos v\'ertices --- confer\~ido contra o c\'irculo
-anal\'itico em $t=0$ (desvio radial m\'aximo \num{1.34e-4}), e adequado para
-desenhar a forma, n\~ao para medir per\'imetro.}
+\caption{A interface nos dois m\'etodos, em $t=0$, $1$, $1{,}9$ e $3$. A bolha
+sobe de $y_c=0{,}5$ a $1{,}08$ e se achata: a raz\~ao largura/altura vai de
+$1{,}00$ a $1{,}87$, e $t=1{,}9$ \'e o instante de m\'axima deforma\c{c}\~ao --- o
+mesmo da circularidade m\'inima. De $1{,}9$ a $3$ a forma praticamente n\~ao muda
+($1{,}87$ para $1{,}86$): a bolha atinge regime. As duas curvas s\~ao
+\emph{indistingu\'iveis} em toda a evolu\c{c}\~ao, e o painel ampliado mostra que
+isso se mant\'em na deforma\c{c}\~ao m\'axima. A curva do VOF \'e o contorno
+$\mathrm{FracVol}=0{,}5$ por \emph{marching squares} com os valores de c\'elula
+medianizados nos v\'ertices, conferido contra o c\'irculo anal\'itico em $t=0$
+(desvio radial m\'aximo \num{1.34e-4}).}
 \label{fig:hysing-forma}
 \end{figure}
-
-A concord\^ancia de forma, medida:
 
 \pgfplotstabletypeset[
   string type,
   columns/t/.style={column name={$t$}},
+  columns/razaolarguraaltura/.style={column name={largura/altura}},
   columns/areaft/.style={column name={\'area FT}},
   columns/areavof/.style={column name={\'area VOF}},
-  columns/difarea/.style={column name={dif.}},
-  columns/desloccentro/.style={column name={$|\Delta y_c|$}},
-  columns/difradial/.style={column name={dif. radial m\'ax.}},
-  columns/emdoraio/.style={column name={\% do raio}},
+  columns/perimft/.style={column name={per\'im.\ FT}},
+  columns/perimvof/.style={column name={per\'im.\ VOF}},
+  columns/cdosdois/.style={column name={$c$ (dos dois)}},
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-forma.dat}}
 
-A leitura desta tabela tem uma sutileza que convém n\~ao perder: das
-\num{1.65e-4} de discrep\^ancia radial em $t=0{,}45$, \num{1.06e-4} j\'a existem
-em $t=0$ --- s\~ao a diferen\c{c}a de \emph{inicializa\c{c}\~ao} entre um
-pol\'igono de 252 lados inscrito no c\'irculo e o contorno extra\'ido do campo de
-fra\c{c}\~ao, e n\~ao diverg\^encia din\^amica. O que as duas
-discretiza\c{c}\~oes acumulam de fato em 1800 passos \'e a diferen\c{c}a entre
-esses dois n\'umeros, cerca de \num{6e-5}. \'E o mesmo efeito que a
-Se\c{c}\~ao~\ref{sec:comparacao} registrou no d\'eficit de \'area do pol\'igono:
-uma parte do que parece erro de m\'etodo \'e escolha de inicializa\c{c}\~ao.
+\paragraph{E aqui a figura desfaz uma suspeita minha.} Os per\'imetros dos dois
+m\'etodos concordam em \num{2e-4} em todos os quatro instantes. Aplicando
+\eqref{eq:circ-hysing} ao contorno do VOF sai $c=0{,}90037$ em $t=1{,}9$, contra
+$0{,}900344$ do front-tracking: praticamente o mesmo valor, e igualmente
+\SI{0.09}{\percent} abaixo do publicado.
+
+Isso \textbf{enfraquece} a hip\'otese que a Se\c{c}\~ao~\ref{sec:fechamento}
+levanta --- de que a deriva de $\Delta s/h$ explicaria a circularidade fora da
+faixa. O VOF n\~ao tem marcador algum, e d\'a o mesmo n\'umero. O que resta \'e o
+vi\'es compartilhado da Se\c{c}\~ao~\ref{sec:vies}.
+
+A ressalva \'e necess\'aria: o contorno do VOF vem de uma extra\c{c}\~ao que
+\emph{suaviza}, e este relat\'orio registra que ela n\~ao serve para medir
+per\'imetro --- \'e por isso que a circularidade do VOF n\~ao \'e reportada entre
+os alvos. Portanto o par\'agrafo acima n\~ao \'e uma medi\c{c}\~ao da
+circularidade do VOF. Mas duas constru\c{c}\~oes t\~ao diferentes concordando em
+\num{2e-4} \'e mais compat\'ivel com o per\'imetro verdadeiro ser $\approx 1{,}743$
+do que com coincid\^encia, e o que resolveria \'e expor a reconstru\c{c}\~ao PLIC
+do solver.
 
 Duas leituras, e nenhuma delas \'e o fechamento.
 
