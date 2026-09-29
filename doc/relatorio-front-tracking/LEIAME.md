@@ -1,17 +1,15 @@
 # Relatório: front-tracking bifásico no HiGFlow
 
-Projeto LaTeX. No Overleaf: envie a pasta inteira; o arquivo principal é
-`main.tex`.
+Projeto LaTeX, autossuficiente. **No Overleaf:** envie a pasta inteira (ou o
+`relatorio-front-tracking.tar.gz`); o arquivo principal é `main.tex`, o compilador
+é pdfLaTeX e a bibliografia sai por BibTeX — todos os padrões do Overleaf.
 
-```
-main.tex            preâmbulo e ordem das seções
-secoes/*.tex        uma seção por arquivo
-referencias.bib     11 entradas, todas conferidas no Crossref
-dados/*.dat         AS MEDIDAS
-figuras/            (vazio por enquanto)
-```
+Nenhum caminho é absoluto e nada é referenciado fora da pasta. São 13 `.tex`,
+55 `.dat`, 1 `.bib`, e o PDF tem 37 páginas.
 
 Compila com `pdflatex + bibtex + pdflatex + pdflatex`, ou `latexmk -pdf main`.
+Verificado a partir do zero (`latexmk -C` e recompilar): zero erros, zero
+estouros de margem, zero referências ou citações não resolvidas.
 
 ## Os números vivem nos `.dat`, não no texto
 
