@@ -1,0 +1,6 @@
+metodo   grandeza     d2028          d2840          comportamento   ordem
+{FT}    {$V_{c,\max}$}  {$-2{,}43$e$-4$} {$-2{,}11$e$-4$} {encolhem}  {$+0{,}41$}
+{FT}    {$c_{\min}$}    {$+4{,}94$e$-4$} {$+9{,}38$e$-4$} {\textbf{crescem}} {$-1{,}85$}
+{FT}    {\'area}        {$+1{,}01$e$-1$} {$+8{,}11$e$-2$} {encolhem}  {$+0{,}64$}
+{VOF}   {$V_{c,\max}$}  {$-7{,}40$e$-5$} {$-1{,}24$e$-4$} {\textbf{crescem}} {$-1{,}49$}
+{VOF}   {\'area}        {$+9{,}40$e$-3$} {$+1{,}79$e$-2$} {\textbf{crescem}} {$-1{,}86$}

@@ -1,0 +1,9 @@
+degrau       oraculo                             resultado        ordem
+{geometria}  {\'area e volume da esfera}          {$1{,}2$e$-3$ e $2{,}2$e$-3$} {$2{,}00$ e $1{,}99$}
+{topologia}  {$V-A+F=2$ em toda resolu\c{c}\~ao}  {$2$ sempre}     {---}
+{for\c{c}a}  {$|F|$ por \'area contra $2\sigma/R$} {$1{,}8$e$-6$}  {$2{,}75$}
+{B1}         {volume volta e se conserva}         {$5{,}7$e$-3$}   {$1{,}9$ a $2{,}2$}
+{B2}         {$\Delta p = 2\sigma/R$}             {$0{,}19\%$}     {$\approx 1$}
+{fra\c{c}\~ao} {soma sobre a parti\c{c}\~ao}      {$2{,}3$e$-3$}   {$2{,}0$}
+{grade}      {igual \`a exaustiva, bit a bit}     {$0$ diferen\c{c}as} {---}
+{adve\c{c}\~ao} {deriva e parti\c{c}\~ao da unidade} {$5{,}8$e$-4$ e $6$e$-15$} {em aberto}

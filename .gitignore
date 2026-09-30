@@ -154,7 +154,13 @@ skills-lock.json
 graphify-out/
 **/graphify-out/
 
-# O *.dat acima mira saida de simulacao.  Os dados de MEDICAO do relatorio sao
+# O *.dat acima mira saida de simulacao.  Os dados de MEDICAO dos relatorios sao
 # fonte, nao saida: sao os numeros que as tabelas citam, e sem eles o relatorio
 # afirma resultados que nada no repositorio sustenta.
-!doc/relatorio-fronteira-imersa/dados/*.dat
+#
+# A EXCECAO PRECISA COBRIR TODOS OS RELATORIOS.  Ela cobria so' o primeiro, e os
+# .dat criados depois nos demais caiam no ignore global -- `git add -A` nao os
+# adicionava e ninguem reclamava.  O sintoma aparece longe: o relatorio compila
+# na arvore de quem o escreveu (os arquivos estao no disco) e NAO compila a
+# partir de um clone ou de outro worktree.  Foi assim que apareceu.
+!doc/*/dados/*.dat
