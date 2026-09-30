@@ -35,7 +35,7 @@ extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *su
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
 // Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class LidDrivenProblem : public HigFlowProblem {
+class GotaProblem : public HigFlowProblem, public HigFlowMultiphaseProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -147,6 +147,41 @@ public:
         }
         return value; 
     }
+    // --- interface multifasica -------------------------------------------
+    // Propriedades por ambiente.  Os padroes sao IGUAIS nas duas fases de
+    // proposito: e' o estagio que move o encanamento para o caminho multifasico
+    // SEM mudar a fisica, de modo que qualquer diferenca no Laplace venha do
+    // encanamento e nao do salto de propriedade.  Foi assim que o 2D fez.
+    //
+    // CONVENCAO DO SOLVER, conferida no codigo e NAO suposta:
+    //   dens = (1 - fracvol)*dens0 + fracvol*dens1
+    // logo fracvol=1 e' a FASE 1, e fase 1 e' DENTRO da gota.
+    static real _amb(const char *nome, real padrao) {
+        const char *s = getenv(nome);
+        return (s != NULL) ? atof(s) : padrao;
+    }
+    real viscosity0(Point center, real t) { return _amb("FT3_MU0", 1.0); }
+    real viscosity1(Point center, real t) { return _amb("FT3_MU1", 1.0); }
+    real density0(Point center, real t)   { return _amb("FT3_RHO0", 1.0); }
+    real density1(Point center, real t)   { return _amb("FT3_RHO1", 1.0); }
+
+    // Fracao INICIAL.  Do segundo passo em diante quem manda e' a superficie,
+    // pelo gancho; esta funcao so' serve a' condicao inicial, e usa a MESMA
+    // esfera para as duas nascerem coerentes.
+    real fracvol(Point center, Point delta, real t) {
+        real cx = _amb("FT3_CX", 0.5), cy = _amb("FT3_CY", 0.5);
+        real cz = _amb("FT3_CZ", 0.5), R  = _amb("FT3_R", 0.25);
+        real d[3] = { center[0]-cx, center[1]-cy, center[2]-cz };
+        real r = sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+        // degrau suavizado na espessura de uma celula: a condicao inicial nao
+        // precisa ser exata (o gancho recalcula), mas um degrau abrupto deixaria
+        // o primeiro passo com um gradiente artificial
+        real e = 0.5 * delta[0];
+        if (r < R - e) return 1.0;
+        if (r > R + e) return 0.0;
+        return 0.5 * (1.0 - (r - R) / e);
+    }
+
     // Value of the cell source term at boundary
     real boundary_source_term(int id, Point center, real t) {
         real value = 0.0;
@@ -159,7 +194,7 @@ public:
     }
 };
 
-static LidDrivenProblem problema;
+static GotaProblem problema;
 
 // Value of the Tensor
 real get_tensor(Point center, int i, int j, real t) {
@@ -252,7 +287,13 @@ int main (int argc, char *argv[]) {
     int cache = 1;
 
     // Create the simulation domain
-    higflow_create_domain(ns, cache, order_center); 
+    // O multifasico e' ADICAO ao dominio base, nao substituto: sem
+    // higflow_create_domain_multiphase os dominios sdmult e sdED nascem NULOS e
+    // higflow_initialize_domain_yaml segmenta em sd_add_higtree.  Foi o que
+    // aconteceu aqui, e o comentario do exemplo 2D ja' avisava.
+    higflow_create_domain(ns, cache, order_center);
+    if (ns->contr.flowtype == MULTIPHASE)
+        higflow_create_domain_multiphase(ns, cache, order_center, &problema);
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
     //higflow_initialize_domain(ns, ntasks, myrank, order_facet); 
@@ -346,7 +387,15 @@ int main (int argc, char *argv[]) {
         // Start the first step time
         if (ns->par.step == step0)  START_CLOCK(firstiter); 
         // Update velocities and pressure using the projection method 
-        higflow_solver_step(ns);
+        // DESPACHO POR FASE.  higflow_solver_step e' o passo MONOFASICO; com
+        // flowphase: multiphase e' higflow_solver_step_multiphase que tem de
+        // rodar.  Chamar o errado nao quebra nem avisa -- roda 200 passos e
+        // entrega velocidade e pressao IDENTICAMENTE NULAS, que foi o que
+        // aconteceu aqui.
+        if (ns->contr.flowtype == MULTIPHASE)
+            higflow_solver_step_multiphase(ns);
+        else
+            higflow_solver_step(ns);
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time

@@ -6,6 +6,7 @@
 
 //#include "../src/hig-flow-step-viscoelastic.h"
 #include "../src/hig-flow-step-generalized-newtonian.h"
+#include "../src/hig-flow-step-multiphase.h"   // passo multifasico
 #include "../src/hig-flow-io.h"
 #include "../src/hig-flow-ic.h"
 #include "../src/hig-flow-bc.h"

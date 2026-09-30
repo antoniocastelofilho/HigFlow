@@ -80,12 +80,46 @@ make -C .. clean && make -C .. DIM=2
 Isto não é defeito deste exemplo; é propriedade da árvore, e vale para qualquer
 alternância entre `example2d_*` e `example3d_*`.
 
-## O que este exemplo NÃO faz
+## O caminho multifásico, ligado
 
-**Monofásico.** ρ e μ uniformes, de propósito: isola o termo de tensão do salto
-de propriedade, que é o que esta fase existe para verificar. O bifásico precisa
-da fração de volume de uma célula dentro de uma superfície triangulada, que é
-trabalho da fase seguinte.
+`flowphase: multiphase` faz a **superfície mandar na fração**: a cada passo
+`fracvol` é recalculada da geometria (`ft3_fracao_na_caixa`), e daí em diante
+ρ(x), μ(x) e o momento de coeficiente variável são o **mesmo código que o VOF
+usa**. A comparação entre os dois passa a isolar a representação da interface.
+
+Dois oráculos, e os dois fecharam com propriedades **iguais** nas duas fases —
+o estágio que muda o encanamento sem mudar a física:
+
+| | |
+|---|---|
+| Δp multifásico | **7,973535** |
+| Δp monofásico | **7,973535** — idêntico em todos os dígitos |
+| volume no campo `fracvol` | 0,06552329 |
+| volume da superfície | 0,06488658 (erro 9,81e−3) |
+
+O segundo importa tanto quanto o primeiro: *"a fração foi calculada"* e *"a
+fração chegou ao solver"* são afirmações diferentes, e o erro 9,81e−3 é
+**exatamente** o que o arreio isolado mede em N=20. É a mesma fração.
+
+**Custo medido: 0,09 s/passo** em 8 000 células contra 1 280 triângulos. A
+consulta é O(nt) sem aceleração; em N=40 com `nsub=4` isso vira ~3 s/passo, e é
+aí que a grade espacial de triângulos deixa de ser opcional.
+
+### Quatro coisas que travaram a ligação
+
+1. **A classe do problema precisa herdar também de `HigFlowMultiphaseProblem`.**
+2. **`higflow_create_domain_multiphase` é ADIÇÃO, não substituto.** Sem ela,
+   `sdmult` e `sdED` nascem nulos e `higflow_initialize_domain_yaml` **segmenta**
+   em `sd_add_higtree`. O comentário do exemplo 2D já avisava disto.
+3. **O passo tem de ser despachado.** `higflow_solver_step` é o monofásico;
+   chamar o errado **não quebra nem avisa** — roda os 200 passos e entrega
+   velocidade e pressão identicamente nulas.
+4. **O ramo `DIM==3` do passo multifásico linka outro conjunto do VOF**
+   (`mehta`, `plic-3D`, `advection-3D`, `HF-3D`,
+   `finite-difference-normal-curvature_3D`). O exemplo 2D nunca os referencia
+   porque cai no ramo `#if DIM == 2`.
+
+## O que este exemplo ainda NÃO faz
 
 **A superfície fica parada** (`FT3_ADVECTA=0`). Advectar com a velocidade da
 malha sem um oráculo de movimento seria exatamente o que os degraus anteriores

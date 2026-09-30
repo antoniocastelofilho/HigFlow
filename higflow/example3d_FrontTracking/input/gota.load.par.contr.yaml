@@ -15,7 +15,7 @@ simulation_contr:
   convecdiscrtype: second_order            # central, first_order or second_order
   secondconvecdiscrtype: cubista           # modified_coefficient_upwind, cubista or quick
 
-flowphase: singlephase                    # singlephase or multiphase
+flowphase: multiphase                    # singlephase or multiphase
 
 ###########################################################################################################################   
 
@@ -183,7 +183,8 @@ singlephase:
 
 multiphase:
   contr:
-    flowtype0: viscoelastic             # newtonian or viscoelastic
+    surf_tension: false   # a forca vem da SUPERFICIE (front-tracking), nao do CSF
+    flowtype0: newtonian             # newtonian or viscoelastic
     flowtype1: newtonian             # newtonian or viscoelastic
     eoflow0: false              # true or false
     eoflow1: false              # true or false

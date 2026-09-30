@@ -40,6 +40,7 @@ typedef struct {
     real            sigma;
     int             advecta;   // 0 = superficie fixa (Laplace puro)
     int             passo;
+    double          t_fracvol; // cronometro da fracao (FT3_CRONO_FRACVOL)
 } ft3_ctx;
 
 // Tamanho de celula na posicao X.  Malha uniforme: delta[0].
@@ -121,6 +122,52 @@ static void ft3_espalha_tensao_solver(ft3_superficie *sup, real sigma,
     free(lids); free(pesos); free(pos); free(F); free(peso);
 }
 
+// ---------------------------------------------------------------------------
+// MULTIFASICO: a superficie manda na fracao, e as propriedades saem dela.
+//
+// Mesma forma do 2D: em vez de advectar a fracao com PLIC, ela e' RECALCULADA
+// da geometria a cada passo, e dai' para frente rho(x), mu(x) e o momento de
+// coeficiente variavel sao o MESMO codigo que o VOF usa.  A comparacao entre os
+// dois passa a isolar exatamente a representacao da interface.
+//
+// CONVENCAO DO SOLVER, conferida no codigo e nao suposta:
+//     dens = (1 - fracvol)*dens0 + fracvol*dens1
+// ou seja fracvol=1 -> FASE 1, e fase 1 e' DENTRO.  `ft3_fracao_na_caixa`
+// devolve justamente a fracao de dentro, entao as duas convencoes batem sem
+// inversao.  No 2D esta suposicao foi feita ao contrario uma vez e produziu uma
+// bolha PESADA num meio leve, que afundou ate' a base.
+// ---------------------------------------------------------------------------
+static void _preenche_fracvol(higflow_solver *ns, ft3_superficie *sup,
+                              real *vol_no_campo, real faixa[2])
+{
+    real soma_vol = 0.0, fmin = 1e300, fmax = -1e300;
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    mp_mapper  *mp  = sd_get_domain_mapper(sdm);
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid < 0) continue;
+        Point lo, hi;
+        hig_get_lowpoint(c, lo);
+        hig_get_highpoint(c, hi);
+        real f = ft3_fracao_na_caixa(sup, lo, hi);
+        if (f < 0.0) f = 0.0;
+        if (f > 1.0) f = 1.0;
+        dp_set_value(ns->ed.mult.dpfracvol, clid, f);
+        real v = 1.0;
+        for (int d = 0; d < DIM; d++) v *= (hi[d] - lo[d]);
+        soma_vol += f * v;
+        if (f > fmax) fmax = f;
+        if (f < fmin) fmin = f;
+    }
+    higcit_destroy(it);
+    dp_sync(ns->ed.mult.dpfracvol);
+    if (vol_no_campo) *vol_no_campo = soma_vol;
+    if (faixa) { faixa[0] = fmin; faixa[1] = fmax; }
+}
+
 // Gancho chamado a cada passo, no mesmo ponto em que o corpo rigido injeta.
 static void _aplica_tensao(higflow_solver *ns, void *vctx)
 {
@@ -146,6 +193,37 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
     }
     ctx->passo++;
 
+    // A fracao tem de ser preenchida ANTES de higflow_compute_viscosity /
+    // density_multiphase, e e' exatamente aqui que o gancho foi posto no passo
+    // multifasico.
+    if (ns->contr.flowtype == MULTIPHASE) {
+        real t0 = 0.0, t1 = 0.0;
+        const int cronometra = (getenv("FT3_CRONO_FRACVOL") != NULL);
+        if (cronometra) t0 = MPI_Wtime();
+        real vol_campo = 0.0, faixa[2] = {0.0, 0.0};
+        _preenche_fracvol(ns, ctx->sup, &vol_campo, faixa);
+        // ORACULO DO ACOPLAMENTO: o volume que o CAMPO carrega tem de ser o
+        // volume da SUPERFICIE.  Sem isto, "a fracao foi calculada" e "a fracao
+        // chegou ao solver" sao duas afirmacoes diferentes, e so' a primeira
+        // estaria medida.
+        if ((ctx->passo % 50) == 1) {
+            real vs = ft3_volume(ctx->sup);
+            print0f("=+= FT3 fracvol: volume no campo=%.8f  da superficie=%.8f  "
+                    "erro=%.3e  faixa=[%.4f , %.4f] =+=\n",
+                    (double) vol_campo, (double) vs,
+                    (double) (vs != 0.0 ? fabs(vol_campo - vs)/vs : 0.0),
+                    (double) faixa[0], (double) faixa[1]);
+        }
+        if (cronometra) {
+            t1 = MPI_Wtime();
+            ctx->t_fracvol += (t1 - t0);
+            if ((ctx->passo % 50) == 0)
+                print0f("=+= FT3 fracvol: %.4f s acumulados em %d passos "
+                        "(%.4f s/passo) =+=\n",
+                        ctx->t_fracvol, ctx->passo, ctx->t_fracvol / ctx->passo);
+        }
+    }
+
     ft3_espalha_tensao_solver(ctx->sup, ctx->sigma, ns->sfdF, ns->dpFU);
 }
 
@@ -157,6 +235,7 @@ extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *su
     ctx->sup     = sup;
     ctx->sigma   = sigma;
     ctx->passo   = 0;
+    ctx->t_fracvol = 0.0;
     { const char *s = getenv("FT3_ADVECTA"); ctx->advecta = (s != NULL) ? atoi(s) : 0; }
     higflow_set_fronteira_imersa(ns, _aplica_tensao, ctx);
 }

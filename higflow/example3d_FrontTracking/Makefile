@@ -61,6 +61,17 @@ OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
 # FASE B2 3D: o nucleo da superficie triangulada, o adaptador do solver e o
 # modulo do corpo rigido (de onde vem fi_suporte_facetas, que ja' e' 3D).
 OBJ1 += ../src/hig-flow-front-tracking-3d.o front-tracking-3d.o ../src/hig-flow-fronteira-imersa.o
+# Caminho MULTIFASICO: a fracao sai da superficie, mas rho(x), mu(x) e o momento
+# de coeficiente variavel sao o MESMO codigo que o VOF usa.
+OBJ1 += ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-adap-hf.o
+OBJ1 += ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-9-cells.o
+OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature.o
+OBJ1 += ../src/hig-flow-vof-elvira.o
+# O ramo DIM==3 do passo multifasico usa outro conjunto: o 2D nunca o linka
+# porque cai no ramo #if DIM == 2.
+OBJ1 += ../src/hig-flow-vof-mehta.o ../src/hig-flow-vof-plic-3D.o
+OBJ1 += ../src/hig-flow-vof-advection-3D.o ../src/hig-flow-vof-HF-3D.o
+OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature_3D.o
 
 
 ns-example-3d: $(OBJ1)
