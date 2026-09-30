@@ -1,0 +1,122 @@
+\section{O projeto de extens\~ao CPU/GPU, confrontado com a medida}
+\label{sec:projeto}
+
+H\'a um projeto de pesquisa em prepara\c{c}\~ao --- \emph{Extens\~ao da
+Arquitetura HFlow para Execu\c{c}\~ao Acelerada em CPU/GPU em Malhas
+Hier\'arquicas} --- que prop\~oe tr\^es coisas: um n\'ucleo de software
+compartilhado entre HiGFlow e MFSim-NG, o t8code como nova op\c{c}\~ao de
+particionamento, e uma camada de execu\c{c}\~ao em GPU no \emph{Solver} e no
+operador mais custoso de \emph{Discretization}.
+
+Esta se\c{c}\~ao confronta as premissas de desempenho desse projeto com o que
+foi medido no c\'odigo. \textbf{N\~ao \'e uma avalia\c{c}\~ao do projeto}, cujo
+n\'ucleo \'e arquitetural e independe do que segue; \'e a contribui\c{c}\~ao de
+uma medida para a \emph{ordem} das extens\~oes.
+
+\subsection{As tr\^es premissas de desempenho}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/premissa/.style={column name={premissa do projeto}},
+  columns/estado/.style={column name={estado}},
+  columns/medida/.style={column name={o que a medida diz}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{projeto-premissas.dat}}
+
+\subsection{O que foi medido}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={grandeza}},
+  columns/valor/.style={column name={valor}},
+  columns/onde/.style={column name={procedência}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{projeto-medido.dat}}
+
+\subsection{Tr\^es consequ\^encias}
+
+\paragraph{1. O t8code otimizaria, hoje, algo que custa \SI{0.1}{\percent}.}
+Isso \textbf{n\~ao refuta} a extens\~ao: o projeto mira malhas muito maiores que
+a medida aqui, e nesse regime o equil\'ibrio muda. O que a medida estabelece \'e
+que o ganho \'e \emph{invis\'ivel na escala atual}, e portanto que a
+justificativa n\~ao pode ser verificada sem antes levar um caso ao tamanho-alvo.
+
+\paragraph{2. A premissa da GPU n\~ao est\'a medida, e a \'unica evid\^encia
+dispon\'ivel aponta para o outro lado.} O projeto identifica o ajuste de m\'inimos
+quadrados do GFD como o operador mais caro. Montagem e resolu\c{c}\~ao
+\textbf{nunca foram cronometradas separadamente} --- n\~ao h\'a instrumento no
+c\'odigo que as separe. O que h\'a \'e a contagem de itera\c{c}\~oes: a press\~ao
+consome 110 itera\c{c}\~oes de KSP por passo contra 4 a 6 da velocidade, o que
+sugere peso na \emph{resolu\c{c}\~ao}.
+
+Pode ser que o MLS domine mesmo assim --- montagem cara e poucas
+itera\c{c}\~oes n\~ao se excluem. O ponto \'e que a prioriza\c{c}\~ao entre
+\emph{Solver} e \emph{Discretization} hoje repousa sobre asser\c{c}\~ao, e que
+separ\'a-las custa um cron\^ometro.
+
+\paragraph{3. E aqui est\'a o ponto mais delicado.} Os tr\^es gargalos
+estruturais identificados na leitura do c\'odigo s\~ao:
+
+\begin{enumerate}
+  \item uma \'unica \'arvore \texttt{.amr} materializada \emph{inteira num
+    processo} antes do particionamento;
+  \item o dom\'inio \textbf{reconstru\'ido do zero} a cada remalhamento, em vez de
+    adaptado no lugar;
+  \item o crit\'erio de refino passando por \textbf{arquivo escrito
+    serialmente}, lido por todos.
+\end{enumerate}
+
+Nenhum deles est\'a no \emph{backend} de particionamento. Est\~ao na camada da
+aplica\c{c}\~ao e do n\'ucleo --- do lado da interface que o \emph{princ\'ipio de
+n\~ao invasividade} do projeto promete n\~ao tocar.
+
+Trocar MTree por t8code atr\'as da mesma interface de consulta topol\'ogica
+melhora a qualidade da parti\c{c}\~ao de uma malha que continua sendo montada
+globalmente num processo. \textbf{O crit\'erio de projeto que protege a
+arquitetura \'e, nesse sentido, o que impede a extens\~ao de alcan\c{c}ar os
+gargalos} --- e isso \'e uma tens\~ao real a decidir, n\~ao um defeito a corrigir:
+n\~ao invasividade e realoca\c{c}\~ao de gargalo s\~ao objetivos que competem.
+
+\subsection{O que isto sugere para a ordem do trabalho}
+
+O pr\'oprio projeto prev\^e, na fase F1, um \emph{levantamento de
+\emph{baseline}: \emph{benchmarks} de desempenho e de escalabilidade da
+arquitetura atual (CPU, MTree)}. A sugest\~ao que decorre desta se\c{c}\~ao \'e
+trat\'a-lo como \textbf{decis\'orio, e n\~ao preliminar}: fazer a
+\emph{baseline} no tamanho-alvo antes de fixar a ordem das extens\~oes, porque
+ela pode relocar o gargalo.
+
+Tr\^es medidas resolveriam as d\'uvidas acima, e as tr\^es s\~ao baratas:
+
+\begin{itemize}
+  \item \textbf{montagem $\times$ resolu\c{c}\~ao}, cronometradas em separado ---
+    decide se a GPU come\c{c}a pelo \emph{Solver} ou pelo \emph{Discretization};
+  \item \textbf{escalabilidade forte num caso grande} --- o medido aqui tem cerca
+    de 9\,400 c\'elulas, e a \SI{22}{\percent} de efici\^encia a conclus\~ao \'e
+    sobre o \emph{tamanho}, n\~ao sobre a arquitetura;
+  \item \textbf{mem\'oria por processo ao aumentar $n_p$} --- \'e o teste direto do
+    primeiro gargalo, e o \'unico que diria se a materializa\c{c}\~ao global morde
+    antes do resto.
+\end{itemize}
+
+\subsection{O alcance desta se\c{c}\~ao, e os seus limites}
+
+Convém delimitar, porque a se\c{c}\~ao faz afirma\c{c}\~oes sobre um projeto a
+partir de medidas estreitas:
+
+\begin{itemize}
+  \item \textbf{um \'unico caso, e pequeno}: bolha ascendente bif\'asica, cerca de
+    9\,400 c\'elulas. Nada aqui se estende automaticamente a malhas grandes, que
+    s\~ao o alvo do projeto;
+  \item \textbf{um \'unico software}: tudo foi medido no HiGFlow. O MFSim-NG usa
+    FV e n\~ao GFD, e a premissa sobre o operador mais caro pode ser verdadeira
+    l\'a e falsa aqui, ou o contr\'ario;
+  \item \textbf{a arquitetura n\~ao foi avaliada}. O n\'ucleo compartilhado \'e a
+    parte principal do projeto, e nada nesta se\c{c}\~ao o toca --- unificar duas
+    implementa\c{c}\~oes divergentes tem valor independente de desempenho;
+  \item \textbf{os tr\^es gargalos s\~ao fatos de c\'odigo; que eles
+    \emph{dominem} \'e infer\^encia}, e a medida da Se\c{c}\~ao~\ref{sec:estrutura}
+    mostrou que infer\^encias desse tipo j\'a caíram uma vez neste trabalho.
+\end{itemize}

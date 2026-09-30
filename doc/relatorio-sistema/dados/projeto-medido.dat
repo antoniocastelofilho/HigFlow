@@ -1,0 +1,7 @@
+grandeza                                       valor                           onde
+{fra\c{c}\~ao do remalhamento no tempo}        {\SI{0.06}{\percent}--\SI{0.10}{\percent}} {medido}
+{efici\^encia paralela, $n_p=2$}               {\SI{41}{\percent}}             {medido}
+{efici\^encia paralela, $n_p=8$}               {\SI{22}{\percent}}             {medido}
+{itera\c{c}\~oes do KSP na press\~ao}          {$110$ a $122$ ($n_p$ de 1 a 8)} {medido}
+{itera\c{c}\~oes do KSP na velocidade}         {$4$ a $6$}                     {medido}
+{custo de montagem vs.\ resolu\c{c}\~ao}       {\textbf{n\~ao medido}}         {sem instrumento}

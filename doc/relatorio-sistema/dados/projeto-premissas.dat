@@ -1,0 +1,4 @@
+premissa                                                      estado                medida
+{o MTree limita c\'elulas e balanceamento}                    {n\~ao verificada}    {o remalhamento custa \SI{0.06}{\percent}--\SI{0.10}{\percent} do tempo}
+{o ajuste MLS do GFD \'e o operador mais caro}                {\textbf{n\~ao medida}} {n\~ao h\'a cron\^ometro separando montagem de resolu\c{c}\~ao}
+{a extens\~ao \'e n\~ao invasiva (n\~ao toca a aplica\c{c}\~ao)} {verdadeira}       {e \'e por isso que ela n\~ao alcan\c{c}a os gargalos}
