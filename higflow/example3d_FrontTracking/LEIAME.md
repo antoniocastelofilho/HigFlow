@@ -25,6 +25,22 @@ O resultado sai numa linha só, no fim do log:
 `|u|max` é a **corrente espúria**: num equilíbrio exato a velocidade seria zero,
 e o que sobra mede o erro do acoplamento.
 
+## A série de refino, medida
+
+| N  | h     | nsub | Δp        | erro   | \|u\|max  |
+|----|-------|------|-----------|--------|---------|
+| 20 | 0,050 | 3    | 7,973535  | 0,33%  | 1,78e−3 |
+| 40 | 0,025 | 4    | 7,984949  | 0,19%  | 1,12e−3 |
+
+Dobrar a resolução derruba o erro por **1,74×** e a corrente espúria por 1,59×.
+Isso é **primeira ordem**, não segunda — e é o esperado: espalhar com delta
+regularizado (núcleo de Roma) borra a interface sobre ~3h, e método de fronteira
+imersa com esse ingrediente é de primeira ordem no salto. Não é defeito.
+
+**Dois pontos não estabelecem ordem.** O terceiro seria N=80 com `nsub=5`, ou
+512 000 células — horas de máquina, e não foi feito. Até lá, o que está medido é
+a razão entre dois pontos, e não um expoente.
+
 ## O par (N, nsub) não é livre
 
 Front-tracking exige espaçamento de marcador **da ordem de h**. Refinar só a
