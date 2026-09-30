@@ -11,10 +11,12 @@
 #include <string.h>
 
 #if DIM != 2
-// O B1 e' 2D (a frente e' uma polilinha).  O 3D (superficie triangulada,
-// Laplace-Beltrami) e' a fase B5 e usara' outra representacao de topologia.
-// Compilar este arquivo em 3D e' engano de build, nao caso a tratar.
-#error "hig-flow-front-tracking.c: B1 e' 2D; ver a fase B5 para 3D"
+// O B1 e' 2D (a frente e' uma polilinha).  O 3D esta' em
+// hig-flow-front-tracking-3d.c: superficie triangulada com conectividade
+// explicita, e tensao por INTEGRAL DE LINHA na borda do triangulo -- nao por
+// Laplace-Beltrami, como este comentario prometia antes de a decisao ser
+// tomada.  Compilar este arquivo em 3D e' engano de build, nao caso a tratar.
+#error "hig-flow-front-tracking.c: B1 e' 2D; o 3D esta' em hig-flow-front-tracking-3d.c"
 #endif
 
 struct ft_frente {
