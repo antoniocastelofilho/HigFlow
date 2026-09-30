@@ -188,13 +188,79 @@ $0{,}19\%$; fra\c{c}\~ao de volume em segunda ordem, cruzada com m\'etodo
 independente; grade acelerando $37\times$ sem mudar um bit; e adve\c{c}\~ao
 acoplada com cirurgia, preservando topologia.
 
-\textbf{N\~ao} est\'a estabelecido se a deriva de volume da adve\c{c}\~ao
-acoplada tem componente sistem\'atica. Os casos rodados diferem em raio, $\sigma$,
-n\'umero capilar \emph{e} resolu\c{c}\~ao ao mesmo tempo, e isso n\~ao separa. O
-experimento que decide --- o mesmo caso em duas malhas, com $ds/h$ fixo --- estava
-em execu\c{c}\~ao quando esta se\c{c}\~ao foi escrita.
+\subsection{A deriva \'e discretiza\c{c}\~ao, e a cirurgia a reduz}
+\label{sec:tridim-duasres}
 
-Tamb\'em n\~ao est\'a feito: o \textbf{paralelo}. O espalhamento e a
+A pergunta que esta se\c{c}\~ao carregava em aberto --- se a deriva de volume da
+adve\c{c}\~ao acoplada tem componente sistem\'atica --- foi fechada por dois
+experimentos controlados, cada um variando \textbf{uma} coisa.
+
+\paragraph{Duas resolu\c{c}\~oes.} Mesmo caso ($R=0{,}25$, $\sigma=0{,}2$, tampa
+$4{,}0$, $\Delta t = 5\times10^{-4}$, at\'e $t=0{,}25$) em duas malhas, com a
+resolu\c{c}\~ao da superf\'icie acompanhando ($ds/h = 0{,}75$ nos dois pares:
+$N=20$ com $nsub=3$, $N=40$ com $nsub=4$). Sem isso seriam duas vari\'aveis, e o
+erro de deixar $nsub$ fixo j\'a custou uma s\'erie inteira na
+Se\c{c}\~ao~\ref{sec:conv-serieC}.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/passo/.style={column name={passo}},
+  columns/aa0/.style={column name={$A/A_0$}},
+  columns/n20/.style={column name={$N=20$}},
+  columns/cir20/.style={column name={cir.}},
+  columns/n40/.style={column name={$N=40$}},
+  columns/cir40/.style={column name={cir.}},
+  columns/razao/.style={column name={raz\~ao}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-duasresolucoes.dat}}
+\end{adjustbox}
+
+A raz\~ao fica entre $3{,}2$ e $3{,}7$ ao longo de \emph{toda} a corrida ---
+segunda ordem daria $4$, primeira daria $2$. Nos tr\^es pontos anteriores \`a
+primeira cirurgia, que s\~ao adve\c{c}\~ao pura contra adve\c{c}\~ao pura, a
+raz\~ao \'e $3{,}63$, $3{,}70$ e $3{,}61$: m\'edia $3{,}65$, ou ordem observada
+$\mathbf{1{,}87}$.
+
+\textbf{A deriva \'e erro de discretiza\c{c}\~ao e some com refino.} N\~ao h\'a
+componente sistem\'atica: vi\'es de interpola\c{c}\~ao n\~ao cairia com $h$.
+
+Uma ressalva que a pr\'opria tabela exibe: no passo $500$ a raz\~ao cai a
+$3{,}21$, e ali o caso fino j\'a fez $252$ opera\c{c}\~oes de cirurgia contra
+$55$ do grosso --- a compara\c{c}\~ao deixa de ser s\'o de adve\c{c}\~ao. Os
+pontos limpos s\~ao os primeiros, e s\~ao eles que pesam.
+
+\paragraph{Com e sem cirurgia.} O segundo experimento desliga a cirurgia e deixa
+todo o resto id\^entico:
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/passo/.style={column name={passo}},
+  columns/comcirurgia/.style={column name={com cirurgia}},
+  columns/semcirurgia/.style={column name={sem cirurgia}},
+  columns/razao/.style={column name={pior por}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-cirurgia.dat}}
+\end{adjustbox}
+
+\textbf{A cirurgia n\~ao causa a deriva: ela a reduz em $42\%$.} Era o suspeito
+nomeado --- a coloca\c{c}\~ao do ponto novo j\'a havia custado $5{,}2\%$ de
+volume no B1 antes do conserto de Hermite --- e o experimento o inocenta. Sem
+cirurgia os tri\^angulos esticam e a superf\'icie deformada fica pior
+representada.
+
+As duas corridas s\~ao \textbf{id\^enticas at\'e o passo $200$}, que \'e onde a
+primeira cirurgia acontece. \'E a verifica\c{c}\~ao de que a \'unica diferen\c{c}a
+entre elas \'e a que se quis introduzir.
+
+\subsection{O que continua em aberto}
+
+O \textbf{paralelo} em 3D.
+
+O espalhamento e a
 interpola\c{c}\~ao j\'a est\~ao escritos na forma em lote, com o filtro de posse,
 porque o caminho bidimensional aprendeu isso depois e pagou a reescrita --- mas
 em $n_p>1$ nada foi medido. E o bif\'asico com salto de propriedade: o
