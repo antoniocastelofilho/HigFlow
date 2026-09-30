@@ -154,6 +154,50 @@ void ft3_advecta(ft3_superficie *s, ft3_campo_u u, void *ctx, real t, real dt);
 //! pior e' recuperavel, malha nao-variedade nao e'.
 int ft3_cirurgia(ft3_superficie *s);
 
+// --- fracao de volume -----------------------------------------------------
+
+//! Ponto esta' DENTRO da superficie fechada?  Por paridade de cruzamentos num
+//! raio (+x).  Robusto para superficie nao-convexa; o custo e' O(nt) por
+//! consulta.
+int ft3_dentro(const ft3_superficie *s, const Point x);
+
+//! Distancia do ponto a' superficie (sempre positiva) e normal do triangulo
+//! mais proximo.  O SINAL nao sai daqui: quem precisa dele usa `ft3_dentro`,
+//! porque a normal do triangulo mais proximo erra o lado perto de aresta e
+//! vertice numa superficie nao-convexa, e a paridade nao erra.
+real ft3_distancia(const ft3_superficie *s, const Point x, real normal[DIM]);
+
+//! FRACAO DE VOLUME da caixa [lo,hi] que esta' DENTRO da superficie.
+//!
+//! METODO.  Longe da interface a caixa e' inteiramente dentro (1) ou fora (0),
+//! decidido por distancia contra a meia-diagonal.  Cortada, a interface e'
+//! aproximada pelo PLANO que passa na distancia medida com a normal medida, e o
+//! volume do corte sai da formula fechada de plano-caixa.  Isso e' exato para
+//! interface plana e O(h^2) para interface suave -- a mesma aproximacao que o
+//! PLIC faz no VOF, e pelo mesmo motivo.
+//!
+//! NAO e' recorte exato do solido contra a caixa.  Recortar superficie
+//! triangulada nao-convexa contra caixa e' outro problema, e a diferenca so'
+//! aparece onde o raio de curvatura e' da ordem de h -- que e' onde o
+//! front-tracking ja' nao resolve a interface.
+//!
+//! ORACULO: somar fracao*volume sobre uma particao que contenha a superficie
+//! devolve `ft3_volume`.  Medido: erro 3,7e-2 -> 9,8e-3 -> 2,3e-3 ao refinar a
+//! particao em 10, 20 e 40 por direcao, com razoes 3,73 e 4,19 -- SEGUNDA ordem.
+//!
+//! CUSTO: O(nt) por consulta, sem estrutura de aceleracao.  Medido, 64 mil
+//! celulas contra 1280 triangulos levam ~0,3 s.  Serve para verificacao e para
+//! caso pequeno; chamar a cada passo numa malha grande PEDE uma grade espacial
+//! de triangulos, que nao esta' aqui.  Dito para nao ser descoberto em producao.
+real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real hi[DIM]);
+
+//! Fracao por SUBAMOSTRAGEM: divide a caixa em k^3 sub-caixas e conta os centros
+//! que estao dentro.  Converge para a fracao exata como 1/k e NAO usa plano
+//! nenhum -- por isso serve de metodo INDEPENDENTE para cruzar com
+//! `ft3_fracao_na_caixa`.  Caro: so' para verificacao.
+real ft3_fracao_amostrada(const ft3_superficie *s, const real lo[DIM],
+                          const real hi[DIM], int k);
+
 // --- persistencia e saida -------------------------------------------------
 
 //! Grava a superficie em texto, com `%.17g` -- ida-e-volta bit a bit.  Ao

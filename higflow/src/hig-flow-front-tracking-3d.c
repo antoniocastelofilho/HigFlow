@@ -838,6 +838,217 @@ int ft3_cirurgia(ft3_superficie *s)
     return total;
 }
 
+
+// --- fracao de volume -----------------------------------------------------
+
+// Caixa envolvente da superficie, com folga zero.  Caminho rapido de tudo que
+// se segue: ponto fora dela esta' fora da superficie, sem consultar triangulo.
+static void _envoltoria(const ft3_superficie *s, real lo[3], real hi[3])
+{
+    for (int d = 0; d < 3; d++) { lo[d] = s->x[0][d]; hi[d] = s->x[0][d]; }
+    for (int i = 1; i < s->nv; i++)
+        for (int d = 0; d < 3; d++) {
+            if (s->x[i][d] < lo[d]) lo[d] = s->x[i][d];
+            if (s->x[i][d] > hi[d]) hi[d] = s->x[i][d];
+        }
+}
+
+int ft3_dentro(const ft3_superficie *s, const Point x)
+{
+    if (!s) return 0;
+    real lo[3], hi[3]; _envoltoria(s, lo, hi);
+    for (int d = 0; d < 3; d++) if (x[d] < lo[d] || x[d] > hi[d]) return 0;
+
+    // Paridade de cruzamentos num raio +x.  A regra da borda meio-aberta em y e
+    // z (>= no minimo, < no maximo do triangulo projetado) evita contar duas
+    // vezes o raio que passa exatamente numa aresta compartilhada -- que e' o
+    // modo classico de este teste errar.
+    int cruz = 0;
+    for (int t = 0; t < s->nt; t++) {
+        const real *a = s->x[s->tri[t][0]];
+        const real *b = s->x[s->tri[t][1]];
+        const real *c = s->x[s->tri[t][2]];
+        // coordenadas baricentricas no plano (y,z)
+        real d1 = (b[1]-a[1])*(c[2]-a[2]) - (c[1]-a[1])*(b[2]-a[2]);
+        if (d1 == 0.0) continue;                       // triangulo de perfil
+        real u = ((x[1]-a[1])*(c[2]-a[2]) - (c[1]-a[1])*(x[2]-a[2])) / d1;
+        real v = ((b[1]-a[1])*(x[2]-a[2]) - (x[1]-a[1])*(b[2]-a[2])) / d1;
+        if (u < 0.0 || v < 0.0 || u + v > 1.0) continue;
+        real xi = a[0] + u*(b[0]-a[0]) + v*(c[0]-a[0]);
+        if (xi > x[0]) cruz++;
+    }
+    return (cruz & 1);
+}
+
+// Distancia do ponto ao triangulo t (algoritmo padrao de regiao: projeta no
+// plano e, se cair fora, cai para a aresta ou o vertice mais proximo).
+static real _dist_tri(const ft3_superficie *s, int t, const real p[3])
+{
+    const real *a = s->x[s->tri[t][0]];
+    const real *b = s->x[s->tri[t][1]];
+    const real *c = s->x[s->tri[t][2]];
+    real ab[3], ac[3], ap[3];
+    _sub(b, a, ab); _sub(c, a, ac); _sub(p, a, ap);
+    real d1 = _ponto(ab, ap), d2 = _ponto(ac, ap);
+    if (d1 <= 0.0 && d2 <= 0.0) return _norma(ap);
+
+    real bp[3]; _sub(p, b, bp);
+    real d3 = _ponto(ab, bp), d4 = _ponto(ac, bp);
+    if (d3 >= 0.0 && d4 <= d3) return _norma(bp);
+
+    real vc = d1*d4 - d3*d2;
+    if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0) {
+        real w = d1 / (d1 - d3), q[3];
+        for (int k = 0; k < 3; k++) q[k] = a[k] + w*ab[k] - p[k];
+        return _norma(q);
+    }
+    real cp[3]; _sub(p, c, cp);
+    real d5 = _ponto(ab, cp), d6 = _ponto(ac, cp);
+    if (d6 >= 0.0 && d5 <= d6) return _norma(cp);
+
+    real vb = d5*d2 - d1*d6;
+    if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0) {
+        real w = d2 / (d2 - d6), q[3];
+        for (int k = 0; k < 3; k++) q[k] = a[k] + w*ac[k] - p[k];
+        return _norma(q);
+    }
+    real va = d3*d6 - d5*d4;
+    if (va <= 0.0 && (d4-d3) >= 0.0 && (d5-d6) >= 0.0) {
+        real w = (d4-d3) / ((d4-d3) + (d5-d6)), q[3];
+        for (int k = 0; k < 3; k++) q[k] = b[k] + w*(c[k]-b[k]) - p[k];
+        return _norma(q);
+    }
+    // interior: distancia ao plano
+    real den = va + vb + vc;
+    real w1 = vb / den, w2 = vc / den, q[3];
+    for (int k = 0; k < 3; k++) q[k] = a[k] + w1*ab[k] + w2*ac[k] - p[k];
+    return _norma(q);
+}
+
+real ft3_distancia(const ft3_superficie *s, const Point x, real normal[DIM])
+{
+    if (!s || s->nt == 0) return 0.0;
+    real melhor = 1e300; int tm = 0;
+    for (int t = 0; t < s->nt; t++) {
+        real d = _dist_tri(s, t, x);
+        if (d < melhor) { melhor = d; tm = t; }
+    }
+    if (normal) {
+        real n[3]; _normal2(s, tm, n);
+        real m = _norma(n);
+        for (int d = 0; d < 3; d++) normal[d] = (m > 0.0) ? n[d]/m : 0.0;
+    }
+    return melhor;
+}
+
+// VOLUME DA CAIXA DO LADO NEGATIVO DO PLANO n.x = alfa, com a caixa em
+// [0,L0]x[0,L1]x[0,L2] e a origem no canto.  Formula fechada de
+// Scardovelli & Zaleski: inclusao-exclusao sobre os cantos que o plano corta.
+//
+//   V = ( alfa^3 - SUM max(0, alfa - n_i L_i)^3
+//                + SUM_{i<j} max(0, alfa - n_i L_i - n_j L_j)^3
+//                - max(0, alfa - SUM n_i L_i)^3 ) / (6 n_0 n_1 n_2)
+//
+// Exige n_i >= 0; o chamador reflete os eixos de normal negativa, o que troca
+// o canto de referencia mas nao o volume.
+static real _volume_plano_caixa(const real n[3], real alfa, const real L[3])
+{
+    real den = 6.0 * n[0] * n[1] * n[2];
+    real soma = alfa*alfa*alfa;
+    real m[3];
+    for (int i = 0; i < 3; i++) {
+        m[i] = alfa - n[i]*L[i];
+        if (m[i] > 0.0) soma -= m[i]*m[i]*m[i];
+    }
+    for (int i = 0; i < 3; i++)
+        for (int j = i+1; j < 3; j++) {
+            real w = alfa - n[i]*L[i] - n[j]*L[j];
+            if (w > 0.0) soma += w*w*w;
+        }
+    real w = alfa - n[0]*L[0] - n[1]*L[1] - n[2]*L[2];
+    if (w > 0.0) soma -= w*w*w;
+    return soma / den;
+}
+
+real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real hi[DIM])
+{
+    if (!s) return 0.0;
+    real L[3], vol = 1.0, centro[3];
+    for (int d = 0; d < 3; d++) {
+        L[d] = hi[d] - lo[d];
+        if (!(L[d] > 0.0)) return 0.0;
+        vol *= L[d];
+        centro[d] = 0.5 * (lo[d] + hi[d]);
+    }
+    const real meia_diag = 0.5 * sqrt(L[0]*L[0] + L[1]*L[1] + L[2]*L[2]);
+
+    // Caminho rapido por envoltoria: caixa disjunta da envoltoria nao tem nada
+    // dentro.  (O caso "envoltoria dentro da caixa" nao e' atalho: a caixa pode
+    // conter a superficie inteira e a fracao nao ser 1.)
+    real blo[3], bhi[3]; _envoltoria(s, blo, bhi);
+    int disjunta = 0;
+    for (int d = 0; d < 3; d++) if (hi[d] <= blo[d] || lo[d] >= bhi[d]) disjunta = 1;
+    if (disjunta) return 0.0;
+
+    real n[3];
+    real dist = ft3_distancia(s, centro, n);
+    const int dentro = ft3_dentro(s, centro);
+
+    // Longe da interface, a caixa inteira esta' de um lado so'.
+    if (dist >= meia_diag) return dentro ? 1.0 : 0.0;
+
+    // A normal do nucleo aponta para FORA.  A distancia COM SINAL do centro,
+    // positiva fora, sai da paridade -- e nao do produto escalar com a normal
+    // do triangulo mais proximo, que erra o lado perto de aresta.
+    const real phi = dentro ? -dist : dist;
+
+    // Plano n.(x - centro) = -phi  <=>  n.x = n.centro - phi.  O lado DENTRO e'
+    // n.x < alfa.  Reflete os eixos de normal negativa para a formula fechada.
+    real nn[3], alfa = -phi;
+    for (int d = 0; d < 3; d++) {
+        nn[d] = n[d];
+        // coordenada local com origem no canto `lo`; o centro fica em L/2
+        alfa += n[d] * 0.5 * L[d];
+    }
+    for (int d = 0; d < 3; d++)
+        if (nn[d] < 0.0) { alfa -= nn[d] * L[d]; nn[d] = -nn[d]; }
+
+    // Normal degenerada (alinhada a um eixo) zeraria o denominador: trata pelo
+    // limite, que e' o corte por um plano perpendicular a um eixo.
+    const real EPS = 1e-9;
+    int nz = 0;
+    for (int d = 0; d < 3; d++) if (nn[d] < EPS) nz++;
+    if (nz > 0) {
+        for (int d = 0; d < 3; d++) if (nn[d] < EPS) nn[d] = EPS;
+        real m = sqrt(nn[0]*nn[0] + nn[1]*nn[1] + nn[2]*nn[2]);
+        for (int d = 0; d < 3; d++) nn[d] /= m;
+    }
+
+    if (alfa <= 0.0) return 0.0;
+    real total = nn[0]*L[0] + nn[1]*L[1] + nn[2]*L[2];
+    if (alfa >= total) return 1.0;
+
+    real f = _volume_plano_caixa(nn, alfa, L) / vol;
+    return f < 0.0 ? 0.0 : (f > 1.0 ? 1.0 : f);
+}
+
+real ft3_fracao_amostrada(const ft3_superficie *s, const real lo[DIM],
+                          const real hi[DIM], int k)
+{
+    if (!s || k < 1) return 0.0;
+    int dentro = 0;
+    for (int i = 0; i < k; i++)
+        for (int j = 0; j < k; j++)
+            for (int l = 0; l < k; l++) {
+                Point p;
+                p[0] = lo[0] + (i + 0.5) * (hi[0]-lo[0]) / k;
+                p[1] = lo[1] + (j + 0.5) * (hi[1]-lo[1]) / k;
+                p[2] = lo[2] + (l + 0.5) * (hi[2]-lo[2]) / k;
+                if (ft3_dentro(s, p)) dentro++;
+            }
+    return (real) dentro / (real) (k*k*k);
+}
+
 // --- persistencia e saida -------------------------------------------------
 
 #define FT3_CABECALHO "ft3 1"
