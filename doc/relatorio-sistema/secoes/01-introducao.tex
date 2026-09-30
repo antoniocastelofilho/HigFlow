@@ -49,17 +49,88 @@ n\~ao \'e dizer que ele est\'a certo, nem que est\'a verificado, nem que \'e
 usado. Onde houver verifica\c{c}\~ao conhecida, ela est\'a marcada; onde n\~ao
 houver, a aus\^encia tamb\'em.
 
+\subsection{O grupo e a produ\c{c}\~ao sobre o sistema}
+
+Esta se\c{c}\~ao foi reescrita a partir da apresenta\c{c}\~ao do pr\'oprio grupo
+(\texttt{Apresentacao\_HiG-Flow.pptx}), que traz a lista de colaboradores e a
+produ\c{c}\~ao. Cada refer\^encia foi depois conferida no Crossref pelo DOI.
+
+\paragraph{Vinte e dois colaboradores, em seis institui\c{c}\~oes.}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/nome/.style={column name={nome}},
+  columns/vinculo/.style={column name={v\'inculo}},
+  columns/papel/.style={column name={papel}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{colaboradores.dat}}
+
+A coluna \emph{papel} distingue orienta\c{c}\~ao conclu\'ida de em andamento
+onde o dado permite. Os anos entre par\^enteses vem dos registros de tese
+conferidos, e n\~ao da apresenta\c{c}\~ao.
+
+\paragraph{Trinta publica\c{c}\~oes, e o que elas cobrem.} A apresenta\c{c}\~ao
+declara 13 artigos em peri\'odicos internacionais, 4 trabalhos em anais do SBMAC
+e 13 teses e disserta\c{c}\~oes da USP. As \'areas acompanham os m\'odulos
+inventariados adiante: eletro-osmose~\cite{bezerra2019}, modelos integrais
+{KBKZ}~\cite{bertoco2021kbkz,bertoco2023}, {gPTT}~\cite{bertoco2021gptt},
+tixotropia~\cite{castillo2023}, suspens\~oes~\cite{castillo2025}, VOF
+tridimensional~\cite{silva2023} e a pr\'opria arquitetura de malhas
+hier\'arquicas~\cite{castelo2021,castillo2022,leiva2024}.
+
+\paragraph{As teses, e uma discrep\^ancia de contagem que n\~ao resolvi.}
+A apresenta\c{c}\~ao declara \textbf{treze}. A busca por autor no banco da USP
+localizou \textbf{catorze} trabalhos do ICMC sobre os temas do sistema --- os
+treze mais a disserta\c{c}\~ao de Miziara~\cite{miziara2020}, sobre VOF com
+viscoelasticidade, cujo autor tamb\'em assina um dos trabalhos do SBMAC.
+
+N\~ao forcei o n\'umero para bater. As duas candidatas a ficar de fora s\~ao as
+mais antigas --- Figueiredo~\cite{figueiredo2011} e Bertoco~\cite{bertoco2012},
+de 2011 e 2012 ---, que podem ter usado os antecessores do sistema em vez dele
+pr\'oprio; os metadados n\~ao dizem. Decidir isso exige saber o que cada uma
+usou, e quem orientou saber\'a. Listo as catorze e registro a d\'uvida.
+
+\paragraph{Por que elas importam para este invent\'ario.}
+Elas s\~ao \textbf{a documenta\c{c}\~ao de projeto que o c\'odigo n\~ao tem}:
+v\'arios m\'odulos correspondem um a um a uma tese, e quem precisar entender uma
+escolha de implementa\c{c}\~ao encontra ali o que os coment\'arios n\~ao dizem.
+
+\begin{itemize}
+  \item \textbf{Interface e multif\'asico} --- Silva~\cite{silva2020ms}
+    (PLIC-VOF) e~\cite{silva2025dr}; Lages~\cite{lages2016ms,lages2023dr};
+    Figueiredo~\cite{figueiredo2011,figueiredo2016};
+    Miziara~\cite{miziara2020} (VOF com viscoelasticidade);
+  \item \textbf{Viscoel\'astico} --- Bertoco~\cite{bertoco2012,bertoco2017}
+    (KBKZ-PSM); Leiva~\cite{leiva2022} (modelos generalizados);
+    Godoi~\cite{godoi2022} (viscosidade vari\'avel);
+    Ruano Neto~\cite{ruano2025};
+  \item \textbf{Eletro-osmose} --- Bezerra~\cite{bezerra2019tese};
+  \item \textbf{Verifica\c{c}\~ao} --- Organista~\cite{organista2025}, sobre
+    solu\c{c}\~oes manufaturadas. \'E a \'unica da lista cujo assunto \'e
+    \emph{verificar} o sistema, e n\~ao acrescentar-lhe f\'isica.
+\end{itemize}
+
+A correspond\^encia mais direta: o m\'odulo
+\texttt{hig-flow-step-viscoelastic-variable-viscosity.c}, com 2\,435 linhas, \'e o
+assunto de~\cite{godoi2022}; o \texttt{hig-flow-step-shear-thickening-suspension.c},
+com 3\,413, corresponde a~\cite{castillo2025}.
+
 \subsection{Sobre as refer\^encias, e o limite desta busca}
 
 As entradas da bibliografia foram conferidas contra o registro do editor via API
 do Crossref, e n\~ao contra mem\'oria.
 
-\paragraph{A p\'os-gradua\c{c}\~ao sobre o sistema.} A busca localizou
-\textbf{uma} disserta\c{c}\~ao da USP com o sistema no t\'itulo ---
-Godoi~\cite{godoi2022}, ICMC/S\~ao Carlos, aprovada em novembro de 2022, sobre
-modelos viscoel\'asticos com viscosidade vari\'avel. Ela corresponde diretamente
-a um m\'odulo desta \'arvore, o
-\texttt{hig-flow-step-viscoelastic-variable-viscosity.c}, com suas 2\,435 linhas.
+\paragraph{Uma li\c{c}\~ao sobre o alcance da busca autom\'atica.} A primeira
+vers\~ao desta se\c{c}\~ao localizou \textbf{uma} \'unica disserta\c{c}\~ao --- a de
+Godoi --- e registrou que certamente havia outras, sem poder nome\'a-las. O
+Crossref indexa metadados, e apenas um dos treze t\'itulos cont\'em ``HiGFlow''.
+
+Com os nomes dos alunos em m\~aos, a busca por \emph{autor} no mesmo \'indice
+achou as treze em minutos. \textbf{N\~ao faltava base de dados: faltava a chave de
+busca.} Fica o registro porque a conclus\~ao anterior --- ``est\'a fora do
+alcance das ferramentas'' --- era falsa, e o que a desfez foi uma informa\c{c}\~ao
+que qualquer pessoa do grupo teria.
 
 \textbf{E aqui o limite precisa ser dito, porque ele \'e grande.} O Crossref
 indexa metadados --- t\'itulo, autores, resumo ---, e n\~ao texto integral. Uma
