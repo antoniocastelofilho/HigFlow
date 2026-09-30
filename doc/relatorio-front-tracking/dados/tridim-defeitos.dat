@@ -1,0 +1,8 @@
+defeito                                      comooraculopegou
+{sinal da for\c{c}a invertido}               {todos os v\'ertices empurrando para FORA}
+{tabela de arestas envelhecendo no colapso}  {$7$ tri\^angulos invertidos ap\'os cirurgia}
+{giro de aresta atravessando quina}          {seletor de etapas: s\'o o giro invertia}
+{ponto m\'edio da CORDA na divis\~ao}        {$5{,}2\%$ de volume, insens\'ivel a $\Delta t$}
+{desempate do tri\^angulo mais pr\'oximo}    {$12$ c\'elulas em $8000$ com a grade}
+{guarda de \'indice fora da busca com teto} {segmenta\c{c}\~ao em c\'elula longe}
+{passo monof\'asico chamado em multif\'asico} {velocidade e press\~ao id\^enticas a ZERO}
