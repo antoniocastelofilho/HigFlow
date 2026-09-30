@@ -4,28 +4,29 @@
 // *******************************************************************
 // *******************************************************************
 //
-// FASE B2 3D: GOTA ESTATICA, lei de Laplace.  Caixa fechada em repouso, uma
-// esfera de front-tracking parada no centro, e a tensao superficial impondo o
-// salto de pressao.  O oraculo e' Dp = 2*sigma/R -- DOIS sobre R, porque em 3D
-// a curvatura media da esfera e' 2/R.  O B2 bidimensional deste repositorio
-// fechou a 0,02% contra sigma/R; copiar aquele numero aqui validaria o errado.
+// CASO MINIMO VISCOELASTICO 3D -- a pergunta e' se a maquinaria RODA em tres
+// dimensoes, nao se algum escoamento esta' certo.
 //
-// MONOFASICO de proposito: rho e mu uniformes.  Isola o termo de tensao do
-// salto de propriedade, que e' o que esta fase existe para verificar.  A fracao
-// de volume da superficie triangulada (necessaria para o bifasico) e' trabalho
-// da fase seguinte.
+// MONTAGEM.  Caixa fechada em repouso, esfera de fase 1 no centro, fase 0
+// (ambiente) VISCOELASTICA com De e beta nao nulos.  Sem gravidade, sem entrada,
+// sem tensao superficial: o estado inicial e' um EQUILIBRIO EXATO.
 //
-// A superficie fica PARADA: FT3_ADVECTA=0.  Advectar sem oraculo de movimento
-// seria exatamente o que os degraus anteriores existem para evitar.
+// O ORACULO E' ESSE EQUILIBRIO.  Partindo do repouso com o tensor de conformacao
+// na identidade -- que e' o equilibrio do Oldroyd-B --, tudo tem de FICAR ali.
+// Qualquer velocidade ou desvio da identidade e' espurio, e mede o erro da
+// maquinaria, nao a fisica.
 //
-// Mesh is 10x10x10, too coarse to divide, so the suite pins it at np=1 (max_np).
+// E' teste fraco de fisica e forte de encanamento: pega NaN, laco [DIM][DIM] que
+// supoe duas dimensoes, componente z nao inicializada, e indice trocado -- que e'
+// exatamente o que pode ter sobrado num caminho nunca compilado em 3D.
+//
+// POR QUE ESTE CASO EXISTE.  Nem esta arvore nem a versao de junho jamais
+// rodaram 3D exercitando viscoelasticidade: a de junho tinha a viscosidade
+// polimerica FIXADA EM ZERO no codigo.  Aqui De e beta vem do YAML e sao nao
+// nulos.
 
 #include "ns-example-3d.h"
-#include "hig-flow-front-tracking-3d.h"
 #include <stdlib.h>
-
-extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *sup,
-                                          real sigma);
 
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
@@ -35,7 +36,7 @@ extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *su
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
 // Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class GotaProblem : public HigFlowProblem, public HigFlowMultiphaseProblem,
+class VE3DProblem : public HigFlowProblem, public HigFlowMultiphaseProblem,
                     public HigFlowMultiphaseViscoelasticProblem {
 public:
     // Value of the pressure
@@ -171,17 +172,17 @@ public:
         const char *s = getenv(nome);
         return (s != NULL) ? atof(s) : padrao;
     }
-    real viscosity0(Point center, real t) { return _amb("FT3_MU0", 1.0); }
-    real viscosity1(Point center, real t) { return _amb("FT3_MU1", 1.0); }
-    real density0(Point center, real t)   { return _amb("FT3_RHO0", 1.0); }
-    real density1(Point center, real t)   { return _amb("FT3_RHO1", 1.0); }
+    real viscosity0(Point center, real t) { return _amb("VE_MU0", 1.0); }
+    real viscosity1(Point center, real t) { return _amb("VE_MU1", 1.0); }
+    real density0(Point center, real t)   { return _amb("VE_RHO0", 1.0); }
+    real density1(Point center, real t)   { return _amb("VE_RHO1", 1.0); }
 
     // Fracao INICIAL.  Do segundo passo em diante quem manda e' a superficie,
     // pelo gancho; esta funcao so' serve a' condicao inicial, e usa a MESMA
     // esfera para as duas nascerem coerentes.
     real fracvol(Point center, Point delta, real t) {
-        real cx = _amb("FT3_CX", 0.5), cy = _amb("FT3_CY", 0.5);
-        real cz = _amb("FT3_CZ", 0.5), R  = _amb("FT3_R", 0.25);
+        real cx = _amb("VE_CX", 0.5), cy = _amb("VE_CY", 0.5);
+        real cz = _amb("VE_CZ", 0.5), R  = _amb("VE_R", 0.25);
         real d[3] = { center[0]-cx, center[1]-cy, center[2]-cz };
         real r = sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
         // degrau suavizado na espessura de uma celula: a condicao inicial nao
@@ -194,7 +195,8 @@ public:
     }
 
     // --- multifasico viscoelastico ---
-    // Conformacao inicial: identidade, o equilibrio do Oldroyd-B em repouso.
+    // Conformacao INICIAL: identidade, que e' o equilibrio do Oldroyd-B em
+    // repouso.  E' o estado cujo desvio o oraculo mede.
     real tensor_multiphase(real fracvol, Point center, int i, int j, real t) {
         return kernel(i, 1.0, 0.0) * (i == j);
     }
@@ -214,7 +216,7 @@ public:
     }
 };
 
-static GotaProblem problema;
+static VE3DProblem problema;
 
 // Value of the Tensor
 real get_tensor(Point center, int i, int j, real t) {
@@ -314,7 +316,7 @@ int main (int argc, char *argv[]) {
     higflow_create_domain(ns, cache, order_center);
     if (ns->contr.flowtype == MULTIPHASE)
         higflow_create_domain_multiphase(ns, cache, order_center, &problema);
-    if (ns->contr.flowtype == MULTIPHASE && ns->ed.mult.contr.viscoelastic_either == true)
+    if (ns->contr.flowtype == MULTIPHASE)
         higflow_create_domain_multiphase_viscoelastic(ns, &problema);
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
@@ -333,40 +335,16 @@ int main (int argc, char *argv[]) {
     // Create the linear system solvers
     higflow_create_solver(ns);
 
-    // ---- FASE B2 3D: a esfera e a tensao superficial -------------------
-    // Parametros por ambiente, como nos exemplos 2D, para a serie de refino
-    // nao exigir recompilar.
-    real R_gota = 0.25, cx = 0.5, cy = 0.5, cz = 0.5, sigma = 1.0;
-    int  nsub = 3;
+    // Parametros do caso, por ambiente.
+    real R_gota = 0.25, cx = 0.5, cy = 0.5, cz = 0.5;
     { const char *e;
-      if ((e = getenv("FT3_R"))     != NULL) R_gota = atof(e);
-      if ((e = getenv("FT3_CX"))    != NULL) cx = atof(e);
-      if ((e = getenv("FT3_CY"))    != NULL) cy = atof(e);
-      if ((e = getenv("FT3_CZ"))    != NULL) cz = atof(e);
-      if ((e = getenv("FT3_SIGMA")) != NULL) sigma = atof(e);
-      if ((e = getenv("FT3_NSUB"))  != NULL) nsub = atoi(e); }
+      if ((e = getenv("VE_R"))  != NULL) R_gota = atof(e);
+      if ((e = getenv("VE_CX")) != NULL) cx = atof(e);
+      if ((e = getenv("VE_CY")) != NULL) cy = atof(e);
+      if ((e = getenv("VE_CZ")) != NULL) cz = atof(e); }
+    print0f("=+=+=+= VE3D: esfera R=%.3f em (%.2f,%.2f,%.2f); ambiente viscoelastico =+=+=+=\n",
+            (double) R_gota, (double) cx, (double) cy, (double) cz);
 
-    Point centro_gota; centro_gota[0] = cx; centro_gota[1] = cy; centro_gota[2] = cz;
-    ft3_superficie *gota = ft3_cria_esfera(centro_gota, R_gota, nsub);
-    if (gota == NULL) { print0f("FT3: falha ao criar a esfera\n"); exit(1); }
-
-    // Conferencia de que a superficie chegou sa' ao solver: area, volume e
-    // topologia contra os valores fechados, ANTES de qualquer passo.
-    {
-        real A = ft3_area(gota), V = ft3_volume(gota);
-        real Aex = 4.0 * M_PI * R_gota * R_gota;
-        real Vex = 4.0 / 3.0 * M_PI * R_gota * R_gota * R_gota;
-        print0f("=+=+=+= FT3 esfera: nsub=%d nv=%d nt=%d  chi=%d\n"
-                "        area=%.8f (exata %.8f, erro %.3e)\n"
-                "        volume=%.8f (exato %.8f, erro %.3e)\n"
-                "        R=%.4f sigma=%.4f  ==>  Laplace esperado Dp = 2*sigma/R = %.6f =+=+=+=\n",
-                nsub, ft3_num_vertices(gota), ft3_num_triangulos(gota), ft3_euler(gota),
-                (double) A, (double) Aex, (double) (fabs(A-Aex)/Aex),
-                (double) V, (double) Vex, (double) (fabs(V-Vex)/Vex),
-                (double) R_gota, (double) sigma, (double) (2.0*sigma/R_gota));
-    }
-    front_tracking_3d_instala(ns, gota, sigma);
-    // --------------------------------------------------------------------
     // Load the properties form 
     if (ns->par.step > 0) {
         // Loading the velocities 
@@ -414,24 +392,11 @@ int main (int argc, char *argv[]) {
         // rodar.  Chamar o errado nao quebra nem avisa -- roda 200 passos e
         // entrega velocidade e pressao IDENTICAMENTE NULAS, que foi o que
         // aconteceu aqui.
-        // VISCOELASTICO: higflow_solver_step_multiphase_viscoelastic resolve a
-        // equacao constitutiva, monta o tensor polimerico e ENTAO chama
-        // higflow_solver_step_multiphase -- que e' onde o gancho da frente vive.
-        // Logo a frente continua mandando na fracao, e a maquinaria polimerica
-        // ja' a usa.  Front-tracking viscoelastico e' esta linha.
-        //
-        // UMA DEFASAGEM, dita para nao ser descoberta depois: a equacao
-        // constitutiva roda ANTES do gancho, entao os parametros De e beta sao
-        // interpolados com o fracvol do passo ANTERIOR.  E' O(dt), da mesma
-        // ordem da defasagem que a forca de tensao ja' tem.
-        if (ns->contr.flowtype == MULTIPHASE) {
-            if (ns->ed.mult.contr.viscoelastic_either == true)
-                higflow_solver_step_multiphase_viscoelastic(ns);
-            else
-                higflow_solver_step_multiphase(ns);
-        } else {
+        // VISCOELASTICO multifasico: e' este o caminho que nunca rodou em 3D.
+        if (ns->contr.flowtype == MULTIPHASE)
+            higflow_solver_step_multiphase_viscoelastic(ns);
+        else
             higflow_solver_step(ns);
-        }
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time
@@ -456,28 +421,12 @@ int main (int argc, char *argv[]) {
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
 
-    // ---- O ORACULO DO B2 3D: o salto de Laplace ------------------------
-    // Amostra a pressao no centro da gota (dentro) e num ponto bem fora, e
-    // compara Dp com 2*sigma/R.  Tambem mede a CORRENTE ESPURIA: num equilibrio
-    // exato a velocidade seria zero, e o que sobra e' o erro do acoplamento.
+    // ---- O ORACULO: o equilibrio trivial se manteve? -------------------
+    // Partindo do repouso, sem forcante, a velocidade tem de continuar nula e o
+    // tensor de conformacao na identidade.  Desvio aqui e' erro da maquinaria.
     {
-        Point p_in, p_out;
-        p_in[0] = cx; p_in[1] = cy; p_in[2] = cz;
-        p_out[0] = cx; p_out[1] = cy + 2.4 * R_gota; p_out[2] = cz;
-        { const char *e = getenv("FT3_POUT_Y"); if (e != NULL) p_out[1] = atof(e); }
-
-        sim_stencil *stn = stn_create();
-        real pin = 0.0, pout = 0.0;
-        hig_cell *ci = sd_get_cell_with_point(ns->sdp, p_in);
-        hig_cell *co = sd_get_cell_with_point(ns->sdp, p_out);
-        if (ci != NULL) { Point cc; hig_get_center(ci, cc);
-            pin  = compute_value_at_point(ns->sdp, cc, p_in,  1.0, ns->dpp, stn); }
-        if (co != NULL) { Point cc; hig_get_center(co, cc);
-            pout = compute_value_at_point(ns->sdp, cc, p_out, 1.0, ns->dpp, stn); }
-        stn_destroy(stn);
-
-        // Corrente espuria: maximo de |u| sobre as facetas proprias.
         real umax = 0.0;
+        int  nan_u = 0;
         for (int dim = 0; dim < DIM; dim++) {
             higfit_facetiterator *fit;
             sim_facet_domain *sfdu = psfd_get_local_domain(ns->psfdu[dim]);
@@ -486,23 +435,45 @@ int main (int argc, char *argv[]) {
                 hig_facet *f = higfit_getfacet(fit);
                 int flid = mp_lookup(sfd_get_domain_mapper(sfdu), hig_get_fid(f));
                 if (flid < 0) continue;
-                real v = fabs(dp_get_value(ns->dpu[dim], flid));
-                if (v > umax) umax = v;
+                real v = dp_get_value(ns->dpu[dim], flid);
+                if (v != v) { nan_u++; continue; }
+                if (fabs(v) > umax) umax = fabs(v);
             }
             higfit_destroy(fit);
         }
-        real umax_g = umax;
-        MPI_Allreduce(&umax, &umax_g, 1, MPI_HIGREAL, MPI_MAX, MPI_COMM_WORLD);
 
-        const real dp_exato = 2.0 * sigma / R_gota;
-        print0f("=+=+=+= LAPLACE 3D  p_in=%.6f  p_out=%.6f  Dp=%.6f  "
-                "2*sigma/R=%.6f  erro_rel=%.4f  |u|max=%.3e =+=+=+=\n",
-                (double) pin, (double) pout, (double) (pin - pout),
-                (double) dp_exato,
-                (double) (fabs((pin - pout) - dp_exato) / dp_exato),
-                (double) umax_g);
+        // Desvio do tensor de conformacao em relacao a' identidade, e NaN nele.
+        real pior_S = 0.0;
+        int  nan_S = 0, ncel = 0;
+        {
+            sim_domain *sdm = psd_get_local_domain(ns->ed.psdED);
+            mp_mapper  *mp  = sd_get_domain_mapper(sdm);
+            higcit_celliterator *it;
+            for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
+                 higcit_nextcell(it)) {
+                hig_cell *c = higcit_getcell(it);
+                int clid = mp_lookup(mp, hig_get_cid(c));
+                if (clid < 0) continue;
+                ncel++;
+                for (int i = 0; i < DIM; i++)
+                    for (int j = 0; j < DIM; j++) {
+                        real a = dp_get_value(ns->ed.ve.dpKernel[i][j], clid);
+                        if (a != a) { nan_S++; continue; }
+                        real alvo = (i == j) ? 1.0 : 0.0;
+                        if (fabs(a - alvo) > pior_S) pior_S = fabs(a - alvo);
+                    }
+            }
+            higcit_destroy(it);
+        }
+
+        print0f("=+=+=+= VE3D EQUILIBRIO  |u|max=%.3e  pior |A-I|=%.3e  "
+                "NaN(u)=%d  NaN(A)=%d  celulas=%d =+=+=+=\n",
+                (double) umax, (double) pior_S, nan_u, nan_S, ncel);
+        print0f("=+=+=+= VE3D %s =+=+=+=\n",
+                (nan_u == 0 && nan_S == 0 && umax < 1e-6 && pior_S < 1e-6)
+                  ? "PASSOU: o equilibrio se manteve"
+                  : "FALHOU: o equilibrio nao se manteve");
     }
-    ft3_destroi(gota);
 
     // Destroy the Navier-Stokes object
     higflow_destroy(ns);
