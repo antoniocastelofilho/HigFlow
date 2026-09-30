@@ -4,7 +4,7 @@ cd /home/castelo/HiGFlow-System/HigFlow && set -a && . ./varsrc && set +a
 cd higflow/example3d_FrontTracking
 cp input/gota.load.par.contr.yaml /tmp/pc-$4.bak
 sed -i "s/^  numsteps: .*/  numsteps: $3/" input/gota.load.par.contr.yaml
-export FT3_R=0.25 FT3_SIGMA=$2 FT3_NSUB=3 FT3_POUT_Y=0.9 FT3_ADVECTA=1 FT3_TAMPA=$1
+export FT3_R=${FT3_R:-0.25} FT3_SIGMA=$2 FT3_NSUB=3 FT3_POUT_Y=0.9 FT3_ADVECTA=1 FT3_TAMPA=$1
 export FT3_RHO0=1.0 FT3_RHO1=1.0 FT3_MU0=1.0 FT3_MU1=1.0
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 mpirun -use-hwthread-cpus -n 1 ./ns-example-3d input/gota.load output/g.save VTKS/g.print \
