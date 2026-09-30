@@ -104,6 +104,7 @@ e $\max\lvert u\rvert < \num{5e-11}$.
 
 \subsection{Resultados, e o que eles corrigem}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -114,6 +115,7 @@ e $\max\lvert u\rvert < \num{5e-11}$.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{elipse-resultados.dat}}
+\end{adjustbox}
 
 Tr\^es leituras, e duas delas corrigem impress\~oes deixadas pelas se\c{c}\~oes
 anteriores.

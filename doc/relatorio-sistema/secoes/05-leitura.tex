@@ -2,6 +2,7 @@
 
 \subsection{Onde est\~ao as linhas}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/camada/.style={column name={camada}},
@@ -11,6 +12,7 @@
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{tamanhos.dat}}
+\end{adjustbox}
 
 Tr\^es observa\c{c}\~oes que a contagem torna dif\'iceis de ignorar.
 
@@ -42,8 +44,9 @@ de refinamento heterog\^eneo. A ideia \'e boa e a biblioteca \'e a certa para
 isso: florestas de octrees distribu\'idas, balanceamento por curvas de
 preenchimento de espa\c{c}o, refino e engrossamento entre processos.
 
-\paragraph{O que foi feito.}
+\paragraph{O que foi feito.}\mbox{}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/aspecto/.style={column name={aspecto}},
@@ -51,6 +54,7 @@ preenchimento de espa\c{c}o, refino e engrossamento entre processos.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{t8code-estado.dat}}
+\end{adjustbox}
 
 A infraestrutura est\'a montada e funciona onde \'e consultada: a fronteira
 imersa, que \'e monof\'asica, roda com t8code hoje. O que n\~ao se completou foi
@@ -80,7 +84,7 @@ no c\'odigo e nenhuma delas no \emph{backend} de particionamento:
     materializa a malha global \textbf{inteira em mem\'oria} antes de o
     balanceador a repartir. Nenhum particionador conserta um teto de mem\'oria
     que ocorre \emph{antes} dele;
-  \item \texttt{higflow\_reconstroi\_dominio} \textbf{reconstr\'oi o dom\'inio do
+  \item \texttt{higflow\_\allowbreak{}reconstroi\_\allowbreak{}dominio} \textbf{reconstr\'oi o dom\'inio do
     zero} a cada remalhamento, em vez de adaptar no lugar --- o oposto do modo de
     opera\c{c}\~ao que torna o t8code escal\'avel;
   \item o crit\'erio de refino passa por \textbf{arquivo escrito por um processo

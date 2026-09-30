@@ -78,6 +78,7 @@ deforma\c{c}\~ao inicial \'e de \SI{5}{\percent}.}
 \end{tikzpicture}
 \end{center}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -87,6 +88,7 @@ deforma\c{c}\~ao inicial \'e de \SI{5}{\percent}.}
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{lamb-resultados.dat}}
+\end{adjustbox}
 
 Os dois m\'etodos produzem \textbf{sete oscila\c{c}\~oes amortecidas limpas},
 com per\'iodo est\'avel ao longo da corrida (front-tracking: $0{,}2706$,
@@ -114,6 +116,7 @@ num\'erica em ambos, um pouco maior no front-tracking.
 for\c{c}a. Ao longo de 2000 passos de movimento cont\'inuo:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lr}
 \toprule
 front-tracking & \textbf{\SI{3.9}{\percent}} de perda de \'area \\
@@ -121,6 +124,7 @@ VOF            & \textbf{zero} --- $A = 0{,}08726527$ em \emph{todos} os d\'igit
                  em todas as amostras \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 A progress\~ao ao longo deste relat\'orio conta a hist\'oria inteira: na gota
@@ -140,6 +144,7 @@ reduzido a $Re=200$, a instabilidade identificada na Se\c{c}\~ao~\ref{sec:elipse
 e destr\'oi a solu\c{c}\~ao:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lrr}
 \toprule
  & in\'icio & passo 1330 \\
@@ -151,6 +156,7 @@ parti\c{c}\~ao da unidade & \num{6e-15} & \textbf{0{,}833} \\
 $\max\lvert u\rvert$ nos marcadores & 0 & 9{,}08 \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 A frente se enruga em alta frequ\^encia, a cirurgia insere marcadores nas rugas,

@@ -2,6 +2,7 @@
 
 \subsection{Os dezessete casos}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/exemplo/.style={column name={exemplo}},
@@ -9,6 +10,7 @@
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{exemplos.dat}}
+\end{adjustbox}
 
 Cada exemplo \'e um programa pr\'oprio, com o seu \texttt{main} e o seu
 \texttt{Makefile}, que linka os objetos de \texttt{higflow/src} de que precisa.
@@ -44,7 +46,7 @@ Duas limita\c{c}\~oes, ambas verificadas no c\'odigo:
 
 \begin{enumerate}
   \item o caminho \textbf{multif\'asico} n\~ao consulta a fonte de malha ---
-    \texttt{higflow\_partition\_domain\_multiphase} l\^e o \texttt{.amr} sempre.
+    \texttt{higflow\_\allowbreak{}partition\_\allowbreak{}domain\_\allowbreak{}multiphase} l\^e o \texttt{.amr} sempre.
     A fronteira imersa funciona com t8code porque \'e monof\'asica e passa por
     outra fun\c{c}\~ao;
   \item as fontes do t8code \textbf{recusam} \texttt{.amr} multin\'ivel, com

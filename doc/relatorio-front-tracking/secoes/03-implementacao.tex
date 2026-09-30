@@ -6,21 +6,23 @@ A implementa\c{c}\~ao se divide em tr\^es pe\c{c}as, e a divis\~ao foi escolhida
 para minimizar risco ao que j\'a funcionava:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{llp{6.6cm}}
 \toprule
 Pe\c{c}a & Onde & Papel \\
 \midrule
-n\'ucleo & \texttt{higflow/src/hig-flow-front-tracking.\{c,h\}} &
+n\'ucleo & \texttt{higflow/\allowbreak{}src/\allowbreak{}hig-\allowbreak{}flow-\allowbreak{}front-\allowbreak{}tracking.\allowbreak{}\{c,h\}} &
   frente ordenada, advec\c{c}\~ao, cirurgia, curvatura, \'area. \textbf{N\~ao
   conhece o solver}: compila com \texttt{gcc} simples e \'e test\'avel sozinho \\
-adaptador & \texttt{higflow/examples-common/front-tracking.c} &
+adaptador & \texttt{higflow/\allowbreak{}examples-\allowbreak{}common/\allowbreak{}front-\allowbreak{}tracking.\allowbreak{}c} &
   a ponte com o solver: espalha $\sigma\kappa\mathbf{n}$ na malha escalonada e
   interpola $\mathbf{u}$ nos marcadores. Compilado \textbf{por exemplo}, fora da
   biblioteca \\
-exemplo & \texttt{higflow/example2d\_FrontTracking} &
+exemplo & \texttt{higflow/\allowbreak{}example2d\_\allowbreak{}Front\allowbreak{}Tracking} &
   a gota, os par\^ametros e as sondas \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 Manter o adaptador fora da biblioteca n\~ao \'e detalhe de organiza\c{c}\~ao: a

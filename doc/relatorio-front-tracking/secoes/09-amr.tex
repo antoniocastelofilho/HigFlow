@@ -4,10 +4,10 @@
 \subsection{Qual m\'aquina usar, e por que a primeira escolha foi errada}
 
 O HiGFlow tinha dois caminhos para reconstruir o dom\'inio no meio da corrida. O
-primeiro tentado foi o do \texttt{example2d\_DynamicMeshAdapt} --- por ser o
+primeiro tentado foi o do \texttt{example2d\_\allowbreak{}Dynamic\allowbreak{}Mesh\allowbreak{}Adapt} --- por ser o
 \'unico que j\'a fazia isso \emph{com} multif\'asico. Foi um erro de escolha: a
 pr\'opria su\'ite o marca ``known broken em np=2''. O outro,
-\texttt{higflow\_reconstroi\_dominio}, \'e o da fronteira imersa, verificado nas
+\texttt{higflow\_\allowbreak{}reconstroi\_\allowbreak{}dominio}, \'e o da fronteira imersa, verificado nas
 fases F1--F3 em \textbf{dois \emph{backends}} (t8code e MTree), com consenso de
 franja, transfer\^encia por posi\c{c}\~ao e proje\c{c}\~ao consistente.
 
@@ -18,6 +18,7 @@ m\'etodos deste relat\'orio a extens\~ao saiu pequena, mas por raz\~oes
 \emph{diferentes}, e a diferen\c{c}a \'e instrutiva:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{p{3.1cm}p{5.6cm}p{5.6cm}}
 \toprule
  & front-tracking & VOF \\
@@ -27,10 +28,11 @@ a fra\c{c}\~ao volum\'etrica \'e & \emph{derivada} da frente, que \'e replicada
 no remalhamento & n\~ao viaja: \'e regenerada da geometria no passo seguinte
   & viaja junto com $u$ e $p$ \\
 o que foi preciso & declarar a fonte externa
-  (\texttt{higflow\_set\_fracvol\_externo}) & transportar mais um campo, e
+  (\texttt{higflow\_\allowbreak{}set\_\allowbreak{}fracvol\_\allowbreak{}externo}) & transportar mais um campo, e
   recort\'a-lo em $[0,1]$ ap\'os plantar \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 A transfer\^encia conservativa que o VOF pedia \emph{j\'a existia}: c\'elula que
@@ -62,7 +64,7 @@ v\'arios \emph{commits} e nunca havia sido executado. Ao rod\'a-lo:
 \begin{enumerate}
   \item \textbf{Media o dom\'inio errado.} Iterava o dom\'inio da fra\c{c}\~ao,
     que no HiGFlow \'e \textbf{uniforme no n\'ivel mais fino por desenho}
-    (\texttt{higflow\_create\_amr\_info\_mult}). L\'a n\~ao existe c\'elula
+    (\texttt{higflow\_\allowbreak{}create\_\allowbreak{}amr\_\allowbreak{}info\_\allowbreak{}mult}). L\'a n\~ao existe c\'elula
     grossa, ent\~ao a busca devolvia $-1$ sempre: um or\'aculo que n\~ao podia
     falhar, o que \'e o mesmo que n\~ao ter or\'aculo.
   \item \textbf{\'Indice base 0 no arquivo de malha}, quando o carregador quer
@@ -82,6 +84,7 @@ passou de $h_{\text{base}}/2$ para $h_{\text{base}}$ inteiro, porque o
 crit\'erio decide por \emph{c\'elula base} --- o teste \'e no centro dela e a
 c\'elula ainda se estende outro meio-passo al\'em.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/metodo/.style={column name={m\'etodo}},
@@ -95,6 +98,7 @@ c\'elula ainda se estende outro meio-passo al\'em.
     after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{amr-banda.dat}}
+\end{adjustbox}
 
 \subsection{A perda de \'area, e quatro hip\'oteses refutadas}
 \label{sec:amr-area}
@@ -104,6 +108,7 @@ Na malha adaptada a gota do front-tracking passou a perder \SI{2.8}{\percent} de
 diagn\'ostico levou quatro medidas, e \emph{todas as quatro primeiras
 hip\'oteses caíram}:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/hipotese/.style={column name={hip\'otese}},
@@ -113,6 +118,7 @@ hip\'oteses caíram}:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{amr-hipoteses.dat}}
+\end{adjustbox}
 
 O teste que decidiu foi o quarto: malha \textbf{uniforme fina}, sem
 adapta\c{c}\~ao nenhuma, perdeu exatamente o mesmo. Logo n\~ao era a
@@ -124,6 +130,7 @@ $\Delta s = 2\pi R/N$, isto \'e, pelo \emph{n\'umero} de marcadores. O
 front-tracking exige $\Delta s \sim h$; fixado $N$ e refinada a malha, a rela\c{c}\~ao
 se rompe em sil\^encio:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   columns/h/.style={column name={$h$}, fixed, precision=5},
   columns/nmarc/.style={column name={$N$}, int detect},
@@ -133,6 +140,7 @@ se rompe em sil\^encio:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{amr-ds-sobre-h.dat}}
+\end{adjustbox}
 
 O conserto \'e na raiz: o n\'umero de marcadores passa a \emph{sair} de
 $\Delta s/h$ vezes o $h$ da malha mais fina que a frente vai encontrar, em vez de
@@ -161,6 +169,7 @@ de \emph{um} n\'ivel. A cura \'e a mesma que o front-tracking j\'a exigira ---
 nascer com a malha j\'a adaptada, de modo que o dom\'inio da fra\c{c}\~ao n\~ao
 mude mais:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/arranque/.style={column name={arranque}},
@@ -170,6 +179,7 @@ mude mais:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{amr-vof-massa.dat}}
+\end{adjustbox}
 
 \subsection{O que esta se\c{c}\~ao deixa em p\'e, e o que n\~ao}
 

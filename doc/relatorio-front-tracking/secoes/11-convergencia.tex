@@ -25,6 +25,7 @@ f\'isica do problema: a restri\c{c}\~ao capilar de passo, $\Delta t <
 \sqrt{\rho h^{3}/2\pi\sigma}$, escala como $h^{3/2}$. Dobrar a resolu\c{c}\~ao
 multiplica as c\'elulas por 4 \emph{e} os passos por $2{,}8$:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/malha/.style={column name={malha}},
@@ -37,6 +38,7 @@ multiplica as c\'elulas por 4 \emph{e} os passos por $2{,}8$:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{convergencia-custo.dat}}
+\end{adjustbox}
 
 \SI{136}{\hour} --- quase seis dias --- para \emph{um} m\'etodo, e o estudo pede
 os dois. A malha refinada est\'a fora de alcance nesta m\'aquina.
@@ -46,6 +48,7 @@ tr\^es pontos com raz\~ao de refino $\approx 1{,}41$ entre consecutivos --- quas
 uniforme, o que \'e condi\c{c}\~ao para extrapola\c{c}\~ao de Richardson --- e
 aproveita a corrida do fechamento como o ponto mais fino:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/corrida/.style={column name={corrida}},
@@ -55,6 +58,7 @@ aproveita a corrida do fechamento como o ponto mais fino:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{convergencia-plano.dat}}
+\end{adjustbox}
 
 \subsection{O confundidor, e a corrida que existe para remov\^e-lo}
 
@@ -124,6 +128,7 @@ Convém delimitar antes, e n\~ao depois:
 \subsection{Resultado: nenhum dos dois converge monotonicamente}
 \label{sec:conv-resultado}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/celraio/.style={column name={c\'el./raio}},
@@ -136,7 +141,9 @@ Convém delimitar antes, e n\~ao depois:
   every head row/.style={before row=\toprule\multicolumn{7}{c}{\textbf{front-tracking}}\\\midrule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{convergencia-ft.dat}}
+\end{adjustbox}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/celraio/.style={column name={c\'el./raio}},
@@ -147,6 +154,7 @@ Convém delimitar antes, e n\~ao depois:
   every head row/.style={before row=\toprule\multicolumn{5}{c}{\textbf{VOF}}\\\midrule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{convergencia-vof.dat}}
+\end{adjustbox}
 
 \textbf{Nenhuma das cinco s\'eries \'e monot\^onica.} No front-tracking a
 circularidade em 28 c\'elulas por raio \'e \emph{melhor} que em 40; no VOF o
@@ -164,6 +172,7 @@ quarto antes de qualquer n\'umero existir: a banda do crit\'erio \'e contada em
 \emph{c\'elulas finas}, logo tem largura \emph{f\'isica} diferente em cada
 resolu\c{c}\~ao.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/celraio/.style={column name={c\'el./raio}},
@@ -172,6 +181,7 @@ resolu\c{c}\~ao.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{convergencia-banda.dat}}
+\end{adjustbox}
 
 Dobrar a resolu\c{c}\~ao \textbf{reduz a regi\~ao refinada \`a metade} em extens\~ao
 f\'isica. A esteira --- que \'e onde $y_c$ e $V_c$ se decidem --- fica
@@ -204,6 +214,7 @@ hip\'otese --- o conserto a torna \emph{test\'avel}, n\~ao testada.
 
 A corrida D fez o que existia para fazer:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/metodo/.style={column name={m\'etodo}},
@@ -214,6 +225,7 @@ A corrida D fez o que existia para fazer:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{convergencia-passo.dat}}
+\end{adjustbox}
 
 No VOF, \textbf{quase metade} da varia\c{c}\~ao atribu\'ida ao refino \'e do passo
 de tempo. No front-tracking a fra\c{c}\~ao \'e menor, e na circularidade \'e
@@ -277,6 +289,7 @@ distribu\'ida do t8code.
 cronometrados \textbf{separados do resto}, com barreira antes de cada marca, em
 $n_p = 1$, 2, 4 e 8:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/np/.style={column name={$n_p$}},
@@ -289,6 +302,7 @@ $n_p = 1$, 2, 4 e 8:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{fase0-escalonamento.dat}}
+\end{adjustbox}
 
 \textbf{O remalhamento custa entre \SI{0.06}{\percent} e \SI{0.10}{\percent} do
 tempo, em todas as contagens de processo.} Reescrever esse caminho sobre
@@ -316,9 +330,10 @@ linear, e que comparar tempo de parede entre eles mistura escalonamento com
 converg\^encia do solver.
 
 \textbf{A contagem de itera\c{c}\~oes do KSP separa as duas}, e ela j\'a era
-colhida --- \texttt{KSPGetIterationNumber} est\'a em \texttt{solver-petsc.c} desde
+colhida --- \texttt{KSPGet\allowbreak{}Iteration\allowbreak{}Number} est\'a em \texttt{solver-petsc.c} desde
 sempre, guardando em \texttt{SolverIterations}. Faltava apenas relat\'a-la:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/np/.style={column name={$n_p$}},
@@ -328,6 +343,7 @@ sempre, guardando em \texttt{SolverIterations}. Faltava apenas relat\'a-la:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{fase0-ksp.dat}}
+\end{adjustbox}
 
 \textbf{As duas causas s\~ao reais, e a medida as ordena.} As itera\c{c}\~oes da
 press\~ao crescem \SI{11.2}{\percent} de um para oito processos: o

@@ -7,6 +7,7 @@ pior que a aus\^encia dele, porque continua orientando quem chega.
 
 \subsection{HiGTree: o diagrama resistiu}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/diagrama/.style={column name={no diagrama}},
@@ -15,6 +16,7 @@ pior que a aus\^encia dele, porque continua orientando quem chega.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{estrutura-higtree.dat}}
+\end{adjustbox}
 
 Cinco dos seis blocos continuam exatos, com nomes de arquivo reconhec\'iveis. A
 camada de malha \'e est\'avel --- o que se espera de uma biblioteca de
@@ -30,8 +32,8 @@ de interpola\c{c}\~ao. \'E infraestrutura da interpola\c{c}\~ao, n\~ao malha de
 part\'iculas.
 
 As estruturas lagrangeanas de fato est\~ao \textbf{no HiGFlow}:
-\texttt{hig-flow-front-tracking.c}, com a polilinha ordenada de marcadores, e
-\texttt{hig-flow-fronteira-imersa.c}, com os marcadores por posse sobre
+\texttt{hig-\allowbreak{}flow-\allowbreak{}front-\allowbreak{}tracking.\allowbreak{}c}, com a polilinha ordenada de marcadores, e
+\texttt{hig-\allowbreak{}flow-\allowbreak{}fronteira-\allowbreak{}imersa.\allowbreak{}c}, com os marcadores por posse sobre
 \texttt{DMSwarm}. S\~ao dois modelos de distribui\c{c}\~ao diferentes --- um
 replicado, outro repartido --- e nenhum deles \'e gen\'erico o bastante para
 descer \`a camada de malha. A migra\c{c}\~ao parece consequ\^encia disso, e
@@ -39,6 +41,7 @@ n\~ao descuido.
 
 \subsection{HiGFlow: o esqueleto resistiu; o volume, n\~ao}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/diagrama/.style={column name={no diagrama}},
@@ -47,6 +50,7 @@ n\~ao descuido.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{estrutura-higflow.dat}}
+\end{adjustbox}
 
 \textbf{Os oito blocos do diagrama existem todos}, com os nomes de arquivo
 correspondentes --- \texttt{io}, \texttt{ic}, \texttt{bc}, \texttt{step},

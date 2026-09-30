@@ -2,6 +2,8 @@
 \usepackage[T1]{fontenc}\usepackage[utf8]{inputenc}\usepackage[brazil]{babel}
 \usepackage{lmodern}\usepackage{microtype}\usepackage{amsmath,amssymb}
 \usepackage{booktabs}
+% max width so encolhe quando a tabela nao cabe; as estreitas ficam intactas.
+\usepackage{adjustbox}
 \usepackage{array}\usepackage{siunitx}\usepackage{pgfplotstable}
 \usepackage[hidelinks]{hyperref}\usepackage[margin=2.7cm]{geometry}
 \pgfplotsset{compat=1.18}
@@ -15,6 +17,10 @@
 \author{Relat\'orio t\'ecnico}
 \date{Setembro de 2026}
 
+% Sem isto o TeX prefere estourar a margem a afrouxar a linha, e nao
+% emite aviso alto para que o log acuse.  Com emergencystretch ele usa
+% os pontos de quebra dos identificadores longos em \texttt.
+\emergencystretch=3em
 \begin{document}
 \maketitle
 

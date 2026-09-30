@@ -13,6 +13,7 @@ O crit\'erio de refino e a reconstru\c{c}\~ao do dom\'inio foram cronometrados
 $n_p = 1$, 2, 4 e 8:
 
 {\small
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/np/.style={column name={$n_p$}},
@@ -25,10 +26,12 @@ $n_p = 1$, 2, 4 e 8:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{fase0-escalonamento.dat}}
+\end{adjustbox}
 }
 
 \subsection{Itera\c{c}\~oes do solver linear}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/np/.style={column name={$n_p$}},
@@ -38,6 +41,7 @@ $n_p = 1$, 2, 4 e 8:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{fase0-ksp.dat}}
+\end{adjustbox}
 
 A press\~ao domina o custo linear com folga --- 110 itera\c{c}\~oes contra 4 a 6
 da velocidade ---, como se espera da equa\c{c}\~ao de Poisson da proje\c{c}\~ao.

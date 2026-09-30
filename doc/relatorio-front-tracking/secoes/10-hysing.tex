@@ -21,6 +21,7 @@ bolha circular de raio $R=0{,}25$ centrada em $(0{,}5;\,0{,}5)$, sem escorregame
 em cima e embaixo e paredes laterais, at\'e $t=3$:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lrr}
 \toprule
  & fase externa (1) & bolha (2) \\
@@ -29,7 +30,9 @@ densidade $\rho$    & 1000 & 100 \\
 viscosidade $\mu$   & 10   & 1   \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \qquad
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lr}
 \toprule
 $\sigma$ & 24{,}5 \\
@@ -38,6 +41,7 @@ $Re$     & 35 \\
 $E\ddot{o}$ & 10 \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 Nesse regime a bolha se deforma mas \textbf{n\~ao se parte} --- condi\c{c}\~ao
@@ -48,6 +52,7 @@ e se rompe.
 
 \subsection{Os valores publicados}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -58,6 +63,7 @@ e se rompe.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-referencia.dat}}
+\end{adjustbox}
 
 A coluna \emph{consenso} \'e o que serve de alvo: onde os tr\^es c\'odigos
 concordam, a faixa \'e estreita (a circularidade m\'inima em
@@ -100,7 +106,7 @@ compara\c{c}\~ao entre defini\c{c}\~oes --- exatamente o erro do par\'agrafo
 anterior, agora entre as duas colunas em vez de contra o artigo. O centro de
 massa $y_c$ e a velocidade de ascens\~ao $V_c$ saem da integral do campo de
 fra\c{c}\~ao, que os dois m\'etodos t\^em, pela \emph{mesma} rotina
-(\texttt{examples-common/hysing-metricas.c}).
+(\texttt{examples-\allowbreak{}common/\allowbreak{}hysing-\allowbreak{}metricas.\allowbreak{}c}).
 
 \subsection{O que este caso exigiu de maquinaria}
 
@@ -142,6 +148,7 @@ Se\c{c}\~ao~\ref{sec:divergencia} mostra que a conclus\~ao tirada dele
 evid\^encia de que uma concord\^ancia medida num regime foi generalizada
 indevidamente para o seguinte.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/t/.style={column name={$t$}},
@@ -155,6 +162,7 @@ indevidamente para o seguinte.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-parcial.dat}}
+\end{adjustbox}
 
 \begin{figure}[htbp]
 \centering
@@ -207,6 +215,7 @@ medianizados nos v\'ertices, conferido contra o c\'irculo anal\'itico em $t=0$
 \label{fig:hysing-forma}
 \end{figure}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/t/.style={column name={$t$}},
@@ -219,6 +228,7 @@ medianizados nos v\'ertices, conferido contra o c\'irculo anal\'itico em $t=0$
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-forma.dat}}
+\end{adjustbox}
 
 \paragraph{E aqui a figura desfaz uma suspeita minha.} Os per\'imetros dos dois
 m\'etodos concordam em \num{2e-4} em todos os quatro instantes. Aplicando
@@ -266,6 +276,7 @@ como concord\^ancia n\~ao seria.
 \subsection{Primeiro alvo fechado: a velocidade m\'axima de ascens\~ao}
 \label{sec:vcmax}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -275,6 +286,7 @@ como concord\^ancia n\~ao seria.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-vcmax.dat}}
+\end{adjustbox}
 
 A amostragem \'e a cada $\Delta t = 0{,}05$, e o pico real cai entre amostras;
 por isso a linha do refinamento por par\'abola, que corrige \num{4e-5} --- pouco,
@@ -304,6 +316,7 @@ dispers\~ao entre eles ($0{,}010$), por\'em pouco.
 \subsection{A concord\^ancia m\'utua n\~ao sobreviveu \`a deforma\c{c}\~ao}
 \label{sec:divergencia}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/t/.style={column name={$t$}},
@@ -313,6 +326,7 @@ dispers\~ao entre eles ($0{,}010$), por\'em pouco.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-divergencia.dat}}
+\end{adjustbox}
 
 Em $t=1{,}6$ a diferen\c{c}a em $V_c$ \'e \SI{3.4}{\percent} do valor. N\~ao \'e
 mais ru\'ido num\'erico: \'e discord\^ancia entre os m\'etodos.
@@ -334,6 +348,7 @@ desmente.
 \subsection{Sob malha adaptativa, o VOF perde a conserva\c{c}\~ao exata}
 \label{sec:massa-amr}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/metodo/.style={column name={m\'etodo}},
@@ -343,6 +358,7 @@ desmente.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-massa-amr.dat}}
+\end{adjustbox}
 
 \textbf{Esta \'e a corre\c{c}\~ao mais importante deste relat\'orio.} As
 Se\c{c}\~oes~\ref{sec:comparacao}, \ref{sec:balanco} e \ref{sec:elipse} afirmam
@@ -394,6 +410,7 @@ resultado como esperado.
 
 As duas corridas completaram os 12\,000 passos at\'e $t=3$, sem nenhuma retomada.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/alvo/.style={column name={alvo}},
@@ -405,6 +422,7 @@ As duas corridas completaram os 12\,000 passos at\'e $t=3$, sem nenhuma retomada
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-fechamento.dat}}
+\end{adjustbox}
 
 A \'ultima coluna \'e a que importa, e merece explica\c{c}\~ao: ela mede o desvio
 em unidades da \emph{discord\^ancia que os tr\^es c\'odigos publicados t\^em entre
@@ -455,6 +473,7 @@ n\~ao apenas por completude metodol\'ogica.
 
 \subsection{O que as corridas custaram, e o que sobreviveu}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -463,6 +482,7 @@ n\~ao apenas por completude metodol\'ogica.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-final.dat}}
+\end{adjustbox}
 
 Duas leituras finais.
 

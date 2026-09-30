@@ -12,6 +12,7 @@ newtonianas, tens\~ao superficial ligada e velocidade inicial nula.
 Trocando em mi\'udos, os dois lados coincidem em tudo que importa:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lll}
 \toprule
  & front-tracking & VOF \\
@@ -28,6 +29,7 @@ interface            & polilinha de 64 marcadores & fra\c{c}\~ao volum\'etrica \
 tens\~ao superficial & $\sigma\kappa\mathbf{n}$ espalhada (Roma) & CSF~\cite{brackbill1992} \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 O $\sigma$ efetivo merece uma palavra, porque n\~ao \'e \'obvio que coincida. No
@@ -51,6 +53,7 @@ preserva o comportamento padr\~ao do exemplo.
 
 \subsection{Resultados}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/metrica/.style={column name={m\'etrica}},
@@ -61,9 +64,11 @@ preserva o comportamento padr\~ao do exemplo.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{comparacao-laplace.dat}}
+\end{adjustbox}
 
 Em valores brutos:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -74,6 +79,7 @@ Em valores brutos:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{comparacao-bruto.dat}}
+\end{adjustbox}
 
 \subsection{Leitura dos tr\^es resultados}
 

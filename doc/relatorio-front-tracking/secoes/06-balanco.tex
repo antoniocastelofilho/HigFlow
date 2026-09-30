@@ -43,7 +43,7 @@ com duas exig\^encias:
     (Sutherland--Hodgman) seguido da f\'ormula do la\c{c}o. \'E o an\'alogo exato
     do campo de cor do VOF, s\'o que derivado da interface em vez de advectado.
   \item $\nabla$ \'e o \textbf{mesmo} operador discreto que
-    \texttt{higflow\_final\_velocity} usa para corrigir a velocidade pela
+    \texttt{higflow\_\allowbreak{}final\_\allowbreak{}velocity} usa para corrigir a velocidade pela
     press\~ao --- a mesma amostragem das duas c\'elulas vizinhas e a mesma
     diferen\c{c}a dividida. Esta \'e a exig\^encia que faz o m\'etodo
     ``balanceado''; qualquer outro gradiente, ainda que consistente, n\~ao
@@ -67,6 +67,7 @@ Mesmo caso, mesma malha, mesma gota, mesmo tudo --- trocando apenas a
 formula\c{c}\~ao da for\c{c}a:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lrrr}
 \toprule
  & FT espalhado & FT balanceado & fator \\
@@ -77,6 +78,7 @@ deriva de \'area                   & \num{1.29e-05} & \num{1.9e-15}  & $7\times1
 deriva do centroide                & \num{3.4e-07}  & \num{1.9e-14}  & $2\times10^{7}$ \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 \textbf{A hip\'otese se confirma, e nos dois sentidos que ela previa:} as
@@ -106,6 +108,7 @@ Com a for\c{c}a balanceada, o front-tracking passa a superar o VOF nas tr\^es
 m\'etricas medidas, e n\~ao mais em uma s\'o:
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lrrl}
 \toprule
  & FT balanceado & VOF & vantagem \\
@@ -115,6 +118,7 @@ correntes par\'asitas         & $<\num{5e-11}$ & \num{5.23e-05} & $>10^{6}$ \\
 deriva de massa               & \num{1.9e-15}  & \num{2.9e-15}  & equivalentes \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 A conserva\c{c}\~ao de massa deixou de ser desvantagem do front-tracking, mas por

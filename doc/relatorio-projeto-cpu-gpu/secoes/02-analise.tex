@@ -14,6 +14,7 @@ uma medida para a \emph{ordem} das extens\~oes.
 \section{As tr\^es premissas de desempenho}
 
 {\small
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/premissa/.style={column name={premissa do projeto},
@@ -25,10 +26,12 @@ uma medida para a \emph{ordem} das extens\~oes.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{projeto-premissas.dat}}
+\end{adjustbox}
 }
 
 \section{O que foi medido}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -37,6 +40,7 @@ uma medida para a \emph{ordem} das extens\~oes.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{projeto-medido.dat}}
+\end{adjustbox}
 
 \section{Tr\^es consequ\^encias}
 

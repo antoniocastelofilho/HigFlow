@@ -3,7 +3,7 @@
 
 Cada pe\c{c}a foi verificada contra um or\'aculo \emph{exato} antes de a
 pr\'oxima ser constru\'ida. Os arreios est\~ao em
-\texttt{higflow/tests/front-tracking} e devolvem c\'odigo de sa\'ida: s\~ao
+\texttt{higflow/\allowbreak{}tests/\allowbreak{}front-\allowbreak{}tracking} e devolvem c\'odigo de sa\'ida: s\~ao
 port\~oes, n\~ao impress\~oes.
 
 \subsection{B1: advec\c{c}\~ao cinem\'atica reversivel}
@@ -19,6 +19,7 @@ que \'e livre de diverg\^encia e se inverte em $t=T/2$, de modo que a frente dev
 voltar \`a forma inicial em $t=T$. Dois or\'aculos: a \emph{conserva\c{c}\~ao} de
 \'area ao longo de toda a corrida, e a \emph{revers\~ao} em $t=T$.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   columns/nmarc/.style={column name={$N$}, int detect},
   columns/dt/.style={column name={$\Delta t$}, fixed, precision=3},
@@ -30,6 +31,7 @@ voltar \`a forma inicial em $t=T$. Dois or\'aculos: a \emph{conserva\c{c}\~ao} d
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{b1-rider-kothe.dat}}
+\end{adjustbox}
 
 A advec\c{c}\~ao \'e de segunda ordem: sem cirurgia, a revers\~ao cai
 \num{3.2e-4} $\to$ \num{4.0e-5} $\to$ \num{5.0e-6}. Com cirurgia, a
@@ -75,6 +77,7 @@ guarda descrita na Se\c{c}\~ao~2.3 corrigiu, e o teste mostrou a melhora.
 Contra dois or\'aculos anal\'iticos: c\'irculo ($\kappa=1/R$ em todo marcador) e
 elipse ($\kappa(t) = ab/(a^{2}\sin^{2}t + b^{2}\cos^{2}t)^{3/2}$).
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   columns/n/.style={column name={$N$ (c\'irculo)}, int detect},
   columns/circulo/.style={column name={erro rel.\ c\'irculo}, sci, sci zerofill, precision=2},
@@ -83,6 +86,7 @@ elipse ($\kappa(t) = ab/(a^{2}\sin^{2}t + b^{2}\cos^{2}t)^{3/2}$).
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{curvatura.dat}}
+\end{adjustbox}
 
 No c\'irculo a curvatura \'e \textbf{exata} em precis\~ao de m\'aquina --- tr\^es
 pontos sobre um c\'irculo definem esse mesmo c\'irculo. Na elipse converge em
@@ -100,6 +104,7 @@ $\sigma\sum_k \kappa\mathbf{n}_k\,\mathrm{d}s_k$, porque o n\'ucleo de Roma soma
 \mathrm{d}s \to 0$ para curva fechada, que \'e a for\c{c}a l\'iquida nula exigida
 pela lei de Laplace.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   columns/nmarc/.style={column name={$N$}, int detect},
   columns/conservx/.style={column name={conserv.\ $x$}, sci, sci zerofill, precision=2},
@@ -108,6 +113,7 @@ pela lei de Laplace.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{tensao-conservacao.dat}}
+\end{adjustbox}
 
 \paragraph{Honestidade sobre o segundo or\'aculo.} O equil\'ibrio dar
 m\'aquina-zero vem da \emph{simetria do c\'irculo}; uma curva fechada
@@ -122,6 +128,7 @@ interpolada da malha. A gota est\'atica serve de or\'aculo: ela deve ficar parad
 circular e com \'area preservada, j\'a que o campo projetado \'e livre de
 diverg\^encia.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   columns/passo/.style={column name={passo}, int detect},
   columns/n/.style={column name={$N$}, int detect},
@@ -134,6 +141,7 @@ diverg\^encia.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{adveccao-acoplada.dat}}
+\end{adjustbox}
 
 A \emph{parti\c{c}\~ao da unidade} em \num{6.9e-15} \'e o or\'aculo forte: os
 pesos somam 1 em precis\~ao de m\'aquina, o que prova que um campo uniforme seria

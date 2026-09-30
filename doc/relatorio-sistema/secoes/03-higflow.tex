@@ -7,6 +7,7 @@ parte disso s\~ao \emph{modelos}, n\~ao infraestrutura.
 
 O \texttt{flowtype} da configura\c{c}\~ao seleciona qual passo roda:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/tipodeescoamento/.style={column name={\texttt{flowtype}}},
@@ -15,6 +16,7 @@ O \texttt{flowtype} da configura\c{c}\~ao seleciona qual passo roda:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{higflow-passos.dat}}
+\end{adjustbox}
 
 S\~ao 19\,900 linhas s\'o em passos de escoamento. O maior deles ---
 suspens\~oes, com 3\,413 --- \'e maior que \texttt{domain.c}, o n\'ucleo da
@@ -22,6 +24,7 @@ HiGTree.
 
 \subsection{E os acoplamentos entre eles}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/modulo/.style={column name={m\'odulo}},
@@ -30,6 +33,7 @@ HiGTree.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{higflow-acoplados.dat}}
+\end{adjustbox}
 
 Os dois \'ultimos t\^em 31 e 28 linhas: s\~ao despachantes, n\~ao
 implementa\c{c}\~oes. A combinat\'oria de f\'isicas est\'a declarada mais do que
@@ -37,6 +41,7 @@ realizada, e vale saber disso antes de contar com ela.
 
 \subsection{Modelos constitutivos}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/familia/.style={column name={fam\'ilia}},
@@ -44,9 +49,11 @@ realizada, e vale saber disso antes de contar com ela.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{modelos.dat}}
+\end{adjustbox}
 
 \subsection{Discretiza\c{c}\~oes, por eixo}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/eixo/.style={column name={eixo}},
@@ -54,6 +61,7 @@ realizada, e vale saber disso antes de contar com ela.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{discretizacoes.dat}}
+\end{adjustbox}
 
 O produto cartesiano dessas op\c{c}\~oes \'e grande, e nada garante que todas as
 combina\c{c}\~oes tenham sido exercitadas --- esta \'e uma lista do que o c\'odigo
@@ -61,6 +69,7 @@ combina\c{c}\~oes tenham sido exercitadas --- esta \'e uma lista do que o c\'odi
 
 \subsection{Tratamento de interface}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/familia/.style={column name={fam\'ilia}},
@@ -69,6 +78,7 @@ combina\c{c}\~oes tenham sido exercitadas --- esta \'e uma lista do que o c\'odi
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{higflow-interface.dat}}
+\end{adjustbox}
 
 Onze m\'odulos de VOF, contra um de front-tracking e um de fronteira imersa. A
 assimetria conta a hist\'oria do sistema: o VOF \'e o caminho maduro, com

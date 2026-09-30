@@ -3,6 +3,7 @@
 Trinta e tr\^es fontes, 15\,869 linhas. \'E a biblioteca sobre a qual tudo o mais
 se ap\'oia, e ela n\~ao sabe nada de Navier--Stokes.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/modulo/.style={column name={m\'odulo}},
@@ -11,6 +12,7 @@ se ap\'oia, e ela n\~ao sabe nada de Navier--Stokes.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{higtree-modulos.dat}}
+\end{adjustbox}
 
 \paragraph{A divis\~ao que mais importa \'e \texttt{domain} contra
 \texttt{pdomain}.} O primeiro \'e o dom\'inio serial --- c\'elulas, facetas,
@@ -23,7 +25,7 @@ assunto mais caro dela.
 \paragraph{Solvers lineares: cinco implementa\c{c}\~oes atr\'as de uma
 interface.} PETSc, HYPRE, SOR, centralizado e um de depura\c{c}\~ao que
 simplesmente grava o sistema. O de PETSc \'e o usado na pr\'atica. Existe
-tamb\'em um \texttt{solver-petsc.camila.c}, variante paralela do principal ---
+tamb\'em um \texttt{solver-\allowbreak{}petsc.\allowbreak{}camila.\allowbreak{}c}, variante paralela do principal ---
 duas c\'opias de 576 e 555 linhas que divergir\~ao na primeira mudan\c{c}a de
 protocolo.
 

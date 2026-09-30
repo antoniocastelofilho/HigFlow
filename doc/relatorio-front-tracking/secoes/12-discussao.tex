@@ -4,6 +4,7 @@
 \subsection{O que os dois m\'etodos oferecem, pelo que foi medido}
 
 \begin{center}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{p{4.6cm}p{4.6cm}p{4.6cm}}
 \toprule
  & front-tracking (balanceado) & VOF \\
@@ -19,6 +20,7 @@ custo de estrutura & marcadores ordenados, cirurgia, indicadora por c\'elula
   & campo euleriano a mais \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{center}
 
 A leitura n\~ao \'e ``um vence''. Nas m\'etricas deste teste o front-tracking
@@ -80,9 +82,9 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
         materializa a malha global inteira em mem\'oria antes de o balanceador a
         repartir. \'E um teto de mem\'oria por rank que n\~ao melhora com mais
         processos;
-      \item \texttt{higflow\_reconstroi\_dominio} \textbf{reconstr\'oi o dom\'inio
+      \item \texttt{higflow\_\allowbreak{}reconstroi\_\allowbreak{}dominio} \textbf{reconstr\'oi o dom\'inio
         do zero} a cada remalhamento --- \texttt{create\_domain} mais
-        \texttt{initialize\_domain\_yaml} --- em vez de adaptar no lugar;
+        \texttt{initialize\_\allowbreak{}domain\_\allowbreak{}yaml} --- em vez de adaptar no lugar;
       \item o crit\'erio passa por \textbf{arquivo, escrito por um rank s\'o},
         com barreira, e relido por todos (Se\c{c}\~ao~\ref{sec:paralelo}). Foi o
         conserto correto para a \emph{corre\c{c}\~ao}, e \'e um trecho serial
@@ -108,7 +110,7 @@ Para que o alcance dos n\'umeros n\~ao seja superestimado:
     processos --- o caso \'e pequeno demais para o paralelismo render.
   \item \textbf{t8code: integrado no monof\'asico, n\~ao no bif\'asico.} O gancho
     \texttt{malha\_t8\_instala} existe nos dois exemplos e instala a fonte, mas
-    \texttt{higflow\_partition\_domain\_multiphase} n\~ao a consulta --- l\^e o
+    \texttt{higflow\_\allowbreak{}partition\_\allowbreak{}domain\_\allowbreak{}multiphase} n\~ao a consulta --- l\^e o
     \texttt{.amr} sempre. A fronteira imersa funciona com t8code porque \'e
     monof\'asica e passa por outro caminho. Desde este trabalho o pedido
     ignorado \'e ao menos \emph{denunciado} na linha de proced\^encia da malha, em
@@ -137,6 +139,7 @@ provid\^encias diferentes, e a diferen\c{c}a s\'o se conhece rodando. Rodou-se,
 em \'arvore de trabalho isolada, o mesmo caso curto com $n_p=1$ e $n_p=2$ nos
 dois m\'etodos.
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/grandeza/.style={column name={grandeza}},
@@ -145,6 +148,7 @@ dois m\'etodos.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{paralelo.dat}}
+\end{adjustbox}
 
 \paragraph{O front-tracking congela quase metade da frente.} Em $n_p=2$,
 \textbf{109 dos 252 marcadores n\~ao se moveram} em 10 passos, e formam uma faixa
@@ -175,8 +179,9 @@ para as quais a colheita n\~ao tinha valor. A mensagem que o imprime existia nos
 dois exemplos e vinha imprimindo zero desde sempre, porque em s\'erie \'e zero.
 Era um or\'aculo instalado que nunca havia disparado.
 
-\paragraph{Os consertos, e o que aconteceu com cada um.}
+\paragraph{Os consertos, e o que aconteceu com cada um.}\mbox{}
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/conserto/.style={column name={conserto}},
@@ -185,6 +190,7 @@ Era um or\'aculo instalado que nunca havia disparado.
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{paralelo-consertos.dat}}
+\end{adjustbox}
 
 Dois s\~ao mec\^anicos: os escritores de crit\'erio faziam
 \texttt{fopen(...,"w")} do \emph{mesmo} caminho em todos os processos, sem guarda
@@ -239,6 +245,7 @@ anterior desta se\c{c}\~ao, que o \emph{espalhamento} do front-tracking precisav
 da redu\c{c}\~ao franja$\to$dono que \texttt{fi\_espalha} faz vinte linhas adiante.
 Medido, cai:
 
+\begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
   string type,
   columns/regra-de-posse-no-espalhamento/.style={column name={regra de posse no espalhamento}},
@@ -247,6 +254,7 @@ Medido, cai:
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{paralelo-posse.dat}}
+\end{adjustbox}
 
 A regra original j\'a estava correta, e a redu\c{c}\~ao era a \'unica das tr\^es
 que \emph{quebrava}. O motivo \'e que o dono de uma faceta acumula de todos os
