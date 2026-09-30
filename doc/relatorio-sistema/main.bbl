@@ -1,10 +1,80 @@
-\begin{thebibliography}{1}
+\begin{thebibliography}{10}
+
+\bibitem{bertoco2021kbkz}
+J.~Bertoco, M.~S.~B. Ara\'ujo, R.~T. Leiva, H.~A.~C. S\'anchez, and A.~Castelo.
+\newblock Numerical simulation of {KBKZ} integral constitutive equations in
+  hierarchical grids.
+\newblock {\em Applied Sciences}, 11(11):4875, 2021.
+
+\bibitem{bertoco2023}
+J.~Bertoco, A.~Castelo, L.~L. Ferr\'as, and C.~Fernandes.
+\newblock Numerical simulation of three-dimensional free surface flows using
+  the {K-BKZ-PSM} integral constitutive equation.
+\newblock {\em Polymers}, 15(18):3705, 2023.
+
+\bibitem{bertoco2021gptt}
+J.~Bertoco, R.~T. Leiva, L.~L. Ferr\'as, A.~M. Afonso, and A.~Castelo.
+\newblock Development length of fluids modelled by the {gPTT} constitutive
+  differential equation.
+\newblock {\em Applied Sciences}, 11(21):10352, 2021.
+
+\bibitem{bertoco2012}
+Juliana Bertoco.
+\newblock Simula\c{c}\~ao num\'erica de equa\c{c}\~oes de conserva\c{c}\~ao
+  usando esquemas \emph{upwind}.
+\newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2012.
+
+\bibitem{bertoco2017}
+Juliana Bertoco.
+\newblock {\em Solu\c{c}\~ao num\'erica do modelo constitutivo {KBKZ-PSM} para
+  escoamentos com superf\'icies livres}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2017.
+
+\bibitem{bezerra2019}
+W.~D.~S. Bezerra, A.~Castelo, and A.~M. Afonso.
+\newblock Numerical study of electro-osmotic fluid flow and vortex formation.
+\newblock {\em Micromachines}, 10(12):796, 2019.
+
+\bibitem{bezerra2019tese}
+Wesley de~Souza Bezerra.
+\newblock {\em Estudo num\'erico de escoamento viscoel\'astico e
+  eletroosm\'otico com potenciais dependentes do tempo}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2019.
+
+\bibitem{castelo2021}
+A.~Castelo, A.~M. Afonso, and W.~De~Souza~Bezerra.
+\newblock A hierarchical grid solver for simulation of flows of complex fluids.
+\newblock {\em Polymers}, 13(18):3168, 2021.
 
 \bibitem{castelo2000}
 A.~Castelo~F., M.~F. Tom\'e, C.~N.~L. C\'esar, S.~McKee, and J.~A. Cuminato.
 \newblock Freeflow: an integrated simulation system for three-dimensional free
   surface flows.
 \newblock {\em Computing and Visualization in Science}, 2(4):199--210, 2000.
+
+\bibitem{castillo2023}
+H.~A. Castillo-S\'anchez, J.~Bertoco, M.~S.~B. de~Araujo, and A.~Castelo.
+\newblock Numerical simulation of thixotropic--viscoelastic models for
+  structured fluids in hierarchical grids.
+\newblock {\em Computers \& Fluids}, 266:106045, 2023.
+
+\bibitem{castillo2025}
+H.~A. Castillo-S\'anchez, J.~Gillissen, R.~Lange, and A.~Castelo.
+\newblock Computational fluid dynamics simulations of suspensions of spherical
+  particles using tensorial constitutive models.
+\newblock {\em Computers \& Fluids}, 299:106704, 2025.
+
+\bibitem{castillo2022}
+H.~A. Castillo-S\'anchez, L.~F. Souza, and A.~Castelo.
+\newblock Numerical simulation of rheological models for complex fluids using
+  hierarchical grids.
+\newblock {\em Polymers}, 14(22):4958, 2022.
+
+\bibitem{silva2023}
+A.~T.~G. da~Silva, C.~Fernandes, J.~Organista, L.~Souza, and A.~Castelo.
+\newblock Validation of {HiGFlow} software for simulating two-phase flows with
+  a {3D} geometric volume of fluid algorithm.
+\newblock {\em Mathematics}, 11(18):3900, 2023.
 
 \bibitem{sousa2004}
 F.~S. de~Sousa, N.~Mangiavacchi, L.~G. Nonato, A.~Castelo, M.~F. Tom\'e, V.~G.
@@ -13,11 +83,78 @@ F.~S. de~Sousa, N.~Mangiavacchi, L.~G. Nonato, A.~Castelo, M.~F. Tom\'e, V.~G.
   multi-fluid flows with free surfaces.
 \newblock {\em Journal of Computational Physics}, 198(2):469--499, 2004.
 
+\bibitem{figueiredo2011}
+Rafael~Alves Figueiredo.
+\newblock Estudos de m\'etodos num\'ericos para a simula\c{c}\~ao de
+  escoamentos viscoel\'asticos com superf\'icie livre.
+\newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2011.
+
+\bibitem{figueiredo2016}
+Rafael~Alves Figueiredo.
+\newblock {\em Simula\c{c}\~ao num\'erica de escoamentos viscoel\'asticos
+  multif\'asicos complexos}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2016.
+
 \bibitem{godoi2022}
 Rameyli Godoi.
 \newblock Implementa\c{c}\~ao de modelos viscoel\'aticos com viscosidade
   vari\'avel no sistema {HiGFlow}.
 \newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2022.
+
+\bibitem{lages2016ms}
+Camila Faria~Afonso Lages.
+\newblock M\'etodos num\'ericos para escoamentos multif\'asicos em malhas
+  hier\'arquicas.
+\newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2016.
+
+\bibitem{lages2023dr}
+Camila Faria~Afonso Lages.
+\newblock {\em M\'etodo de proje\c{c}\~ao multiescala e malhas hier\'arquicas
+  para escoamentos incompress\'iveis modelados pelas equa\c{c}\~oes de
+  Navier--Stokes}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2023.
+
+\bibitem{leiva2024}
+R.~T. Leiva, L.~L. Ferr\'as, A.~Castelo, et~al.
+\newblock A generalisation of the integral maxwell model: the {gK-BKZ} model.
+\newblock {\em Meccanica}, 59(3):363--384, 2024.
+
+\bibitem{leiva2022}
+Rosal\'ia~Taboada Leiva.
+\newblock {\em Desenvolvimento e implementa\c{c}\~ao num\'erica de modelos
+  viscoel\'asticos generalizados e o estudo de fluidos complexos}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2022.
+
+\bibitem{miziara2020}
+Gustavo Alexandre~Sousa Miziara.
+\newblock Aplica\c{c}\~ao do m\'etodo {VOF} para simula\c{c}\~ao dos
+  escoamentos bif\'asicos com viscoelasticidade.
+\newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2020.
+
+\bibitem{organista2025}
+Juniormar Organista.
+\newblock {\em Verifica\c{c}\~ao de c\'odigo de simula\c{c}\~ao num\'erica de
+  escoamentos de fluidos viscoel\'asticos atrav\'es do m\'etodo de
+  solu\c{c}\~oes manufaturadas}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2025.
+
+\bibitem{ruano2025}
+Fabiano Ruano~Neto.
+\newblock {\em Numerical analysis and computational implementations of
+  non-{N}ewtonian flow constitutive equations}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2025.
+
+\bibitem{silva2020ms}
+Aquisson Theyllon Gomes~da Silva.
+\newblock Desenvolvimento da t\'ecnica {PLIC-VOF} no sistema {HiG-Flow} para
+  simula\c{c}\~ao de escoamentos bif\'asicos.
+\newblock Master's thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2020.
+
+\bibitem{silva2025dr}
+Aquisson Theyllon Gomes~da Silva.
+\newblock {\em Modelagem de interfaces em escoamentos bif\'asicos de fluidos
+  viscoel\'asticos usando o software {HiG-Flow}}.
+\newblock PhD thesis, Universidade de S\~ao Paulo, S\~ao Carlos, 2025.
 
 \bibitem{sousa2019}
 F.~S. Sousa, C.~F. Lages, J.~L. Ansoni, A.~Castelo, and A.~Sim\~ao.

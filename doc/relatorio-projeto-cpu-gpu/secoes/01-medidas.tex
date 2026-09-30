@@ -1,0 +1,44 @@
+\section{As medidas que esta an\'alise usa}
+\label{sec:fase0}
+
+Duas campanhas de medida no HiGFlow sustentam o que segue. Ambas foram feitas
+sobre o caso de bolha ascendente bif\'asica (\emph{benchmark} de Hysing), com
+cerca de 9\,400 c\'elulas --- e essa pequenez \'e a principal limita\c{c}\~ao
+deste documento, dita aqui e retomada no fim.
+
+\subsection{Custo do remalhamento e escalabilidade}
+
+O crit\'erio de refino e a reconstru\c{c}\~ao do dom\'inio foram cronometrados
+\textbf{separados do resto}, com barreira antes de cada marca, em
+$n_p = 1$, 2, 4 e 8:
+
+\pgfplotstabletypeset[
+  string type,
+  columns/np/.style={column name={$n_p$}},
+  columns/parede/.style={column name={parede}},
+  columns/aceleracao/.style={column name={acelera\c{c}\~ao}},
+  columns/eficiencia/.style={column name={efici\^encia}},
+  columns/criterio/.style={column name={crit\'erio}},
+  columns/reconstrucao/.style={column name={reconstru\c{c}\~ao}},
+  columns/remalhatotal/.style={column name={remalha/total}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{fase0-escalonamento.dat}}
+
+\subsection{Itera\c{c}\~oes do solver linear}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/np/.style={column name={$n_p$}},
+  columns/pressao/.style={column name={press\~ao}},
+  columns/vsbase/.style={column name={vs.\ base}},
+  columns/velocidade/.style={column name={velocidade}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{fase0-ksp.dat}}
+
+A press\~ao domina o custo linear com folga --- 110 itera\c{c}\~oes contra 4 a 6
+da velocidade ---, como se espera da equa\c{c}\~ao de Poisson da proje\c{c}\~ao.
+O crescimento de \SI{11}{\percent} com o n\'umero de processos \'e a
+degrada\c{c}\~ao do precondicionador \texttt{bjacobi} ao ser dividido em mais
+blocos, e responde por cerca de \SI{13}{\percent} da acelera\c{c}\~ao perdida.

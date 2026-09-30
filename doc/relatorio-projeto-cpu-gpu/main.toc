@@ -1,0 +1,12 @@
+\babel@toc {brazil}{}\relax 
+\contentsline {section}{\numberline {1}As medidas que esta an\'alise usa}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Custo do remalhamento e escalabilidade}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Itera\c {c}\~oes do solver linear}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}As tr\^es premissas de desempenho}{2}{section.2}%
+\contentsline {section}{\numberline {3}O que foi medido}{2}{section.3}%
+\contentsline {section}{\numberline {4}Tr\^es consequ\^encias}{3}{section.4}%
+\contentsline {paragraph}{1. O t8code otimizaria, hoje, algo que custa \SI {0.1}{\percent }.}{3}{section*.2}%
+\contentsline {paragraph}{2. A premissa da GPU n\~ao est\'a medida, e a \'unica evid\^encia dispon\'ivel aponta para o outro lado.}{3}{section*.3}%
+\contentsline {paragraph}{3. E aqui est\'a o ponto mais delicado.}{3}{section*.4}%
+\contentsline {section}{\numberline {5}O que isto sugere para a ordem do trabalho}{3}{section.5}%
+\contentsline {section}{\numberline {6}O alcance desta se\c {c}\~ao, e os seus limites}{4}{section.6}%

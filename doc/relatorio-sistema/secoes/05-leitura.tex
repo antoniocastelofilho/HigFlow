@@ -32,6 +32,90 @@ discretiza\c{c}\~oes temporais e duas proje\c{c}\~oes. O produto \'e enorme, e
 dois dos acoplamentos t\^em menos de trinta linhas. Uma lista de capacidades
 lida como cat\'alogo superestima o que est\'a exercitado.
 
+\subsection{O t8code: o que se pretendia, o que se fez, e por que n\~ao escala aqui}
+\label{sec:t8code}
+
+O t8code entrou no sistema com um objetivo declarado: ser uma op\c{c}\~ao de
+particionamento paralelo ao lado do MTree, motivada pela expectativa de que o
+MTree limite o n\'umero de c\'elulas e a qualidade do balanceamento em cen\'arios
+de refinamento heterog\^eneo. A ideia \'e boa e a biblioteca \'e a certa para
+isso: florestas de octrees distribu\'idas, balanceamento por curvas de
+preenchimento de espa\c{c}o, refino e engrossamento entre processos.
+
+\paragraph{O que foi feito.}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/aspecto/.style={column name={aspecto}},
+  columns/estado/.style={column name={estado}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{t8code-estado.dat}}
+
+A infraestrutura est\'a montada e funciona onde \'e consultada: a fronteira
+imersa, que \'e monof\'asica, roda com t8code hoje. O que n\~ao se completou foi
+a liga\c{c}\~ao no caminho \textbf{multif\'asico} --- onde vivem o VOF e o
+front-tracking ---, que l\^e o \texttt{.amr} incondicionalmente. E h\'a um segundo
+impedimento atr\'as do primeiro: as fontes recusam malha multin\'ivel, com a
+mensagem ``recusar \'e melhor que aproximar'', e o crit\'erio adaptativo escreve
+exatamente isso.
+
+\paragraph{E por que, mesmo completada, ela n\~ao daria escalabilidade neste
+sistema.} Esta \'e a parte que a medida responde, e a resposta \'e desconfort\'avel.
+
+O remalhamento inteiro --- escrita do crit\'erio mais reconstru\c{c}\~ao do
+dom\'inio --- custa entre \SI{0.06}{\percent} e \SI{0.10}{\percent} do tempo de
+execu\c{c}\~ao, medido em $n_p = 1$, 2, 4 e 8. \textbf{Trocar o mecanismo de
+particionamento otimiza um mil\'esimo da corrida.} E a efici\^encia paralela
+medida \'e de \SI{41}{\percent} em dois processos e \SI{22}{\percent} em oito, com
+$n_p=2$ chegando a ser mais lento que a execu\c{c}\~ao serial: o gargalo n\~ao \'e
+a maquinaria de malha.
+
+A raz\~ao estrutural est\'a em tr\^es propriedades do sistema, todas verificadas
+no c\'odigo e nenhuma delas no \emph{backend} de particionamento:
+
+\begin{enumerate}
+  \item o caso tem \textbf{uma \'unica \'arvore}, e o la\c{c}o de leitura reparte
+    \emph{arquivos} entre \emph{processos}: com um arquivo s\'o, um processo
+    materializa a malha global \textbf{inteira em mem\'oria} antes de o
+    balanceador a repartir. Nenhum particionador conserta um teto de mem\'oria
+    que ocorre \emph{antes} dele;
+  \item \texttt{higflow\_reconstroi\_dominio} \textbf{reconstr\'oi o dom\'inio do
+    zero} a cada remalhamento, em vez de adaptar no lugar --- o oposto do modo de
+    opera\c{c}\~ao que torna o t8code escal\'avel;
+  \item o crit\'erio de refino passa por \textbf{arquivo escrito por um processo
+    s\'o}, com barreira, e relido por todos. \'E um trecho serial proporcional \`a
+    malha global, a cada remalhamento.
+\end{enumerate}
+
+O t8code \'e escal\'avel porque adapta a floresta \emph{no lugar} e reparticiona
+sem que descri\c{c}\~ao global alguma seja materializada. Encaix\'a-lo atr\'as da
+interface atual --- que entrega e recebe uma descri\c{c}\~ao global de malha ---
+pede dele exatamente aquilo que ele existe para evitar. A op\c{c}\~ao passaria a
+estar dispon\'ivel, a parti\c{c}\~ao ficaria melhor balanceada, e as tr\^es
+propriedades acima continuariam de p\'e.
+
+\paragraph{O que de fato entregaria.} Adapta\c{c}\~ao din\^amica distribu\'ida:
+crit\'erio avaliado localmente por cada processo, floresta adaptada no lugar,
+reparticionamento pela curva de preenchimento, e o \texttt{.amr} reduzido a
+formato de \emph{arranque} em vez de via de remalhamento. Isso \'e reescrever o
+caminho de remalhamento, e n\~ao ligar um gancho --- uma decis\~ao de outra ordem
+de grandeza, que deve ser tomada sabendo disso.
+
+\paragraph{Duas ressalvas, e elas s\~ao grandes.} Primeira: tudo isto foi medido
+num caso de cerca de 9\,400 c\'elulas. Num problema grande o equil\'ibrio muda ---
+o solver escalaria melhor, e o teto de mem\'oria do item~1 passaria a morder, que
+\'e precisamente o que a adapta\c{c}\~ao distribu\'ida resolve. \textbf{A
+conclus\~ao n\~ao \'e ``o t8code n\~ao serve''}: \'e que, neste regime, a
+justificativa para integr\'a-lo n\~ao pode ser o custo do remalhamento.
+
+Segunda: que esses tr\^es gargalos \emph{dominem} \'e infer\^encia, n\~ao medida.
+O que foi medido \'e que o remalhamento \'e negligenci\'avel e que a efici\^encia
+\'e baixa; atribuir a segunda aos tr\^es itens \'e leitura do c\'odigo. Uma
+infer\^encia do mesmo tipo j\'a caiu neste trabalho --- a de que a escrita serial
+do \texttt{.amr} seria o gargalo cr\'itico, quando ela \'e \SI{3}{\percent} de um
+custo que \'e \SI{0.1}{\percent} do total.
+
 \subsection{O que este invent\'ario n\~ao diz}
 
 \begin{itemize}

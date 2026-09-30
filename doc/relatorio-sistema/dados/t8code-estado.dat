@@ -1,0 +1,7 @@
+aspecto                                   estado
+{gancho nos exemplos}                     {existe: \texttt{malha\_t8\_instala}, cinco fontes de malha}
+{ades\~ao}                                {dupla: \texttt{T8CODE=} na compila\c{c}\~ao e \texttt{HIGFLOW\_MALHA=} na execu\c{c}\~ao}
+{caminho \textbf{monof\'asico}}           {consulta a fonte; a fronteira imersa usa e funciona}
+{caminho \textbf{multif\'asico}}          {\textbf{n\~ao consulta} --- l\^e o \texttt{.amr} sempre}
+{malha multin\'ivel}                      {\textbf{recusada} pelas fontes (\texttt{numlevels != 1})}
+{proced\^encia da malha no log}           {impressa sempre; denuncia o pedido ignorado}
