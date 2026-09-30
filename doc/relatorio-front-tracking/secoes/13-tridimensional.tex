@@ -1,0 +1,202 @@
+\section{Front-tracking em tr\^es dimens\~oes}
+\label{sec:tridim}
+
+\subsection{O que sobe de dimens\~ao, e o que n\~ao}
+
+A maquinaria de \emph{transfer\^encia} --- a parte dif\'icil --- j\'a era
+tridimensional e verificada. O m\'odulo da fronteira imersa trata superf\'icie em
+3D como \textbf{codimens\~ao 1} com peso igual a \'area, e a lei do espalhamento
+j\'a estava escrita como $dV = \text{peso}\cdot h^{DIM-1}$, gen\'erica. Busca de
+faceta na malha escalonada, n\'ucleo de Roma e interpola\c{c}\~ao vieram de l\'a
+sem uma linha de altera\c{c}\~ao, e o \texttt{example3d\_Schaefer\-Turek} j\'a os
+exercitava.
+
+O que n\~ao sobe \'e o n\'ucleo da frente, e n\~ao por descuido:
+
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.2cm}>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{6.0cm}}
+\toprule
+& 2D hoje & 3D exige \\
+\midrule
+conectividade & impl\'icita no \'indice, $i \to i+1$ & malha de tri\^angulos expl\'icita, com adjac\^encia por aresta \\
+medida fechada & f\'ormula do la\c{c}o & soma de tri\^angulos, e \textbf{volume} pelo divergente \\
+curvatura & circunc\'irculo de tr\^es pontos & n\~ao generaliza \\
+cirurgia & inserir e remover ponto & dividir, colapsar e \textbf{girar} aresta preservando a variedade \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+
+Da\'i a decis\~ao de m\'odulo separado: os dois n\'ucleos quase n\~ao t\^em
+c\'odigo em comum, e o bidimensional est\'a verificado fechando um
+\emph{benchmark}. Os dois arquivos se recusam a compilar na dimens\~ao do outro.
+
+\subsection{Tens\~ao superficial sem curvatura}
+
+A for\c{c}a sai da integral de linha na borda de cada tri\^angulo,
+\begin{equation}
+  \mathbf{F} = \sigma \oint (\mathbf{t}\times\mathbf{n})\, ds ,
+  \label{eq:tensao3d}
+\end{equation}
+que para aresta reta de $a$ a $b$ num tri\^angulo de normal $\mathbf{n}$ vale
+$(b-a)\times\mathbf{n}$. Curvatura nunca \'e calculada: ela entra pela
+\emph{diferen\c{c}a de normais} entre os dois tri\^angulos que compartilham cada
+aresta interior, sem nunca ser nomeada.
+
+\paragraph{DOIS sobre $R$, e n\~ao um.} Em 2D o salto de Laplace \'e $\sigma/R$;
+em 3D a curvatura m\'edia da esfera \'e $2/R$ e o salto \'e $2\sigma/R$. A
+Se\c{c}\~ao~\ref{sec:balanco} fechou o caso bidimensional a $0{,}02\%$ contra
+$\sigma/R$, e reaproveitar aquele n\'umero aqui validaria o errado. A
+advert\^encia est\'a no cabe\c{c}alho do m\'odulo, no arreio e no exemplo ---
+tr\^es lugares, porque a tenta\c{c}\~ao \'e real.
+
+\subsection{Os degraus, e o or\'aculo de cada um}
+
+Nenhum degrau foi dado sem or\'aculo fechado, e nenhum c\'odigo entrou sem o
+teste que o exercita:
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/degrau/.style={column name={degrau}},
+  columns/oraculo/.style={column name={or\'aculo}},
+  columns/resultado/.style={column name={melhor medido}},
+  columns/ordem/.style={column name={ordem}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-degraus.dat}}
+\end{adjustbox}
+
+\paragraph{A ordem do B2 \'e um, e isso n\~ao \'e defeito.} Dobrar a
+resolu\c{c}\~ao (com $ds/h$ constante) derruba o erro do salto de Laplace por
+$1{,}74$, e a corrente esp\'uria por $1{,}59$. \'E primeira ordem, e \'e o
+esperado: o delta regularizado borra a interface sobre $\sim 3h$, e m\'etodo de
+fronteira imersa com esse ingrediente \'e de primeira ordem no salto.
+\textbf{Dois pontos n\~ao estabelecem ordem}, e o terceiro custaria $512$ mil
+c\'elulas --- est\'a dito, e n\~ao foi convertido em expoente.
+
+\subsection{A fra\c{c}\~ao de volume, e por que n\~ao \'e recorte exato}
+
+O caminho bidimensional recorta o pol\'igono contra a caixa
+(Sutherland--Hodgman) e aplica a f\'ormula do la\c{c}o. Isso \textbf{n\~ao
+generaliza}: recortar superf\'icie triangulada n\~ao-convexa contra caixa \'e
+outro problema, e fechar os la\c{c}os nas faces da caixa \'e onde defeito mora.
+
+O que se faz \'e distinto e mais barato: longe da interface a caixa est\'a
+inteira de um lado, decidido por dist\^ancia contra a meia-diagonal; cortada, a
+interface vira o \emph{plano} que passa na dist\^ancia medida com a normal
+medida, e o volume sai da f\'ormula fechada de plano--caixa. Exato para
+interface plana, $O(h^2)$ para suave --- a mesma aproxima\c{c}\~ao que o PLIC faz
+no VOF.
+
+O sinal \textbf{n\~ao} vem da normal: a normal do tri\^angulo mais pr\'oximo erra
+o lado perto de aresta e v\'ertice, e o sinal sai de \emph{paridade de
+cruzamentos} num raio. Dist\^ancia e sinal s\~ao medidos por caminhos
+independentes de prop\'osito.
+
+\paragraph{O or\'aculo que vale mais que a soma.} Somar $f\,h^3$ sobre uma
+parti\c{c}\~ao e comparar com o volume fechado \'e necess\'ario mas fraco: erros
+que se cancelam entre c\'elulas passam. O arreio compara tamb\'em, \textbf{c\'elula
+a c\'elula}, contra uma subamostragem de mil pontos que n\~ao usa plano nenhum
+--- pior diferen\c{c}a $0{,}029$. Concordar com um m\'etodo de outra natureza \'e
+evid\^encia de outra esp\'ecie.
+
+\subsection{A grade espacial: acelerar sem aproximar}
+
+A consulta \'e $O(n_t)$ por c\'elula, e preencher a fra\c{c}\~ao custava
+$0{,}09$~s por passo com $8$ mil c\'elulas contra $1280$ tri\^angulos. Uma grade
+uniforme de tri\^angulos resolve, com um contrato explicito: ela restringe
+\emph{quais} tri\^angulos s\~ao testados, \textbf{nunca o que se calcula}.
+
+O arreio compara os dois caminhos em $20$ mil consultas de dentro/fora, $2$ mil
+de dist\^ancia e nas $8$ mil c\'elulas de uma parti\c{c}\~ao, e exige que n\~ao
+difiram \textbf{em bit nenhum}. \'E a \'unica forma de uma acelera\c{c}\~ao n\~ao
+virar uma aproxima\c{c}\~ao silenciosa. Resultado: zero diferen\c{c}as, $14{,}1\times$
+no arreio e $37\times$ no solver.
+
+\paragraph{E o gargalo estava onde eu n\~ao olhava.} O ganho parou em
+$2{,}2\times$ at\'e eu descobrir que \texttt{\_fracao} recalculava a
+\emph{envolt\'oria} a cada c\'elula, varrendo os $642$ v\'ertices --- cinco
+milh\~oes de opera\c{c}\~oes que a grade n\~ao elimina, porque ela acelera busca
+por \emph{tri\^angulo} e n\~ao varredura de \emph{v\'ertice}. Quem apontou o
+lugar certo foi uma medida \emph{negativa}: o atalho de ocupa\c{c}\~ao, que eu
+esperava que resolvesse, n\~ao mudou nada.
+
+\subsection{Adve\c{c}\~ao acoplada}
+
+A superf\'icie anda com a velocidade interpolada da malha. A ordem dentro do
+passo \'e a mesma do caminho bidimensional: move com $\mathbf{u}^n$ --- j\'a
+projetada, e portanto discretamente livre de diverg\^encia ---, faz a cirurgia, e
+espalha a for\c{c}a nas posi\c{c}\~oes \emph{novas}.
+
+Dois or\'aculos. O \textbf{volume}, porque campo livre de diverg\^encia preserva
+o volume fechado; e a \textbf{parti\c{c}\~ao da unidade}, porque os pesos de Roma
+somam $1$ em aritm\'etica exata e soma diferente de $1$ significa suporte
+incompleto. Nesse caso o adaptador \textbf{aborta} em vez de devolver zero ---
+devolver zero pregaria o v\'ertice no lugar em sil\^encio, que \'e o defeito que
+a Se\c{c}\~ao~\ref{sec:posse} levou meio dia para achar em 2D.
+
+\paragraph{E o guarda disparou.} Num caso de $Ca=20$ a gota foi carregada pelo
+v\'ortice at\'e $y=0{,}925$, e o suporte do n\'ucleo ($\pm 1{,}5h$) alcan\c{c}ou
+a fronteira do dom\'inio. O guarda abortou. N\~ao \'e defeito da adve\c{c}\~ao:
+\'e li\c{c}\~ao de \emph{montagem de caso} --- v\'ortice de cavidade transporta
+para a tampa, e trocar a gota de $0{,}25$ para $0{,}15$ n\~ao mudou nada, porque
+o tamanho n\~ao era a vari\'avel.
+
+At\'e o passo em que abortou, a combina\c{c}\~ao adve\c{c}\~ao mais cirurgia
+ficou exercitada: $130$ opera\c{c}\~oes de cirurgia, $\chi=2$ o tempo todo,
+parti\c{c}\~ao da unidade em $6\times10^{-15}$, e deriva de volume limitada a
+$5{,}8\times10^{-4}$ --- que \emph{sobe e volta}, em vez de acumular.
+
+\subsection{Sete defeitos, e o or\'aculo que pegou cada um}
+
+Nenhum destes foi achado lendo o c\'odigo:
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/defeito/.style={column name={defeito}},
+  columns/comooraculopegou/.style={column name={como apareceu}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-defeitos.dat}}
+\end{adjustbox}
+
+Tr\^es merecem nota. O \textbf{sinal da for\c{c}a} n\~ao foi trocado at\'e o
+or\'aculo passar: comparei contra o gradiente \emph{num\'erico} da \'area e o
+c\'odigo dava exatamente $+\sigma\nabla A$; a for\c{c}a \'e menos o gradiente,
+porque tens\~ao minimiza \'area. A raz\~ao de estar certo \'e a variacional, e
+n\~ao o or\'aculo.
+
+O \textbf{giro de aresta} foi atribu\'ido por medida e n\~ao por suspeita: com um
+seletor de etapas, divis\~ao sozinha dava zero invertidos, colapso zero,
+divis\~ao mais colapso zero, e \emph{qualquer} combina\c{c}\~ao contendo o giro
+dava de $1$ a $15$.
+
+E o \textbf{ponto m\'edio da corda}: dividir aresta inseria no meio da corda, que
+numa superf\'icie convexa fica para dentro, e $1500$ divis\~oes custavam
+$5{,}2\%$ do volume. O que isolou a causa foi refinar o passo de tempo pela
+metade e o erro \emph{n\~ao mudar} --- prova de que n\~ao era o integrador. O
+conserto \'e de \emph{coloca\c{c}\~ao}, e n\~ao corre\c{c}\~ao de volume imposta:
+o ponto novo vai no meio da curva de Hermite c\'ubica que interpola os extremos
+com as normais. For\c{c}ar a conserva\c{c}\~ao teria tornado o or\'aculo vazio.
+
+\subsection{O que est\'a estabelecido, e o que n\~ao}
+
+Est\'a estabelecido: geometria, topologia e for\c{c}a contra a esfera anal\'itica;
+adve\c{c}\~ao cinem\'atica revers\'ivel com ordem medida; salto de Laplace a
+$0{,}19\%$; fra\c{c}\~ao de volume em segunda ordem, cruzada com m\'etodo
+independente; grade acelerando $37\times$ sem mudar um bit; e adve\c{c}\~ao
+acoplada com cirurgia, preservando topologia.
+
+\textbf{N\~ao} est\'a estabelecido se a deriva de volume da adve\c{c}\~ao
+acoplada tem componente sistem\'atica. Os casos rodados diferem em raio, $\sigma$,
+n\'umero capilar \emph{e} resolu\c{c}\~ao ao mesmo tempo, e isso n\~ao separa. O
+experimento que decide --- o mesmo caso em duas malhas, com $ds/h$ fixo --- estava
+em execu\c{c}\~ao quando esta se\c{c}\~ao foi escrita.
+
+Tamb\'em n\~ao est\'a feito: o \textbf{paralelo}. O espalhamento e a
+interpola\c{c}\~ao j\'a est\~ao escritos na forma em lote, com o filtro de posse,
+porque o caminho bidimensional aprendeu isso depois e pagou a reescrita --- mas
+em $n_p>1$ nada foi medido. E o bif\'asico com salto de propriedade: o
+encanamento est\'a verificado com $\rho$ e $\mu$ \emph{iguais} nas duas fases, que
+\'e o est\'agio que move o encanamento sem mudar a f\'isica.
