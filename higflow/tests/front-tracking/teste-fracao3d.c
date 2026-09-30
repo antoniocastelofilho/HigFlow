@@ -18,6 +18,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 static int falhas = 0;
 
@@ -153,6 +154,91 @@ static void portao_cruzamento(const ft3_superficie *s)
     ok(n > 0 && pior < 0.06, "concordancia", buf);
 }
 
+// =========================================================================
+// 6: a grade acelera sem mudar o resultado
+// =========================================================================
+static void portao_grade(const ft3_superficie *s)
+{
+    printf("\n=== 6) grade espacial: MESMO resultado, menos trabalho ===\n");
+    ft3_grade *g = ft3_grade_cria(s);
+    if (!g) { ok(0, "construcao", "ft3_grade_cria devolveu NULL"); return; }
+    int n[3], refs;
+    ft3_grade_estado(g, n, &refs);
+    printf("    grade %dx%dx%d, %d referencias a triangulo para %d triangulos "
+           "(%.2f por triangulo)\n",
+           n[0], n[1], n[2], refs, ft3_num_triangulos(s),
+           (double) refs / ft3_num_triangulos(s));
+
+    // (a) dentro/fora: tem de ser IGUAL, nao parecido
+    int difs = 0;
+    unsigned long semente = 4242;
+    for (int i = 0; i < 20000; i++) {
+        Point p;
+        for (int d = 0; d < 3; d++) {
+            semente = semente * 6364136223846793005UL + 1442695040888963407UL;
+            p[d] = (real) ((semente >> 33) % 1000000) / 1000000.0;
+        }
+        if (ft3_dentro(s, p) != ft3_dentro_g(s, g, p)) difs++;
+    }
+    char buf[200];
+    snprintf(buf, sizeof buf, "%d discordancias em 20000 pontos", difs);
+    ok(difs == 0, "dentro/fora identico", buf);
+
+    // (b) distancia: BIT a bit.  E' minimo sobre o MESMO conjunto de valores,
+    // entao a grade achar o mesmo minimo nao e' sorte -- e' o contrato.
+    int difd = 0; real pior = 0.0;
+    semente = 777;
+    for (int i = 0; i < 2000; i++) {
+        Point p;
+        for (int d = 0; d < 3; d++) {
+            semente = semente * 6364136223846793005UL + 1442695040888963407UL;
+            p[d] = (real) ((semente >> 33) % 1000000) / 1000000.0;
+        }
+        real na[3], nb[3];
+        real da = ft3_distancia(s, p, na);
+        real db = ft3_distancia_g(s, g, p, nb);
+        if (da != db) { difd++; if (fabs(da-db) > pior) pior = fabs(da-db); }
+    }
+    snprintf(buf, sizeof buf, "%d diferencas em 2000 consultas (pior %.3e)", difd, (double) pior);
+    ok(difd == 0, "distancia bit a bit", buf);
+
+    // (c) a fracao sobre uma particao inteira, e o TEMPO das duas
+    const int N = 20;
+    const real h = 1.0 / N;
+    int diff = 0;
+    clock_t t0 = clock();
+    real soma_b = 0.0;
+    for (int i = 0; i < N; i++) for (int j = 0; j < N; j++) for (int k = 0; k < N; k++) {
+        real lo[3] = { i*h, j*h, k*h }, hi[3] = { (i+1)*h, (j+1)*h, (k+1)*h };
+        soma_b += ft3_fracao_na_caixa(s, lo, hi);
+    }
+    clock_t t1 = clock();
+    real soma_g = 0.0;
+    for (int i = 0; i < N; i++) for (int j = 0; j < N; j++) for (int k = 0; k < N; k++) {
+        real lo[3] = { i*h, j*h, k*h }, hi[3] = { (i+1)*h, (j+1)*h, (k+1)*h };
+        real fg = ft3_fracao_na_caixa_g(s, g, lo, hi);
+        real fb = ft3_fracao_na_caixa(s, lo, hi);
+        if (fg != fb) diff++;
+        soma_g += fg;
+    }
+    clock_t t2 = clock();
+    double tb = (double)(t1-t0)/CLOCKS_PER_SEC;
+    double tg = (double)(t2-t1)/CLOCKS_PER_SEC - tb;   // o laco (c) roda as duas
+    printf("    particao %d^3: exaustiva %.3f s, acelerada %.3f s  (ganho %.1fx)\n",
+           N, tb, tg > 0 ? tg : 1e-9, tg > 0 ? tb/tg : 0.0);
+    snprintf(buf, sizeof buf, "%d celulas diferentes em %d; somas %.10f e %.10f",
+             diff, N*N*N, (double) soma_b, (double) soma_g);
+    ok(diff == 0, "fracao identica", buf);
+    // Teto do ganho posto DEPOIS de medir 14,1x, em 5x: abaixo disso alguma
+    // coisa voltou a varrer o que a grade existe para evitar.  Exigir 12x
+    // amarraria o portao a esta maquina.
+    snprintf(buf, sizeof buf, "exaustiva %.3f s contra acelerada %.3f s (ganho %.1fx)",
+             tb, tg, tg > 0 ? tb/tg : 0.0);
+    ok(tg > 0 && tb / tg > 5.0, "a grade acelera", buf);
+
+    ft3_grade_destroi(g);
+}
+
 int main(void)
 {
     printf("=== teste-fracao3d: fracao de volume da superficie triangulada ===\n");
@@ -185,6 +271,7 @@ int main(void)
     ok(e3 < 4e-3, "soma reproduz o volume", buf);
 
     portao_cruzamento(s);
+    portao_grade(s);
 
     ft3_destroi(s);
     printf("\n%s\n", falhas ? "TESTE DA FRACAO 3D FALHOU" : "TESTE DA FRACAO 3D PASSOU");

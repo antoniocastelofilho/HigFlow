@@ -853,30 +853,30 @@ static void _envoltoria(const ft3_superficie *s, real lo[3], real hi[3])
         }
 }
 
+// Cruzamento do raio +x a partir de `x` com o triangulo t.  Mesma conta da
+// versao sem grade -- extraida para as duas usarem UMA implementacao, porque
+// duas copias divergem com o tempo e o arreio deixaria de valer.
+static int _cruza_raio(const ft3_superficie *s, int t, const Point x)
+{
+    const real *a = s->x[s->tri[t][0]];
+    const real *b = s->x[s->tri[t][1]];
+    const real *c = s->x[s->tri[t][2]];
+    real d1 = (b[1]-a[1])*(c[2]-a[2]) - (c[1]-a[1])*(b[2]-a[2]);
+    if (d1 == 0.0) return 0;
+    real u = ((x[1]-a[1])*(c[2]-a[2]) - (c[1]-a[1])*(x[2]-a[2])) / d1;
+    real v = ((b[1]-a[1])*(x[2]-a[2]) - (x[1]-a[1])*(b[2]-a[2])) / d1;
+    if (u < 0.0 || v < 0.0 || u + v > 1.0) return 0;
+    real xi = a[0] + u*(b[0]-a[0]) + v*(c[0]-a[0]);
+    return (xi > x[0]);
+}
+
 int ft3_dentro(const ft3_superficie *s, const Point x)
 {
     if (!s) return 0;
     real lo[3], hi[3]; _envoltoria(s, lo, hi);
     for (int d = 0; d < 3; d++) if (x[d] < lo[d] || x[d] > hi[d]) return 0;
-
-    // Paridade de cruzamentos num raio +x.  A regra da borda meio-aberta em y e
-    // z (>= no minimo, < no maximo do triangulo projetado) evita contar duas
-    // vezes o raio que passa exatamente numa aresta compartilhada -- que e' o
-    // modo classico de este teste errar.
     int cruz = 0;
-    for (int t = 0; t < s->nt; t++) {
-        const real *a = s->x[s->tri[t][0]];
-        const real *b = s->x[s->tri[t][1]];
-        const real *c = s->x[s->tri[t][2]];
-        // coordenadas baricentricas no plano (y,z)
-        real d1 = (b[1]-a[1])*(c[2]-a[2]) - (c[1]-a[1])*(b[2]-a[2]);
-        if (d1 == 0.0) continue;                       // triangulo de perfil
-        real u = ((x[1]-a[1])*(c[2]-a[2]) - (c[1]-a[1])*(x[2]-a[2])) / d1;
-        real v = ((b[1]-a[1])*(x[2]-a[2]) - (x[1]-a[1])*(b[2]-a[2])) / d1;
-        if (u < 0.0 || v < 0.0 || u + v > 1.0) continue;
-        real xi = a[0] + u*(b[0]-a[0]) + v*(c[0]-a[0]);
-        if (xi > x[0]) cruz++;
-    }
+    for (int t = 0; t < s->nt; t++) cruz += _cruza_raio(s, t, x);
     return (cruz & 1);
 }
 
@@ -928,11 +928,18 @@ static real _dist_tri(const ft3_superficie *s, int t, const real p[3])
 real ft3_distancia(const ft3_superficie *s, const Point x, real normal[DIM])
 {
     if (!s || s->nt == 0) return 0.0;
-    real melhor = 1e300; int tm = 0;
+    real melhor = 1e300; int tm = -1;
     for (int t = 0; t < s->nt; t++) {
         real d = _dist_tri(s, t, x);
-        if (d < melhor) { melhor = d; tm = t; }
+        // DESEMPATE POR INDICE.  Distancia igual com triangulo diferente da'
+        // NORMAL diferente, plano diferente e fracao diferente.  Sem esta regra
+        // o caminho exaustivo e o acelerado divergem em celula rente a um plano
+        // de simetria -- medido, 6 celulas em 8000 -- e a divergencia nao e' de
+        // precisao, e' de qual empate venceu.
+        if (d < melhor || (d == melhor && t < tm)) { melhor = d; tm = t; }
     }
+    if (tm < 0) tm = 0;
+    if (tm == 0x7fffffff) tm = 0;
     if (normal) {
         real n[3]; _normal2(s, tm, n);
         real m = _norma(n);
@@ -970,7 +977,17 @@ static real _volume_plano_caixa(const real n[3], real alfa, const real L[3])
     return soma / den;
 }
 
-real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real hi[DIM])
+// Definidas adiante, junto da grade; declaradas aqui porque `_fracao` as usa.
+static real _dist_g_teto(const ft3_superficie *s, ft3_grade *g, const Point x,
+                         real teto, real normal[3]);
+static int  _ha_triangulo_perto(const ft3_grade *g, const real p[3], real raio);
+static void _grade_envoltoria(const ft3_grade *g, real lo[3], real hi[3]);
+
+// Corpo UNICO.  `g` nulo cai na busca exaustiva; nao nulo, na acelerada.  Duas
+// copias desta funcao divergiriam com o tempo e o arreio que as compara
+// deixaria de significar alguma coisa.
+static real _fracao(const ft3_superficie *s, ft3_grade *g,
+                    const real lo[DIM], const real hi[DIM])
 {
     if (!s) return 0.0;
     real L[3], vol = 1.0, centro[3];
@@ -985,14 +1002,31 @@ real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real
     // Caminho rapido por envoltoria: caixa disjunta da envoltoria nao tem nada
     // dentro.  (O caso "envoltoria dentro da caixa" nao e' atalho: a caixa pode
     // conter a superficie inteira e a fracao nao ser 1.)
-    real blo[3], bhi[3]; _envoltoria(s, blo, bhi);
+    //
+    // COM GRADE, a envoltoria vem DELA.  Recalcula-la aqui varre os nv vertices
+    // a cada celula -- medido: era o que segurava o ganho em 2,2x, porque a
+    // grade acelera a busca por triangulo e nao a varredura de vertices.
+    real blo[3], bhi[3];
+    if (g) _grade_envoltoria(g, blo, bhi); else _envoltoria(s, blo, bhi);
     int disjunta = 0;
     for (int d = 0; d < 3; d++) if (hi[d] <= blo[d] || lo[d] >= bhi[d]) disjunta = 1;
     if (disjunta) return 0.0;
 
     real n[3];
-    real dist = ft3_distancia(s, centro, n);
-    const int dentro = ft3_dentro(s, centro);
+
+    // TESTE DE OCUPACAO, antes de qualquer distancia.  Se nenhuma celula da
+    // grade dentro da meia-diagonal guarda triangulo, a caixa esta' inteira de
+    // um lado e a distancia exata nao e' usada -- basta dentro/fora.  Medido:
+    // 94% das celulas de uma particao 20^3 caem aqui (7242 vazias e 304 cheias
+    // de 8000), e sem este atalho a busca em cascas roda para todas elas.
+    if (g && !_ha_triangulo_perto(g, centro, meia_diag))
+        return ft3_dentro_g(s, g, centro) ? 1.0 : 0.0;
+
+    // O teto e' a meia-diagonal: acima dela a caixa esta' inteira de um lado e o
+    // valor exato nao e' usado.  Os dois caminhos tomam o MESMO ramo.
+    real dist = g ? _dist_g_teto(s, g, centro, meia_diag, n)
+                  : ft3_distancia(s, centro, n);
+    const int dentro = g ? ft3_dentro_g(s, g, centro) : ft3_dentro(s, centro);
 
     // Longe da interface, a caixa inteira esta' de um lado so'.
     if (dist >= meia_diag) return dentro ? 1.0 : 0.0;
@@ -1032,6 +1066,20 @@ real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real
     return f < 0.0 ? 0.0 : (f > 1.0 ? 1.0 : f);
 }
 
+real ft3_distancia_g(const ft3_superficie *s, ft3_grade *g, const Point x,
+                     real normal[DIM])
+{
+    if (!g) return ft3_distancia(s, x, normal);
+    return _dist_g_teto(s, g, x, 1e300, normal);
+}
+
+real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real hi[DIM])
+{ return _fracao(s, NULL, lo, hi); }
+
+real ft3_fracao_na_caixa_g(const ft3_superficie *s, ft3_grade *g,
+                           const real lo[DIM], const real hi[DIM])
+{ return _fracao(s, g, lo, hi); }
+
 real ft3_fracao_amostrada(const ft3_superficie *s, const real lo[DIM],
                           const real hi[DIM], int k)
 {
@@ -1047,6 +1095,254 @@ real ft3_fracao_amostrada(const ft3_superficie *s, const real lo[DIM],
                 if (ft3_dentro(s, p)) dentro++;
             }
     return (real) dentro / (real) (k*k*k);
+}
+
+
+// --- grade espacial -------------------------------------------------------
+
+struct ft3_grade {
+    real lo[3], hi[3], h[3];   // extensao da GRADE (com folga)
+    real blo[3], bhi[3];       // envoltoria EXATA da superficie, sem folga
+    int  n[3];
+    int *ini, *lst;        // CSR: triangulos da celula c em lst[ini[c]..ini[c+1])
+    int *marca;            // carimbo por triangulo, contra contagem dupla
+    int  carimbo;
+};
+
+static void _celula_de(const ft3_grade *g, const real p[3], int c[3])
+{
+    for (int d = 0; d < 3; d++) {
+        int i = (int) floor((p[d] - g->lo[d]) / g->h[d]);
+        if (i < 0) i = 0;
+        if (i >= g->n[d]) i = g->n[d] - 1;
+        c[d] = i;
+    }
+}
+
+static int _lin(const ft3_grade *g, int i, int j, int k)
+{ return (i * g->n[1] + j) * g->n[2] + k; }
+
+ft3_grade *ft3_grade_cria(const ft3_superficie *s)
+{
+    if (!s || s->nt < 1) return NULL;
+    ft3_grade *g = (ft3_grade *) calloc(1, sizeof *g);
+    _envoltoria(s, g->lo, g->hi);
+    // Guarda a envoltoria EXATA antes da folga: o teste de disjuncao tem de
+    // usar a mesma caixa nos dois caminhos.  Com a folga, celula que encosta na
+    // envoltoria era descartada pelo exaustivo e processada pelo acelerado, e as
+    // duas fracoes diferiam por um residuo -- 12 celulas em 8000, medido.
+    for (int d = 0; d < 3; d++) { g->blo[d] = g->lo[d]; g->bhi[d] = g->hi[d]; }
+    // Folga: superficie plana em algum eixo daria celula de tamanho zero.
+    for (int d = 0; d < 3; d++) {
+        real ext = g->hi[d] - g->lo[d];
+        real folga = (ext > 0.0) ? 1e-6 * ext : 1e-9;
+        g->lo[d] -= folga; g->hi[d] += folga;
+    }
+    // Uma superficie ocupa um subconjunto BIDIMENSIONAL da grade, entao com n^3
+    // celulas as ocupadas sao ~n^2.  Escolher n ~ sqrt(nt) da' da ordem de um
+    // triangulo por celula ocupada -- que e' o ponto em que a busca deixa de ser
+    // dominada pela lista e passa a ser dominada pela vizinhanca.
+    // Celula do tamanho do LADO do triangulo.  Menor que isso, cada triangulo
+    // se registra em dezenas de celulas (medido: 26,4) e a lista incha sem
+    // ganho.  Maior, a celula devolve triangulos demais por consulta.
+    real lado = s->ds_alvo;
+    if (!(lado > 0.0)) lado = (g->hi[0] - g->lo[0]) / 16.0;
+    real ext = g->hi[0] - g->lo[0];
+    for (int d = 1; d < 3; d++) if (g->hi[d] - g->lo[d] > ext) ext = g->hi[d] - g->lo[d];
+    int n = (int) (ext / lado + 0.5);
+    if (n < 4)   n = 4;
+    if (n > 128) n = 128;
+    for (int d = 0; d < 3; d++) {
+        g->n[d] = n;
+        g->h[d] = (g->hi[d] - g->lo[d]) / n;
+        if (!(g->h[d] > 0.0)) g->h[d] = 1e-12;
+    }
+    const int ncel = g->n[0] * g->n[1] * g->n[2];
+
+    // Duas passadas: conta e preenche, para nao realocar por celula.
+    int *cont = (int *) calloc((size_t) ncel + 1, sizeof *cont);
+    for (int t = 0; t < s->nt; t++) {
+        real blo[3], bhi[3];
+        for (int d = 0; d < 3; d++) { blo[d] = 1e300; bhi[d] = -1e300; }
+        for (int k = 0; k < 3; k++) {
+            const real *v = s->x[s->tri[t][k]];
+            for (int d = 0; d < 3; d++) {
+                if (v[d] < blo[d]) blo[d] = v[d];
+                if (v[d] > bhi[d]) bhi[d] = v[d];
+            }
+        }
+        int a[3], b[3];
+        _celula_de(g, blo, a); _celula_de(g, bhi, b);
+        for (int i = a[0]; i <= b[0]; i++)
+            for (int j = a[1]; j <= b[1]; j++)
+                for (int k = a[2]; k <= b[2]; k++) cont[_lin(g,i,j,k) + 1]++;
+    }
+    for (int c = 0; c < ncel; c++) cont[c+1] += cont[c];
+    const int nref = cont[ncel];
+    g->ini = cont;
+    g->lst = (int *) malloc((size_t) (nref > 0 ? nref : 1) * sizeof *g->lst);
+    int *pos = (int *) malloc((size_t) ncel * sizeof *pos);
+    memcpy(pos, cont, (size_t) ncel * sizeof *pos);
+    for (int t = 0; t < s->nt; t++) {
+        real blo[3], bhi[3];
+        for (int d = 0; d < 3; d++) { blo[d] = 1e300; bhi[d] = -1e300; }
+        for (int k = 0; k < 3; k++) {
+            const real *v = s->x[s->tri[t][k]];
+            for (int d = 0; d < 3; d++) {
+                if (v[d] < blo[d]) blo[d] = v[d];
+                if (v[d] > bhi[d]) bhi[d] = v[d];
+            }
+        }
+        int a[3], b[3];
+        _celula_de(g, blo, a); _celula_de(g, bhi, b);
+        for (int i = a[0]; i <= b[0]; i++)
+            for (int j = a[1]; j <= b[1]; j++)
+                for (int k = a[2]; k <= b[2]; k++) g->lst[pos[_lin(g,i,j,k)]++] = t;
+    }
+    free(pos);
+    g->marca = (int *) calloc((size_t) s->nt, sizeof *g->marca);
+    g->carimbo = 0;
+    return g;
+}
+
+void ft3_grade_destroi(ft3_grade *g)
+{
+    if (!g) return;
+    free(g->ini); free(g->lst); free(g->marca); free(g);
+}
+
+void ft3_grade_estado(const ft3_grade *g, int n[DIM], int *refs)
+{
+    if (!g) return;
+    for (int d = 0; d < 3; d++) n[d] = g->n[d];
+    if (refs) *refs = g->ini[g->n[0]*g->n[1]*g->n[2]];
+}
+
+int ft3_dentro_g(const ft3_superficie *s, ft3_grade *g, const Point x)
+{
+    if (!s) return 0;
+    if (!g)  return ft3_dentro(s, x);
+    for (int d = 0; d < 3; d++) if (x[d] < g->lo[d] || x[d] > g->hi[d]) return 0;
+
+    // O raio segue +x com (y,z) fixos: so' a COLUNA de celulas (i, j, k) com j e
+    // k do ponto pode conter triangulo que ele cruza.  Um triangulo que cruza o
+    // raio tem o ponto de cruzamento na propria envoltoria, logo esta' registrado
+    // em alguma celula dessa coluna.
+    int c[3]; _celula_de(g, x, c);
+    g->carimbo++;
+    int cruz = 0;
+    for (int i = c[0]; i < g->n[0]; i++) {
+        int cl = _lin(g, i, c[1], c[2]);
+        for (int p = g->ini[cl]; p < g->ini[cl+1]; p++) {
+            int t = g->lst[p];
+            if (g->marca[t] == g->carimbo) continue;   // ja' contado nesta consulta
+            g->marca[t] = g->carimbo;
+            cruz += _cruza_raio(s, t, x);
+        }
+    }
+    return (cruz & 1);
+}
+
+// Ha' algum triangulo registrado a menos de `raio` de `p`?  Varre APENAS a
+// ocupacao das celulas, sem tocar em triangulo -- e' o atalho das celulas longe
+// da interface.  Conservador: usa a caixa que contem a bola de raio `raio`,
+// entao pode responder "sim" onde a resposta exata seria "nao".  Responder sim a
+// mais so' custa trabalho; responder nao a mais mudaria o resultado, e isso nao
+// pode acontecer.
+static void _grade_envoltoria(const ft3_grade *g, real lo[3], real hi[3])
+{
+    for (int d = 0; d < 3; d++) { lo[d] = g->blo[d]; hi[d] = g->bhi[d]; }
+}
+
+static int _ha_triangulo_perto(const ft3_grade *g, const real p[3], real raio)
+{
+    int a[3], b[3];
+    for (int d = 0; d < 3; d++) {
+        a[d] = (int) floor((p[d] - raio - g->lo[d]) / g->h[d]);
+        b[d] = (int) floor((p[d] + raio - g->lo[d]) / g->h[d]);
+        if (a[d] < 0) a[d] = 0;
+        if (b[d] >= g->n[d]) b[d] = g->n[d] - 1;
+        if (a[d] > b[d]) return 0;               // caixa fora da grade
+    }
+    for (int i = a[0]; i <= b[0]; i++)
+        for (int j = a[1]; j <= b[1]; j++)
+            for (int k = a[2]; k <= b[2]; k++) {
+                int cl = _lin(g, i, j, k);
+                if (g->ini[cl+1] > g->ini[cl]) return 1;
+            }
+    return 0;
+}
+
+// `teto`: distancia acima da qual o chamador nao se importa com o valor exato.
+// Sem ela, uma celula no CENTRO da gota expande cascas ate' o raio inteiro --
+// (2r+1)^3 celulas -- e a grade fica MAIS LENTA que a varredura.  Medida antes
+// do teto: ganho de 1,2x, ou seja nenhum.
+static real _dist_g_teto(const ft3_superficie *s, ft3_grade *g, const Point x,
+                         real teto, real normal[3])
+{
+    if (!s || s->nt == 0) return 0.0;
+
+    int c[3]; _celula_de(g, x, c);
+    real melhor = 1e300; int tm = 0x7fffffff;
+    g->carimbo++;
+    const int rmax = g->n[0] + g->n[1] + g->n[2];
+
+    for (int r = 0; r <= rmax; r++) {
+        int a[3], b[3];
+        for (int d = 0; d < 3; d++) {
+            a[d] = c[d] - r; if (a[d] < 0) a[d] = 0;
+            b[d] = c[d] + r; if (b[d] >= g->n[d]) b[d] = g->n[d] - 1;
+        }
+        // So' a CASCA nova: o miolo ja' foi visto nas voltas anteriores.
+        for (int i = a[0]; i <= b[0]; i++)
+            for (int j = a[1]; j <= b[1]; j++)
+                for (int k = a[2]; k <= b[2]; k++) {
+                    if (r > 0 && i > c[0]-r && i < c[0]+r
+                             && j > c[1]-r && j < c[1]+r
+                             && k > c[2]-r && k < c[2]+r) continue;
+                    int cl = _lin(g, i, j, k);
+                    for (int p = g->ini[cl]; p < g->ini[cl+1]; p++) {
+                        int t = g->lst[p];
+                        if (g->marca[t] == g->carimbo) continue;
+                        g->marca[t] = g->carimbo;
+                        real d = _dist_tri(s, t, x);
+                        if (d < melhor || (d == melhor && t < tm)) { melhor = d; tm = t; }
+                    }
+                }
+
+        // PARADA SEGURA: distancia de `x` ate' sair do bloco ja' varrido.  Nada
+        // fora dele pode estar mais perto que isso, entao achar algo melhor e'
+        // impossivel e a busca termina.  Calculada da extensao FISICA do bloco,
+        // e nao de r*h -- o ponto pode estar rente a' borda da propria celula.
+        real fora = 1e300;
+        int cobre_tudo = 1;
+        for (int d = 0; d < 3; d++) {
+            real blo = g->lo[d] + a[d] * g->h[d];
+            real bhi = g->lo[d] + (b[d] + 1) * g->h[d];
+            if (a[d] > 0)            { real q = x[d] - blo; if (q < fora) fora = q; cobre_tudo = 0; }
+            if (b[d] < g->n[d] - 1)  { real q = bhi - x[d]; if (q < fora) fora = q; cobre_tudo = 0; }
+        }
+        if (cobre_tudo) break;
+        if (melhor <= fora) break;
+        // Nada mais perto que `fora` existe fora do bloco; se `fora` ja' passou
+        // do teto, o chamador nao precisa do valor exato e a busca para.
+        if (fora >= teto) { if (melhor > teto) melhor = fora; break; }
+    }
+
+    // Parar pela cota SEM ter achado triangulo e' o caso comum -- celula longe
+    // da interface --, e ai' `tm` continua invalido.  Usa-lo indexaria fora do
+    // vetor de triangulos.  O chamador nao le' a normal nesse ramo, mas calcular
+    // uma normal invalida segmenta antes de ele decidir nao usa-la.
+    if (tm == 0x7fffffff) {
+        if (normal) normal[0] = normal[1] = normal[2] = 0.0;
+        return melhor;
+    }
+    if (normal) {
+        real n[3]; _normal2(s, tm, n);
+        real m = _norma(n);
+        for (int d = 0; d < 3; d++) normal[d] = (m > 0.0) ? n[d]/m : 0.0;
+    }
+    return melhor;
 }
 
 // --- persistencia e saida -------------------------------------------------

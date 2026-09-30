@@ -141,6 +141,12 @@ static void _preenche_fracvol(higflow_solver *ns, ft3_superficie *sup,
                               real *vol_no_campo, real faixa[2])
 {
     real soma_vol = 0.0, fmin = 1e300, fmax = -1e300;
+    // GRADE por chamada.  A superficie pode ter mudado desde o passo anterior
+    // (adveccao, cirurgia), e uma grade sobrevivente apontaria para triangulos
+    // que nao existem mais.  Construi-la custa O(nt); a alternativa -- invalidar
+    // por versao -- exige que TODO caminho que mexe na superficie lembre de
+    // marcar, e esquecer um nao da' erro, da' resultado errado.
+    ft3_grade *grade = ft3_grade_cria(sup);
     sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
     mp_mapper  *mp  = sd_get_domain_mapper(sdm);
     higcit_celliterator *it;
@@ -152,7 +158,7 @@ static void _preenche_fracvol(higflow_solver *ns, ft3_superficie *sup,
         Point lo, hi;
         hig_get_lowpoint(c, lo);
         hig_get_highpoint(c, hi);
-        real f = ft3_fracao_na_caixa(sup, lo, hi);
+        real f = ft3_fracao_na_caixa_g(sup, grade, lo, hi);
         if (f < 0.0) f = 0.0;
         if (f > 1.0) f = 1.0;
         dp_set_value(ns->ed.mult.dpfracvol, clid, f);
@@ -163,6 +169,7 @@ static void _preenche_fracvol(higflow_solver *ns, ft3_superficie *sup,
         if (f < fmin) fmin = f;
     }
     higcit_destroy(it);
+    ft3_grade_destroi(grade);
     dp_sync(ns->ed.mult.dpfracvol);
     if (vol_no_campo) *vol_no_campo = soma_vol;
     if (faixa) { faixa[0] = fmin; faixa[1] = fmax; }

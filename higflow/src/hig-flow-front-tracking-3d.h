@@ -198,6 +198,41 @@ real ft3_fracao_na_caixa(const ft3_superficie *s, const real lo[DIM], const real
 real ft3_fracao_amostrada(const ft3_superficie *s, const real lo[DIM],
                           const real hi[DIM], int k);
 
+// --- grade espacial (aceleracao) ------------------------------------------
+
+//! Grade uniforme de triangulos sobre a envoltoria da superficie.  Existe para
+//! um motivo medido: `ft3_dentro` e `ft3_distancia` sao O(nt) por consulta, e
+//! preencher a fracao numa malha de 8 mil celulas contra 1280 triangulos custa
+//! 0,09 s por passo.  Numa malha de 64 mil contra 5120 isso vira ~3 s por passo,
+//! que nao fecha para uma bolha ascendente.
+//!
+//! NAO E' CONST NAS CONSULTAS: a grade guarda um carimbo para nao contar o mesmo
+//! triangulo duas vezes quando ele cruza varias celulas.  Consequencia: as
+//! consultas aceleradas NAO sao seguras para uso simultaneo por varias linhas de
+//! execucao sobre a MESMA grade.  Dito aqui porque o compilador nao diz.
+//!
+//! A superficie nao pode mudar sob a grade: qualquer adveccao ou cirurgia
+//! invalida-a, e a grade tem de ser recriada.
+typedef struct ft3_grade ft3_grade;
+
+ft3_grade *ft3_grade_cria(const ft3_superficie *s);
+void       ft3_grade_destroi(ft3_grade *g);
+
+//! Quantas celulas e quantas referencias a triangulo a grade guarda -- para
+//! medir se a divisao escolhida faz sentido, em vez de supor.
+void ft3_grade_estado(const ft3_grade *g, int n[DIM], int *refs);
+
+//! As mesmas funcoes, com a grade.  O CONTRATO E' IGUALDADE EXATA com as versoes
+//! sem grade: a grade restringe QUAIS triangulos sao testados, nao o que se
+//! calcula.  O arreio compara as duas em milhares de consultas e exige que nao
+//! difiram em bit nenhum -- e' a unica forma de uma aceleracao nao virar uma
+//! aproximacao silenciosa.
+int  ft3_dentro_g(const ft3_superficie *s, ft3_grade *g, const Point x);
+real ft3_distancia_g(const ft3_superficie *s, ft3_grade *g, const Point x,
+                     real normal[DIM]);
+real ft3_fracao_na_caixa_g(const ft3_superficie *s, ft3_grade *g,
+                           const real lo[DIM], const real hi[DIM]);
+
 // --- persistencia e saida -------------------------------------------------
 
 //! Grava a superficie em texto, com `%.17g` -- ida-e-volta bit a bit.  Ao
