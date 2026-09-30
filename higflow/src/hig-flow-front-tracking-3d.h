@@ -129,6 +129,19 @@ void ft3_qualidade(const ft3_superficie *s, real *amin, real *amax, real *pior_a
 void ft3_forcas_tensao(const ft3_superficie *s, real sigma,
                        Point *pos, Point *forca, real *peso);
 
+// --- adveccao -------------------------------------------------------------
+
+//! Campo de velocidade avaliado numa posicao e num instante.  E' a UNICA porta
+//! da fisica para dentro da adveccao: no B1 3D e' o campo de deformacao de
+//! LeVeque, analitico; no acoplamento sera' a interpolacao da malha.
+typedef void (*ft3_campo_u)(const Point x, real t, void *ctx, real u[DIM]);
+
+//! Avanca a superficie um passo `dt` a partir de `t`, por RK2 do ponto medio --
+//! segunda ordem no tempo.  A conectividade nao muda: so' as posicoes andam.
+//! Euler explicito nao fecha o volume de volta no teste reversivel, do mesmo
+//! jeito que nao fechava a area em 2D.
+void ft3_advecta(ft3_superficie *s, ft3_campo_u u, void *ctx, real t, real dt);
+
 // --- cirurgia -------------------------------------------------------------
 
 //! Mantem o espacamento de aresta proximo de `ds_alvo`: divide aresta acima de

@@ -120,6 +120,25 @@ static ft3_aresta *_arestas(const ft3_superficie *s, int *na)
     return ar;
 }
 
+// Incidencia vertice -> triangulos, em formato comprimido (ini/lst).  SEM isto
+// a condicao de elo e a checagem de aresta duplicada varrem todos os triangulos
+// por candidato, e a cirurgia fica O(nt^2) -- inviavel quando ela roda a cada
+// passo de tempo, que e' o caso do B1.
+static void _incidencia(const ft3_superficie *s, int **ini, int **lst)
+{
+    int *c = (int *) calloc((size_t) s->nv + 1, sizeof *c);
+    for (int t = 0; t < s->nt; t++)
+        for (int k = 0; k < 3; k++) c[s->tri[t][k] + 1]++;
+    for (int i = 0; i < s->nv; i++) c[i+1] += c[i];
+    int *L = (int *) malloc((size_t) (3 * s->nt) * sizeof *L);
+    int *pos = (int *) malloc((size_t) s->nv * sizeof *pos);
+    memcpy(pos, c, (size_t) s->nv * sizeof *pos);
+    for (int t = 0; t < s->nt; t++)
+        for (int k = 0; k < 3; k++) L[pos[s->tri[t][k]]++] = t;
+    free(pos);
+    *ini = c; *lst = L;
+}
+
 // --- criacao --------------------------------------------------------------
 
 static ft3_superficie *_vazia(void)
@@ -391,7 +410,70 @@ void ft3_forcas_tensao(const ft3_superficie *s, real sigma,
     }
 }
 
+// --- adveccao -------------------------------------------------------------
+
+void ft3_advecta(ft3_superficie *s, ft3_campo_u u, void *ctx, real t, real dt)
+{
+    // RK2 do ponto medio, por vertice:
+    //   k1 = u(x, t);   xm = x + (dt/2) k1;   k2 = u(xm, t + dt/2);   x += dt k2
+    // A superficie e' replicada, entao cada vertice anda sozinho -- a
+    // conectividade nao entra aqui, so' na cirurgia.
+    if (!s) return;
+    for (int i = 0; i < s->nv; i++) {
+        real k1[3], k2[3];
+        Point xm;
+        u(s->x[i], t, ctx, k1);
+        for (int d = 0; d < 3; d++) xm[d] = s->x[i][d] + 0.5 * dt * k1[d];
+        u(xm, t + 0.5 * dt, ctx, k2);
+        for (int d = 0; d < 3; d++) s->x[i][d] += dt * k2[d];
+    }
+}
+
 // --- cirurgia -------------------------------------------------------------
+
+// Normais nos VERTICES, media ponderada por area dos triangulos incidentes.
+// Precisas o bastante para posicionar ponto novo; nao entram na forca, que sai
+// da integral de linha e nao usa normal de vertice.
+static void _normais_vertices(const ft3_superficie *s, Point *nv)
+{
+    for (int i = 0; i < s->nv; i++) { nv[i][0] = nv[i][1] = nv[i][2] = 0.0; }
+    for (int t = 0; t < s->nt; t++) {
+        real n[3]; _normal2(s, t, n);       // modulo = 2*area: ja' e' o peso
+        for (int k = 0; k < 3; k++)
+            for (int d = 0; d < 3; d++) nv[s->tri[t][k]][d] += n[d];
+    }
+    for (int i = 0; i < s->nv; i++) {
+        real m = _norma(nv[i]);
+        if (m > 0.0) for (int d = 0; d < 3; d++) nv[i][d] /= m;
+    }
+}
+
+// Ponto medio SOBRE A SUPERFICIE, e nao sobre a corda.
+//
+// POR QUE ISTO EXISTE.  Inserir no meio da corda puxa o ponto para DENTRO numa
+// superficie convexa, e cada divisao perde um pouco de volume.  Medido no B1
+// 3D: com ponto medio de corda, ~1500 operacoes ao longo da corrida custavam
+// 5,2% do volume, e refinar o passo de tempo pela metade nao mudava nada --
+// prova de que o erro era da cirurgia e nao do integrador.
+//
+// A colocacao e' o meio da curva de Hermite cubica que interpola os dois
+// extremos COM AS NORMAIS, a mesma dos "PN triangles":
+//
+//     m = (a+b)/2 - (1/8) [ ((b-a).n_a) n_a + ((a-b).n_b) n_b ]
+//
+// Na esfera isso empurra para fora exatamente na direcao que a corda tinha
+// cortado.  NAO e' correcao de volume imposta a posteriori: o volume continua
+// livre para errar, e o oraculo continua valendo.
+static void _meio_curvo(const real *a, const real *b,
+                        const real *na, const real *nb, real m[3])
+{
+    real ab[3], ba[3];
+    _sub(b, a, ab);
+    _sub(a, b, ba);
+    real wa = _ponto(ab, na), wb = _ponto(ba, nb);
+    for (int d = 0; d < 3; d++)
+        m[d] = 0.5 * (a[d] + b[d]) - 0.125 * (wa * na[d] + wb * nb[d]);
+}
 
 // Vertice oposto a' aresta (v0,v1) dentro do triangulo t.
 static int _oposto(const ft3_superficie *s, int t, int v0, int v1)
@@ -417,16 +499,18 @@ static void _normal2_com(const ft3_superficie *s, int t, int de, const real para
 }
 
 // Divide a aresta e no ponto medio.  Os dois triangulos viram quatro.
-static void _divide(ft3_superficie *s, const ft3_aresta *e)
+static void _divide(ft3_superficie *s, const ft3_aresta *e, const Point *nvert)
 {
     int a = e->v0, b = e->v1;
     int c = _oposto(s, e->t0, a, b);
     int d = _oposto(s, e->t1, a, b);
     if (c < 0 || d < 0) return;
 
+    real pm[3];
+    _meio_curvo(s->x[a], s->x[b], nvert[a], nvert[b], pm);
     _cap_v(s, s->nv + 1);
     int m = s->nv++;
-    for (int k = 0; k < 3; k++) s->x[m][k] = 0.5 * (s->x[a][k] + s->x[b][k]);
+    for (int k = 0; k < 3; k++) s->x[m][k] = pm[k];
 
     // Reconstroi os quatro respeitando a ORIENTACAO de cada original: em t0 a
     // aresta vai de tri[t0][k0] para o seguinte, e e' isso que diz quem e' "a"
@@ -446,7 +530,8 @@ static void _divide(ft3_superficie *s, const ft3_aresta *e)
 // Colapsa a aresta (a,b) no ponto medio.  RECUSA se violar a condicao de elo ou
 // se inverter algum triangulo -- malha pior e' recuperavel, nao-variedade nao.
 // Devolve 1 se colapsou.
-static int _colapsa(ft3_superficie *s, const ft3_aresta *e, char *morto)
+static int _colapsa(ft3_superficie *s, const ft3_aresta *e, char *morto,
+                    const int *ini, const int *lst, const Point *nvert)
 {
     int a = e->v0, b = e->v1;
     int c = _oposto(s, e->t0, a, b);
@@ -455,20 +540,24 @@ static int _colapsa(ft3_superficie *s, const ft3_aresta *e, char *morto)
 
     // CONDICAO DE ELO: os vizinhos comuns de a e b tem de ser EXATAMENTE {c,d}.
     // Se houver um terceiro, o colapso cria aresta dupla e a superficie deixa
-    // de ser variedade.
+    // de ser variedade.  Percorre so' os triangulos INCIDENTES, nao todos.
     int viz_a[256], nva = 0, viz_b[256], nvb = 0;
-    for (int t = 0; t < s->nt; t++) {
+    for (int p = ini[a]; p < ini[a+1]; p++) {
+        int t = lst[p];
         if (morto[t]) continue;
-        int tem_a = 0, tem_b = 0;
-        for (int k = 0; k < 3; k++) {
-            if (s->tri[t][k] == a) tem_a = 1;
-            if (s->tri[t][k] == b) tem_b = 1;
-        }
         for (int k = 0; k < 3; k++) {
             int v = s->tri[t][k];
             if (v == a || v == b) continue;
-            if (tem_a && nva < 256) { int j=0; while (j<nva && viz_a[j]!=v) j++; if (j==nva) viz_a[nva++]=v; }
-            if (tem_b && nvb < 256) { int j=0; while (j<nvb && viz_b[j]!=v) j++; if (j==nvb) viz_b[nvb++]=v; }
+            if (nva < 256) { int j=0; while (j<nva && viz_a[j]!=v) j++; if (j==nva) viz_a[nva++]=v; }
+        }
+    }
+    for (int p = ini[b]; p < ini[b+1]; p++) {
+        int t = lst[p];
+        if (morto[t]) continue;
+        for (int k = 0; k < 3; k++) {
+            int v = s->tri[t][k];
+            if (v == a || v == b) continue;
+            if (nvb < 256) { int j=0; while (j<nvb && viz_b[j]!=v) j++; if (j==nvb) viz_b[nvb++]=v; }
         }
     }
     int comuns = 0;
@@ -478,17 +567,19 @@ static int _colapsa(ft3_superficie *s, const ft3_aresta *e, char *morto)
     if (comuns != 2) return 0;
 
     real novo[3];
-    for (int k = 0; k < 3; k++) novo[k] = 0.5 * (s->x[a][k] + s->x[b][k]);
+    _meio_curvo(s->x[a], s->x[b], nvert[a], nvert[b], novo);
 
     // Nenhum triangulo sobrevivente pode INVERTER.  Comparar o sinal do produto
     // escalar entre a normal antiga e a nova pega inversao sem depender de
     // escala; area indo a zero tambem e' recusa.
-    for (int t = 0; t < s->nt; t++) {
+    for (int pp = ini[a]; pp < ini[b+1]; pp++) {
+        if (pp >= ini[a+1] && pp < ini[b]) continue;   // so' as duas faixas
+        int t = lst[pp];
         if (morto[t] || t == e->t0 || t == e->t1) continue;
-        int tem = 0, qual = -1;
+        int qual = -1;
         for (int k = 0; k < 3; k++)
-            if (s->tri[t][k] == a || s->tri[t][k] == b) { tem = 1; qual = s->tri[t][k]; }
-        if (!tem) continue;
+            if (s->tri[t][k] == a || s->tri[t][k] == b) qual = s->tri[t][k];
+        if (qual < 0) continue;
         real n_v[3], n_n[3];
         _normal2(s, t, n_v);
         _normal2_com(s, t, qual, novo, n_n);
@@ -500,7 +591,8 @@ static int _colapsa(ft3_superficie *s, const ft3_aresta *e, char *morto)
     for (int k = 0; k < 3; k++) s->x[a][k] = novo[k];
     morto[e->t0] = 1;
     morto[e->t1] = 1;
-    for (int t = 0; t < s->nt; t++) {
+    for (int p = ini[b]; p < ini[b+1]; p++) {
+        int t = lst[p];
         if (morto[t]) continue;
         for (int k = 0; k < 3; k++) if (s->tri[t][k] == b) s->tri[t][k] = a;
     }
@@ -534,22 +626,20 @@ static real _pior_cos(const real *p0, const real *p1, const real *p2)
 // criterio anterior (girar se a diagonal nova for mais curta) o giro era a UNICA
 // das tres operacoes que produzia triangulo invertido -- divisao e colapso
 // davam zero, e qualquer combinacao contendo o giro dava de 1 a 15.
-static int _gira(ft3_superficie *s, const ft3_aresta *e, const char *morto)
+static int _gira(ft3_superficie *s, const ft3_aresta *e, const char *morto,
+                 const int *ini, const int *lst)
 {
     int a = e->v0, b = e->v1;
     int c = _oposto(s, e->t0, a, b);
     int d = _oposto(s, e->t1, a, b);
     if (c < 0 || d < 0 || c == d) return 0;
 
-    // (c,d) ja' existir torna o giro uma aresta dupla.
-    for (int t = 0; t < s->nt; t++) {
+    // (c,d) ja' existir torna o giro uma aresta dupla.  Basta olhar os
+    // triangulos incidentes a c.
+    for (int p = ini[c]; p < ini[c+1]; p++) {
+        int t = lst[p];
         if (morto[t]) continue;
-        int tc = 0, td = 0;
-        for (int k = 0; k < 3; k++) {
-            if (s->tri[t][k] == c) tc = 1;
-            if (s->tri[t][k] == d) td = 1;
-        }
-        if (tc && td) return 0;
+        for (int k = 0; k < 3; k++) if (s->tri[t][k] == d) return 0;
     }
 
     real nv0[3], nv1[3];
@@ -644,16 +734,18 @@ static int _rodada(ft3_superficie *s)
         int na; ft3_aresta *ar = _arestas(s, &na);
         int fez = 0;
         char *usado = (char *) calloc((size_t) s->nt, 1);
+        Point *nvert = (Point *) malloc((size_t) s->nv * sizeof *nvert);
+        _normais_vertices(s, nvert);
         for (int e = 0; e < na; e++) {
             if (ar[e].t1 < 0) continue;                    // borda ou nao-variedade
             if (usado[ar[e].t0] || usado[ar[e].t1]) continue;
             real d[3]; _sub(s->x[ar[e].v1], s->x[ar[e].v0], d);
             if (_norma(d) <= longa) continue;
             usado[ar[e].t0] = usado[ar[e].t1] = 1;
-            _divide(s, &ar[e]);
+            _divide(s, &ar[e], nvert);
             fez++; feitas++;
         }
-        free(usado); free(ar);
+        free(nvert); free(usado); free(ar);
         if (!fez) break;
     }
 
@@ -670,6 +762,9 @@ static int _rodada(ft3_superficie *s)
         // Marcar os vertices tocados e pular quem os cita mantem a passada
         // valida sem reconstruir a tabela a cada operacao.
         char *tocado = (char *) calloc((size_t) s->nv, 1);
+        int *ini, *lst; _incidencia(s, &ini, &lst);
+        Point *nvert = (Point *) malloc((size_t) s->nv * sizeof *nvert);
+        _normais_vertices(s, nvert);
         int fez = 0;
         for (int e = 0; e < na; e++) {
             if (ar[e].t1 < 0) continue;
@@ -678,20 +773,20 @@ static int _rodada(ft3_superficie *s)
             real d[3]; _sub(s->x[ar[e].v1], s->x[ar[e].v0], d);
             if (_norma(d) >= curta) continue;
             int a = ar[e].v0, b = ar[e].v1;
-            if (_colapsa(s, &ar[e], morto)) {
+            if (_colapsa(s, &ar[e], morto, ini, lst, nvert)) {
                 fez++; feitas++;
                 // tudo que compartilha triangulo com a ou b sai desta passada
-                for (int t = 0; t < s->nt; t++) {
-                    if (morto[t]) continue;
-                    int toca = 0;
-                    for (int k = 0; k < 3; k++)
-                        if (s->tri[t][k] == a || s->tri[t][k] == b) toca = 1;
-                    if (toca) for (int k = 0; k < 3; k++) tocado[s->tri[t][k]] = 1;
-                }
+                int viz[2] = {a, b};
+                for (int j = 0; j < 2; j++)
+                    for (int pp = ini[viz[j]]; pp < ini[viz[j]+1]; pp++) {
+                        int t = lst[pp];
+                        if (morto[t]) continue;
+                        for (int k = 0; k < 3; k++) tocado[s->tri[t][k]] = 1;
+                    }
                 tocado[a] = tocado[b] = 1;
             }
         }
-        free(tocado);
+        free(nvert); free(ini); free(lst); free(tocado);
         if (fez) _compacta(s, morto);
         free(morto); free(ar);
         if (!fez) break;
@@ -703,15 +798,26 @@ static int _rodada(ft3_superficie *s)
         int na; ft3_aresta *ar = _arestas(s, &na);
         char *morto = (char *) calloc((size_t) s->nt, 1);
         char *usado = (char *) calloc((size_t) s->nt, 1);
+        // O giro tambem ENVELHECE a incidencia: apos girar (a,b) para (c,d), os
+        // quatro vertices mudam de vizinhanca, e a checagem de aresta duplicada
+        // de um giro seguinte leria estado velho e poderia criar aresta dupla.
+        char *tocado = (char *) calloc((size_t) s->nv, 1);
+        int *ini, *lst; _incidencia(s, &ini, &lst);
         for (int e = 0; e < na; e++) {
             if (ar[e].t1 < 0) continue;
             if (usado[ar[e].t0] || usado[ar[e].t1]) continue;
-            if (_gira(s, &ar[e], morto)) {
+            if (tocado[ar[e].v0] || tocado[ar[e].v1]) continue;
+            int c = _oposto(s, ar[e].t0, ar[e].v0, ar[e].v1);
+            int d = _oposto(s, ar[e].t1, ar[e].v0, ar[e].v1);
+            if (c < 0 || d < 0) continue;
+            if (tocado[c] || tocado[d]) continue;
+            if (_gira(s, &ar[e], morto, ini, lst)) {
                 usado[ar[e].t0] = usado[ar[e].t1] = 1;
+                tocado[ar[e].v0] = tocado[ar[e].v1] = tocado[c] = tocado[d] = 1;
                 feitas++;
             }
         }
-        free(usado); free(morto); free(ar);
+        free(ini); free(lst); free(tocado); free(usado); free(morto); free(ar);
     }
     return feitas;
 }
