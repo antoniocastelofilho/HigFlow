@@ -1,0 +1,91 @@
+\section{A estrutura descrita e a estrutura de hoje}
+\label{sec:estrutura}
+
+A apresenta\c{c}\~ao do grupo traz dois diagramas de m\'odulos, um por camada.
+Vale confront\'a-los com a \'arvore: um diagrama que envelheceu em sil\^encio \'e
+pior que a aus\^encia dele, porque continua orientando quem chega.
+
+\subsection{HiGTree: o diagrama resistiu}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/diagrama/.style={column name={no diagrama}},
+  columns/hoje/.style={column name={hoje}},
+  columns/estado/.style={column name={estado}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{estrutura-higtree.dat}}
+
+Cinco dos seis blocos continuam exatos, com nomes de arquivo reconhec\'iveis. A
+camada de malha \'e est\'avel --- o que se espera de uma biblioteca de
+infraestrutura, e o que justifica ela ser uma camada separada.
+
+\paragraph{A exce\c{c}\~ao \'e a malha lagrangeana, e ela migrou de camada.} O
+diagrama a coloca na HiGTree, ao lado da euleriana. Na \'arvore de hoje n\~ao
+h\'a estrutura lagrangeana na HiGTree: o que existe \'e
+\texttt{point-cloud.c}, e o pr\'oprio cabe\c{c}alho dele diz o que \'e ---
+``um conjunto crescente de pontos, sem estrutura espacial pr\'opria'', o
+acumulador que as buscas por caixa preenchem antes de os pontos virarem suporte
+de interpola\c{c}\~ao. \'E infraestrutura da interpola\c{c}\~ao, n\~ao malha de
+part\'iculas.
+
+As estruturas lagrangeanas de fato est\~ao \textbf{no HiGFlow}:
+\texttt{hig-flow-front-tracking.c}, com a polilinha ordenada de marcadores, e
+\texttt{hig-flow-fronteira-imersa.c}, com os marcadores por posse sobre
+\texttt{DMSwarm}. S\~ao dois modelos de distribui\c{c}\~ao diferentes --- um
+replicado, outro repartido --- e nenhum deles \'e gen\'erico o bastante para
+descer \`a camada de malha. A migra\c{c}\~ao parece consequ\^encia disso, e
+n\~ao descuido.
+
+\subsection{HiGFlow: o esqueleto resistiu; o volume, n\~ao}
+
+\pgfplotstabletypeset[
+  string type,
+  columns/diagrama/.style={column name={no diagrama}},
+  columns/hoje/.style={column name={hoje}},
+  columns/estado/.style={column name={estado}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{estrutura-higflow.dat}}
+
+\textbf{Os oito blocos do diagrama existem todos}, com os nomes de arquivo
+correspondentes --- \texttt{io}, \texttt{ic}, \texttt{bc}, \texttt{step},
+\texttt{discret}, \texttt{eval}, \texttt{kernel}. Como esqueleto, ele est\'a
+certo.
+
+O que mudou foi o que cabe dentro de cada caixa, e em duas dire\c{c}\~oes:
+
+\paragraph{\emph{Step} deixou de ser um bloco.} S\~ao doze m\'odulos --- nove
+tipos de escoamento e cinco acoplamentos ---, somando quase 24 mil linhas. Um
+ret\^angulo chamado ``Step'' num diagrama e doze arquivos de mil a tr\^es mil e
+quatrocentas linhas s\~ao objetos diferentes, e a diferen\c{c}a importa para
+quem for estender o sistema: acrescentar um modelo n\~ao \'e mexer no
+\emph{Step}, \'e escrever um irm\~ao dele.
+
+\paragraph{E h\'a uma fam\'ilia inteira fora do diagrama.} Dezesseis m\'odulos de
+tratamento de interface --- treze de VOF, mais front-tracking, fronteira imersa e
+remalhamento --- n\~ao t\^em caixa nenhuma. Junto com \texttt{terms},
+\texttt{res}, \texttt{timestep} e \texttt{linear-algebra}, s\~ao cerca de dez mil
+linhas que o diagrama n\~ao prev\^e.
+
+N\~ao \'e cr\'itica ao diagrama: ele descreve o \emph{fluxo} de uma
+simula\c{c}\~ao --- ler, iniciar, aplicar contorno, avan\c{c}ar, discretizar,
+avaliar --- e nesse eixo continua correto. O tratamento de interface n\~ao \'e
+uma etapa do fluxo; \'e uma dimens\~ao transversal, e diagramas de fluxo n\~ao a
+mostram bem.
+
+\subsection{O que a compara\c{c}\~ao sugere}
+
+\begin{itemize}
+  \item \textbf{a separa\c{c}\~ao em duas camadas se sustentou}. Seis anos depois
+    do artigo fundador, a fronteira entre malha e f\'isica continua onde foi
+    posta, e a camada de baixo quase n\~ao se moveu;
+  \item \textbf{o crescimento foi todo em modelos}, e por
+    \emph{multiplica\c{c}\~ao} de irm\~aos --- um m\'odulo por \texttt{flowtype},
+    um por acoplamento, um por variante de VOF. \'E o padr\~ao que explica
+    tamb\'em o tamanho do \texttt{hig-flow-io.c}: cada combina\c{c}\~ao pede o seu
+    par de leitura e escrita;
+  \item \textbf{um diagrama de fluxo n\~ao mostra o eixo transversal}. Se o
+    diagrama for atualizado algum dia, o tratamento de interface pede uma
+    representa\c{c}\~ao pr\'opria, e n\~ao mais uma caixa na fila.
+\end{itemize}

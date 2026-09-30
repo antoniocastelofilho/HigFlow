@@ -1,0 +1,11 @@
+diagrama          hoje                                                estado
+{Main Program}    {17 \texttt{main} pr\'oprios, um por exemplo}       {expandido}
+{IO}              {\texttt{hig-flow-io.c}, 10\,972 linhas}            {igual, e enorme}
+{IC}              {\texttt{hig-flow-ic.c}}                            {igual}
+{BC}              {\texttt{hig-flow-bc.c}}                            {igual}
+{Step}            {\textbf{12} m\'odulos: 9 \texttt{flowtype} + 5 acoplamentos} {multiplicado}
+{Discretization}  {\texttt{hig-flow-discret.c}}                       {igual}
+{Eval}            {\texttt{hig-flow-eval.c}}                          {igual}
+{Kernel}          {\texttt{hig-flow-kernel.c}}                        {igual}
+{---}             {\textbf{16} m\'odulos de interface (VOF, FT, FI, remalha)} {N\~AO est\'a no diagrama}
+{---}             {\texttt{terms}, \texttt{res}, \texttt{timestep}, \texttt{linear-algebra}} {N\~AO est\'a no diagrama}

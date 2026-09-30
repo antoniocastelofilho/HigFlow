@@ -1,0 +1,7 @@
+diagrama                          hoje                                          estado
+{Solver}                          {5 implementa\c{c}\~oes: PETSc, HYPRE, SOR, centralizado, dep.} {igual}
+{Interpoladores}                  {\texttt{wls.c}, m\'inimos quadrados ponderados} {igual}
+{Dom\'inio}                       {\texttt{domain.c} + \texttt{pdomain.c}, 5\,115 linhas} {igual}
+{Interfaces}                      {\texttt{hig-mesh-contract.h}, \texttt{hig-mesh-snapshot.c}} {igual}
+{Estrutura geom.\ (euleriana)}    {\texttt{higtree.c}, \texttt{higtree-iterator.c}} {igual}
+{Estrutura geom.\ (lagrangeana)}  {\textbf{n\~ao existe na HiGTree}}              {MIGROU para o HiGFlow}
