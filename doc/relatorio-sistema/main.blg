@@ -3,14 +3,6 @@ Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: main.aux
 The style file: plain.bst
 Database file #1: referencias.bib
-You're missing a field name---line 78 of file referencias.bib
- : %   @mastersthesis{sobrenomeANO,            
- :                                             % ou @phdthesis para doutorado
-I'm skipping whatever remains of this entry
-I was expecting a `{' or a `('---line 78 of file referencias.bib
- : %   @mastersthesis{sobrenomeANO,            % ou @phdthesis 
- :                                                             para doutorado
-I'm skipping whatever remains of this entry
 You've used 29 entries,
             2118 wiz_defined-function locations,
             635 strings with 8927 characters,
@@ -52,4 +44,3 @@ warning$ -- 0
 while$ -- 79
 width$ -- 31
 write$ -- 335
-(There were 2 error messages)

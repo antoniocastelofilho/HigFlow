@@ -6,21 +6,26 @@ compartilhado entre HiGFlow e MFSim-NG, o t8code como nova op\c{c}\~ao de
 particionamento, e uma camada de execu\c{c}\~ao em GPU no \emph{Solver} e no
 operador mais custoso de \emph{Discretization}.
 
-Esta se\c{c}\~ao confronta as premissas de desempenho desse projeto com o que
+Este documento confronta as premissas de desempenho desse projeto com o que
 foi medido no c\'odigo. \textbf{N\~ao \'e uma avalia\c{c}\~ao do projeto}, cujo
 n\'ucleo \'e arquitetural e independe do que segue; \'e a contribui\c{c}\~ao de
 uma medida para a \emph{ordem} das extens\~oes.
 
 \section{As tr\^es premissas de desempenho}
 
+{\small
 \pgfplotstabletypeset[
   string type,
-  columns/premissa/.style={column name={premissa do projeto}},
-  columns/estado/.style={column name={estado}},
-  columns/medida/.style={column name={o que a medida diz}},
+  columns/premissa/.style={column name={premissa do projeto},
+    column type={>{\raggedright\arraybackslash}p{5.0cm}}},
+  columns/estado/.style={column name={estado},
+    column type={>{\centering\arraybackslash}p{1.9cm}}},
+  columns/medida/.style={column name={o que a medida diz},
+    column type={>{\raggedright\arraybackslash}p{6.0cm}}},
   every head row/.style={before row=\toprule, after row=\midrule},
   every last row/.style={after row=\bottomrule},
 ]{\dat{projeto-premissas.dat}}
+}
 
 \section{O que foi medido}
 

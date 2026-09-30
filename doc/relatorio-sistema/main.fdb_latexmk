@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1790731222.50457 "main.aux" "main.bbl" "main" 1790731222.51754 2
-  "./referencias.bib" 1790729776.69848 13822 e1ed5b82fb082717ec9ab9dd15772099 ""
+["bibtex main"] 1790731803.75414 "main.aux" "main.bbl" "main" 1790731804.81292 0
+  "./referencias.bib" 1790731793.16286 14053 3ffe06a516b3a783b0736c4d0ed6d100 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1790731222.37284 8272 c8902ddfb643df0a327429ab3f5a23fe "pdflatex"
+  "main.aux" 1790731804.68202 8272 1f8e6e0dd11c233d66e7d5a332d656c3 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1790731219.57919 "main.tex" "main.pdf" "main" 1790731222.51767 0
+["pdflatex"] 1790731803.76998 "main.tex" "main.pdf" "main" 1790731804.81305 0
   "/etc/texmf/web2c/texmf.cnf" 1790646623.00096 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecrm1095.tfm" 1136768653 3584 929cdff2b7a8c11bd4d49fd68cb0ae70 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm" 1246382020 916 f87d7c45f9c908e672703b83b72241a3 ""
@@ -263,11 +263,11 @@
   "dados/modelos.dat" 1790703483.82514 398 56a8b57b71cc8922906938a8bf1f47bb ""
   "dados/t8code-estado.dat" 1790731182.69829 670 81764232bd633034ff29cda90a4c3867 ""
   "dados/tamanhos.dat" 1790703439.12152 440 10129f7c1cc00b426f3e343386d80655 ""
-  "main.aux" 1790731222.37284 8272 c8902ddfb643df0a327429ab3f5a23fe "pdflatex"
-  "main.bbl" 1790731222.51585 7280 5c5b2a05078e344ba060c89987ec8c59 "bibtex main"
-  "main.out" 1790731222.37384 5724 0a5ca8725b6d8b7ce80b843cc5de1fd1 "pdflatex"
+  "main.aux" 1790731804.68202 8272 1f8e6e0dd11c233d66e7d5a332d656c3 "pdflatex"
+  "main.bbl" 1790731803.76501 7280 5c5b2a05078e344ba060c89987ec8c59 "bibtex main"
+  "main.out" 1790731804.68302 5724 0a5ca8725b6d8b7ce80b843cc5de1fd1 "pdflatex"
   "main.tex" 1790731182.69256 1936 e429a3141615d9bf8ea9c1386515759f ""
-  "main.toc" 1790731222.37484 4321 c1a21bbe91b2a59be17f678cca16f49b "pdflatex"
+  "main.toc" 1790731804.68302 4321 e61ee9a29e641a8b8f394ddefad24217 "pdflatex"
   "secoes/01-introducao.tex" 1790729794.69276 8477 7c81d154df40a0c9cedebfc434555c62 ""
   "secoes/02-higtree.tex" 1790703681.20892 1591 069f0551dda20134895899022122adf4 ""
   "secoes/03-higflow.tex" 1790703681.21992 3376 896d31bc7e9fdf110af57eefffb8c98c ""

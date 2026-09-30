@@ -1,3 +1,17 @@
-\begin{thebibliography}{}
+\begin{thebibliography}{1}
+
+\bibitem{hysing2009}
+S.~Hysing, S.~Turek, D.~Kuzmin, N.~Parolini, E.~Burman, S.~Ganesan, and
+  L.~Tobiska.
+\newblock Quantitative benchmark computations of two-dimensional bubble
+  dynamics.
+\newblock {\em International Journal for Numerical Methods in Fluids},
+  60(11):1259--1288, 2009.
+
+\bibitem{sousa2019}
+F.~S. Sousa, C.~F. Lages, J.~L. Ansoni, A.~Castelo, and A.~Sim\~ao.
+\newblock A finite difference method with meshless interpolation for
+  incompressible flows in non-graded tree-based grids.
+\newblock {\em Journal of Computational Physics}, 396:848--866, 2019.
 
 \end{thebibliography}

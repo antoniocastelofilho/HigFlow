@@ -75,7 +75,10 @@
 % A busca por metadados achou so' a de Godoi.  As outras entram aqui conforme os
 % nomes forem indicados.  Modelo, com os campos que o `plain` usa:
 %
-%   @mastersthesis{sobrenomeANO,            % ou @phdthesis para doutorado
+%   <arroba>mastersthesis{sobrenomeANO,     % ou <arroba>phdthesis para doutorado
+%   (escrito assim de proposito: o BibTeX NAO respeita `%' como comentario e
+%    leria o caractere arroba aqui como entrada de verdade, quebrando a bibliografia toda.
+%    Ao usar o modelo, troque <arroba> pelo caractere.)
 %     author  = {Sobrenome, Nome},
 %     title   = {T\'itulo como registrado},
 %     school  = {Universidade de S\~ao Paulo},

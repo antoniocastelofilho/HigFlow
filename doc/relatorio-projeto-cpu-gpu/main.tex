@@ -1,11 +1,14 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[T1]{fontenc}\usepackage[utf8]{inputenc}\usepackage[brazil]{babel}
 \usepackage{lmodern}\usepackage{microtype}\usepackage{amsmath,amssymb}
-\usepackage{booktabs}\usepackage{siunitx}\usepackage{pgfplotstable}
+\usepackage{booktabs}
+\usepackage{array}\usepackage{siunitx}\usepackage{pgfplotstable}
 \usepackage[hidelinks]{hyperref}\usepackage[margin=2.7cm]{geometry}
 \pgfplotsset{compat=1.18}
 \sisetup{output-decimal-marker={,}, group-separator={.}}
 \newcommand{\dat}[1]{dados/#1}
+% termos que o babel brasileiro nao hifeniza sozinho
+\hyphenation{Dis-cre-ti-za-tion HiG-Flow MF-Sim par-ti-cio-na-men-to}
 
 \title{Extens\~ao CPU/GPU do HFlow:\\
        as premissas de desempenho, confrontadas com a medida}
@@ -16,6 +19,7 @@
 \maketitle
 
 \begin{abstract}
+\sloppy
 O projeto \emph{Extens\~ao da Arquitetura HFlow para Execu\c{c}\~ao Acelerada em
 CPU/GPU em Malhas Hier\'arquicas} prop\~oe tr\^es coisas: um n\'ucleo de software
 compartilhado entre HiGFlow e MFSim-NG, o t8code como op\c{c}\~ao de

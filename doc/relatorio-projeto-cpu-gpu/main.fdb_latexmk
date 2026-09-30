@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1790731165.08285 "main.aux" "main.bbl" "main" 1790731169.2847 0
-  "./referencias.bib" 1790731133.17759 2691 c1f5d97e61bb0e6e1a59c2724a3b1a2a ""
+["bibtex main"] 1790731923.78994 "main.aux" "main.bbl" "main" 1790731927.04651 0
+  "./referencias.bib" 1790731912.16153 3127 041047e767a9472d6c2476cd7cb59b96 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1790731168.67809 1939 95619e83e3af071527d6efa4841c7fab "pdflatex"
+  "main.aux" 1790731926.42774 2029 ba82dd4adf6c0f49061320fe3ac1bed7 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1790731165.09797 "main.tex" "main.pdf" "main" 1790731169.28533 0
+["pdflatex"] 1790731923.80612 "main.tex" "main.pdf" "main" 1790731927.04711 0
   "/etc/texmf/web2c/texmf.cnf" 1790646623.00096 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/ecrm1095.tfm" 1136768653 3584 929cdff2b7a8c11bd4d49fd68cb0ae70 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm" 1246382020 916 f87d7c45f9c908e672703b83b72241a3 ""
@@ -231,6 +231,7 @@
   "/usr/share/texmf/fonts/type1/public/lm/lmbx12.pfb" 1255129361 116908 1fca96723793882c2e0160350c192fc8 ""
   "/usr/share/texmf/fonts/type1/public/lm/lmbxi10.pfb" 1255129361 112766 bdd4fa8b13a0d7dd137624085bd31d40 ""
   "/usr/share/texmf/fonts/type1/public/lm/lmmi10.pfb" 1254269338 30388 702fae6a5f0e6e9c48a1d872b442ffcf ""
+  "/usr/share/texmf/fonts/type1/public/lm/lmmi7.pfb" 1254269338 30789 be3ebdf20b6442cc4aaf81a81e17daf4 ""
   "/usr/share/texmf/fonts/type1/public/lm/lmmi8.pfb" 1254269338 30635 833ec815d446ec453a4913fc26d24cbc ""
   "/usr/share/texmf/fonts/type1/public/lm/lmr10.pfb" 1255129361 119235 f35b44530a1d90eb90fe15d9cba67ea0 ""
   "/usr/share/texmf/fonts/type1/public/lm/lmr12.pfb" 1255129361 113634 f99c44d58bae0863375faf0e1d74d612 ""
@@ -253,13 +254,13 @@
   "dados/fase0-ksp.dat" 1790731133.1708 221 95f3587e8f1760c348cbbbf1317dd559 ""
   "dados/projeto-medido.dat" 1790731133.15749 633 85df8d1e0ead0da6093f9ae935f11571 ""
   "dados/projeto-premissas.dat" 1790731133.15659 537 d53fd3c001a8075ba367cac1db328083 ""
-  "main.aux" 1790731168.67809 1939 95619e83e3af071527d6efa4841c7fab "pdflatex"
-  "main.bbl" 1790731165.09406 49 0eba253fc001332e731e8aba3f23127b "bibtex main"
-  "main.out" 1790731168.68109 1711 cc98730f4a66b6ce28530259da1291f0 "pdflatex"
-  "main.tex" 1790731163.29302 2069 25d6959f309008a58bb78619d08f194c ""
-  "main.toc" 1790731168.68209 1102 91cf47e88999ddc0b90c0f8b2de2f3ef "pdflatex"
-  "secoes/01-medidas.tex" 1790731163.29202 1959 5cf6dd596c4ca3916f1a73e0080a7adb ""
-  "secoes/02-analise.tex" 1790731163.28883 5997 85bab918910b500026bd2c96ee479ba0 ""
+  "main.aux" 1790731926.42774 2029 ba82dd4adf6c0f49061320fe3ac1bed7 "pdflatex"
+  "main.bbl" 1790731923.8007 623 3a7ef27e34c5cd3b23c257199bcc2a52 "bibtex main"
+  "main.out" 1790731926.43074 1711 cc98730f4a66b6ce28530259da1291f0 "pdflatex"
+  "main.tex" 1790731668.94777 2219 b9dc4c9c014110a847a8ff080d1f535d ""
+  "main.toc" 1790731926.43174 1102 91cf47e88999ddc0b90c0f8b2de2f3ef "pdflatex"
+  "secoes/01-medidas.tex" 1790731912.17153 1995 1397804c78d0ae628867f3982ede05bc ""
+  "secoes/02-analise.tex" 1790731668.94268 6177 0f9df52ff46458c523ddb744f689b7f8 ""
   (generated)
   "main.aux"
   "main.log"
