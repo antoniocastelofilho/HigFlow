@@ -125,7 +125,12 @@ Convém delimitar antes, e n\~ao depois:
     dispers\~ao entre os tr\^es c\'odigos publicados.
 \end{itemize}
 
-\subsection{Resultado: nenhum dos dois converge monotonicamente}
+\subsection{Resultado da s\'erie A: nenhum dos dois converge monotonicamente}
+\label{sec:conv-serieA}
+
+\emph{Esta subse\c{c}\~ao descreve a s\'erie original, de contagem constante. A
+s\'erie refeita com banda f\'isica constante est\'a na
+Se\c{c}\~ao~\ref{sec:conv-serieC}, e o quadro muda.}
 \label{sec:conv-resultado}
 
 \begin{adjustbox}{max width=\linewidth}
@@ -206,9 +211,145 @@ $\text{celmin}=5$, para que as mais finas apenas ganhem c\'elulas. Sem a
 vari\'avel, nada muda, e as corridas que produziram o fechamento seguem
 id\^enticas.
 
-O que falta \'e caro e n\~ao foi feito: refazer as seis corridas com a banda
-constante e ver se a monotonicidade aparece. At\'e l\'a, a hip\'otese continua
-hip\'otese --- o conserto a torna \emph{test\'avel}, n\~ao testada.
+\subsection{A s\'erie foi refeita, e o resultado \'e mais estreito do que a
+previs\~ao}
+\label{sec:conv-serieC}
+
+As seis corridas foram refeitas com banda f\'isica constante $0{,}0625$, o que
+d\'a $\text{celmin}$ igual a $5$, $7$ e $10$ nas tr\^es resolu\c{c}\~oes. Chame-se
+\textbf{s\'erie C} a essa, e \textbf{s\'erie A} a original de contagem constante.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/celraio/.style={column name={c\'el./raio}},
+  columns/vcC/.style={column name={$V_{c,\max}$}},
+  columns/dvcC/.style={column name={desvio}},
+  columns/cminC/.style={column name={$c_{\min}$}},
+  columns/dcminC/.style={column name={desvio}},
+  columns/areaC/.style={column name={\'area em $t=1{,}95$}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-serieC.dat}}
+\end{adjustbox}
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/celraio/.style={column name={c\'el./raio (VOF)}},
+  columns/vcC/.style={column name={$V_{c,\max}$}},
+  columns/dvcC/.style={column name={desvio}},
+  columns/areaC/.style={column name={\'area em $t=1{,}95$}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-serieC-vof.dat}}
+\end{adjustbox}
+
+A deriva de \'area passou a ser lida em $t=1{,}95$ e n\~ao na \'ultima amostra:
+as corridas da s\'erie A v\~ao a $t\approx3$ e as da C param em $t\approx2{,}15$,
+e comparar derivas em instantes diferentes n\~ao mede nada. Foi um defeito de
+m\'etodo da primeira leitura, corrigido aqui.
+
+\paragraph{A monotonicidade apareceu nas cinco m\'etricas, nos dois m\'etodos.}
+Era o teste declarado antes dos n\'umeros, e ele passou na forma literal. Na
+s\'erie A o $V_{c,\max}$ virava nos dois m\'etodos e a circularidade virava no
+front-tracking; na C nenhuma das cinco vira. No VOF o sinal da tend\^encia da
+\'area chegou a inverter: na A o refino \emph{piora} a conserva\c{c}\~ao
+($-0{,}052$ para $-0{,}085$), na C ela \emph{melhora} ($-0{,}052$ para
+$-0{,}024$).
+
+\paragraph{Mas a explica\c{c}\~ao proposta n\~ao sobreviveu \`a pr\'opria
+medida.} Houve uma terceira s\'erie, n\~ao planejada: um defeito no exemplo de
+front-tracking fez o remalhamento usar $\text{celmin}=10$ em qualquer
+resolu\c{c}\~ao, e ela rodou inteira antes de o defeito ser achado
+(Se\c{c}\~ao~\ref{sec:conv-defeito}). Chame-se \textbf{s\'erie B}.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/serie/.style={column name={s\'erie}},
+  columns/b20/.style={column name={$20$}},
+  columns/b28/.style={column name={$28$}},
+  columns/b40/.style={column name={$40$}},
+  columns/minima/.style={column name={m\'inima}},
+  columns/monotona/.style={column name={mon\'otona?}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-larguras.dat}}
+\end{adjustbox}
+
+A s\'erie B \textbf{n\~ao} tem banda constante: ela encolhe de $0{,}1250$ a
+$0{,}0625$, na mesma raz\~ao da s\'erie A. E mesmo assim \'e mon\'otona. Logo a
+constância da banda \textbf{n\~ao \'e} o que produz a monotonicidade --- se fosse,
+B teria virado como A.
+
+O que B e C t\^em em comum \'e outra coisa: a banda \emph{nunca desce abaixo de}
+$0{,}0625$, enquanto a da s\'erie A desce a $0{,}0312$ na malha mais fina. A
+afirma\c{c}\~ao que os dados sustentam \'e mais estreita e mais \'util que a
+prevista: o que quebra a s\'erie \'e a banda ficar \emph{estreita demais em termos
+absolutos} na malha fina, e n\~ao o fato de ela variar. Manter a banda constante
+\'e uma receita suficiente para evitar isso; n\~ao \'e a \'unica.
+
+Isto \emph{refina} o mecanismo nomeado antes --- ``a esteira fica
+progressivamente menos coberta'' \'e exatamente o que ``a banda cai a
+$0{,}0312$'' significa --- mas desmonta a formula\c{c}\~ao em termos de
+const\^ancia, que era a que estava escrita.
+
+\paragraph{E mon\'otono n\~ao \'e convergente.} Com tr\^es pontos e sem oscila\c{c}\~ao
+seria de esperar que uma ordem pudesse enfim ser ajustada. N\~ao pode:
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/metodo/.style={column name={m\'etodo}},
+  columns/grandeza/.style={column name={grandeza}},
+  columns/d2028/.style={column name={de $20$ a $28$}},
+  columns/d2840/.style={column name={de $28$ a $40$}},
+  columns/comportamento/.style={column name={as diferen\c{c}as}},
+  columns/ordem/.style={column name={$p$ observado}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{convergencia-ordem.dat}}
+\end{adjustbox}
+
+Em tr\^es das cinco m\'etricas a diferen\c{c}a entre malhas sucessivas
+\textbf{cresce} ao refinar. O desvio em rela\c{c}\~ao \`a refer\^encia encolhe de
+forma mon\'otona, mas a solu\c{c}\~ao ainda n\~ao parou de se mover: n\~ao h\'a
+regime assint\'otico, e ordem de converg\^encia continua sem poder ser declarada.
+As duas leituras n\~ao se contradizem --- a s\'erie se aproxima da refer\^encia
+\emph{passando por ela}, e n\~ao convergindo para ela.
+
+Uma ressalva de resolu\c{c}\~ao: as diferen\c{c}as do $V_{c,\max}$ do VOF s\~ao
+$0{,}031\%$ e $0{,}051\%$, contra um piso de amostragem de $0{,}017\%$. S\~ao
+duas a tr\^es vezes o piso --- acima dele, mas com a menor margem da tabela. As
+demais est\~ao de tr\^es a seis vezes.
+
+\subsection{O defeito que criou a s\'erie B}
+\label{sec:conv-defeito}
+
+O conserto do crit\'erio tem \emph{dois} pontos de chamada: a malha inicial e o
+remalhamento peri\'odico. No exemplo de front-tracking o segundo ficou antes da
+leitura de \texttt{FT\_AMR\_NX} e \texttt{FT\_AMR\_LX} do ambiente, e portanto
+usava o padr\~ao $nx=40$ --- devolvendo $\text{celmin}=10$ em qualquer
+resolu\c{c}\~ao. Com remalhamento a cada $400$ passos e corridas de milhares, o
+que valeu na pr\'atica foi contagem constante de $10$. S\'o a malha inicial saiu
+certa. O VOF estava correto nos dois pontos.
+
+Foi achado comparando a corrida de $20$ c\'elulas por raio das duas s\'eries: no
+VOF as duas s\~ao bit-id\^enticas, como t\^em de ser quando $\text{celmin}$ n\~ao
+muda; no front-tracking divergiam a partir de $t=0{,}354$, que \'e a primeira
+amostra depois do passo $400$ --- o primeiro remalhamento. O log tamb\'em
+denunciava sozinho: cada corrida do FT imprimia \emph{duas} linhas de banda com
+valores diferentes, e as do VOF, duas iguais.
+
+Depois do conserto, a corrida de $20$ reproduz a da s\'erie A
+($c_{\min}=0{,}898907$ contra $0{,}898900$), como tem de ser: em $20$ c\'elulas
+por raio a banda d\'a $\text{celmin}=5$, que \'e a contagem antiga. Antes do
+conserto ela dava $0{,}898036$.
+
+A s\'erie B foi preservada em vez de descartada, e \'e ela que sustenta a
+refuta\c{c}\~ao do par\'agrafo anterior. Um acidente virou o \'unico ponto de
+controle dispon\'ivel.
 
 \subsection{O confundidor do passo, medido}
 

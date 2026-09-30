@@ -297,8 +297,12 @@ disparado.
 Em ordem de valor:
 
 \begin{enumerate}
-  \item \textbf{Converg\^encia em $h$} das tr\^es m\'etricas, nos dois m\'etodos ---
-    ver o item abaixo, que lhe d\'a motivo concreto.
+  \item \textbf{Levar a s\'erie a uma malha mais fina que $40$ c\'elulas por
+    raio.} A s\'erie com banda constante ficou mon\'otona nas cinco m\'etricas
+    (Se\c{c}\~ao~\ref{sec:conv-serieC}), mas em tr\^es delas a diferen\c{c}a
+    entre malhas sucessivas ainda \emph{cresce} ao refinar: n\~ao h\'a regime
+    assint\'otico, e ordem continua sem poder ser declarada. \'E o pr\'oximo
+    ponto que decide, e custa $4$ a $8$ vezes a corrida de $40$.
   \item \textbf{Fase B3}, oscila\c{c}\~ao de gota contra a frequ\^encia de Lamb:
     exercita din\^amica acoplada e, por deformar a interface, finalmente p\~oe a
     cirurgia \`a prova com o solver no circuito.
@@ -315,6 +319,13 @@ Em ordem de valor:
     candidatos --- resolu\c{c}\~ao \'unica, restri\c{c}\~ao capilar de passo,
     refino da esteira --- s\'o se separam refinando. Isto deixa de ser item de
     completude e passa a ser a pergunta aberta do trabalho.
+
+    A s\'erie com banda constante j\'a estreitou um dos tr\^es: o refino da
+    esteira \emph{importa}, e importa por largura absoluta e n\~ao por
+    const\^ancia --- a s\'erie cuja banda nunca desce de $0{,}0625$ fica
+    mon\'otona, a que desce a $0{,}0312$ n\~ao. Mas os desvios continuam todos
+    negativos na s\'erie nova, e a mais fina \'e a que mais se afasta em
+    $V_{c,\max}$. O vi\'es compartilhado segue de p\'e.
 \end{enumerate}
 
 A compara\c{c}\~ao com o VOF pode acompanhar cada uma dessas etapas: o caso

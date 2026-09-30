@@ -1,6 +1,6 @@
 simulation_par:
-  numsteps: 12001                         # The Maximum Number of Steps 
-  dt: 0.00025                       # The Time spacing 
+  numsteps: 5168                         # The Maximum Number of Steps 
+  dt: 4.16e-4                       # The Time spacing 
   dts: 0.01                         # The Time spacing for saving data (output) 
   dtp: 0.01                         # The Time spacing for saving VTKs
 
