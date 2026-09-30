@@ -72,8 +72,12 @@ public:
     // um vortice que CARREGA a gota: e' o que poe a adveccao acoplada a prova,
     // porque com a gota parada a velocidade e' ~1e-3 e ela mal se move.
     real boundary_velocity(int id, Point center, int dim, real t) {
+        // CISALHAMENTO SIMPLES (VE_CISALHA, padrao 0).  Com zero a caixa fica
+        // em repouso e o caso de equilibrio nao muda em bit nenhum.  Com valor
+        // nao nulo, a face y=L desliza em x; com as faces em x e z em Neumann o
+        // escoamento e' efetivamente unidimensional e a taxa e' U/H.
         if (id == 3 && dim == 0) {
-            const char *e = getenv("FT3_TAMPA");
+            const char *e = getenv("VE_CISALHA");
             return (e != NULL) ? atof(e) : 0.0;
         }
         real value;
@@ -181,6 +185,11 @@ public:
     // pelo gancho; esta funcao so' serve a' condicao inicial, e usa a MESMA
     // esfera para as duas nascerem coerentes.
     real fracvol(Point center, Point delta, real t) {
+        // No cisalhamento a fracao e' UNIFORME: as duas fases tem os mesmos
+        // parametros, entao a interpolacao e' exercitada e a solucao analitica
+        // continua inequivoca.
+        { const char *e = getenv("VE_CISALHA");
+          if (e != NULL && atof(e) != 0.0) return 0.5; }
         real cx = _amb("VE_CX", 0.5), cy = _amb("VE_CY", 0.5);
         real cz = _amb("VE_CZ", 0.5), R  = _amb("VE_R", 0.25);
         real d[3] = { center[0]-cx, center[1]-cy, center[2]-cz };
@@ -420,6 +429,52 @@ int main (int argc, char *argv[]) {
     // ********************************************************
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
+
+    // ---- ORACULO DO CISALHAMENTO: Oldroyd-B tem solucao fechada ---------
+    // Em cisalhamento simples permanente com taxa gp e Deborah De:
+    //     A_xy = De*gp      A_xx = 1 + 2 (De*gp)^2      A_yy = A_zz = 1
+    // Medido no MIOLO do dominio, longe das paredes, onde o perfil e' linear.
+    if (getenv("VE_CISALHA") != NULL && atof(getenv("VE_CISALHA")) != 0.0) {
+        const real U  = atof(getenv("VE_CISALHA"));
+        const real H  = 1.0;
+        const real gp = U / H;                       // taxa de cisalhamento
+        real De = ns->ed.mult.ve.par0.De;
+        const real Wi = De * gp;
+        const real Axy_ex = Wi, Axx_ex = 1.0 + 2.0*Wi*Wi, Ayy_ex = 1.0;
+
+        // media no miolo: |y-0,5| < 0,2 e longe das faces em x e z
+        real sxy=0, sxx=0, syy=0, szz=0; int n=0;
+        sim_domain *sdm = psd_get_local_domain(ns->ed.psdED);
+        mp_mapper  *mp  = sd_get_domain_mapper(sdm);
+        higcit_celliterator *it;
+        for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it); higcit_nextcell(it)) {
+            hig_cell *c = higcit_getcell(it);
+            int clid = mp_lookup(mp, hig_get_cid(c));
+            if (clid < 0) continue;
+            Point cc; hig_get_center(c, cc);
+            if (fabs(cc[1]-0.5) > 0.2) continue;
+            if (cc[0] < 0.25 || cc[0] > 0.75) continue;
+            if (cc[2] < 0.25 || cc[2] > 0.75) continue;
+            sxx += dp_get_value(ns->ed.ve.dpKernel[0][0], clid);
+            sxy += dp_get_value(ns->ed.ve.dpKernel[0][1], clid);
+            syy += dp_get_value(ns->ed.ve.dpKernel[1][1], clid);
+            szz += dp_get_value(ns->ed.ve.dpKernel[2][2], clid);
+            n++;
+        }
+        higcit_destroy(it);
+        if (n > 0) { sxx/=n; sxy/=n; syy/=n; szz/=n; }
+        print0f("=+=+=+= VE3D CISALHAMENTO  U=%.3f  De=%.3f  Wi=De*gp=%.3f  "
+                "(%d celulas no miolo)\n"
+                "   A_xy = %.6f   analitico %.6f   erro %.3f%%\n"
+                "   A_xx = %.6f   analitico %.6f   erro %.3f%%\n"
+                "   A_yy = %.6f   analitico %.6f   erro %.3f%%\n"
+                "   A_zz = %.6f   analitico %.6f   erro %.3f%% =+=+=+=\n",
+                (double)U, (double)De, (double)Wi, n,
+                (double)sxy, (double)Axy_ex, (double)(fabs(sxy-Axy_ex)/Axy_ex*100),
+                (double)sxx, (double)Axx_ex, (double)(fabs(sxx-Axx_ex)/Axx_ex*100),
+                (double)syy, (double)Ayy_ex, (double)(fabs(syy-Ayy_ex)/Ayy_ex*100),
+                (double)szz, (double)Ayy_ex, (double)(fabs(szz-Ayy_ex)/Ayy_ex*100));
+    }
 
     // ---- O ORACULO: o equilibrio trivial se manteve? -------------------
     // Partindo do repouso, sem forcante, a velocidade tem de continuar nula e o
