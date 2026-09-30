@@ -344,10 +344,54 @@ constitutiva roda \emph{antes} do gancho, ent\~ao $De$ e $\beta$ s\~ao
 interpolados com o \texttt{fracvol} do passo \textbf{anterior}. \'E $O(\Delta t)$,
 da mesma ordem da defasagem que a for\c{c}a de tens\~ao j\'a tem.
 
-\paragraph{O que ainda n\~ao est\'a provado.} Que a f\'isica viscoel\'astica
-esteja \emph{certa}. Preservar o equil\'ibrio trivial \'e necess\'ario e n\~ao
-suficiente. O caso que decide \'e cisalhamento simples, onde Oldroyd-B tem
-solu\c{c}\~ao fechada --- $A_{xy}=De\,\dot\gamma$, $A_{xx}=1+2(De\,\dot\gamma)^2$,
-$A_{yy}=A_{zz}=1$ --- e estava em execu\c{c}\~ao quando esta se\c{c}\~ao foi
-escrita. O componente $A_{zz}$ \'e o que mais interessa: ele \emph{s\'o existe em
-tr\^es dimens\~oes}, e \'e ali que um la\c{c}o preso a duas apareceria.
+\paragraph{Cisalhamento simples: a f\'isica, contra solu\c{c}\~ao fechada.}
+Preservar o equil\'ibrio trivial \'e necess\'ario e n\~ao suficiente. O caso que
+decide \'e cisalhamento simples permanente, onde Oldroyd-B tem solu\c{c}\~ao
+anal\'itica:
+\begin{equation}
+  A_{xy} = De\,\dot\gamma, \qquad
+  A_{xx} = 1 + 2(De\,\dot\gamma)^2, \qquad
+  A_{yy} = A_{zz} = 1 .
+  \label{eq:oldroyd-cisalha}
+\end{equation}
+Caixa com as paredes em $y$ impondo a velocidade e as faces em $x$ e $z$ em
+Neumann, de modo que o escoamento \'e efetivamente unidimensional; as duas fases
+viscoel\'asticas com os \emph{mesmos} par\^ametros e fra\c{c}\~ao uniforme, o que
+exercita a interpola\c{c}\~ao e mant\'em o anal\'itico inequ\'ivoco.
+Medido no miolo, com $De=0{,}5$ e $\dot\gamma=1$:
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={}},
+  columns/analitico/.style={column name={anal\'itico}},
+  columns/tau4/.style={column name={$t=4\tau$}},
+  columns/err4/.style={column name={erro}},
+  columns/tau8/.style={column name={$t=8\tau$}},
+  columns/err8/.style={column name={erro}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-cisalhamento.dat}}
+\end{adjustbox}
+
+\textbf{$A_{zz}$ fica exatamente em $1{,}000000$.} Ele \emph{s\'o existe em tr\^es
+dimens\~oes}, e \'e onde um la\c{c}o preso a duas apareceria. N\~ao aparece.
+
+\paragraph{E o res\'iduo tinha explica\c{c}\~ao, testada em vez de afirmada.} Na
+primeira corrida, $A_{xy}$ errava $1{,}834\%$. O transiente do Oldroyd-B decai
+como $e^{-t/De}$, e a corrida parara em quatro tempos de relaxa\c{c}\~ao:
+$e^{-4} = 1{,}83\%$. A coincid\^encia \'e exata at\'e a \'ultima casa.
+
+Antes de aceitar isso, a explica\c{c}\~ao concorrente foi eliminada: taxa local
+menor que $1$ daria $A_{xy}$ menor pelo mesmo motivo. Mas o perfil \'e linear a
+$0{,}006\%$ --- no \'ultimo centro de c\'elula, $u$ medido \'e $0{,}96869$ contra
+$0{,}96875$ do perfil exato.
+
+A predi\c{c}\~ao foi ent\~ao \emph{testada}: mesmo n\'umero de passos com
+$\Delta t$ dobrado leva a oito tempos de relaxa\c{c}\~ao, e $e^{-8}=0{,}034\%$.
+Medido: $\mathbf{0{,}033\%}$. O teste \'e decisivo num sentido --- passo
+\emph{maior} daria \emph{mais} erro de discretiza\c{c}\~ao, n\~ao menos ---, e o
+erro caiu $55$ vezes.
+
+A maquinaria constitutiva viscoel\'astica reproduz a solu\c{c}\~ao fechada em
+tr\^es dimens\~oes a $0{,}03$--$0{,}1\%$.
