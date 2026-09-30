@@ -526,14 +526,18 @@ int main (int argc, char *argv[]) {
         const char *e;
         if ((e = getenv("FT_AMR_NIVEIS")) != NULL) amr_niveis = atoi(e);
         if ((e = getenv("FT_AMR_CELMIN")) != NULL) amr_celmin = atoi(e);
-        amr_celmin = _celmin_da_banda("FT_AMR_BANDA", amr_celmin,
-                                      amr_lx, amr_nx, amr_niveis);
         if ((e = getenv("FT_AMR_CADA"))   != NULL) amr_cada   = atoi(e);
         if ((e = getenv("FT_AMR_NX"))     != NULL) amr_nx     = atoi(e);
         if ((e = getenv("FT_AMR_NY"))     != NULL) amr_ny     = atoi(e);
         if ((e = getenv("FT_AMR_LX"))     != NULL) amr_lx     = atof(e);
         if ((e = getenv("FT_AMR_LY"))     != NULL) amr_ly     = atof(e);
         if ((e = getenv("FT_AMR_CAMINHO"))!= NULL) amr_caminho = e;
+        // DEPOIS de amr_lx e amr_nx: a banda depende dos dois.  Estava ANTES,
+        // e entao todo remalhamento usava o padrao nx=40 -- ou seja celmin=10
+        // fixo em qualquer resolucao, que e' a contagem constante que este
+        // conserto existe para eliminar.  So' a malha INICIAL saia certa.
+        amr_celmin = _celmin_da_banda("FT_AMR_BANDA", amr_celmin,
+                                      amr_lx, amr_nx, amr_niveis);
     }
 
     // Creating distributed property  
