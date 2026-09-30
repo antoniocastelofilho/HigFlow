@@ -142,6 +142,17 @@ typedef void (*ft3_campo_u)(const Point x, real t, void *ctx, real u[DIM]);
 //! jeito que nao fechava a area em 2D.
 void ft3_advecta(ft3_superficie *s, ft3_campo_u u, void *ctx, real t, real dt);
 
+//! Campo avaliado em LOTE: uma chamada por estagio do RK2, com todos os
+//! vertices.  Mesmo integrador e mesmo resultado que `ft3_advecta`; o que muda e'
+//! que o campo ve' todos os vertices de uma vez e pode fazer a reducao coletiva
+//! que o paralelo exige.  Existe desde ja' porque o caminho 2D aprendeu isso
+//! depois, e reescrever custaria o mesmo trabalho duas vezes.
+typedef void (*ft3_campo_u_lote)(const Point *x, int n, real t, void *ctx,
+                                 Point *u);
+
+void ft3_advecta_lote(ft3_superficie *s, ft3_campo_u_lote u, void *ctx,
+                      real t, real dt);
+
 // --- cirurgia -------------------------------------------------------------
 
 //! Mantem o espacamento de aresta proximo de `ds_alvo`: divide aresta acima de

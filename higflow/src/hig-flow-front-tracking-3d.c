@@ -429,6 +429,26 @@ void ft3_advecta(ft3_superficie *s, ft3_campo_u u, void *ctx, real t, real dt)
     }
 }
 
+void ft3_advecta_lote(ft3_superficie *s, ft3_campo_u_lote u, void *ctx,
+                      real t, real dt)
+{
+    // Mesmo RK2 do ponto medio, com o campo avaliado uma vez por estagio.
+    if (!s || s->nv < 1) return;
+    Point *k1 = (Point *) malloc((size_t) s->nv * sizeof(Point));
+    Point *k2 = (Point *) malloc((size_t) s->nv * sizeof(Point));
+    Point *xm = (Point *) malloc((size_t) s->nv * sizeof(Point));
+
+    u((const Point *) s->x, s->nv, t, ctx, k1);
+    for (int i = 0; i < s->nv; i++)
+        for (int d = 0; d < 3; d++) xm[i][d] = s->x[i][d] + 0.5 * dt * k1[i][d];
+
+    u((const Point *) xm, s->nv, t + 0.5 * dt, ctx, k2);
+    for (int i = 0; i < s->nv; i++)
+        for (int d = 0; d < 3; d++) s->x[i][d] += dt * k2[i][d];
+
+    free(k1); free(k2); free(xm);
+}
+
 // --- cirurgia -------------------------------------------------------------
 
 // Normais nos VERTICES, media ponderada por area dos triangulos incidentes.

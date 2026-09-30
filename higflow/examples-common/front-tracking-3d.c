@@ -41,6 +41,8 @@ typedef struct {
     int             advecta;   // 0 = superficie fixa (Laplace puro)
     int             passo;
     double          t_fracvol; // cronometro da fracao (FT3_CRONO_FRACVOL)
+    real            vol_ini;   // volume no instante em que a adveccao comecou
+    int             cirurgias; // operacoes de cirurgia acumuladas
 } ft3_ctx;
 
 // Tamanho de celula na posicao X.  Malha uniforme: delta[0].
@@ -175,28 +177,123 @@ static void _preenche_fracvol(higflow_solver *ns, ft3_superficie *sup,
     if (faixa) { faixa[0] = fmin; faixa[1] = fmax; }
 }
 
+// ---------------------------------------------------------------------------
+// ADVECCAO ACOPLADA: a superficie anda com a velocidade INTERPOLADA da malha.
+//
+// Mesma estrutura do 2D, inclusive o FILTRO DE POSSE, que la' foi o que separou
+// interpolacao correta de interpolacao incompleta.  Em np=1 nao ha' franja e o
+// filtro nunca recusa; ele esta' aqui porque o caminho paralelo e' o mesmo e
+// escrever depois custaria o mesmo trabalho duas vezes.
+//
+// O ORACULO E' O VOLUME.  Campo discretamente livre de divergencia preserva o
+// volume fechado, entao deriva de volume mede diretamente se a interpolacao esta'
+// certa -- e' o mesmo oraculo do B1 3D, agora com a velocidade vindo da malha em
+// vez de uma formula.
+// ---------------------------------------------------------------------------
+typedef struct {
+    sim_facet_domain     *sfd[DIM];
+    distributed_property *dpu[DIM];
+} ft3_interp;
+
+static real _pior_desvio_unidade_3d = 0.0;
+
+static void _campo_da_malha_3d(const Point *x, int n, real t, void *vctx, Point *u)
+{
+    ft3_interp *ic = (ft3_interp *) vctx;
+    (void) t;
+    const int capac = fi_suporte_capacidade();
+    int  *lids  = (int  *) malloc((size_t) capac * sizeof(int));
+    real *pesos = (real *) malloc((size_t) capac * sizeof(real));
+
+    real *val_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+    real *cnt_loc = (real *) calloc((size_t) n * DIM, sizeof(real));
+
+    for (int k = 0; k < n; k++) {
+        const real h = _h_em(ic->sfd[0], x[k]);
+        if (h <= 0.0) continue;              // este rank nao enxerga: contribui 0
+        for (int dim = 0; dim < DIM; dim++) {
+            const int m = fi_suporte_facetas(ic->sfd[dim], dim, x[k], h,
+                                             lids, pesos, capac);
+            real val = 0.0, soma = 0.0;
+            for (int i = 0; i < m; i++) {
+                val  += dp_get_value(ic->dpu[dim], lids[i]) * pesos[i];
+                soma += pesos[i];
+            }
+            // PARTICAO DA UNIDADE.  Os pesos de Roma somam 1 em aritmetica
+            // exata; soma diferente de 1 quer dizer suporte INCOMPLETO, e a
+            // interpolacao nao vale.  A tolerancia e' folgada de proposito: o
+            // desvio observado em serie e' da ordem de 1e-14.
+            if (fabs(soma - 1.0) < 1e-9) {
+                val_loc[k*DIM + dim] = val;
+                cnt_loc[k*DIM + dim] = 1.0;
+            }
+            const real desvio = fabs(soma - 1.0);
+            if (desvio > _pior_desvio_unidade_3d) _pior_desvio_unidade_3d = desvio;
+        }
+    }
+
+    int ntasks = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
+    real *val_g = val_loc, *cnt_g = cnt_loc;
+    if (ntasks > 1) {
+        val_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+        cnt_g = (real *) malloc((size_t) n * DIM * sizeof(real));
+        MPI_Allreduce(val_loc, val_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(cnt_loc, cnt_g, n * DIM, MPI_HIGREAL, MPI_SUM, MPI_COMM_WORLD);
+    }
+
+    for (int k = 0; k < n; k++)
+        for (int dim = 0; dim < DIM; dim++) {
+            const real c = cnt_g[k*DIM + dim];
+            if (c < 0.5) {
+                // NENHUM processo tem o suporte inteiro deste vertice nesta
+                // direcao.  Nao ha' velocidade correta a devolver, e devolver
+                // zero seria pregar o vertice no lugar em silencio -- que e'
+                // exatamente o defeito que o 2D levou meio dia para achar.
+                fprintf(stderr, "FT3: vertice %d sem suporte completo em dim=%d "
+                        "(x = %g %g %g).  Abortando em vez de devolver zero.\n",
+                        k, dim, (double) x[k][0], (double) x[k][1], (double) x[k][2]);
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+            u[k][dim] = val_g[k*DIM + dim] / c;
+        }
+
+    if (ntasks > 1) { free(val_g); free(cnt_g); }
+    free(val_loc); free(cnt_loc); free(lids); free(pesos);
+}
+
 // Gancho chamado a cada passo, no mesmo ponto em que o corpo rigido injeta.
 static void _aplica_tensao(higflow_solver *ns, void *vctx)
 {
     ft3_ctx *ctx = (ft3_ctx *) vctx;
 
     if (ctx->advecta) {
-        // Nao ha' campo analitico aqui: a velocidade vem da malha.  Fica para a
-        // fase seguinte, junto com o teste que a exercita -- o B2 e' a gota
-        // ESTATICA, e mover a superficie sem oraculo de movimento seria
-        // exatamente o que os degraus anteriores existem para evitar.
-        fprintf(stderr, "FT3: adveccao acoplada ainda nao implementada "
-                        "(B2 e' a gota estatica)\n");
-        abort();
+        // ORDEM.  Neste ponto `ns->dpu` e' u^n -- a velocidade final do passo
+        // anterior, JA' PROJETADA e portanto discretamente livre de divergencia.
+        // Entao: move com u^n, faz a cirurgia, e espalha a forca nas posicoes
+        // NOVAS, que sao as que o preditor vai ver.
+        ft3_interp ic;
+        for (int d = 0; d < DIM; d++) {
+            ic.sfd[d] = psfd_get_local_domain(ns->psfdu[d]);
+            ic.dpu[d] = ns->dpu[d];
+        }
+        if (ctx->vol_ini <= 0.0) ctx->vol_ini = ft3_volume(ctx->sup);
+        ft3_advecta_lote(ctx->sup, _campo_da_malha_3d, &ic, ns->par.t, ns->par.dt);
+        ctx->cirurgias += ft3_cirurgia(ctx->sup);
     }
 
     // Diagnostico periodico: a superficie nao deve se mexer no B2, entao area,
     // volume e topologia sao constantes -- qualquer deriva aqui e' defeito.
     if ((ctx->passo % 50) == 0) {
-        print0f("=+= FT3 passo %d: nv=%d nt=%d area=%.8f volume=%.8f chi=%d =+=\n",
+        real v = ft3_volume(ctx->sup);
+        // O ORACULO DA ADVECCAO: campo livre de divergencia preserva o volume
+        // fechado.  A deriva mede a interpolacao, e nada mais.
+        real deriva = (ctx->vol_ini > 0.0) ? (v - ctx->vol_ini) / ctx->vol_ini : 0.0;
+        print0f("=+= FT3 passo %d: nv=%d nt=%d area=%.8f volume=%.8f chi=%d "
+                "deriva=%+.3e cirurgias=%d unidade=%.2e =+=\n",
                 ctx->passo, ft3_num_vertices(ctx->sup), ft3_num_triangulos(ctx->sup),
-                (double) ft3_area(ctx->sup), (double) ft3_volume(ctx->sup),
-                ft3_euler(ctx->sup));
+                (double) ft3_area(ctx->sup), (double) v, ft3_euler(ctx->sup),
+                (double) deriva, ctx->cirurgias, (double) _pior_desvio_unidade_3d);
     }
     ctx->passo++;
 
@@ -243,6 +340,8 @@ extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *su
     ctx->sigma   = sigma;
     ctx->passo   = 0;
     ctx->t_fracvol = 0.0;
+    ctx->vol_ini   = 0.0;
+    ctx->cirurgias = 0;
     { const char *s = getenv("FT3_ADVECTA"); ctx->advecta = (s != NULL) ? atoi(s) : 0; }
     higflow_set_fronteira_imersa(ns, _aplica_tensao, ctx);
 }

@@ -63,7 +63,17 @@ public:
         return value; 
     }
     // Value of the velocity at boundary
+    //
+    // TAMPA MOVEL, por ambiente (FT3_TAMPA, padrao 0).  Com zero a caixa fica em
+    // repouso e a gota estatica nao muda em bit nenhum -- o caso do B2 continua
+    // sendo o padrao.  Com valor nao nulo, a face y=L (id 3) desliza em x e gera
+    // um vortice que CARREGA a gota: e' o que poe a adveccao acoplada a prova,
+    // porque com a gota parada a velocidade e' ~1e-3 e ela mal se move.
     real boundary_velocity(int id, Point center, int dim, real t) {
+        if (id == 3 && dim == 0) {
+            const char *e = getenv("FT3_TAMPA");
+            return (e != NULL) ? atof(e) : 0.0;
+        }
         real value;
         switch (id) {
             case 0:
