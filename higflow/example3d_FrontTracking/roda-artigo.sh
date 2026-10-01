@@ -1,4 +1,8 @@
 #!/bin/bash
+# O diretorio DESTE roteiro, capturado ANTES de qualquer cd -- `readlink -f "$0"`
+# avaliado depois de um `cd` resolve para o lugar errado, e foi o que aconteceu:
+# a copia deste arquivo rodou em cima da corrida do diretorio original.
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # BOLHA ASCENDENTE 3D PELO FRONT-TRACKING -- mesmo caso do artigo de referencia
 # (Silva, Fernandes, Organista, Souza & Castelo, Mathematics 2023, 11(18), 3900,
 # Tabela 3), para comparar FT contra VOF e contra a literatura.
@@ -29,7 +33,7 @@
 # triangulo casada com a celula, que e' a condicao da grade espacial do modulo.
 M=/home/castelo/HiGFlow-System/HigFlow
 cd $M && set -a && . ./varsrc && set +a
-cd $M/higflow/example3d_FrontTracking
+cd "$AQUI"
 
 N=${1:-50}; PASSOS=${2:-1501}; CASO=${3:-1}; NUC=${4:-}
 

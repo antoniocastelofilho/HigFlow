@@ -164,3 +164,4 @@ graphify-out/
 # na arvore de quem o escreveu (os arquivos estao no disco) e NAO compila a
 # partir de um clone ou de outro worktree.  Foi assim que apareceu.
 !doc/*/dados/*.dat
+higflow/example3d_VOF_rising-ve/

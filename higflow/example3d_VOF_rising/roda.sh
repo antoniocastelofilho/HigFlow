@@ -1,4 +1,8 @@
 #!/bin/bash
+# O diretorio DESTE roteiro, capturado ANTES de qualquer cd -- `readlink -f "$0"`
+# avaliado depois de um `cd` resolve para o lugar errado, e foi o que aconteceu:
+# a copia deste arquivo rodou em cima da corrida do diretorio original.
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # BOLHA ASCENDENTE 3D -- os dois casos de Adelsberger et al., como reproduzidos
 # em Silva, Fernandes, Organista, Souza & Castelo, "Validation of HiG-Flow
 # Software for Simulating Two-Phase Flows with a 3D Geometric Volume of Fluid
@@ -31,7 +35,7 @@
 # bolha, contra OpenFOAM, DROPS, NaSt3D e FEEL (Metivet et al.).
 M=/home/castelo/HiGFlow-System/HigFlow
 cd $M && set -a && . ./varsrc && set +a
-cd $M/higflow/example3d_VOF_rising
+cd "$AQUI"
 
 N=${1:-50}; PASSOS=${2:-1501}; CASO=${3:-1}; NUC=${4:-}
 
