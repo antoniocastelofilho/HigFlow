@@ -394,10 +394,32 @@ int main (int argc, char *argv[]) {
     //higflow_save_all_boundaries_yaml(ns, myrank, ntasks);
     //higflow_save_all_controllers_and_parameters_yaml(ns, myrank); //copying necessary yamls
 
+    // CADENCIA DO CAMPO, separada da da interface.  O VTK de campo e' um
+    // UNSTRUCTURED_GRID com oito cantos por celula, sem partilhar vertices:
+    // 250 mil celulas dao 2 milhoes de pontos.  Medido, em N=25 o campo sai com
+    // 28 MB por quadro contra 124 KB da interface -- fator 226 --, e em N=50 ele
+    // chega a ~300 MB.  Medido com o processo SOZINHO: 130 MB em menos de 10
+    // minutos incluindo a montagem, da ordem de 20 MINUTOS por quadro de campo.
+    // (A primeira estimativa, 75-100 min, saiu de uma taxa colhida com dois
+    // processos competindo pela banda de memoria, e a medicao sozinho a
+    // refutou.)  Ainda assim: 120 quadros dariam 40 horas so' de impressao,
+    // contra ~16 de conta.
+    //
+    // A interface NAO precisa do campo: ela ja' sai com p, vel, S e T
+    // interpolados nos vertices, que e' o que a animacao da bolha com tensoes
+    // pede.  O campo serve a corte e a visualizacao volumetrica, para o que
+    // tres amostras bastam (t=0, 1.5, 3.0 com dtp=0.025 e t final 3).  As
+    // variaveis SB_CAMPO_CADA / FT3_CAMPO_CADA controlam: 1
+    // imprime todo quadro (o comportamento antigo), 0 nunca imprime.
+    int campo_cada = 60;
+    { const char *e = getenv("FT3_CAMPO_CADA"); if (e != NULL) campo_cada = atoi(e); }
+    print0f("=+=+=+= VTK de campo a cada %d quadro(s); interface em todos =+=+=+=\n",
+            campo_cada);
+
     // Printing the properties to visualize: first step
     if (ns->par.step == 0) {
         print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
-        higflow_print_vtk(ns, myrank);
+        if (campo_cada > 0 && ns->par.frame % campo_cada == 0) higflow_print_vtk(ns, myrank);
         // A SUPERFICIE, para a animacao.  O FT a carrega explicitamente, logo
         // nao ha' nada a extrair: grava-se a triangulacao como ela esta'.
         // (O analogo no VOF e' a isosuperficie por marching cubes, que precisa
@@ -458,7 +480,7 @@ int main (int argc, char *argv[]) {
         // Printing
         if (ns->par.t >= ns->par.tp) {
             print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
-            higflow_print_vtk(ns, myrank);
+            if (campo_cada > 0 && ns->par.frame % campo_cada == 0) higflow_print_vtk(ns, myrank);
             if (myrank == 0) {
                 char cam[1024];
                 snprintf(cam, sizeof cam, "%s_frente_%d-%d.vtk",
