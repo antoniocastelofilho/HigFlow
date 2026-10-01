@@ -1,0 +1,483 @@
+<title>Plano FT–VOF Viscoelástico</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --paper:   #FBFAF7;
+  --surface: #FFFFFF;
+  --sunken:  #F3F1EC;
+  --ink:     #1A1F26;
+  --muted:   #5A6472;
+  --faint:   #8B93A0;
+  --rule:    #DFDBD3;
+  --accent:  #1D4E6F;
+  --accent-soft: #E7EDF2;
+  --copper:  #A9571F;
+  --ready:   #2E6B4F;
+  --blocked: #96372B;
+  --pending: #7E6118;
+  --serif: "Spectral", Georgia, "Times New Roman", serif;
+  --sans:  "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:  "IBM Plex Mono", "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:   #14181D;
+    --surface: #1B2027;
+    --sunken:  #11151A;
+    --ink:     #E6E4DF;
+    --muted:   #9AA3B0;
+    --faint:   #6E7784;
+    --rule:    #2E353E;
+    --accent:  #74ADD1;
+    --accent-soft: #1E2A34;
+    --copper:  #D98A4F;
+    --ready:   #6BBF95;
+    --blocked: #E08A7A;
+    --pending: #D4B36A;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:   #14181D;
+  --surface: #1B2027;
+  --sunken:  #11151A;
+  --ink:     #E6E4DF;
+  --muted:   #9AA3B0;
+  --faint:   #6E7784;
+  --rule:    #2E353E;
+  --accent:  #74ADD1;
+  --accent-soft: #1E2A34;
+  --copper:  #D98A4F;
+  --ready:   #6BBF95;
+  --blocked: #E08A7A;
+  --pending: #D4B36A;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+.prose { max-width: 68ch; }
+
+/* ---- cabeçalho ---- */
+header { border-bottom: 2px solid var(--ink); padding-bottom: 2rem; margin-bottom: 3rem; }
+.eyebrow {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--copper); margin: 0 0 1rem;
+}
+h1 {
+  font-family: var(--serif); font-weight: 700; font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.1; margin: 0 0 1rem; text-wrap: balance; letter-spacing: -0.015em;
+}
+.lede { font-family: var(--serif); font-size: 1.2rem; line-height: 1.55; color: var(--muted); margin: 0; max-width: 60ch; }
+
+/* ---- índice ---- */
+nav.toc {
+  background: var(--sunken); border: 1px solid var(--rule); border-radius: 3px;
+  padding: 1.25rem 1.5rem; margin-bottom: 3.5rem;
+}
+nav.toc h2 {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--faint); margin: 0 0 0.75rem; font-weight: 500;
+}
+nav.toc ol { margin: 0; padding-left: 1.4rem; columns: 2; column-gap: 2.5rem; }
+nav.toc li { margin: 0.2rem 0; break-inside: avoid; }
+nav.toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; }
+nav.toc a:hover { border-bottom-color: var(--accent); }
+
+/* ---- seções ---- */
+section { margin-bottom: 4rem; }
+h2 {
+  font-family: var(--serif); font-weight: 600; font-size: 1.7rem; line-height: 1.2;
+  margin: 0 0 0.4rem; letter-spacing: -0.01em; text-wrap: balance;
+}
+h2 .num {
+  font-family: var(--mono); font-size: 0.85rem; font-weight: 500;
+  color: var(--copper); margin-right: 0.7rem; vertical-align: 0.22em;
+}
+.subtitle { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.75rem; max-width: 62ch; }
+h3 {
+  font-family: var(--sans); font-weight: 600; font-size: 1.02rem;
+  margin: 2.25rem 0 0.6rem; letter-spacing: 0.002em;
+}
+p { margin: 0 0 1rem; }
+strong { font-weight: 600; }
+code, .m { font-family: var(--mono); font-size: 0.88em; background: var(--accent-soft); padding: 0.1em 0.35em; border-radius: 2px; }
+
+/* ---- contribuições ---- */
+.claims { list-style: none; margin: 0; padding: 0; counter-reset: c; }
+.claims li {
+  counter-increment: c; position: relative; padding-left: 3.25rem;
+  margin-bottom: 1.6rem; max-width: 66ch;
+}
+.claims li::before {
+  content: counter(c, decimal-leading-zero);
+  position: absolute; left: 0; top: 0.05em;
+  font-family: var(--mono); font-size: 0.95rem; font-weight: 500;
+  color: var(--accent); background: var(--accent-soft);
+  width: 2.4rem; height: 1.9rem; display: grid; place-items: center; border-radius: 2px;
+}
+.claims .t { font-weight: 600; display: block; margin-bottom: 0.15rem; }
+.claims .d { color: var(--muted); font-size: 0.94rem; }
+
+/* ---- tabelas ---- */
+.scroll { overflow-x: auto; margin: 1.5rem 0; border: 1px solid var(--rule); border-radius: 3px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--surface); }
+th {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--faint); font-weight: 500; text-align: left;
+  padding: 0.8rem 0.9rem; border-bottom: 1px solid var(--rule); white-space: nowrap;
+  background: var(--sunken);
+}
+td { padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tbody tr:last-child td { border-bottom: none; }
+td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.k { font-weight: 500; }
+.note { font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0 0; max-width: 70ch; }
+
+/* ---- estado ---- */
+.pill {
+  display: inline-block; font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.05em; text-transform: uppercase; padding: 0.15rem 0.5rem;
+  border-radius: 2px; white-space: nowrap;
+}
+.pill.ok   { color: var(--ready);   background: color-mix(in srgb, var(--ready) 14%, transparent); }
+.pill.no   { color: var(--blocked); background: color-mix(in srgb, var(--blocked) 14%, transparent); }
+.pill.wait { color: var(--pending); background: color-mix(in srgb, var(--pending) 16%, transparent); }
+
+/* ---- destaque ---- */
+.flag {
+  border-left: 3px solid var(--copper); background: var(--sunken);
+  padding: 1rem 1.25rem; margin: 1.75rem 0; max-width: 70ch;
+}
+.flag p:last-child { margin-bottom: 0; }
+.flag .h {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--copper); display: block; margin-bottom: 0.4rem;
+}
+
+/* ---- estrutura do artigo ---- */
+.sec { border-top: 1px solid var(--rule); padding: 1.1rem 0; display: grid; grid-template-columns: 3.5rem 1fr; gap: 1.25rem; }
+.sec:last-child { border-bottom: 1px solid var(--rule); }
+.sec .no { font-family: var(--mono); font-size: 0.95rem; color: var(--accent); font-weight: 500; }
+.sec .ti { font-weight: 600; margin-bottom: 0.25rem; }
+.sec .bo { color: var(--muted); font-size: 0.92rem; }
+.sec .bo em { color: var(--ink); font-style: italic; }
+
+footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5rem; color: var(--faint); font-size: 0.82rem; }
+@media (max-width: 640px) {
+  nav.toc ol { columns: 1; }
+  .sec { grid-template-columns: 1fr; gap: 0.3rem; }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">HiG-Flow · plano de artigo · 1 out 2026</p>
+  <h1>Front-tracking e VOF em escoamento viscoelástico 3D</h1>
+  <p class="lede">Uma comparação controlada entre representação explícita e implícita de interface, em malha uniforme e adaptativa, ancorada no que já está verificado na árvore e no que a tese e o artigo de referência deixam como alvo.</p>
+</header>
+
+<nav class="toc">
+  <h2>Conteúdo</h2>
+  <ol>
+    <li><a href="#tese">A tese do artigo</a></li>
+    <li><a href="#estrutura">Estrutura das seções</a></li>
+    <li><a href="#alvos">Alvos de comparação</a></li>
+    <li><a href="#matriz">Matriz de simulações</a></li>
+    <li><a href="#verificacao">O que já está verificado</a></li>
+    <li><a href="#pendencias">Pendências que bloqueiam</a></li>
+    <li><a href="#caminho">Caminho crítico</a></li>
+  </ol>
+</nav>
+
+<section id="tese">
+  <h2><span class="num">01</span>A tese do artigo</h2>
+  <p class="subtitle">O que este trabalho afirma que ninguém afirmou antes, em quatro pontos — e cada um tem de sobreviver à pergunta “como você sabe?”.</p>
+
+  <ol class="claims">
+    <li>
+      <span class="t">Front-tracking tridimensional para escoamento bifásico viscoelástico</span>
+      <span class="d">A tese do Aquisson implementou VOF. O front-tracking 3D — superfície triangulada com conectividade explícita, tensão superficial por integral de linha por triângulo, cirurgia de malha — é novo, e herda o caminho viscoelástico por uma única linha de despacho.</span>
+    </li>
+    <li>
+      <span class="t">A comparação isola a representação da interface, e só ela</span>
+      <span class="d">Os dois métodos compartilham <em>todo</em> o resto: ρ(x), µ(x), momento de coeficiente variável, projeção. O gancho do front-tracking entra no mesmo ponto do passo multifásico onde o VOF advecta a fração. A diferença medida é atribuível à representação porque nada mais difere.</span>
+    </li>
+    <li>
+      <span class="t">A cúspide como teste discriminante</span>
+      <span class="d">Em λ=0,4 com β=0,2 a tese observa formação de cúspide na parte inferior da bolha. É onde uma superfície explícita com cirurgia e um campo de fração com reconstrução PLIC deveriam divergir visivelmente — e é o caso que dá sentido à comparação, em vez de a tornar um empate.</span>
+    </li>
+    <li>
+      <span class="t">Malha adaptativa nos dois caminhos, com custo medido</span>
+      <span class="d">Uniforme em N=100 custa 9–10 dias por corrida (medido, não estimado). É o que obriga o refino adaptativo a existir, e o que dá denominador para “o refino acelerou”.</span>
+    </li>
+  </ol>
+
+  <div class="flag">
+    <span class="h">uma afirmação que eu não faria</span>
+    <p>“O front-tracking é mais preciso que o VOF.” Nada do que está medido sustenta isso, e a comparação honesta pode muito bem mostrar o contrário em conservação de massa, onde o VOF é estruturalmente forte. O que o artigo pode afirmar é <strong>onde</strong> cada um se sai melhor, com o caso da cúspide como o lugar onde a diferença aparece.</p>
+  </div>
+</section>
+
+<section id="estrutura">
+  <h2><span class="num">02</span>Estrutura das seções</h2>
+  <p class="subtitle">A numeração aqui é sequência real: cada seção depende da anterior para o leitor aceitar a seguinte.</p>
+
+  <div class="sec">
+    <div class="no">1</div>
+    <div>
+      <div class="ti">Introdução</div>
+      <div class="bo">Bolha ascendente viscoelástica como problema; por que a representação da interface importa quando há tensão elástica concentrada na esteira; o que falta na literatura — comparação controlada entre as duas famílias de método no mesmo código.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">2</div>
+    <div>
+      <div class="ti">Formulação</div>
+      <div class="bo">Equações adimensionais na forma do artigo de referência: <span class="m">Re = ρ₁g^½L^{3/2}/µ₁</span>, <span class="m">Bo = ρ₁gL²/σ</span>, <span class="m">V = √(gL)</span> com L = 2r. Oldroyd-B, e a relação que o artigo tem de explicitar porque é fonte de erro: o solver armazena <span class="m">S</span>, e o tensor polimérico é <span class="m">T = S + 2(1−β)/Re·D</span>.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">3</div>
+    <div>
+      <div class="ti">Método numérico</div>
+      <div class="bo"><em>3.1</em> maquinaria compartilhada — projeção, momento de coeficiente variável, interpolação de ρ e µ, e o ponto único onde os dois métodos se acoplam. <em>3.2</em> VOF: PLIC geométrico, fração inicial por subdivisão subcelular. <em>3.3</em> FT: superfície triangulada, tensão por integral de linha (<span class="m">f = σ(b−a)×n</span>), cirurgia, fração a partir da geometria. <em>3.4</em> extração da interface para comparar: marching cubes no nível mais fino. <em>3.5</em> critério de refino e histerese.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">4</div>
+    <div>
+      <div class="ti">Verificação</div>
+      <div class="bo">A seção que sustenta todas as outras, e a que o artigo pode ter de mais sólido: oráculos <em>exatos</em> (superfície fechada, Euler por gênero, fração de plano/fatia/tetraedro na precisão da máquina) separados dos <em>convergentes</em> (ordem medida em h). Ver §05.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">5</div>
+    <div>
+      <div class="ti">Resultados — validação newtoniana</div>
+      <div class="bo">Casos 1 e 2 de Adelsberger/Metivet em 3D, centro de massa e velocidade de subida contra OpenFOAM, DROPS, NaSt3D e FEEL. É o que estabelece que ambos os métodos estão certos antes de qualquer afirmação viscoelástica.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">6</div>
+    <div>
+      <div class="ti">Resultados — validação viscoelástica</div>
+      <div class="bo">Deformação por cisalhamento 2D nas quatro combinações de fase (NN, NV, VN, VV) contra Figueiredo (2016), pelo parâmetro φ = (R_max−R_min)/(R_max+R_min). Barato e decisivo sobre o acoplamento constitutivo.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">7</div>
+    <div>
+      <div class="ti">Resultados — bolha viscoelástica 3D</div>
+      <div class="bo">β ∈ {0,2; 0,5; 0,8} × λ ∈ {0,1; 0,4}, contra as Figuras 40–42 da tese. Forma em t=4, centro de massa, velocidade de subida, perfil do tensor. A cúspide em (λ=0,4, β=0,2) ganha subseção própria.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">8</div>
+    <div>
+      <div class="ti">Uniforme contra adaptativa</div>
+      <div class="bo">Custo e precisão. O número que interessa não é “o refino é mais rápido” mas <em>a mesma precisão por quanto menos</em> — o que exige a linha de base uniforme na malha fina, que é o item mais caro de toda a matriz.</div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="no">9</div>
+    <div>
+      <div class="ti">Conclusões</div>
+      <div class="bo">Onde cada representação se sai melhor, e o que ficou sem resposta.</div>
+    </div>
+  </div>
+</section>
+
+<section id="alvos">
+  <h2><span class="num">03</span>Alvos de comparação</h2>
+  <p class="subtitle">Nenhum destes é alvo que eu inventei: os parâmetros saíram do artigo (Tabela 3) e da tese (Tabela 5 e §8.2.5), que coincidem.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Caso</th><th>Parâmetros</th><th>Comparar com</th><th>Grandezas</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="k">Bolha 3D newtoniana<br>caso 1 (elipsoidal)</td>
+        <td class="n">ρ 1000/100 · µ 10/1<br>g 0,98 · σ 24,5<br>Re 35 · Bo 10</td>
+        <td>Adelsberger (2014) — OpenFOAM, DROPS, NaSt3D<br>Metivet (2018) — FEEL</td>
+        <td>centro de massa, velocidade de subida, forma em t=3, secção pelo centro</td>
+      </tr>
+      <tr>
+        <td class="k">Bolha 3D newtoniana<br>caso 2 (saiote/calota)</td>
+        <td class="n">ρ 1000/1 · µ 10/0,1<br>g 0,98 · σ 1,96<br>Re 35 · Bo 125</td>
+        <td>idem</td>
+        <td>idem, e mudança topológica — σ baixa favorece quebra</td>
+      </tr>
+      <tr>
+        <td class="k">Cisalhamento 2D<br>NN · NV · VN · VV</td>
+        <td class="n">µ=ρ=1 nas duas fases<br>Ca 0,6 · Re 0,3<br>Wi 0,4 · β 0,5<br>malha 256×128 · t=10</td>
+        <td>Figueiredo (2016)<br>tese §8.1</td>
+        <td>φ = (R_max−R_min)/(R_max+R_min)</td>
+      </tr>
+      <tr>
+        <td class="k">Bolha 3D viscoelástica<br>Oldroyd-B</td>
+        <td class="n">base = caso 1<br>caixa [0,1]×[0,1]×[0,3]<br>β 0,2 / 0,5 / 0,8<br>λ₁ 0,1 / 0,4 · t=4</td>
+        <td>tese §8.2.5, Figuras 40–42</td>
+        <td>forma em t=4, centro de massa, velocidade, tensor; <strong>cúspide</strong> em λ=0,4 β=0,2</td>
+      </tr>
+      <tr>
+        <td class="k">Giesekus (opcional)</td>
+        <td class="n">α = 0,1 e 0,5</td>
+        <td>tese §8.1 (2D)</td>
+        <td>φ; extensão a 3D seria contribuição nova</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="flag">
+    <span class="h">duas divergências de caixa que precisam de decisão</span>
+    <p>O caso newtoniano usa <strong>[0,1]×[0,1]×[0,2]</strong>; o viscoelástico da tese sobe para <strong>[0,1]×[0,1]×[0,3]</strong>, para as paredes não influenciarem o tensor. Se o artigo quiser comparar newtoniano e viscoelástico <em>entre si</em>, e não só cada um com a sua referência, é preciso ou rodar o newtoniano também em altura 3, ou mostrar que a altura não altera o resultado newtoniano. A segunda é mais barata e mais informativa.</p>
+  </div>
+</section>
+
+<section id="matriz">
+  <h2><span class="num">04</span>Matriz de simulações</h2>
+  <p class="subtitle">Custos de taxas <strong>medidas nesta árvore</strong>, não de estimativa: VOF newtoniano 286,4 µs por célula-passo, FT 253,3, e o viscoelástico a 1,45× o newtoniano (414,2).</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Malha</th><th>Células</th><th>Passos</th><th>VOF</th><th>FT</th><th>Serve a</th></tr></thead>
+    <tbody>
+      <tr><td class="k">N=25</td><td class="n">31 250</td><td class="n">1 501</td><td class="n">3,7 h</td><td class="n">3,3 h</td><td>validar o encanamento, ordem em h</td></tr>
+      <tr><td class="k">N=50 (artigo)</td><td class="n">250 000</td><td class="n">1 501</td><td class="n">29,9 h</td><td class="n">26,4 h</td><td>comparação com a literatura</td></tr>
+      <tr><td class="k">N=50 viscoelástico</td><td class="n">250 000</td><td class="n">2 001</td><td class="n">2,4 d</td><td class="n">2,1 d</td><td>cada uma das 6 combinações β×λ</td></tr>
+      <tr><td class="k">N=100 uniforme</td><td class="n">2 000 000</td><td class="n">1 501</td><td class="n">10,0 d</td><td class="n">8,8 d</td><td>a linha de base que justifica o refino</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="note">A matriz viscoelástica completa — 6 combinações × 2 métodos em N=50 — dá <strong>27 dias em um núcleo</strong>, ou <strong>2,4 dias em 12 núcleos</strong>. Esta máquina tem 16. É factível, desde que as corridas não disputem o mesmo diretório: os roteiros fazem <code>sed</code> no yaml e escrevem em <code>amrs/</code>, logo duas resoluções do mesmo exemplo em paralelo se atropelam. Resolve-se com cópias de trabalho por corrida.</p>
+
+  <h3>Sequenciamento proposto</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Etapa</th><th>O que roda</th><th>Núcleos</th><th>Prazo</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td class="k">A</td><td>FT e VOF newtoniano, N=25 e N=50, caso 1</td><td class="n">2</td><td class="n">~30 h</td><td><span class="pill ok">em curso</span></td></tr>
+      <tr><td class="k">B</td><td>caso 2 (saiote), N=50, os dois métodos</td><td class="n">2</td><td class="n">~30 h</td><td><span class="pill wait">depois de A</span></td></tr>
+      <tr><td class="k">C</td><td>cisalhamento 2D, NN/NV/VN/VV, os dois métodos</td><td class="n">8</td><td class="n">horas</td><td><span class="pill wait">pronto a rodar</span></td></tr>
+      <tr><td class="k">D</td><td>viscoelástico 3D, 6 combinações × 2 métodos</td><td class="n">12</td><td class="n">~2,5 d</td><td><span class="pill wait">depende de A</span></td></tr>
+      <tr><td class="k">E</td><td>adaptativa contra uniforme</td><td class="n">4</td><td class="n">~10 d</td><td><span class="pill no">bloqueada</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">A etapa C é a mais barata de todas e valida o acoplamento constitutivo — vale rodá-la em paralelo a A, não depois, porque se ela falhar a etapa D não faz sentido.</p>
+</section>
+
+<section id="verificacao">
+  <h2><span class="num">05</span>O que já está verificado</h2>
+  <p class="subtitle">Isto não é promessa: são números medidos, e é o ativo mais forte que o artigo tem. A distinção entre oráculo exato e convergente é o que o diferencia de “os resultados parecem razoáveis”.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Peça</th><th>Oráculo</th><th>Tipo</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Superfície triangulada</td><td>área, volume, Euler contra fórmula fechada</td><td>exato</td><td class="n">χ=2</td></tr>
+      <tr><td class="k">Tensão superficial FT</td><td>Laplace Δp = <strong>2σ/R</strong> (3D, não σ/R)</td><td>convergente</td><td class="n">0,19%</td></tr>
+      <tr><td class="k">Advecção FT (B1)</td><td>campo de LeVeque, reversível</td><td>convergente</td><td class="n">ordem ≈2</td></tr>
+      <tr><td class="k">Fração de volume FT</td><td>método independente de amostragem</td><td>convergente</td><td class="n">2ª ordem</td></tr>
+      <tr><td class="k">Grade espacial</td><td>igualdade <em>exata</em> com busca exaustiva</td><td>exato</td><td class="n">bit a bit, 37× mais rápida</td></tr>
+      <tr><td class="k">Acoplamento</td><td>volume do campo = volume da superfície</td><td>convergente</td><td class="n">deriva ordem 1,87</td></tr>
+      <tr><td class="k">Oldroyd-B em cisalhamento</td><td>solução fechada A_xy=De·γ̇, A_xx=1+2(De·γ̇)²</td><td>convergente</td><td class="n">0,033%</td></tr>
+      <tr><td class="k">Marching cubes</td><td>tabela conferida contra a geometria do cubo</td><td>exato</td><td class="n">0 de 256 inconsistentes</td></tr>
+      <tr><td class="k">Marching cubes</td><td>fechamento e gênero: esfera, duas esferas, toro</td><td>exato</td><td class="n">χ = 2, 4, 0</td></tr>
+      <tr><td class="k">Marching cubes</td><td>volume, área, raio</td><td>convergente</td><td class="n">1,99 / 2,00 / 1,96</td></tr>
+      <tr><td class="k">Fração inicial VOF</td><td>plano, fatia, tetraedro de canto</td><td>exato</td><td class="n">1e−16</td></tr>
+      <tr><td class="k">Fração inicial VOF</td><td>esfera, contra implementação independente</td><td>convergente</td><td class="n">6,11e−5 vs 6,109e−5</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="flag">
+    <span class="h">o que o verde não prova</span>
+    <p>Nenhum destes oráculos cobre <strong>np&gt;1</strong>, que nunca foi medido em 3D, nem o <strong>refino adaptativo 3D</strong>, que não existe. E a comparação com a literatura é por figura publicada, não por tabela de valores — a concordância será qualitativa na forma e quantitativa apenas no centro de massa e na velocidade, que são as curvas que a tese e o artigo trazem.</p>
+  </div>
+</section>
+
+<section id="pendencias">
+  <h2><span class="num">06</span>Pendências que bloqueiam</h2>
+  <p class="subtitle">Em ordem de quanto impedem o artigo.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Pendência</th><th>Bloqueia</th><th>Tamanho</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="k">Critério de refino em 3D</td>
+        <td>seção 8 inteira, e a etapa E</td>
+        <td>a assinatura é 2D (<code>lx, ly, nx, ny</code>); o índice espacial da semente precisa de <span class="m">nz</span></td>
+        <td><span class="pill no">não existe</span></td>
+      </tr>
+      <tr>
+        <td class="k">Paralelo 3D (np&gt;1)</td>
+        <td>N=100 em tempo viável; a etapa E depende disso</td>
+        <td>nunca medido; o escritor de marching cubes é serial por construção e precisaria de costura entre ranks</td>
+        <td><span class="pill no">não medido</span></td>
+      </tr>
+      <tr>
+        <td class="k">Cisalhamento 2D nas quatro fases</td>
+        <td>seção 6 — a validação viscoelástica</td>
+        <td>o caso 2D existe; falta configurar NN/NV/VN/VV e a medida de φ</td>
+        <td><span class="pill wait">configuração</span></td>
+      </tr>
+      <tr>
+        <td class="k">Caso 2 (saiote) em 3D</td>
+        <td>seção 5, segunda metade</td>
+        <td>o roteiro já aceita <code>$3=2</code>; nunca rodado</td>
+        <td><span class="pill wait">pronto</span></td>
+      </tr>
+      <tr>
+        <td class="k">Medida de forma e esfericidade</td>
+        <td>comparar forma com as figuras publicadas</td>
+        <td>a sonda dá centróide e velocidade; falta esfericidade e a secção pelo centro</td>
+        <td><span class="pill wait">a escrever</span></td>
+      </tr>
+      <tr>
+        <td class="k">Altura da caixa newtoniano × viscoelástico</td>
+        <td>comparar as duas famílias entre si</td>
+        <td>decisão, não código — ver §03</td>
+        <td><span class="pill wait">decisão sua</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="caminho">
+  <h2><span class="num">07</span>Caminho crítico</h2>
+  <p class="subtitle">O que determina a data do artigo, e não o que dá mais trabalho.</p>
+
+  <p>O caminho crítico <strong>não</strong> passa pelas corridas newtonianas — essas estão em curso e fecham sozinhas. Passa por duas coisas em sequência:</p>
+
+  <p><strong>Primeiro, o refino adaptativo 3D.</strong> Sem ele a seção 8 não existe, e com ela caem também as comparações em N=100, que são o que distingue este artigo de uma repetição da tese em outro método. É o único item cujo tamanho eu ainda não sei: o critério 2D está escrito e medido, mas portá-lo exige o índice espacial em três dimensões e o protocolo de franja entre níveis, que em 2D já custou uma divergência difícil de achar.</p>
+
+  <p><strong>Depois, o paralelo.</strong> N=100 uniforme em um núcleo são 9–10 dias por corrida. Com np&gt;1 funcionando isso cai para algo que se roda num fim de semana. Sem ele, a linha de base que justifica o refino custa mais que todo o resto da matriz somada.</p>
+
+  <p>As etapas C (cisalhamento 2D) e B (caso 2) são baratas e independentes — valem ser despachadas em paralelo ao trabalho de refino, não enfileiradas depois dele.</p>
+
+  <div class="flag">
+    <span class="h">a decisão que mudaria o escopo</span>
+    <p>Se o refino adaptativo 3D se mostrar caro, há um artigo menor e inteiro possível <em>sem ele</em>: front-tracking 3D viscoelástico contra VOF 3D viscoelástico em malha uniforme, com o caso da cúspide como resultado central. Perde a seção de adaptatividade e as corridas em N=100, mas mantém as quatro contribuições de §01 menos a quarta — e passa a caber em semanas em vez de meses. Vale decidir isso <em>antes</em> de investir no refino, não depois.</p>
+  </div>
+</section>
+
+<footer>
+  Plano montado sobre medições desta árvore e sobre os parâmetros de Silva, Fernandes, Organista, Souza &amp; Castelo (Mathematics 2023, 11(18), 3900, Tabela 3) e da tese de Aquisson T. G. da Silva (§8.1, §8.2.4, §8.2.5). Custos de taxas medidas, não estimadas.
+</footer>
+
+</div>
