@@ -31,6 +31,8 @@
 #include "hig-flow-fronteira-imersa.h"   // fi_suporte_facetas, fi_suporte_capacidade
 #include "hig-flow-front-tracking-3d.h"
 #include "hig-mesh-snapshot.h"           // hig_facet_snapshot (para o oraculo)
+#include "hig-flow-eval.h"               // compute_facet_value_at_point (vorticidade)
+#include "hig-flow-discret.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -373,4 +375,194 @@ extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *su
     ctx->cirurgias = 0;
     { const char *s = getenv("FT3_ADVECTA"); ctx->advecta = (s != NULL) ? atoi(s) : 0; }
     higflow_set_fronteira_imersa(ns, _aplica_tensao, ctx);
+}
+
+// ---------------------------------------------------------------------------
+// CRITERIO DE REFINO EM 3D: escreve um .amr multinivel a partir da geometria
+// da superficie.
+//
+// Porte do criterio 2D (examples-common/front-tracking.c), com a MESMA regra --
+// celula com 0<fracvol<1 e' SEMENTE, e uma celula recebe o nivel L se estiver a
+// menos de `limiar[L-1]` da semente mais proxima, pela REGRA DAS CELULAS
+// MINIMAS, com os limiares DERIVADOS e nao digitados -- e tres diferencas que a
+// terceira dimensao obriga:
+//
+// 1. A TABELA DE NIVEIS SAI POR DILATACAO, nao por busca exaustiva.  Em 2D a
+//    forca bruta e' O(ncel x nsem) e passa; em 3D, 250 mil celulas contra
+//    milhares de sementes dao ~1e9 operacoes POR REMALHAMENTO.  Aqui cada
+//    semente carimba a sua vizinhanca de raio ceil(thr[0]/h) -- medido, 5
+//    celulas com dois niveis, caixa de 1331 --, o que da' O(nsem x R^3).
+//
+//    A dilatacao e' EXATA, nao uma aproximacao: o nivel e' monotono decrescente
+//    na distancia, logo o maximo sobre as sementes e' o nivel da semente mais
+//    proxima.  `ft3_amr_tabela_exaustiva` existe ao lado para o arreio exigir
+//    igualdade bit a bit entre as duas -- mesma disciplina da grade espacial.
+//
+// 2. A VORTICIDADE DEIXA DE SER ESCALAR.  Em 2D basta omega_z; em 3D e'
+//    |rot u| com as tres componentes.  Sao 12 avaliacoes de faceta por celula
+//    contra 4 em 2D.
+//
+// 3. O FORMATO DO .amr e' generico em DIM -- conferido no parser
+//    higio_read_amr_info --, mas o numero de campos por retalho dobra:
+//    initcell[3] e patchsize[3].  INDICE BASE 1, como em 2D: com base 0 a
+//    contagem de celulas finas sai CERTA e as posicoes ERRADAS, e esse e' o modo
+//    de falha que nao aparece em nenhum total.
+// ---------------------------------------------------------------------------
+
+//! Escreve o .amr multinivel.  `ns` nulo no ARRANQUE: sem campo de velocidade
+//! nao ha' esteira a medir, e a malha inicial sai so' da geometria.
+extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup,
+                                         real lx, real ly, real lz,
+                                         int nx, int ny, int nz,
+                                         int niveis, int cel_min,
+                                         const char *caminho)
+{
+    const real hx = lx / nx, hy = ly / ny, hz = lz / nz;
+    real h_base = hx;
+    if (hy < h_base) h_base = hy;
+    if (hz < h_base) h_base = hz;
+
+    real *thr = (real *) malloc((size_t) niveis * sizeof(real));
+    ft3_amr_limiares(h_base, niveis, cel_min, thr);
+
+    // SEMENTES: centros das celulas base cortadas pela superficie.  A grade
+    // espacial e' obrigatoria aqui -- sem ela cada consulta e' O(nt), e sao
+    // nx*ny*nz consultas.  A grade e' criada uma vez e morre no fim; a
+    // superficie nao muda sob ela dentro desta funcao.
+    ft3_grade *g = ft3_grade_cria(sup);
+    const long ncel = (long) nx * ny * nz;
+    real *sem = (real *) malloc((size_t) ncel * 3 * sizeof(real));
+    long nsem = 0;
+    // So' a envoltoria da superficie pode ter celula cortada: varrer o dominio
+    // inteiro desperdica o grosso das consultas.  A folga de duas celulas cobre
+    // o arredondamento dos indices.
+    real elo[DIM], ehi[DIM];
+    {
+        const int nv = ft3_num_vertices(sup);
+        const Point *pv = ft3_posicoes(sup);
+        for (int d = 0; d < DIM; d++) { elo[d] = 1e300; ehi[d] = -1e300; }
+        for (int q = 0; q < nv; q++)
+            for (int d = 0; d < DIM; d++) {
+                if (pv[q][d] < elo[d]) elo[d] = pv[q][d];
+                if (pv[q][d] > ehi[d]) ehi[d] = pv[q][d];
+            }
+    }
+    int i0 = (int) (elo[0]/hx) - 2, i1 = (int) (ehi[0]/hx) + 2;
+    int j0 = (int) (elo[1]/hy) - 2, j1 = (int) (ehi[1]/hy) + 2;
+    int k0 = (int) (elo[2]/hz) - 2, k1 = (int) (ehi[2]/hz) + 2;
+    if (i0 < 0) i0 = 0;
+    if (i1 >= nx) i1 = nx - 1;
+    if (j0 < 0) j0 = 0;
+    if (j1 >= ny) j1 = ny - 1;
+    if (k0 < 0) k0 = 0;
+    if (k1 >= nz) k1 = nz - 1;
+    for (int kk = k0; kk <= k1; kk++)
+      for (int jj = j0; jj <= j1; jj++)
+        for (int ii = i0; ii <= i1; ii++) {
+            real lo[DIM], hi[DIM];
+            lo[0] = ii*hx; hi[0] = (ii+1)*hx;
+            lo[1] = jj*hy; hi[1] = (jj+1)*hy;
+            lo[2] = kk*hz; hi[2] = (kk+1)*hz;
+            real f = ft3_fracao_na_caixa_g(sup, g, lo, hi);
+            if (f > 0.001 && f < 0.999) {
+                sem[3*nsem+0] = lo[0] + 0.5*hx;
+                sem[3*nsem+1] = lo[1] + 0.5*hy;
+                sem[3*nsem+2] = lo[2] + 0.5*hz;
+                nsem++;
+            }
+        }
+    ft3_grade_destroi(g);
+
+    signed char *tab = (signed char *) malloc((size_t) ncel);
+    ft3_amr_tabela(sem, nsem, hx, hy, hz, nx, ny, nz, thr, niveis, tab);
+
+    // -----------------------------------------------------------------
+    // A ESTEIRA, pelo MAXIMO com a banda geometrica.  Em 3D a vorticidade e'
+    // |rot u| com as tres componentes, nao o escalar omega_z do 2D.
+    //
+    // HISTERESE (FT3_VORT_HISTERESE): quem JA' estava refinado so' engrossa se
+    // |omega| cair abaixo da METADE do limiar.  Em 2D, sem isso, mediu-se
+    // FLAPPING -- celulas cruzando o limiar seco a cada ciclo e a malha
+    // derivando.  Sair da malha fina tem de ser mais dificil que entrar.
+    // -----------------------------------------------------------------
+    static signed char *tab_ant = NULL;
+    static long ncel_ant = 0;
+    {
+        const char *e1 = getenv("FT3_VORT1"), *e2 = getenv("FT3_VORT2");
+        const real v1 = (e1 != NULL) ? atof(e1) : 0.0;
+        const real v2 = (e2 != NULL) ? atof(e2) : 0.0;
+        const int  hist = (getenv("FT3_VORT_HISTERESE") != NULL);
+        if (v1 > 0.0 && ns != NULL) {
+            sim_domain *sdp = psd_get_local_domain(ns->psdp);
+            sim_facet_domain *sfdu[DIM];
+            for (int d = 0; d < DIM; d++)
+                sfdu[d] = psfd_get_local_domain(ns->psfdu[d]);
+            const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+            for (int clid = 0; clid < hms->n; clid++) {
+                Point cc, cd;
+                hms_center(hms, clid, cc);
+                hms_delta(hms, clid, cd);
+                // d u_a / d x_b por diferenca centrada nas facetas
+                real du[DIM][DIM];
+                for (int a = 0; a < DIM; a++) {
+                    for (int b = 0; b < DIM; b++) {
+                        Point pp;
+                        POINT_ASSIGN(pp, cc); pp[b] = cc[b] + cd[b];
+                        real up = compute_facet_value_at_point(sfdu[a], cc, pp, 1.0,
+                                                               ns->dpu[a], ns->stn);
+                        POINT_ASSIGN(pp, cc); pp[b] = cc[b] - cd[b];
+                        real um = compute_facet_value_at_point(sfdu[a], cc, pp, 1.0,
+                                                               ns->dpu[a], ns->stn);
+                        du[a][b] = (up - um) / (2.0 * cd[b]);
+                    }
+                }
+                const real wx = du[2][1] - du[1][2];
+                const real wy = du[0][2] - du[2][0];
+                const real wz = du[1][0] - du[0][1];
+                const real om = sqrt(wx*wx + wy*wy + wz*wz);
+                int ii = (int)(cc[0]/hx), jj = (int)(cc[1]/hy), kk = (int)(cc[2]/hz);
+                if (ii < 0) ii = 0;  if (ii >= nx) ii = nx - 1;
+                if (jj < 0) jj = 0;  if (jj >= ny) jj = ny - 1;
+                if (kk < 0) kk = 0;  if (kk >= nz) kk = nz - 1;
+                const long q = ii + (long) nx * (jj + (long) ny * kk);
+                signed char alvo = 0;
+                if (v2 > 0.0 && om > v2) alvo = (signed char) niveis;
+                else if (om > v1)        alvo = 1;
+                if (hist && tab_ant != NULL && ncel_ant == ncel && tab_ant[q] > alvo) {
+                    if (om > 0.5 * v1) alvo = tab_ant[q];
+                }
+                if (alvo > tab[q]) tab[q] = alvo;   // MAXIMO com a banda
+            }
+        }
+        if (ncel_ant != ncel) { free(tab_ant); tab_ant = NULL; }
+        if (tab_ant == NULL) tab_ant = (signed char *) malloc((size_t) ncel);
+        memcpy(tab_ant, tab, (size_t) ncel);
+        ncel_ant = ncel;
+    }
+
+    // -----------------------------------------------------------------
+    // Escrita.  SO' O RANK 0 ESCREVE, E TODOS ESPERAM: as sementes saem da
+    // SUPERFICIE, que e' replicada e portanto completa em todo rank, logo nao
+    // ha' reuniao a fazer -- mas sem a guarda todos truncam o mesmo arquivo, e
+    // sem a barreira alguem o rele' antes de estar pronto.
+    // -----------------------------------------------------------------
+    int meurank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &meurank);
+    if (meurank != 0) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        free(tab); free(sem); free(thr);
+        return;
+    }
+    if (ft3_amr_escreve_arquivo(caminho, lx, ly, lz, nx, ny, nz,
+                                niveis, tab) != 0) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        free(tab); free(sem); free(thr);
+        return;
+    }
+    fprintf(stderr, "FT3 amr: %ld sementes de %ld celulas base, niveis=%d, "
+                    "limiares=", nsem, ncel, niveis);
+    for (int l = 0; l < niveis; l++) fprintf(stderr, " %.5f", (double) thr[l]);
+    fprintf(stderr, "  (>=%d celulas finas por lado)\n", cel_min);
+    free(tab); free(sem); free(thr);
+    MPI_Barrier(MPI_COMM_WORLD);
 }

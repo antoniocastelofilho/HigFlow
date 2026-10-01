@@ -10,6 +10,8 @@
 #   teste-esfera3d   FASE B5: geometria e forca da superficie triangulada (DIM=3)
 #   teste-b1-3d      FASE B1 3D: adveccao de LeVeque, reversivel (DIM=3)
 #   teste-fracao3d   fracao de volume da superficie triangulada (DIM=3)
+#   teste-amr3d      CRITERIO DE REFINO 3D: limiares, dilatacao contra exaustiva,
+#                    banda, e o formato do .amr conferido por releitura (DIM=3)
 #
 # Cada arreio devolve codigo de saida (0 passou, 1 falhou) -- sao oraculos, nao
 # so' impressoes.  `make check` roda todos e falha se algum falhar.
@@ -19,7 +21,7 @@ MOD     = ../../src/hig-flow-front-tracking.c
 DEP     = $(MOD) ../../src/hig-flow-front-tracking.h
 
 ARREIOS = teste-b1 teste-curvatura teste-tensao teste-indicadora teste-persistencia \
-          teste-esfera3d teste-b1-3d teste-fracao3d
+          teste-esfera3d teste-b1-3d teste-fracao3d teste-amr3d
 
 # O 3D compila com DIM=3 e contra OUTRO modulo: a frente 2D e' polilinha, a 3D e'
 # superficie triangulada, e os dois nucleos se recusam a compilar na dimensao do
@@ -42,6 +44,9 @@ teste-b1-3d: teste-b1-3d.c $(DEP3)
 
 teste-fracao3d: teste-fracao3d.c $(DEP3)
 	$(CC) $(CFLAGS3) teste-fracao3d.c $(MOD3) -lm -o $@
+
+teste-amr3d: teste-amr3d.c $(DEP3)
+	$(CC) $(CFLAGS3) teste-amr3d.c $(MOD3) -lm -o $@
 
 teste-curvatura: teste-curvatura.c $(DEP)
 	$(CC) $(CFLAGS) teste-curvatura.c $(MOD) -lm -o $@
