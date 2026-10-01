@@ -60,7 +60,10 @@ OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src
 OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
 # FASE B2 3D: o nucleo da superficie triangulada, o adaptador do solver e o
 # modulo do corpo rigido (de onde vem fi_suporte_facetas, que ja' e' 3D).
-OBJ1 += ../src/hig-flow-front-tracking-3d.o front-tracking-3d.o ../src/hig-flow-fronteira-imersa.o
+# Viscoelastico multifasico, e o que ele arrasta.
+OBJ1 += ../src/hig-flow-step-multiphase-viscoelastic.o ../src/hig-flow-step-viscoelastic.o
+OBJ1 += ../src/hig-flow-step-generalized-newtonian.o ../src/hig-flow-mittag-leffler.o
+OBJ1 += ../src/hig-flow-linear-algebra.o ../src/hig-flow-viscoelastic-kernel.o
 # Caminho MULTIFASICO: a fracao sai da superficie, mas rho(x), mu(x) e o momento
 # de coeficiente variavel sao o MESMO codigo que o VOF usa.
 OBJ1 += ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-adap-hf.o
@@ -72,19 +75,11 @@ OBJ1 += ../src/hig-flow-vof-elvira.o
 OBJ1 += ../src/hig-flow-vof-mehta.o ../src/hig-flow-vof-plic-3D.o
 OBJ1 += ../src/hig-flow-vof-advection-3D.o ../src/hig-flow-vof-HF-3D.o
 OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature_3D.o
-# Viscoelastico multifasico: front-tracking viscoelastico e' o mesmo caminho.
-OBJ1 += ../src/hig-flow-step-multiphase-viscoelastic.o ../src/hig-flow-step-viscoelastic.o
-OBJ1 += ../src/hig-flow-mittag-leffler.o ../src/hig-flow-linear-algebra.o
-OBJ1 += ../src/hig-flow-viscoelastic-kernel.o ../src/hig-flow-step-generalized-newtonian.o
 
 
 ns-example-3d: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
-front-tracking-3d.o: ../examples-common/front-tracking-3d.c
-	$(CC) $(CFLAGS) -I../src -c $< -o $@
 
-../src/hig-flow-front-tracking-3d.o: ../src/hig-flow-front-tracking-3d.c ../src/hig-flow-front-tracking-3d.h
-	$(CC) $(CFLAGS) -I../src -c $< -o $@
 
 %.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
 	$(CC) $(CFLAGS) -c $< -o $@

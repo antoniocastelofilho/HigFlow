@@ -1,0 +1,5 @@
+degrau                              oraculo                          resultado
+{liga em 3D}                        {simbolos nao resolvidos}         {\textbf{zero}}
+{equilibrio trivial}                {$|u|$ e $|A-I|$ partindo do repouso} {$0{,}0$ e $0{,}0$ exatos}
+{front-tracking viscoelastico}      {$\Delta p$ nao muda em repouso}  {$7{,}973564$ contra $7{,}973535$}
+{cisalhamento (Oldroyd-B fechado)}  {$A_{xy}$, $A_{xx}$, $A_{zz}$}    {$0{,}03$ a $0{,}1\%$}

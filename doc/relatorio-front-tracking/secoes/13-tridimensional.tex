@@ -266,3 +266,132 @@ porque o caminho bidimensional aprendeu isso depois e pagou a reescrita --- mas
 em $n_p>1$ nada foi medido. E o bif\'asico com salto de propriedade: o
 encanamento est\'a verificado com $\rho$ e $\mu$ \emph{iguais} nas duas fases, que
 \'e o est\'agio que move o encanamento sem mudar a f\'isica.
+
+\subsection{Viscoel\'astico em tr\^es dimens\~oes}
+\label{sec:tridim-ve}
+
+\paragraph{A pergunta veio de fora.} Uma vers\~ao anterior do c\'odigo
+(junho/2026) trazia um exemplo de bolha ascendente 3D chamando o passo
+multif\'asico viscoel\'astico, e a d\'uvida era se a \'arvore atual, que
+\emph{reestruturou} esse caminho, ficara incompleta para tr\^es dimens\~oes.
+
+A compara\c{c}\~ao arquivo a arquivo inverteu a suposi\c{c}\~ao de partida. As
+fontes da \'arvore s\~ao a linhagem \textbf{nova}: o \texttt{plic-3D} recebeu
+quatro commits em 18/09/2026, um deles corrigindo que \emph{``os ramos
+degenerados estavam presos ao eixo x''}, e a escolha de ramo por c\'ubicas virou
+bissec\c{c}\~ao sobre forma fechada --- as seis fun\c{c}\~oes \texttt{solver\_equation\_*}
+que a vers\~ao de junho ainda tem foram removidas por \'orf\~as. O
+multif\'asico viscoel\'astico foi reestruturado: junho duplica a maquinaria por
+fase (\texttt{\_phase0}/\texttt{\_phase1}); a atual interpola os par\^ametros pela
+fra\c{c}\~ao e chama o solver constitutivo \emph{compartilhado}. S\'o $4$ de $43$
+fun\c{c}\~oes coincidem.
+
+Uma advert\^encia sobre o caso de junho, apontada pelo usu\'ario e conferida: a
+viscosidade polim\'erica est\'a \textbf{fixada em zero no c\'odigo}, com os
+valores reais comentados ao lado. Ent\~ao $S_0$ e $S_1$ saem nulos e aquele caso
+3D rodou \emph{newtoniano-newtoniano}. N\~ao existia, de nenhum dos dois lados,
+execu\c{c}\~ao 3D que exercitasse viscoelasticidade.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/degrau/.style={column name={degrau}},
+  columns/oraculo/.style={column name={or\'aculo}},
+  columns/resultado/.style={column name={resultado}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-ve.dat}}
+\end{adjustbox}
+
+\paragraph{O caso m\'inimo, e o or\'aculo que o justifica.} Caixa em repouso,
+esfera no centro, ambiente viscoel\'astico com $De=1$ e $\beta=0{,}5$, sem
+gravidade e \textbf{sem tens\~ao superficial}: o estado inicial \'e equil\'ibrio
+exato, e o or\'aculo \'e ele se manter. Resultado: $|u|_{\max}=0$ e
+$|A-I|=0$, zero exato, em $101$ passos.
+
+\'E teste fraco de f\'isica e forte de encanamento --- pega NaN, la\c{c}o
+\texttt{[DIM][DIM]} que sup\~oe duas dimens\~oes, componente $z$ n\~ao
+inicializada. N\~ao pegou nada.
+
+Uma armadilha de configura\c{c}\~ao custou uma rodada: a tens\~ao superficial \'e
+\textbf{ligada por padr\~ao} quando a chave falta no YAML, e o pr\'oprio log
+avisava. Com CSF numa interface curva, repouso n\~ao \'e equil\'ibrio discreto, e
+a primeira execu\c{c}\~ao ``falhou'' com $|u|=7{,}9\times10^{-3}$. \emph{O
+or\'aculo estava errado, n\~ao o c\'odigo.}
+
+\paragraph{Front-tracking viscoel\'astico: uma linha.} A observa\c{c}\~ao de que
+a maquinaria do VOF serviria ao front-tracking est\'a certa, e \'e mais forte que
+isso --- o reuso \'e \textbf{autom\'atico}:
+\begin{verbatim}
+higflow_solver_step_multiphase_viscoelastic(ns) {
+    ... equacao constitutiva ...
+    higflow_compute_polymeric_tensor_multiphase_viscoelastic(ns);
+    higflow_solver_step_multiphase(ns);   // o gancho da frente vive AQUI
+}
+\end{verbatim}
+A frente continua mandando na fra\c{c}\~ao e a maquinaria polim\'erica j\'a a usa.
+Medido, com a gota est\'atica: $\Delta p = 7{,}973564$ contra $7{,}973535$ do
+newtoniano --- e \emph{quase n\~ao mudar \'e o resultado certo}, porque em repouso
+os gradientes s\~ao $\sim10^{-3}$, a tens\~ao polim\'erica \'e desprez\'ivel e o
+salto vem da tens\~ao superficial, n\~ao da reologia.
+
+Resultado id\^entico \'e, por\'em, exatamente o que se veria ao cair no ramo
+antigo em sil\^encio. Conferido no log: \emph{``Flow Type in Phase 0:
+Viscoelastic''}, \emph{``Deborah Number: 1.000000''}.
+
+\paragraph{Uma defasagem, dita antes de ser descoberta.} A equa\c{c}\~ao
+constitutiva roda \emph{antes} do gancho, ent\~ao $De$ e $\beta$ s\~ao
+interpolados com o \texttt{fracvol} do passo \textbf{anterior}. \'E $O(\Delta t)$,
+da mesma ordem da defasagem que a for\c{c}a de tens\~ao j\'a tem.
+
+\paragraph{Cisalhamento simples: a f\'isica, contra solu\c{c}\~ao fechada.}
+Preservar o equil\'ibrio trivial \'e necess\'ario e n\~ao suficiente. O caso que
+decide \'e cisalhamento simples permanente, onde Oldroyd-B tem solu\c{c}\~ao
+anal\'itica:
+\begin{equation}
+  A_{xy} = De\,\dot\gamma, \qquad
+  A_{xx} = 1 + 2(De\,\dot\gamma)^2, \qquad
+  A_{yy} = A_{zz} = 1 .
+  \label{eq:oldroyd-cisalha}
+\end{equation}
+Caixa com as paredes em $y$ impondo a velocidade e as faces em $x$ e $z$ em
+Neumann, de modo que o escoamento \'e efetivamente unidimensional; as duas fases
+viscoel\'asticas com os \emph{mesmos} par\^ametros e fra\c{c}\~ao uniforme, o que
+exercita a interpola\c{c}\~ao e mant\'em o anal\'itico inequ\'ivoco.
+Medido no miolo, com $De=0{,}5$ e $\dot\gamma=1$:
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/grandeza/.style={column name={}},
+  columns/analitico/.style={column name={anal\'itico}},
+  columns/tau4/.style={column name={$t=4\tau$}},
+  columns/err4/.style={column name={erro}},
+  columns/tau8/.style={column name={$t=8\tau$}},
+  columns/err8/.style={column name={erro}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-cisalhamento.dat}}
+\end{adjustbox}
+
+\textbf{$A_{zz}$ fica exatamente em $1{,}000000$.} Ele \emph{s\'o existe em tr\^es
+dimens\~oes}, e \'e onde um la\c{c}o preso a duas apareceria. N\~ao aparece.
+
+\paragraph{E o res\'iduo tinha explica\c{c}\~ao, testada em vez de afirmada.} Na
+primeira corrida, $A_{xy}$ errava $1{,}834\%$. O transiente do Oldroyd-B decai
+como $e^{-t/De}$, e a corrida parara em quatro tempos de relaxa\c{c}\~ao:
+$e^{-4} = 1{,}83\%$. A coincid\^encia \'e exata at\'e a \'ultima casa.
+
+Antes de aceitar isso, a explica\c{c}\~ao concorrente foi eliminada: taxa local
+menor que $1$ daria $A_{xy}$ menor pelo mesmo motivo. Mas o perfil \'e linear a
+$0{,}006\%$ --- no \'ultimo centro de c\'elula, $u$ medido \'e $0{,}96869$ contra
+$0{,}96875$ do perfil exato.
+
+A predi\c{c}\~ao foi ent\~ao \emph{testada}: mesmo n\'umero de passos com
+$\Delta t$ dobrado leva a oito tempos de relaxa\c{c}\~ao, e $e^{-8}=0{,}034\%$.
+Medido: $\mathbf{0{,}033\%}$. O teste \'e decisivo num sentido --- passo
+\emph{maior} daria \emph{mais} erro de discretiza\c{c}\~ao, n\~ao menos ---, e o
+erro caiu $55$ vezes.
+
+A maquinaria constitutiva viscoel\'astica reproduz a solu\c{c}\~ao fechada em
+tr\^es dimens\~oes a $0{,}03$--$0{,}1\%$.
