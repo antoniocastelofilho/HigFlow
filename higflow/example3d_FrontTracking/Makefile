@@ -76,11 +76,21 @@ OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature_3D.o
 OBJ1 += ../src/hig-flow-step-multiphase-viscoelastic.o ../src/hig-flow-step-viscoelastic.o
 OBJ1 += ../src/hig-flow-mittag-leffler.o ../src/hig-flow-linear-algebra.o
 OBJ1 += ../src/hig-flow-viscoelastic-kernel.o ../src/hig-flow-step-generalized-newtonian.o
+OBJ1 += malha-adaptativa.o
+# Transferencia por posicao: o remalhamento VERIFICADO da fronteira imersa
+# (F1-F3, consenso de franja).  higflow_reconstroi_dominio depende dele.
+OBJ1 += ../src/hig-flow-remalha.o
 
 
 ns-example-3d: $(OBJ1)
 	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
 front-tracking-3d.o: ../examples-common/front-tracking-3d.c
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+# B4 3D: o refino adaptativo.  O arquivo e' o MESMO do 2D -- ele e' generico em
+# DIM, e as sementes, a medida de banda e a transferencia nao dependem da
+# dimensao.  Compilado aqui com DIM=3.
+malha-adaptativa.o: ../examples-common/malha-adaptativa.c ../examples-common/malha-adaptativa.h
 	$(CC) $(CFLAGS) -I../src -c $< -o $@
 
 ../src/hig-flow-front-tracking-3d.o: ../src/hig-flow-front-tracking-3d.c ../src/hig-flow-front-tracking-3d.h

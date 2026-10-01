@@ -178,3 +178,4 @@ doc/artigo-ft-vof-ve/*.out
 doc/artigo-ft-vof-ve/*.toc
 doc/artigo-ft-vof-ve/*.fls
 doc/artigo-ft-vof-ve/*.fdb_latexmk
+higflow/example3d_FrontTracking-amr/

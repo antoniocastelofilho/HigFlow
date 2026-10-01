@@ -1,5 +1,5 @@
 simulation_par:
-  numsteps: 11
+  numsteps: 1501
   dt: 0.002                        # Delta t do artigo
   dts: 0.005                         # The Time spacing for saving data (output) 
   dtp: 0.025                       # 120 quadros em t=3, para a animacao

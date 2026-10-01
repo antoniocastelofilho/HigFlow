@@ -21,11 +21,46 @@
 // Mesh is 10x10x10, too coarse to divide, so the suite pins it at np=1 (max_np).
 
 #include "ns-example-3d.h"
+#include "../examples-common/malha-adaptativa.h"   // B4: medida de banda
+#include "hig-flow-fronteira-imersa.h"              // fi_suporte_nivel_trocado
 #include "hig-flow-front-tracking-3d.h"
 #include <stdlib.h>
 
 extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *sup,
                                           real sigma);
+extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup,
+                                         real lx, real ly, real lz,
+                                         int nx, int ny, int nz,
+                                         int niveis, int cel_min,
+                                         const char *caminho);
+
+// Converte uma banda FISICA em numero de celulas finas.  Existe porque comparar
+// resolucoes com `celmin` FIXO compara regioes refinadas de extensao fisica
+// DIFERENTE em cada malha -- a mais fina refina metade do espaco --, e a esteira,
+// onde o centroide e a velocidade se decidem, fica de fora na malha fina.  O
+// piso de 5 do VOF vence sempre: abaixo dele a reconstrucao nao fecha.
+static int _celmin_da_banda_3d(const char *var, int celmin,
+                               real lx, int nx, int niveis)
+{
+    const char *b = getenv(var);
+    if (b == NULL) return celmin;
+    real banda = atof(b);
+    if (!(banda > 0.0)) return celmin;
+    real h_fino = lx / (real) nx;
+    for (int l = 0; l < niveis; l++) h_fino *= 0.5;
+    int novo = (int) (banda / h_fino + 0.5);
+    if (novo < 5) {
+        print0f("===> %s=%g pede %d celulas finas em h=%.5f; o piso de 5 vence. "
+                "A banda efetiva sera' %.5f, nao %.5f\n",
+                var, (double) banda, novo, (double) h_fino,
+                (double) (5 * h_fino), (double) banda);
+        novo = 5;
+    }
+    print0f("===> banda fisica %.5f em h_fino=%.5f  ==>  celmin = %d (era %d)\n",
+            (double) banda, (double) h_fino, novo, celmin);
+    return novo;
+}
+
 extern "C" void front_tracking_3d_fracvol_inicial(higflow_solver *ns,
                                                   ft3_superficie *sup);
 
@@ -308,6 +343,75 @@ int main (int argc, char *argv[]) {
     // Set the cache: Reuse interpolation, 0 on, 1 off
     int cache = 1;
 
+    // -------------------------------------------------------------------
+    // B4 3D: REFINO ADAPTATIVO.  Parametros por ambiente, e a malha INICIAL ja'
+    // adaptada -- ela tem de existir ANTES de higflow_create_domain, que a le'.
+    //
+    // FT3_AMR_NIVEIS  quantos niveis de refino (0 desliga tudo)
+    // FT3_AMR_CELMIN  piso de celulas finas de cada lado da interface
+    // FT3_AMR_BANDA   banda FISICA; converte-se em celmin, e vence o piso de 5
+    // FT3_AMR_CADA    remalha a cada quantos passos (0 desliga o dinamico)
+    // FT3_AMR_NX/NY/NZ e FT3_AMR_LX/LY/LZ   a malha BASE do criterio
+    // FT3_AMR_CAMINHO o .amr que o criterio escreve e o solver rele'
+    // -------------------------------------------------------------------
+    int  amr_niveis = 0, amr_celmin = 5, amr_cada = 0;
+    int  amr_nx = 25, amr_ny = 25, amr_nz = 50;
+    real amr_lx = 1.0, amr_ly = 1.0, amr_lz = 2.0;
+    const char *amr_caminho = "amrs/criterio.amr";
+    {
+        const char *e;
+        if ((e = getenv("FT3_AMR_NIVEIS")) != NULL) amr_niveis = atoi(e);
+        if ((e = getenv("FT3_AMR_CELMIN")) != NULL) amr_celmin = atoi(e);
+        if ((e = getenv("FT3_AMR_CADA"))   != NULL) amr_cada   = atoi(e);
+        if ((e = getenv("FT3_AMR_NX"))     != NULL) amr_nx = atoi(e);
+        if ((e = getenv("FT3_AMR_NY"))     != NULL) amr_ny = atoi(e);
+        if ((e = getenv("FT3_AMR_NZ"))     != NULL) amr_nz = atoi(e);
+        if ((e = getenv("FT3_AMR_LX"))     != NULL) amr_lx = atof(e);
+        if ((e = getenv("FT3_AMR_LY"))     != NULL) amr_ly = atof(e);
+        if ((e = getenv("FT3_AMR_LZ"))     != NULL) amr_lz = atof(e);
+        if ((e = getenv("FT3_AMR_CAMINHO"))!= NULL) amr_caminho = e;
+        // DEPOIS de amr_lx e amr_nx, nao antes: a conversao da banda fisica
+        // depende dos dois.  No 2D esta ordem foi trocada em UM dos dois
+        // sitios de chamada, e o resultado foi celmin=10 em toda resolucao --
+        // o que invalidou duas series inteiras sem dar erro nenhum.
+        amr_celmin = _celmin_da_banda_3d("FT3_AMR_BANDA", amr_celmin,
+                                         amr_lx, amr_nx, amr_niveis);
+        if (amr_niveis > 0) {
+            // RETOMADA: NAO reescrever o .amr quando a corrida esta' sendo
+            // continuada.  O arquivo em disco JA' e' a malha correta -- ele e'
+            // reescrito a cada remalhamento, e a malha so' muda ali.  Reescreve-lo
+            // do estado INICIAL poria os campos salvos (gravados com a posicao
+            // junto) numa malha diferente da que os gerou.
+            if (ns->par.step == 0) {
+                // Uma esfera TEMPORARIA, com os mesmos parametros da definitiva:
+                // a de verdade so' nasce adiante, e a malha tem de existir antes.
+                real cx0 = 0.5, cy0 = 0.5, cz0 = 0.5, r0 = 0.25;
+                int  ns0 = 3;
+                const char *q;
+                if ((q = getenv("FT3_CX"))   != NULL) cx0 = atof(q);
+                if ((q = getenv("FT3_CY"))   != NULL) cy0 = atof(q);
+                if ((q = getenv("FT3_CZ"))   != NULL) cz0 = atof(q);
+                if ((q = getenv("FT3_R"))    != NULL) r0  = atof(q);
+                if ((q = getenv("FT3_NSUB")) != NULL) ns0 = atoi(q);
+                Point c0; c0[0] = cx0; c0[1] = cy0; c0[2] = cz0;
+                ft3_superficie *s0 = ft3_cria_esfera(c0, r0, ns0);
+                if (s0 != NULL) {
+                    ft3_escreve_amr_criterio(NULL, s0, amr_lx, amr_ly, amr_lz,
+                                             amr_nx, amr_ny, amr_nz,
+                                             amr_niveis, amr_celmin, amr_caminho);
+                    ft3_destroi(s0);
+                    print0f("===> malha inicial JA' adaptada, do criterio: %s\n",
+                            amr_caminho);
+                } else {
+                    print0f("FT3: falha ao criar a esfera do criterio inicial\n");
+                }
+            } else {
+                print0f("===> retomada: mantendo a malha adaptada de %s\n",
+                        amr_caminho);
+            }
+        }
+    }
+
     // Create the simulation domain
     // O multifasico e' ADICAO ao dominio base, nao substituto: sem
     // higflow_create_domain_multiphase os dominios sdmult e sdED nascem NULOS e
@@ -465,6 +569,37 @@ int main (int argc, char *argv[]) {
         // constitutiva roda ANTES do gancho, entao os parametros De e beta sao
         // interpolados com o fracvol do passo ANTERIOR.  E' O(dt), da mesma
         // ordem da defasagem que a forca de tensao ja' tem.
+        // REMALHAMENTO ADAPTATIVO, pelo caminho verificado da fronteira
+        // imersa.  A superficie escreve o .amr multinivel pelo criterio, e
+        // higflow_reconstroi_dominio o rele' pelo caminho normal de arranque.
+        //
+        // A SUPERFICIE NAO E' TRANSFERIDA: ela e' replicada e independente de
+        // malha, sobrevive intocada ao remalhamento e regenera o fracvol no
+        // passo seguinte, pelo gancho.  So' u e p viajam.
+        if (amr_niveis > 0 && amr_cada > 0 && ns->par.step > 0 &&
+            ns->par.step % amr_cada == 0) {
+            const bool crono = (getenv("HIGFLOW_CRONO_REMALHA") != NULL);
+            double t0 = 0.0, t1 = 0.0, t2 = 0.0;
+            if (crono) { MPI_Barrier(MPI_COMM_WORLD); t0 = MPI_Wtime(); }
+            ft3_escreve_amr_criterio(ns, gota, amr_lx, amr_ly, amr_lz,
+                                     amr_nx, amr_ny, amr_nz,
+                                     amr_niveis, amr_celmin, amr_caminho);
+            if (crono) { MPI_Barrier(MPI_COMM_WORLD); t1 = MPI_Wtime(); }
+            long faltam = higflow_reconstroi_dominio(ns, ntasks, myrank,
+                                                     cache, order_center,
+                                                     order_facet);
+            if (crono) {
+                MPI_Barrier(MPI_COMM_WORLD); t2 = MPI_Wtime();
+                int nt = 1; MPI_Comm_size(MPI_COMM_WORLD, &nt);
+                print0f("CRONO np=%d passo %d: criterio %.4f s  "
+                        "reconstrucao %.4f s  total %.4f s\n",
+                        nt, ns->par.step, t1 - t0, t2 - t1, t2 - t0);
+            }
+            if (faltam != 0)
+                print0f("===> remalha passo %d: %ld posicoes sem valor\n",
+                        ns->par.step, faltam);
+        }
+
         if (ns->contr.flowtype == MULTIPHASE) {
             if (ns->ed.mult.contr.viscoelastic_either == true)
                 higflow_solver_step_multiphase_viscoelastic(ns);
@@ -473,6 +608,26 @@ int main (int argc, char *argv[]) {
         } else {
             higflow_solver_step(ns);
         }
+        // ORACULOS DA MALHA ADAPTADA, DEPOIS do passo -- antes dele o fracvol
+        // esta' zerado pelo remalhamento e nao ha' semente que colher.
+        //   banda   -- a regra das celulas minimas foi CUMPRIDA de fato?  Tem de
+        //              dar >= FT3_AMR_CELMIN.  O criterio garante no PAPEL; isto
+        //              mede na malha que o solver de fato montou.
+        //   nivel   -- pontos de suporte do nucleo caidos em celula de TAMANHO
+        //              DIFERENTE do h do marcador.  DEVE SER ZERO: o nucleo so'
+        //              e' normalizado para um h, e atravessar nivel quebra a
+        //              particao da unidade EM SILENCIO, porque a soma dos pesos
+        //              pode continuar perto de 1.
+        if (getenv("FT3_DIAG_MALHA") != NULL && amr_niveis > 0 &&
+            ns->par.step % (amr_cada > 0 ? amr_cada : 25) == 0) {
+            real banda = malha_adapt_mede_banda(ns, amr_niveis,
+                                                amr_lx / amr_nx);
+            print0f("===> MALHA passo %d: banda=%.2f celulas finas "
+                    "(exigido >=%d)  suporte_nivel_trocado=%ld  perdidos=%ld\n",
+                    ns->par.step, (double) banda, amr_celmin,
+                    fi_suporte_nivel_trocado(), fi_suporte_perdidos());
+        }
+
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time
