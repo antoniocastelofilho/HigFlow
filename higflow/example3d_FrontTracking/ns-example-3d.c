@@ -26,6 +26,8 @@
 
 extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *sup,
                                           real sigma);
+extern "C" void front_tracking_3d_fracvol_inicial(higflow_solver *ns,
+                                                  ft3_superficie *sup);
 
 // *******************************************************************
 // Extern functions for the Navier-Stokes program
@@ -366,6 +368,12 @@ int main (int argc, char *argv[]) {
                 (double) R_gota, (double) sigma, (double) (2.0*sigma/R_gota));
     }
     front_tracking_3d_instala(ns, gota, sigma);
+    // A FRACAO INICIAL VEM DA SUPERFICIE, nao do degrau suavizado que a funcao
+    // `fracvol` acima devolve.  Sem isto o quadro 0 -- o que fixa a massa de
+    // referencia -- nasce com o erro do degrau (1.2e-02 em volume), e a
+    // comparacao com o VOF, que inicializa por subdivisao subcelular (6.1e-05),
+    // mediria a diferenca das condicoes iniciais em vez da dos metodos.
+    front_tracking_3d_fracvol_inicial(ns, gota);
     // --------------------------------------------------------------------
     // Load the properties form 
     if (ns->par.step > 0) {
@@ -390,6 +398,17 @@ int main (int argc, char *argv[]) {
     if (ns->par.step == 0) {
         print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
         higflow_print_vtk(ns, myrank);
+        // A SUPERFICIE, para a animacao.  O FT a carrega explicitamente, logo
+        // nao ha' nada a extrair: grava-se a triangulacao como ela esta'.
+        // (O analogo no VOF e' a isosuperficie por marching cubes, que precisa
+        // ser extraida do campo porque la' a interface nao existe como objeto.)
+        if (myrank == 0) {
+            char cam[1024];
+            snprintf(cam, sizeof cam, "%s_frente_%d-%d.vtk",
+                     ns->par.nameprint, myrank, ns->par.frame);
+            if (ft3_escreve_vtk(gota, cam) != 0)
+                print0f("FT3: falha ao gravar %s\n", cam);
+        }
         //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
         ns->par.tp += ns->par.dtp;
         ns->par.frame++;
@@ -440,6 +459,13 @@ int main (int argc, char *argv[]) {
         if (ns->par.t >= ns->par.tp) {
             print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
             higflow_print_vtk(ns, myrank);
+            if (myrank == 0) {
+                char cam[1024];
+                snprintf(cam, sizeof cam, "%s_frente_%d-%d.vtk",
+                         ns->par.nameprint, myrank, ns->par.frame);
+                if (ft3_escreve_vtk(gota, cam) != 0)
+                    print0f("FT3: falha ao gravar %s\n", cam);
+            }
             //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
             ns->par.tp += ns->par.dtp;
             ns->par.frame++;

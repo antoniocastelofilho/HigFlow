@@ -33,7 +33,7 @@ M=/home/castelo/HiGFlow-System/HigFlow
 cd $M && set -a && . ./varsrc && set +a
 cd $M/higflow/example3d_VOF_rising
 
-N=${1:-50}; PASSOS=${2:-1501}; CASO=${3:-1}
+N=${1:-50}; PASSOS=${2:-1501}; CASO=${3:-1}; NUC=${4:-}
 
 python3 gera-malha.py $N 1.0 1.0 2.0
 sed -i "s/^  numsteps: .*/  numsteps: ${PASSOS}/" input/sobe.load.par.contr.yaml
@@ -49,7 +49,13 @@ sed -i "s/^    Ca: [0-9.]*/    Ca: ${CA}/" input/sobe.load.par.contr.yaml
 
 export SB_R=0.25 SB_CX=0.5 SB_CY=0.5 SB_CZ=0.5
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
-/usr/bin/time -f "PAREDE %e s" mpirun -use-hwthread-cpus -n 1 ./ns-example-3d \
+# FIXAR O NUCLEO.  `taskset` sozinho prende o mpirun, nao o solver: o Open MPI
+# reatribui a afinidade dos filhos.  Precisa do --bind-to none para a mascara
+# do taskset sobreviver ate' o processo que faz a conta.
+if [ -n "$NUC" ]; then PRE="taskset -c $NUC"; BIND="--bind-to none"
+else PRE=""; BIND=""; fi
+
+$PRE /usr/bin/time -f "PAREDE %e s" mpirun $BIND -use-hwthread-cpus -n 1 ./ns-example-3d \
   input/sobe.load output/s.save VTKS/s.print \
   -ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10 \
   > /tmp/sobe-c${CASO}-N${N}.log 2>&1

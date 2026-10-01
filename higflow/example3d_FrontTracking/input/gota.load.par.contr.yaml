@@ -1,14 +1,20 @@
 simulation_par:
-  numsteps: 101
-  dt: 0.0005                       # The Time spacing
+  numsteps: 11
+  dt: 0.002                        # Delta t do artigo
   dts: 0.005                         # The Time spacing for saving data (output) 
-  dtp: 0.005                         # The Time spacing for saving VTKs
+  dtp: 0.025                       # 120 quadros em t=3, para a animacao
 
 adimensional:
   Re: 1.0                             # The Reynolds Number  Re = ρUH/μ
-  Fr: 0.1                              # The Froude Number (not used yet)    Fr = U/√(gL) 
+  Fr: 1.010153      # 1/Fr^2 = 0.98000 = g do artigo (Mathematics 11:3900, Tab.3).
+                    # O "not used yet" do yaml de origem e' FALSO: higflow_gravity_term
+                    # devolve 1/Fr^2, aplicado em 5 sitios do passo multifasico.
 
 simulation_contr:
+  # EMPUXO.  A chave faltava, e sem ela o solver anuncia "Gravity is NOT added
+  # to the simulation (Using default value)" e segue sem empuxo nenhum -- a
+  # bolha simplesmente nao sobe.  Nao da' erro: da' um caso diferente.
+  gravity: true      # a bolha sobe por empuxo; o termo age em z (1/Fr^2)
   projtype: incremental                   # incremental or non_incremental
   tempdiscrtype: semi_implicit_euler      # difusao implicita: explicit_euler e' instavel com h=0,05 e Re=1 em 3D
   spatialdiscrtype: second_order           # second_order or forth_order (forth order is not implemented yet)
@@ -188,7 +194,11 @@ multiphase:
     # deixaria de medir o encanamento para medir um efeito conhecido.  O padrao
     # quando a chave falta e' TRUE (hig-flow-io.c:8240).
     surf_tension: false   # a forca vem da FRENTE, nao do CSF
-    flowtype0: viscoelastic             # newtonian or viscoelastic
+    # NEWTONIANO nas duas fases: e' o caso do artigo de referencia, e e' a
+    # comparacao FT-contra-VOF que isola a REPRESENTACAO DA INTERFACE --
+    # todo o resto (rho(x), mu(x), momento de coeficiente variavel) e' o mesmo
+    # maquinario nos dois.  O viscoelastico vem depois.
+    flowtype0: newtonian             # newtonian or viscoelastic
     flowtype1: newtonian             # newtonian or viscoelastic
     eoflow0: false              # true or false
     eoflow1: false              # true or false

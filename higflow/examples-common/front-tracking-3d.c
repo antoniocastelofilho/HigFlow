@@ -331,6 +331,35 @@ static void _aplica_tensao(higflow_solver *ns, void *vctx)
     ft3_espalha_tensao_solver(ctx->sup, ctx->sigma, ns->sfdF, ns->dpFU);
 }
 
+//! Preenche `dpfracvol` a partir da GEOMETRIA da superficie, uma vez, para a
+//! CONDICAO INICIAL.  Sem isto o campo nasce com o degrau suavizado que a
+//! funcao `fracvol` do exemplo devolve, e o primeiro quadro -- aquele que fixa
+//! a massa de referencia -- carrega o erro dele.
+//!
+//! Importa para a comparacao FT contra VOF: o VOF inicializa a fracao por
+//! subdivisao subcelular, com erro de volume 6.1e-05 em N=16, enquanto o
+//! degrau erra 1.2e-02.  Se um dos dois nascer com 1.2% de massa a mais, toda
+//! comparacao de conservacao ou de velocidade de subida mede a diferenca de
+//! condicao inicial, nao a diferenca de metodo.
+//!
+//! Aqui a fracao vem da forma fechada do corte plano-caixa aplicada a' propria
+//! superficie triangulada (ft3_fracao_na_caixa), que e' a maquinaria do FT --
+//! nao a do VOF.  O erro residual passa a ser o da TRIANGULACAO, que e' a
+//! representacao que o metodo de fato usa.
+extern "C" void front_tracking_3d_fracvol_inicial(higflow_solver *ns,
+                                                  ft3_superficie *sup)
+{
+    if (ns->contr.flowtype != MULTIPHASE) return;
+    real vol_campo = 0.0, faixa[2] = {0.0, 0.0};
+    _preenche_fracvol(ns, sup, &vol_campo, faixa);
+    real vol_sup = ft3_volume(sup);
+    print0f("=+=+=+= FT3 fracvol inicial da SUPERFICIE: vol campo=%.8f  "
+            "vol superficie=%.8f  dif=%.3e  fracao em [%.4f, %.4f] =+=+=+=\n",
+            (double) vol_campo, (double) vol_sup,
+            (double) (vol_sup != 0.0 ? fabs(vol_campo-vol_sup)/vol_sup : 0.0),
+            (double) faixa[0], (double) faixa[1]);
+}
+
 //! Instala o front-tracking 3D (tensao superficial) no solver.
 extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *sup,
                                           real sigma)
