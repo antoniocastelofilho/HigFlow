@@ -1,0 +1,71 @@
+\section{Viscoelastic three-dimensional bubble}
+\label{sec:viscoelastic}
+
+\status{Configuration validated in both methods --- both run cleanly with the
+reference parameters, with no non-finite values, and the tensor evolves
+smoothly. No production run yet. The uniform half of this section is ready to
+execute; the adaptive half is blocked on Section~\ref{sec:amr}.}
+
+\subsection{Case definition}
+
+The Newtonian case of Section~\ref{sec:newtonian} with an Oldroyd-B medium
+surrounding a Newtonian bubble, following the reference
+thesis~\cite{silva-thesis}. Two changes to the geometry and the schedule, both
+with a reason:
+
+\begin{itemize}
+\item the tank is raised to $[0,1]\times[0,1]\times[0,3]$, so the top and bottom
+walls do not influence the polymeric tensor;
+\item the final time goes from $t=3$ to $t=4$, because the elastic stress takes
+longer than the velocity to reach a steady state.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Viscoelastic matrix: relaxation time and solvent fraction.}
+\label{tab:vematrix}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/lambda/.style={column name={$\lambda_1$}, column type={c}},
+  columns/beta/.style={column name={$\beta$}, column type={c}},
+  columns/polimero/.style={column name={Polymer}, column type={c}},
+  columns/esperado/.style={column name={Expected shape at $t=4$}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-matriz.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsection{The cusp as the discriminating case}
+
+At $\lambda_1 = 0.4$ and $\beta = 0.2$ the reference reports a \textbf{cusp}
+forming at the trailing edge of the bubble: the rising motion deforms the
+viscoelastic medium, which exerts elastic force back on the interface, and that
+force stretches the rear of the bubble into a point.
+
+This is the case that gives the comparison content rather than making it a tie.
+A cusp is a region of high curvature concentrated on a scale that approaches the
+cell size, and the two representations should handle it differently: an explicit
+surface with surgery can refine locally along the interface, whereas a volume
+fraction with a per-cell planar reconstruction cannot represent curvature below
+one cell. \missing{whether that expectation holds is the result; not yet run}
+
+\subsection{A model limit, not a numerical one}
+
+Oldroyd-B has no finite extensibility limit (Section~\ref{sec:formulation}), so
+under sustained extension the stress grows without bound. In a preliminary run
+with deliberately wrong parameters --- gravity a hundredfold too strong and
+surface tension 24 times too weak --- the trace grew monotonically from 0 to 416
+in 160 steps with no sign of saturation. With the correct parameters the same
+configuration gives \num{3.6e-2} after seven steps, growing slowly. The
+distinction matters for reading the viscoelastic results: unbounded growth is
+what the model does in extension, and the question is whether it saturates on
+the time scale of the rise, not whether it appears.
+
+\subsection{Uniform mesh}
+\missing{six $(\lambda,\beta)$ combinations, both methods --- twelve runs}
+
+\subsection{Adaptive mesh}
+\missing{blocked on Section~\ref{sec:amr}}

@@ -1,0 +1,111 @@
+\section{Numerical method}
+\label{sec:method}
+
+\status{Ready to write: every part described here is implemented and verified.
+The subsection on adaptive refinement (\ref{sec:amr}) is the exception --- the
+criterion exists and is measured in two dimensions, but has not been ported to
+three.}
+
+\subsection{Shared machinery, and the single point of difference}
+\label{sec:shared}
+
+This subsection carries the methodological claim of the paper, so it states the
+arrangement precisely.
+
+Both methods use the same projection method, the same variable-coefficient
+momentum solve, and the same property interpolation. The front-tracking
+coupling is a function pointer, null by default, invoked inside the multiphase
+step \emph{after} the source terms and \emph{before} the viscosity and density
+interpolation. At that point it overwrites the volume fraction from the
+geometry of the front, so the properties are built from the new fraction. VOF
+reaches the same field at the same point by advecting (\ref{eq:transport}) with
+a geometric PLIC reconstruction.
+
+Everything downstream of that point --- $\rho(\mathbf{x})$, $\mu(\mathbf{x})$,
+the momentum solve, the pressure projection, the output probes --- is
+bit-identical code. The consequence is that a measured difference between the
+two is a difference in how the interface is represented, and not in the solver,
+the mesh, the time step, the initial geometry, or the instrument.
+
+\subsection{VOF: geometric PLIC}
+
+\missing{PLIC reconstruction and the split advection --- short, since it is the
+pre-existing method; cite the reference implementation}
+
+\paragraph{Initial volume fraction.}
+The initial fraction is computed by \textbf{sub-cell subdivision}: each
+interface cell is split into $16^3$ sub-cells, each resolved by the closed-form
+plane--box intersection volume, and the sum is condensed onto the coarse cell.
+This matters more than it appears. A one-cell smoothed step --- the obvious
+shortcut --- gives a bubble volume error of \num{1.23e-2} at the running
+resolution against \num{6.11e-5} for the subdivision, and its measured order of
+convergence is erratic (1.59, 2.90, 0.99) because the ramp width is tied to $h$.
+Since VOF conserves faithfully whatever mass it is given, an initial-condition
+error of that size never recovers.
+
+\subsection{Front-tracking: explicit triangulated surface}
+
+The interface is a closed triangulated surface with explicit connectivity,
+built as an icosphere by recursive subdivision of an icosahedron.
+
+\paragraph{Surface tension by line integral.}
+The force on each triangle is obtained from the line integral along its edges,
+$\mathbf{f} = \sigma(\mathbf{b}-\mathbf{a})\times\mathbf{n}$, distributed to the
+two endpoints. The force is $-\sigma\nabla A$ --- tension minimises area ---
+and the sign was derived rather than guessed, then checked against the numerical
+area gradient.
+
+\paragraph{The Laplace oracle in three dimensions.}
+For a sphere the pressure jump is $\Delta p = 2\sigma/R$, \emph{not} $\sigma/R$.
+The two-dimensional value is $\sigma/R$, and a 2D implementation that closes to
+0.02\% against it would, if the number were carried over, validate the wrong
+formula. The distinction is flagged in the header, the harness and the example.
+
+\paragraph{Surgery.}
+Split, collapse and flip, with a curved midpoint
+\begin{equation}
+\mathbf{m} = \frac{\mathbf{a}+\mathbf{b}}{2}
+  - \frac{1}{8}\Big[\big((\mathbf{b}-\mathbf{a})\cdot\mathbf{n}_a\big)\mathbf{n}_a
+  + \big((\mathbf{a}-\mathbf{b})\cdot\mathbf{n}_b\big)\mathbf{n}_b\Big],
+\end{equation}
+which is the PN-triangle (Hermite) construction. Surgery keeps the triangle
+edge matched to the cell size as the bubble deforms.
+
+\paragraph{Volume fraction from the surface.}
+The fraction is obtained from the signed distance and normal to the surface,
+then from the closed-form plane--box volume. The sign comes from parity
+ray-casting, never from the nearest triangle's normal --- the latter is wrong
+for a cell straddling a concavity.
+
+\subsection{Interface extraction for comparison}
+\label{sec:mc}
+
+VOF has no interface as an object; the comparison needs one. The isosurface
+$f = 1/2$ is extracted by marching cubes on the \emph{dual} grid --- the volume
+fraction lives at cell centres, so the lattice nodes are cell centres --- with
+vertices \textbf{welded} by lattice edge, which makes the extracted surface
+continuous. The alternative, writing the per-cell PLIC planes, gives a surface
+that is discontinuous from one cell to the next; that discontinuity is the right
+object for auditing the reconstruction and the wrong one for measuring shape.
+
+Both methods therefore emit a triangulated surface in the same file format, and
+every shape quantity in this paper is computed from those surfaces by the
+\emph{same} routine. The instrument is common; only the surface differs.
+
+\paragraph{On adaptive meshes the extraction runs on the finest level only.}
+This is sufficient, and not by economy: the band criterion refines to the finest
+level with a floor of five fine cells on each side of the interface, and outside
+that band the fraction is exactly 0 or 1. The eight-node stencil therefore never
+reaches the seam between levels, which is what normally breaks isosurface
+extraction on adaptive meshes.
+
+\subsection{Adaptive refinement}
+\label{sec:amr}
+
+\status{The criterion is implemented and measured in two dimensions; it has not
+been ported to three. The 2D signature is planar and the seed spatial index
+needs the third extent.}
+
+\missing{the criterion: maximum of a geometric band around the interface and a
+vorticity threshold, with hysteresis --- a cell already refined only coarsens
+once $|\omega|$ falls below half the threshold. Port to 3D pending.}

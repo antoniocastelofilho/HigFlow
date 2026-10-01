@@ -1,0 +1,5 @@
+# Reference parameters, Table 3 of the reference paper (= Table 5 of the thesis),
+# originally from Adelsberger et al. and also used by Metivet et al.
+caso rho1 rho2 mu1 mu2 g sigma Re Bo regime
+1 1000 100 10 1 0.98 24.5 35 10 {ellipsoidal}
+2 1000 1 10 0.1 0.98 1.96 35 125 {skirted / dimpled cap}

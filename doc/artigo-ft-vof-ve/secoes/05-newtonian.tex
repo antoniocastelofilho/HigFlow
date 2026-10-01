@@ -1,0 +1,114 @@
+\section{Newtonian three-dimensional bubble}
+\label{sec:newtonian}
+
+\status{Uniform mesh at $N=25$ is \textbf{measured and closed} --- 1501 steps in
+both methods, reported below. The reference resolution $50\times50\times100$ is
+running. Case~2 has not been run. The adaptive half of this section is blocked
+on Section~\ref{sec:amr}.}
+
+\subsection{Case definition}
+
+A bubble of radius $R = 0.25$ centred at $(0.5,0.5,0.5)$ in a tank
+$[0,1]\times[0,1]\times[0,2]$, no-slip on all walls, zero initial velocity,
+pressure and polymeric tensor, integrated to $t = 3$. Two parameter sets,
+Table~\ref{tab:params}, taken from the reference work and originally due to
+Adelsberger et al.
+
+\begin{table}[htbp]
+\centering
+\caption{Physical and dimensionless parameters.}
+\label{tab:params}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{caso-parametros.dat}}
+\end{table}
+
+\subsection{Uniform mesh}
+
+\subsubsection{Mass conservation}
+
+The two methods drift in \emph{opposite directions}, and that is the first
+result worth stating. VOF gains mass; front-tracking loses it. The magnitudes
+differ by a factor of four, but the signs differing matters more: these are two
+mechanisms, not one mechanism at two strengths. Mass gain in PLIC is a
+reconstruction artefact; loss in front-tracking is Lagrangian advection drift.
+
+\subsubsection{Shape and rise}
+
+\begin{table}[htbp]
+\centering
+\caption{Front-tracking against VOF at $t=3$, case 1, $25\times50\times50$.
+Shape quantities computed from the extracted surfaces by the same routine.}
+\label{tab:c1N25}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/grandeza/.style={column name={Quantity}, column type={l}},
+  columns/vof/.style={column name={VOF}, column type={r}},
+  columns/ft/.style={column name={FT}, column type={r}},
+  columns/dif/.style={column name={Difference}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{c1-N25-resumo.dat}}
+\end{adjustbox}
+\end{table}
+
+Both methods reproduce the \textbf{ellipsoidal regime} the reference reports for
+case~1: the height-to-equivalent-diameter ratio is below one in both, that is,
+flattened along the direction of rise. Both reproduce the shape of the published
+rise-velocity curve --- the velocity grows, peaks near $t = 0.9$, and decreases
+toward a steady value.
+
+The difference in centre of mass \textbf{grows monotonically}: 0.44\% at
+$t=0.5$, 1.03\% at $t=1.5$, 1.94\% at $t=3$. It is not a constant offset but an
+accumulated velocity difference, consistent with front-tracking rising 4.3\%
+more slowly in the terminal regime.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.47\linewidth, xlabel={$t$}, ylabel={$z_c$},
+             legend pos=north west, grid=both, no markers]
+  \addplot table[x=t, y=zc] {\dat{bolha3d-c1-N25-vof.dat}}; \addlegendentry{VOF}
+  \addplot table[x=t, y=zc] {\dat{bolha3d-c1-N25-ft.dat}};  \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=0.47\linewidth, xlabel={$t$}, ylabel={$\Psi$},
+             legend pos=south west, grid=both, no markers]
+  \addplot table[x=t, y=Psi] {\dat{bolha3d-c1-N25-vof.dat}}; \addlegendentry{VOF}
+  \addplot table[x=t, y=Psi] {\dat{bolha3d-c1-N25-ft.dat}};  \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}
+\caption{Centre of mass and sphericity, case 1, $25\times25\times50$.}
+\label{fig:c1N25}
+\end{figure}
+
+\paragraph{The instrument was cleared, not assumed.}
+The VOF centre of mass is computed from the marching-cubes surface, which
+encloses about 2.3\% less volume than the field at this resolution; that could
+bias the centroid. An independent probe computes the centroid directly from the
+field and gives $1.490212$ against $1.4903$ from the surface --- agreement to
+\num{1e-4}. The volume bias does not translate into a position bias.
+
+\paragraph{Topological soundness.}
+121 output frames per method, \emph{all} surfaces closed (zero orphan edges,
+$\chi = 2$). In the front-tracking run the triangulation grew from 5120 to 5558
+triangles over the rise, with 8824 surgery operations and a partition-of-unity
+residual of \num{1.1e-14} --- refinement where the bubble deforms, which is the
+intended behaviour.
+
+\subsection{Reference resolution}
+\missing{$50\times50\times100$, both methods --- running}
+
+\subsection{Case 2: topological change}
+\missing{$\rho_1/\rho_2 = 1000$, $\mu_1/\mu_2 = 100$, $\sigma = 1.96$. Lower
+surface tension favours break-up, which is where an explicit surface with
+surgery and a volume-fraction field should differ most. Not run.}
+
+\subsection{Adaptive mesh}
+\missing{blocked on Section~\ref{sec:amr}}

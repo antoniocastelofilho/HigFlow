@@ -1,0 +1,4 @@
+# Measured cost, not estimated.  microseconds per cell-step, single core, uniform mesh.
+caso vof ft
+{Newtonian} 286.4 253.3
+{Viscoelastic} 414.2 {not measured}

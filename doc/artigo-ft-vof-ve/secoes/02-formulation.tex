@@ -1,0 +1,100 @@
+\section{Formulation}
+\label{sec:formulation}
+
+\status{Ready to write: the equations and the non-dimensionalisation convention
+are established and checked against the code. The text below is complete on the
+points that matter for reproducibility.}
+
+\subsection{Governing equations}
+
+Incompressible two-phase flow with surface tension and a polymeric
+contribution. In non-dimensional form,
+\begin{equation}
+\rho\left(\frac{\partial \mathbf{u}}{\partial t}
+          + \mathbf{u}\cdot\nabla\mathbf{u}\right)
+= -\nabla p
+  + \frac{1}{\mathrm{Re}}\nabla\cdot\!\left[\mu\left(\nabla\mathbf{u}
+    + \nabla\mathbf{u}^{\mathsf{T}}\right)\right]
+  + \rho\,\hat{\mathbf{g}}
+  + \frac{1}{\mathrm{Bo}}\,\kappa\mathbf{n}\delta
+  + \nabla\cdot\mathbf{S},
+\label{eq:momentum}
+\end{equation}
+with
+\begin{equation}
+\mathrm{Re} = \frac{\rho_1 g^{1/2} L^{3/2}}{\mu_1},
+\qquad
+\mathrm{Bo} = \frac{\rho_1 g L^2}{\sigma},
+\qquad
+V = \sqrt{gL},
+\qquad
+L = 2r,
+\label{eq:dimensionless}
+\end{equation}
+where $L$ is the bubble \emph{diameter} and the characteristic velocity is tied
+to gravity. The volume fraction $f$ obeys
+\begin{equation}
+\frac{\partial f}{\partial t} + \nabla\cdot(\mathbf{u}f) = 0,
+\label{eq:transport}
+\end{equation}
+and the properties are interpolated as $\rho = (1-f)\rho_0 + f\rho_1$ and
+$\mu = (1-f)\mu_0 + f\mu_1$.
+
+\subsection{The polymeric tensor is not the stored tensor}
+
+This deserves its own subsection because it is a source of silent error. The
+solver stores $\mathbf{S}$; the polymeric tensor is
+\begin{equation}
+\mathbf{T} = \mathbf{S} + \frac{2(1-\beta)}{\mathrm{Re}}\,\mathbf{D},
+\qquad
+\mathbf{D} = \tfrac{1}{2}\!\left(\nabla\mathbf{u}
+           + \nabla\mathbf{u}^{\mathsf{T}}\right),
+\label{eq:T-from-S}
+\end{equation}
+and $\beta$ is the \emph{interpolated} value between the phases, by the same
+expression the solver uses:
+\begin{equation}
+\beta = \frac{(1-f)\,\mu_0\beta_0 + f\,\mu_1\beta_1}{\mu}.
+\label{eq:beta-interp}
+\end{equation}
+Mistaking $\mathbf{S}$ for $\mathbf{T}$ raises no error; it produces a
+plausible and wrong field. The output files of this work carry both, labelled.
+
+\subsection{Constitutive model}
+
+Oldroyd-B, as an evolution equation for the conformation tensor $\mathbf{A}$:
+\begin{equation}
+\mathrm{De}\left(\frac{\partial \mathbf{A}}{\partial t}
+  + \mathbf{u}\cdot\nabla\mathbf{A}
+  - \nabla\mathbf{u}\cdot\mathbf{A}
+  - \mathbf{A}\cdot\nabla\mathbf{u}^{\mathsf{T}}\right)
+= \mathbf{I} - \mathbf{A},
+\qquad
+\mathrm{De} = \frac{U\lambda}{L}.
+\label{eq:oldroyd}
+\end{equation}
+Oldroyd-B has no finite extensibility limit, so the stress grows without bound
+under sustained extension. That is a property of the model, not of the
+discretisation, and it bounds how far the viscoelastic cases can be pushed ---
+Section~\ref{sec:viscoelastic} returns to it.
+
+\subsection{The solver's non-dimensionalisation convention}
+\label{sec:convention}
+
+This subsection exists for reproducibility, and its content was \emph{read from
+the code and checked numerically}, not assumed. The solver integrates the
+equations in \textbf{dimensional} variables, with the dimensionless groups set
+so that the coefficients of (\ref{eq:momentum}) reduce to the physical values:
+\begin{equation}
+\mathrm{Re} = 1,
+\qquad
+\mathrm{Fr} = 1/\sqrt{g},
+\qquad
+\mathrm{Ca} = 1/\sigma,
+\end{equation}
+with $\rho$ and $\mu$ entering at their tabulated values. The gravitational
+term appears as $1/\mathrm{Fr}^2$ and the interfacial one as
+$1/(\mathrm{Ca}\cdot\mathrm{Re})$. Checked: $\mathrm{Fr} = 1.010153$ gives
+$1/\mathrm{Fr}^2 = 0.979999$, which is $g = 0.98$; and
+$\mathrm{Ca} = 0.0408163265$ gives $1/(\mathrm{Ca}\cdot\mathrm{Re}) = 24.5$,
+which is $\sigma$. With $U = L = 1$ at this scaling, $\mathrm{De} = \lambda$.

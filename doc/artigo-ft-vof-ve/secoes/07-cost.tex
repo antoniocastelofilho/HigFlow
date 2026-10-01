@@ -1,0 +1,53 @@
+\section{Cost and performance}
+\label{sec:cost}
+
+\status{Uniform-mesh rates are \textbf{measured}, on the same mesh and in the
+same conditions. The refinement gain --- the number this section exists for ---
+cannot be measured until Section~\ref{sec:amr} is resolved.}
+
+\subsection{Uniform mesh}
+
+\begin{table}[htbp]
+\centering
+\caption{Measured cost in microseconds per cell-step, single core, uniform mesh.
+Same mesh and same conditions for both methods.}
+\label{tab:cost}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={Rheology}, column type={l}},
+  columns/vof/.style={column name={VOF}, column type={r}},
+  columns/ft/.style={column name={FT}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{custo.dat}}
+\end{table}
+
+Front-tracking is \emph{cheaper} than VOF on the Newtonian case, by about 12\%.
+That is worth stating because the opposite is often assumed: an explicit surface
+sounds more expensive than a scalar field. It is not, here, because VOF pays for
+the PLIC reconstruction and the split advection at every cell near the
+interface, whereas front-tracking pays for advecting a few thousand vertices and
+rebuilding one spatial index.
+
+\paragraph{Contention is not negligible, and the number has to say which it is.}
+The rates above were measured with a single run on the machine. Two runs on
+separate cores slow each other by roughly 60\% at $250\,000$ cells, through
+memory bandwidth rather than CPU. Any wall-clock figure in this paper therefore
+states whether it was measured alone or alongside another run.
+
+\subsection{Output cost}
+
+Worth a paragraph because it dominated a first attempt at the reference
+resolution. The field output is an unstructured grid with eight unshared corner
+points per cell: $250\,000$ cells become two million points, about 300~MB per
+frame, roughly 20 minutes to write. At 120 frames that is some 40 hours of
+writing against 16 hours of computation. The extracted interface is a factor of
+226 smaller and already carries the interpolated fields at its vertices, so the
+field output is written at a coarse cadence and the interface at every frame.
+
+\subsection{Adaptive against uniform}
+\missing{the comparison this section exists for; blocked on
+Section~\ref{sec:amr}. The relevant figure is not ``refinement is faster'' but
+\emph{the same accuracy for how much less} --- which requires the uniform
+baseline at the fine resolution, the single most expensive item in the matrix.}

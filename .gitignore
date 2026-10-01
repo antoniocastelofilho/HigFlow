@@ -165,3 +165,16 @@ graphify-out/
 # partir de um clone ou de outro worktree.  Foi assim que apareceu.
 !doc/*/dados/*.dat
 higflow/example3d_VOF_rising-ve/
+higflow/example3d_FrontTracking-ve/
+
+# Artigo: produtos de compilacao do LaTeX.  Os .dat de MEDICAO sao versionados
+# (regra doc/*/dados/* adiante); o PDF e os auxiliares, nao.
+doc/artigo-ft-vof-ve/main.pdf
+doc/artigo-ft-vof-ve/*.aux
+doc/artigo-ft-vof-ve/*.bbl
+doc/artigo-ft-vof-ve/*.blg
+doc/artigo-ft-vof-ve/*.log
+doc/artigo-ft-vof-ve/*.out
+doc/artigo-ft-vof-ve/*.toc
+doc/artigo-ft-vof-ve/*.fls
+doc/artigo-ft-vof-ve/*.fdb_latexmk

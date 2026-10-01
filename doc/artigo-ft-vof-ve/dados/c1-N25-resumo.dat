@@ -1,0 +1,10 @@
+# FT vs VOF, case 1, 25x25x50, t = 3.  Shape quantities from the surface, same
+# instrument for both.  Mass: field integral for VOF, surface volume for FT.
+# Math in these fields has to be inside $...$ -- pgfplotstable typesets verbatim.
+grandeza vof ft dif
+{centre of mass $z_c$} 1.4903 1.4615 {1.94\%}
+{sphericity $\Psi$} 0.9512 0.9538 {0.27\%}
+{height $/\,d_{\mathrm{eq}}$} 0.733 0.752 {2.6\%}
+{peak rise velocity} 0.3883 0.3603 {7.8\%}
+{terminal rise velocity} 0.3577 0.3429 {4.3\%}
+{mass drift} {$+0.396\%$} {$-0.096\%$} {opposite signs}
