@@ -1,0 +1,7 @@
+# artefatos de corrida: gerados, nao versionados
+output/
+VTKS/
+DATA/
+amrs/
+*.o
+ns-example-3d
