@@ -1,12 +1,15 @@
 simulation_par:
-  numsteps: 2001
-  dt: 0.0005                       # The Time spacing
+  numsteps: 11
+  dt: 0.002                        # Delta t do artigo
   dts: 0.01                         # The Time spacing for saving data (output) 
   dtp: 0.025
 
 adimensional:
   Re: 1.0                             # The Reynolds Number  Re = ρUH/μ
-  Fr: 0.1                              # The Froude Number (not used yet)    Fr = U/√(gL) 
+  Fr: 1.010153      # 1/Fr^2 = 0.98000 = g do artigo (Mathematics 11:3900, Tab.3).
+                    # O comentario "not used yet" do yaml de origem e' FALSO: o
+                    # higflow_gravity_term devolve 1/Fr^2 e o caminho multifasico
+                    # o aplica em 5 sitios.  Estava 0.1 aqui, dando gravidade 100.
 
 simulation_contr:
   gravity: true      # a bolha sobe por empuxo; o termo age em z
@@ -96,12 +99,24 @@ multiphase:
     # deixaria de medir o encanamento para medir um efeito conhecido.  O padrao
     # quando a chave falta e' TRUE (hig-flow-io.c:8240).
     surf_tension: true    # aqui a tensao superficial E a fisica do caso
-    flowtype0: viscoelastic             # newtonian or viscoelastic
+    # NEWTONIANO NAS DUAS FASES, que e' o que o artigo de referencia simula
+    # (Mathematics 11:3900).  Nele "viscoelastico" aparece so' na conclusao,
+    # como trabalho futuro -- nao ha' caso de bolha viscoelastica para comparar.
+    # Estava `viscoelastic` aqui por heranca do porte a partir do example3d_VOF_VE.
+    # Para a variante viscoelastica basta trocar de volta: o despacho no exemplo
+    # ja' chama higflow_solver_step_multiphase_viscoelastic quando isto muda, e
+    # aquele caminho delega o momento ao multifasico, logo a gravidade continua
+    # sendo aplicada.  Mas a corrida deixa de comparar com valor publicado, e
+    # com Oldroyd-B a tensao cresce sem limite (medido: 0 a 416 em 160 passos).
+    flowtype0: newtonian             # newtonian or viscoelastic
     flowtype1: newtonian             # newtonian or viscoelastic
     eoflow0: false              # true or false
     eoflow1: false              # true or false
   adimensional:
-    Ca: 1.0                           # Capillary number   Ca = We/Re = μU/σ
+    Ca: 0.0408163265   # 1/(Ca*Re) = 24.5 = sigma do artigo.  A arvore trabalha em
+                       # variaveis DIMENSIONAIS com Re=1, Fr=1/sqrt(g), Ca=1/sigma --
+                       # convencao lida do example2d_VOF, que e' o caso validado.
+                       # Estava 1.0 aqui, dando sigma 1.0 em vez de 24.5.
 
   viscoelastic:
     contr:

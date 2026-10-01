@@ -429,11 +429,26 @@ int main (int argc, char *argv[]) {
         // rodar.  Chamar o errado nao quebra nem avisa -- roda 200 passos e
         // entrega velocidade e pressao IDENTICAMENTE NULAS, que foi o que
         // aconteceu aqui.
-        // VISCOELASTICO multifasico: e' este o caminho que nunca rodou em 3D.
-        if (ns->contr.flowtype == MULTIPHASE)
-            higflow_solver_step_multiphase_viscoelastic(ns);
-        else
+        // E DENTRO DO MULTIFASICO, despacho por REOLOGIA.  Chamar o passo
+        // viscoelastico com as duas fases newtonianas SEGFAULTA no primeiro
+        // passo: `viscoelastic_either` falso faz a carga pular as condicoes de
+        // contorno dos tensores -- corretamente --, e o passo viscoelastico
+        // entao calcula a derivada da velocidade e a equacao constitutiva sobre
+        // campos que nao existem.  O estouro acontece ANTES de
+        // higflow_solver_step_multiphase ser alcancado, o que foi o que
+        // localizou o defeito: instrumentado, nenhuma marca dele saiu.
+        //
+        // Nenhum exemplo 3D desta arvore tinha fases newtonianas -- todos os
+        // multifasicos 3D nasceram com flowtype0 viscoelastic --, por isso o
+        // caminho newtoniano multifasico 3D nunca havia sido exercitado.
+        if (ns->contr.flowtype == MULTIPHASE) {
+            if (ns->ed.mult.contr.viscoelastic_either == true)
+                higflow_solver_step_multiphase_viscoelastic(ns);
+            else
+                higflow_solver_step_multiphase(ns);
+        } else {
             higflow_solver_step(ns);
+        }
         // Time update 
         ns->par.t += ns->par.dt;
         // Stop the first step time
