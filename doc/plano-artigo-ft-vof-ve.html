@@ -190,6 +190,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
   <h2>Conteúdo</h2>
   <ol>
     <li><a href="#tese">A tese do artigo</a></li>
+    <li><a href="#resultados">Primeiros resultados: N=25</a></li>
     <li><a href="#estrutura">Estrutura das seções</a></li>
     <li><a href="#alvos">Alvos de comparação</a></li>
     <li><a href="#matriz">Matriz de simulações</a></li>
@@ -228,8 +229,56 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
   </div>
 </section>
 
+<section id="resultados">
+  <h2><span class="num">02</span>Primeiros resultados: N=25 fechado</h2>
+  <p class="subtitle">Caso 1 do artigo, malha 25×25×50, até t=3 — 1501 passos completos nos dois métodos. Medidos pelo <em>mesmo instrumento</em>: o VOF escreve a interface por marching cubes e o FT escreve a triangulação, e ambos saem em VTK POLYDATA, logo a mesma conta se aplica aos dois.</p>
+
+  <h3>Conservação de massa</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Método</th><th>inicial</th><th>em t=3</th><th>deriva</th><th>sinal</th></tr></thead>
+    <tbody>
+      <tr><td class="k">VOF — ∫fracvol</td><td class="n">0,06545148</td><td class="n">0,06571056</td><td class="n">+0,396%</td><td>ganha massa</td></tr>
+      <tr><td class="k">FT — volume da superfície</td><td class="n">0,06530842</td><td class="n">0,06524596</td><td class="n">−0,096%</td><td>perde massa</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">O front-tracking conserva <strong>4,1× melhor</strong>, e os sinais são opostos — o VOF ganha, o FT perde. Ganho de massa no PLIC é artefato conhecido da reconstrução; perda no FT é a deriva da advecção lagrangiana. Que os sinais difiram importa: não é a mesma deriva com magnitudes diferentes, são dois mecanismos.</p>
+
+  <h3>A física que o artigo compara</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Grandeza em t=3</th><th>VOF</th><th>FT</th><th>diferença</th></tr></thead>
+    <tbody>
+      <tr><td class="k">centro de massa z<sub>c</sub></td><td class="n">1,4903</td><td class="n">1,4615</td><td class="n">1,94%</td></tr>
+      <tr><td class="k">esfericidade Ψ</td><td class="n">0,9512</td><td class="n">0,9538</td><td class="n">0,27%</td></tr>
+      <tr><td class="k">altura / d<sub>eq</sub></td><td class="n">0,733</td><td class="n">0,752</td><td class="n">2,6%</td></tr>
+      <tr><td class="k">velocidade de pico</td><td class="n">0,3883 (t=0,85)</td><td class="n">0,3603 (t=0,90)</td><td class="n">7,8%</td></tr>
+      <tr><td class="k">velocidade terminal (t&gt;2,5)</td><td class="n">0,3577</td><td class="n">0,3429</td><td class="n">4,3%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Os dois reproduzem o <strong>regime elipsoidal</strong> que o artigo relata para o caso 1: altura/d<sub>eq</sub> abaixo de 1 nos dois, isto é, achatado na direção da subida. E os dois reproduzem a forma da curva que a Figura 36 mostra — a velocidade sobe, atinge máximo perto de t=0,9 e decresce para o estacionário.</p>
+
+  <p>A diferença no centro de massa <strong>cresce monotonamente</strong>: 0,44% em t=0,5, 1,03% em t=1,5, 1,94% em t=3. Não é deslocamento constante, é diferença acumulada de velocidade — coerente com o FT subir 4,3% mais devagar no regime terminal.</p>
+
+  <div class="flag">
+    <span class="h">o instrumento foi isentado, não presumido</span>
+    <p>O z<sub>c</sub> do VOF vem da superfície do marching cubes, que encerra ~2,3% menos volume que o campo nesta malha. Isso poderia enviesar o centróide. A sonda do exemplo calcula o centróide direto do campo e deu <span class="m">1,490212</span> contra <span class="m">1,4903</span> da superfície — concordância em 1e−4. O viés de volume não se traduz em viés de posição, e a comparação sobrevive.</p>
+  </div>
+
+  <h3>Sanidade topológica</h3>
+  <p>121 quadros em cada método, <strong>todas as superfícies fechadas</strong> (zero arestas órfãs, χ=2). No FT a triangulação cresceu de 5120 para 5558 triângulos ao longo da subida, com 8824 cirurgias e resíduo da partição da unidade em 1,1e−14 — a cirurgia refinando onde a bolha deforma, que é o comportamento pretendido, e não um sintoma.</p>
+
+  <div class="flag">
+    <span class="h">o que isto ainda não é</span>
+    <p>Comparação <em>entre os dois métodos</em>, não com a literatura. O artigo e a tese publicam curvas, não tabelas, e sem digitalizá-las o que se pode afirmar é a concordância qualitativa (regime elipsoidal, forma da curva de velocidade) mais a concordância mútua de 2–4%. A malha do artigo é 50×50×100 e está rodando; a comparação quantitativa fica para ela.</p>
+  </div>
+</section>
+
 <section id="estrutura">
-  <h2><span class="num">02</span>Estrutura das seções</h2>
+  <h2><span class="num">03</span>Estrutura das seções</h2>
   <p class="subtitle">A numeração aqui é sequência real: cada seção depende da anterior para o leitor aceitar a seguinte.</p>
 
   <div class="sec">
@@ -298,7 +347,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
 </section>
 
 <section id="alvos">
-  <h2><span class="num">03</span>Alvos de comparação</h2>
+  <h2><span class="num">04</span>Alvos de comparação</h2>
   <p class="subtitle">Nenhum destes é alvo que eu inventei: os parâmetros saíram do artigo (Tabela 3) e da tese (Tabela 5 e §8.2.5), que coincidem.</p>
 
   <div class="scroll">
@@ -346,7 +395,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
 </section>
 
 <section id="matriz">
-  <h2><span class="num">04</span>Matriz de simulações</h2>
+  <h2><span class="num">05</span>Matriz de simulações</h2>
   <p class="subtitle">Custos de taxas <strong>medidas nesta árvore</strong>, não de estimativa: VOF newtoniano 286,4 µs por célula-passo, FT 253,3, e o viscoelástico a 1,45× o newtoniano (414,2).</p>
 
   <div class="scroll">
@@ -380,7 +429,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
 </section>
 
 <section id="verificacao">
-  <h2><span class="num">05</span>O que já está verificado</h2>
+  <h2><span class="num">06</span>O que já está verificado</h2>
   <p class="subtitle">Isto não é promessa: são números medidos, e é o ativo mais forte que o artigo tem. A distinção entre oráculo exato e convergente é o que o diferencia de “os resultados parecem razoáveis”.</p>
 
   <div class="scroll">
@@ -410,7 +459,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
 </section>
 
 <section id="pendencias">
-  <h2><span class="num">06</span>Pendências que bloqueiam</h2>
+  <h2><span class="num">07</span>Pendências que bloqueiam</h2>
   <p class="subtitle">Em ordem de quanto impedem o artigo.</p>
 
   <div class="scroll">
@@ -459,7 +508,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 5rem; padding-top: 1.5re
 </section>
 
 <section id="caminho">
-  <h2><span class="num">07</span>Caminho crítico</h2>
+  <h2><span class="num">08</span>Caminho crítico</h2>
   <p class="subtitle">O que determina a data do artigo, e não o que dá mais trabalho.</p>
 
   <p>O caminho crítico <strong>não</strong> passa pelas corridas newtonianas — essas estão em curso e fecham sozinhas. Passa por duas coisas em sequência:</p>
