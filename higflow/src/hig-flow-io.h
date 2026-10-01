@@ -62,7 +62,11 @@ void higflow_print_vtk2D_parallel_single(higflow_solver *ns, int rank, int nproc
 
 void higflow_print_vtk2D_multiphase_parallel_single(higflow_solver *ns, int rank, int nprocs);
 
-// Print the VTK file for visualize 2D PLIC Interface Lines
+// Isosuperficie fracvol = 1/2 por MARCHING CUBES (3D, serial): superficie
+// CONTINUA, com vertices soldados nas arestas da rede e campos interpolados
+// nos vertices.  Em malha adaptativa roda so' no nivel mais fino -- ver o
+// comentario no hig-flow-io.c para o porque' disso bastar.
+void higflow_print_vtk3d_multiphase_mc_serial(higflow_solver *ns, int rank);
 void higflow_print_vtk2d_multiphase_plic_lines_serial_single(higflow_solver *ns, int rank, int nprocs);
 
 // Print the VTK file for visualize 2D PLIC Interface Lines

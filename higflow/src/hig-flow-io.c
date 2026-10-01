@@ -20,6 +20,7 @@
 // decompositions, dump `ns->dpu` per facet keyed by coordinate.  See AGENTS.md.
 
 #include "hig-flow-io.h"
+#include "hig-flow-mc.c"   // nucleo do marching cubes; ver o cabecalho dele
 #include "hig-mesh-snapshot.h"
 
 #if DIM == 2
@@ -3259,6 +3260,57 @@ void higflow_print_vtk3D(higflow_solver *ns, int rank) {
                hms_center(hms, clid, ccenter);
                real value = compute_value_at_point(ns->ed.mult.sdmult, ccenter, ccenter, 1.0, ns->ed.mult.dpfracvol, ns->ed.mult.stn);
                fprintf(f, "%e\n", value);
+            }
+
+            // TENSOR S E TENSOR POLIMERICO T, quando ha' fase viscoelastica.
+            //
+            // O QUE O SOLVER ARMAZENA E' S, e nao o tensor polimerico.  Pela
+            // equacao (3) de Afonso & Castelo, "Constitutive equations":
+            //
+            //     T = S + 2(1-beta)/Re * D ,    D = (grad u + grad u^T)/2
+            //
+            // Os dois saem no arquivo, rotulados, para nenhum passar pelo outro.
+            //
+            // beta e' o INTERPOLADO entre as fases, pela mesma formula que o
+            // solver usa: ((1-f) visc0 beta0 + f visc1 beta1) / visc.
+            if (ns->ed.mult.contr.viscoelastic_either == true) {
+                sim_domain *sdED = psd_get_local_domain(ns->ed.psdED);
+                const hig_mesh_snapshot *hmsT = sd_get_snapshot(sdp);
+                const real Re_ = ns->par.Re;
+                const real b0 = ns->ed.mult.ve.par0.beta;
+                const real b1 = ns->ed.mult.ve.par1.beta;
+                for (int campo = 0; campo < 3; campo++) {
+                    if (campo == 0) fprintf(f, "\nTENSORS S FLOAT\n");
+                    if (campo == 1) fprintf(f, "\nTENSORS T_polimerico FLOAT\n");
+                    if (campo == 2) fprintf(f, "\nSCALARS tr_T FLOAT\nLOOKUP_TABLE default\n");
+                    for (int ci = 0; ci < hmsT->n; ci++) {
+                        Point cc2;
+                        hms_center(hmsT, ci, cc2);
+                        real fv = compute_value_at_point(ns->ed.mult.sdmult, cc2, cc2, 1.0,
+                                     ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                        real v0 = ns->ed.mult.problem->viscosity0(cc2, ns->par.t);
+                        real v1 = ns->ed.mult.problem->viscosity1(cc2, ns->par.t);
+                        real visc = (1.0-fv)*v0 + fv*v1;
+                        real beta_i = (visc > 0.0) ? ((1.0-fv)*v0*b0 + fv*v1*b1)/visc : 1.0;
+                        real fator = 2.0*(1.0-beta_i)/Re_;
+                        real tr = 0.0;
+                        for (int i = 0; i < DIM; i++) {
+                            for (int j = 0; j < DIM; j++) {
+                                real Sij = compute_value_at_point(sdED, cc2, cc2, 1.0,
+                                             ns->ed.ve.dpTaup[i][j], ns->ed.stn);
+                                real dij = compute_value_at_point(sdED, cc2, cc2, 1.0,
+                                             ns->ed.ve.dpDu[i][j], ns->ed.stn);
+                                real dji = compute_value_at_point(sdED, cc2, cc2, 1.0,
+                                             ns->ed.ve.dpDu[j][i], ns->ed.stn);
+                                real Tij = Sij + fator*0.5*(dij + dji);
+                                if (campo == 0) fprintf(f, "%e%s", Sij, (j==DIM-1)?"\n":" ");
+                                if (campo == 1) fprintf(f, "%e%s", Tij, (j==DIM-1)?"\n":" ");
+                                if (campo == 2 && i == j) tr += Tij;
+                            }
+                        }
+                        if (campo == 2) fprintf(f, "%e\n", tr);
+                    }
+                }
             }
             }
          break;
@@ -10969,4 +11021,244 @@ void higflow_save_shear_thickening_suspension_controllers(higflow_solver *ns, in
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
     }
+}
+
+// ===========================================================================
+// ISOSUPERFICIE fracvol = 1/2 POR MARCHING CUBES  (3D, serial)
+//
+// Por que existe, ao lado do escritor PLIC: o PLIC reconstroi um plano por
+// celula e NAO casa os planos vizinhos, logo a superficie sai descontinua de
+// uma celula para a outra -- o que e' justamente a informacao que se quer ver
+// ao auditar a reconstrucao, e o que estraga uma animacao.  O marching cubes
+// solda os vertices nas arestas da rede e devolve superficie CONTINUA.  Os
+// dois servem a coisas diferentes; nenhum substitui o outro.
+//
+// MALHA ADAPTATIVA.  A rede e' a do NIVEL MAIS FINO, e so' na caixa que
+// envolve as celulas de interface.  Isso basta, e nao por economia: a
+// interface esta' sempre toda no nivel mais fino -- o criterio de banda
+// garante cinco celulas finas por lado -- e fora dela a fracao e' 0 ou 1
+// EXATOS (o `fraction_correction_at_set` grampeia, e a condicao inicial por
+// subdivisao subcelular tambem da' 0 e 1 exatos).  Logo o estencil de oito
+// nos nunca alcanca a costura entre niveis, que e' o que normalmente quebra
+// extracao de isosuperficie em malha adaptativa.
+//
+// A REDE E' DUAL: a fracao vive no CENTRO da celula, entao os nos da rede
+// sao centros de celula fina, nao vertices.  A superficie fica encolhida de
+// meia celula junto a' borda do dominio, o que e' correto -- nao ha' dado de
+// fracao fora da ultima celula para interpolar.
+// ===========================================================================
+#if DIM == 3
+
+typedef struct {
+    higflow_solver *ns;
+    sim_domain     *sdmult;
+    real            x0[3], h[3];
+} _mc_ctx;
+
+static double _mc_amostra(int i, int j, int k, void *ctx) {
+    _mc_ctx *c = (_mc_ctx*) ctx;
+    Point p;
+    p[0] = c->x0[0] + i*c->h[0];
+    p[1] = c->x0[1] + j*c->h[1];
+    p[2] = c->x0[2] + k*c->h[2];
+    return compute_value_at_point(c->sdmult, p, p, 1.0,
+               c->ns->ed.mult.dpfracvol, c->ns->ed.mult.stn);
+}
+
+#endif
+
+void higflow_print_vtk3d_multiphase_mc_serial(higflow_solver *ns, int rank) {
+#if DIM != 3
+    (void) ns; (void) rank;
+#else
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+
+    // --- 1. a celula mais fina, a caixa do dominio, a caixa da interface ---
+    real hmin[3] = { 1e30, 1e30, 1e30 };
+    real dlo[3]  = { 1e30, 1e30, 1e30 }, dhi[3] = { -1e30, -1e30, -1e30 };
+    real blo[3]  = { 1e30, 1e30, 1e30 }, bhi[3] = { -1e30, -1e30, -1e30 };
+    int  n_int = 0;
+    real V_campo = 0.0;                 // integral de fracvol -- o oraculo
+    for (int ci = 0; ci < hms->n; ci++) {
+        Point cc, cd;
+        hms_center(hms, ci, cc);
+        hms_delta(hms, ci, cd);
+        for (int d = 0; d < 3; d++) {
+            if (cd[d] < hmin[d]) hmin[d] = cd[d];
+            if (cc[d]-0.5*cd[d] < dlo[d]) dlo[d] = cc[d]-0.5*cd[d];
+            if (cc[d]+0.5*cd[d] > dhi[d]) dhi[d] = cc[d]+0.5*cd[d];
+        }
+        real fv = compute_value_at_point(ns->ed.mult.sdmult, cc, cc, 1.0,
+                      ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        V_campo += fv * cd[0]*cd[1]*cd[2];
+        if (fv > 1.0e-8 && fv < 1.0 - 1.0e-8) {
+            n_int++;
+            for (int d = 0; d < 3; d++) {
+                if (cc[d]-cd[d] < blo[d]) blo[d] = cc[d]-cd[d];
+                if (cc[d]+cd[d] > bhi[d]) bhi[d] = cc[d]+cd[d];
+            }
+        }
+    }
+
+    char vtkname[1024];
+    snprintf(vtkname, sizeof vtkname, "%s_mult_mc_%d-%d.vtk",
+             ns->par.nameprint, rank, ns->par.frame);
+    FILE *f = fopen(vtkname, "w");
+    if (f == NULL) {
+        printf("=+=+ nao abriu %s =+=+\n", vtkname);
+        return;
+    }
+    fprintf(f, "# vtk DataFile Version 3.0\n");
+    fprintf(f, "interface fracvol=0.5 por marching cubes, t=%g passo=%d\n",
+            ns->par.t, ns->par.step);
+    fprintf(f, "ASCII\nDATASET POLYDATA\n");
+
+    // SEM CELULA DE INTERFACE o arquivo sai VAZIO, e isso e' legitimo, nao
+    // falha: acontece no quadro 0 se a fracao ainda nao foi inicializada, e
+    // acontece se a fase sumiu.  Um arquivo vazio e' melhor que nenhum --
+    // quem le a serie temporal nao fica com buraco no indice de quadros.
+    if (n_int == 0) {
+        fprintf(f, "POINTS 0 float\nPOLYGONS 0 0\n");
+        fclose(f);
+        printf("=+=+ MC: nenhuma celula de interface; %s vazio =+=+\n", vtkname);
+        return;
+    }
+
+    // --- 2. a rede: folga de duas celulas finas, aparada ao dominio -------
+    for (int d = 0; d < 3; d++) {
+        blo[d] -= 2.0*hmin[d];
+        bhi[d] += 2.0*hmin[d];
+        if (blo[d] < dlo[d] + 0.5*hmin[d]) blo[d] = dlo[d] + 0.5*hmin[d];
+        if (bhi[d] > dhi[d] - 0.5*hmin[d]) bhi[d] = dhi[d] - 0.5*hmin[d];
+    }
+    int nn[3];
+    for (int d = 0; d < 3; d++) {
+        nn[d] = (int)((bhi[d] - blo[d]) / hmin[d]) + 1;
+        if (nn[d] < 2) nn[d] = 2;
+    }
+
+    _mc_ctx ctx;
+    ctx.ns = ns;
+    ctx.sdmult = ns->ed.mult.sdmult;
+    for (int d = 0; d < 3; d++) { ctx.x0[d] = blo[d]; ctx.h[d] = hmin[d]; }
+
+    mc_malha m;
+    mc_malha_zera(&m);
+    if (mc_extrai(nn[0], nn[1], nn[2], ctx.x0, ctx.h, 0.5,
+                  _mc_amostra, &ctx, &m) != 0) {
+        fprintf(f, "POINTS 0 float\nPOLYGONS 0 0\n");
+        fclose(f);
+        mc_malha_libera(&m);
+        printf("=+=+ MC: faltou memoria na extracao =+=+\n");
+        return;
+    }
+
+    // --- 3. geometria -----------------------------------------------------
+    fprintf(f, "POINTS %d float\n", m.nv);
+    for (int q = 0; q < m.nv; q++)
+        fprintf(f, "%e %e %e\n", m.v[3*q], m.v[3*q+1], m.v[3*q+2]);
+    fprintf(f, "\nPOLYGONS %d %d\n", m.nt, 4*m.nt);
+    for (int q = 0; q < m.nt; q++)
+        fprintf(f, "3 %d %d %d\n", m.t[3*q], m.t[3*q+1], m.t[3*q+2]);
+
+    // --- 4. campos INTERPOLADOS nos vertices ------------------------------
+    // Nos vertices, nao nos centros de celula: e' o que faz o sombreamento e
+    // as cores variarem suave ao longo da superficie.  Cada campo sai do mesmo
+    // `compute_value_at_point` que o resto do io.c usa, no ponto do vertice.
+    sim_facet_domain *sfdu2[DIM];
+    for (int d = 0; d < DIM; d++) sfdu2[d] = psfd_get_local_domain(ns->psfdu[d]);
+
+    fprintf(f, "\nPOINT_DATA %d\n", m.nv);
+    fprintf(f, "NORMALS n float\n");
+    for (int q = 0; q < m.nv; q++)
+        fprintf(f, "%e %e %e\n", m.vn[3*q], m.vn[3*q+1], m.vn[3*q+2]);
+
+    // fracvol no vertice: tem de dar 1/2.  Fica no arquivo de proposito, como
+    // verificacao que o usuario pode olhar sem rodar nada.
+    real pior = 0.0;
+    fprintf(f, "\nSCALARS fracvol float\nLOOKUP_TABLE default\n");
+    for (int q = 0; q < m.nv; q++) {
+        Point p = { m.v[3*q], m.v[3*q+1], m.v[3*q+2] };
+        real fv = compute_value_at_point(ns->ed.mult.sdmult, p, p, 1.0,
+                      ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+        if (fabs(fv - 0.5) > pior) pior = fabs(fv - 0.5);
+        fprintf(f, "%e\n", fv);
+    }
+
+    fprintf(f, "\nSCALARS p float\nLOOKUP_TABLE default\n");
+    for (int q = 0; q < m.nv; q++) {
+        Point p = { m.v[3*q], m.v[3*q+1], m.v[3*q+2] };
+        fprintf(f, "%e\n", compute_value_at_point(ns->sdp, p, p, 1.0,
+                               ns->dpp, ns->stn));
+    }
+
+    fprintf(f, "\nVECTORS vel float\n");
+    for (int q = 0; q < m.nv; q++) {
+        Point p = { m.v[3*q], m.v[3*q+1], m.v[3*q+2] };
+        for (int d = 0; d < DIM; d++)
+            fprintf(f, "%e%s", compute_facet_value_at_point(sfdu2[d], p, p, 1.0,
+                                   ns->dpu[d], ns->stn), (d==DIM-1)?"\n":" ");
+    }
+
+    // --- 5. tensores, quando ha' fase viscoelastica -----------------------
+    // O QUE O SOLVER ARMAZENA E' S, nao o tensor polimerico.  Pela equacao (3)
+    // de Afonso & Castelo,  T = S + 2(1-beta)/Re * D,  com D = (grad u + grad u^T)/2.
+    // Os dois saem no arquivo, rotulados, para nenhum passar pelo outro.
+    // beta e' o INTERPOLADO entre as fases, pela formula do solver.
+    if (ns->ed.mult.contr.viscoelastic_either == true) {
+        sim_domain *sdED = psd_get_local_domain(ns->ed.psdED);
+        const real Re_ = ns->par.Re;
+        const real b0 = ns->ed.mult.ve.par0.beta;
+        const real b1 = ns->ed.mult.ve.par1.beta;
+        for (int campo = 0; campo < 3; campo++) {
+            if (campo == 0) fprintf(f, "\nTENSORS S float\n");
+            if (campo == 1) fprintf(f, "\nTENSORS T_polimerico float\n");
+            if (campo == 2) fprintf(f, "\nSCALARS tr_T float\nLOOKUP_TABLE default\n");
+            for (int q = 0; q < m.nv; q++) {
+                Point p = { m.v[3*q], m.v[3*q+1], m.v[3*q+2] };
+                real fv = compute_value_at_point(ns->ed.mult.sdmult, p, p, 1.0,
+                              ns->ed.mult.dpfracvol, ns->ed.mult.stn);
+                real v0 = ns->ed.mult.problem->viscosity0(p, ns->par.t);
+                real v1 = ns->ed.mult.problem->viscosity1(p, ns->par.t);
+                real visc = (1.0-fv)*v0 + fv*v1;
+                real beta_i = (visc > 0.0) ? ((1.0-fv)*v0*b0 + fv*v1*b1)/visc : 1.0;
+                real fator = 2.0*(1.0-beta_i)/Re_;
+                real tr = 0.0;
+                for (int i = 0; i < DIM; i++) {
+                    for (int j = 0; j < DIM; j++) {
+                        real Sij = compute_value_at_point(sdED, p, p, 1.0,
+                                       ns->ed.ve.dpTaup[i][j], ns->ed.stn);
+                        real dij = compute_value_at_point(sdED, p, p, 1.0,
+                                       ns->ed.ve.dpDu[i][j], ns->ed.stn);
+                        real dji = compute_value_at_point(sdED, p, p, 1.0,
+                                       ns->ed.ve.dpDu[j][i], ns->ed.stn);
+                        real Tij = Sij + fator*0.5*(dij + dji);
+                        if (campo == 0) fprintf(f, "%e%s", Sij, (j==DIM-1)?"\n":" ");
+                        if (campo == 1) fprintf(f, "%e%s", Tij, (j==DIM-1)?"\n":" ");
+                        if (campo == 2 && i == j) tr += Tij;
+                    }
+                }
+                if (campo == 2) fprintf(f, "%e\n", tr);
+            }
+        }
+    }
+    fclose(f);
+
+    // --- 6. os oraculos, no stdout ----------------------------------------
+    // ARESTAS ORFAS e EULER dizem se a superficie e' fechada e de que genero;
+    // sao exatos.  O VOLUME ENCERRADO contra a integral de fracvol diz se a
+    // superficie esta' no lugar certo -- e' o unico numero aqui que liga a
+    // geometria extraida ao campo que a gerou, e por isso o que vale olhar.
+    double Vmc = mc_volume(&m);
+    printf("=+=+ MC %s: V=%d F=%d  orfas=%d chi=%d  "
+           "rede %dx%dx%d h=%g  |fracvol-1/2| max=%.2e  "
+           "vol MC=%.6e  int fracvol=%.6e  dif=%.2f%% =+=+\n",
+           vtkname, m.nv, m.nt, mc_arestas_orfas(&m), mc_euler(&m),
+           nn[0], nn[1], nn[2], (double) hmin[0], (double) pior,
+           Vmc, (double) V_campo,
+           (V_campo != 0.0) ? 100.0*fabs(Vmc - V_campo)/V_campo : 0.0);
+
+    mc_malha_libera(&m);
+#endif
 }
