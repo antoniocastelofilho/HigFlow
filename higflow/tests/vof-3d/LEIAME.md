@@ -13,6 +13,13 @@ três dimensões.
 `higflow_solver_step_multiphase_viscoelastic`. Precisa de `PETSC_DIR` apontando
 para um PETSc compilado.
 
+**Ele compila os próprios objetos**, em `obj3d/`, em vez de reusar os de
+`higflow/src`. Isso não é zelo: os `.o` compartilhados **carregam a dimensão**, e
+reusá-los tornaria o teste refém de qual exemplo foi construído por último — uma
+passagem poderia significar apenas que alguém acabou de construir um exemplo 3D,
+e uma falha, que acabou de construir um 2D. Verificado nos dois estados da
+árvore.
+
 **Resultado: liga com zero símbolos não resolvidos.**
 
 ### O que isso prova, e o que não prova

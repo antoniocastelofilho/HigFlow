@@ -28,24 +28,33 @@ CXX="mpic++ -march=native -mtune=native -O2 -DDIM=3 -x c++ -std=gnu++17"
 
 $CXX $INC -c $T/stub-link.c -o $T/stub-link.o
 
-# hig-flow-vof-9-cells e hig-flow-vof-elvira NAO estao na lista MODULES do
-# Makefile de higflow: sao compilados por exemplo.  Aqui sao compilados a mao.
-for f in hig-flow-vof-9-cells hig-flow-vof-elvira; do
-    [ -f $S/$f.o ] || $CXX $INC -c $S/$f.c -o $S/$f.o
+# COMPILA OS PROPRIOS OBJETOS, em diretorio separado.  Reusar os .o de
+# higflow/src torna o teste refem da dimensao com que a arvore foi construida
+# por ultimo -- e eles CARREGAM a dimensao.  Uma passagem do teste poderia
+# significar apenas que alguem acabou de construir um exemplo 3D, e uma falha,
+# que acabou de construir um 2D.  Nenhum dos dois e' o que se quer medir.
+#
+# hig-flow-vof-9-cells e hig-flow-vof-elvira ainda precisam de mencao: eles NAO
+# estao na lista MODULES do Makefile de higflow, e sao compilados por exemplo.
+O=$T/obj3d
+mkdir -p $O
+MODS="hig-flow-kernel hig-flow-io hig-flow-eval hig-flow-discret
+ hig-flow-bc hig-flow-ic hig-flow-terms hig-flow-step
+ hig-flow-step-multiphase hig-flow-vof-adap-hf hig-flow-vof-plic
+ hig-flow-vof-9-cells hig-flow-vof-finite-difference-normal-curvature
+ hig-flow-vof-elvira hig-flow-step-generalized-newtonian
+ hig-flow-step-viscoelastic hig-flow-mittag-leffler
+ hig-flow-step-multiphase-viscoelastic hig-flow-res
+ hig-flow-linear-algebra hig-flow-viscoelastic-kernel
+ hig-flow-vof-mehta hig-flow-vof-plic-3D hig-flow-vof-advection-3D
+ hig-flow-vof-HF-3D hig-flow-vof-finite-difference-normal-curvature_3D
+ hig-flow-timestep hig-flow-remalha"
+for f in $MODS; do
+    [ -f $O/$f.o ] || $CXX $INC -c $S/$f.c -o $O/$f.o
 done
 
-OBJ="$T/stub-link.o
- $S/hig-flow-kernel.o $S/hig-flow-io.o $S/hig-flow-eval.o $S/hig-flow-discret.o
- $S/hig-flow-bc.o $S/hig-flow-ic.o $S/hig-flow-terms.o $S/hig-flow-step.o
- $S/hig-flow-step-multiphase.o $S/hig-flow-vof-adap-hf.o $S/hig-flow-vof-plic.o
- $S/hig-flow-vof-9-cells.o $S/hig-flow-vof-finite-difference-normal-curvature.o
- $S/hig-flow-vof-elvira.o $S/hig-flow-step-generalized-newtonian.o
- $S/hig-flow-step-viscoelastic.o $S/hig-flow-mittag-leffler.o
- $S/hig-flow-step-multiphase-viscoelastic.o $S/hig-flow-res.o
- $S/hig-flow-linear-algebra.o $S/hig-flow-viscoelastic-kernel.o
- $S/hig-flow-vof-mehta.o $S/hig-flow-vof-plic-3D.o $S/hig-flow-vof-advection-3D.o
- $S/hig-flow-vof-HF-3D.o $S/hig-flow-vof-finite-difference-normal-curvature_3D.o
- $S/hig-flow-timestep.o"
+OBJ="$T/stub-link.o"
+for f in $MODS; do OBJ="$OBJ $O/$f.o"; done
 
 mpic++ -flto=8 -fno-fat-lto-objects $OBJ -o $T/teste-link \
   -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi -L/usr/lib/x86_64-linux-gnu/openmpi/lib \
