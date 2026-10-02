@@ -24,8 +24,8 @@
 %   2 Formulation            READY to write: equations and convention measured
 %   3 Numerical method       READY to write: all parts implemented
 %   4 Verification           READY: twelve oracles measured
-%   5 Newtonian 3D           FT vs VOF, uniform MEASURED at N=25; N=50 running;
-%                            adaptive BLOCKED (no 3D adaptive refinement yet)
+%   5 Newtonian 3D           FT vs VOF, uniform CLOSED at N=25 and N=50; case 2
+%                            not run; adaptive loop works but no production run
 %   6 Viscoelastic 3D        configuration validated in both; production not run
 %   7 Cost and performance   uniform-mesh rates MEASURED; refinement gain not
 %   8 Conclusions            depends on the above
@@ -84,9 +84,10 @@ built on the \emph{same} machinery --- same interpolated properties, same
 momentum solver, coupling at the same point of the multiphase step --- so that
 the measured difference is attributable to the interface representation and not
 to the arrangement; that both reproduce the ellipsoidal regime of the Newtonian
-reference case; that front-tracking conserves mass with a drift four times
-smaller and of opposite sign to the VOF one; and what adaptive refinement costs
-and returns in each.}
+reference case; that the two converge toward each other under refinement,
+approaching from opposite sides; that at the reference resolution VOF conserves
+mass about five times better, and that front-tracking's drift grows with
+refinement; and what adaptive refinement costs and returns in each.}
 \end{abstract}
 
 \tableofcontents

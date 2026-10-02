@@ -102,10 +102,50 @@ extraction on adaptive meshes.
 \subsection{Adaptive refinement}
 \label{sec:amr}
 
-\status{The criterion is implemented and measured in two dimensions; it has not
-been ported to three. The 2D signature is planar and the seed spatial index
-needs the third extent.}
+\status{Implemented and verified in three dimensions, including the dynamic
+remeshing loop. No production run on an adapted mesh yet.}
 
-\missing{the criterion: maximum of a geometric band around the interface and a
-vorticity threshold, with hysteresis --- a cell already refined only coarsens
-once $|\omega|$ falls below half the threshold. Port to 3D pending.}
+The criterion is the maximum of two: a geometric band around the interface,
+derived from a minimum-fine-cell rule, and a vorticity threshold that captures
+the wake. Leaving the fine mesh is deliberately harder than entering it --- a
+cell already refined only coarsens once $|\omega|$ falls below \emph{half} the
+threshold. Without that hysteresis the two-dimensional work measured flapping:
+cells crossing a bare threshold every cycle and the mesh drifting in size.
+
+Three things differ from the two-dimensional case, and the first is not a
+detail.
+
+\paragraph{The level table is built by dilation, not by search.}
+In two dimensions the distance from every cell to the nearest seed is found by
+brute force, $O(n_{\text{cell}} \times n_{\text{seed}})$, and that is affordable.
+In three dimensions, 250\,000 cells against thousands of seeds is of order
+$10^9$ operations \emph{per remesh}. Instead each seed stamps its neighbourhood
+of radius $\lceil \mathrm{thr}_0/h \rceil$, which is
+$O(n_{\text{seed}} \times R^3)$.
+
+The dilation is \emph{exact}, not an approximation: the level is monotone
+decreasing in distance, so the maximum over seeds is the level of the nearest
+seed. That argument is not taken on trust --- the exhaustive version is kept
+alongside and the harness requires byte-for-byte equality in five
+configurations. Zero cells differ in any of them.
+
+\paragraph{Vorticity stops being a scalar.}
+$\omega_z$ suffices in the plane; in space the criterion uses
+$|\nabla \times \mathbf{u}|$ with all three components, which costs twelve facet
+evaluations per cell against four.
+
+\paragraph{The mesh file format.}
+Generic in the dimension, but with six fields per patch instead of four, and
+one-based indices. In two dimensions the first version used zero-based indices:
+the count of fine cells came out \emph{right} and the positions \emph{wrong},
+displaced by one cell of the level, and the measured band fell from 5 to 1.5
+cells. A right count with wrong positions appears in no total, so the harness
+re-reads the file and checks every patch against the table.
+
+\paragraph{What the loop delivers.}
+Measured, base 25 with one level, remeshing every ten steps: the band on the
+mesh the solver actually built is 6.03 fine cells against a floor of five; no
+kernel support point lands in a cell of different size; no position is lost in
+the transfer. The last two must be exactly zero --- the kernel is normalised for
+a single $h$, and crossing a level breaks the partition of unity \emph{silently},
+because the weights can still sum to nearly one.

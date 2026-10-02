@@ -1,4 +1,8 @@
-# Measured cost, not estimated.  microseconds per cell-step, single core, uniform mesh.
+# Measured cost, microseconds per cell-step.  ALL figures from complete
+# 1501-step runs -- short smoke tests are inflated by setup, and inflated by
+# DIFFERENT amounts for the two methods, which is how an earlier version of this
+# table reported a 12 percent advantage for front-tracking that does not exist.
+# The two N=50 runs shared the machine on separate cores; the N=25 runs did not.
 caso vof ft
-{Newtonian} 286.4 253.3
-{Viscoelastic} 414.2 {not measured}
+{$25\times25\times50$, 31k cells} 172.1 176.4
+{$50\times50\times100$, 250k cells} 196.8 187.2

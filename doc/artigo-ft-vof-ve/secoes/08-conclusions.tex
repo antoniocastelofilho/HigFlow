@@ -10,12 +10,16 @@ rest is marked.}
 
 \begin{itemize}
 \item Both methods reproduce the ellipsoidal regime of the Newtonian reference
-case and the shape of its published rise-velocity curve, and agree with each
-other to 2\% in centre of mass and 0.3\% in sphericity at $t=3$ on a coarse
-mesh.
-\item Front-tracking conserves mass with a drift four times smaller than VOF,
-and \emph{of opposite sign}.
-\item Front-tracking is about 12\% cheaper per cell-step on the Newtonian case.
+case and the shape of its published rise-velocity curve, and they \emph{converge
+toward each other} under refinement --- from 1.94\% to 0.60\% in centre of mass
+and from 4.3\% to 1.1\% in terminal rise velocity --- approaching from opposite
+sides.
+\item At the reference resolution \textbf{VOF} conserves mass about five times
+better ($-0.170\%$ against $-0.851\%$), and front-tracking's drift \emph{grows}
+with refinement. The coarse-mesh figures reverse this ranking and are partly
+cancellation; they should not be quoted.
+\item The two methods cost the same to within 5\% per cell-step, with the sign
+of the difference depending on resolution.
 \item The verification apparatus separates exact from convergent oracles, and
 the exact ones --- surface closure, genus, the plane/slab/tetrahedron fraction
 --- pass at machine precision.
@@ -24,7 +28,11 @@ the exact ones --- surface closure, genus, the plane/slab/tetrahedron fraction
 \subsection*{What is not}
 
 \begin{itemize}
-\item Everything involving adaptive refinement in three dimensions.
+\item Adaptive refinement in production. The dynamic remeshing loop works and
+is verified, but no case has been run on an adapted mesh to completion.
+\item Why front-tracking's mass drift grows with refinement. The triangulation
+counts and the surgery counts are nearly identical at both resolutions, so
+neither explains it.
 \item The viscoelastic production runs.
 \item Case~2, where topological change is expected.
 \item Any statement about more than one process.

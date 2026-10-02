@@ -1,0 +1,8 @@
+# FT contra VOF nas duas resolucoes, em t=3.  Massa: integral de fracvol no VOF,
+# volume da superficie no FT.  Forma: da superficie extraida, mesmo instrumento.
+grandeza vof25 ft25 vof50 ft50
+{centre of mass $z_c$} 1.4903 1.4615 1.4766 1.4678
+{sphericity $\Psi$} 0.9512 0.9538 0.9537 0.9560
+{terminal rise velocity} 0.3577 0.3429 0.3504 0.3466
+{height $z_{\max}-z_{\min}$} 0.3640 0.3757 0.3675 0.3649
+{mass drift} {$+0.396\%$} {$-0.096\%$} {$-0.170\%$} {$-0.851\%$}

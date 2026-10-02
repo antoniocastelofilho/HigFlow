@@ -1,0 +1,7 @@
+# A medida que importa: a diferenca ENTRE OS METODOS cai ao refinar.  Cada um
+# se move na direcao do outro, o que e' a evidencia de ambos convergirem para a
+# mesma resposta -- e nao de um deles estar certo.
+grandeza n25 n50 fator
+{difference in $z_c$} {1.94\%} {0.60\%} {3.2}
+{difference in terminal velocity} {4.3\%} {1.1\%} {3.9}
+{difference in sphericity} {0.27\%} {0.24\%} {1.1}
