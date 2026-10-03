@@ -395,3 +395,104 @@ erro caiu $55$ vezes.
 
 A maquinaria constitutiva viscoel\'astica reproduz a solu\c{c}\~ao fechada em
 tr\^es dimens\~oes a $0{,}03$--$0{,}1\%$.
+
+\subsection{A matriz viscoel\'astica, contra a tese de refer\^encia}
+\label{sec:tridim-ve-matriz}
+
+A se\c{c}\~ao anterior estabeleceu que a maquinaria constitutiva reproduz uma
+solu\c{c}\~ao fechada. O que ela \emph{n\~ao} estabelece \'e que o caso bif\'asico
+com salto de propriedade reproduza um resultado publicado --- e esse era o
+pr\'oximo degrau.
+
+\paragraph{O caso, e as duas diferen\c{c}as de geometria.} Bolha newtoniana de
+raio $R=0{,}25$ em meio Oldroyd-B, pelos par\^ametros da se\c{c}\~ao 8.2.5 da
+tese de refer\^encia. Duas coisas mudam em rela\c{c}\~ao ao caso newtoniano, e
+ambas com motivo declarado pela pr\'opria tese: a caixa sobe para
+$[0,1]\times[0,1]\times[0,3]$, para que as paredes n\~ao influenciem o tensor; e
+o tempo final vai de $t=3$ para $t=4$, porque a tens\~ao el\'astica demora mais
+que a velocidade a estacionar. Seis combina\c{c}\~oes
+$(\lambda_1, \beta)$ --- $\lambda_1 \in \{0{,}1;\,0{,}4\}$ e
+$\beta \in \{0{,}8;\,0{,}5;\,0{,}2\}$ --- nos dois m\'etodos, doze corridas.
+
+\paragraph{Nenhuma explodiu, e essa era a d\'uvida de entrada.} Oldroyd-B n\~ao
+tem limite de extensibilidade finita: sob extens\~ao sustentada a tens\~ao cresce
+sem limite, e a pergunta era se ela saturaria na escala de tempo da subida. As
+doze completaram $2001$ passos com \textbf{zero} valores n\~ao finitos.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={caso,lambda,beta,zc,wmax,west,queda},
+  columns/caso/.style={column name={corrida}, column type={l}},
+  columns/lambda/.style={column name={$\lambda_1$}, column type={c}},
+  columns/beta/.style={column name={$\beta$}, column type={c}},
+  columns/zc/.style={column name={$z_c$}, column type={r}},
+  columns/wmax/.style={column name={$w_{\max}$}, column type={r}},
+  columns/west/.style={column name={$w_{\mathrm{est}}$}, column type={r}},
+  columns/queda/.style={column name={queda (\%)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-ve-matriz.dat}}
+\end{adjustbox}
+
+\paragraph{Contra os n\'umeros publicados.} A tese publica \emph{curvas}, n\~ao
+tabelas; os \'unicos n\'umeros dela s\~ao os que o texto cita, com
+``aproximadamente'' e dois d\'igitos --- o que limita qu\~ao apertada a
+compara\c{c}\~ao pode ser, e \'e preciso dizer isso antes de mostrar os desvios.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={corrida}, column type={l}},
+  columns/zc/.style={column name={$z_c$}, column type={r}},
+  columns/zcrel/.style={column name={}, column type={r}},
+  columns/wmax/.style={column name={$w_{\max}$}, column type={r}},
+  columns/wmaxrel/.style={column name={}, column type={r}},
+  columns/west/.style={column name={$w_{\mathrm{est}}$}, column type={r}},
+  columns/westrel/.style={column name={}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-ve-tese.dat}}
+\end{adjustbox}
+
+Tudo dentro de $7\%$, a maioria dentro de $3\%$.
+
+\paragraph{Um padr\~ao nos sinais, registrado sem explica\c{c}\~ao.} O
+front-tracking \textbf{subestima nas seis} grandezas e o VOF \textbf{superestima
+em cinco das seis}. De modo que o \emph{nosso} front-tracking fica mais pr\'oximo
+da refer\^encia que o \emph{nosso} VOF --- $-0{,}7\%$ e $-1{,}3\%$ contra
+$+2{,}7\%$ e $+1{,}3\%$ no centro de massa --- ainda que a refer\^encia tenha
+sido obtida com VOF. Pode ser diferen\c{c}a entre as duas implementa\c{c}\~oes de
+volume de fluido, ou dispers\~ao nesta resolu\c{c}\~ao. N\~ao atribuo.
+
+\paragraph{As doze ordena\c{c}\~oes confirmam.} A tese faz tr\^es
+afirma\c{c}\~oes de tend\^encia: mais pol\'imero sobe mais alto, atinge pico
+maior e estaciona mais r\'apido. Nos dois m\'etodos e nos dois tempos de
+relaxa\c{c}\~ao, as doze valem.
+
+\paragraph{E a assinatura mais espec\'ifica aparece nos dois.} O que a tese
+descreve para $\lambda_1 = 0{,}4$, $\beta = 0{,}2$ n\~ao \'e uma ordena\c{c}\~ao
+mas uma \emph{forma}: a velocidade cai abruptamente depois do m\'aximo e torna a
+subir. Aparece nos dois --- queda de $6{,}6\%$ no front-tracking e $8{,}6\%$ no
+VOF, com recupera\c{c}\~ao em ambos. A queda est\'a em \emph{todas} as corridas
+viscoel\'asticas, e \'e sistematicamente maior no VOF ($8{,}6$--$13{,}5\%$) que
+no front-tracking ($4{,}1$--$6{,}6\%$); se \'e f\'isica resolvida de forma
+diferente pelas duas representa\c{c}\~oes ou artefato de uma delas, estas
+corridas n\~ao decidem.
+
+\paragraph{Uma refuta\c{c}\~ao falsa que quase entrou aqui.} Lida antes de as
+doze chegarem a $t=4$, a s\'erie do VOF em $\lambda_1 = 0{,}1$ \emph{n\~ao} era
+mon\'otona em $z_c$: $1{,}8679$, $1{,}8965$, $1{,}8774$. A terceira corrida
+estava em $t=3{,}88$ e a segunda em $t=4{,}00$, e centro de massa \'e grandeza
+\textbf{integrada} --- compar\'a-la entre tempos finais diferentes compara coisas
+diferentes. Em $t=4{,}00$ a ordena\c{c}\~ao vale. O comparador passou a imprimir
+o tempo final de cada s\'erie por isso, e nenhuma grandeza integrada aparece
+neste relat\'orio sem o tempo em que foi lida.
+
+\paragraph{O que falta para fechar a compara\c{c}\~ao.} A tese contrasta o
+viscoel\'astico com um newtoniano na \emph{mesma} geometria, e os casos
+newtonianos deste relat\'orio usam outra caixa e outro tempo final --- logo o
+$z_c$ deles n\~ao se compara. A velocidade terminal, sim: a tese cita
+$\approx 0{,}35$ para o newtoniano, e foram medidos $0{,}3504$ e $0{,}3466$. A
+refer\^encia newtoniana na caixa $1\times1\times3$ at\'e $t=4$ est\'a em
+execu\c{c}\~ao, junto com a c\'uspide na resolu\c{c}\~ao de refer\^encia.

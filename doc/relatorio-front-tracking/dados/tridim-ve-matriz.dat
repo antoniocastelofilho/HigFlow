@@ -1,0 +1,18 @@
+# Measured viscoelastic matrix, 25x25x75 (box 1x1x3), 2001 steps, t=4.
+# Newtonian bubble in an Oldroyd-B medium.  All twelve runs: 2001/2001 steps,
+# exit 0, zero non-finite values.  Quantities from the extracted surface, same
+# instrument for both methods.  "drop" is the fall in w after its maximum,
+# relative to the maximum.
+caso lambda beta zc wmax tmax west queda
+ft-l01-b08 0.1 0.8 1.8221 0.3642 0.90 0.3486 5.3
+ft-l01-b05 0.1 0.5 1.8482 0.3698 0.90 0.3561 4.8
+ft-l01-b02 0.1 0.2 1.8761 0.3754 0.93 0.3641 4.1
+ft-l04-b08 0.4 0.8 1.8477 0.3714 0.85 0.3557 5.4
+ft-l04-b05 0.4 0.5 1.9156 0.3896 0.85 0.3751 5.7
+ft-l04-b02 0.4 0.2 1.9860 0.4092 0.82 0.3972 6.6
+vof-l01-b08 0.1 0.8 1.8679 0.3942 0.85 0.3641 13.5
+vof-l01-b05 0.1 0.5 1.8965 0.4002 0.85 0.3713 12.7
+vof-l01-b02 0.1 0.2 1.9251 0.4041 0.95 0.3816 11.0
+vof-l04-b08 0.4 0.8 1.8942 0.3933 0.75 0.3685 10.4
+vof-l04-b05 0.4 0.5 1.9733 0.4158 2.02 0.3948 9.7
+vof-l04-b02 0.4 0.2 2.0540 0.4280 0.70 0.4180 8.6
