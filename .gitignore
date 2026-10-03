@@ -164,6 +164,13 @@ graphify-out/
 # na arvore de quem o escreveu (os arquivos estao no disco) e NAO compila a
 # partir de um clone ou de outro worktree.  Foi assim que apareceu.
 !doc/*/dados/*.dat
+# E EM SUBDIRETORIOS de dados/ tambem.  A regra de cima desfaz o "*.dat" so' no
+# PRIMEIRO nivel: os .dat de doc/*/dados/secoes/ continuavam ignorados, e
+# `git status` nao os mostrava -- arquivo ignorado nao aparece.  O unico sinal
+# foi o teste de compilar o zip montado do REPOSITORIO, que deu 16 erros de
+# "Could not read table file" onde o diretorio de trabalho dava zero.  E' a
+# segunda vez que .dat de medicao ficam fora do commit por esta regra.
+!doc/*/dados/**/*.dat
 higflow/example3d_VOF_rising-ve/
 higflow/example3d_FrontTracking-ve/
 
