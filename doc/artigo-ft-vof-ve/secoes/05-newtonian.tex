@@ -138,6 +138,55 @@ explains a factor of nine. \missing{the mechanism; candidate is the divergence
 error of the velocity interpolated at the surface, which does not have to fall
 with $h$ when the field it interpolates sharpens}
 
+\subsubsection{The shapes}
+
+The quantities above summarise the shape; the shape itself is a planar section.
+Figure~\ref{fig:newtshape} cuts each extracted surface by the vertical plane
+through the bubble centre --- the same view the reference uses to compare two
+codes --- and overlays the two methods.
+
+The contours are drawn \emph{centred on their own centroid}. Overlaying them at
+their absolute heights would hide the difference in shape behind the difference
+in rise, and the rise is already in Table~\ref{tab:resolution}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.46\linewidth, height=0.42\linewidth,
+             xlabel={$x - x_c$}, ylabel={$z - z_c$}, axis equal image,
+             title={$25\times25\times50$}, grid=both, no markers,
+             legend pos=south east, legend cell align=left, font=\small]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/newt-N25-vof-c.dat}};
+    \addlegendentry{VOF}
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/newt-N25-ft-c.dat}};
+    \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=0.46\linewidth, height=0.42\linewidth,
+             xlabel={$x - x_c$}, ylabel={$z - z_c$}, axis equal image,
+             title={$50\times50\times100$}, grid=both, no markers,
+             legend pos=south east, legend cell align=left, font=\small]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/newt-N50-vof-c.dat}};
+    \addlegendentry{VOF}
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/newt-N50-ft-c.dat}};
+    \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}
+\caption{Newtonian case 1 at $t=3$: vertical section through the bubble centre,
+front-tracking against VOF, at both resolutions. Contours centred on their own
+centroid so that the comparison is of shape.}
+\label{fig:newtshape}
+\end{figure}
+
+Both are oblate, as the ellipsoidal regime requires. The visible difference is
+not in the overall form but in the \emph{resolution of the contour}: the
+marching-cubes section carries 97 points at the coarse mesh against 185 for the
+triangulated surface, because the extraction lattice is the fluid mesh while the
+triangulation is refined by surgery independently of it. At
+$50\times50\times100$ the two carry 188 and 196, and the contours lie close
+enough that the faceting of each is the larger visible effect.
+
 \paragraph{The instrument was cleared, not assumed.}
 The VOF centre of mass is computed from the marching-cubes surface, which
 encloses about 2.3\% less volume than the field at the coarse resolution; that
