@@ -1,10 +1,11 @@
 \section{Viscoelastic three-dimensional bubble}
 \label{sec:viscoelastic}
 
-\status{Configuration validated in both methods --- both run cleanly with the
-reference parameters, with no non-finite values, and the tensor evolves
-smoothly. No production run yet. The uniform half of this section is ready to
-execute; the adaptive half is blocked on Section~\ref{sec:amr}.}
+\status{\textbf{Closed on the uniform mesh}: all twelve runs of the matrix
+(six $(\lambda_1,\beta)$ combinations $\times$ two methods) completed 2001 steps
+at $25\times25\times75$ with zero non-finite values. The reference resolution is
+running for the cusp case only. The adaptive half has a working remeshing loop
+but no production run.}
 
 \subsection{Case definition}
 
@@ -65,7 +66,124 @@ what the model does in extension, and the question is whether it saturates on
 the time scale of the rise, not whether it appears.
 
 \subsection{Uniform mesh}
-\missing{six $(\lambda,\beta)$ combinations, both methods --- twelve runs}
+
+All twelve runs completed 2001 steps to $t=4$ with zero non-finite values.
+That is worth stating before any number: Oldroyd-B has no finite extensibility
+limit, and the question going in was whether the stress would saturate on the
+time scale of the rise or run away.
+
+\begin{table}[htbp]
+\centering
+\caption{The measured matrix at $t=4$, $25\times25\times75$. ``Drop'' is the
+fall in rise velocity after its maximum, relative to that maximum.}
+\label{tab:vemeasured}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={caso,lambda,beta,zc,wmax,tmax,west,queda},
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/lambda/.style={column name={$\lambda_1$}, column type={c}},
+  columns/beta/.style={column name={$\beta$}, column type={c}},
+  columns/zc/.style={column name={$z_c$}, column type={r}},
+  columns/wmax/.style={column name={$w_{\max}$}, column type={r}},
+  columns/tmax/.style={column name={at $t$}, column type={r}},
+  columns/west/.style={column name={$w_{\mathrm{steady}}$}, column type={r}},
+  columns/queda/.style={column name={Drop (\%)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-medido.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{Against the published numbers}
+
+The reference thesis publishes curves rather than tables, but its text quotes
+values, and those are what make a numerical comparison possible at all. They
+come with ``approximately'' and two significant figures, which bounds how tight
+the comparison can be.
+
+\begin{table}[htbp]
+\centering
+\caption{Measured against the values the reference thesis states in its text.}
+\label{tab:vethesis}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/zc/.style={column name={$z_c$}, column type={r}},
+  columns/zcrel/.style={column name={}, column type={r}},
+  columns/wmax/.style={column name={$w_{\max}$}, column type={r}},
+  columns/wmaxrel/.style={column name={}, column type={r}},
+  columns/west/.style={column name={$w_{\mathrm{steady}}$}, column type={r}},
+  columns/westrel/.style={column name={}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-contra-tese.dat}}
+\end{adjustbox}
+\end{table}
+
+Every entry agrees to within 7\%, and most to within 3\%. One pattern in the
+signs is worth recording rather than explaining: front-tracking undershoots on
+all six quantities and VOF overshoots on five of six, so \emph{our
+front-tracking} sits closer to the reference than \emph{our VOF} does ---
+$-0.7\%$ and $-1.3\%$ against $+2.7\%$ and $+1.3\%$ on the centre of mass ---
+even though the reference was obtained with VOF. That could be a difference
+between our volume-of-fluid implementation and theirs, or scatter at this
+resolution. \missing{which, if either; the cusp case at the reference resolution
+is running and will narrow it}
+
+\subsubsection{The trends, all twelve confirmed}
+
+The thesis makes three ordering claims: more polymer rises higher, reaches a
+higher peak velocity, and settles at a higher steady velocity. Across both
+methods and both relaxation times, \textbf{all twelve orderings hold}.
+
+\begin{center}
+\small
+\begin{tabular}{llccc}
+\toprule
+Method & $\lambda_1$ & $z_c$ ($\beta = 0.8, 0.5, 0.2$) & $w_{\max}$ & $w_{\mathrm{steady}}$ \\
+\midrule
+FT  & 0.1 & 1.8221, 1.8482, 1.8761 & 0.3642, 0.3698, 0.3754 & 0.3486, 0.3561, 0.3641 \\
+FT  & 0.4 & 1.8477, 1.9156, 1.9860 & 0.3714, 0.3896, 0.4092 & 0.3557, 0.3751, 0.3972 \\
+VOF & 0.1 & 1.8679, 1.8965, 1.9251 & 0.3942, 0.4002, 0.4041 & 0.3641, 0.3713, 0.3816 \\
+VOF & 0.4 & 1.8942, 1.9733, 2.0540 & 0.3933, 0.4158, 0.4280 & 0.3685, 0.3948, 0.4180 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{One ordering appeared to fail, and the reason is methodological.}
+Read before all twelve runs had reached $t=4$, the VOF series at
+$\lambda_1 = 0.1$ was \emph{not} monotone in $z_c$: 1.8679, 1.8965, 1.8774. The
+third run was at $t = 3.88$ while the second was at $t = 4.00$, and a centre of
+mass is an integrated quantity --- comparing it across different end times
+compares different things. At $t = 4.00$ the ordering holds. Every table in this
+paper that reports an integrated quantity therefore also reports the end time it
+was read at.
+
+\subsubsection{The signature the thesis describes, in both methods}
+
+The most specific claim in the reference is not an ordering but a shape: at
+$\lambda_1 = 0.4$ and $\beta = 0.2$ the rise velocity falls sharply after its
+maximum and then recovers. It appears in both methods --- a drop of 6.6\% in
+front-tracking and 8.6\% in VOF, with recovery in both.
+
+The drop is present in \emph{every} viscoelastic run here, and it is
+systematically larger in VOF (8.6--13.5\%) than in front-tracking (4.1--6.6\%).
+Whether that is physics resolved differently by the two interface
+representations, or an artefact of one of them, is not settled by these runs.
+\missing{the cusp case at the reference resolution should separate the two:
+a representation artefact would change with $h$, the physics should not}
+
+\subsubsection{The Newtonian reference}
+\missing{running --- the thesis compares the viscoelastic rise against a
+Newtonian one in the \emph{same} geometry (box $1\times1\times3$, $t=4$), and
+the Newtonian runs of Section~\ref{sec:newtonian} use a different box and end
+time, so their $z_c$ is not comparable. The terminal velocity is: the thesis
+quotes $\approx 0.35$ for the Newtonian case and Section~\ref{sec:newtonian}
+measured 0.3504 and 0.3466.}
 
 \subsection{Adaptive mesh}
 \missing{blocked on Section~\ref{sec:amr}}

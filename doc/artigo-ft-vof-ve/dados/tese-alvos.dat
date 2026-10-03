@@ -1,0 +1,8 @@
+# Quantitative targets read from the reference thesis, section 8.2.5, text of
+# Figures 42 and 43.  The thesis publishes CURVES, not tables; these are the
+# values its own text states, which is what makes a numerical comparison
+# possible at all.  "approx" in the thesis, so two significant figures.
+lambda beta zc wmax wsteady
+0.1 {newtonian} 1.8 0.36 0.35
+0.1 0.2 1.9 0.38 0.37
+0.4 0.2 2.0 0.42 0.40
