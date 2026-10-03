@@ -45,8 +45,10 @@ teste-b1-3d: teste-b1-3d.c $(DEP3)
 teste-fracao3d: teste-fracao3d.c $(DEP3)
 	$(CC) $(CFLAGS3) teste-fracao3d.c $(MOD3) -lm -o $@
 
-teste-amr3d: teste-amr3d.c $(DEP3)
-	$(CC) $(CFLAGS3) teste-amr3d.c $(MOD3) -lm -o $@
+# O criterio e' modulo PROPRIO desde que o VOF passou a precisar do mesmo
+# nucleo: deixa-lo no modulo do front-tracking faria o VOF depender dele.
+teste-amr3d: teste-amr3d.c ../../src/hig-flow-amr-criterio.c ../../src/hig-flow-amr-criterio.h
+	$(CC) $(CFLAGS3) teste-amr3d.c ../../src/hig-flow-amr-criterio.c -lm -o $@
 
 teste-curvatura: teste-curvatura.c $(DEP)
 	$(CC) $(CFLAGS) teste-curvatura.c $(MOD) -lm -o $@

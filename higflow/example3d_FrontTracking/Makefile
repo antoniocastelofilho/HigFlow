@@ -80,6 +80,9 @@ OBJ1 += malha-adaptativa.o
 # Transferencia por posicao: o remalhamento VERIFICADO da fronteira imersa
 # (F1-F3, consenso de franja).  higflow_reconstroi_dominio depende dele.
 OBJ1 += ../src/hig-flow-remalha.o
+# O nucleo do criterio de refino, compartilhado com o VOF (modulo proprio
+# justamente para o VOF nao depender do front-tracking).
+OBJ1 += ../src/hig-flow-amr-criterio.o
 
 
 ns-example-3d: $(OBJ1)

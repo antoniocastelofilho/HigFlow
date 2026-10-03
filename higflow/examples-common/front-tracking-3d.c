@@ -30,6 +30,7 @@
 #include "hig-flow-kernel.h"
 #include "hig-flow-fronteira-imersa.h"   // fi_suporte_facetas, fi_suporte_capacidade
 #include "hig-flow-front-tracking-3d.h"
+#include "hig-flow-amr-criterio.h"   // o nucleo do criterio, compartilhado com o VOF
 #include "hig-mesh-snapshot.h"           // hig_facet_snapshot (para o oraculo)
 #include "hig-flow-eval.h"               // compute_facet_value_at_point (vorticidade)
 #include "hig-flow-discret.h"
@@ -395,7 +396,7 @@ extern "C" void front_tracking_3d_instala(higflow_solver *ns, ft3_superficie *su
 //
 //    A dilatacao e' EXATA, nao uma aproximacao: o nivel e' monotono decrescente
 //    na distancia, logo o maximo sobre as sementes e' o nivel da semente mais
-//    proxima.  `ft3_amr_tabela_exaustiva` existe ao lado para o arreio exigir
+//    proxima.  `amr_tabela_exaustiva` existe ao lado para o arreio exigir
 //    igualdade bit a bit entre as duas -- mesma disciplina da grade espacial.
 //
 // 2. A VORTICIDADE DEIXA DE SER ESCALAR.  Em 2D basta omega_z; em 3D e'
@@ -423,7 +424,7 @@ extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup
     if (hz < h_base) h_base = hz;
 
     real *thr = (real *) malloc((size_t) niveis * sizeof(real));
-    ft3_amr_limiares(h_base, niveis, cel_min, thr);
+    amr_limiares(h_base, niveis, cel_min, thr);
 
     // SEMENTES: centros das celulas base cortadas pela superficie.  A grade
     // espacial e' obrigatoria aqui -- sem ela cada consulta e' O(nt), e sao
@@ -474,7 +475,7 @@ extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup
     ft3_grade_destroi(g);
 
     signed char *tab = (signed char *) malloc((size_t) ncel);
-    ft3_amr_tabela(sem, nsem, hx, hy, hz, nx, ny, nz, thr, niveis, tab);
+    amr_tabela(sem, nsem, hx, hy, hz, nx, ny, nz, thr, niveis, tab);
 
     // -----------------------------------------------------------------
     // A ESTEIRA, pelo MAXIMO com a banda geometrica.  Em 3D a vorticidade e'
@@ -553,7 +554,7 @@ extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup
         free(tab); free(sem); free(thr);
         return;
     }
-    if (ft3_amr_escreve_arquivo(caminho, lx, ly, lz, nx, ny, nz,
+    if (amr_escreve_arquivo(caminho, lx, ly, lz, nx, ny, nz,
                                 niveis, tab) != 0) {
         MPI_Barrier(MPI_COMM_WORLD);
         free(tab); free(sem); free(thr);

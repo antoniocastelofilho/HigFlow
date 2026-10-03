@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "hig-flow-front-tracking-3d.h"
+#include "hig-flow-amr-criterio.h"
 
 static int falhas = 0;
 static void ok(const char *nome, int passou, const char *det) {
@@ -42,7 +42,7 @@ int main(void) {
         for (int niveis = 1; niveis <= 3; niveis++) {
             const real h = 1.0/50.0; const int cm = 5;
             real thr[4];
-            ft3_amr_limiares(h, niveis, cm, thr);
+            amr_limiares(h, niveis, cm, thr);
             // recalculo independente da regra
             real hf = h; for (int l = 0; l < niveis; l++) hf *= 0.5;
             real banda = cm*hf + (h + hf);
@@ -79,7 +79,7 @@ int main(void) {
             const real hx = 1.0/nx, hy = 1.0/ny, hz = (c==2 ? 2.0 : 1.0)/nz;
             real h = hx; if (hy<h) h=hy; if (hz<h) h=hz;
             real thr[4];
-            ft3_amr_limiares(h, casos[c].niveis, casos[c].cm, thr);
+            amr_limiares(h, casos[c].niveis, casos[c].cm, thr);
 
             // monta as sementes
             long nsem = 0;
@@ -109,8 +109,8 @@ int main(void) {
             const long ncel = (long)nx*ny*nz;
             signed char *a = (signed char*) malloc((size_t)ncel);
             signed char *b = (signed char*) malloc((size_t)ncel);
-            ft3_amr_tabela          (sem,nsem,hx,hy,hz,nx,ny,nz,thr,casos[c].niveis,a);
-            ft3_amr_tabela_exaustiva(sem,nsem,hx,hy,hz,nx,ny,nz,thr,casos[c].niveis,b);
+            amr_tabela          (sem,nsem,hx,hy,hz,nx,ny,nz,thr,casos[c].niveis,a);
+            amr_tabela_exaustiva(sem,nsem,hx,hy,hz,nx,ny,nz,thr,casos[c].niveis,b);
             long dif = 0;
             for (long q=0;q<ncel;q++) if (a[q]!=b[q]) dif++;
             char nm[120];
@@ -130,7 +130,7 @@ int main(void) {
         const int nx=40, ny=40, nz=40, niveis=2, cm=5;
         const real hx=1.0/nx, hy=1.0/ny, hz=1.0/nz, R=0.25;
         real h=hx; real thr[4];
-        ft3_amr_limiares(h,niveis,cm,thr);
+        amr_limiares(h,niveis,cm,thr);
         long nsem=0; real *sem=(real*)malloc((size_t)nx*ny*nz*3*sizeof(real));
         for (int kk=0;kk<nz;kk++) for (int jj=0;jj<ny;jj++) for (int ii=0;ii<nx;ii++) {
             real x=(ii+0.5)*hx-0.5,y=(jj+0.5)*hy-0.5,z=(kk+0.5)*hz-0.5;
@@ -141,7 +141,7 @@ int main(void) {
             }
         }
         signed char *tab=(signed char*)malloc((size_t)nx*ny*nz);
-        ft3_amr_tabela(sem,nsem,hx,hy,hz,nx,ny,nz,thr,niveis,tab);
+        amr_tabela(sem,nsem,hx,hy,hz,nx,ny,nz,thr,niveis,tab);
         // distancia da SUPERFICIE (r = R) ate' a celula mais proxima que NAO
         // esta' no nivel mais fino, em celulas FINAS
         real h_fino = h; for (int l=0;l<niveis;l++) h_fino*=0.5;
@@ -166,14 +166,14 @@ int main(void) {
         const real lx=1.0, ly=1.0, lz=2.0;
         const real hx=lx/nx, hy=ly/ny, hz=lz/nz;
         real h=hx; if(hy<h)h=hy; if(hz<h)h=hz;
-        real thr[4]; ft3_amr_limiares(h,niveis,cm,thr);
+        real thr[4]; amr_limiares(h,niveis,cm,thr);
         real sem[3]={0.5,0.5,1.0}; 
         const long ncel=(long)nx*ny*nz;
         signed char *tab=(signed char*)malloc((size_t)ncel);
-        ft3_amr_tabela(sem,1,hx,hy,hz,nx,ny,nz,thr,niveis,tab);
+        amr_tabela(sem,1,hx,hy,hz,nx,ny,nz,thr,niveis,tab);
 
         const char *cam="/tmp/teste-amr3d.amr";
-        int e = ft3_amr_escreve_arquivo(cam,lx,ly,lz,nx,ny,nz,niveis,tab);
+        int e = amr_escreve_arquivo(cam,lx,ly,lz,nx,ny,nz,niveis,tab);
         ok("arquivo escrito", e==0, cam);
 
         // rele' com o MESMO formato que o parser da higtree documenta
@@ -224,7 +224,7 @@ int main(void) {
             const int nx=nb, ny=nb, nz=2*nb;
             const real hx=1.0/nx, hy=1.0/ny, hz=2.0/nz;
             real h=hx; if(hy<h)h=hy; if(hz<h)h=hz;
-            real thr[4]; ft3_amr_limiares(h,niveis,5,thr);
+            real thr[4]; amr_limiares(h,niveis,5,thr);
             long nsem=0;
             real *sem=(real*)malloc((size_t)nx*(size_t)ny*(size_t)nz*3*sizeof(real));
             for (int kk=0;kk<nz;kk++) for (int jj=0;jj<ny;jj++) for (int ii=0;ii<nx;ii++) {
@@ -239,7 +239,7 @@ int main(void) {
             }
             const long ncel=(long)nx*(long)ny*(long)nz;
             signed char *tab=(signed char*)malloc((size_t)ncel);
-            ft3_amr_tabela(sem,nsem,hx,hy,hz,nx,ny,nz,thr,niveis,tab);
+            amr_tabela(sem,nsem,hx,hy,hz,nx,ny,nz,thr,niveis,tab);
             long adap=0;
             for (long q=0;q<ncel;q++) { long fa=1; for(int l=0;l<tab[q];l++) fa*=8; adap+=fa; }
             long fina=ncel; for(int l=0;l<niveis;l++) fina*=8;

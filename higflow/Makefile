@@ -74,6 +74,7 @@ MODULES = \
 	step-generalized-newtonian \
 	step-multiphase \
 		step-multiphase-viscoelastic \
+	amr-criterio \
 	vof-plic \
 	vof-plic-3D \
 	vof-adap-hf \
