@@ -489,10 +489,45 @@ diferentes. Em $t=4{,}00$ a ordena\c{c}\~ao vale. O comparador passou a imprimir
 o tempo final de cada s\'erie por isso, e nenhuma grandeza integrada aparece
 neste relat\'orio sem o tempo em que foi lida.
 
-\paragraph{O que falta para fechar a compara\c{c}\~ao.} A tese contrasta o
-viscoel\'astico com um newtoniano na \emph{mesma} geometria, e os casos
-newtonianos deste relat\'orio usam outra caixa e outro tempo final --- logo o
-$z_c$ deles n\~ao se compara. A velocidade terminal, sim: a tese cita
-$\approx 0{,}35$ para o newtoniano, e foram medidos $0{,}3504$ e $0{,}3466$. A
-refer\^encia newtoniana na caixa $1\times1\times3$ at\'e $t=4$ est\'a em
-execu\c{c}\~ao, junto com a c\'uspide na resolu\c{c}\~ao de refer\^encia.
+\paragraph{A refer\^encia newtoniana, na mesma geometria.} Uma afirma\c{c}\~ao
+da tese n\~ao tinha como ser testada: que a bolha sobe \emph{mais alto} em meio
+viscoel\'astico que em newtoniano. Os casos newtonianos das se\c{c}\~oes
+anteriores n\~ao servem --- usam outra caixa e outro tempo final, e o centro de
+massa \'e grandeza \textbf{integrada}, logo n\~ao se compara entre geometrias
+nem entre tempos. Um par newtoniano foi ent\~ao rodado na geometria da tese:
+caixa $1\times1\times3$, at\'e $t=4$.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={caso ($\beta=0{,}2$)}, column type={l}},
+  columns/ve/.style={column name={viscoel\'astico}, column type={r}},
+  columns/newt/.style={column name={newtoniano}, column type={r}},
+  columns/veredito/.style={column name={}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-ve-tendencia.dat}}
+\end{adjustbox}
+
+As quatro valem. E a refer\^encia newtoniana em si cai pr\'oxima do valor
+publicado: o front-tracking d\'a $z_c = 1{,}8055$ contra $\approx 1{,}8$, e
+velocidade de pico $0{,}3603$ contra $\approx 0{,}36$ --- $0{,}3\%$ e
+$0{,}1\%$.
+
+\paragraph{A assimetria dos sinais passa a ser resultado.} Com o newtoniano no
+conjunto s\~ao nove compara\c{c}\~oes contra valor publicado por m\'etodo.
+\textbf{O VOF fica acima da refer\^encia nas nove}; o front-tracking fica em ou
+abaixo em sete, e as duas exce\c{c}\~oes s\~ao $+0{,}1\%$ e $+0{,}3\%$. O desvio
+absoluto m\'edio \'e $1{,}2\%$ no front-tracking contra $3{,}6\%$ no VOF.
+
+Isso j\'a n\~ao \'e dispers\~ao de duas ou tr\^es leituras, e \'e o contr\'ario
+do que a proced\^encia sugeriria --- a refer\^encia foi obtida com VOF. H\'a duas
+leituras poss\'iveis e estas corridas n\~ao as separam: o nosso volume de fluido
+difere do deles em algum detalhe da reconstru\c{c}\~ao ou da fra\c{c}\~ao
+inicial, ou a extra\c{c}\~ao por marching cubes de onde as grandezas de forma
+s\~ao lidas tem vi\'es para cima. A segunda \'e test\'avel, e h\'a um argumento
+contra ela: no caso newtoniano a sonda que calcula o centr\'oide direto do campo
+concorda com a da superf\'icie em $10^{-4}$. Mas essa confer\^encia n\~ao foi
+repetida aqui.
+
+A c\'uspide na resolu\c{c}\~ao de refer\^encia continua em execu\c{c}\~ao.

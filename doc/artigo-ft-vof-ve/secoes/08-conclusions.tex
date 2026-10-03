@@ -25,8 +25,14 @@ the exact ones --- surface closure, genus, the plane/slab/tetrahedron fraction
 --- pass at machine precision.
 \item The viscoelastic matrix reproduces the reference results. All twelve
 ordering claims of the reference thesis hold, the quoted values agree to within
-7\% (most within 3\%), and the specific velocity signature it describes --- a
-sharp drop after the maximum, then recovery --- appears in both methods.
+7\% (most within 3\%), the trend against a Newtonian reference in the same
+geometry holds in all four cases, and the specific velocity signature the
+reference describes --- a sharp drop after the maximum, then recovery ---
+appears in both methods.
+\item \textbf{VOF sits above the published values on all nine comparisons and
+front-tracking at or below on seven of nine}, with mean absolute deviations of
+$3.6\%$ and $1.2\%$. The asymmetry is the opposite of what the provenance
+suggests, since the reference was computed with VOF.
 \item Oldroyd-B did \emph{not} run away on the time scale of the rise: all
 twelve runs completed 2001 steps with zero non-finite values.
 \end{itemize}
@@ -39,8 +45,9 @@ is verified, but no case has been run on an adapted mesh to completion.
 \item Why front-tracking's mass drift grows with refinement. The triangulation
 counts and the surgery counts are nearly identical at both resolutions, so
 neither explains it.
-\item Why front-tracking undershoots and VOF overshoots the reference
-systematically, and why the post-maximum velocity drop is twice as large in VOF.
+\item Which of the two readings explains the sign asymmetry: a difference
+between our volume-of-fluid and the reference's, or an upward bias in the
+marching-cubes extraction from which the shape quantities are read.
 \item Case~2, where topological change is expected.
 \item Any statement about more than one process.
 \end{itemize}

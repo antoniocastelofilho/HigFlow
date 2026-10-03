@@ -1,0 +1,9 @@
+# The thesis's trend claim, which could not be tested before: the viscoelastic
+# bubble rises higher than a Newtonian one in the SAME geometry.  The Newtonian
+# runs of section 5 cannot serve -- they use box 1x1x2 and end at t=3, and z_c
+# is integrated, so it is not comparable across geometries and end times.
+caso ve newt veredito
+{FT $\lambda_1{=}0.1$} 1.8761 1.8055 {confirma}
+{FT $\lambda_1{=}0.4$} 1.9860 1.8055 {confirma}
+{VOF $\lambda_1{=}0.1$} 1.9251 1.8490 {confirma}
+{VOF $\lambda_1{=}0.4$} 2.0540 1.8490 {confirma}

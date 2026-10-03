@@ -124,15 +124,9 @@ the comparison can be.
 \end{adjustbox}
 \end{table}
 
-Every entry agrees to within 7\%, and most to within 3\%. One pattern in the
-signs is worth recording rather than explaining: front-tracking undershoots on
-all six quantities and VOF overshoots on five of six, so \emph{our
-front-tracking} sits closer to the reference than \emph{our VOF} does ---
-$-0.7\%$ and $-1.3\%$ against $+2.7\%$ and $+1.3\%$ on the centre of mass ---
-even though the reference was obtained with VOF. That could be a difference
-between our volume-of-fluid implementation and theirs, or scatter at this
-resolution. \missing{which, if either; the cusp case at the reference resolution
-is running and will narrow it}
+Every entry agrees to within 7\%, and most to within 3\%. The signs are not
+random, and the next subsection returns to that once the Newtonian reference
+puts nine comparisons on the table rather than six.
 
 \subsubsection{The trends, all twelve confirmed}
 
@@ -261,13 +255,52 @@ of the two will say whether the feature sharpens with $h$ --- which it should, i
 it is the cusp --- or stays at the same width, which would mean the mesh is
 setting its scale}
 
-\subsubsection{The Newtonian reference}
-\missing{running --- the thesis compares the viscoelastic rise against a
-Newtonian one in the \emph{same} geometry (box $1\times1\times3$, $t=4$), and
-the Newtonian runs of Section~\ref{sec:newtonian} use a different box and end
-time, so their $z_c$ is not comparable. The terminal velocity is: the thesis
-quotes $\approx 0.35$ for the Newtonian case and Section~\ref{sec:newtonian}
-measured 0.3504 and 0.3466.}
+\subsubsection{The Newtonian reference, in the same geometry}
+
+One claim of the reference could not be tested until now: that the viscoelastic
+bubble rises higher than a Newtonian one. The Newtonian runs of
+Section~\ref{sec:newtonian} cannot serve as that reference --- they use a
+different box and end time, and the centre of mass is an \emph{integrated}
+quantity, so it is not comparable across either. A Newtonian pair was therefore
+run in the thesis geometry: box $1\times1\times3$, to $t=4$.
+
+\begin{table}[htbp]
+\centering
+\caption{The trend claim, with a reference in the same geometry. Centre of mass
+at $t=4$.}
+\label{tab:vetendency}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={Case ($\beta=0.2$)}, column type={l}},
+  columns/ve/.style={column name={viscoelastic}, column type={r}},
+  columns/newt/.style={column name={Newtonian}, column type={r}},
+  columns/veredito/.style={column name={}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-tendencia.dat}}
+\end{table}
+
+All four hold. And the Newtonian reference itself lands close to the published
+value: front-tracking gives $z_c = 1.8055$ against $\approx 1.8$, and a peak
+velocity of $0.3603$ against $\approx 0.36$ --- $0.3\%$ and $0.1\%$.
+
+\paragraph{The asymmetry in the signs is now worth stating as a result.}
+With the Newtonian reference included there are nine comparisons against
+published values per method. \textbf{VOF is above the reference on all nine};
+front-tracking is at or below on seven, and its two exceptions are $+0.1\%$ and
+$+0.3\%$. The mean absolute deviation is $1.2\%$ for front-tracking against
+$3.6\%$ for VOF.
+
+That is no longer the scatter of two or three readings, and it is the opposite
+of what the provenance would suggest: the reference was computed with VOF. Two
+readings are available and these runs do not separate them --- our
+volume-of-fluid differs from theirs in some detail of the reconstruction or the
+initial fraction, or the marching-cubes extraction from which our shape
+quantities are read is itself biased upward. \missing{the second is testable:
+the field-based centroid probe agrees with the surface-based one to
+\num{1e-4} in the Newtonian case of Section~\ref{sec:newtonian}, which argues
+against extraction bias, but that check has not been repeated here}
 
 \subsection{Adaptive mesh}
 \missing{blocked on Section~\ref{sec:amr}}
