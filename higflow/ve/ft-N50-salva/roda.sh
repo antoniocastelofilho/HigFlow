@@ -91,7 +91,7 @@ fi
 # nucleo fisico 1 (o 0 fica para o sistema); os pares SMT deste i9 sao (k,k+8),
 # logo 1 e 9 sao o MESMO nucleo -- usar numeros contiguos nao da' nucleos
 # distintos, e e' por isso que ha' so' um numero aqui.
-taskset -c 2 /usr/bin/time -f "PAREDE %e s" mpirun --bind-to none -use-hwthread-cpus -n 1 \
+taskset -c 2 stdbuf -oL -eL /usr/bin/time -f "PAREDE %e s" mpirun --bind-to none -use-hwthread-cpus -n 1 \
   ./ns-example-3d "$CARGA" output/o.save VTKS/p.print \
   -ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10 \
   >> $LOG 2>&1
