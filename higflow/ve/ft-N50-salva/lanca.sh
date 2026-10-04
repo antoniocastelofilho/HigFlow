@@ -42,9 +42,22 @@ ALVOPCT=95
 PISOPCT=12
 cheia() {
     local c=$(cat $B/capacity)
+    local s=$(cat $B/status)
     local r=$(( $(cat $B/charge_now) * 100 / $(cat $B/charge_full) ))
-    [ "$c" -ge "$ALVOPCT" ] && return 0
-    [ "$r" -ge 99 ] && return 0
+    [ "$c" -ge "$ALVOPCT" ] && return 0       # o numero que o usuario le'
+    [ "$r" -ge 99 ] && return 0               # cheia pela razao propria
+    # TERCEIRA PORTA, porque as duas primeiras podem passar RASPANDO.  Medido:
+    # a referencia de `capacity` e' 8,36 Ah e charge_full esta' em 6,955 -- se
+    # charge_full nao subir, `capacity` para em ~83% e a 1a porta nunca dispara;
+    # se subir para ~8,3 enquanto a carga termina em ~7,9, a razao da' 95% e a
+    # 2a tambem nao.  Nao ha' limite de carga configurado nesta maquina (sem
+    # charge_control_end_threshold), logo o carregador vai ate' o fim, e o sinal
+    # inequivoco disso e' o `status`.
+    #
+    # Mas `status` SOZINHO nao serve: ele ja' foi pego dizendo "Full" com a
+    # bateria descarregando, e acreditar nele ali lancaria a corrida com 20% de
+    # carga.  Por isso o par -- `Full` E carga de verdade.
+    [ "$s" = "Full" ] && [ "$r" -ge 90 ] && return 0
     return 1
 }
 no_piso() { [ "$(cat $B/capacity)" -le "$PISOPCT" ]; }
