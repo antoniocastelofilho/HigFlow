@@ -318,6 +318,34 @@ static real _ambf(const char *nome, real padrao) {
     return (e != NULL) ? atof(e) : padrao;
 }
 
+
+// MARCA DE PONTO DE SALVAMENTO COMPLETO.
+//
+// Os `._dp*` sao gravados em VARIOS arquivos, um por campo, SOBRESCREVENDO o
+// conjunto anterior.  Se a maquina morrer no meio da gravacao o conjunto fica
+// metade novo e metade velho -- estado remendado de dois instantes, que carrega
+// adiante sem queixa nenhuma.  E' a unica falha deste mecanismo que CORROMPE em
+// vez de so' perder, e por isso ela precisa ser DETECTAVEL.
+//
+// A marca e' gravada DEPOIS de todos eles, num temporario que e' depois
+// renomeado -- o rename e' atomico no mesmo sistema de arquivos, de modo que a
+// marca existe com o passo certo ou nao existe.  Quem retoma compara o passo da
+// marca com o do init.yaml: se diferirem, a gravacao foi interrompida e aquele
+// conjunto nao serve.  O `fsync` antes do rename e' o que impede a marca de
+// chegar ao disco antes dos dados que ela atesta.
+static void marca_salvamento(const char *base, int passo, double t) {
+    char tmp[1200], fim[1200];
+    snprintf(tmp, sizeof tmp, "%s.ok.tmp", base);
+    snprintf(fim, sizeof fim, "%s.ok",     base);
+    FILE *f = fopen(tmp, "w");
+    if (f == NULL) return;
+    fprintf(f, "passo %d\nt %.10f\n", passo + 1, t);   // +1: a convencao do init.yaml
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+    if (rename(tmp, fim) != 0) remove(tmp);
+}
+
 int main (int argc, char *argv[]) {
     // Initialize the total time counting
     START_CLOCK(total);
@@ -442,6 +470,31 @@ int main (int argc, char *argv[]) {
         ns->par.ts += ns->par.dts;
     }
     
+    // PRIMEIRO PONTO DE SALVAMENTO, e ele NAO e' opcional para quem quer
+    // retomar.  `higflow_save_all_controllers_and_parameters_yaml` so' copia o
+    // par.contr.yaml quando `step == initstep`; em qualquer passo posterior ela
+    // verifica um flag global, descobre que a copia nunca foi feita, IMPRIME UM
+    // AVISO E RETORNA SEM GRAVAR o init.yaml.
+    //
+    // Com as duas chamadas do bloco do passo 0 comentadas, era exatamente isso
+    // que acontecia: os `._dp*` eram gravados a cada `dts` e o init.yaml --
+    // que carrega step, t, frame, ts e tp -- NUNCA.  Ponto de salvamento sem
+    // instante nenhum: nao se retoma de nada, e o unico sinal era uma linha de
+    // aviso no meio do log.
+    //
+    // E tem de ser AQUI, fora do `if (step == 0)`, porque numa corrida RETOMADA
+    // o bloco do passo 0 nao executa e initstep e' o passo carregado.  Se a
+    // copia dependesse dele, a segunda retomada gravaria propriedades novas
+    // sobre um init.yaml velho -- estado remendado de dois instantes, que e'
+    // pior que nao ter ponto de salvamento.
+    if (salva) {
+        print0f("===> Ponto de salvamento inicial <====> step = %d  t = %15.10lf <===\n",
+                ns->par.step, ns->par.t);
+        higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
+        higflow_save_properties(ns, myrank, ntasks);
+        if (myrank == 0) marca_salvamento(ns->par.namesave, ns->par.step, ns->par.t);
+    }
+
     // ********************************************************
     // Begin Loop for the Navier-Stokes equations integration
     // ********************************************************
@@ -526,6 +579,8 @@ int main (int argc, char *argv[]) {
                     ns->par.ts);
             higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
             higflow_save_properties(ns, myrank, ntasks);
+            if (myrank == 0)
+                marca_salvamento(ns->par.namesave, ns->par.step, ns->par.t);
             ns->par.ts += ns->par.dts;
         }
     }
