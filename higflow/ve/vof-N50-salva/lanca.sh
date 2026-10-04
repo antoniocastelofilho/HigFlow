@@ -115,6 +115,24 @@ while :; do
     wait $SOLVER 2>/dev/null; R=$?
 
     NOVO=$(awk '/step:/{print $2}' output/o.save.init.yaml 2>/dev/null || echo 0)
+    # CONSERTO DE UMA JANELA ESTREITA.  `save_all` grava sempre step+1, logo o
+    # salvamento de partida de um trecho RETOMADO grava P+1 enquanto os campos
+    # em disco ainda sao o estado de P.  Mesmo instante t, contador um a'
+    # frente: cair entre a partida e o primeiro salvamento do laco faria a
+    # retomada seguinte pular UM dt.
+    #
+    # Com dts = dtp = 0,025 o primeiro salvamento do laco so' pode vir no 13o
+    # passo, logo NOVO == PASSO+1 significa INEQUIVOCAMENTE que o trecho morreu
+    # nessa janela -- nenhum trecho que avancou de verdade para' em +1.  Ai' o
+    # contador volta para onde os campos estao.
+    #
+    # So' para PASSO > 0: na primeira partida, step 1 com campos de t=0 custa um
+    # dt, enquanto voltar para 0 custaria os 13 min de partida inteiros.
+    if [ "${PASSO:-0}" -gt 0 ] && [ "${NOVO:-0}" -eq "$(( PASSO + 1 ))" ]; then
+        diz "trecho morreu na partida -- contador de volta de $NOVO para $PASSO"
+        sed -i "s/step: $NOVO/step: $PASSO/" output/o.save.init.yaml
+        NOVO=$PASSO
+    fi
     diz "trecho fechou exit=$R, passo $PASSO -> $NOVO, carga $(pct)"
     if [ "${NOVO:-0}" -ge "$TOTAL" ]; then diz "*** CONCLUIDO: $NOVO de $TOTAL ***"; break; fi
     if [ "${NOVO:-0}" -le "${PASSO:-0}" ]; then
