@@ -343,6 +343,12 @@ int main (int argc, char *argv[]) {
     // Set the cache: Reuse interpolation, 0 on, 1 off
     int cache = 1;
 
+    // Ponto de salvamento: DESLIGADO por omissao (ver o bloco no laco).
+    int salva = 0;
+    { const char *e = getenv("SB_SALVA"); if (e != NULL) salva = atoi(e); }
+    print0f("=+=+=+= Pontos de salvamento: %s =+=+=+=\n",
+            salva ? "LIGADOS (corrida retomavel)" : "desligados");
+
     // Create the simulation domain
     // O multifasico e' ADICAO ao dominio base, nao substituto: sem
     // higflow_create_domain_multiphase os dominios sdmult e sdED nascem NULOS e
@@ -499,12 +505,28 @@ int main (int argc, char *argv[]) {
             ns->par.tp += ns->par.dtp;
             ns->par.frame++;
         }
-        // Saving the properties
-        if (ns->par.t >= ns->par.ts) {
-            //print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
-            //higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
-            //higflow_save_properties(ns, myrank, ntasks);
-            //ns->par.ts += ns->par.dts;
+        // PONTO DE SALVAMENTO, para a corrida poder ser RETOMADA.
+        //
+        // Estava comentado, e por isso 37 horas de uma corrida de referencia se
+        // perderam quando ela teve de ser interrompida: o estado existia so' em
+        // memoria.  O mecanismo de retomada JA' estava pronto do outro lado --
+        // higflow_load_properties e' chamado quando init_par.step > 0 -- e o
+        // yaml de retomada sai do save_all_controllers.  Faltava so' gravar.
+        //
+        // Os TRES juntos, e a ordem importa: o yaml leva step, t, frame, ts e
+        // tp DESTE instante, e as propriedades vao em seguida.  Retomar com um
+        // yaml de um instante e campos de outro poria os valores num tempo que
+        // nao os gerou.
+        //
+        // Controlado por ambiente porque gravar u, p e os tensores de 250 mil
+        // celulas a cada `dts` custa disco e tempo, e ligar por omissao mudaria
+        // o custo de toda corrida existente sem aviso.
+        if (salva && ns->par.t >= ns->par.ts) {
+            print0f("===> Salvando (retomavel)  <====> ts = %15.10lf <===\n",
+                    ns->par.ts);
+            higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
+            higflow_save_properties(ns, myrank, ntasks);
+            ns->par.ts += ns->par.dts;
         }
     }
     // ********************************************************

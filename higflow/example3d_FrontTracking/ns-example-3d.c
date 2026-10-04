@@ -434,6 +434,12 @@ int main (int argc, char *argv[]) {
         }
     }
 
+    // Ponto de salvamento: DESLIGADO por omissao (ver o bloco no laco).
+    int salva = 0;
+    { const char *e = getenv("FT3_SALVA"); if (e != NULL) salva = atoi(e); }
+    print0f("=+=+=+= Pontos de salvamento: %s =+=+=+=\n",
+            salva ? "LIGADOS (corrida retomavel)" : "desligados");
+
     // Create the simulation domain
     // O multifasico e' ADICAO ao dominio base, nao substituto: sem
     // higflow_create_domain_multiphase os dominios sdmult e sdED nascem NULOS e
@@ -475,7 +481,24 @@ int main (int argc, char *argv[]) {
       if ((e = getenv("FT3_NSUB"))  != NULL) nsub = atoi(e); }
 
     Point centro_gota; centro_gota[0] = cx; centro_gota[1] = cy; centro_gota[2] = cz;
-    ft3_superficie *gota = ft3_cria_esfera(centro_gota, R_gota, nsub);
+    // RETOMADA: a superficie vem do DISCO, nao de uma esfera nova.  Criar a
+    // esfera aqui numa corrida retomada poria a interface em t=0 e os campos no
+    // tempo salvo -- dois instantes diferentes, e nada avisaria.
+    ft3_superficie *gota = NULL;
+    if (ns->par.step > 0) {
+        char cam[1024];
+        snprintf(cam, sizeof cam, "%s.frente", ns->par.namesave);
+        gota = ft3_le(cam);
+        if (gota != NULL)
+            print0f("===> retomada: frente lida de %s, nv=%d nt=%d chi=%d\n",
+                    cam, ft3_num_vertices(gota), ft3_num_triangulos(gota),
+                    ft3_euler(gota));
+        else
+            print0f("FT3: nao li a frente de %s -- a retomada NAO pode "
+                    "continuar com uma esfera nova\n", cam);
+    }
+    if (gota == NULL && ns->par.step > 0) exit(1);
+    if (gota == NULL) gota = ft3_cria_esfera(centro_gota, R_gota, nsub);
     if (gota == NULL) { print0f("FT3: falha ao criar a esfera\n"); exit(1); }
 
     // Conferencia de que a superficie chegou sa' ao solver: area, volume e
@@ -699,12 +722,39 @@ int main (int argc, char *argv[]) {
             ns->par.tp += ns->par.dtp;
             ns->par.frame++;
         }
-        // Saving the properties
-        if (ns->par.t >= ns->par.ts) {
-            //print0f("===> Saving               <====> ts = %15.10lf <===\n", ns->par.ts);
-            //higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
-            //higflow_save_properties(ns, myrank, ntasks);
-            //ns->par.ts += ns->par.dts;
+        // PONTO DE SALVAMENTO, para a corrida poder ser RETOMADA.
+        //
+        // Estava comentado, e por isso 37 horas de uma corrida de referencia se
+        // perderam quando ela teve de ser interrompida: o estado existia so' em
+        // memoria.  O mecanismo de retomada JA' estava pronto do outro lado --
+        // higflow_load_properties e' chamado quando init_par.step > 0 -- e o
+        // yaml de retomada sai do save_all_controllers.  Faltava so' gravar.
+        //
+        // Os TRES juntos, e a ordem importa: o yaml leva step, t, frame, ts e
+        // tp DESTE instante, e as propriedades vao em seguida.  Retomar com um
+        // yaml de um instante e campos de outro poria os valores num tempo que
+        // nao os gerou.
+        //
+        // Controlado por ambiente porque gravar u, p e os tensores de 250 mil
+        // celulas a cada `dts` custa disco e tempo, e ligar por omissao mudaria
+        // o custo de toda corrida existente sem aviso.
+        if (salva && ns->par.t >= ns->par.ts) {
+            print0f("===> Salvando (retomavel)  <====> ts = %15.10lf <===\n",
+                    ns->par.ts);
+            higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
+            higflow_save_properties(ns, myrank, ntasks);
+            // A SUPERFICIE TAMBEM, e sem ela a retomada nao existe: ela nao e'
+            // parte do estado do solver -- e' replicada, independente de malha,
+            // e e' quem regenera a fracao volumetrica a cada passo.  Retomar com
+            // u e p salvos e uma esfera nova poria o campo e a interface em
+            // instantes diferentes.
+            if (myrank == 0) {
+                char cam[1024];
+                snprintf(cam, sizeof cam, "%s.frente", ns->par.namesave);
+                if (ft3_grava(gota, cam) != 0)
+                    print0f("FT3: falha ao gravar a frente em %s\n", cam);
+            }
+            ns->par.ts += ns->par.dts;
         }
     }
     // ********************************************************
