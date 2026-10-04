@@ -17,6 +17,11 @@ cd "$M" && set -a && . ./varsrc && set +a
 cd "$AQUI"
 
 LOG=/tmp/vof-N50-salva.log
+# A impressao digital do binario no registro.  O diretorio da corrida tem uma
+# COPIA do executavel, e ela ja' ficou atras de duas correcoes do ponto de
+# salvamento -- a corrida teria rodado sem elas e o registro nao diria nada.
+# Registrar faz a divergencia aparecer no mesmo lugar onde se olha o progresso.
+echo "$(date +%H:%M) binario $(md5sum ns-example-3d | cut -c1-12) (fonte: $(md5sum "$M/higflow/example3d_VOF_rising/ns-example-3d" 2>/dev/null | cut -c1-12))" >> /tmp/vof-N50-status
 PASSO=0
 if [ -f output/o.save.init.yaml ] && [ -f output/o.save.ok ]; then
     PI=$(awk '/step:/{print $2}' output/o.save.init.yaml)
