@@ -1,0 +1,10 @@
+# Os seis oraculos do modulo, em arvore e na copia portavel para o OpenFOAM --
+# os numeros sao os MESMOS nas duas, que e' o que faz a copia servir de
+# referencia em vez de reimplementacao.
+oraculo medida veredito
+{volume numa esfera lisa, 3 passes} {$0{,}06488116 \rightarrow 0{,}06488116$} {$0{,}000\%$}
+{ondula\c{c}\~ao radial de $8\%$, 3 passes} {queda de $84\%$} passa
+{m\'edia laplaciana, mesma ondula\c{c}\~ao} {suaviza mais, perde $9{,}74\%$ de $V$} {contraste}
+{elipsoide liso sem limiar, 75 passes} {$\Delta\Psi = 0{,}02486$} {\textbf{falha}}
+{elipsoide liso com limiar $0{,}05$} {$\Delta\Psi = 0{,}00000$} passa
+{indicador: esfera lisa / ondulada} {$0{,}0074$ / $0{,}8538$} passa

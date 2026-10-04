@@ -1,0 +1,8 @@
+# Ondulacao submalha pelo indicador do proprio TSUR, |h1|/meia-aresta, no
+# ultimo quadro de cada corrida concluida.  A esfera inicial e' o oraculo.
+caso acima inferior mediana maximo
+{esfera inicial (or\'aculo)} {0,00\%} {0,00\%} 0,0007 0,0042
+{newtoniano $25^2{\times}50$} {15,5\%} {23,3\%} 0,0104 0,7154
+{newtoniano $50^2{\times}100$} {9,9\%} {14,9\%} 0,0092 0,3366
+{$\lambda_1{=}0{,}1$, $\beta{=}0{,}2$} {17,4\%} {25,3\%} 0,0105 0,9075
+{$\lambda_1{=}0{,}4$, $\beta{=}0{,}2$} {20,9\%} {32,3\%} 0,0141 0,9972

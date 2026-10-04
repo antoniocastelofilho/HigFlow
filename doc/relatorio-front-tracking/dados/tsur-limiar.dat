@@ -1,0 +1,9 @@
+# Varredura do limiar.  As duas colunas se opoem: a primeira tem de ficar MUITO
+# abaixo de 0,0023 (a diferenca FT-VOF de esfericidade que o artigo mede), a
+# ultima tem de ficar alta.  Ha' um plato largo.
+limiar dpsi movidos queda
+0,00 0,02486 4482 {84\%}
+0,02 0,00000 0 {82\%}
+0,05 0,00000 0 {80\%}
+0,20 0,00000 0 {69\%}
+0,40 0,00000 0 {53\%}

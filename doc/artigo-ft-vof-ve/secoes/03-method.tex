@@ -99,6 +99,147 @@ that band the fraction is exactly 0 or 1. The eight-node stencil therefore never
 reaches the seam between levels, which is what normally breaks isosurface
 extraction on adaptive meshes.
 
+\subsection{Sub-grid undulation, and the filter}
+\label{sec:tsur}
+
+\status{Implemented, verified, and \emph{measured on the production runs}. The
+with/without comparison at the reference resolution is pending.}
+
+A Lagrangian surface accumulates error as vertex-scale zig-zag, because the
+vertices move independently under the interpolated velocity and nothing
+constrains the sub-grid shape. Quantifying it needs a shape-independent
+indicator, and the natural one is already computed by the filter itself: for an
+edge $(v_1,v_2)$ with edge normal $\mathbf{n}_e$ and midpoint $\mathbf{m}$,
+\begin{equation}
+h_1 = (\mathbf{v}_1 - \mathbf{m})\cdot\mathbf{n}_e ,
+\end{equation}
+and because $\mathbf{m}$ is the midpoint, $h_2 = -h_1$ exactly --- so $h_1$ is
+the edge's \emph{tilt} relative to the local surface. Normalised by the
+half-edge it is dimensionless, and on a smooth surface it is residual whatever
+the shape. Measuring radial deviation instead, as the synthetic tests do, would
+measure deformation on a deformed bubble.
+
+\begin{table}[htbp]
+\centering
+\caption{Undulation at the final frame. ``Above'' is the fraction of edges with
+indicator above $0.05$; the initial sphere is the oracle.}
+\label{tab:undulation}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/acima/.style={column name={above}, column type={r}},
+  columns/inferior/.style={column name={lower half}, column type={r}},
+  columns/mediana/.style={column name={median}, column type={r}},
+  columns/maximo/.style={column name={max}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ondulacao.dat}}
+\end{adjustbox}
+\end{table}
+
+Two things in that table. An indicator of $0.997$ means an edge nearly
+\emph{perpendicular} to the local surface --- a full zig-zag. And the undulation
+is not diffuse: of the 1289 edges above threshold in the coarse Newtonian run,
+\textbf{all 1289} lie in the lower half of the bubble. In the worst case, 1765
+of 1770.
+
+\subsubsection{The two methods differ in kind, not degree}
+
+\begin{table}[htbp]
+\centering
+\caption{The indicator over time, same case, both methods. The VOF
+\emph{level} is not comparable --- see below.}
+\label{tab:undtime}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/t/.style={column name={$t$}, column type={r}},
+  columns/ft/.style={column name={FT above (\%)}, column type={r}},
+  columns/ftmax/.style={column name={FT max}, column type={r}},
+  columns/vof/.style={column name={VOF above (\%)}, column type={r}},
+  columns/vofmax/.style={column name={VOF max}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ondulacao-tempo.dat}}
+\end{table}
+
+The VOF \emph{absolute} level means nothing: it is already 27\% at $t=0$, where
+the surface is the same sphere front-tracking represents with $0.00\%$. That is
+faceting of the marching-cubes extraction, not of the interface. Only the trend
+is comparable, and the trends are opposite --- front-tracking accumulates from
+zero to 21\% with the maximum reaching $0.997$; VOF stays at $32\pm2\%$ with the
+maximum never above $0.37$.
+
+The reason is structural. PLIC reconstructs \emph{one plane per cell}, and a
+plane cannot undulate within a cell; the reconstruction is re-derived from the
+field every step, so nothing accumulates at the surface level. Put the other
+way: \textbf{the PLIC reconstruction is itself a filter}, and a far more
+aggressive one than the method below --- it re-imposes a planar interface every
+step. The price is the dual of the benefit: it cannot represent anything below
+the cell, which is exactly what a cusp is.
+
+So the two methods sit at opposite ends of one trade-off: VOF cannot undulate
+and cannot resolve sub-grid curvature; front-tracking can resolve it and
+contaminates it with undulation at the same scale. That makes the filter the
+difference between the two methods being compared on the cusp, rather than one
+of them being disqualified from it.
+
+\subsubsection{The filter, and why it needs a criterion}
+
+BALANCE repositions each vertex along its ring normal to the height that
+\emph{reproduces} the star's volume; TSUR puts both ends of an edge at a common
+height, weighted by the two star volumes. Both are from the reference
+Freeflow implementation~\cite{desousa2004}, where the procedure is called a
+``mass-conserving filter''.
+
+That property is measured, not taken on faith: on a sphere with an $8\%$ radial
+undulation, three passes drop the deviation by $84\%$ with a volume change of
+$0.000\%$, where a Laplacian average smooths slightly \emph{more} and loses
+$9.74\%$ of the volume.
+
+\paragraph{But conserving volume does not protect against artificial surface
+tension.} Reducing area at fixed volume is precisely what surface tension does.
+On a \emph{sphere} the effect is invisible, because the smooth state is already
+the minimum-area shape and the filter pushes where the physics also pushes. An
+ellipsoid exposes it: at fixed volume, 20 passes take the axis ratio from
+$2.0239$ to $1.9072$ and the sphericity from $0.925670$ to $0.931380$,
+monotonically, with $\mathrm{d}V/V = 2\times10^{-15}$.
+
+That is $0.00029$ of sphericity per pass. Applied every 20 steps over 1501
+steps --- 75 applications --- it would induce $0.021$, which is \textbf{nine
+times} the sphericity difference between the two methods that this paper
+measures ($0.0023$). Unconditional application would destroy the measurement.
+
+\paragraph{The criterion.} Apply only where there \emph{is} undulation, gated on
+the indicator above. There is no trade-off to tune; the plateau is wide.
+
+\begin{table}[htbp]
+\centering
+\caption{Threshold sweep. The second column must stay far below $0.0023$; the
+last must stay high.}
+\label{tab:threshold}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/limiar/.style={column name={threshold}, column type={r}},
+  columns/dpsi/.style={column name={$\Delta\Psi$, 75 passes, smooth ellipsoid}, column type={r}},
+  columns/movidos/.style={column name={vertices moved/pass}, column type={r}},
+  columns/queda/.style={column name={undulation removed}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{filtro-limiar.dat}}
+\end{table}
+
+At any threshold above $0.02$ the smooth ellipsoid is left \emph{completely
+untouched} --- zero vertices moved per pass --- and the undulation still drops
+by $82\%$. We use $0.05$, with margin from the edge.
+
+\missing{the production with/without pair at the reference resolution. The
+without-filter half is measured (Table~\ref{tab:undtime}); the with-filter run
+is pending.}
+
 \subsection{Adaptive refinement}
 \label{sec:amr}
 

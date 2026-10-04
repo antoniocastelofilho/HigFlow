@@ -531,3 +531,211 @@ concorda com a da superf\'icie em $10^{-4}$. Mas essa confer\^encia n\~ao foi
 repetida aqui.
 
 A c\'uspide na resolu\c{c}\~ao de refer\^encia continua em execu\c{c}\~ao.
+
+\subsection{Ondula\c{c}\~ao submalha: medir, filtrar, e o pre\c{c}o do filtro}
+\label{sec:tsur}
+
+Uma superf\'icie lagrangeana acumula erro como zigue-zague de escala de
+v\'ertice, porque os v\'ertices andam de forma independente sob a velocidade
+interpolada e nada vincula a forma submalha. Esta se\c{c}\~ao mede quanto, porta
+dois filtros da implementa\c{c}\~ao de refer\^encia do
+Freeflow~\cite{sousa2004}, e mede o que o filtro \emph{custa} --- que \'e a
+parte que n\~ao est\'a no artigo de 2004.
+
+\subsubsection{O indicador, e por que n\~ao o desvio do raio}
+
+Nos testes sint\'eticos a ondula\c{c}\~ao foi medida como desvio do raio em
+torno da m\'edia. Isso s\'o serve numa esfera: numa bolha deformada n\~ao h\'a
+raio de refer\^encia, e usar um mediria a \emph{deforma\c{c}\~ao}, n\~ao a
+ondula\c{c}\~ao --- o que inverteria a conclus\~ao, j\'a que a bolha mais
+deformada \'e justamente a que se quer medir.
+
+O indicador que serve j\'a \'e calculado pelo pr\'oprio filtro. Para uma aresta
+$(v_1,v_2)$ com normal de aresta $\mathbf{n}_e$ (m\'edia das normais dos dois
+an\'eis) e ponto m\'edio $\mathbf{m}$,
+\[
+  h_1 = (\mathbf{v}_1 - \mathbf{m})\cdot\mathbf{n}_e ,
+\]
+e porque $\mathbf{m}$ \'e o ponto m\'edio, $h_2 = -h_1$ \emph{exatamente}. Logo
+$h_1$ mede a \textbf{inclina\c{c}\~ao} da aresta em rela\c{c}\~ao \`a
+superf\'icie local. Normalizado pela meia-aresta fica adimensional, compar\'avel
+entre malhas, e residual numa superf\'icie lisa \emph{qualquer que seja a
+forma}. E \'e o mesmo n\'umero que a porta do filtro compara com o limiar, de
+modo que a medida responde direto ``o filtro teria agido aqui?''.
+
+\begin{table}[htbp]
+\centering
+\caption{Ondula\c{c}\~ao no \'ultimo quadro. ``Acima'' \'e a fra\c{c}\~ao de
+arestas com indicador acima de $0{,}05$.}
+\label{tab:tsur-ond}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={corrida}, column type={l}},
+  columns/acima/.style={column name={acima}, column type={r}},
+  columns/inferior/.style={column name={metade inferior}, column type={r}},
+  columns/mediana/.style={column name={mediana}, column type={r}},
+  columns/maximo/.style={column name={m\'aximo}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tsur-ondulacao.dat}}
+\end{adjustbox}
+\end{table}
+
+Duas coisas nessa tabela. Indicador $0{,}997$ \'e uma aresta quase
+\emph{perpendicular} \`a superf\'icie local --- zigue-zague cheio. E a
+ondula\c{c}\~ao n\~ao \'e difusa: das 1289 arestas acima do limiar na corrida
+newtoniana grossa, \textbf{todas as 1289} est\~ao na metade inferior da bolha,
+exatamente onde o usu\'ario esperava. No pior caso, 1765 de 1770. O in\'icio
+coincide com o pico de velocidade, $t\approx 0{,}9$, e o crescimento \'e de
+$17$~pontos percentuais por unidade de $t$.
+
+\paragraph{Degrada mas n\~ao compromete.} Isso foi conferido antes de parar
+corrida nenhuma: a superf\'icie segue fechada ($\chi = 2$), a parti\c{c}\~ao de
+volume fecha em $2\times10^{-14}$, a deriva de massa permanece limitada, e a
+g\^emea em $N=25$ chegou ao fim. O zigue-zague contamina a forma na escala da
+malha; n\~ao rompe a superf\'icie.
+
+\subsubsection{Os dois m\'etodos diferem em esp\'ecie, n\~ao em grau}
+
+\begin{table}[htbp]
+\centering
+\caption{O indicador no tempo, mesmo caso, nos dois m\'etodos. O
+\emph{n\'ivel} do VOF n\~ao \'e compar\'avel --- ver abaixo.}
+\label{tab:tsur-tempo}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/t/.style={column name={$t$}, column type={r}},
+  columns/ft/.style={column name={FT acima (\%)}, column type={r}},
+  columns/ftmax/.style={column name={FT m\'ax}, column type={r}},
+  columns/vof/.style={column name={VOF acima (\%)}, column type={r}},
+  columns/vofmax/.style={column name={VOF m\'ax}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tsur-tempo.dat}}
+\end{table}
+
+O n\'ivel absoluto do VOF n\~ao significa nada: j\'a \'e $27\%$ em $t=0$, onde a
+superf\'icie \'e a \emph{mesma} esfera que o front-tracking representa com
+$0{,}00\%$. Aquilo \'e facetamento da extra\c{c}\~ao por marching cubes, n\~ao
+da interface. S\'o a tend\^encia \'e compar\'avel, e as tend\^encias s\~ao
+opostas: o front-tracking vai de zero a $21\%$ com m\'aximo chegando a
+$0{,}997$; o VOF fica em $32\pm2\%$ com m\'aximo nunca acima de $0{,}37$.
+
+A raz\~ao \'e estrutural. O PLIC reconstr\'oi \emph{um plano por c\'elula}, e um
+plano n\~ao ondula dentro da c\'elula; a reconstru\c{c}\~ao \'e refeita do campo
+a cada passo, de modo que nada acumula no n\'ivel da superf\'icie. Dito ao
+contr\'ario: \textbf{a reconstru\c{c}\~ao PLIC \'e ela mesma um filtro}, e muito
+mais agressivo que o deste cap\'itulo --- reimp\~oe interface plana a cada
+passo. O pre\c{c}o \'e o dual do benef\'icio: n\~ao representa nada abaixo da
+c\'elula, que \'e precisamente o que uma c\'uspide \'e.
+
+Ent\~ao os dois m\'etodos est\~ao em pontas opostas do \emph{mesmo}
+compromisso --- o VOF n\~ao pode ondular e n\~ao resolve curvatura submalha; o
+front-tracking resolve e contamina na mesma escala. Com o filtro, o
+front-tracking \'e o \'unico dos dois que pode representar a c\'uspide
+\emph{sem} o zigue-zague, e isso transforma o filtro na condi\c{c}\~ao de os
+dois m\'etodos serem comparados na c\'uspide, em vez de um deles estar
+desqualificado dela.
+
+\subsubsection{Os dois filtros}
+
+O \textbf{BALANCE} reposiciona cada v\'ertice ao longo da normal do seu anel
+para a altura que \emph{reproduz} o volume da estrela; o \textbf{TSUR} p\~oe os
+dois extremos de uma aresta numa altura comum, ponderada pelos dois volumes de
+estrela. Os dois percorrem os v\'ertices em Gauss--Seidel, n\~ao Jacobi --- a
+ordem importa, e manter a ordem da implementa\c{c}\~ao original \'e o que faz
+desta uma porta e n\~ao uma reimplementa\c{c}\~ao.
+
+A conserva\c{c}\~ao de volume, que a refer\^encia chama de \emph{mass-conserving
+filter}, foi medida e n\~ao aceita de palavra, com uma m\'edia laplaciana como
+contraste (Tabela~\ref{tab:tsur-oraculos}).
+
+\begin{table}[htbp]
+\centering
+\caption{Os seis or\'aculos. Os n\'umeros s\~ao id\^enticos na vers\~ao em
+\'arvore e na c\'opia port\'avel entregue para a porta no OpenFOAM.}
+\label{tab:tsur-oraculos}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/oraculo/.style={column name={or\'aculo}, column type={l}},
+  columns/medida/.style={column name={medida}, column type={r}},
+  columns/veredito/.style={column name={}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tsur-oraculos.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{Conservar volume n\~ao protege de tens\~ao superficial
+artificial}
+
+Esta foi a adverten\c{c}\~ao do usu\'ario, e ela est\'a certa pela raz\~ao mais
+direta poss\'ivel: \textbf{reduzir \'area a volume fixo \'e exatamente o que a
+tens\~ao superficial faz}. Conservar volume n\~ao diz nada sobre a \'area. Eu
+havia verificado o volume e n\~ao a \'area --- quatro dos seis or\'aculos acima
+olhavam volume.
+
+Pior, a \emph{esfera} \'e cega ao efeito: o estado liso j\'a \'e a forma de
+\'area m\'inima, e ali o filtro empurra para onde a f\'isica tamb\'em empurra.
+O teste que exp\~oe \'e um elipsoide. A volume fixo, 20 passes levam a raz\~ao
+de eixos de $2{,}0239$ a $1{,}9072$ e a esfericidade de $0{,}925670$ a
+$0{,}931380$, monotonicamente, com $\mathrm{d}V/V = 2\times10^{-15}$ --- volume
+perfeito, forma andando para a esfera.
+
+S\~ao $0{,}00029$ de esfericidade por passe. A cada 20 passos ao longo de 1501
+passos s\~ao 75 aplica\c{c}\~oes, logo $0{,}021$ --- \textbf{nove vezes} a
+diferen\c{c}a de esfericidade entre os dois m\'etodos que este trabalho mede
+($0{,}0023$). Aplica\c{c}\~ao incondicional destruiria a medida que o filtro
+deveria proteger.
+
+\subsubsection{A porta, e por que n\~ao h\'a compromisso a calibrar}
+
+Aplicar s\'o onde \emph{h\'a} ondula\c{c}\~ao, com o indicador da
+Se\c{c}\~ao~\ref{sec:tsur} como porta. A varredura mostra que n\~ao \'e um
+ajuste fino: h\'a um plat\^o largo.
+
+\begin{table}[htbp]
+\centering
+\caption{Varredura do limiar. A segunda coluna tem de ficar muito abaixo de
+$0{,}0023$; a \'ultima tem de ficar alta.}
+\label{tab:tsur-limiar}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/limiar/.style={column name={limiar}, column type={r}},
+  columns/dpsi/.style={column name={$\Delta\Psi$, 75 passes, elipsoide liso}, column type={r}},
+  columns/movidos/.style={column name={v\'ertices movidos/passe}, column type={r}},
+  columns/queda/.style={column name={ondula\c{c}\~ao removida}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tsur-limiar.dat}}
+\end{adjustbox}
+\end{table}
+
+Em qualquer limiar acima de $0{,}02$ o elipsoide liso fica \textbf{intocado} ---
+zero v\'ertices movidos por passe --- e a ondula\c{c}\~ao ainda cai $82\%$. O
+valor em uso \'e $0{,}05$, com margem da borda. A \'AREA entrou no
+diagn\'ostico por passo junto com o volume, para que uma regress\~ao futura
+apare\c{c}a na corrida e n\~ao s\'o no teste.
+
+\subsubsection{Estado}
+
+O m\'odulo est\'a em \'arvore, com os seis or\'aculos passando, e aplicado a
+cada 20 passos nas pr\'oximas rodadas. As duas corridas de c\'uspide na
+resolu\c{c}\~ao de refer\^encia foram \textbf{paradas} com as s\'eries parciais
+retidas --- o front-tracking em 800 de 2001 passos com 64 quadros, o VOF em
+1238 com 99 --- e essas s\'eries s\~ao as metades \emph{sem filtro} do par de
+compara\c{c}\~ao. Os pontos de salvamento (\texttt{FT3\_SALVA} e
+\texttt{SB\_SALVA}, desligados por omiss\~ao) foram ligados para que uma
+parada por qualquer motivo n\~ao custe a corrida inteira; no front-tracking
+isso inclui gravar e reler a superf\'icie, n\~ao s\'o os campos.
+
+O que falta \'e a metade \emph{com} filtro na mesma resolu\c{c}\~ao, que \'e o
+que sustentaria a afirma\c{c}\~ao no artigo em vez de apenas a
+plausibilidade dela.

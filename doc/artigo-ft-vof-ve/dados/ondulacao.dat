@@ -1,0 +1,10 @@
+# Undulation indicator |h1|/(half-edge) -- the same number TSUR gates on -- at
+# the final frame of each completed run.  Shape-independent, so it measures
+# undulation and not deformation: on a smooth surface it is residual whatever
+# the shape.  The initial sphere is the oracle.
+caso acima inferior mediana maximo
+{initial sphere (oracle)} {0.00\%} {0.00\%} 0.0007 0.0042
+{Newtonian $25{\times}25{\times}50$} {15.5\%} {23.3\%} 0.0104 0.7154
+{Newtonian $50{\times}50{\times}100$} {9.9\%} {14.9\%} 0.0092 0.3366
+{Viscoelastic $\lambda_1{=}0.1$, $\beta{=}0.2$} {17.4\%} {25.3\%} 0.0105 0.9075
+{Viscoelastic $\lambda_1{=}0.4$, $\beta{=}0.2$} {20.9\%} {32.3\%} 0.0141 0.9972
