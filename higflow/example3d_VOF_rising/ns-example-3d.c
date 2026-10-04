@@ -333,6 +333,28 @@ static real _ambf(const char *nome, real padrao) {
 // marca com o do init.yaml: se diferirem, a gravacao foi interrompida e aquele
 // conjunto nao serve.  O `fsync` antes do rename e' o que impede a marca de
 // chegar ao disco antes dos dados que ela atesta.
+// SINAL DE "GRAVANDO AGORA", que fecha um furo do esquema acima.
+//
+// O `.ok` e' renomeado DEPOIS dos `._dp*`, logo existe uma janela em que os
+// dados ja' sao da geracao nova e a marca ainda diz a anterior.  Quem copia de
+// fora comparando so' o `.ok` antes e depois ve' o mesmo valor nas duas pontas,
+// copia um conjunto RASGADO e o registra como bom -- destruindo justamente a
+// copia de seguranca de que se precisaria.
+//
+// Este arquivo existe enquanto a gravacao esta' em curso.  Quem copia recusa
+// enquanto ele existir.  Sobrar apos uma queda de energia e' informacao certa,
+// nao sujeira: significa que aquela gravacao nao terminou.
+static void marca_gravando(const char *base, int ligado) {
+    char cam[1200];
+    snprintf(cam, sizeof cam, "%s.gravando", base);
+    if (ligado) {
+        FILE *f = fopen(cam, "w");
+        if (f != NULL) { fprintf(f, "1\n"); fflush(f); fsync(fileno(f)); fclose(f); }
+    } else {
+        remove(cam);
+    }
+}
+
 static void marca_salvamento(const char *base, int passo, double t) {
     char tmp[1200], fim[1200];
     snprintf(tmp, sizeof tmp, "%s.ok.tmp", base);
@@ -490,9 +512,20 @@ int main (int argc, char *argv[]) {
     if (salva) {
         print0f("===> Ponto de salvamento inicial <====> step = %d  t = %15.10lf <===\n",
                 ns->par.step, ns->par.t);
+        if (myrank == 0) marca_gravando(ns->par.namesave, 1);
+        MPI_Barrier(MPI_COMM_WORLD);
         higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
         higflow_save_properties(ns, myrank, ntasks);
-        if (myrank == 0) marca_salvamento(ns->par.namesave, ns->par.step, ns->par.t);
+        // A BARREIRA importa: higflow_save_properties e' coletiva, e sem ela o
+        // rank 0 apagaria o sinal de "gravando" com outro rank ainda escrevendo
+        // -- reabrindo a janela que o sinal existe para fechar.  E o par
+        // marca/sinal e' SO' do rank 0: deixar qualquer rank apagar o sinal da'
+        // o mesmo efeito.
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (myrank == 0) {
+            marca_salvamento(ns->par.namesave, ns->par.step, ns->par.t);
+            marca_gravando(ns->par.namesave, 0);
+        }
     }
 
     // ********************************************************
@@ -577,10 +610,15 @@ int main (int argc, char *argv[]) {
         if (salva && ns->par.t >= ns->par.ts) {
             print0f("===> Salvando (retomavel)  <====> ts = %15.10lf <===\n",
                     ns->par.ts);
+            if (myrank == 0) marca_gravando(ns->par.namesave, 1);
+            MPI_Barrier(MPI_COMM_WORLD);
             higflow_save_all_controllers_and_parameters_yaml(ns, myrank);
             higflow_save_properties(ns, myrank, ntasks);
-            if (myrank == 0)
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (myrank == 0) {
                 marca_salvamento(ns->par.namesave, ns->par.step, ns->par.t);
+                marca_gravando(ns->par.namesave, 0);
+            }
             ns->par.ts += ns->par.dts;
         }
     }
