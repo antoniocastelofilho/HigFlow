@@ -244,6 +244,48 @@ real ft3_distancia_g(const ft3_superficie *s, ft3_grade *g, const Point x,
 real ft3_fracao_na_caixa_g(const ft3_superficie *s, ft3_grade *g,
                            const real lo[DIM], const real hi[DIM]);
 
+// --- remocao de ondulacoes submalha: BALANCE e TSUR -----------------------
+//
+// Porte das rotinas BALANCE3D/BALANCESTAR e TSUR3D do Freeflow
+// (simulador/tsur3d.cpp), documentadas em de Sousa et al., "A
+// front-tracking/front-capturing method for the simulation of 3D multi-fluid
+// flows with free surfaces", J. Comput. Phys. 198(2):469-499, 2004, onde o
+// procedimento e' chamado de "mass-conserving filter".
+//
+// As duas sao complementares, e preservam VOLUME localmente -- o que as
+// distingue de uma media laplaciana, que suaviza encolhendo.  Medido: a
+// ondulacao cai 84% com variacao de volume de 0,000%, contra 9,74% de perda do
+// laplaciano.
+//
+// Ver o .c para as quatro decisoes que o porte obrigou: sem faces
+// quadrilateras, guarda de inversao de triangulo em vez de TESTMOVE, ordem de
+// vertice importando (Gauss-Seidel, como no original), e o `rlx` que era fixo
+// virando parametro.
+
+//! BALANCE: recoloca cada vertice ao longo da sua normal na altura que
+//! REPRODUZ o volume da sua estrela.  Devolve quantos vertices moveu; os nao
+//! movidos foram rejeitados por anel aberto, normal residual, ponto medio fora
+//! da estrela, ou porque o movimento inverteria um triangulo incidente -- e
+//! cada um desses e' um caso em que mover faria mal.
+//! `limiar` e' a ONDULACAO MINIMA que faz o vertice se mover, em fracao do
+//! raio da estrela.  NAO e' afinacao: sem limiar o filtro move todo vertice em
+//! toda aplicacao e introduz TENSAO SUPERFICIAL ARTIFICIAL -- medido num
+//! elipsoide a volume fixo, 20 passadas levam a esfericidade de 0.9257 a
+//! 0.9314, empurrando para a esfera.  A 0.00029 por passada e 75 aplicacoes
+//! numa corrida, a deriva induzida e' NOVE VEZES a diferenca de esfericidade
+//! entre os dois metodos que a comparacao mede.
+int ft3_balance(ft3_superficie *s, real limiar);
+
+//! TSUR: remove o zigue-zague submalha ATRAVESSANDO cada aresta.  O ponto de
+//! base e' o ponto medio da aresta, logo as alturas dos extremos sao iguais e
+//! opostas e `h1` mede a inclinacao da aresta em relacao a' normal -- que e' a
+//! ondulacao.  Poe os dois extremos numa altura comum, ponderada pelos volumes
+//! das duas estrelas.  `rlx` e' a relaxacao: 0 reproduz o Freeflow (total), 1
+//! nao move nada.  Devolve quantos vertices moveu.
+//! `limiar` e' a inclinacao minima da aresta que a faz mover, em fracao da
+//! meia-aresta -- mesma razao do `limiar` do BALANCE.
+int ft3_tsur(ft3_superficie *s, real rlx, real limiar);
+
 // --- persistencia e saida -------------------------------------------------
 
 //! Grava a superficie em texto, com `%.17g` -- ida-e-volta bit a bit.  Ao

@@ -354,6 +354,28 @@ int main (int argc, char *argv[]) {
     // FT3_AMR_NX/NY/NZ e FT3_AMR_LX/LY/LZ   a malha BASE do criterio
     // FT3_AMR_CAMINHO o .amr que o criterio escreve e o solver rele'
     // -------------------------------------------------------------------
+    // Remocao de ondulacoes submalha (BALANCE + TSUR).  O padrao LIGADO a
+    // cada 20 passos e' deliberado -- foi o pedido --, e por isso o exemplo
+    // ANUNCIA o intervalo no arranque: nenhuma corrida deve ter a superficie
+    // suavizada sem que o log diga.
+    int  tsur_cada = 20;
+    real tsur_rlx  = 0.0;        // 0 reproduz o Freeflow (relaxacao total)
+    // LIMIAR DE ONDULACAO, e ele NAO e' afinacao.  Sem limiar o filtro move
+    // todo vertice em toda aplicacao e introduz tensao superficial artificial:
+    // medido, 75 aplicacoes num elipsoide a volume fixo mudam a esfericidade em
+    // 0,025 -- nove vezes a diferenca entre os dois metodos que a comparacao
+    // mede.  Com limiar >= 0,02 o elipsoide liso fica INTOCADO e a ondulacao
+    // ainda cai 82%.  0,05 fica com margem da borda, a 80%.
+    real tsur_lim  = 0.05;
+    { const char *e;
+      if ((e = getenv("FT3_TSUR_CADA")) != NULL) tsur_cada = atoi(e);
+      if ((e = getenv("FT3_TSUR_RLX"))  != NULL) tsur_rlx  = atof(e);
+      if ((e = getenv("FT3_TSUR_LIM"))  != NULL) tsur_lim  = atof(e); }
+    print0f("=+=+=+= Ondulacoes submalha: BALANCE+TSUR a cada %d passo(s), "
+            "rlx=%g limiar=%g %s=+=+=+=\n", tsur_cada, (double) tsur_rlx,
+            (double) tsur_lim,
+            tsur_cada > 0 ? "" : "(DESLIGADO) ");
+
     int  amr_niveis = 0, amr_celmin = 5, amr_cada = 0;
     int  amr_nx = 25, amr_ny = 25, amr_nz = 50;
     real amr_lx = 1.0, amr_ly = 1.0, amr_lz = 2.0;
@@ -569,6 +591,36 @@ int main (int argc, char *argv[]) {
         // constitutiva roda ANTES do gancho, entao os parametros De e beta sao
         // interpolados com o fracvol do passo ANTERIOR.  E' O(dt), da mesma
         // ordem da defasagem que a forca de tensao ja' tem.
+        // ONDULACOES SUBMALHA: BALANCE e TSUR, portadas do Freeflow.
+        //
+        // A adveccao lagrangiana acumula zigue-zague na escala da malha, e ele
+        // aparece sobretudo na parte INFERIOR da bolha, onde o escoamento
+        // comprime a superficie contra a esteira.  As duas rotinas o removem
+        // PRESERVANDO VOLUME -- medido no arreio: a ondulacao cai 84% em tres
+        // passadas com variacao de volume de 0,000%, contra 9,74% de perda da
+        // media laplaciana que suaviza o mesmo tanto.
+        //
+        // ANTES do passo, de proposito: o gancho do front-tracking regenera a
+        // fracao volumetrica da GEOMETRIA da superficie no passo seguinte, e
+        // suavizar depois dele deixaria o campo um passo atrasado em relacao a'
+        // superficie que o gerou.
+        //
+        // FT3_TSUR_CADA controla o intervalo; 0 desliga.  O padrao e' 20.
+        if (tsur_cada > 0 && ns->par.step > 0 &&
+            ns->par.step % tsur_cada == 0) {
+            const real vol_antes = ft3_volume(gota);
+            const real area_antes = ft3_area(gota);
+            const int nb = ft3_balance(gota, tsur_lim);
+            const int nt2 = ft3_tsur(gota, tsur_rlx, tsur_lim);
+            const real vol_depois = ft3_volume(gota);
+            const real area_depois = ft3_area(gota);
+            print0f("===> TSUR passo %d: BALANCE moveu %d, TSUR %d, "
+                    "chi=%d, volume %+.3e, AREA %+.3e\n",
+                    ns->par.step, nb, nt2, ft3_euler(gota),
+                    (double) ((vol_depois - vol_antes) / vol_antes),
+                    (double) ((area_depois - area_antes) / area_antes));
+        }
+
         // REMALHAMENTO ADAPTATIVO, pelo caminho verificado da fronteira
         // imersa.  A superficie escreve o .amr multinivel pelo criterio, e
         // higflow_reconstroi_dominio o rele' pelo caminho normal de arranque.

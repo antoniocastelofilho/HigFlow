@@ -1445,3 +1445,363 @@ int ft3_escreve_vtk(const ft3_superficie *s, const char *caminho)
     fclose(fp);
     return ok ? 0 : -1;
 }
+
+// ===========================================================================
+// REMOCAO DE ONDULACOES SUBMALHA: BALANCE e TSUR
+//
+// Porte das rotinas BALANCE3D/BALANCESTAR e TSUR3D do Freeflow
+// (simulador/tsur3d.cpp).  TSUR e' "Trapezoidal Subgrid Undulations Removal".
+//
+// O METODO ESTA' DOCUMENTADO EM:
+//   F.S. de Sousa, N. Mangiavacchi, L.G. Nonato, A. Castelo, M.F. Tome,
+//   V.G. Ferreira, J.A. Cuminato, S. McKee, "A front-tracking/front-capturing
+//   method for the simulation of 3D multi-fluid flows with free surfaces",
+//   Journal of Computational Physics 198(2), 469-499, 2004.
+//   doi:10.1016/j.jcp.2004.01.032
+//
+// O resumo do artigo chama o procedimento de "mass-conserving filter" para as
+// pequenas ondulacoes nas frentes.  Essa e' a propriedade que justifica
+// porta-las em vez de usar uma media laplaciana, e ela esta' MEDIDA em
+// tests/front-tracking/teste-tsur.c, nao aceita de palavra: numa esfera com
+// ondulacao de 8% do raio, tres passadas derrubam a ondulacao 84% com variacao
+// de volume de 0,000%, contra 9,74% de PERDA da media laplaciana que suaviza o
+// mesmo tanto.
+//
+// As duas rotinas sao complementares:
+//
+//   BALANCE  recoloca cada vertice ao longo da sua normal na altura que
+//            REPRODUZ O VOLUME da sua estrela.  Suavizacao que preserva volume
+//            localmente, em vez de encolher a superficie como a media
+//            laplaciana faria.
+//
+//   TSUR     percorre as ARESTAS.  Como o ponto de base e' o ponto MEDIO da
+//            aresta, as alturas dos dois extremos sobre o plano sao iguais e
+//            opostas (h2 = -h1), logo h1 mede exatamente o quanto a aresta
+//            esta' INCLINADA em relacao a' normal -- que e' o zigue-zague
+//            submalha.  Poe os dois extremos na mesma altura, ponderada pelos
+//            volumes das duas estrelas para a operacao nao enviesar volume.
+//
+// QUATRO DECISOES QUE O PORTE OBRIGOU, e nenhuma e' cosmetica:
+//
+// 1. SEM os ramos de face QUADRILATERA.  A malha do Freeflow mistura
+//    triangulos e quadrilateros (CONTFACEEDGES decide qual); a desta arvore e'
+//    puramente triangular.  Os ramos de quadrilatero foram removidos, nao
+//    adaptados -- adapta-los seria codigo morto que ninguem exercitaria.
+//
+// 2. TESTBOUND e TESTMOVE nao tem analogo, e a GUARDA E' OUTRA.  No Freeflow
+//    elas testam vertice em fronteira de entrada e admissibilidade do
+//    movimento na estrutura de celulas.  Aqui a superficie e' fechada, livre,
+//    sem entrada e sem posse de celula.  Mas mover sem guarda nenhuma INVERTE
+//    triangulo, e isso quebra a orientacao em silencio -- o volume calculado
+//    pelo teorema da divergencia continua dando um numero.  A guarda posta no
+//    lugar e' mais forte e e' propria do metodo: o movimento e' REJEITADO se
+//    inverter o sinal de qualquer triangulo incidente.
+//
+// 3. ORDEM IMPORTA, e isso e' do original.  As duas rotinas movem vertices EM
+//    SEQUENCIA, de modo que um vertice ja' ve' os vizinhos movidos -- e' Gauss-
+//    Seidel, nao Jacobi.  Mantido fiel, mas dito aqui: o resultado depende da
+//    ordem dos vertices, e a cirurgia reordena.  Duas corridas com cirurgias
+//    diferentes nao dao a mesma superficie bit a bit.
+//
+// 4. O `rlx = 0.0` do TSUR era FIXO no codigo.  Fica parametro, com zero como
+//    padrao -- que e' o comportamento original, relaxacao total.
+// ===========================================================================
+
+// Anel ORDENADO da estrela de um vertice: os vizinhos na ordem em que as faces
+// os encadeiam.  O Freeflow o obtem de graca da estrutura de half-edge; aqui
+// sai da incidencia vertice->triangulo, encadeando a aresta oposta a `v` em
+// cada triangulo incidente.  Devolve o numero de vizinhos, ou 0 se o anel nao
+// fechar (vertice de borda ou malha nao-variedade) -- e nesse caso o chamador
+// NAO move o vertice, porque nem a normal nem o volume da estrela estao
+// definidos ali.
+static int _anel(const ft3_superficie *s, const int *ini, const int *lst,
+                 int v, int *anel, int cap)
+{
+    const int i0 = ini[v], i1 = ini[v+1];
+    const int k = i1 - i0;
+    if (k < 3 || k > cap) return 0;
+    // aresta oposta a v em cada triangulo incidente, orientada
+    int *de = (int *) malloc((size_t) k * sizeof *de);
+    int *pa = (int *) malloc((size_t) k * sizeof *pa);
+    for (int q = 0; q < k; q++) {
+        const int t = lst[i0 + q];
+        int a = -1, b = -1;
+        for (int c = 0; c < 3; c++)
+            if (s->tri[t][c] == v) { a = s->tri[t][(c+1)%3]; b = s->tri[t][(c+2)%3]; }
+        if (a < 0) { free(de); free(pa); return 0; }
+        de[q] = a; pa[q] = b;
+    }
+    // encadeia de->pa
+    int n = 0, atual = de[0];
+    const int comeco = atual;
+    for (int passo = 0; passo < k; passo++) {
+        anel[n++] = atual;
+        int prox = -1;
+        for (int q = 0; q < k; q++) if (de[q] == atual) { prox = pa[q]; break; }
+        if (prox < 0) { free(de); free(pa); return 0; }
+        atual = prox;
+        if (atual == comeco) break;
+    }
+    free(de); free(pa);
+    return (atual == comeco && n == k) ? n : 0;
+}
+
+// Volume ASSINADO do tetraedro (a,b,c,d).  E' o FVOL do Freeflow, que la' esta'
+// expandido em 24 termos; aqui como determinante, que e' a mesma conta.
+static real _tetra(const real a[3], const real b[3],
+                   const real c[3], const real d[3])
+{
+    real u[3], v[3], w[3], cr[3];
+    _sub(b, a, u); _sub(c, a, v); _sub(d, a, w);
+    _cruz(v, w, cr);
+    return (u[0]*cr[0] + u[1]*cr[1] + u[2]*cr[2]) / 6.0;
+}
+
+// Ponto medio do anel -- o PONTOMEDIOSTAR.
+static void _medio_anel(const ft3_superficie *s, const int *anel, int n,
+                        real p[3])
+{
+    p[0] = p[1] = p[2] = 0.0;
+    for (int q = 0; q < n; q++)
+        for (int d = 0; d < 3; d++) p[d] += s->x[anel[q]][d];
+    for (int d = 0; d < 3; d++) p[d] /= (real) n;
+}
+
+// Normal do NORMALVECTOR: soma dos produtos vetoriais das arestas do anel
+// medidas a partir de p.  NAO e' a media das normais dos triangulos -- e' a
+// normal do poligono do anel, que e' o que as duas rotinas usam como direcao
+// de movimento.  Devolve 0 se a norma for residual.
+static int _normal_anel(const ft3_superficie *s, const int *anel, int n,
+                        const real p[3], real nor[3])
+{
+    nor[0] = nor[1] = nor[2] = 0.0;
+    for (int q = 0; q < n; q++) {
+        real x1[3], x2[3], pv[3];
+        _sub(s->x[anel[q]],         p, x1);
+        _sub(s->x[anel[(q+1)%n]],   p, x2);
+        _cruz(x1, x2, pv);
+        for (int d = 0; d < 3; d++) nor[d] += pv[d];
+    }
+    const real m = _norma(nor);
+    if (m < 1.0e-7) return 0;
+    for (int d = 0; d < 3; d++) nor[d] /= m;
+    return 1;
+}
+
+// O ponto p esta' dentro do poligono do anel PROJETADO no plano de normal nor?
+// E' o POINTINPOLIGON, pela soma dos angulos: dentro de um poligono convexo ou
+// nao, a soma dos angulos subtendidos da' 2*pi; fora, da' ~0.
+static int _dentro_anel(const ft3_superficie *s, const int *anel, int n,
+                        const real p[3], const real nor[3])
+{
+    real soma = 0.0;
+    for (int q = 0; q < n; q++) {
+        real a[3], b[3], ha, hb;
+        _sub(s->x[anel[q]],       p, a);
+        _sub(s->x[anel[(q+1)%n]], p, b);
+        // projeta no plano
+        ha = a[0]*nor[0] + a[1]*nor[1] + a[2]*nor[2];
+        hb = b[0]*nor[0] + b[1]*nor[1] + b[2]*nor[2];
+        for (int d = 0; d < 3; d++) { a[d] -= ha*nor[d]; b[d] -= hb*nor[d]; }
+        const real na = _norma(a), nb = _norma(b);
+        if (na < 1e-14 || nb < 1e-14) return 1;   // p sobre um vertice do anel
+        real cs = (a[0]*b[0] + a[1]*b[1] + a[2]*b[2]) / (na*nb);
+        if (cs >  1.0) cs =  1.0;
+        if (cs < -1.0) cs = -1.0;
+        soma += acos(cs);
+    }
+    return (fabs(soma - 2.0*M_PI) < 1.0e-3);
+}
+
+// O movimento de `v` para `x` inverteria algum triangulo incidente?  E' a
+// guarda que substitui TESTMOVE: comparar o SINAL do produto misto antes e
+// depois.  Sem ela um vertice pode atravessar a sua propria estrela, e o
+// volume pelo teorema da divergencia continua devolvendo um numero.
+static int _move_ok(const ft3_superficie *s, const int *ini, const int *lst,
+                    int v, const real x[3])
+{
+    for (int q = ini[v]; q < ini[v+1]; q++) {
+        const int t = lst[q];
+        const int a = s->tri[t][0], b = s->tri[t][1], c = s->tri[t][2];
+        real n0[3], n1[3], u[3], w[3];
+        _sub(s->x[b], s->x[a], u); _sub(s->x[c], s->x[a], w);
+        _cruz(u, w, n0);
+        const real *pa = (a == v) ? x : s->x[a];
+        const real *pb = (b == v) ? x : s->x[b];
+        const real *pc = (c == v) ? x : s->x[c];
+        _sub(pb, pa, u); _sub(pc, pa, w);
+        _cruz(u, w, n1);
+        if (n0[0]*n1[0] + n0[1]*n1[1] + n0[2]*n1[2] <= 0.0) return 0;
+    }
+    return 1;
+}
+
+// --- BALANCESTAR, um vertice ---------------------------------------------
+static int _balance_vertice(ft3_superficie *s, const int *ini, const int *lst,
+                            int v, int *anel, int cap, real limiar)
+{
+    const int n = _anel(s, ini, lst, v, anel, cap);
+    if (n == 0) return 0;
+
+    real p[3], nor[3];
+    _medio_anel(s, anel, n, p);
+    if (!_normal_anel(s, anel, n, p, nor)) return 0;
+    if (!_dentro_anel(s, anel, n, p, nor)) return 0;   // p fora da estrela
+
+    // volini: estrela com o vertice ATUAL como apice
+    // vol1:   estrela com apice em p + normal (altura unitaria)
+    real apice1[3];
+    for (int d = 0; d < 3; d++) apice1[d] = p[d] + nor[d];
+    real volini = 0.0, vol1 = 0.0;
+    for (int q = 0; q < n; q++) {
+        const real *x1 = s->x[anel[q]];
+        const real *x2 = s->x[anel[(q+1)%n]];
+        volini += _tetra(p, s->x[v], x1, x2);
+        vol1   += _tetra(p, apice1,  x1, x2);
+    }
+    if (fabs(vol1) < 1.0e-14) return 0;
+
+    const real hf = volini / vol1;
+
+    // LIMIAR DE ONDULACAO.  Sem ele o filtro move TODO vertice em TODA
+    // aplicacao, e isso introduz TENSAO SUPERFICIAL ARTIFICIAL: medido num
+    // elipsoide a volume fixo, 20 passadas levam a razao de eixos de 2.0239 a
+    // 1.9072 e a esfericidade de 0.9257 a 0.9314 -- monotonamente, ou seja o
+    // filtro empurra para a esfera, que e' exatamente o que a tensao faz.
+    //
+    // Na ESFERA o efeito seria invisivel, porque o estado liso ja' e' o de area
+    // minima e o filtro empurraria para onde a fisica tambem empurra.  Foi o
+    // elipsoide que o expos.
+    //
+    // A escala: 0.00029 de esfericidade por passada.  A cada 20 passos em 1501
+    // sao 75 aplicacoes, logo 0.021 de deriva induzida -- NOVE VEZES a
+    // diferenca de esfericidade entre front-tracking e VOF que a comparacao
+    // mede (0.0023).  Aplicar sem condicao destruiria o que se quer medir.
+    //
+    // Com o limiar, o vertice so' se move se estiver AFASTADO da posicao
+    // equilibrada por mais que `limiar` vezes o raio da estrela.  Superficie
+    // lisa fica intocada, e a tensao artificial nao acumula.
+    {
+        real dv[3]; _sub(s->x[v], p, dv);
+        const real h_atual = dv[0]*nor[0] + dv[1]*nor[1] + dv[2]*nor[2];
+        real raio = 0.0;
+        for (int q = 0; q < n; q++) {
+            real e[3]; _sub(s->x[anel[q]], p, e);
+            const real m = _norma(e); if (m > raio) raio = m;
+        }
+        if (raio > 0.0 && fabs(hf - h_atual) < limiar * raio) return 0;
+    }
+
+    real x[3];
+    for (int d = 0; d < 3; d++) x[d] = p[d] + hf * nor[d];
+    if (!_move_ok(s, ini, lst, v, x)) return 0;
+    for (int d = 0; d < 3; d++) s->x[v][d] = x[d];
+    return 1;
+}
+
+//! BALANCE: recoloca cada vertice na altura que conserva o volume da sua
+//! estrela.  Devolve quantos vertices foram movidos -- os nao movidos foram
+//! rejeitados por anel aberto, normal residual, ponto medio fora da estrela ou
+//! inversao de triangulo, e cada um desses e' um caso em que mover faria mal.
+int ft3_balance(ft3_superficie *s, real limiar)
+{
+    int *ini, *lst;
+    _incidencia(s, &ini, &lst);
+    const int cap = 64;
+    int *anel = (int *) malloc((size_t) cap * sizeof *anel);
+    int movidos = 0;
+    for (int v = 0; v < s->nv; v++)
+        movidos += _balance_vertice(s, ini, lst, v, anel, cap, limiar);
+    free(anel); free(ini); free(lst);
+    return movidos;
+}
+
+//! TSUR: remove o zigue-zague submalha atravessando cada aresta, pondo os dois
+//! extremos numa altura comum ponderada pelos volumes das estrelas.
+//! `rlx` e' a relaxacao: 0 e' o comportamento do Freeflow (total), 1 nao move.
+int ft3_tsur(ft3_superficie *s, real rlx, real limiar)
+{
+    int na; ft3_aresta *ar = _arestas(s, &na);
+    if (ar == NULL) return 0;
+    int *ini, *lst;
+    _incidencia(s, &ini, &lst);
+    const int cap = 64;
+    int *a1 = (int *) malloc((size_t) cap * sizeof *a1);
+    int *a2 = (int *) malloc((size_t) cap * sizeof *a2);
+    int movidos = 0;
+
+    for (int e = 0; e < na; e++) {
+        const int v1 = ar[e].v0, v2 = ar[e].v1;
+        const int n1 = _anel(s, ini, lst, v1, a1, cap);
+        const int n2 = _anel(s, ini, lst, v2, a2, cap);
+        if (n1 == 0 || n2 == 0) continue;
+
+        real p1[3], p2[3], nor1[3], nor2[3];
+        _medio_anel(s, a1, n1, p1);
+        _medio_anel(s, a2, n2, p2);
+        if (!_normal_anel(s, a1, n1, p1, nor1)) continue;
+        if (!_normal_anel(s, a2, n2, p2, nor2)) continue;
+
+        real ne[3];
+        for (int d = 0; d < 3; d++) ne[d] = nor1[d] + nor2[d];
+        const real m = _norma(ne);
+        if (m < 1.0e-7) continue;
+        for (int d = 0; d < 3; d++) ne[d] /= m;
+
+        real meio[3];
+        for (int d = 0; d < 3; d++) meio[d] = 0.5*(s->x[v1][d] + s->x[v2][d]);
+
+        real d1[3], d2[3];
+        _sub(s->x[v1], meio, d1);
+        _sub(s->x[v2], meio, d2);
+        const real h1 = d1[0]*ne[0] + d1[1]*ne[1] + d1[2]*ne[2];
+        const real h2 = d2[0]*ne[0] + d2[1]*ne[1] + d2[2]*ne[2];
+
+        // LIMIAR: |h1| mede a INCLINACAO da aresta em relacao a' normal, que e'
+        // a propria ondulacao -- e' o indicador que o metodo ja' calcula.  Numa
+        // aresta alinhada com a superficie h1 e' residual e nao ha' o que
+        // remover; mover de todo modo introduz tensao artificial (ver a nota em
+        // _balance_vertice para a medida).  Compara-se com a MEIA aresta, que e'
+        // o maximo que |h1| pode valer.
+        {
+            real ar3[3]; _sub(s->x[v2], s->x[v1], ar3);
+            const real meia = 0.5 * _norma(ar3);
+            if (meia > 0.0 && fabs(h1) < limiar * meia) continue;
+        }
+
+        // base de cada vertice no plano que passa por `meio`
+        real b1[3], b2[3];
+        for (int d = 0; d < 3; d++) {
+            b1[d] = s->x[v1][d] - h1*ne[d];
+            b2[d] = s->x[v2][d] - h2*ne[d];
+        }
+
+        // STARVOL: volume da estrela com apice em base + normal da aresta
+        real ap1[3], ap2[3];
+        for (int d = 0; d < 3; d++) { ap1[d] = b1[d] + ne[d]; ap2[d] = b2[d] + ne[d]; }
+        real vol1 = 0.0, vol2 = 0.0;
+        for (int q = 0; q < n1; q++)
+            vol1 += _tetra(b1, ap1, s->x[a1[q]], s->x[a1[(q+1)%n1]]);
+        for (int q = 0; q < n2; q++)
+            vol2 += _tetra(b2, ap2, s->x[a2[q]], s->x[a2[(q+1)%n2]]);
+        if (fabs(vol1 + vol2) < 1.0e-14) continue;
+
+        const real hf = (vol1*h1 + vol2*h2) / (vol1 + vol2);
+        const real h1f = rlx*h1 + (1.0 - rlx)*hf;
+        const real h2f = rlx*h2 + (1.0 - rlx)*hf;
+
+        real x1[3], x2[3];
+        for (int d = 0; d < 3; d++) {
+            x1[d] = b1[d] + h1f*ne[d];
+            x2[d] = b2[d] + h2f*ne[d];
+        }
+        // AMBOS ou NENHUM, como no original: mover so' um dos dois extremos
+        // deixaria a aresta mais inclinada do que estava.
+        if (_move_ok(s, ini, lst, v1, x1) && _move_ok(s, ini, lst, v2, x2)) {
+            for (int d = 0; d < 3; d++) { s->x[v1][d] = x1[d]; s->x[v2][d] = x2[d]; }
+            movidos += 2;
+        }
+    }
+    free(a1); free(a2); free(ini); free(lst); free(ar);
+    return movidos;
+}
