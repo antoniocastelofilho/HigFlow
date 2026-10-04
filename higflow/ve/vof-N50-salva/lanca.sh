@@ -1,0 +1,133 @@
+#!/bin/bash
+# Espera a carga passar de 95%, roda o VOF em trechos retomaveis, e mantem uma
+# copia de seguranca VERIFICADA do ponto de salvamento.
+#
+# POR QUE EM TRECHOS.  Medido nesta maquina: com um solver rodando, a bateria
+# DRENA mesmo ligada na tomada -- a margem de potencia do adaptador nao cobre a
+# conta.  Logo a corrida nao cabe necessariamente numa carga, e o laco aqui e'
+# o que a faz atravessar varias: roda ate' a carga chegar ao piso, para num
+# instante ESCOLHIDO (logo depois de um salvamento, nao no meio de uma
+# gravacao), e espera recarregar.
+#
+# POR QUE A COPIA DE SEGURANCA.  O `.ok` DETECTA gravacao interrompida mas nao
+# recupera dela.  A copia e' feita de fora, e so' e' aceita se o `.ok` nao
+# mudou entre o inicio e o fim da copia -- se mudou, o solver estava gravando e
+# a copia e' descartada e repetida.  Com isso ha' sempre um conjunto completo:
+# o corrente, ou o anterior.
+set -u
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$AQUI"
+B=/sys/class/power_supply/BAT0
+TOTAL=2001
+ST=/tmp/vof-N50-status
+
+# OS DOIS NUMEROS DA BATERIA DISCORDAM, e escolher o errado quebra o lancador
+# em silencio.  Medido agora: `capacity` = 21 enquanto
+# charge_now/charge_full = 25,95%.  A referencia implicita de `capacity` e'
+# ~8,6 Ah, nem charge_full (6,955) nem charge_full_design (8,790) -- o driver
+# revisou charge_full para baixo depois da descarga funda e `capacity` seguiu
+# outra referencia.
+#
+# A instrucao foi "acima de 95%", e o 95% que o usuario le' e' `capacity` --
+# ele observou 97%-98% nesta maquina, valor que charge_now/charge_full ja' nao
+# alcancaria se eu tomasse charge_full como teto.  Logo a PORTA e' `capacity`.
+#
+# Mas gate unico em `capacity` tem o risco oposto: se a referencia dele estiver
+# velha, ele pode nao chegar a 95 nem com a bateria cheia, e o lancador
+# esperaria para sempre sem nada rodando.  Por isso ha' a segunda porta --
+# bateria efetivamente cheia pela razao propria -- e os dois numeros entram no
+# registro a cada tique, para a divergencia ficar visivel em vez de decidir
+# sozinha.
+ALVOPCT=95
+PISOPCT=12
+cheia() {
+    local c=$(cat $B/capacity)
+    local r=$(( $(cat $B/charge_now) * 100 / $(cat $B/charge_full) ))
+    [ "$c" -ge "$ALVOPCT" ] && return 0
+    [ "$r" -ge 99 ] && return 0
+    return 1
+}
+no_piso() { [ "$(cat $B/capacity)" -le "$PISOPCT" ]; }
+pct() { printf "%s%% (razao %s%%)" "$(cat $B/capacity)" \
+        "$(( $(cat $B/charge_now) * 100 / $(cat $B/charge_full) ))"; }
+diz() { echo "$(date '+%m-%d %H:%M') $*" | tee -a $ST; }
+
+# --------------------------------------------------- copia de seguranca
+guarda() {
+    while :; do
+        sleep 240
+        [ -f output/o.save.ok ] || continue
+        # RECUSA enquanto a gravacao esta' em curso.  Sem isto, comparar so' o
+        # `.ok` antes e depois nao basta: os `._dp*` sao escritos ANTES de o
+        # `.ok` ser renomeado, logo ha' uma janela em que os dados ja' sao da
+        # geracao nova e a marca ainda diz a anterior -- copiar ali guardaria um
+        # conjunto rasgado rotulado como bom, destruindo a copia de que se
+        # precisaria.
+        [ -f output/o.save.gravando ] && continue
+        A=$(cat output/o.save.ok 2>/dev/null)
+        PI=$(awk '/step:/{print $2}' output/o.save.init.yaml 2>/dev/null)
+        PO=$(echo "$A" | awk '/^passo/{print $2}')
+        [ -n "${PI:-}" ] && [ "$PI" = "${PO:-x}" ] || continue      # inconsistente: nao copia
+        [ -f seguranca/o.save.ok ] && \
+          [ "$(awk '/^passo/{print $2}' seguranca/o.save.ok)" = "$PO" ] && continue  # ja' e' esta
+        mkdir -p seguranca.tmp && rm -f seguranca.tmp/*
+        cp -f output/o.save.* seguranca.tmp/ 2>/dev/null
+        # ACEITA so' se o solver nao gravou durante a copia
+        if [ "$(cat output/o.save.ok 2>/dev/null)" = "$A" ] && \
+           [ ! -f output/o.save.gravando ]; then
+            rm -rf seguranca && mv seguranca.tmp seguranca
+            diz "copia de seguranca do passo $PO ($(du -sh seguranca 2>/dev/null|cut -f1))"
+        else
+            rm -rf seguranca.tmp     # o solver gravou no meio: descarta e repete
+        fi
+    done
+}
+
+# --------------------------------------------------- espera a carga
+diz "=== lancador do VOF N=50: espera carga acima de ${ALVOPCT}% ==="
+while ! cheia; do
+    diz "aguardando: $(pct) de ${ALVOPCT}%"
+    sleep 600
+done
+diz "carga em $(pct) -- LANCANDO"
+
+guarda & GUARDA=$!
+trap 'kill $GUARDA 2>/dev/null' EXIT
+
+falhas=0
+while :; do
+    PASSO=$(awk '/step:/{print $2}' output/o.save.init.yaml 2>/dev/null || echo 0)
+    if [ "${PASSO:-0}" -ge "$TOTAL" ]; then diz "*** CONCLUIDO: $PASSO de $TOTAL passos ***"; break; fi
+
+    ./roda.sh & SOLVER=$!
+    # vigia a carga enquanto o trecho roda
+    while kill -0 $SOLVER 2>/dev/null; do
+        sleep 120
+        if no_piso; then
+            diz "carga no piso ($(pct)) -- parando o trecho num instante escolhido"
+            pkill -INT -P $SOLVER 2>/dev/null
+            sleep 20
+            pkill -KILL -P $SOLVER 2>/dev/null
+            kill $SOLVER 2>/dev/null
+            break
+        fi
+    done
+    wait $SOLVER 2>/dev/null; R=$?
+
+    NOVO=$(awk '/step:/{print $2}' output/o.save.init.yaml 2>/dev/null || echo 0)
+    diz "trecho fechou exit=$R, passo $PASSO -> $NOVO, carga $(pct)"
+    if [ "${NOVO:-0}" -ge "$TOTAL" ]; then diz "*** CONCLUIDO: $NOVO de $TOTAL ***"; break; fi
+    if [ "${NOVO:-0}" -le "${PASSO:-0}" ]; then
+        falhas=$((falhas+1))
+        diz "o trecho NAO avancou (falha $falhas de 3)"
+        [ $falhas -ge 3 ] && { diz "*** tres trechos sem avancar -- parando para nao girar em falso ***"; break; }
+    else
+        falhas=0
+    fi
+    # espera recarregar antes do proximo trecho
+    while ! cheia; do
+        diz "recarregando: $(pct) de ${ALVOPCT}%"
+        sleep 900
+    done
+done
+diz "lancador encerrado"
