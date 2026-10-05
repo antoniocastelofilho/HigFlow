@@ -39,7 +39,7 @@ ST=/tmp/ft-N50-status
 # registro a cada tique, para a divergencia ficar visivel em vez de decidir
 # sozinha.
 ALVOPCT=95
-PISOPCT=12
+PISOPCT=15
 cheia() {
     local c=$(cat $B/capacity)
     local s=$(cat $B/status)
@@ -64,6 +64,54 @@ no_piso() { [ "$(cat $B/capacity)" -le "$PISOPCT" ]; }
 pct() { printf "%s%% (razao %s%%)" "$(cat $B/capacity)" \
         "$(( $(cat $B/charge_now) * 100 / $(cat $B/charge_full) ))"; }
 diz() { echo "$(date '+%m-%d %H:%M') $*" | tee -a $ST; }
+
+# --------------------------------------------------- parar a ARVORE
+# `pkill -P $SOLVER` mata so' os FILHOS DIRETOS de roda.sh.  A arvore real e'
+#   lanca.sh -> roda.sh -> taskset -> stdbuf -> time -> prterun -> ns-example-3d
+# logo aquilo matava o `taskset` e deixava prterun e ns-example-3d ORFAOS a 99%
+# de CPU.  Foi o que aconteceu: o lancador passou a esperar recarga achando que
+# o trecho tinha acabado, enquanto o solver seguia drenando -- a carga desceu a
+# 4% em vez de parar no piso.  A corrida nao se perdeu (os salvamentos
+# continuaram), mas o lancador poderia ter lancado um SEGUNDO trecho sobre o
+# primeiro, dois solvers gravando no mesmo output.
+#
+# `setsid` + `kill -$grupo` tambem NAO resolve, e isto foi MEDIDO: no teste o
+# grupo nao continha a arvore (setsid forkou, o PGID nao ficou igual ao $!) e
+# quem matou foi a varredura.  Logo a varredura e' o mecanismo, nao o reserva.
+#
+# A lista de descendentes e' colhida ANTES de matar: se o pai morre primeiro, os
+# filhos sao reparentados para o init e a caminhada os perde.  E a morte vai do
+# mais fundo para o mais raso, pela mesma razao.
+descendentes() {        # todos os descendentes de $1, do mais fundo para o raso
+    local p=$1 f
+    for f in $(ps -eo pid=,ppid= | awk -v P="$p" '$2==P {print $1}'); do
+        descendentes "$f"
+        echo "$f"
+    done
+}
+para_arvore() {
+    local raiz=$1 lista g p resto=""
+    lista=$(descendentes "$raiz")           # ANTES de matar
+    g=$(ps -o pgid= -p "$raiz" 2>/dev/null | tr -d ' ')
+    diz "encerrando raiz $raiz (grupo ${g:-?}); descendentes: $(echo $lista | tr '\n' ' ')"
+    for p in $lista;       do kill -INT  "$p" 2>/dev/null; done; sleep 15
+    for p in $lista $raiz; do kill -TERM "$p" 2>/dev/null; done; sleep 10
+    for p in $lista $raiz; do kill -KILL "$p" 2>/dev/null; done
+    [ -n "$g" ] && kill -KILL -- "-$g" 2>/dev/null
+    sleep 3
+    # VERIFICA por PID -- so' isso distingue "matei" de "achei que matei"
+    for p in $lista $raiz; do kill -0 "$p" 2>/dev/null && resto="$resto $p"; done
+    if [ -n "$resto" ]; then
+        diz "ATENCAO: AINDA VIVOS da nossa arvore:$resto -- NAO lanco outro trecho"
+        return 1
+    fi
+    # e avisa de solver ALHEIO, sem mata-lo: pode ser a outra corrida
+    local outros
+    outros=$(ps -eo pid,comm | awk '$2 ~ /ns-example|prterun|mpirun|orted/ {print $1}')
+    [ -n "$outros" ] && diz "nota: ha' solver de OUTRA corrida vivo ($(echo $outros|tr '\n' ' ')) -- nao mexi"
+    diz "arvore encerrada e verificada por PID"
+    return 0
+}
 
 # --------------------------------------------------- copia de seguranca
 guarda() {
@@ -118,10 +166,7 @@ while :; do
         sleep 120
         if no_piso; then
             diz "carga no piso ($(pct)) -- parando o trecho num instante escolhido"
-            pkill -INT -P $SOLVER 2>/dev/null
-            sleep 20
-            pkill -KILL -P $SOLVER 2>/dev/null
-            kill $SOLVER 2>/dev/null
+            para_arvore $SOLVER || { diz "*** parando o lancador: sobrou solver vivo ***"; exit 1; }
             break
         fi
     done
