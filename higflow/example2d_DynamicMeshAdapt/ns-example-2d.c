@@ -89,19 +89,28 @@ void print(higflow_solver* ns, int myrank, int ntasks){
             printf("*********************************************************************************\n");
     }
     
-    higflow_print_vtk(ns, myrank);
-    // if(ns->contr.flowtype == MULTIPHASE) higflow_print_vtk2D_multiphase(ns, myrank);
-    // higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
+    int vtk_unified = (ns->par.vtk_mode == VTK_UNIFIED ||
+                         ns->par.vtk_mode == VTK_BOTH);
+    int vtk_segregated = (ns->par.vtk_mode == VTK_SEGREGATED ||
+                          ns->par.vtk_mode == VTK_BOTH);
+
+    if (vtk_segregated)
+        higflow_print_vtk(ns, myrank);
+    if (vtk_unified)
+        higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
     // write_xdmf(ns);
     if(ns->contr.flowtype == MULTIPHASE) {
-        //higflow_print_vtk2D_multiphase_parallel_single(ns, myrank, ntasks);
         if(ns->par.step==0) {
             higflow_compute_curvature_interfacial_force_normal_multiphase_2D_hf_shirani(ns);
             higflow_compute_distance_multiphase_2D(ns);
             higflow_compute_plic_lines_2d(ns);
         }
         save_deformation_parameter(ns, myrank);
-        higflow_print_vtk2d_multiphase_plic_lines_serial_single(ns, myrank, ntasks);
+        // Both plic writers target the same file; each mode uses its own.
+        if (vtk_unified && !vtk_segregated)
+            higflow_print_vtk2D_multiphase_parallel_single(ns, myrank, ntasks);
+        else
+            higflow_print_vtk2d_multiphase_plic_lines_serial_single(ns, myrank, ntasks);
     }
     ns->par.frame++;
     ns->par.tp += ns->par.dtp;

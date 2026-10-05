@@ -7951,6 +7951,31 @@ void higflow_load_all_controllers_and_parameters_yaml(higflow_solver* ns, int my
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
+    // Which VTK frames print() writes.  Optional: absent key keeps the
+    // historical per-rank pieces.
+    ifd = fy_document_scanf(fyd, "/simulation_par/vtk_mode %s", auxchar);
+    if (ifd == 0) {
+        ns->par.vtk_mode = VTK_SEGREGATED;
+        print0f("=+=+=+= VTK mode: segregated (Using default value) =+=+=+=\n");
+    } else {
+        if (strcmp(auxchar, "segregated") == 0) {
+            ns->par.vtk_mode = VTK_SEGREGATED;
+            print0f("=+=+=+= VTK mode: segregated =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "unified") == 0) {
+            ns->par.vtk_mode = VTK_UNIFIED;
+            print0f("=+=+=+= VTK mode: unified =+=+=+=\n");
+        }
+        else if (strcmp(auxchar, "both") == 0) {
+            ns->par.vtk_mode = VTK_BOTH;
+            print0f("=+=+=+= VTK mode: both =+=+=+=\n");
+        }
+        else {
+            ns->par.vtk_mode = VTK_SEGREGATED;
+            print0f("=+=+=+= VTK mode: unknown '%s', using segregated =+=+=+=\n", auxchar);
+        }
+    }
+
     // Adimensional parameters
     ifd += fy_document_scanf(fyd, "/adimensional/Re %lf", &(ns->par.Re));
     print0f("=+=+=+= Reynolds Number: %lf =+=+=+=\n", ns->par.Re);

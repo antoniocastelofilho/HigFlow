@@ -418,6 +418,12 @@ if len(args) > 0:
     set_param(yaml_data, ['simulation_par', 'dt'], 'dt')
     set_param(yaml_data, ['simulation_par', 'dts'], 'dts')
     set_param(yaml_data, ['simulation_par', 'dtp'], 'dtp')
+    vtk_pos = pos_in_args('vtk=')
+    if(vtk_pos != -1):
+        vtk_val = args[vtk_pos].split('=')[1].strip().lower()
+        if(vtk_val not in ('segregated', 'unified', 'both')):
+            raise ValueError(f"vtk must be segregated, unified or both, got '{vtk_val}'")
+        yaml_data['simulation_par']['vtk_mode'] = vtk_val
     numsteps_pos = pos_in_args('numsteps=')
     if(numsteps_pos != -1):
         numsteps_ = int(args[numsteps_pos].split('=')[1])

@@ -141,6 +141,15 @@ typedef struct higflow_compcell{
     real d2Tdx2;
 } higflow_compcell;
 
+// How the VTK frames are written by print(): per-rank pieces, a single
+// MPI-IO file, or both.  Set from simulation_par/vtk_mode in the yaml
+// (setup.py token vtk=); absent key means segregated, the historical output.
+typedef enum vtk_mode_type {
+    VTK_SEGREGATED = 0,
+    VTK_UNIFIED = 1,
+    VTK_BOTH = 2
+} vtk_mode_type;
+
 // Parameters for simulation data structure
 typedef struct higflow_parameters{
     // // Density
@@ -176,6 +185,8 @@ typedef struct higflow_parameters{
     real   dtp;
     // Frame number for print
     int    frame;
+    // Which VTK frames print() writes (simulation_par/vtk_mode)
+    vtk_mode_type vtk_mode;
     // File name for print 
     char   *nameprint;
     // File name for load
