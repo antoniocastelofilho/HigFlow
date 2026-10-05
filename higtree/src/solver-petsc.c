@@ -438,6 +438,23 @@ static PetscErrorCode singular_converged_ctx_destroy(void *ctx)
 	return ret;
 }
 
+#if ((PETSC_VERSION_MAJOR == 3) && (PETSC_VERSION_MINOR < 25)) || (PETSC_VERSION_MAJOR < 3)
+/* PETSc < 3.25 destroys the context through a double pointer, and its
+ * KSPConvergedDefaultDestroy takes one too.  This adapter keeps the tree
+ * building against the older module (Euler petsc/3.24.1); on 3.25+ the
+ * direct function above is used and this vanishes. */
+static PetscErrorCode singular_converged_ctx_destroy_324(void **ctxp)
+{
+	singular_converged_ctx *c = (singular_converged_ctx *) *ctxp;
+	PetscErrorCode ret = KSPConvergedDefaultDestroy(&c->default_ctx);
+	free(c);
+	return ret;
+}
+#define SINGULAR_CTX_DESTROY singular_converged_ctx_destroy_324
+#else
+#define SINGULAR_CTX_DESTROY singular_converged_ctx_destroy
+#endif
+
 static PetscErrorCode singular_converged(KSP ksp, PetscInt n,
 	PetscReal rnorm, KSPConvergedReason *reason, void *ctx)
 {
@@ -491,7 +508,7 @@ static void set_singular_convergence_test(_solver_impl_petsc *s)
 	cctx->tolerance = 1e4;
 
 	KSPSetConvergenceTest(subksp[1], singular_converged, cctx,
-		singular_converged_ctx_destroy);
+		SINGULAR_CTX_DESTROY);
 
 	PetscFree(subksp);
 
