@@ -1395,7 +1395,11 @@ get_stencil_neumann_any_order(sim_domain *d, const Point x, real alpha,
 
 		real delta = 1.0;
 		hig_cell *c = sd_get_cell_with_point(d, best.proj_x);
-		assert(c);
+		// The projected point may fall outside the local coverage (common
+		// when remeshing repartitions): with no cell there is no delta,
+		// so decline and let the next closure try instead of dereferencing
+		// NULL (assert is compiled out in release builds).
+		if (!c) return false;
 		Point cdelta;
 		hig_get_delta(c, cdelta);
 		delta = cdelta[best.proj_dir];

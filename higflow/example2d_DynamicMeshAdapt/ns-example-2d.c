@@ -283,6 +283,11 @@ void higflow_interpolate_all_cells(higflow_solver *ns, higflow_solver *ns2) {
 
         int clid_m = mp_lookup(mpm2, hig_get_cid(c));
         int clid_p = mp_lookup(mpp2, hig_get_cid(c));
+        // A fringe/ghost cell may have no counterpart in the other domain
+        // (its value arrives via dp_sync); writing with a negative lid
+        // corrupts the heap (measured: values[-1] clobbers the chunk header,
+        // surfacing as a double-free at teardown).
+        if (clid_m < 0 && clid_p < 0) continue;
 
         real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0,
                                                ns->ed.mult.dpfracvol, ns->ed.mult.stn);
@@ -303,10 +308,13 @@ void higflow_interpolate_all_cells(higflow_solver *ns, higflow_solver *ns2) {
         real p = compute_value_at_point(sdp, ccenter, ccenter, 1.0,
                                          ns->dpp, ns->stn);
 
-        dp_set_value(ns2->ed.mult.dpfracvol, clid_m, fracvol);
-        dp_set_value(ns2->ed.mult.dpvisc,   clid_m, visc);
-        dp_set_value(ns2->ed.mult.dpdens,   clid_m, dens);
-        dp_set_value(ns2->dpp,              clid_p, p);
+        if (clid_m >= 0) {
+            dp_set_value(ns2->ed.mult.dpfracvol, clid_m, fracvol);
+            dp_set_value(ns2->ed.mult.dpvisc,   clid_m, visc);
+            dp_set_value(ns2->ed.mult.dpdens,   clid_m, dens);
+        }
+        if (clid_p >= 0)
+            dp_set_value(ns2->dpp,              clid_p, p);
     }
     higcit_destroy(it);
 
@@ -366,6 +374,7 @@ void higflow_interpolate_viscoelastic_tensors(higflow_solver *ns,
 
 // Interpola velocidade (facets) da malha velha para a nova
 void higflow_interpolate_velocity(higflow_solver *ns, higflow_solver *ns2) {
+    sim_domain *sdp_old = psd_get_local_domain(ns->psdp);
     for (int dim = 0; dim < DIM; dim++) {
         sim_facet_domain *sfdu  = psfd_get_local_domain(ns->psfdu[dim]);
         sim_facet_domain *sfdu2 = psfd_get_local_domain(ns2->psfdu[dim]);
@@ -377,6 +386,10 @@ void higflow_interpolate_velocity(higflow_solver *ns, higflow_solver *ns2) {
             int flid = mp_lookup(mu2, hig_get_fid(f));
             Point fcenter;
             hig_get_facet_center(f, fcenter);
+            // No old cell covers this center (repartition moved it): there
+            // is no stencil to build.  The value arrives via dp_sync/BCs;
+            // interpolating here crashes inside get_stencil (measured).
+            if (flid < 0 || sd_get_cell_with_point(sdp_old, fcenter) == NULL) continue;
             stn_reset(ns->stn);
             sfd_get_stencil(sfdu, fcenter, fcenter, 1, ns->stn);
             real u = dp_interpolate_from_stencil(ns->dpu[dim], ns->stn);
@@ -428,7 +441,10 @@ void higflow_interpolate_all_bcs(higflow_solver *ns, higflow_solver *ns2) {
                     hig_cell *bcell = higcit_getcell(it);
                     Point bc; hig_get_center(bcell, bc);
                     int bclid = mp_lookup(bm2, hig_get_cid(bcell));
-                    sb_set_value(bc2, bclid, ns2->func.get_boundary_velocity(uid, bc, dim, ns2->par.t + ns2->par.dt));
+                    // Through the problem object: this example registers a
+                    // HigFlowProblem, never the legacy func pointers, so
+                    // ns2->func.get_boundary_velocity is always NULL here.
+                    sb_set_value(bc2, bclid, ns2->problem->boundary_velocity(uid, bc, dim, ns2->par.t + ns2->par.dt));
                 }
                 higcit_destroy(it);
             }
