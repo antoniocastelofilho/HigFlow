@@ -117,10 +117,13 @@ public:
                     value = 0.0;
                 break;
             case 1:
-                if(flowtype == MULTIPHASE && eoflow_either == false)
-                    value = 0.1;
-                else
-                    value = 0.0;
+                // No normal velocity on the lid: the box is closed (no-slip
+                // walls, Neumann pressure everywhere), so a nonzero value
+                // has no outlet to balance it.  0.1 here drained 0.1 area
+                // units per unit time, the pressure problem became
+                // incompatible, and the non-solenoidal velocity made the
+                // VOF advection create exactly that much drop volume.
+                value = 0.0;
                 break;
             }
             break;

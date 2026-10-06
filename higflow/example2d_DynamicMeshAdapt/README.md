@@ -32,6 +32,18 @@ make build_run NP=1 MESH=square_61_br                             \
   ENAME=$(date +"%Y%m%d_%H%M")
 ```
 
+### VTK output mode
+
+Frames are written as one unified MPI-IO file per frame by default
+(`vtk_mode: unified` in `input/load.par.contr.yaml`, also the library
+default when the key is absent).  Override per run with `vtk=` in `IN`:
+
+|Value|Output|
+|-----|-------|
+|`unified`|one file per frame, whatever the number of ranks (default)|
+|`segregated`|one piece per rank per frame (`print_<rank>-<frame>.vtk`)|
+|`both`|both of the above|
+
 To switch between configurations, comment/uncomment the appropriate
 `func()` in `ns-user-functions-vof.c` and adjust the boundary
 conditions in `ns-user-functions-newtonian-gn.c` as needed.
@@ -172,19 +184,15 @@ sharpening, but the `printf` can be removed if output volume becomes an issue).
 
 ### 5. Lid-driven cavity velocity
 
-**Change:** Top wall velocity (bc1) was reduced from `u=2.0` to `u=1.0` and a
-small
-perpendicular component `v=0.1` was added. The velocity initial condition was
-updated
-from `u=2.0*y` to `u=y` for consistency with the boundary condition.
+**Change:** Top wall velocity (bc1) was reduced from `u=2.0` to `u=1.0`, and
+the velocity initial condition from `u=2.0*y` to `u=y`.
 
-Physics note: Couette flow (u=y, v=0) is an exact Navier-Stokes solution with
-uniform
-pressure, fully compatible with the Neumann pressure BCs (dp/dn=0) in the YAML.
+A perpendicular lid component `v=0.1` was added at the same time and removed
+again (see item 11): the cavity is closed, so any normal velocity on the lid
+is a net outflow with nothing to balance it.
 
 **Files:** `ns-user-functions-newtonian-gn.c`, functions `get_boundary_velocity`
-(case 1)
-and `get_velocity`.
+(case 1) and `get_velocity`.
 
 ### 10. Boundary higtree refinement (BC AMR)
 
@@ -263,6 +271,80 @@ should report extra cells in that region.
 **Files:** `higflow/src/hig-flow-bc.c` (hook mechanism only),
 `higflow/src/hig-flow-bc.h` (declaration), `ns-example-2d.c`
 (refinement logic + `#if ADAPT_ENABLED` call sites).
+
+### 11. Diffuse interface at step 0 and drop volume growing linearly
+
+**Symptom:** With `adapt=true` the interface was already diffuse in the very
+first frame: 5208 flow cells with `0.01 < FracVol < 0.99`, against 420 once
+fixed.  The drop also gained volume linearly, +49% by `t=1`, with or without
+AMR.
+
+**Cause 1 (diffusion):** the VOF state (`fracvol`, PLIC, curvature) lives on
+the multiphase tree `sdmult`, which HiGFlow always builds *uniform at the
+finest level* of the input mesh.  The rebuild built it from the base `.amr`
+(61x61) while the flow cells at the interface are `2^nlevels` finer, so
+`fracvol` was initialized and advected at 1/61 and reached the fine cells
+only through interpolation.  `example2d_VOF` documents the same constraint.
+
+**Fix 1:** `higflow_rebuild_with_amr` builds `sdmult` uniform at
+`h_base / 2^nlevels` (244x244 for `square_61_br` with two levels).  The field
+is initialized analytically on that tree at step 0.  Since the tree no
+longer changes between remeshes, `higflow_interpolate_all_cells` carries
+`fracvol` over *exactly*, matched by position across ranks
+(`rem_colhe_centro` / `rem_planta_centro`), instead of a WLS interpolation
+plus the 0.4 clamp at steps 5 and 10.  Density and viscosity follow from
+`fracvol` through the mixing law.  Pressure is now interpolated over the
+flow tree; before, it was written through a multiphase cell id looked up in
+the flow mapper, which addresses an unrelated cell.
+
+**Cause 2 (volume growth):** the lid had `v=0.1` (item 5).  In a closed box
+with Neumann pressure on every wall, that is a net outflow of 0.1 area units
+per unit time.  The pressure problem becomes incompatible, the velocity is
+not solenoidal, and the EI-LE advection turns the divergence into drop
+volume: measured `dV/dt = 0.1000` on the uniform 61x61 mesh.
+
+**Fix 2:** `v=0` on the lid.
+
+**Cause 3 (residual volume loss with AMR only, ~2% per time unit):** with
+Neumann pressure on every wall, one row of the pressure system is replaced
+by "p = value", so that cell does not satisfy continuity and absorbs the
+compatibility residual.  On a uniform mesh the residual is round-off.  On
+the adapted mesh the projection is not conservative across coarse/fine
+transitions (the coarse cell uses the WLS value at its face center, the fine
+cells their own facets), so the residual is real, and the library default
+puts that cell at the domain center, inside the drop: a point sink of
+volume, measured as a single cell with `div u = -277`.  Moving the cell out
+is not enough on its own: every coarse/fine transition is itself a small
+source or sink, and with a band-only criterion the drop interior is coarse,
+so it holds transitions.
+
+**Fix 3:** the case fixes the pressure in a corner, in phase 0, through a
+new optional library hook `higflow_set_pressure_reference_point` (without
+it the library behaves exactly as before), and the refinement seeds are all
+cells with `fracvol > 0.001`, so phase 1 is entirely at the finest level
+and no transition lies inside it (`AMR_REFINE_PHASE1_INTERIOR` in
+`mesh_adapt_function.c`; set it to 0 for the band-only criterion).  The
+sources left at transitions in phase 0 do not touch `fracvol`.
+
+|Run (30 steps)|relative volume change|
+|-----|-------|
+|uniform 61x61|-2.8e-12|
+|uniform 244x244|-1.5e-9|
+|AMR, cause 1 and 2 fixed|-6.9e-4|
+|AMR, pressure cell moved only|-9.4e-4|
+|AMR, all fixes|-2.1e-9|
+
+**Diagnostic:** every printed frame logs a line read on `sdmult` itself, not
+on the VTK (which samples `fracvol` at the flow cells):
+
+```text
+=+= VOF step=... t=... h_mult=... volume=... rel_change=... mixed_cells=...
+```
+
+**Files:** `ns-example-2d.c`, `mesh_adapt_function.c`,
+`ns-user-functions-newtonian-gn.c`, `Makefile` (`hig-flow-remalha.o`);
+library hook in `higflow/src/hig-flow-kernel.{c,h}` and
+`higflow/src/hig-flow-step.c`.
 
 ## Current status
 

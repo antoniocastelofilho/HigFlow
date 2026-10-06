@@ -21,6 +21,13 @@
 #include "../examples-common/eo-droplet-2d.c"
 #include <stdlib.h>
 
+/*! Where the pressure is fixed (every pressure BC is Neumann).  The fixed
+ *  cell does not satisfy continuity and absorbs the compatibility residual,
+ *  which on an adapted mesh is a real point sink.  The library default, the
+ *  domain center, is the center of the drop: it drained the drop at a
+ *  constant rate.  A corner stays in phase 0 for the whole run. */
+Point pressure_ref_point = {1.0e-3, 1.0e-3};
+
 /******************************************************************************************/
 /******************************************************************************************/
 /********************************* main user functions ************************************/
@@ -39,6 +46,7 @@ void create_initialize_all_domains(higflow_solver* ns, int myrank, int ntasks) {
     higflow_create_domain(ns, cache, order_center);
     // Registro por objeto: a interface substitui os oito ponteiros.
     higflow_set_problem(ns, &problema);
+    higflow_set_pressure_reference_point(ns, pressure_ref_point);
 
     switch (ns->contr.flowtype) {
         case GENERALIZED_NEWTONIAN:
@@ -80,7 +88,49 @@ void save(higflow_solver* ns, int myrank, int ntasks) {
     ns->par.ts += ns->par.dts;
 }
 
+/*! \brief Print the VOF mass and interface width, read on the multiphase tree.
+ *
+ *  Read on the tree that holds the state, not on the VTK: the VTK samples
+ *  fracvol at the flow cells, so it reports interpolated values.  `mixed`
+ *  counts cells with 1e-6 < f < 1 - 1e-6; for a sharp interface it scales
+ *  with the interface length over the cell size, a smeared one is wider.
+ */
+void vof_report(higflow_solver *ns)
+{
+    static real volume0 = -1.0;
+    sim_domain *sdm = psd_get_local_domain(ns->ed.mult.psdmult);
+    mp_mapper *mp = sd_get_domain_mapper(sdm);
+    int nloc = ns->ed.mult.dpfracvol->pdata->local_count;
+    real local[2] = {0.0, 0.0};   // {volume, mixed cells}
+    real h = 0.0;
+    higcit_celliterator *it;
+    for (it = sd_get_domain_celliterator(sdm); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid < 0 || clid >= nloc) continue;
+        Point delta;
+        hig_get_delta(c, delta);
+        h = delta[0];
+        real f = dp_get_value(ns->ed.mult.dpfracvol, clid);
+        local[0] += f * delta[0] * delta[1];
+        if (f > 1.0e-6 && f < 1.0 - 1.0e-6) local[1] += 1.0;
+    }
+    higcit_destroy(it);
+    real global[2];
+    real hmax;
+    MPI_Allreduce(local, global, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&h, &hmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    if (volume0 < 0.0) volume0 = global[0];
+    print0f("=+= VOF step=%d t=%.6f h_mult=%.6e volume=%.12e "
+            "rel_change=%+.3e mixed_cells=%.0f\n",
+            ns->par.step, ns->par.t, hmax, global[0],
+            (global[0] - volume0) / volume0, global[1]);
+}
+
 void print(higflow_solver* ns, int myrank, int ntasks){
+    if (ns->contr.flowtype == MULTIPHASE)
+        vof_report(ns);
     if (myrank == 0) {
             printf("*********************************************************************************\n");
             printf("*********************************************************************************\n");
@@ -130,6 +180,30 @@ real REFINE_THRESHOLDS[] = {0.05, 0.03, -1.0};
 
 #include "mesh_adapt_function.c"
 
+/*! \brief Number of refinement levels encoded in a sentinel-ended array. */
+static int amr_num_levels(const real *thresholds)
+{
+    int n = 0;
+    while (n < 10 && thresholds[n] >= 0.0) n++;
+    return n;
+}
+
+/*! \brief Make a single-level uniform amr_info 2^nlevels times finer.
+ *
+ *  The cell count is recomputed from the new spacing exactly as
+ *  higflow_create_amr_info_mult does, so delta and patch size stay
+ *  consistent to round-off (higtree rejects a mismatch).
+ */
+static void amr_info_refine_uniform(higio_amr_info *mi, int nlevels)
+{
+    int factor = 1 << nlevels;
+    for (int dim = 0; dim < DIM; dim++) {
+        int nc = mi->levels[0].patches[0].patchsize[dim] * factor;
+        mi->levels[0].delta[dim] = (mi->h[dim] - mi->l[dim]) / nc;
+        mi->levels[0].patches[0].patchsize[dim] = nc;
+    }
+}
+
 /*! \brief Rebuild a partially-initialized solver with an adapted mesh.
  *
  *  Assumes ns2 already has its controllers, external functions and
@@ -160,11 +234,21 @@ static void higflow_rebuild_with_amr(higflow_solver *ns,
     print0f("===> AMR: rank %d leaves=%ld total_leaves=%ld\n",
             myrank, local_leaves, global_leaves);
 
-    // Uniform multiphase tree built from the same AMR file.
+    // Uniform multiphase tree at the FINEST level the adaptation can reach.
+    // The VOF state (fracvol, PLIC, curvature) lives only on this tree; the
+    // flow tree merely samples it.  Built from the base .amr alone, it would
+    // stay at the base spacing while the flow cells at the interface are
+    // 2^nlevels finer: fracvol would be initialized and advected on the
+    // coarse tree and reach the fine cells only through interpolation, i.e.
+    // a diffuse interface from step 0 on.  Fixed at the finest level, the
+    // tree is also identical across remeshes, so fracvol can be carried over
+    // exactly instead of interpolated.
     FILE *fd = fopen("mesh/__using/domain/ch-d.amr", "r");
     higio_amr_info *mi = fd ? higio_read_amr_info(fd) : NULL;
     if (fd) fclose(fd);
     higio_amr_info *mi_mult = mi ? higflow_create_amr_info_mult(mi) : NULL;
+    if (mi_mult)
+        amr_info_refine_uniform(mi_mult, amr_num_levels(REFINE_THRESHOLDS));
     hig_cell *mult_root = mi_mult ? higio_read_from_amr_info(mi_mult) : NULL;
 
     // Partition graph and load balancer (group 0 = flow, group 1 = multiphase).
@@ -265,62 +349,80 @@ real compute_total_fracvol(higflow_solver *ns) {
     return global_total;
 }
 
-// Interpolate all cell-centered properties in a single iterator pass
+/*! \brief Carry the cell-centered state from the old solver to the new one.
+ *
+ *  fracvol is the VOF state and must keep its mass and its sharpness.  The
+ *  multiphase tree is uniform at the finest level and identical before and
+ *  after a remesh (see higflow_rebuild_with_amr), so every new cell has an
+ *  old twin at the same position: the value is copied exactly, matched by
+ *  position across ranks.  An interpolation here would smear the interface
+ *  and change the volume at every remesh.  Density and viscosity follow
+ *  from fracvol through the phase mixing law.
+ *
+ *  Pressure lives on the adapted flow tree, which does change, so it is
+ *  interpolated there (it only seeds the next projection).
+ */
 void higflow_interpolate_all_cells(higflow_solver *ns, higflow_solver *ns2) {
     sim_domain *sdp  = psd_get_local_domain(ns->psdp);
     sim_domain *sdm  = psd_get_local_domain(ns->ed.mult.psdmult);
     sim_domain *sdp2 = psd_get_local_domain(ns2->psdp);
     sim_domain *sdm2 = psd_get_local_domain(ns2->ed.mult.psdmult);
 
-    mp_mapper *mpp2 = sd_get_domain_mapper(sdp2);
-    mp_mapper *mpm2 = sd_get_domain_mapper(sdm2);
+    // Volume fraction: exact transfer on the unchanged multiphase tree.
+    rem_colheita *cfrac = rem_colhe_centro(sdm, ns->ed.mult.dpfracvol);
+    long missing = rem_planta_centro(cfrac, sdm2, ns2->ed.mult.dpfracvol,
+                                     NULL);
+    rem_destroi(cfrac);
+    long missing_global = 0;
+    MPI_Allreduce(&missing, &missing_global, 1, MPI_LONG, MPI_SUM,
+                  MPI_COMM_WORLD);
+    if (missing_global != 0) {
+        print0f("ERROR: %ld multiphase cells without a fracvol after the "
+                "remesh; the multiphase tree changed\n", missing_global);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    dp_sync(ns2->ed.mult.dpfracvol);
 
+    mp_mapper *mpm2 = sd_get_domain_mapper(sdm2);
     higcit_celliterator *it;
-    for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it); higcit_nextcell(it)) {
+    for (it = sd_get_domain_celliterator(sdm2); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
         hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mpm2, hig_get_cid(c));
+        if (clid < 0) continue;
         Point ccenter;
         hig_get_center(c, ccenter);
-
-        int clid_m = mp_lookup(mpm2, hig_get_cid(c));
-        int clid_p = mp_lookup(mpp2, hig_get_cid(c));
-        // A fringe/ghost cell may have no counterpart in the other domain
-        // (its value arrives via dp_sync); writing with a negative lid
-        // corrupts the heap (measured: values[-1] clobbers the chunk header,
-        // surfacing as a double-free at teardown).
-        if (clid_m < 0 && clid_p < 0) continue;
-
-        real fracvol = compute_value_at_point(sdm, ccenter, ccenter, 1.0,
-                                               ns->ed.mult.dpfracvol, ns->ed.mult.stn);
-
-        if (ns->par.step == 5 || ns->par.step == 10) {
-            real val = 0.4;
-            if (fracvol >= (1.0 - val))      fracvol = 1.0;
-            else if (fracvol <= val)         fracvol = 0.0;
-        }
-
-        real visc = compute_value_at_point(sdm, ccenter, ccenter, 1.0,
-                                            ns->ed.mult.dpvisc, ns->ed.mult.stn);
-
-        real dens0 = ns->ed.mult.get_density0(ccenter, ns->par.t);
-        real dens1 = ns->ed.mult.get_density1(ccenter, ns->par.t);
-        real dens  = (1.0 - fracvol) * dens0 + fracvol * dens1;
-
-        real p = compute_value_at_point(sdp, ccenter, ccenter, 1.0,
-                                         ns->dpp, ns->stn);
-
-        if (clid_m >= 0) {
-            dp_set_value(ns2->ed.mult.dpfracvol, clid_m, fracvol);
-            dp_set_value(ns2->ed.mult.dpvisc,   clid_m, visc);
-            dp_set_value(ns2->ed.mult.dpdens,   clid_m, dens);
-        }
-        if (clid_p >= 0)
-            dp_set_value(ns2->dpp,              clid_p, p);
+        real t = ns->par.t;
+        real f = dp_get_value(ns2->ed.mult.dpfracvol, clid);
+        real dens = (1.0 - f) * ns->ed.mult.get_density0(ccenter, t)
+                    + f * ns->ed.mult.get_density1(ccenter, t);
+        real visc = (1.0 - f) * ns->ed.mult.get_viscosity0(ccenter, t)
+                    + f * ns->ed.mult.get_viscosity1(ccenter, t);
+        dp_set_value(ns2->ed.mult.dpdens, clid, dens);
+        dp_set_value(ns2->ed.mult.dpvisc, clid, visc);
     }
     higcit_destroy(it);
-
-    dp_sync(ns2->ed.mult.dpfracvol);
     dp_sync(ns2->ed.mult.dpvisc);
     dp_sync(ns2->ed.mult.dpdens);
+
+    // Pressure on the flow tree.  Cells are matched in the flow mapper; a
+    // cell id from the multiphase tree means nothing there.
+    mp_mapper *mpp2 = sd_get_domain_mapper(sdp2);
+    for (it = sd_get_domain_celliterator(sdp2); !higcit_isfinished(it);
+         higcit_nextcell(it)) {
+        hig_cell *c = higcit_getcell(it);
+        int clid = mp_lookup(mpp2, hig_get_cid(c));
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        // No old cell covers this center after a repartition: the value
+        // arrives through dp_sync.
+        if (clid < 0 || sd_get_cell_with_point(sdp, ccenter) == NULL)
+            continue;
+        real p = compute_value_at_point(sdp, ccenter, ccenter, 1.0,
+                                        ns->dpp, ns->stn);
+        dp_set_value(ns2->dpp, clid, p);
+    }
+    higcit_destroy(it);
     dp_sync(ns2->dpp);
 }
 
@@ -495,6 +597,7 @@ int main(int argc, char* argv[]) {
         higflow_load_all_controllers_and_parameters_yaml(ns2, myrank);
         // Registro por objeto: a interface substitui os oito ponteiros.
         higflow_set_problem(ns2, &problema);
+        higflow_set_pressure_reference_point(ns2, pressure_ref_point);
 
         higflow_create_domain(ns2, cache, order_center);
         higflow_create_domain_multiphase(ns2, cache, order_center,
@@ -534,7 +637,6 @@ int main(int argc, char* argv[]) {
     if (!amr_solver_ready) {
         higflow_create_distributed_properties(ns);
     }
-    higflow_print_vtk(ns, myrank);
     if (ns->par.step == 0) {
         higflow_initialize_distributed_properties(ns);
         real v0 = compute_total_fracvol(ns);
@@ -637,6 +739,7 @@ int main(int argc, char* argv[]) {
 
             // Registro por objeto: a interface substitui os oito ponteiros.
             higflow_set_problem(ns2, &problema);
+            higflow_set_pressure_reference_point(ns2, pressure_ref_point);
             higflow_create_domain(ns2, cache, order_center);
             higflow_create_domain_multiphase(ns2, cache, order_center,
                                              get_viscosity0, get_viscosity1,

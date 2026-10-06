@@ -17,6 +17,20 @@
 #include <float.h>
 #include <mpi.h>
 
+// Seed the whole phase-1 region (fracvol > 0.001), not only the cut cells.
+//
+// The projection is not conservative across a coarse/fine transition: the
+// coarse cell imposes continuity with the WLS value at its face center, the
+// fine cells with their own facets, and the two fluxes differ.  Each
+// transition is a small volume source or sink.  Where fracvol = 0 that is
+// harmless to the VOF; where fracvol = 1 the advection carries it to the
+// interface and the drop gains or loses volume (measured: -0.09% in 30
+// steps, against -2e-9 with the interior refined).  So no transition may sit
+// inside phase 1.  Set to 0 to refine only a band around the interface.
+#ifndef AMR_REFINE_PHASE1_INTERIOR
+#define AMR_REFINE_PHASE1_INTERIOR 1
+#endif
+
 typedef struct { Point center; } InterfaceSeedAdapt;
 
 static real dist_sq_c(Point p1, Point p2) {
@@ -141,7 +155,7 @@ static InterfaceSeedAdapt *collect_interface_seeds_local(
             val = dp_get_value(ns->ed.mult.dpfracvol, clid);
         }
 
-        if (val > 0.001 && val < 0.999) {
+        if (val > 0.001 && (AMR_REFINE_PHASE1_INTERIOR || val < 0.999)) {
             if (seed_count >= seed_cap) {
                 seed_cap *= 2;
                 seeds = (InterfaceSeedAdapt *) realloc(seeds, seed_cap * sizeof(*seeds));
