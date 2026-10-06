@@ -1361,6 +1361,12 @@ typedef struct higflow_solver {
     //! \brief Fonte da PARTICAO.  NULL = `lb_calc_partition`, como sempre.
     higflow_fonte_de_particao fonte_de_particao;
     void                     *fonte_de_particao_ctx;
+
+    //! \brief Where the pressure is fixed when every pressure BC is Neumann.
+    //! false = the cell at the center of the first tree, as always.  See
+    //! higflow_set_pressure_reference_point.
+    bool  pressure_ref_point_set;
+    Point pressure_ref_point;
 } higflow_solver;
 
 // *******************************************************************
@@ -1656,6 +1662,18 @@ void higflow_create_stencils_electroosmotic(higflow_solver *ns);
 //! fracvol E' o estado e precisaria de transferencia CONSERVATIVA, que aquela
 //! funcao nao faz -- entao o VOF puro continua fora.
 void higflow_set_fracvol_externo(higflow_solver *ns, bool externo);
+
+/*! \brief Fix the pressure at the cell containing `p` instead of the default.
+ *
+ *  With Neumann pressure on every boundary one row of the pressure system is
+ *  replaced by "p = value", so continuity is NOT imposed in that cell: it
+ *  absorbs whatever compatibility residual the discrete divergence leaves.
+ *  On a uniform mesh that residual is round-off; on an adapted mesh the
+ *  coarse/fine fluxes do not telescope exactly and the cell becomes a point
+ *  source or sink.  A multiphase case should keep it away from the tracked
+ *  phase, or that phase gains or loses volume there.
+ */
+void higflow_set_pressure_reference_point(higflow_solver *ns, const Point p);
 
 void higflow_set_fronteira_imersa(higflow_solver *ns,
                                   higflow_fronteira_imersa f, void *ctx);

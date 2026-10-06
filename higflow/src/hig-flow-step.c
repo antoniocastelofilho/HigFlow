@@ -36,14 +36,54 @@
 
 #include "hig-flow-step.h"
 #include "hig-mesh-snapshot.h"
+#include <limits.h>
 
 // *******************************************************************
 // Navier-Stokes step elements
 // *******************************************************************
 
 // Remove singularity for the pressure
+// Fix the pressure at the cell holding ns->pressure_ref_point.  The row is
+// owned by exactly one rank, and only the owner may replace it: the others
+// skip nothing, since slvp->imposed_line stays -1 there.
+static void _remove_pressure_singularity_at_point(higflow_solver *ns,
+                                                  solver *slvp) {
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    mp_mapper *mp = sd_get_domain_mapper(sdp);
+    int nown = ns->dpp->pdata->local_count;
+    int clid = -1;
+    hig_cell *c = sd_get_cell_with_point(sdp, ns->pressure_ref_point);
+    if (c != NULL) {
+        clid = mp_lookup(mp, hig_get_cid(c));
+        if (clid >= nown) clid = -1;   // fringe copy: not the owner
+    }
+    int candidate = (clid >= 0) ? rank : INT_MAX;
+    int owner;
+    MPI_Allreduce(&candidate, &owner, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    if (owner == INT_MAX) {
+        print0f("remove_pressure_singularity: no cell holds the pressure "
+                "reference point (%g, %g)\n", ns->pressure_ref_point[0],
+                ns->pressure_ref_point[1]);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    if (rank == owner) {
+        Point ccenter;
+        hig_get_center(c, ccenter);
+        real t = ns->par.t, dt = ns->par.dt;
+        real value = ns->problem->pressure(ccenter, t + dt);
+        if (ns->contr.projtype == INCREMENTAL)
+            value -= dp_get_value(ns->dpp, clid);
+        slv_impose_value(slvp, psd_lid_to_gid(ns->psdp, clid), value);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
 void remove_pressure_singularity(higflow_solver *ns, solver *slvp) {
-    if (ns->contr.desingpressure == true) {
+    if (ns->contr.desingpressure == true && ns->pressure_ref_point_set) {
+        _remove_pressure_singularity_at_point(ns, slvp);
+    } else if (ns->contr.desingpressure == true) {
         int cgid, clid;
         real value;
         int rank;

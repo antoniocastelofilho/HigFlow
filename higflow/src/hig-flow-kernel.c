@@ -53,6 +53,7 @@ higflow_solver *higflow_create (void) {
     ns->fonte_de_particao_ctx = NULL;
     // A struct vem de malloc, que nao zera: sem isto o ponteiro comeca indefinido.
     ns->problem = NULL;
+    ns->pressure_ref_point_set = false;
     return ns;
 }
 
@@ -1675,6 +1676,11 @@ void higflow_set_remalha_avisa(higflow_solver *ns,
                                higflow_fronteira_imersa avisa, void *ctx) {
     ns->remalha_avisa     = avisa;
     ns->remalha_avisa_ctx = ctx;
+}
+
+void higflow_set_pressure_reference_point(higflow_solver *ns, const Point p) {
+    ns->pressure_ref_point_set = true;
+    POINT_ASSIGN(ns->pressure_ref_point, p);
 }
 
 void higflow_set_fracvol_externo(higflow_solver *ns, bool externo) {
