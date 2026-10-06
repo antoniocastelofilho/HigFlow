@@ -93,11 +93,20 @@ para_arvore() {
     local raiz=$1 lista g p resto=""
     lista=$(descendentes "$raiz")           # ANTES de matar
     g=$(ps -o pgid= -p "$raiz" 2>/dev/null | tr -d ' ')
-    diz "encerrando raiz $raiz (grupo ${g:-?}); descendentes: $(echo $lista | tr '\n' ' ')"
+    diz "encerrando raiz $raiz (grupo ${g:-?}, so' informativo); descendentes: $(echo $lista | tr '\n' ' ')"
     for p in $lista;       do kill -INT  "$p" 2>/dev/null; done; sleep 15
     for p in $lista $raiz; do kill -TERM "$p" 2>/dev/null; done; sleep 10
     for p in $lista $raiz; do kill -KILL "$p" 2>/dev/null; done
-    [ -n "$g" ] && kill -KILL -- "-$g" 2>/dev/null
+    # NAO matar o grupo.  Eu havia deixado `kill -KILL -$g` como reserva depois
+    # de MEDIR que o grupo nao continha a arvore, e conclui' que era inutil.
+    # Era pior que inutil: sem controle de tarefa os filhos ficam no grupo do
+    # SHELL, de modo que $g era o PID do PROPRIO LANCADOR -- e ele se matou ao
+    # parar o trecho no piso de 15%.  O trecho parou certo, os tres descendentes
+    # foram achados e mortos, e ninguem sobrou para retomar.
+    #
+    # A licao e' a mesma das outras vezes: reserva que eu nao exercitei nao e'
+    # reserva, e' superficie de falha.  O kill por PID, que E' exercitado, da'
+    # conta.  O $g fica so' no registro.
     sleep 3
     # VERIFICA por PID -- so' isso distingue "matei" de "achei que matei"
     for p in $lista $raiz; do kill -0 "$p" 2>/dev/null && resto="$resto $p"; done
