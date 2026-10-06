@@ -3,7 +3,7 @@ simulation_par:
   dt: 0.001                      # The Time spacing
   dts: 1.0                         # The Time spacing for saving data (output) 
   dtp: 0.01                         # The Time spacing for saving VTKs
-  vtk_mode: segregated              # VTK frames: segregated (per-rank pieces), unified (single MPI-IO file) or both
+  vtk_mode: unified                 # VTK frames: segregated (per-rank pieces), unified (single MPI-IO file) or both
 
 adimensional:
   Re: 0.005                                 # The Reynolds Number  Re = ρUH/μ
