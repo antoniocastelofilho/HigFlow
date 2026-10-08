@@ -4,8 +4,12 @@
 \status{\textbf{Closed on the uniform mesh}: all twelve runs of the matrix
 (six $(\lambda_1,\beta)$ combinations $\times$ two methods) completed 2001 steps
 at $25\times25\times75$ with zero non-finite values. The reference resolution is
-running for the cusp case only. The adaptive half has a working remeshing loop
-but no production run.}
+complete for the cusp case in VOF and running in front-tracking. The adaptive
+half has a working remeshing loop but no production run.
+
+One claim in this section was \emph{withdrawn} by its own measurement: the
+velocity drop is not systematically larger in VOF. See
+Section~\ref{sec:dropdef}.}
 
 \subsection{Case definition}
 
@@ -51,7 +55,22 @@ A cusp is a region of high curvature concentrated on a scale that approaches the
 cell size, and the two representations should handle it differently: an explicit
 surface with surgery can refine locally along the interface, whereas a volume
 fraction with a per-cell planar reconstruction cannot represent curvature below
-one cell. \missing{whether that expectation holds is the result; not yet run}
+one cell.
+
+\status{The VOF half is complete at the reference resolution --- 2001 steps to
+$t=4$, 161 extracted surfaces, all closed, $0.45\%$ volume drift. The
+front-tracking half is running with the filter of Section~\ref{sec:tsur}, which
+is what makes it comparable at all (Table~\ref{tab:undtime}).}
+
+What the VOF half settles on its own is narrower than the comparison, but it is
+not nothing: at $h=1/50$ the rear of the bubble reaches $z_{\min} = 1.805$ with
+the centroid at $2.042$, against $1.835$ and $2.054$ at $h=1/25$ --- the trailing
+edge is drawn out by $0.018$ more in units of $L$ relative to the centroid when
+the mesh is halved. That is the direction a cusp would produce, and it is also
+the direction a more resolved planar reconstruction would produce without any
+cusp. \missing{the front-tracking half, which is the only one of the two that
+can represent curvature below the cell and so the only one that can distinguish
+these}
 
 \subsection{A model limit, not a numerical one}
 
@@ -161,15 +180,105 @@ was read at.
 
 The most specific claim in the reference is not an ordering but a shape: at
 $\lambda_1 = 0.4$ and $\beta = 0.2$ the rise velocity falls sharply after its
-maximum and then recovers. It appears in both methods --- a drop of 6.6\% in
-front-tracking and 8.6\% in VOF, with recovery in both.
+maximum and then recovers. It appears in both methods --- a drop of $8.1\%$ in
+front-tracking and $5.9\%$ in VOF for the cusp case, with recovery in both.
 
-The drop is present in \emph{every} viscoelastic run here, and it is
-systematically larger in VOF (8.6--13.5\%) than in front-tracking (4.1--6.6\%).
-Whether that is physics resolved differently by the two interface
-representations, or an artefact of one of them, is not settled by these runs.
-\missing{the cusp case at the reference resolution should separate the two:
-a representation artefact would change with $h$, the physics should not}
+The drop is present in \emph{every} viscoelastic run here. An earlier version of
+this section reported it as \emph{systematically larger in VOF}, and that claim
+does not survive its own measurement --- the correction is worth stating in full,
+because the failure mode is general.
+
+\subsubsection{The asymmetry was in the measurement, not the flow}
+\label{sec:dropdef}
+
+The drop had been taken as the fall from the global maximum of $w(t)$ to the
+following minimum. On a curve that is nearly flat after the initial overshoot,
+that definition is governed by whichever single frame happens to sit highest ---
+and in three of the seven VOF runs the ``maximum'' it selects lies at
+$t \approx 3.0$--$3.9$, long after the physical overshoot at $t \approx 0.8$.
+
+The two methods do not carry the same frame-to-frame scatter. Locating the
+overshoot in the window $t \in [0.3,1.5]$ on a centred five-point mean, and
+measuring the scatter of $w$ about that mean:
+
+\begin{table}[htbp]
+\centering
+\caption{The same drop under two definitions, and the scatter that separates
+them. ``Raw'' is global maximum then following minimum; ``robust'' locates the
+overshoot physically and smooths.}
+\label{tab:dropdef}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={caso,metodo,lambda,beta,qbruta,tbruta,qrobusta,trobusta,ruido},
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/metodo/.style={column name={}, column type={l}},
+  columns/lambda/.style={column name={$\lambda_1$}, column type={r}},
+  columns/beta/.style={column name={$\beta$}, column type={r}},
+  columns/qbruta/.style={column name={raw (\%)}, column type={r}},
+  columns/tbruta/.style={column name={$t$ of max}, column type={r}},
+  columns/qrobusta/.style={column name={robust (\%)}, column type={r}},
+  columns/trobusta/.style={column name={$t$ of max}, column type={r}},
+  columns/ruido/.style={column name={scatter (\% of peak)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{queda-robusta.dat}}
+\end{adjustbox}
+\end{table}
+
+Under the raw definition front-tracking gives 11.5--13.8\% and VOF 11.1--23.1\%,
+and VOF looks systematically worse. Under the robust definition front-tracking
+gives 5.5--8.1\% (mean 6.8\%) and VOF 5.1--7.0\% (mean 6.1\%): the two
+\textbf{agree}, and if anything front-tracking drops slightly more.
+
+What differs between the methods is not the drop but the scatter --- $3.0\%$ of
+the peak in front-tracking against $3.8$--$4.9\%$ in VOF, consistent with jitter
+in the marching-cubes extraction from which $z_c$ is read. The raw definition
+converts that scatter into an apparent physical asymmetry, because a noisier
+series offers a higher stray maximum.
+
+So the honest statement is narrower than the one it replaces: \textbf{the
+velocity-drop signature the reference describes is present in both methods at
+$6\pm1\%$, and these runs do not resolve a difference between them.} The
+asymmetry that remains is the one in Section~\ref{sec:newtonian} --- VOF above
+the published values on all nine comparisons --- which does not depend on
+locating an extremum.
+
+\subsubsection{And it does not change with $h$}
+
+The pending test was whether the drop moves with resolution: a representation
+artefact should, the physics should not. The cusp case now exists at both
+resolutions, the same quantity computed the same way.
+
+\begin{table}[htbp]
+\centering
+\caption{The drop at two resolutions, VOF, $\lambda_1=0.4$, $\beta=0.2$.}
+\label{tab:dropres}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/malha/.style={column name={Mesh}, column type={l}},
+  columns/h/.style={column name={$h$}, column type={r}},
+  columns/queda/.style={column name={drop (\%)}, column type={r}},
+  columns/pico/.style={column name={$w_{\max}$}, column type={r}},
+  columns/tpico/.style={column name={$t_{\max}$}, column type={r}},
+  columns/zcfinal/.style={column name={$z_c(4)$}, column type={r}},
+  columns/psifinal/.style={column name={$\Psi(4)$}, column type={r}},
+  columns/ruido/.style={column name={scatter (\%)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{queda-resolucao.dat}}
+\end{adjustbox}
+\end{table}
+
+Halving $h$ moves the drop from $5.9\%$ to $6.6\%$ --- $0.7$ percentage points,
+against a frame scatter of $3$--$4\%$ of the peak. The measurement therefore
+\emph{bounds} any resolution dependence below its own noise rather than
+resolving one, which is consistent with the drop being physical and is not proof
+of it. The rise itself converges in the usual way: $z_c(4)$ moves $0.60\%$ and
+the final sphericity $0.0046$.
 
 \subsubsection{The shapes}
 

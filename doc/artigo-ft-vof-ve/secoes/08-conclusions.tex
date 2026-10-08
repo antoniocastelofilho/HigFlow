@@ -35,7 +35,30 @@ $3.6\%$ and $1.2\%$. The asymmetry is the opposite of what the provenance
 suggests, since the reference was computed with VOF.
 \item Oldroyd-B did \emph{not} run away on the time scale of the rise: all
 twelve runs completed 2001 steps with zero non-finite values.
+\item The cusp case now exists at the reference resolution in VOF: 2001 steps to
+$t=4$, 161 extracted surfaces all closed, $0.45\%$ volume drift. The drop is
+$5.9\%$ at $h=1/25$ and $6.6\%$ at $h=1/50$ --- a bound below the measurement's
+own noise rather than a resolved dependence.
 \end{itemize}
+
+\subsection*{What was withdrawn}
+
+One result in this paper was retracted by its own measurement, and it is recorded
+here rather than quietly dropped. An earlier version reported the velocity drop
+as \emph{systematically larger in VOF} ($8.6$--$13.5\%$) than in front-tracking
+($4.1$--$6.6\%$), and offered it as a difference between the two interface
+representations. That number came from taking the global maximum of $w(t)$ on a
+curve that is nearly flat after the overshoot --- so it was set by whichever
+single frame sat highest, and in three of seven VOF runs it selected a frame at
+$t \approx 3$--$4$, long after the physical overshoot. Locating the overshoot
+physically and smoothing, front-tracking gives $5.5$--$8.1\%$ and VOF
+$5.1$--$7.0\%$: the methods agree. What actually differs is the frame-to-frame
+scatter, $3.0\%$ of the peak against $3.8$--$4.9\%$, and the raw definition
+converted that scatter into an apparent physical asymmetry
+(Section~\ref{sec:dropdef}).
+
+The scatter is itself evidence on an open question below: a noisier extraction is
+what the marching-cubes-bias reading predicts.
 
 \subsection*{What is not}
 

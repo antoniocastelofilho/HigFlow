@@ -35,6 +35,11 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
 .wrap{max-width:1040px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
 .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;
  text-transform:uppercase;color:var(--copper);margin:0 0 .6rem}
+/* SIMBOLO NAO E' TEXTO.  O cabecalho e o rotulo dos paineis vao em maiusculas
+   por desenho, e isso trocava lambda por Lambda, beta por Beta e h por H --
+   simbolos DIFERENTES, nao a mesma letra em outra caixa.  Apanhado lendo a
+   pagina RENDERIZADA; no fonte os caracteres estavam certos. */
+.sym{text-transform:none !important}
 h1{font-family:var(--serif);font-weight:700;font-size:clamp(1.6rem,4vw,2.3rem);
  line-height:1.15;margin:0 0 .6rem;letter-spacing:-.015em}
 .lede{color:var(--muted);margin:0 0 2rem;max-width:62ch;font-size:.97rem}

@@ -473,12 +473,95 @@ relaxa\c{c}\~ao, as doze valem.
 \paragraph{E a assinatura mais espec\'ifica aparece nos dois.} O que a tese
 descreve para $\lambda_1 = 0{,}4$, $\beta = 0{,}2$ n\~ao \'e uma ordena\c{c}\~ao
 mas uma \emph{forma}: a velocidade cai abruptamente depois do m\'aximo e torna a
-subir. Aparece nos dois --- queda de $6{,}6\%$ no front-tracking e $8{,}6\%$ no
-VOF, com recupera\c{c}\~ao em ambos. A queda est\'a em \emph{todas} as corridas
-viscoel\'asticas, e \'e sistematicamente maior no VOF ($8{,}6$--$13{,}5\%$) que
-no front-tracking ($4{,}1$--$6{,}6\%$); se \'e f\'isica resolvida de forma
-diferente pelas duas representa\c{c}\~oes ou artefato de uma delas, estas
-corridas n\~ao decidem.
+subir. Aparece nos dois --- queda de $8{,}1\%$ no front-tracking e $5{,}9\%$ no
+VOF no caso da c\'uspide, com recupera\c{c}\~ao em ambos. A queda est\'a em
+\emph{todas} as corridas viscoel\'asticas.
+
+\paragraph{E a assimetria que eu havia afirmado estava na MEDIDA.} Uma vers\~ao
+anterior desta se\c{c}\~ao dizia que a queda era \emph{sistematicamente maior no
+VOF} ($8{,}6$--$13{,}5\%$) que no front-tracking ($4{,}1$--$6{,}6\%$), e oferecia
+isso como diferen\c{c}a entre as duas representa\c{c}\~oes. A afirma\c{c}\~ao
+n\~ao sobrevive \`a pr\'opria medida, e o modo de falha vale ser registrado
+porque \'e geral.
+
+A queda vinha do m\'aximo \textbf{global} de $w(t)$ at\'e o m\'inimo seguinte.
+Numa curva quase plana depois da ultrapassagem inicial, essa defini\c{c}\~ao
+\'e governada por qual quadro isolado ficou mais alto --- e em tr\^es das sete
+corridas do VOF o ``m\'aximo'' que ela escolhe est\'a em $t \approx 3{,}0$--$3{,}9$,
+muito depois da ultrapassagem f\'isica em $t \approx 0{,}8$.
+
+\begin{table}[htbp]
+\centering
+\caption{A mesma queda sob duas defini\c{c}\~oes, e a dispers\~ao que as separa.}
+\label{tab:tridim-queda}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={caso,metodo,lambda,beta,qbruta,tbruta,qrobusta,trobusta,ruido},
+  columns/caso/.style={column name={corrida}, column type={l}},
+  columns/metodo/.style={column name={}, column type={l}},
+  columns/lambda/.style={column name={$\lambda_1$}, column type={r}},
+  columns/beta/.style={column name={$\beta$}, column type={r}},
+  columns/qbruta/.style={column name={bruta (\%)}, column type={r}},
+  columns/tbruta/.style={column name={$t$ do m\'ax}, column type={r}},
+  columns/qrobusta/.style={column name={robusta (\%)}, column type={r}},
+  columns/trobusta/.style={column name={$t$ do m\'ax}, column type={r}},
+  columns/ruido/.style={column name={dispers\~ao (\% do pico)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-queda-robusta.dat}}
+\end{adjustbox}
+\end{table}
+
+Sob a defini\c{c}\~ao bruta o front-tracking d\'a $11{,}5$--$13{,}8\%$ e o VOF
+$11{,}1$--$23{,}1\%$, e o VOF parece sistematicamente pior. Sob a robusta o
+front-tracking d\'a $5{,}5$--$8{,}1\%$ (m\'edia $6{,}8$) e o VOF
+$5{,}1$--$7{,}0\%$ (m\'edia $6{,}1$): os dois \textbf{concordam}, e se h\'a
+diferen\c{c}a o front-tracking cai um pouco mais.
+
+O que difere entre os m\'etodos n\~ao \'e a queda e sim a dispers\~ao ---
+$3{,}0\%$ do pico no front-tracking contra $3{,}8$--$4{,}9\%$ no VOF,
+compat\'ivel com tremor da extra\c{c}\~ao por marching cubes de onde $z_c$ \'e
+lido. A defini\c{c}\~ao bruta \textbf{converte essa dispers\~ao em assimetria
+f\'isica aparente}, porque uma s\'erie mais ruidosa oferece um m\'aximo espurio
+mais alto.
+
+A afirma\c{c}\~ao honesta \'e mais estreita que a que ela substitui: a
+assinatura est\'a nos dois m\'etodos a $6\pm1\%$, e estas corridas n\~ao
+resolvem diferen\c{c}a entre eles. A assimetria que permanece \'e a dos sinais
+contra os valores publicados, que n\~ao depende de localizar extremo.
+
+\paragraph{E ela n\~ao muda com $h$.} O caso da c\'uspide existe agora nas duas
+resolu\c{c}\~oes no VOF, a mesma grandeza do mesmo jeito.
+
+\begin{table}[htbp]
+\centering
+\caption{A queda em duas resolu\c{c}\~oes, VOF, $\lambda_1=0{,}4$, $\beta=0{,}2$.}
+\label{tab:tridim-queda-res}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/malha/.style={column name={malha}, column type={l}},
+  columns/h/.style={column name={$h$}, column type={r}},
+  columns/queda/.style={column name={queda (\%)}, column type={r}},
+  columns/pico/.style={column name={$w_{\max}$}, column type={r}},
+  columns/tpico/.style={column name={$t_{\max}$}, column type={r}},
+  columns/zcfinal/.style={column name={$z_c(4)$}, column type={r}},
+  columns/psifinal/.style={column name={$\Psi(4)$}, column type={r}},
+  columns/ruido/.style={column name={dispers\~ao (\%)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{tridim-queda-resolucao.dat}}
+\end{adjustbox}
+\end{table}
+
+Metade de $h$ move a queda de $5{,}9\%$ para $6{,}6\%$ --- $0{,}7$ ponto
+percentual contra dispers\~ao de $3$--$4\%$ do pico. A medida portanto
+\emph{limita} a depend\^encia de resolu\c{c}\~ao abaixo do pr\'oprio ru\'ido, em
+vez de resolv\^e-la: \'e compat\'ivel com a queda ser f\'isica e n\~ao \'e prova
+disso.
 
 \paragraph{Uma refuta\c{c}\~ao falsa que quase entrou aqui.} Lida antes de as
 doze chegarem a $t=4$, a s\'erie do VOF em $\lambda_1 = 0{,}1$ \emph{n\~ao} era

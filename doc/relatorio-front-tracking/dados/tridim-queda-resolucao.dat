@@ -1,0 +1,6 @@
+# A queda muda com h?  VOF, lambda=0,4, beta=0,2 (o caso da cuspide), a mesma
+# grandeza calculada do mesmo jeito em duas resolucoes.  A dispersao de quadro e'
+# a razao de a resposta ser um limite e nao um numero.
+malha h queda pico tpico zcfinal psifinal ruido
+{$25{\times}25{\times}75$} {1/25} 5.9 0.4185 0.81 2.0540 0.96197 3.8
+{$50{\times}50{\times}150$} {1/50} 6.6 0.4132 0.76 2.0417 0.95737 3.2

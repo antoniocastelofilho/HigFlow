@@ -1,0 +1,6 @@
+# Does the drop change with h?  VOF, lambda=0.4, beta=0.2 (the cusp case), the
+# same quantity computed the same way at two resolutions.  The frame scatter is
+# the reason the answer is a bound and not a number.
+malha h queda pico tpico zcfinal psifinal ruido
+{$25{\times}25{\times}75$} {1/25} 5.9 0.4185 0.81 2.0540 0.96197 3.8
+{$50{\times}50{\times}150$} {1/50} 6.6 0.4132 0.76 2.0417 0.95737 3.2
