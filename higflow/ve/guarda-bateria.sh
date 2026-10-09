@@ -23,7 +23,7 @@ MATA=${GUARDA_MATA:-9}
 JA=${GUARDA_JA:-5}
 ESPERA=${GUARDA_ESPERA:-60}
 D=${GUARDA_DIR:-/home/castelo/HiGFlow-System/HigFlow/higflow/ve}
-REG=${GUARDA_REG:-/tmp/guarda-bateria.log}
+REG=${GUARDA_REG:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/registro-guarda.log}
 PADRAO=${GUARDA_PADRAO:-'ns-example|prterun|mpirun|orted'}
 
 diz() { echo "$(date '+%m-%d %H:%M:%S') $*" | tee -a $REG; }

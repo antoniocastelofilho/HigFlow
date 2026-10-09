@@ -61,7 +61,7 @@ done
 echo
 echo "=== 3. integridade: o filtro nao pode romper nada ==="
 for c in $CADS; do
-    L=/tmp/varredura-cada-$c.log
+    L=$AQUI/registro/cada-$c.log
     # `grep -c || echo 0` imprime DUAS contagens quando grep acha zero: o proprio
     # 0 do grep e o do echo.  Sai da' um "0\n0" que o printf mostra em duas linhas.
     n=$(LC_ALL=C grep -ac '===> TSUR passo' $L 2>/dev/null); n=${n:-0}

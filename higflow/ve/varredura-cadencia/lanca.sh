@@ -13,7 +13,7 @@ set -u
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$AQUI"
 B=/sys/class/power_supply/BAT0
-ST=/tmp/varredura-status
+ST=$AQUI/registro/status.log
 TOTAL=2001
 ALVOPCT=95; PISOPCT=15
 CADS="0 20 10 5"

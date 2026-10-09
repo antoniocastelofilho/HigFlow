@@ -17,10 +17,11 @@
 # vez e guardado em cache: remedir a cada tique tomaria CPU do solver.
 set -u
 D=/home/castelo/HiGFlow-System/HigFlow/higflow/ve/ft-N50-salva
+mkdir -p "$D/registro" 2>/dev/null
 G=/home/castelo/HiGFlow-System/HigFlow/higflow/ve/ft-l04-b02-N50/VTKS-parcial-sem-filtro
 M=/home/castelo/HiGFlow-System/HigFlow/higflow/examples-common
-REG=${ONDUL_REG:-/tmp/ondulacao-ft.log}
-CACHE=${ONDUL_CACHE:-/tmp/ondulacao-gemeo.cache}
+REG=${ONDUL_REG:-$D/registro/ondulacao.log}
+CACHE=${ONDUL_CACHE:-$D/registro/gemeo.cache}
 JAN=${ONDUL_JAN:-6}
 RAZAO_MIN=${ONDUL_RAZAO:-3.0}     # criterio PAREADO: beneficio minimo aceitavel
 ABS_MAX=${ONDUL_ABS:-4.0}         # criterio ABSOLUTO, quando o gemeo acaba
@@ -63,7 +64,7 @@ while :; do
     done
     [ $nc -eq 0 ] && { sleep 1800; continue; }
     mc=$(python3 -c "print('%.2f'%($sc/$nc))")
-    passo=$(LC_ALL=C grep -a '===> Step' /tmp/ft-N50-salva.log | tail -1 | grep -oE '[0-9]+' | head -1)
+    passo=$(LC_ALL=C grep -a '===> Step' $D/registro/corrida.log | tail -1 | grep -oE '[0-9]+' | head -1)
     t=$(python3 -c "print('%.2f'%(${qs[-1]}*0.025))")
 
     if [ $ng -eq $nc ]; then

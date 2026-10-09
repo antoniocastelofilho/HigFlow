@@ -11,17 +11,18 @@
 # metade novo e metade velho, que nao serve.
 set -u
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$AQUI/registro" 2>/dev/null
 M=/home/castelo/HiGFlow-System/HigFlow
 TOTAL=2001                       # passos da corrida inteira
 cd "$M" && set -a && . ./varsrc && set +a
 cd "$AQUI"
 
-LOG=/tmp/ft-N50-salva.log
+LOG=$AQUI/registro/corrida.log
 # A impressao digital do binario no registro.  O diretorio da corrida tem uma
 # COPIA do executavel, e ela ja' ficou atras de duas correcoes do ponto de
 # salvamento -- a corrida teria rodado sem elas e o registro nao diria nada.
 # Registrar faz a divergencia aparecer no mesmo lugar onde se olha o progresso.
-echo "$(date +%H:%M) binario $(md5sum ns-example-3d | cut -c1-12) (fonte: $(md5sum "$M/higflow/example3d_FrontTracking/ns-example-3d" 2>/dev/null | cut -c1-12))" >> /tmp/ft-N50-status
+echo "$(date +%H:%M) binario $(md5sum ns-example-3d | cut -c1-12) (fonte: $(md5sum "$M/higflow/example3d_FrontTracking/ns-example-3d" 2>/dev/null | cut -c1-12))" >> $AQUI/registro/status.log
 PASSO=0
 if [ -f output/o.save.init.yaml ] && [ -f output/o.save.ok ]; then
     PI=$(awk '/step:/{print $2}' output/o.save.init.yaml)
@@ -30,22 +31,22 @@ if [ -f output/o.save.init.yaml ] && [ -f output/o.save.ok ]; then
     # terminou, e o conjunto corrente nao serve mesmo que os dois numeros
     # batam (o `.ok` pode ser o da geracao anterior).
     if [ -f output/o.save.gravando ]; then
-        echo "$(date +%H:%M) gravacao INTERROMPIDA (sinal .gravando presente)" >> /tmp/ft-N50-status
+        echo "$(date +%H:%M) gravacao INTERROMPIDA (sinal .gravando presente)" >> $AQUI/registro/status.log
         PI=-1
     fi
     if [ "$PI" = "$PO" ] && [ "${PI:-0}" -gt 0 ]; then
         PASSO=$PI
     else
-        echo "$(date +%H:%M) ponto de salvamento INCONSISTENTE (init=$PI ok=$PO)" >> /tmp/ft-N50-status
+        echo "$(date +%H:%M) ponto de salvamento INCONSISTENTE (init=$PI ok=$PO)" >> $AQUI/registro/status.log
         # a copia de seguranca, se houver, e' o conjunto anterior COMPLETO
         if [ -f seguranca/o.save.ok ]; then
             PS=$(awk '/^passo/{print $2}' seguranca/o.save.ok)
-            echo "$(date +%H:%M) voltando a' copia de seguranca, passo $PS" >> /tmp/ft-N50-status
+            echo "$(date +%H:%M) voltando a' copia de seguranca, passo $PS" >> $AQUI/registro/status.log
             cp -f seguranca/o.save.* output/ 2>/dev/null
             rm -f output/o.save.gravando
             PASSO=$PS
         else
-            echo "$(date +%H:%M) sem copia de seguranca -- RECOMECANDO do zero" >> /tmp/ft-N50-status
+            echo "$(date +%H:%M) sem copia de seguranca -- RECOMECANDO do zero" >> $AQUI/registro/status.log
             rm -f output/o.save.gravando
             PASSO=0
         fi
@@ -77,14 +78,14 @@ export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 if [ "$PASSO" -gt 0 ]; then
     REST=$(( TOTAL - PASSO ))
     if [ "$REST" -le 0 ]; then
-        echo "$(date +%H:%M) ja' completou $PASSO de $TOTAL -- nada a fazer" >> /tmp/ft-N50-status
+        echo "$(date +%H:%M) ja' completou $PASSO de $TOTAL -- nada a fazer" >> $AQUI/registro/status.log
         exit 0
     fi
     sed -i "s/^  numsteps: .*/  numsteps: $REST/" output/o.save.par.contr.yaml
-    echo "$(date +%H:%M) RETOMANDO do passo $PASSO, faltam $REST" >> /tmp/ft-N50-status
+    echo "$(date +%H:%M) RETOMANDO do passo $PASSO, faltam $REST" >> $AQUI/registro/status.log
     CARGA=output/o.save
 else
-    echo "$(date +%H:%M) comecando do zero, $TOTAL passos" >> /tmp/ft-N50-status
+    echo "$(date +%H:%M) comecando do zero, $TOTAL passos" >> $AQUI/registro/status.log
     CARGA=input/gota.load
 fi
 
@@ -96,5 +97,5 @@ taskset -c 2 stdbuf -oL -eL /usr/bin/time -f "PAREDE %e s" mpirun --bind-to none
   -ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10 \
   >> $LOG 2>&1
 R=$?
-echo "$(date +%H:%M) trecho terminou exit=$R, passo salvo=$(awk '/step:/{print $2}' output/o.save.init.yaml 2>/dev/null)" >> /tmp/ft-N50-status
+echo "$(date +%H:%M) trecho terminou exit=$R, passo salvo=$(awk '/step:/{print $2}' output/o.save.init.yaml 2>/dev/null)" >> $AQUI/registro/status.log
 exit $R

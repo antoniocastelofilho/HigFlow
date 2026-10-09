@@ -13,7 +13,7 @@ VE=/home/castelo/HiGFlow-System/HigFlow/higflow/ve
 FT=$VE/ft-N50-salva
 VA=$VE/varredura-cadencia
 TOTAL=2001
-REG=/tmp/corrente-ft-varredura.log
+REG=$VE/registro-corrente.log
 diz() { echo "$(date '+%m-%d %H:%M') $*" | tee -a $REG; }
 
 diz "=== corrente: espera o FT fechar os $TOTAL passos ==="

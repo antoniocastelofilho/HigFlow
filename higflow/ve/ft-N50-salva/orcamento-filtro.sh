@@ -9,8 +9,10 @@
 # A projecao a partir das primeiras aplicacoes seria otimista: o numero de
 # vertices acima do limiar CRESCE conforme a ondulacao se desenvolve.  Por isso
 # isto acompanha em vez de extrapolar uma vez.
-L=/tmp/ft-N50-salva.log
-REG=/tmp/orcamento-filtro.log
+AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$AQUI/registro"
+L=$AQUI/registro/corrida.log
+REG=$AQUI/registro/orcamento.log
 python3 - "$L" "$REG" <<'PY'
 import re, sys, time, os
 L, REG = sys.argv[1], sys.argv[2]

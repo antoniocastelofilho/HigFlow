@@ -9,8 +9,8 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 D=$AQUI/cada-$CADA
 M=/home/castelo/HiGFlow-System/HigFlow
 TOTAL=2001
-ST=/tmp/varredura-status
-LOG=/tmp/varredura-cada-$CADA.log
+ST=$AQUI/registro/status.log
+LOG=$AQUI/registro/cada-$CADA.log
 cd "$M" && set -a && . ./varsrc && set +a
 cd "$D"
 diz() { echo "$(date '+%m-%d %H:%M') [cada=$CADA] $*" >> $ST; }
