@@ -187,3 +187,4 @@ doc/artigo-ft-vof-ve/*.fls
 doc/artigo-ft-vof-ve/*.fdb_latexmk
 higflow/example3d_FrontTracking-amr/
 higflow/ve/
+conteiner/_build/

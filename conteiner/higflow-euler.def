@@ -1,0 +1,267 @@
+#==============================================================================
+# higflow-euler.def -- Apptainer/Singularity para o HiGFlow no cluster Euler (ICMC)
+#
+# Ubuntu 26.04 + OpenMPI 5 + PETSc 3.25.4 + HYPRE + t8code 4.0.0 + HiGTree/HiGFlow
+#
+# Construir:
+#   apptainer build --fakeroot higflow-euler.sif higflow-euler.def
+#   # sem fakeroot nem root, construa por Docker e converta:
+#   #   docker build -f conteiner/Dockerfile.euler -t higflow:euler .
+#   #   apptainer build higflow-euler.sif docker-daemon://higflow:euler
+#
+# ------------------------------------------------------------------ PORQUES
+#
+# A receita NAO e' um instantaneo da maquina de desenvolvimento.  Lá a arvore tem
+# 4,7 GB de dados de corrida e 2,8 GB de bibliotecas compiladas; nada disso deve
+# viajar.  A fonte do HiGFlow entra por `git archive` de um commit fixo, que
+# exclui `ve/`, `.git` e os VTKs sem precisar de lista de exclusao.
+#
+# Duas coisas sao DELIBERADAMENTE diferentes do ambiente de desenvolvimento:
+#
+#  1. PETSc com `--with-debugging=0` e `-O3`.  O script de instalacao da maquina
+#     usa `--with-debugging=1`, o que num cluster custa tipicamente 2 a 5x.  O
+#     passo 4 do roteiro de verificacao CONFERE que o build e' otimizado, porque
+#     "esqueci de trocar a opcao" e' silencioso: o PETSc so' avisa no -log_view.
+#
+#  2. UM UNICO libfyaml.  Na maquina ha' dois -- o do apt e um compilado em
+#     /usr/local -- e o binario de producao liga o do apt.  Com os dois, qual
+#     resolve depende da ordem do ld.so, e nao se descobre isso num no' de
+#     cluster.  Aqui instala-se so' o do apt (libyaml-dev traz a ABI que o
+#     HiGFlow usa; se precisar da versao da fonte, remova o pacote primeiro).
+#
+# ---------------------------------------------- O QUE DEPENDE DO EULER  [E1..E4]
+#
+# Quatro pontos nao se decidem daqui.  Cada um esta marcado no corpo com [En].
+#
+#  [E1] ARQUITETURA DO ALVO.  `TARGET_ARCH` abaixo.  NAO use `-march=native`: a
+#       imagem e' construida nesta maquina e roda nos nos do Euler.  Instrucao
+#       inexistente la' da' "illegal instruction" em tempo de execucao, e o
+#       sintoma nao aponta para a causa.  Pergunte a ISA dos nos; `x86-64-v3`
+#       (Haswell e acima) e' o palpite conservador comum, e e' so' um palpite.
+#
+#  [E2] PMIx / SLURM.  O lancamento recomendado e' hibrido: o conteiner traz o
+#       proprio OpenMPI 5 e o Slurm do host o inicializa por PMIx
+#       (`srun --mpi=pmix`).  Exige que o PMIx do Slurm seja compativel com o do
+#       OpenMPI 5 desta imagem.  Se o Euler tiver PMIx antigo, ha' duas saidas:
+#       instalar nesta imagem a mesma versao de PMIx do host (bloco [E2] abaixo),
+#       ou usar o MPI do host por bind -- que e' mais fragil entre versoes
+#       maiores e exige ABI compativel.
+#
+#  [E3] INTERCONEXAO.  Se os nos tem InfiniBand ou Omni-Path, a imagem precisa de
+#       libibverbs/UCX casando com os drivers do host, senao o OpenMPI cai para
+#       TCP e o paralelismo entre nos perde a razao de existir.  O bloco [E3]
+#       instala o caminho verbs/UCX do Ubuntu; se o host usa UCX proprio, ele
+#       deve ser montado por bind em vez disso.
+#
+#  [E4] MONTAGENS.  Onde ficam entrada e saida ($SCRATCH, $HOME).  Os diretorios
+#       de ponto de montagem sao criados em %post para `apptainer --bind` nao
+#       falhar em sistema de arquivos somente-leitura.
+#
+#==============================================================================
+
+Bootstrap: docker
+From: ubuntu:26.04
+
+%arguments
+    # [E1] ISA do alvo -- CONFIRMAR com os administradores do Euler.
+    TARGET_ARCH=x86-64-v3
+    # Commit do HiGFlow a empacotar.  Fixo de proposito: imagem reconstruivel.
+    HIGFLOW_REF=HEAD
+
+%files
+    # A fonte entra por tarball gerado FORA (ver conteiner/preparar-fonte.sh),
+    # nao por copia do diretorio: copiar o diretorio levaria ve/ e .git.
+    conteiner/_build/higflow-src.tar.gz /tmp/higflow-src.tar.gz
+    conteiner/_build/petsc-3.25.4.tar.gz /tmp/petsc-3.25.4.tar.gz
+
+%post
+    set -eux
+    export DEBIAN_FRONTEND=noninteractive
+    TARGET_ARCH="{{ TARGET_ARCH }}"
+
+    #--------------------------------------------------------------- pacotes
+    # Mesma lista do install_higflow_petsc325, que e' o roteiro que produziu o
+    # ambiente em uso.  MPICH NAO entra: ter MPICH e OpenMPI lado a lado faz
+    # "-lmpi" resolver conforme o update-alternatives, e um executavel com os
+    # dois aborta em tempo de execucao.
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        build-essential cmake pkg-config git autoconf automake libtool libltdl-dev \
+        libglib2.0-dev valgrind \
+        openmpi-bin libopenmpi-dev libhdf5-openmpi-dev \
+        libtrilinos-zoltan-dev libopenblas-dev \
+        libnuma-dev libyaml-dev libfyaml-dev zlib1g-dev check python3 unzip curl ca-certificates
+
+    # [E3] INTERCONEXAO -- descomentar conforme a resposta do Euler.
+    # InfiniBand/Omni-Path pelo caminho do Ubuntu:
+    # apt-get install -y --no-install-recommends libibverbs-dev librdmacm-dev libpsm2-dev ucx-utils libucx-dev
+    # Se o host tem UCX proprio, NAO instale o do Ubuntu: monte o do host por bind
+    # e exporte UCX_* / OMPI_MCA_* no %environment.
+
+    # [E2] PMIx -- se o Slurm do Euler exigir uma versao especifica:
+    # apt-get install -y --no-install-recommends libpmix-dev
+    # e reconfigure o OpenMPI contra ela, OU instale o PMIx do host por bind.
+    # Com o OpenMPI do Ubuntu 26.04 (5.0.10) o PMIx interno costuma bastar para
+    # `srun --mpi=pmix`; confirmar e' o passo 6 do roteiro de verificacao.
+
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # Conferencia de vacuidade: se o MPI nao for o esperado, parar AQUI e nao
+    # tres horas adiante com um binario mudo.
+    # `mpirun --version` nao serve de sonda: no OpenMPI 5.0.10 do Ubuntu 26.04 ele
+    # nao acha help-schizo-ompi.txt, imprime erro de ajuda em vez da versao e SAI
+    # COM 0 -- uma checagem baseada nele aprova sempre.  `ompi_info` responde.
+    ompi_info --version | head -1
+    ompi_info --version 2>/dev/null | grep -q 'Open MPI' || { echo "MPI nao identificado"; exit 1; }
+    test -n "$(mpicc -show)" || { echo "mpicc nao funciona"; exit 1; }
+    pkg-config --exists libfyaml || { echo "libfyaml ausente"; exit 1; }
+    echo "libfyaml $(pkg-config --modversion libfyaml)"
+
+    #----------------------------------------------------------------- PETSc
+    mkdir -p /opt && cd /opt
+    # Soma de verificacao do tarball que produziu o ambiente em uso.  Sem isto a
+    # imagem nao e' reconstruivel: um tarball trocado passaria sem sinal.
+    echo "12c990fb39a5764ac8311211d09c01ed80fb983136c75bf7b558312b2509dbbd  /tmp/petsc-3.25.4.tar.gz" | sha256sum -c -
+    tar xzf /tmp/petsc-3.25.4.tar.gz && rm -f /tmp/petsc-3.25.4.tar.gz
+    cd /opt/petsc-3.25.4
+
+    # As opcoes sao as do ambiente de desenvolvimento, com DUAS trocas:
+    #   --with-debugging=0  e  COPTFLAGS/CXXOPTFLAGS=-O3 -march=$TARGET_ARCH
+    # OpenMPI e OpenBLAS vem do sistema para casar com HDF5/Zoltan do Ubuntu;
+    # um segundo MPI baixado pelo PETSc poria dois libmpi no mesmo executavel.
+    env -u PETSC_DIR -u PETSC_ARCH ./configure \
+        PETSC_ARCH=x86_64 \
+        --with-cc=mpicc \
+        --with-cxx=mpicxx \
+        --with-fc=0 \
+        --with-debugging=0 \
+        --with-shared-libraries=1 \
+        --with-blaslapack-lib=/usr/lib/x86_64-linux-gnu/libopenblas.so \
+        --download-hypre \
+        COPTFLAGS="-O3 -march=${TARGET_ARCH}" \
+        CXXOPTFLAGS="-O3 -march=${TARGET_ARCH}"
+    make PETSC_DIR=/opt/petsc-3.25.4 PETSC_ARCH=x86_64 -j"$(nproc)" all
+    make PETSC_DIR=/opt/petsc-3.25.4 PETSC_ARCH=x86_64 check
+
+    # O build otimizado nao se anuncia; conferir no cabecalho gerado.
+    grep -q 'define PETSC_USE_DEBUG' /opt/petsc-3.25.4/x86_64/include/petscconf.h \
+      && { echo "ERRO: PETSc saiu com PETSC_USE_DEBUG"; exit 1; } \
+      || echo "PETSc otimizado (sem PETSC_USE_DEBUG)"
+
+    #--------------------------------------------------------------- t8code
+    # Tag exata do que esta' em uso.  Em Release e com MPI; p4est vem embutido
+    # pelo proprio t8code (FetchContent), logo nao e' dependencia separada.
+    cd /opt
+    git clone --recurse-submodules https://github.com/DLR-AMR/t8code.git t8code-src
+    cd t8code-src
+    git checkout b6d4f270ebc382e81e7ec7034dde60fe9db295b5   # v4.0.0-26.08
+    git submodule update --init --recursive
+    cmake -B build -S . \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/t8code \
+        -DT8CODE_ENABLE_MPI=ON \
+        -DT8CODE_BUILD_TESTS=OFF \
+        -DT8CODE_BUILD_EXAMPLES=OFF \
+        -DCMAKE_C_FLAGS="-O3 -march=${TARGET_ARCH}" \
+        -DCMAKE_CXX_FLAGS="-O3 -march=${TARGET_ARCH}"
+    cmake --build build -j"$(nproc)"
+    cmake --install build
+    test -f /opt/t8code/lib/libt8.so || { echo "libt8 nao foi gerada"; exit 1; }
+    rm -rf /opt/t8code-src
+
+    #------------------------------------------------------ HiGTree/HiGFlow
+    mkdir -p /opt/HigFlow && cd /opt/HigFlow
+    tar xzf /tmp/higflow-src.tar.gz --strip-components=0 && rm -f /tmp/higflow-src.tar.gz
+
+    export HIGTREE_DIR=/opt/HigFlow/higtree
+    export HIGFLOW_DIR=/opt/HigFlow/higflow
+    export PETSC_DIR=/opt/petsc-3.25.4/x86_64
+    export PETSC_ARCH=
+    export PETSC_EXTRA_LIB="-lmpi"
+    export T8CODE=/opt/t8code
+
+    make -C higtree -j"$(nproc)"
+    make -C higflow -j"$(nproc)"
+    # Os exemplos 3D de producao.  t8code NAO entra neles -- e' opcional e usado
+    # pelos exemplos 2D e pelo example3d_complex; incluir o prefixo aqui e'
+    # deliberado para que esses tambem possam ser construidos no conteiner.
+    for e in example3d_FrontTracking example3d_VOF_rising example3d_VOF_rising-ve; do
+        [ -d "higflow/$e" ] && make -C "higflow/$e" -j"$(nproc)"
+    done
+    # Os arreios de verificacao, que o roteiro usa como criterio de aceitacao.
+    make -C higflow/tests/front-tracking -j"$(nproc)" || true
+
+    #---------------------------------------------- pontos de montagem  [E4]
+    # Criados aqui para `--bind` nao falhar num sistema de arquivos read-only.
+    mkdir -p /scratch /work /dados
+
+    #------------------------------------------------ ganchos de ambiente
+    # Mesmo mecanismo do Dockerfile anterior: o Apptainer le /.singularity.d/env.
+    mkdir -p /.singularity.d/env
+    cat > /.singularity.d/env/99-higflow.sh <<'EOF'
+export HIGTREE_DIR=/opt/HigFlow/higtree
+export HIGFLOW_DIR=/opt/HigFlow/higflow
+export PETSC_DIR=/opt/petsc-3.25.4/x86_64
+export PETSC_ARCH=
+export PETSC_EXTRA_LIB="-lmpi"
+export T8CODE=/opt/t8code
+export LD_LIBRARY_PATH=${PETSC_DIR}/lib:/opt/t8code/lib:${LD_LIBRARY_PATH:-}
+export PATH=/opt/HigFlow/higflow:${PATH}
+# Um rank por processo MPI: o HiGFlow nao usa threads, e deixar o OpenBLAS
+# abrir uma por nucleo faz N ranks competirem por N*N threads.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+EOF
+    chmod +x /.singularity.d/env/99-higflow.sh
+
+%environment
+    . /.singularity.d/env/99-higflow.sh
+
+%runscript
+    # Sem argumento, imprime o inventario -- util para conferir a imagem no no'
+    # antes de gastar uma alocacao.
+    if [ $# -eq 0 ]; then
+        exec /opt/HigFlow/conteiner/inventario.sh
+    fi
+    exec "$@"
+
+%test
+    # Roda no fim do build, na maquina que constroi.  Nao substitui o roteiro de
+    # verificacao: aqui so' se confere que a imagem esta' coerente consigo mesma.
+    set -e
+    . /.singularity.d/env/99-higflow.sh
+    echo "-- MPI"; ompi_info --version | head -1
+    echo "-- PETSc otimizado?"
+    grep -q 'define PETSC_USE_DEBUG' ${PETSC_DIR}/include/petscconf.h \
+      && { echo "FALHA: build de depuracao"; exit 1; } || echo "ok"
+    echo "-- libt8"; test -f /opt/t8code/lib/libt8.so && echo ok
+    echo "-- binarios"
+    for b in /opt/HigFlow/higflow/example3d_FrontTracking/ns-example-3d \
+             /opt/HigFlow/higflow/example3d_VOF_rising/ns-example-3d; do
+        test -x "$b" && echo "ok $b"
+    done
+    echo "-- bibliotecas resolvem?"
+    ldd /opt/HigFlow/higflow/example3d_FrontTracking/ns-example-3d | grep -c 'not found' \
+      | grep -qx 0 && echo ok || { echo "FALHA: biblioteca nao resolvida"; exit 1; }
+
+%labels
+    Autor        Antonio Castelo Filho
+    Descricao    HiGFlow para o cluster Euler (ICMC)
+    Base         Ubuntu 26.04
+    MPI          OpenMPI 5 (Ubuntu)
+    PETSc        3.25.4 otimizado, HYPRE baixado
+    t8code       4.0.0 (v4.0.0-26.08, commit b6d4f27)
+
+%help
+    HiGFlow no Euler.  Sem argumento, imprime o inventario da imagem.
+
+    Execucao em um no':
+        apptainer exec --bind $SCRATCH:/scratch higflow-euler.sif \
+            mpirun -n 8 ns-example-3d input/caso.load output/o.save VTKS/p.print
+
+    Execucao em varios nos (lancamento hibrido, ver [E2] na definicao):
+        srun --mpi=pmix apptainer exec --bind $SCRATCH:/scratch higflow-euler.sif \
+            ns-example-3d input/caso.load output/o.save VTKS/p.print
+
+    Antes da primeira alocacao grande, rode conteiner/verificar-euler.sh, que
+    aplica os oraculos de forma fechada e o teste de dois nos.
