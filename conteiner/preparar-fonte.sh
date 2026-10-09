@@ -70,14 +70,23 @@ cp -f "$PETSC_TGZ" "$OUT/petsc-3.25.4.tar.gz"
 
 # GUARDA DE VACUIDADE do tarball: um archive vazio ou truncado gera uma imagem
 # que falha tres horas adiante, no `make`, com erro que nao aponta para aqui.
+# A listagem sai UMA vez para um arquivo, e as buscas sao nele.
+# `tar tzf ... | grep -q` sob `set -o pipefail` da' FALSO NEGATIVO: o grep -q sai
+# no primeiro casamento, o tar morre de SIGPIPE (141), e o pipefail transforma o
+# casamento em falha.  Foi assim que esta guarda acusou a ausencia de
+# higtree/Makefile num tarball que tinha 883 entradas de higtree/.
+LISTA="$OUT/.conteudo.txt"
+tar tzf "$OUT/higflow-src.tar.gz" > "$LISTA"
 for esperado in higtree/Makefile higflow/Makefile conteiner/higflow-euler.def \
                 higflow/tests/front-tracking varsrc; do
-  tar tzf "$OUT/higflow-src.tar.gz" | grep -q "^$esperado" || {
+  if ! grep -q "^$esperado" "$LISTA"; then
     echo ">> ERRO: o tarball nao contem '$esperado'." >&2
     echo ">> Verifique se o caminho esta' versionado no commit $SHA." >&2
-    exit 1; }
+    exit 1
+  fi
 done
-echo ">> tarball conferido: $(tar tzf "$OUT/higflow-src.tar.gz" | wc -l) entradas"
+echo ">> tarball conferido: $(wc -l < "$LISTA") entradas"
+rm -f "$LISTA"
 
 # A procedencia vai DENTRO da imagem: sem isso, descobrir meses depois de que
 # commit saiu um .sif exige adivinhacao.
