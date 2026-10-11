@@ -27,6 +27,75 @@ extern "C" void malha_t8_instala(higflow_solver *ns, int myrank);
 #include "../examples-common/malha-adaptativa.h"   // B4: refino adaptativo
 #include "../examples-common/hysing-metricas.h"      // grandezas do benchmark
 #include "../src/hig-flow-fronteira-imersa.h"       // contadores de suporte
+
+// ===========================================================================
+//  VARIAVEIS DE AMBIENTE -- o que cada uma vale e PARA QUE CASO
+// ===========================================================================
+//
+// POR QUE ESTA TABELA EXISTE.  Os padroes abaixo sao razoaveis, e cada um foi
+// escolhido para UM caso -- quase sempre um oraculo, nao uma producao.  Rodar
+// outro caso sem troca-los nao da' erro: da' um resultado plausivel e errado.
+// Em 11/10/2026 isso custou tres corridas:
+//
+//   FT_ADVECTA ausente  -> frente FIXA; 6479 passos com o campo evoluindo e a
+//                          interface byte a byte identica do primeiro ao ultimo
+//                          despejo.  Nada no log dizia (hoje diz).
+//   FT_RHO*/MU* ausentes-> razao de densidade 1:1, sem empuxo; a bolha subiu
+//                          0,004 em t=3 contra 1,079 do caso correto.
+//   FT_SIGMA ausente    -> sigma=1,0 em vez de 24,5, e a gota em (2,0) fora do
+//                          dominio: o criterio achou ZERO sementes.
+//
+// A coluna "caso canonico" e' a que fecha essa lacuna.
+//
+//  variavel            padrao   caso canonico do padrao      Hysing caso 1
+//  ------------------  -------  ---------------------------  ----------------
+//  GEOMETRIA E FISICA
+//  FT_R                0.25     o caso original              0.25
+//  FT_CX               2.0      idem (FORA do dominio 1x2)   0.5
+//  FT_CY               0.0      idem                         0.5
+//  FT_SIGMA            1.0      Laplace adimensional         24.5
+//  FT_RHO0             1.0      sem contraste (oraculos)     1000   (externa)
+//  FT_RHO1             1.0      idem                         100    (bolha)
+//  FT_MU0              1.0      idem                         10     (externa)
+//  FT_MU1              1.0      idem                         1      (bolha)
+//  FT_A, FT_B          0.0      circulo; >0 da' ELIPSE       0.0
+//
+//  FRENTE
+//  FT_ADVECTA          0        !! FRENTE FIXA -- oraculo    1
+//                               de Laplace.  Lido em
+//                               examples-common/front-tracking.c
+//  FT_BALANCEADO       0        forca espalhada              1 em malha FIXA;
+//                               (lido no mesmo arquivo)      ESTOURA com AMR
+//  FT_NMARC            128      contagem a mao               derivado de ds/h
+//  FT_DS_SOBRE_H       1.0      um marcador por celula       1.0
+//
+//  REFINO ADAPTATIVO (niveis=0 DESLIGA)
+//  FT_AMR_NIVEIS       0        sem refino                   2
+//  FT_AMR_CADA         0        sem remalhamento             20
+//  FT_AMR_CELMIN       5        piso do PLIC                 5
+//  FT_AMR_NX, _NY      40, 80   base do dominio 1x2          40, 80
+//  FT_AMR_LX, _LY      1.0,2.0  dominio de Hysing            1.0, 2.0
+//  FT_AMR_CAMINHO      (interno) TEM de casar o path do      amrs-hysing/
+//                               domain.yaml, senao a corrida  criterio/
+//                               roda UNIFORME em silencio     dominio.amr
+//  FT_VORT1, FT_VORT2  0        sensor de esteira desligado  conforme o caso
+//  FT_VORT_HISTERESE   ausente  sem histerese                ligar se VORT1>0
+//
+//  FILTRO DE ONDULACAO SUBMALHA (TSUR 2D)
+//  FT_TSUR_CADA        20       ligado                       20 (0 desliga)
+//  FT_TSUR_LIM         0.05     margem sobre 0,02 medido     0.05
+//  FT_TSUR_RLX         0.0      relaxacao total (Freeflow)   0.0
+//
+//  DIAGNOSTICO (presenca basta; nao mudam a fisica)
+//  FT_HYSING           --       metricas do benchmark; FT_HYSING_CADA=50
+//  FT_DIAG_MALHA       --       oraculos da malha adaptada
+//  FT_POUT_Y           --       y da referencia de pressao
+//  HIGFLOW_CRONO_REMALHA --     cronometra criterio x reconstrucao
+//
+// O EXEMPLO ANUNCIA NO ARRANQUE o estado da frente e do filtro.  Anuncio e'
+// documentacao que nao envelhece: sai do mesmo codigo que usa o valor.
+// ===========================================================================
+
 extern "C" void front_tracking_passo_inicial(int passo);
 extern "C" void front_tracking_instala(higflow_solver *ns, ft_frente *frente,
                                         real sigma);

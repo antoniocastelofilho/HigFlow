@@ -537,6 +537,44 @@ extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup
                 if (alvo > tab[q]) tab[q] = alvo;   // MAXIMO com a banda
             }
         }
+
+        // REUNIAO ENTRE RANKS, e ela NAO e' opcional.
+        //
+        // A banda geometrica nao precisa de reuniao, e o comentario da escrita
+        // adiante explica por que: a SUPERFICIE e' replicada, entao todo rank
+        // ve' a frente inteira.  O SENSOR DE ESTEIRA nasceu depois e nao herda
+        // essa propriedade: ele percorre `psd_get_local_domain(ns->psdp)`, o
+        // dominio LOCAL, porque a velocidade so' existe onde o rank a possui.
+        // Sem reduzir, o rank 0 escreveria o .amr com a esteira marcada apenas
+        // na SUA fatia -- a malha sairia, a corrida andaria, e o arrasto sairia
+        // errado, em silencio.  E' a mesma assinatura do gather que faltava nas
+        // sementes do VOF.
+        //
+        // MAXIMO, nao soma: a marca e' um NIVEL de refino, e a regra local ja'
+        // e' o maximo (`if (alvo > tab[q])`).  Somar daria niveis inventados
+        // onde duas fatias se sobrepoem na franja.
+        //
+        // A tabela inteira, nao so' as celulas marcadas: ela e' a malha BASE --
+        // 46 KB em 25x25x75, 188 KB em 40x40x120 --, e um Allreduce desse
+        // tamanho custa microssegundos.  A versao esparsa seria mais codigo
+        // para economizar o que nao pesa.
+        //
+        // ANTES do instantaneo da histerese, de proposito: `tab_ant` guarda o
+        // estado para o proximo remalhamento decidir quem ja' estava refinado.
+        // Copiar a tabela PARCIAL daria a cada rank um historico diferente, e a
+        // histerese passaria a comparar contra um passado que nao existiu.
+        {
+            int nt = 1;
+            MPI_Comm_size(MPI_COMM_WORLD, &nt);
+            if (nt > 1) {
+                signed char *tab_g = (signed char *) malloc((size_t) ncel);
+                MPI_Allreduce(tab, tab_g, (int) ncel, MPI_SIGNED_CHAR,
+                              MPI_MAX, MPI_COMM_WORLD);
+                memcpy(tab, tab_g, (size_t) ncel);
+                free(tab_g);
+            }
+        }
+
         if (ncel_ant != ncel) { free(tab_ant); tab_ant = NULL; }
         if (tab_ant == NULL) tab_ant = (signed char *) malloc((size_t) ncel);
         memcpy(tab_ant, tab, (size_t) ncel);
@@ -544,10 +582,15 @@ extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup
     }
 
     // -----------------------------------------------------------------
-    // Escrita.  SO' O RANK 0 ESCREVE, E TODOS ESPERAM: as sementes saem da
-    // SUPERFICIE, que e' replicada e portanto completa em todo rank, logo nao
-    // ha' reuniao a fazer -- mas sem a guarda todos truncam o mesmo arquivo, e
-    // sem a barreira alguem o rele' antes de estar pronto.
+    // Escrita.  SO' O RANK 0 ESCREVE, E TODOS ESPERAM: sem a guarda todos
+    // truncam o mesmo arquivo, e sem a barreira alguem o rele' antes de estar
+    // pronto.  Os dois sao necessarios: a guarda sozinha nao faz ninguem esperar.
+    //
+    // ESTE COMENTARIO DIZIA que nao havia reuniao a fazer, porque a superficie
+    // e' replicada.  Era verdade quando so' existia a banda geometrica, e virou
+    // FALSO quando o sensor de esteira entrou -- ele le' o dominio local.  O
+    // comentario continuou correto de aparencia e passou a esconder o defeito,
+    // que e' o pior jeito de um comentario envelhecer.  A reuniao esta' acima.
     // -----------------------------------------------------------------
     int meurank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &meurank);

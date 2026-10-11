@@ -63,6 +63,56 @@ real func (Point p) {
 // eram identicas em cinco exemplos e passaram a viver num lugar so'.
 #include "../examples-common/vof-geometry-2d.c"
 
+// ===========================================================================
+//  VARIAVEIS DE AMBIENTE -- o que cada uma vale e PARA QUE CASO
+// ===========================================================================
+//
+// POR QUE ESTA TABELA EXISTE.  Os padroes sao razoaveis e cada um serve a UM
+// caso, quase sempre um oraculo.  Rodar outro caso sem troca-los nao da' erro:
+// da' resultado plausivel e errado.  Em 11/10/2026 as densidades no padrao
+// custaram uma corrida de CINCO HORAS -- razao 1:1, sem empuxo, bolha subindo
+// 0,004 em t=3 contra 1,079 do caso correto, com o log anunciando
+// "Reference phase 0 density: 1.000000 (Using default value)" e ninguem lendo.
+//
+//  variavel            padrao   caso canonico do padrao      Hysing caso 1
+//  ------------------  -------  ---------------------------  ----------------
+//  GEOMETRIA E FISICA
+//  VOF_RA, VOF_RB      1/6      o caso original; RA!=RB da'  0.25, 0.25
+//                               ELIPSE (curvatura variavel)
+//  VOF_RHO0            1.0      sem contraste (oraculos)     1000   (externa)
+//  VOF_RHO1            1.0      idem                         100    (bolha)
+//  VOF_MU0             1.0      idem                         10     (externa)
+//  VOF_MU1             1.0      idem                         1      (bolha)
+//  (o centro e' fixo em (0,5; 0,5) no codigo, nao vem do ambiente)
+//
+//  REFINO ADAPTATIVO (niveis=0 DESLIGA)
+//  VOF_AMR_NIVEIS      0        sem refino                   2
+//  VOF_AMR_CADA        0        sem remalhamento             20
+//  VOF_AMR_CELMIN      5        piso que o PLIC exige        5
+//  VOF_AMR_NX, _NY     40, 80   base do dominio 1x2          40, 80
+//  VOF_AMR_LX, _LY     1.0,2.0  dominio de Hysing            1.0, 2.0
+//  VOF_AMR_CAMINHO     (interno) TEM de casar o path do      amrs-hysing/
+//                               domain.yaml; se nao casar, a  criterio/
+//                               corrida roda UNIFORME calada  dominio.amr
+//
+//  DIAGNOSTICO (nao mudam a fisica)
+//  VOF_HYSING          --       metricas do benchmark; VOF_HYSING_CADA=50
+//  VOF_ESTATICO        0        1 congela o campo (oraculo de Laplace)
+//  VOF_DIAG_LAPLACE    --       salto de pressao; VOF_DIAG_CADA=50
+//  VOF_DIAG_MALHA      --       oraculos da malha adaptada
+//  HIGFLOW_CRONO_KSP      --    cronometra o solver linear
+//  HIGFLOW_CRONO_REMALHA  --    cronometra criterio x reconstrucao
+//
+// A FASE 0 VISCOELASTICA nao vem do ambiente: vem do yaml
+// (multiphase/contr/flowtype0 e viscoelastic/phase0/{De,beta}).  O exemplo
+// so' cria o dominio viscoelastico quando o yaml pede.
+//
+// ATENCAO ao conferir o yaml: trocar flowtype0 NAO troca De e beta, que ficam
+// nos padroes do deck (1,0 e 0,5).  Leia os valores DE VOLTA do arquivo depois
+// de edita-lo -- uma substituicao que erra a indentacao passa despercebida.
+// ===========================================================================
+
+
 // MODO GOTA ESTATICA (VOF_ESTATICO=1), para a comparacao com o front-tracking.
 //
 // O contorno id=1 deste exemplo IMPOE velocidade que cresce no tempo

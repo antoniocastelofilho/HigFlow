@@ -313,6 +313,50 @@ real get_kernel_jacobian(int dim, real lambda, real tol) {
 // Impressao de perfis: identica nos dois exemplos 3-D (ver o arquivo).
 #include "../examples-common/print-3d.c"
 
+// ===========================================================================
+//  VARIAVEIS DE AMBIENTE -- o que cada uma vale e PARA QUE CASO
+// ===========================================================================
+//
+// AQUI OS PADROES DE DENSIDADE E VISCOSIDADE SAO OS DE PRODUCAO (1000/100/10/1),
+// ao contrario dos exemplos de front-tracking, que usam 1,0.  Vale saber qual
+// se esta' rodando: o mesmo nome de variavel tem padrao diferente conforme o
+// exemplo, e o log so' anuncia os valores de REFERENCIA do yaml, que nao dizem
+// nada sobre os campos.
+//
+//  variavel            padrao     caso canonico do padrao
+//  ------------------  ---------  -------------------------------------------
+//  GEOMETRIA E FISICA
+//  SB_R                0.25       bolha ascendente
+//  SB_CX, _CY, _CZ     0.5        centro
+//  SB_RHO0             1000.0     fase externa     (ja' e' producao)
+//  SB_RHO1             100.0      bolha            (caso 2; use 1.0 no caso 1)
+//  SB_MU0              10.0       fase externa
+//  SB_MU1              1.0        bolha            (caso 2; use 0.1 no caso 1)
+//  VE_CISALHA          0.0        sem cisalhamento imposto
+//
+//  REFINO ADAPTATIVO (niveis=0 DESLIGA)
+//  VOF3_AMR_NIVEIS     0          sem refino
+//  VOF3_AMR_CADA       0          sem remalhamento
+//  VOF3_AMR_CELMIN     5          piso que o PLIC e o transporte da fracao
+//                                 EXIGEM; a banda fisica nao o vence
+//  VOF3_AMR_NX,_NY,_NZ 25,25,75   base do dominio 1x1x3
+//  VOF3_AMR_LX,_LY,_LZ 1,1,3      dominio
+//  VOF3_AMR_CAMINHO    (interno)  TEM de casar o path do domain.yaml
+//
+//  NIVEIS=0 ESTOURA: com zero niveis o criterio nao escreve o .amr e o leitor
+//  de dominio faz fscanf sem conferir o fopen -- SIGSEGV em 1,4 s.  Para rodar
+//  uniforme, aponte o domain.yaml para um .amr de UM nivel em vez de usar
+//  NIVEIS=0.
+//
+//  SAIDA
+//  SB_SALVA            0          sem ponto de salvamento; 1 permite RETOMAR
+//  SB_CAMPO_CADA       60         quadros entre despejos do campo
+//
+// A FASE 0 VISCOELASTICA vem do yaml, nao do ambiente
+// (multiphase/contr/flowtype0 e viscoelastic/phase0/{De,beta}).
+// ===========================================================================
+
+
 // Print the velocity
 
 // Print the Polymeric Tensor at point
