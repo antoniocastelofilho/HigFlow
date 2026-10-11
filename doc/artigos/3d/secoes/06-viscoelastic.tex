@@ -1,0 +1,524 @@
+\section{Viscoelastic three-dimensional bubble}
+\label{sec:viscoelastic}
+
+\status{\textbf{Closed on the uniform mesh}: all twelve runs of the matrix
+(six $(\lambda_1,\beta)$ combinations $\times$ two methods) completed 2001 steps
+at $25\times25\times75$ with zero non-finite values. The reference resolution is
+complete for the cusp case in VOF and running in front-tracking. The adaptive
+half has a working remeshing loop but no production run.
+
+One claim in this section was \emph{withdrawn} by its own measurement: the
+velocity drop is not systematically larger in VOF. See
+Section~\ref{sec:dropdef}.}
+
+\subsection{Case definition}
+
+The Newtonian case of Section~\ref{sec:newtonian} with an Oldroyd-B medium
+surrounding a Newtonian bubble, following the reference
+thesis~\cite{silva-thesis}. Two changes to the geometry and the schedule, both
+with a reason:
+
+\begin{itemize}
+\item the tank is raised to $[0,1]\times[0,1]\times[0,3]$, so the top and bottom
+walls do not influence the polymeric tensor;
+\item the final time goes from $t=3$ to $t=4$, because the elastic stress takes
+longer than the velocity to reach a steady state.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Viscoelastic matrix: relaxation time and solvent fraction.}
+\label{tab:vematrix}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/lambda/.style={column name={$\lambda_1$}, column type={c}},
+  columns/beta/.style={column name={$\beta$}, column type={c}},
+  columns/polimero/.style={column name={Polymer}, column type={c}},
+  columns/esperado/.style={column name={Expected shape at $t=4$}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-matriz.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsection{The cusp as the discriminating case}
+
+At $\lambda_1 = 0.4$ and $\beta = 0.2$ the reference reports a \textbf{cusp}
+forming at the trailing edge of the bubble: the rising motion deforms the
+viscoelastic medium, which exerts elastic force back on the interface, and that
+force stretches the rear of the bubble into a point.
+
+This is the case that gives the comparison content rather than making it a tie.
+A cusp is a region of high curvature concentrated on a scale that approaches the
+cell size, and the two representations should handle it differently: an explicit
+surface with surgery can refine locally along the interface, whereas a volume
+fraction with a per-cell planar reconstruction cannot represent curvature below
+one cell.
+
+\status{\textbf{The pair is closed at the reference resolution.} Both methods
+completed 2001 steps to $t=4$ with 161 extracted surfaces, all closed. The
+front-tracking run carries the filter of Section~\ref{sec:tsur}, which is what
+makes it comparable on this case at all.}
+
+\begin{table}[htbp]
+\centering
+\caption{The pair at $t=4$, $50{\times}50{\times}150$, same instrument for both.}
+\label{tab:ftn50}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/grandeza/.style={column name={}, column type={l}},
+  columns/ft/.style={column name={front-tracking}, column type={r}},
+  columns/vof/.style={column name={VOF}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ft-n50-final.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{Two measures, and only one of them is free of the mesh}
+
+The cusp is read with two numbers, and the pair exists because they fail
+differently.
+
+The \textbf{asymmetry} $A = (z_c - z_{\min})/(z_{\max} - z_c)$ is $1$ for a
+sphere and grows as the rear is drawn out. It is \emph{integrated}, so no cell
+size bounds it.
+
+The \textbf{radius of curvature} $R$ at the lowest vertex --- a least-squares
+sphere through that vertex and its ring --- is \emph{local}, and a method that
+reconstructs one plane per cell cannot report a radius below the cell. It
+therefore has a floor, and the floor is the point.
+
+\begin{table}[htbp]
+\centering
+\caption{The two measures over time, both methods, reference resolution. The
+asymmetry agrees throughout; $R/R_{\mathrm{eq}}$ does not, until both reach the
+mesh floor.}
+\label{tab:cusppair}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={t,ftA,vofA,dA,ftR,vofR},
+  columns/t/.style={column name={$t$}, column type={r}},
+  columns/ftA/.style={column name={FT $A$}, column type={r}},
+  columns/vofA/.style={column name={VOF $A$}, column type={r}},
+  columns/dA/.style={column name={diff.}, column type={r}},
+  columns/ftR/.style={column name={FT $R/R_{\mathrm{eq}}$}, column type={r}},
+  columns/vofR/.style={column name={VOF $R/R_{\mathrm{eq}}$}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{cuspide-par.dat}}
+\end{adjustbox}
+\end{table}
+
+\paragraph{The asymmetry is the result.} The two methods track each other to
+$0.2$--$2.4\%$ from $t=1.6$ to $t=4$, ending at $1.2846$ and $1.2907$ --- a
+difference of $0.5\%$. On the case the reference singles out as discriminating,
+with the two interface representations at their most different, the integrated
+shape of the cusp is the same.
+
+\paragraph{But their agreement in $R$ at $t=4$ is not convergence.} At $t=4$
+front-tracking gives $R = 0.02142$ and VOF $R = 0.02168$, within $1\%$ --- and
+$h = 1/50 = 0.02$, so \textbf{both are at $R \approx 1.07\,h$: one cell}. Two
+methods pinned at the same floor agree for a reason that has nothing to do with
+the physics, and reading that $1\%$ as convergence would be reading the mesh.
+
+The informative part of that column is the \emph{approach}, not the endpoint.
+VOF drops to $\approx 0.11$ by $t=2.4$ and then sits there for the rest of the
+run --- it reaches its floor early and stays. Front-tracking descends
+gradually, $0.40 \to 0.22 \to 0.13 \to 0.086$, arriving at the floor only at
+$t=4$. That is the expected signature of the structural difference argued in
+Section~\ref{sec:tsur}: a per-cell planar reconstruction saturates at the cell,
+while an explicit surface with local surgery can keep resolving below it until
+the mesh finally binds.
+
+\subsubsection{And at the coarse mesh, neither method had resolved it}
+
+\begin{table}[htbp]
+\centering
+\caption{The same two numbers at both resolutions, $t=4$.}
+\label{tab:cuspres}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/corrida/.style={column name={}, column type={l}},
+  columns/malha/.style={column name={mesh}, column type={l}},
+  columns/assim/.style={column name={$A$}, column type={r}},
+  columns/RRel/.style={column name={$R/R_{\mathrm{eq}}$}, column type={r}},
+  columns/obs/.style={column name={}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{cuspide-resolucao.dat}}
+\end{adjustbox}
+\end{table}
+
+At $h=1/25$ the two differ by a factor of \emph{fifteen} in $R/R_{\mathrm{eq}}$
+--- $0.047$ against $0.709$. That is not a difference between methods; it is two
+different failures. VOF at $0.709$ has a trailing edge about as round as the
+bubble itself: no cusp is resolved at all. Front-tracking at $0.047$ is
+\emph{spuriously} sharp, because that run carries no filter and its lowest
+vertex is a zig-zag spike --- the sub-grid undulation of
+Table~\ref{tab:undulation} makes the local curvature unusable. The filtered
+$h=1/50$ run gives $0.086$, \emph{less} sharp than the unfiltered coarse run,
+which is the direct evidence that the coarse value was undulation and not cusp.
+
+So the paper's claim about the cusp is narrower than the one it was reaching
+for, and firmer: \textbf{at the reference resolution the two methods agree on
+the integrated shape of the cusp to $0.5\%$; the coarse mesh resolves it in
+neither, for two unrelated reasons; and the local curvature at $t=4$ is at the
+mesh floor in both and so cannot discriminate.}
+
+\caveat{The $h=1/25$ front-tracking run is unfiltered and the $h=1/50$ one is
+filtered, so the change between those two rows mixes resolution with the filter.
+Separating them needs a filtered run at $h=1/25$, which the cadence sweep of
+Section~\ref{sec:tsur} produces as a by-product.}
+
+\subsection{A model limit, not a numerical one}
+
+Oldroyd-B has no finite extensibility limit (Section~\ref{sec:formulation}), so
+under sustained extension the stress grows without bound. In a preliminary run
+with deliberately wrong parameters --- gravity a hundredfold too strong and
+surface tension 24 times too weak --- the trace grew monotonically from 0 to 416
+in 160 steps with no sign of saturation. With the correct parameters the same
+configuration gives \num{3.6e-2} after seven steps, growing slowly. The
+distinction matters for reading the viscoelastic results: unbounded growth is
+what the model does in extension, and the question is whether it saturates on
+the time scale of the rise, not whether it appears.
+
+\subsection{Uniform mesh}
+
+All twelve runs completed 2001 steps to $t=4$ with zero non-finite values.
+That is worth stating before any number: Oldroyd-B has no finite extensibility
+limit, and the question going in was whether the stress would saturate on the
+time scale of the rise or run away.
+
+\begin{table}[htbp]
+\centering
+\caption{The measured matrix at $t=4$, $25\times25\times75$. ``Drop'' is the
+fall in rise velocity after its maximum, relative to that maximum.}
+\label{tab:vemeasured}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={caso,lambda,beta,zc,wmax,tmax,west,queda},
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/lambda/.style={column name={$\lambda_1$}, column type={c}},
+  columns/beta/.style={column name={$\beta$}, column type={c}},
+  columns/zc/.style={column name={$z_c$}, column type={r}},
+  columns/wmax/.style={column name={$w_{\max}$}, column type={r}},
+  columns/tmax/.style={column name={at $t$}, column type={r}},
+  columns/west/.style={column name={$w_{\mathrm{steady}}$}, column type={r}},
+  columns/queda/.style={column name={Drop (\%)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-medido.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{Against the published numbers}
+
+The reference thesis publishes curves rather than tables, but its text quotes
+values, and those are what make a numerical comparison possible at all. They
+come with ``approximately'' and two significant figures, which bounds how tight
+the comparison can be.
+
+\begin{table}[htbp]
+\centering
+\caption{Measured against the values the reference thesis states in its text.}
+\label{tab:vethesis}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/zc/.style={column name={$z_c$}, column type={r}},
+  columns/zcrel/.style={column name={}, column type={r}},
+  columns/wmax/.style={column name={$w_{\max}$}, column type={r}},
+  columns/wmaxrel/.style={column name={}, column type={r}},
+  columns/west/.style={column name={$w_{\mathrm{steady}}$}, column type={r}},
+  columns/westrel/.style={column name={}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-contra-tese.dat}}
+\end{adjustbox}
+\end{table}
+
+Every entry agrees to within 7\%, and most to within 3\%. The signs are not
+random, and the next subsection returns to that once the Newtonian reference
+puts nine comparisons on the table rather than six.
+
+\subsubsection{The trends, all twelve confirmed}
+
+The thesis makes three ordering claims: more polymer rises higher, reaches a
+higher peak velocity, and settles at a higher steady velocity. Across both
+methods and both relaxation times, \textbf{all twelve orderings hold}.
+
+\begin{center}
+\small
+\adjustbox{max width=\linewidth}{%
+\begin{tabular}{llccc}
+\toprule
+Method & $\lambda_1$ & $z_c$ ($\beta = 0.8, 0.5, 0.2$) & $w_{\max}$ & $w_{\mathrm{steady}}$ \\
+\midrule
+FT  & 0.1 & 1.8221, 1.8482, 1.8761 & 0.3642, 0.3698, 0.3754 & 0.3486, 0.3561, 0.3641 \\
+FT  & 0.4 & 1.8477, 1.9156, 1.9860 & 0.3714, 0.3896, 0.4092 & 0.3557, 0.3751, 0.3972 \\
+VOF & 0.1 & 1.8679, 1.8965, 1.9251 & 0.3942, 0.4002, 0.4041 & 0.3641, 0.3713, 0.3816 \\
+VOF & 0.4 & 1.8942, 1.9733, 2.0540 & 0.3933, 0.4158, 0.4280 & 0.3685, 0.3948, 0.4180 \\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\paragraph{One ordering appeared to fail, and the reason is methodological.}
+Read before all twelve runs had reached $t=4$, the VOF series at
+$\lambda_1 = 0.1$ was \emph{not} monotone in $z_c$: 1.8679, 1.8965, 1.8774. The
+third run was at $t = 3.88$ while the second was at $t = 4.00$, and a centre of
+mass is an integrated quantity --- comparing it across different end times
+compares different things. At $t = 4.00$ the ordering holds. Every table in this
+paper that reports an integrated quantity therefore also reports the end time it
+was read at.
+
+\subsubsection{The signature the thesis describes, in both methods}
+
+The most specific claim in the reference is not an ordering but a shape: at
+$\lambda_1 = 0.4$ and $\beta = 0.2$ the rise velocity falls sharply after its
+maximum and then recovers. It appears in both methods --- a drop of $8.1\%$ in
+front-tracking and $5.9\%$ in VOF for the cusp case, with recovery in both.
+
+The drop is present in \emph{every} viscoelastic run here. An earlier version of
+this section reported it as \emph{systematically larger in VOF}, and that claim
+does not survive its own measurement --- the correction is worth stating in full,
+because the failure mode is general.
+
+\subsubsection{The asymmetry was in the measurement, not the flow}
+\label{sec:dropdef}
+
+The drop had been taken as the fall from the global maximum of $w(t)$ to the
+following minimum. On a curve that is nearly flat after the initial overshoot,
+that definition is governed by whichever single frame happens to sit highest ---
+and in three of the seven VOF runs the ``maximum'' it selects lies at
+$t \approx 3.0$--$3.9$, long after the physical overshoot at $t \approx 0.8$.
+
+The two methods do not carry the same frame-to-frame scatter. Locating the
+overshoot in the window $t \in [0.3,1.5]$ on a centred five-point mean, and
+measuring the scatter of $w$ about that mean:
+
+\begin{table}[htbp]
+\centering
+\caption{The same drop under two definitions, and the scatter that separates
+them. ``Raw'' is global maximum then following minimum; ``robust'' locates the
+overshoot physically and smooths.}
+\label{tab:dropdef}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={caso,metodo,lambda,beta,qbruta,tbruta,qrobusta,trobusta,ruido},
+  columns/caso/.style={column name={Run}, column type={l}},
+  columns/metodo/.style={column name={}, column type={l}},
+  columns/lambda/.style={column name={$\lambda_1$}, column type={r}},
+  columns/beta/.style={column name={$\beta$}, column type={r}},
+  columns/qbruta/.style={column name={raw (\%)}, column type={r}},
+  columns/tbruta/.style={column name={$t$ of max}, column type={r}},
+  columns/qrobusta/.style={column name={robust (\%)}, column type={r}},
+  columns/trobusta/.style={column name={$t$ of max}, column type={r}},
+  columns/ruido/.style={column name={scatter (\% of peak)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{queda-robusta.dat}}
+\end{adjustbox}
+\end{table}
+
+Under the raw definition front-tracking gives 11.5--13.8\% and VOF 11.1--23.1\%,
+and VOF looks systematically worse. Under the robust definition front-tracking
+gives 5.5--8.1\% (mean 6.8\%) and VOF 5.1--7.0\% (mean 6.1\%): the two
+\textbf{agree}, and if anything front-tracking drops slightly more.
+
+What differs between the methods is not the drop but the scatter --- $3.0\%$ of
+the peak in front-tracking against $3.8$--$4.9\%$ in VOF, consistent with jitter
+in the marching-cubes extraction from which $z_c$ is read. The raw definition
+converts that scatter into an apparent physical asymmetry, because a noisier
+series offers a higher stray maximum.
+
+So the honest statement is narrower than the one it replaces: \textbf{the
+velocity-drop signature the reference describes is present in both methods at
+$6\pm1\%$, and these runs do not resolve a difference between them.} The
+asymmetry that remains is the one in Section~\ref{sec:newtonian} --- VOF above
+the published values on all nine comparisons --- which does not depend on
+locating an extremum.
+
+\subsubsection{And it does not change with $h$}
+
+The pending test was whether the drop moves with resolution: a representation
+artefact should, the physics should not. The cusp case now exists at both
+resolutions, the same quantity computed the same way.
+
+\begin{table}[htbp]
+\centering
+\caption{The drop at two resolutions, VOF, $\lambda_1=0.4$, $\beta=0.2$.}
+\label{tab:dropres}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/malha/.style={column name={Mesh}, column type={l}},
+  columns/h/.style={column name={$h$}, column type={r}},
+  columns/queda/.style={column name={drop (\%)}, column type={r}},
+  columns/pico/.style={column name={$w_{\max}$}, column type={r}},
+  columns/tpico/.style={column name={$t_{\max}$}, column type={r}},
+  columns/zcfinal/.style={column name={$z_c(4)$}, column type={r}},
+  columns/psifinal/.style={column name={$\Psi(4)$}, column type={r}},
+  columns/ruido/.style={column name={scatter (\%)}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{queda-resolucao.dat}}
+\end{adjustbox}
+\end{table}
+
+Halving $h$ moves the drop from $5.9\%$ to $6.6\%$ --- $0.7$ percentage points,
+against a frame scatter of $3$--$4\%$ of the peak. The measurement therefore
+\emph{bounds} any resolution dependence below its own noise rather than
+resolving one, which is consistent with the drop being physical and is not proof
+of it. The rise itself converges in the usual way: $z_c(4)$ moves $0.60\%$ and
+the final sphericity $0.0046$.
+
+\subsubsection{The shapes}
+
+Figure~\ref{fig:veshape} is the counterpart of the reference's shape figures:
+the vertical section through the bubble centre, at $t=4$, for all six
+$(\lambda_1,\beta)$ combinations, with the two methods overlaid. As in
+Section~\ref{sec:newtonian}, contours are centred on their own centroid so that
+what is compared is shape and not rise.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.325\linewidth, height=0.30\linewidth,
+             axis equal image, title={$\lambda_1{=}0.1$, $\beta{=}0.8$}, grid=both, no markers,
+             legend pos=south east, legend cell align=left,
+             font=\scriptsize, xticklabel pos=bottom]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/ve-vof-l01-b08-c.dat}};
+    \addlegendentry{VOF}
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/ve-ft-l01-b08-c.dat}};
+    \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[width=0.325\linewidth, height=0.30\linewidth,
+             axis equal image, title={$\lambda_1{=}0.1$, $\beta{=}0.5$}, grid=both, no markers,
+             font=\scriptsize, xticklabel pos=bottom]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/ve-vof-l01-b05-c.dat}};
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/ve-ft-l01-b05-c.dat}};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[width=0.325\linewidth, height=0.30\linewidth,
+             axis equal image, title={$\lambda_1{=}0.1$, $\beta{=}0.2$}, grid=both, no markers,
+             font=\scriptsize, xticklabel pos=bottom]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/ve-vof-l01-b02-c.dat}};
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/ve-ft-l01-b02-c.dat}};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[width=0.325\linewidth, height=0.30\linewidth,
+             axis equal image, title={$\lambda_1{=}0.4$, $\beta{=}0.8$}, grid=both, no markers,
+             font=\scriptsize, xticklabel pos=bottom]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/ve-vof-l04-b08-c.dat}};
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/ve-ft-l04-b08-c.dat}};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[width=0.325\linewidth, height=0.30\linewidth,
+             axis equal image, title={$\lambda_1{=}0.4$, $\beta{=}0.5$}, grid=both, no markers,
+             font=\scriptsize, xticklabel pos=bottom]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/ve-vof-l04-b05-c.dat}};
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/ve-ft-l04-b05-c.dat}};
+\end{axis}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[width=0.325\linewidth, height=0.30\linewidth,
+             axis equal image, title={$\lambda_1{=}0.4$, $\beta{=}0.2$}, grid=both, no markers,
+             font=\scriptsize, xticklabel pos=bottom]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/ve-vof-l04-b02-c.dat}};
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/ve-ft-l04-b02-c.dat}};
+\end{axis}
+\end{tikzpicture}
+\caption{Viscoelastic bubble at $t=4$: vertical section through the centre, VOF
+(solid) against front-tracking (dashed). Top row $\lambda_1 = 0.1$, bottom row
+$\lambda_1 = 0.4$; polymer content increases to the right ($\beta$ falls).
+Contours centred on their own centroid.}
+\label{fig:veshape}
+\end{figure}
+
+Two things the figure shows that the tables cannot. The first is that the two
+methods agree on shape across the whole matrix, including at the highest polymer
+content, where the elastic stress is largest. The second is the trailing edge:
+at $\lambda_1 = 0.4$, $\beta = 0.2$ --- the bottom-right panel --- the rear of
+the bubble is drawn out relative to every other case, which is the cusp the
+reference describes.
+
+\paragraph{What this figure does not settle.} Whether the drawn-out rear is
+\emph{resolved} or merely \emph{suggested} at this mesh. A cusp is curvature
+concentrated on a scale that approaches the cell size, and this is the coarse
+mesh. \missing{the reference resolution for this case is running; the comparison
+of the two will say whether the feature sharpens with $h$ --- which it should, if
+it is the cusp --- or stays at the same width, which would mean the mesh is
+setting its scale}
+
+\subsubsection{The Newtonian reference, in the same geometry}
+
+One claim of the reference could not be tested until now: that the viscoelastic
+bubble rises higher than a Newtonian one. The Newtonian runs of
+Section~\ref{sec:newtonian} cannot serve as that reference --- they use a
+different box and end time, and the centre of mass is an \emph{integrated}
+quantity, so it is not comparable across either. A Newtonian pair was therefore
+run in the thesis geometry: box $1\times1\times3$, to $t=4$.
+
+\begin{table}[htbp]
+\centering
+\caption{The trend claim, with a reference in the same geometry. Centre of mass
+at $t=4$.}
+\label{tab:vetendency}
+\small
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/caso/.style={column name={Case ($\beta=0.2$)}, column type={l}},
+  columns/ve/.style={column name={viscoelastic}, column type={r}},
+  columns/newt/.style={column name={Newtonian}, column type={r}},
+  columns/veredito/.style={column name={}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ve-tendencia.dat}}
+\end{table}
+
+All four hold. And the Newtonian reference itself lands close to the published
+value: front-tracking gives $z_c = 1.8055$ against $\approx 1.8$, and a peak
+velocity of $0.3603$ against $\approx 0.36$ --- $0.3\%$ and $0.1\%$.
+
+\paragraph{The asymmetry in the signs is now worth stating as a result.}
+With the Newtonian reference included there are nine comparisons against
+published values per method. \textbf{VOF is above the reference on all nine};
+front-tracking is at or below on seven, and its two exceptions are $+0.1\%$ and
+$+0.3\%$. The mean absolute deviation is $1.2\%$ for front-tracking against
+$3.6\%$ for VOF.
+
+That is no longer the scatter of two or three readings, and it is the opposite
+of what the provenance would suggest: the reference was computed with VOF. Two
+readings are available and these runs do not separate them --- our
+volume-of-fluid differs from theirs in some detail of the reconstruction or the
+initial fraction, or the marching-cubes extraction from which our shape
+quantities are read is itself biased upward. \missing{the second is testable:
+the field-based centroid probe agrees with the surface-based one to
+\num{1e-4} in the Newtonian case of Section~\ref{sec:newtonian}, which argues
+against extraction bias, but that check has not been repeated here}
+
+\subsection{Adaptive mesh}
+\missing{blocked on Section~\ref{sec:amr}}

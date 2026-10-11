@@ -1,0 +1,275 @@
+\section{Newtonian three-dimensional bubble}
+\label{sec:newtonian}
+
+\status{Uniform mesh is \textbf{closed at both resolutions} --- $25\times25\times50$
+and the reference $50\times50\times100$, 1501 steps each, in both methods. Case~2
+has not been run. The adaptive half now has a working dynamic remeshing loop
+(Section~\ref{sec:amr}) but no production run.}
+
+\subsection{Case definition}
+
+A bubble of radius $R = 0.25$ centred at $(0.5,0.5,0.5)$ in a tank
+$[0,1]\times[0,1]\times[0,2]$, no-slip on all walls, zero initial velocity,
+pressure and polymeric tensor, integrated to $t = 3$. Two parameter sets,
+Table~\ref{tab:params}, taken from the reference work and originally due to
+Adelsberger et al.
+
+\begin{table}[htbp]
+\centering
+\caption{Physical and dimensionless parameters.}
+\label{tab:params}
+\small
+\adjustbox{max width=\linewidth}{%
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{caso-parametros.dat}}
+}
+\end{table}
+
+\subsection{Uniform mesh}
+
+\subsubsection{The methods converge toward each other}
+
+This is the central result of the section, and it is a statement about both
+methods rather than about either one: refining the mesh brings them together.
+
+\begin{table}[htbp]
+\centering
+\caption{Difference between the two methods at $t=3$, at both resolutions.}
+\label{tab:convergence}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/grandeza/.style={column name={Quantity}, column type={l}},
+  columns/n25/.style={column name={$25\times25\times50$}, column type={r}},
+  columns/n50/.style={column name={$50\times50\times100$}, column type={r}},
+  columns/fator/.style={column name={Factor}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{c1-convergencia.dat}}
+\end{adjustbox}
+\end{table}
+
+What makes this more than a coincidence is the \emph{direction} each method
+moves. The VOF centre of mass falls from $1.4903$ to $1.4766$; the
+front-tracking one rises from $1.4615$ to $1.4678$. They approach from opposite
+sides toward roughly $1.47$. A single method converging says only that it is
+consistent; two independent representations converging from opposite sides
+toward the same value is evidence that the value is the right one.
+
+\begin{table}[htbp]
+\centering
+\caption{Front-tracking against VOF at $t=3$, both resolutions. Shape
+quantities from the extracted surfaces by the same routine; mass from the field
+integral for VOF and from the surface volume for front-tracking.}
+\label{tab:resolution}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/grandeza/.style={column name={Quantity at $t=3$}, column type={l}},
+  columns/vof25/.style={column name={VOF $N{=}25$}, column type={r}},
+  columns/ft25/.style={column name={FT $N{=}25$}, column type={r}},
+  columns/vof50/.style={column name={VOF $N{=}50$}, column type={r}},
+  columns/ft50/.style={column name={FT $N{=}50$}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{c1-resolucao.dat}}
+\end{adjustbox}
+\end{table}
+
+Both methods reproduce the \textbf{ellipsoidal regime} the reference reports for
+case~1 --- the height-to-equivalent-diameter ratio is below one in both, that
+is, flattened along the direction of rise --- and both reproduce the shape of
+the published rise-velocity curve: the velocity grows, peaks near $t = 0.9$, and
+decreases toward a steady value.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.47\linewidth, xlabel={$t$}, ylabel={$z_c$},
+             legend pos=north west, grid=both, no markers, legend cell align=left]
+  \addplot table[x=t, y=zc] {\dat{bolha3d-c1-N25-vof.dat}}; \addlegendentry{VOF $N{=}25$}
+  \addplot table[x=t, y=zc] {\dat{bolha3d-c1-N25-ft.dat}};  \addlegendentry{FT $N{=}25$}
+  \addplot table[x=t, y=zc] {\dat{bolha3d-c1-N50-vof.dat}}; \addlegendentry{VOF $N{=}50$}
+  \addplot table[x=t, y=zc] {\dat{bolha3d-c1-N50-ft.dat}};  \addlegendentry{FT $N{=}50$}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=0.47\linewidth, xlabel={$t$}, ylabel={$\Psi$},
+             legend pos=south west, grid=both, no markers, legend cell align=left]
+  \addplot table[x=t, y=Psi] {\dat{bolha3d-c1-N25-vof.dat}}; \addlegendentry{VOF $N{=}25$}
+  \addplot table[x=t, y=Psi] {\dat{bolha3d-c1-N25-ft.dat}};  \addlegendentry{FT $N{=}25$}
+  \addplot table[x=t, y=Psi] {\dat{bolha3d-c1-N50-vof.dat}}; \addlegendentry{VOF $N{=}50$}
+  \addplot table[x=t, y=Psi] {\dat{bolha3d-c1-N50-ft.dat}};  \addlegendentry{FT $N{=}50$}
+\end{axis}
+\end{tikzpicture}
+\caption{Centre of mass and sphericity at both resolutions.}
+\label{fig:resolution}
+\end{figure}
+
+\subsubsection{Mass conservation goes the other way}
+
+Mass is the one quantity that does \emph{not} improve for both methods, and the
+two resolutions disagree about which method is better --- which is itself the
+finding.
+
+At $25\times25\times50$ the front-tracking drift is $-0.096\%$ against
+$+0.396\%$ for VOF, a factor of four in favour of front-tracking. At
+$50\times50\times100$ it reverses: $-0.851\%$ against $-0.170\%$, a factor of
+five the other way.
+
+Reading the time history explains it. Up to step 400 the two front-tracking runs
+are nearly identical ($-7.3\times10^{-4}$ and $-6.8\times10^{-4}$ at step 200,
+$-2.5\times10^{-3}$ and $-2.8\times10^{-3}$ at step 400). After that they
+diverge: the coarse run peaks at $-2.6\times10^{-3}$ and \emph{recovers} to
+$-9.6\times10^{-4}$, while the fine run accumulates monotonically. The VOF drift
+likewise changes sign between the resolutions. Both coarse-mesh figures are
+therefore partly \textbf{cancellation}, not conservation, and neither should be
+quoted as a property of its method.
+
+What survives is the fine-mesh statement: at the reference resolution VOF
+conserves mass about five times better than front-tracking, and front-tracking's
+drift \emph{grows} with refinement.
+
+\subsubsection{The drift that grows is an artefact of the comparison}
+\label{sec:deriva-nsub}
+
+The observation that the triangulation ends with the same vertex and triangle
+counts at both resolutions is not a puzzle accompanying the drift: it
+\emph{is} the drift's explanation. Both production runs were launched with the
+same surface subdivision, so the mesh was refined by a factor of two and the
+front was not. The ratio $ds/h$ therefore \emph{doubled} between the two runs,
+and the pair never was a mesh-refinement comparison --- it varied two things at
+once, and the one it was meant to isolate was not the one that moved.
+
+A controlled pair settles it. Running the same case on two meshes with the
+surface resolution \emph{following} the grid, so that $ds/h = 0.75$ in both
+($N=20$ with three subdivisions, $N=40$ with four), the drift falls:
+
+\adjustbox{max width=\linewidth}{%
+\pgfplotstabletypeset[
+  string type,
+  columns/passo/.style={column name={step}},
+  columns/aa0/.style={column name={$A/A_0$}},
+  columns/n20/.style={column name={$N=20$}},
+  columns/cir20/.style={column name={surg.}},
+  columns/n40/.style={column name={$N=40$}},
+  columns/cir40/.style={column name={surg.}},
+  columns/razao/.style={column name={ratio}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ft-duas-resolucoes.dat}}
+}
+
+The ratio stays between $3.2$ and $3.7$ throughout; second order would give
+$4$, first order $2$. Over the three points before the first surgery --- pure
+advection against pure advection --- it is $3.63$, $3.70$ and $3.61$, a mean of
+$3.65$, or an observed order of $\mathbf{1.87}$. \textbf{The drift is
+discretisation error and vanishes under refinement.} There is no systematic
+component: an interpolation bias would not fall with $h$.
+
+\caveat{At step 500 the ratio drops to $3.21$, and there the fine case has
+performed 252 surgery operations against the coarse case's 55 --- the
+comparison is no longer advection against advection alone. The clean points are
+the early ones, and they are the ones that carry the conclusion.}
+
+Surgery was the named suspect, and a second experiment with everything else
+held identical acquits it:
+
+\adjustbox{max width=\linewidth}{%
+\pgfplotstabletypeset[
+  string type,
+  columns/passo/.style={column name={step}},
+  columns/comcirurgia/.style={column name={with surgery}},
+  columns/semcirurgia/.style={column name={without surgery}},
+  columns/razao/.style={column name={worse by}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ft-cirurgia.dat}}
+}
+
+\textbf{Surgery does not cause the drift; it reduces it by $42\%$.} Without it
+the triangles stretch and the deformed surface is worse represented. The two
+runs are \emph{identical up to step 200}, which is where the first surgery
+occurs --- the check that the only difference between them is the intended one.
+
+What this leaves standing is narrower and more useful than the original claim:
+at the reference resolution VOF conserves mass about five times better, and
+front-tracking's drift is a discretisation error of order $1.87$ that the
+production pair failed to expose because it held the surface resolution fixed
+while refining the mesh.
+
+\subsubsection{The shapes}
+
+The quantities above summarise the shape; the shape itself is a planar section.
+Figure~\ref{fig:newtshape} cuts each extracted surface by the vertical plane
+through the bubble centre --- the same view the reference uses to compare two
+codes --- and overlays the two methods.
+
+The contours are drawn \emph{centred on their own centroid}. Overlaying them at
+their absolute heights would hide the difference in shape behind the difference
+in rise, and the rise is already in Table~\ref{tab:resolution}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[width=0.46\linewidth, height=0.42\linewidth,
+             xlabel={$x - x_c$}, ylabel={$z - z_c$}, axis equal image,
+             title={$25\times25\times50$}, grid=both, no markers,
+             legend pos=south east, legend cell align=left, font=\small]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/newt-N25-vof-c.dat}};
+    \addlegendentry{VOF}
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/newt-N25-ft-c.dat}};
+    \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[width=0.46\linewidth, height=0.42\linewidth,
+             xlabel={$x - x_c$}, ylabel={$z - z_c$}, axis equal image,
+             title={$50\times50\times100$}, grid=both, no markers,
+             legend pos=south east, legend cell align=left, font=\small]
+  \addplot+[thick] table[x=x, y=z] {\dat{secoes/newt-N50-vof-c.dat}};
+    \addlegendentry{VOF}
+  \addplot+[thick, dashed] table[x=x, y=z] {\dat{secoes/newt-N50-ft-c.dat}};
+    \addlegendentry{FT}
+\end{axis}
+\end{tikzpicture}
+\caption{Newtonian case 1 at $t=3$: vertical section through the bubble centre,
+front-tracking against VOF, at both resolutions. Contours centred on their own
+centroid so that the comparison is of shape.}
+\label{fig:newtshape}
+\end{figure}
+
+Both are oblate, as the ellipsoidal regime requires. The visible difference is
+not in the overall form but in the \emph{resolution of the contour}: the
+marching-cubes section carries 97 points at the coarse mesh against 185 for the
+triangulated surface, because the extraction lattice is the fluid mesh while the
+triangulation is refined by surgery independently of it. At
+$50\times50\times100$ the two carry 188 and 196, and the contours lie close
+enough that the faceting of each is the larger visible effect.
+
+\paragraph{The instrument was cleared, not assumed.}
+The VOF centre of mass is computed from the marching-cubes surface, which
+encloses about 2.3\% less volume than the field at the coarse resolution; that
+could bias the centroid. An independent probe computes the centroid directly
+from the field and gives $1.490212$ against $1.4903$ from the surface ---
+agreement to \num{1e-4}. The volume bias does not translate into a position
+bias.
+
+\paragraph{Topological soundness.}
+121 output frames per method per resolution, \emph{all} surfaces closed (zero
+orphan edges, $\chi = 2$). In the front-tracking runs the triangulation grew from
+5120 to 5558 triangles, with 8824 and 9604 surgery operations and a
+partition-of-unity residual of \num{2.1e-14}.
+
+\subsection{Case 2: topological change}
+\missing{$\rho_1/\rho_2 = 1000$, $\mu_1/\mu_2 = 100$, $\sigma = 1.96$. Lower
+surface tension favours break-up, which is where an explicit surface with
+surgery and a volume-fraction field should differ most. Not run.}
+
+\subsection{Adaptive mesh}
+\missing{blocked on Section~\ref{sec:amr}}

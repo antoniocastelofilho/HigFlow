@@ -1,0 +1,6 @@
+quantity                          FT             VOF            published
+{$V_{c,\max}$ sampled}          $0.241563$   $0.240746$   {$0.2417$--$0.2421$}
+{$V_{c,\max}$ by parabola}     $0.241577$   $0.240786$   ---
+{time of the maximum}            $0.9057$     $0.9153$     {$0.9213$--$0.9313$}
+{deviation from the lower bound}       $-0.051\%$   $-0.378\%$   ---
+{mutual spread of the three}  ---            ---            $0.165\%$

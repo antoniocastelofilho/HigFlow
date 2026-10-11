@@ -1,0 +1,44 @@
+% ---------------------------------------------------------------- preambulo
+% Comum aos dois artigos (2D e 3D).  Mantido num arquivo so' para que uma
+% mudanca de estilo nao precise ser feita duas vezes e divergir na segunda.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{tikz}
+\usepackage{xcolor}
+\pgfplotsset{compat=1.18}
+
+% OS NUMEROS VIVEM EM dados/*.dat e sao lidos por pgfplotstable, nunca
+% digitados no texto.  Regerar uma medida troca o .dat e o texto acompanha,
+% sem chance de a tabela e a prosa discordarem.
+\newcommand{\dat}[1]{dados/#1}
+
+% \status{...}: o que a secao tem de respaldo medido.  Definir \nostatus antes
+% do \begin{document} faz os blocos sumirem na versao de submissao.
+\newcommand{\status}[1]{%
+  \ifdefined\nostatus\else
+    \begingroup
+    \par\medskip\noindent
+    \colorbox{yellow!18}{\begin{minipage}{0.97\linewidth}
+      \small\textbf{Status of this section.} #1
+    \end{minipage}}\par\medskip
+    \endgroup
+  \fi}
+
+% \missing{...}: uma lacuna pontual, visivel de proposito.
+\newcommand{\missing}[1]{\textcolor{red!70!black}{\textbf{[missing:} #1\textbf{]}}}
+
+% \caveat NAO e' o mesmo que \missing.  \missing marca o que falta MEDIR;
+% \caveat marca o que foi medido mas com uma ressalva que muda a leitura.
+% Confundir os dois esconderia um resultado-com-reserva entre pendencias.
+\newcommand{\caveat}[1]{\par\smallskip\noindent\textcolor{orange!60!black}{%
+  \textbf{[caveat:} #1\textbf{]}}\par\smallskip}

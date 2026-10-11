@@ -1,0 +1,104 @@
+% ===================================================================
+%  Front-tracking and VOF for THREE-DIMENSIONAL two-phase flow
+%  Newtonian and viscoelastic, on uniform and adaptive meshes
+% ===================================================================
+%
+% PARA O OVERLEAF: suba esta pasta inteira (main.tex, preambulo.tex,
+% secoes/, dados/, referencias.bib) e marque main.tex como documento
+% principal.  Compilador: pdfLaTeX.  Nao ha' nenhuma imagem binaria -- todos
+% os graficos saem do pgfplots lendo dados/*.dat --, entao a pasta e' pequena
+% e autocontida.
+%
+% Localmente: latexmk -pdf main   (exige texlive-publishers, pelo elsarticle)
+%
+% O DESENHO E' UM 2x2x2 e a estrutura segue dele: dois METODOS
+% (front-tracking, VOF) x duas REOLOGIAS (newtoniana, viscoelastica) x duas
+% MALHAS (uniforme, adaptativa), tudo em TRES DIMENSOES.  As oito celulas
+% dessa matriz sao as oito corridas de producao que o artigo tem de sustentar.
+%
+% ESTADO DE CADA SECAO -- o que ja' tem respaldo medido e o que nao tem.
+% Cada secao abre com um bloco \status{} dizendo isso, e esses blocos somem do
+% PDF quando \nostatus e' definido.  Existem para que ninguem -- nos inclusive
+% -- leia um paragrafo de planejamento como resultado.
+%
+%   1 Introduction           a escrever
+%   2 Formulation            PRONTA: equacoes e convencao medidas
+%   3 Numerical method       PRONTA: todas as partes implementadas
+%   4 Verification           PRONTA: doze oraculos medidos
+%   5 Newtonian 3D           FT vs VOF uniforme FECHADO em N=25 e N=50;
+%                            caso 2 nao rodado; adaptativo nao em producao
+%   6 Viscoelastic 3D        matriz uniforme FECHADA (12 corridas);
+%                            cuspide na resolucao de referencia FECHADA
+%   7 Cost and performance   taxas em malha uniforme MEDIDAS
+%   8 Conclusions            depende das acima
+
+\documentclass[preprint,review,12pt]{elsarticle}
+\journal{Journal of Computational Physics}
+
+\input{preambulo}
+\usepackage[hidelinks]{hyperref}
+
+% Descomente para a versao de submissao, sem os blocos de estado:
+% \def\nostatus{}
+
+\emergencystretch=3em
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Front-tracking and VOF for three-dimensional two-phase flow:
+       Newtonian and viscoelastic, on uniform and adaptive meshes}
+
+\author[icmc]{Antonio Castelo Filho}
+\ead{castelo@icmc.usp.br}
+\author[icmc]{\missing{co-authors}}
+
+\affiliation[icmc]{organization={Instituto de Ci\^encias Matem\'aticas e de
+  Computa\c{c}\~ao, Universidade de S\~ao Paulo},
+  city={S\~ao Carlos}, state={SP}, country={Brazil}}
+
+\begin{abstract}
+\missing{abstract --- to be written last, once the eight runs of the matrix are
+closed. What it has to say, if the measurements hold: that both methods were
+built on the \emph{same} machinery --- same interpolated properties, same
+momentum solver, coupling at the same point of the multiphase step --- so that
+the measured difference is attributable to the interface representation and not
+to the arrangement; that both reproduce the ellipsoidal regime of the Newtonian
+reference case; that the two converge toward each other under refinement,
+approaching from opposite sides; that at the reference resolution VOF conserves
+mass about five times better, and that front-tracking's drift grows with
+refinement; that the viscoelastic matrix reproduces the published orderings and
+values, with VOF above the published numbers on all nine comparisons and
+front-tracking at or below on seven; and what adaptive refinement costs and
+returns in each.}
+\end{abstract}
+
+\begin{keyword}
+front-tracking \sep volume of fluid \sep viscoelastic two-phase flow \sep
+adaptive mesh refinement \sep hierarchical grids \sep PLIC
+\end{keyword}
+
+\end{frontmatter}
+
+\tableofcontents
+
+\input{secoes/01-introduction}
+\input{secoes/02-formulation}
+\input{secoes/03-method}
+\input{secoes/04-verification}
+\input{secoes/05-newtonian}
+\input{secoes/06-viscoelastic}
+\input{secoes/07-cost}
+\input{secoes/08-conclusions}
+
+% \nocite{*} faz a bibliografia do esqueleto listar TODAS as entradas
+% disponiveis em referencias.bib, inclusive as ainda nao citadas no texto.
+% REMOVER NA SUBMISSAO -- sem isso, uma secao sem \cite sai com bibliografia
+% vazia e o PDF compila sem reclamar.
+\nocite{*}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{referencias}
+
+\end{document}

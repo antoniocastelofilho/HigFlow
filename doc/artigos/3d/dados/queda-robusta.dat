@@ -1,0 +1,20 @@
+# The velocity drop under two definitions, 25x25x75, same instrument for both
+# methods.  "raw" takes the global maximum of w and the minimum after it; "robust"
+# locates the overshoot in t in [0.3,1.5] on a centred 5-point mean.  The last
+# column is the frame-to-frame scatter of w about that mean, as a fraction of the
+# peak -- it is what separates the two definitions.
+caso metodo lambda beta qbruta tbruta qrobusta trobusta ruido
+ft-newt FT {newt.} {---} 12.8 0.91 7.0 0.86 3.0
+ft-l01-b08 FT 0.1 0.8 12.6 0.91 6.7 0.91 3.0
+ft-l01-b05 FT 0.1 0.5 12.1 0.91 6.2 0.91 3.0
+ft-l01-b02 FT 0.1 0.2 11.5 0.91 5.5 0.91 3.0
+ft-l04-b08 FT 0.4 0.8 12.7 0.86 6.9 0.86 3.0
+ft-l04-b05 FT 0.4 0.5 12.9 0.86 7.1 0.86 3.0
+ft-l04-b02 FT 0.4 0.2 13.8 0.81 8.1 0.81 3.0
+vof-newt VOF {newt.} {---} 22.8 0.86 7.0 0.81 4.7
+vof-l01-b08 VOF 0.1 0.8 23.1 0.86 6.3 0.91 4.8
+vof-l01-b05 VOF 0.1 0.5 20.1 0.86 5.7 0.91 4.8
+vof-l01-b02 VOF 0.1 0.2 15.1 3.54 5.1 0.91 4.9
+vof-l04-b08 VOF 0.4 0.8 15.1 3.94 6.3 0.96 4.7
+vof-l04-b05 VOF 0.4 0.5 20.9 0.81 6.7 0.76 4.8
+vof-l04-b02 VOF 0.4 0.2 11.1 2.99 5.9 0.81 3.8

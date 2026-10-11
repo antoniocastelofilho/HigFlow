@@ -1,0 +1,23 @@
+\section{Verification}
+
+\status{Partial. The two-dimensional oracles have not been inventoried with
+the discipline applied to the three-dimensional set, where twelve harnesses
+each carry an exit code and a \emph{vacuity guard} --- they count how many
+cases they actually exercised and fail if that count is zero. A harness that
+never touches the case under test prints ``0 failures'', which is
+indistinguishable from passing. Until the 2D harnesses carry the same guard,
+their green cannot be quoted.}
+
+\missing{the inventory of two-dimensional oracles, each with the quantity it
+measures, the closed form it is measured against, and the measured error.
+Candidates already present in the tree: the Laplace pressure jump
+$\Delta p = \sigma/R$ for a static drop; the LeVeque single-vortex advection
+reversal; curvature against circle and ellipse; and the partition-of-unity
+check on the volume fraction.}
+
+\subsection{What the green does not prove}
+
+\missing{the same caution as the 3D companion. Oracles of closed form test the
+components in isolation; none of them exercises the coupled transient that the
+production cases run. A passing oracle set bounds the component error, not the
+solution error.}

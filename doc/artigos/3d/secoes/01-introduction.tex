@@ -1,0 +1,44 @@
+\section{Introduction}
+\label{sec:intro}
+
+\status{To be written. The bibliographic material is gathered --- the
+comparison references and the parameters of every case are in
+Sections~\ref{sec:newtonian} and \ref{sec:viscoelastic} --- but the framing
+text has not been drafted.}
+
+\missing{framing: the rising viscoelastic bubble as a problem; why the
+interface representation matters when elastic stress concentrates in the wake;
+the gap this work closes}
+
+\subsection*{Contributions}
+
+Four claims, in decreasing order of how firmly they are established:
+
+\begin{enumerate}
+\item \textbf{Three-dimensional front-tracking for viscoelastic two-phase
+flow.} The reference implementation in the same solver~\cite{silva-thesis} uses
+VOF. The triangulated surface with explicit connectivity, surface tension by a
+per-triangle line integral, and mesh surgery is new, and it inherits the
+viscoelastic path without reimplementing the constitutive equation.
+
+\item \textbf{The comparison isolates the interface representation.} Both
+methods share everything else --- $\rho(\mathbf{x})$, $\mu(\mathbf{x})$, the
+variable-coefficient momentum solve, the projection --- and the front-tracking
+coupling enters at the \emph{same point} of the multiphase step where VOF
+advects the volume fraction. The measured difference is attributable to the
+representation because nothing else differs. Section~\ref{sec:method} makes
+that point precise.
+
+\item \textbf{A full factorial design.} Two methods $\times$ two rheologies
+$\times$ two meshes, all three-dimensional. The eight cells let the effect of
+the interface representation be separated from the effect of the rheology and
+from the effect of refinement, instead of being confounded with them.
+
+\item \textbf{Adaptive refinement in both paths, with measured cost.}
+\missing{depends on Section~\ref{sec:cost}; the 3D refinement criterion does not
+exist yet}
+\end{enumerate}
+
+\noindent
+One claim this work does \emph{not} make is that either method is more accurate
+than the other. What the measurements support is \emph{where} each does better.

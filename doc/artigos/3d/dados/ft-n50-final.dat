@@ -1,0 +1,10 @@
+# The reference-resolution pair at t=4, closed.  Same instrument for both.
+grandeza ft vof
+{$z_c(4)$} 2.017313 2.041705
+{$z_{\min}(4)$} 1.780097 1.804946
+{asymmetry $A$} 1.28460 1.29072
+{$R/R_{\mathrm{eq}}$} 0.08615 0.08703
+{sphericity $\Psi$} 0.95825 0.95737
+{area} 0.81060 0.81461
+{volume drift} {1.43\%} {0.45\%}
+{frames, all closed} 161 161

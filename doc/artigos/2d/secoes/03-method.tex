@@ -1,0 +1,89 @@
+\section{Numerical method}\label{sec:method}
+
+\status{Ready as to what is implemented. The shared-machinery argument is the
+same as in the three-dimensional companion and is verified in the code, not
+assumed. The two-dimensional specifics below --- the normal and curvature
+estimator, and the form of the front --- were read from the source, and where
+the two dimensions diverge that is stated rather than smoothed over.}
+
+\subsection{Shared machinery, and the single point of difference}
+
+The comparison in this paper is only meaningful if the two methods differ in
+\emph{one} thing. They are therefore built on the same components: the same
+hierarchical grid, the same interpolated properties, the same momentum solver,
+the same projection, and coupling at the same point of the multiphase step.
+What differs is how the interface is represented, and everything the
+representation entails --- how the normal and the curvature are obtained, and
+how the interface is transported.
+
+\missing{the itemised correspondence between the two paths through the
+multiphase step, as in the 3D companion, with the line numbers of the single
+branch point.}
+
+\subsection{VOF: geometric PLIC in the plane}
+
+The volume fraction is advected by a directionally split geometric scheme: one
+sweep per direction, each reconstructing a straight segment per interface cell
+from the fraction in its neighbourhood, fluxing the area that segment cuts, and
+copying the auxiliary field back before the next sweep.
+
+The normal and the curvature come from a \emph{height-function} estimator. The
+two-dimensional path uses the variant of Shirani; the three-dimensional
+companion uses the standard height function with Mehta's correction. This is a
+genuine difference between the two papers and not a presentational one: the
+estimator is part of what is being compared, and quoting a 2D number against a
+3D one without saying so would be comparing two different methods.
+
+\caveat{The code also carries ELVIRA and an adaptive height-function variant,
+both reachable and both currently disabled at the call site. The measurements
+in this paper are with Shirani only.}
+
+\subsection{Front-tracking: explicit polyline}
+
+In the plane the front is a closed, ordered polyline of markers with explicit
+connectivity, advected by the interpolated velocity and maintained by local
+surgery --- splitting an edge that grows beyond a tolerance, merging one that
+falls below it. Surface tension enters as a force distributed from the markers
+to the grid.
+
+\caveat{The two-dimensional front-tracking core carries a header comment
+describing it as phase B1 --- kinematic advection in a prescribed field,
+without the solver. The coupling is supplied by a separate adapter in
+\texttt{examples-common}, and the example's build file describes the assembled
+pair as phase~B2. Before any production claim is made from this path, the
+degree of coupling actually exercised has to be stated precisely; the 301-frame
+Newtonian run on disk indicates a coupled run, but that is an inference from
+the output, not a reading of the call graph.}
+
+\subsection{Interface extraction for comparison}
+
+Both methods are measured through the \emph{same} quantities, computed by the
+same code path: the integrals that define circularity, centre of mass and rise
+velocity are taken over the volume-fraction field, which VOF advects directly
+and which front-tracking writes from the geometry of the front. The measurement
+is therefore identical on both sides and any difference that survives belongs
+to the method.
+
+\subsection{Adaptive refinement}
+
+\missing{the two-dimensional criterion, as implemented: seeds from the
+interface, dilation to the refinement levels, and the minimum-cell rule.}
+
+The one result already established here is negative and worth stating early,
+because it governs how any convergence study in this paper must be set up. With
+the refined band specified as a fixed \emph{number of cells} per side, each
+resolution refines a \emph{different physical width} --- the finest mesh
+refines the largest fraction of the domain --- and a mesh-convergence study
+built that way does not converge for reasons that have nothing to do with the
+discretisation.
+
+\missing{the measured evidence for the paragraph above: five series, none
+monotone, with non-monotonicity between 12 and 40 times the sampling floor.
+Port the numbers from the report and put them in \texttt{dados/}.}
+
+The remedy is to anchor the band to a fixed \emph{physical} width, taken from
+the coarsest resolution of the series, so that finer meshes only gain cells.
+A floor on the number of fine cells per side is kept and \emph{overrides} the
+physical band when the two disagree, because the reconstruction and the
+fraction transport both need that neighbourhood: it is a correctness
+constraint, not a tuning parameter.

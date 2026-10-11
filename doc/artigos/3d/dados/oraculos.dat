@@ -1,0 +1,20 @@
+# Verification oracles.  tipo: 1 = exact (pass/fail, no tolerance),
+# 2 = convergent (value with measured order).  All measured in this tree.
+# NOTE: these fields are typeset verbatim by pgfplotstable, so any _ or ^ has to
+# be inside math mode here -- otherwise LaTeX stops with "Missing $ inserted".
+tipo peca oraculo resultado
+1 {Marching-cubes table} {edge set required by cube geometry} {0 of 256 inconsistent}
+1 {Marching-cubes surface} {closed: every edge in exactly 2 triangles} {0 orphan edges}
+1 {Marching-cubes genus} {Euler char.: sphere, two spheres, torus} {$\chi = 2,\,4,\,0$}
+1 {Triangulated surface} {area, volume, Euler vs closed form} {$\chi = 2$}
+1 {Spatial grid} {exact equality with exhaustive search} {bit-identical, 37$\times$ faster}
+1 {Initial fraction} {plane through cell centre, any normal} {$10^{-16}$}
+1 {Initial fraction} {axis-aligned slab (degenerate normal)} {$4\times10^{-16}$}
+1 {Initial fraction} {corner tetrahedron (single inclusion term)} {$3\times10^{-16}$}
+2 {Marching cubes} {volume, area, radius of a sphere} {order 1.99 / 2.00 / 1.96}
+2 {Initial fraction} {sphere volume vs independent implementation} {$6.110$ vs $6.109\times10^{-5}$}
+2 {Surface tension} {Laplace jump $\Delta p = 2\sigma/R$} {0.19\%}
+2 {Front advection} {LeVeque field, reversible} {order $\approx 2$}
+2 {Volume fraction} {independent sampled method} {second order}
+2 {Coupling} {field volume equals surface volume} {drift order 1.87}
+2 {Oldroyd-B shear} {$A_{xy} = \mathrm{De}\,\dot\gamma$, $A_{xx} = 1 + 2(\mathrm{De}\,\dot\gamma)^2$} {0.033\%}

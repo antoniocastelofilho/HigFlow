@@ -1,0 +1,64 @@
+\section{Verification}
+\label{sec:verification}
+
+\status{Ready. Every entry in Table~\ref{tab:oracles} is measured in this tree.
+What is \emph{not} covered is stated at the end of the section, and that
+statement is part of the result.}
+
+The verification is organised around a distinction that the rest of the paper
+relies on: an oracle is either \textbf{exact}, in which case it passes or fails
+with no tolerance, or \textbf{convergent}, in which case what is checked is the
+measured order in $h$. Mixing the two is how a plausible-but-wrong
+implementation survives a test suite --- a tolerance chosen after seeing the
+answer is not a test.
+
+\begin{table}[htbp]
+\centering
+\caption{Verification oracles. Exact oracles admit no tolerance; convergent
+ones are checked by measured order.}
+\label{tab:oracles}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={peca,oraculo,resultado},
+  columns/peca/.style={column name={Component}, column type={l}},
+  columns/oraculo/.style={column name={Oracle}, column type={l}},
+  columns/resultado/.style={column name={Result}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{oraculos.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsection{Two oracles worth describing}
+
+\paragraph{The marching-cubes table is checked against geometry, not against
+another table.}
+The 256-case table is copied data, and a single wrong digit produces a hole in
+the surface that passes easily as a rendering artefact. Rather than compare
+against a second hand-written table --- two copies of the same error would agree
+--- the harness \emph{derives}, from each case, which edges must be cut (their
+endpoints differ in sign) and requires the set the table uses to be exactly that
+set. Zero of 256 cases are inconsistent.
+
+\paragraph{The torus is in the suite on purpose.}
+A sphere exercises few of the 256 cases. A torus exercises many more, and
+$\chi = 0$ is a sharp number: a single missing triangle moves it. Two separated
+spheres give $\chi = 4$ for the same reason.
+
+\subsection{What the green does not prove}
+
+Three gaps, stated because a verification section that lists only its successes
+is advertising:
+
+\begin{itemize}
+\item \textbf{No oracle covers more than one process.} The parallel path has
+never been measured in three dimensions, and the interface extraction is serial
+by construction.
+\item \textbf{No oracle covers adaptive refinement in three dimensions},
+because it does not exist yet (Section~\ref{sec:amr}).
+\item \textbf{The comparison against the literature is against published
+figures, not tables.} Agreement on shape is therefore qualitative; only the
+centre of mass and the rise velocity are curves we can read.
+\end{itemize}

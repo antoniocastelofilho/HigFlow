@@ -1,0 +1,9 @@
+# Qualitative claims from the thesis that the matrix can confirm or refute.
+# Each is testable from the measured series; none requires digitising a figure.
+afirmacao origem
+{More polymer, higher rise: $z_c$ grows as $\beta$ falls} {Fig. 42a, 43a}
+{More polymer, faster: both $w_{\max}$ and $w_{\mathrm{steady}}$ grow} {Fig. 42b, 43b}
+{Viscoelastic rises higher than Newtonian, same geometry} {Fig. 42a}
+{At $\lambda_1=0.4$, $\beta=0.2$ the velocity drops sharply after its maximum, then recovers} {Fig. 43b}
+{$\tau_{zz}$ on the axis peaks at the FRONT for $\lambda_1=0.1$} {Fig. 44a}
+{$\tau_{zz}$ on the axis peaks at the TAIL for $\lambda_1=0.4$} {Fig. 44b}

@@ -1,0 +1,11 @@
+# Viscoelastic 3D matrix, parameters from the reference thesis, section 8.2.5.
+# Newtonian bubble in an Oldroyd-B medium; tank raised to height 3 so the walls
+# do not influence the tensor; final time 4 because viscoelasticity takes longer
+# to reach steady state.
+lambda beta polimero esperado
+0.1 0.8 {20 percent} {ellipsoidal, as Newtonian}
+0.1 0.5 {50 percent} {ellipsoidal}
+0.1 0.2 {80 percent} {ellipsoidal}
+0.4 0.8 {20 percent} {ellipsoidal, slight stretching}
+0.4 0.5 {50 percent} {intermediate stretching}
+0.4 0.2 {80 percent} {CUSP at the trailing edge}

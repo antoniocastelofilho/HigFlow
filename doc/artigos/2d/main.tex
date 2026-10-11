@@ -1,0 +1,109 @@
+% ===================================================================
+%  Front-tracking and VOF for TWO-DIMENSIONAL two-phase flow
+%  Newtonian and viscoelastic, on uniform and adaptive meshes
+% ===================================================================
+%
+% PARA O OVERLEAF: suba esta pasta inteira (main.tex, preambulo.tex,
+% secoes/, dados/, referencias.bib) e marque main.tex como documento
+% principal.  Compilador: pdfLaTeX.  Nenhuma imagem binaria -- os graficos
+% saem do pgfplots lendo dados/*.dat.
+%
+% ESTE E' O ARTIGO BIDIMENSIONAL.  O tridimensional e' o companheiro em
+% ../3d/, com a mesma estrutura.  Os dois compartilham a tese -- mesma
+% maquinaria para os dois metodos, de modo que a diferenca medida seja da
+% REPRESENTACAO DA INTERFACE e nao do arranjo -- e diferem no que a dimensao
+% permite medir:
+%
+%   em 2D   ha' um benchmark publicado com valores de referencia tabelados
+%           (Hysing et al.), entao a comparacao e' contra numero externo;
+%   em 3D   nao ha' equivalente, e a comparacao e' entre os metodos e contra
+%           oraculos de forma fechada.
+%
+% ESTADO DE CADA SECAO.  Cada secao abre com \status{}; defina \nostatus para
+% suprimi-los na submissao.  Eles existem para que um paragrafo de
+% planejamento nunca seja lido como resultado.
+%
+%   1 Introduction           a escrever
+%   2 Formulation            PRONTA: identica a' do 3D, restrita ao plano
+%   3 Numerical method       PRONTA quanto ao que esta' implementado
+%   4 Verification           PARCIAL: os oraculos 2D precisam ser inventariados
+%   5 Newtonian 2D           FECHADA: os dois metodos a t=3, 12.000 passos,
+%                            cinco alvos contra o publicado, e o achado do
+%                            vies compartilhado (cinco desvios negativos)
+%   6 Viscoelastic 2D        NAO MEDIDO: o VOF tem duas corridas curtas
+%                            exploratorias (101 passos) e o front-tracking
+%                            tem configuracao mas nenhuma corrida de producao
+%   7 Cost and performance   NAO MEDIDO em 2D
+%   8 Conclusions            depende das acima
+
+\documentclass[preprint,review,12pt]{elsarticle}
+\journal{Journal of Computational Physics}
+
+\input{preambulo}
+\usepackage[hidelinks]{hyperref}
+
+% Descomente para a versao de submissao, sem os blocos de estado:
+% \def\nostatus{}
+
+\emergencystretch=3em
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Front-tracking and VOF for two-dimensional two-phase flow:
+       Newtonian and viscoelastic, on uniform and adaptive meshes}
+
+\author[icmc]{Antonio Castelo Filho}
+\ead{castelo@icmc.usp.br}
+\author[icmc]{\missing{co-authors}}
+
+\affiliation[icmc]{organization={Instituto de Ci\^encias Matem\'aticas e de
+  Computa\c{c}\~ao, Universidade de S\~ao Paulo},
+  city={S\~ao Carlos}, state={SP}, country={Brazil}}
+
+\begin{abstract}
+\missing{abstract --- to be written last, once the viscoelastic pair has been
+run. What it has to say, if the
+measurements hold: that the two interface methods share every component except
+the interface representation itself, so that the measured difference is
+attributable to that choice; that both reproduce the published rise-velocity,
+circularity and centre-of-mass series of the Hysing benchmark in the
+ellipsoidal regime, and how they differ in the skirted regime where the
+reference solutions themselves disagree; that all five deviations from the
+published values fall on the same side, in two independent discretisations,
+which is the signature of a bias in what the methods share rather than in the
+interface treatment; what viscoelasticity does to that comparison; and what adaptive refinement costs and returns in each --- including
+the finding that a refinement criterion specified as a fixed \emph{cell count}
+rather than a fixed \emph{physical band} makes a mesh-convergence study
+impossible, because each resolution then refines a different physical width.}
+\end{abstract}
+
+\begin{keyword}
+front-tracking \sep volume of fluid \sep viscoelastic two-phase flow \sep
+rising bubble benchmark \sep adaptive mesh refinement \sep hierarchical grids
+\end{keyword}
+
+\end{frontmatter}
+
+\tableofcontents
+
+\input{secoes/01-introduction}
+\input{secoes/02-formulation}
+\input{secoes/03-method}
+\input{secoes/04-verification}
+\input{secoes/05-newtonian}
+\input{secoes/06-viscoelastic}
+\input{secoes/07-cost}
+\input{secoes/08-conclusions}
+
+% \nocite{*} faz a bibliografia do esqueleto listar TODAS as entradas
+% disponiveis em referencias.bib, inclusive as ainda nao citadas no texto.
+% REMOVER NA SUBMISSAO -- sem isso, uma secao sem \cite sai com bibliografia
+% vazia e o PDF compila sem reclamar.
+\nocite{*}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{referencias}
+
+\end{document}

@@ -1,0 +1,102 @@
+\section{Conclusions}
+\label{sec:conclusions}
+
+\status{Depends on the sections above. What can be written now is listed; the
+rest is marked.}
+
+\missing{conclusions --- to be written once the matrix is closed}
+
+\subsection*{What is established}
+
+\begin{itemize}
+\item Both methods reproduce the ellipsoidal regime of the Newtonian reference
+case and the shape of its published rise-velocity curve, and they \emph{converge
+toward each other} under refinement --- from 1.94\% to 0.60\% in centre of mass
+and from 4.3\% to 1.1\% in terminal rise velocity --- approaching from opposite
+sides.
+\item At the reference resolution \textbf{VOF} conserves mass about five times
+better ($-0.170\%$ against $-0.851\%$), and front-tracking's drift \emph{grows}
+with refinement. The coarse-mesh figures reverse this ranking and are partly
+cancellation; they should not be quoted.
+\item The two methods cost the same to within 5\% per cell-step, with the sign
+of the difference depending on resolution.
+\item The verification apparatus separates exact from convergent oracles, and
+the exact ones --- surface closure, genus, the plane/slab/tetrahedron fraction
+--- pass at machine precision.
+\item The viscoelastic matrix reproduces the reference results. All twelve
+ordering claims of the reference thesis hold, the quoted values agree to within
+7\% (most within 3\%), the trend against a Newtonian reference in the same
+geometry holds in all four cases, and the specific velocity signature the
+reference describes --- a sharp drop after the maximum, then recovery ---
+appears in both methods.
+\item \textbf{VOF sits above the published values on all nine comparisons and
+front-tracking at or below on seven of nine}, with mean absolute deviations of
+$3.6\%$ and $1.2\%$. The asymmetry is the opposite of what the provenance
+suggests, since the reference was computed with VOF.
+\item Oldroyd-B did \emph{not} run away on the time scale of the rise: all
+twelve runs completed 2001 steps with zero non-finite values.
+\item \textbf{The cusp pair is closed at the reference resolution, and the two
+methods agree on the integrated shape of the cusp to $0.5\%$} --- asymmetry
+$1.2846$ in front-tracking against $1.2907$ in VOF, tracking each other to
+$0.2$--$2.4\%$ from $t=1.6$ onward. This is the discriminating case, with the
+two interface representations at their most different.
+\item But their agreement in the \emph{local} curvature at $t=4$ is not
+convergence: both give $R \approx 1.07\,h$, one cell. Two methods pinned at the
+same mesh floor agree for a reason unrelated to the physics. What the column
+does show is the \emph{approach}: VOF reaches its floor by $t=2.4$ and sits
+there, front-tracking descends gradually and arrives only at $t=4$ --- the
+signature of a per-cell planar reconstruction saturating at the cell while an
+explicit surface keeps resolving below it.
+\item At $h=1/25$ neither method had resolved the cusp, for two unrelated
+reasons: VOF reports a trailing edge as round as the bubble ($R/R_{\mathrm{eq}}
+= 0.71$), and the unfiltered front-tracking reports a spuriously sharp one
+($0.047$) because its lowest vertex is a zig-zag spike. The filtered $h=1/50$
+run gives $0.086$ --- \emph{less} sharp than the unfiltered coarse run, which is
+the direct evidence that the coarse value was undulation.
+\item The drop is $5.9\%$ at $h=1/25$ and $6.6\%$ at $h=1/50$ --- a bound below
+the measurement's own noise rather than a resolved dependence.
+\end{itemize}
+
+\subsection*{What was withdrawn}
+
+One result in this paper was retracted by its own measurement, and it is recorded
+here rather than quietly dropped. An earlier version reported the velocity drop
+as \emph{systematically larger in VOF} ($8.6$--$13.5\%$) than in front-tracking
+($4.1$--$6.6\%$), and offered it as a difference between the two interface
+representations. That number came from taking the global maximum of $w(t)$ on a
+curve that is nearly flat after the overshoot --- so it was set by whichever
+single frame sat highest, and in three of seven VOF runs it selected a frame at
+$t \approx 3$--$4$, long after the physical overshoot. Locating the overshoot
+physically and smoothing, front-tracking gives $5.5$--$8.1\%$ and VOF
+$5.1$--$7.0\%$: the methods agree. What actually differs is the frame-to-frame
+scatter, $3.0\%$ of the peak against $3.8$--$4.9\%$, and the raw definition
+converted that scatter into an apparent physical asymmetry
+(Section~\ref{sec:dropdef}).
+
+The scatter is itself evidence on an open question below: a noisier extraction is
+what the marching-cubes-bias reading predicts.
+
+\subsection*{What is not}
+
+\begin{itemize}
+\item Adaptive refinement in production. The dynamic remeshing loop works and
+is verified, but no case has been run on an adapted mesh to completion.
+\item \emph{Resolved, and moved here from the open list.} Front-tracking's
+mass drift appeared to grow with refinement because both production runs held
+the surface subdivision fixed while the mesh was refined, so $ds/h$ doubled
+between them. With $ds/h$ held constant the drift falls at an observed order of
+$1.87$, and surgery reduces it by $42\%$ rather than causing it
+(Section~\ref{sec:deriva-nsub}). What remains open is narrower: whether the
+same holds at the production resolutions, which requires rerunning the coarse
+case with the surface resolution matched to the grid.
+\item Whether the $h=1/50$ agreement on the cusp survives separating resolution
+from the filter. The coarse front-tracking run is unfiltered and the fine one is
+filtered, so those two rows differ in two things at once. The cadence sweep of
+Section~\ref{sec:tsur} produces a filtered coarse run as a by-product and
+settles it.
+\item Which of the two readings explains the sign asymmetry: a difference
+between our volume-of-fluid and the reference's, or an upward bias in the
+marching-cubes extraction from which the shape quantities are read.
+\item Case~2, where topological change is expected.
+\item Any statement about more than one process.
+\end{itemize}

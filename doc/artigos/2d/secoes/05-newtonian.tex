@@ -1,0 +1,216 @@
+\section{Newtonian two-dimensional bubble}\label{sec:newtonian}
+
+\status{Measured and closed. Both methods ran the same case to $t=3$ ---
+12\,000 steps, no restarts --- and the five benchmark targets are compared
+against the published reference below. The central finding of the section is
+not any one of the five but their \emph{sign}.}
+
+\subsection{Case definition}
+
+The reference case is the rising-bubble benchmark of Hysing
+et~al.~\missing{cite}, which fixes the geometry, the fluid properties and the
+boundary conditions and --- unusually --- publishes reference series from three
+independent codes, so that the disagreement \emph{among} the references is
+itself quantified. That spread is the resolution limit of the oracle: asking a
+new code to do better than it would be asking for more accuracy than the
+reference possesses.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/quantity/.style={column name={quantity}},
+  columns/TP2D/.style={column name={TP2D}},
+  columns/FreeLIFE/.style={column name={FreeLIFE}},
+  columns/MooNMD/.style={column name={MooNMD}},
+  columns/consensus/.style={column name={consensus}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-referencia.dat}}
+\end{adjustbox}
+
+\subsection{The three benchmark quantities}
+
+The benchmark is defined by three series, computed here exactly as its
+Section~2.5 defines them:
+%
+\begin{align}
+  c  &= \frac{2\sqrt{\pi A}}{P}, &
+  y_c &= \frac{\int_{\text{bubble}} y \,\mathrm{d}x}{\int_{\text{bubble}} \mathrm{d}x}, &
+  V_c &= \frac{\int_{\text{bubble}} u_y \,\mathrm{d}x}{\int_{\text{bubble}} \mathrm{d}x} .
+\end{align}
+
+\caveat{The circularity above is the perimeter of the area-equivalent circle
+over the perimeter of the bubble. The form $4\pi A/P^2$, common in
+implementations, is its \emph{square}. We used the quadratic form at one point
+and compared it with the published value without converting, reporting $0.7987$
+against a published $0.9013$ when the comparable number was
+$\sqrt{0.7987} = 0.8937$. The discrepancy looked like a method error and was a
+definition error. Both forms are called ``circularity'' in the literature.}
+
+Both integrals are taken over the volume-fraction field --- which VOF advects
+and which front-tracking writes from the geometry of the front --- so the
+measurement is the same on both sides and any difference that survives belongs
+to the method.
+
+\subsection{The runs}
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/quantity/.style={column name={quantity}},
+  columns/FT/.style={column name={front-tracking}},
+  columns/VOF/.style={column name={VOF}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-final.dat}}
+\end{adjustbox}
+
+\subsection{The two methods agree with each other, until they do not}
+
+Early in the run the agreement between the two methods is far closer than the
+agreement of either with the reference: the centre-of-mass series differ in the
+fifth decimal while both sit a few tenths of a percent below the published
+values.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/t/.style={column name={$t$}},
+  columns/ycft/.style={column name={$y_c$ FT}},
+  columns/ycvof/.style={column name={$y_c$ VOF}},
+  columns/difyc/.style={column name={$\Delta y_c$}},
+  columns/vcft/.style={column name={$V_c$ FT}},
+  columns/vcvof/.style={column name={$V_c$ VOF}},
+  columns/difvc/.style={column name={$\Delta V_c$}},
+  columns/circft/.style={column name={$c$ FT}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-parcial.dat}}
+\end{adjustbox}
+
+That mutual agreement does not survive the deformation. By $t=1.6$ the two
+methods differ by $3.4\%$ in $V_c$, and then --- this is the part worth
+noticing --- they come back together in $y_c$: $1.078587$ against $1.078645$ at
+$t=3$, a difference of \num{5.8e-5}.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/t/.style={column name={$t$}},
+  columns/difyc/.style={column name={$\Delta y_c$}},
+  columns/difvc/.style={column name={$\Delta V_c$}},
+  columns/difvcrelativa/.style={column name={$\Delta V_c$ relative}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-divergencia.dat}}
+\end{adjustbox}
+
+This is the integral-versus-derivative asymmetry: $y_c$ smooths what $V_c$
+amplifies. A comparison made on centres of mass alone would conclude excellent
+agreement and miss the entire discrepancy --- which is an argument for
+reporting the derivative quantity even when it is the less flattering one.
+
+\subsection{Closure: the five targets}
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/target/.style={column name={target}},
+  columns/method/.style={column name={method}},
+  columns/ours/.style={column name={ours}},
+  columns/published/.style={column name={published}},
+  columns/deviation/.style={column name={deviation}},
+  columns/inunitsofthespread/.style={column name={in units of the spread}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-fechamento.dat}}
+\end{adjustbox}
+
+The last column is the one that matters: it measures the deviation in units of
+the disagreement the three published codes have \emph{among themselves}.
+\textbf{Three of the five fall inside it.}
+
+\subsection{The finding that outweighs the five numbers}
+
+\textbf{All five deviations are negative.} None on the positive side. The
+bubble comes out less fast, less circular and lower than the literature, in
+\emph{two} independent discretisations --- one Lagrangian and one Eulerian,
+with curvature and force computations that have nothing in common.
+
+Five out of five in the same direction is not a plausible coincidence. It is
+the signature of a \textbf{shared bias}: the defect lies in what the two
+methods have in common --- mesh, time step, boundary conditions, momentum
+discretisation --- and not in the interface treatment.
+
+This also corrects a conclusion we had drawn from a single target. When only
+$V_{c,\max}$ had closed, the gap between front-tracking ($0.31\times$ the
+spread) and VOF ($2.29\times$) pointed at the interface treatment. With all
+five on the table the reading splits, and the two halves are compatible: the
+\emph{difference between the methods} does answer to the interface treatment,
+and in the expected direction, with the curvature of the explicit geometry
+beating the curvature of a smoothed field; the \emph{common bias}, which
+neither avoids, does not.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/quantity/.style={column name={quantity}},
+  columns/FT/.style={column name={front-tracking}},
+  columns/VOF/.style={column name={VOF}},
+  columns/published/.style={column name={published}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-vcmax.dat}}
+\end{adjustbox}
+
+Three candidates for the bias, \textbf{none of them measured}: the single
+resolution (40 cells per bubble radius), the capillary time-step restriction,
+and the possibility that the wake refinement is insufficient. A convergence
+study in $h$ separates the three, and it is the first item on the list of next
+steps --- now with a measured reason to be first rather than for methodological
+completeness.
+
+\subsection{Shape}
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/t/.style={column name={$t$}},
+  columns/razaolarguraaltura/.style={column name={width/height}},
+  columns/areaft/.style={column name={$A$ FT}},
+  columns/areavof/.style={column name={$A$ VOF}},
+  columns/perimft/.style={column name={$P$ FT}},
+  columns/perimvof/.style={column name={$P$ VOF}},
+  columns/cdosdois/.style={column name={$c$, both}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-forma.dat}}
+\end{adjustbox}
+
+\subsection{Under an adaptive mesh, VOF loses exact conservation}
+
+On a fixed mesh the VOF fraction is conserved to machine precision. Under
+adaptive refinement it is not, and the loss is not noise: the samples are
+almost monotone.
+
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  string type,
+  columns/method/.style={column name={method}},
+  columns/fixed-mesh/.style={column name={fixed mesh}},
+  columns/with-AMR-until-t/.style={column name={with AMR, until $t$}},
+  columns/monotone-samples/.style={column name={monotone samples}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{hysing-massa-amr.dat}}
+\end{adjustbox}
+
+Front-tracking, which does not store the fraction, is affected far less. The
+asymmetry is a property of the representation and not of the refinement
+machinery, which is shared.
+
+\subsection{Case 2: the skirted regime}
+
+\missing{not run. Worth doing precisely because the published reference
+solutions disagree with each other there: it is the regime that discriminates
+between interface representations rather than confirming both.}

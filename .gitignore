@@ -171,6 +171,27 @@ graphify-out/
 # "Could not read table file" onde o diretorio de trabalho dava zero.  E' a
 # segunda vez que .dat de medicao ficam fora do commit por esta regra.
 !doc/*/dados/**/*.dat
+# TERCEIRA vez, e por isso a regra agora e' por PROFUNDIDADE QUALQUER.  Os dois
+# artigos ficam em doc/artigos/2d/ e doc/artigos/3d/, um nivel mais fundo do que
+# as duas regras acima alcancam -- `git add doc/artigos` adicionou 25 arquivos e
+# NENHUM dos 54 .dat, calado.  Foi pego porque conferi a contagem; nao fosse
+# isso, o artigo compilaria aqui e nao a partir de um clone, que e' exatamente o
+# sintoma que o comentario acima descreve.
+!doc/**/dados/*.dat
+!doc/**/dados/**/*.dat
+
+# Artigos (2D e 3D): produtos de compilacao.  Os .dat de MEDICAO sao versionados
+# pelas regras acima; o PDF e os auxiliares, nao.
+doc/artigos/*/main.pdf
+doc/artigos/*/*.aux
+doc/artigos/*/*.bbl
+doc/artigos/*/*.blg
+doc/artigos/*/*.log
+doc/artigos/*/*.out
+doc/artigos/*/*.toc
+doc/artigos/*/*.spl
+doc/artigos/*/*.fls
+doc/artigos/*/*.fdb_latexmk
 higflow/example3d_VOF_rising-ve/
 higflow/example3d_FrontTracking-ve/
 

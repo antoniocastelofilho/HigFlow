@@ -1,0 +1,7 @@
+quantity                            FT               VOF
+{steps integrated}                 $12\,000$        $12\,000$
+{restarts needed}           $0$              $0$
+{benchmark samples}             $61$             $53$
+{mass drift to $t=3$}       \num{2.44e-03}   \num{1.41e-03}
+{markers, start and end}        {252 to 272}    ---
+{circularity at $t=3$}            $0.919419$     {not reported}

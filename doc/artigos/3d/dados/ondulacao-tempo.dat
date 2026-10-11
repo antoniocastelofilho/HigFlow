@@ -1,0 +1,13 @@
+# The two methods over time, same case (viscoelastic, lambda=0.4, beta=0.2,
+# 25x25x75).  The ABSOLUTE level of the VOF column means nothing: it is already
+# 27% at t=0, where the surface is the same sphere front-tracking represents
+# with 0.00%.  That is marching-cubes faceting, not the interface.  Only the
+# TREND is comparable, and the trends are opposite.
+t ft ftmax vof vofmax
+0.0 0.00 0.0042 26.98 0.1954
+0.5 0.47 0.0684 31.49 0.3642
+1.0 6.45 0.2329 34.97 0.3126
+1.5 16.22 0.4815 31.72 0.3674
+2.0 21.46 0.8473 35.34 0.2956
+3.0 20.78 0.9897 32.31 0.2745
+4.0 20.91 0.9972 33.51 0.3116
