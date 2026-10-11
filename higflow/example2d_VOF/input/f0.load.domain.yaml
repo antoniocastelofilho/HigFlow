@@ -1,0 +1,5 @@
+domain:
+   number_domains: 1
+   domain0:
+      id: 0
+      path: fase0/amr/dominio.amr
