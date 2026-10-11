@@ -16,10 +16,11 @@
 # o corrente, ou o anterior.
 set -u
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$AQUI/registro" 2>/dev/null
 cd "$AQUI"
 B=/sys/class/power_supply/BAT0
 TOTAL=2001
-ST=/tmp/vof-N50-status
+ST=$AQUI/registro/status.log
 
 # OS DOIS NUMEROS DA BATERIA DISCORDAM, e escolher o errado quebra o lancador
 # em silencio.  Medido agora: `capacity` = 21 enquanto

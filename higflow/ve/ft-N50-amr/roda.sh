@@ -107,7 +107,12 @@ export FT3_AMR_BANDA=0.10
 export FT3_AMR_CADA=25
 export FT3_AMR_NX=25 FT3_AMR_NY=25 FT3_AMR_NZ=75
 export FT3_AMR_LX=1.0 FT3_AMR_LY=1.0 FT3_AMR_LZ=3.0
-export FT3_AMR_CAMINHO=amrs/criterio.amr
+# O CAMINHO TEM DE SER O QUE O YAML LE'.  Escrever o criterio num arquivo que
+# ninguem rele' faz a corrida rodar UNIFORME em silencio -- o log anuncia o
+# refino, o .amr e' gerado, e o solver monta a malha base.  Era o que este
+# roteiro fazia quando eu o derivei do uniforme: criterio.amr contra
+# amrs/gota_d/dominio-0.amr do domain.yaml.
+export FT3_AMR_CAMINHO=amrs/gota_d/dominio-0.amr
 # CADENCIA DO CAMPO.  Em N=50 um quadro de campo sai com ~300 MB e leva ~20 min
 # -- mais que um passo.  A animacao da bolha NAO precisa dele: a interface ja'
 # sai com p, vel, S e T interpolados nos vertices.  O campo serve as' linhas de
