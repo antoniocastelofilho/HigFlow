@@ -383,7 +383,8 @@ static void vof_escreve_amr_inicial(real lx, real ly, int nx, int ny,
 // O problema deste exemplo, como um tipo em vez de oito funcoes soltas.
 // Os corpos sao os mesmos; so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class VofProblem : public HigFlowProblem, public HigFlowMultiphaseProblem {
+class VofProblem : public HigFlowProblem, public HigFlowMultiphaseProblem,
+                  public HigFlowMultiphaseViscoelasticProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -579,6 +580,31 @@ public:
     	value = value/delta[0]/delta[1];
     	return value;
     }
+
+    // --- multifasico viscoelastico ------------------------------------------
+    // PORTADO do example2d_VOF_Oldroyd, que ja' tinha a definicao em 2D.  Sem
+    // estes quatro metodos ns->ed.mult.ve.problem fica NULO, e
+    // higflow_initialize_viscoelastic_mult_tensor o desreferencia: SIGSEGV em
+    // "Failing at address: (nil)", antes do passo 0.  As duas capacidades
+    // estavam DISJUNTAS em 2D -- os exemplos com AMR nao tinham a definicao
+    // viscoelastica, e os que a tinham nao tinham AMR.
+    //
+    // O kernel e' a IDENTIDADE (value = lambda), como no Oldroyd 2D e no 3D de
+    // referencia: as alternativas (log, raiz) estao comentadas la' e aqui nao
+    // se inventa uma terceira.
+    real tensor_multiphase(real fracvol, Point center, int i, int j, real t) {
+        return kernel(i, 1.0, 0.0) * (i == j);
+    }
+    real kernel(int dim, real lambda, real tol) {
+        return lambda;
+    }
+    real kernel_inverse(int dim, real lambda, real tol) {
+        return lambda;
+    }
+    real kernel_jacobian(int dim, real lambda, real tol) {
+        return 1.0;
+    }
+
 };
 
 static VofProblem problema;
@@ -688,6 +714,10 @@ int main (int argc, char *argv[]) {
 	// Create the simulation domain for non newtonian simulation
 	// higflow_create_domain_generalized_newtonian(ns, cache, order_center, get_viscosity);
 	higflow_create_domain_multiphase(ns, cache, order_center, &problema);
+    // SO' quando a configuracao pede: o yaml ja' foi lido neste ponto, e
+    // chamar sempre alocaria os tensores de conformacao num caso newtoniano.
+    if (ns->ed.mult.contr.viscoelastic_either == true)
+        higflow_create_domain_multiphase_viscoelastic(ns, &problema);
 	
 	// Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
@@ -825,7 +855,10 @@ int main (int argc, char *argv[]) {
 				        vof_amr_celmin);
 		}
 
-		higflow_solver_step_multiphase(ns);
+		if (ns->ed.mult.contr.viscoelastic_either == true)
+            higflow_solver_step_multiphase_viscoelastic(ns);
+        else
+            higflow_solver_step_multiphase(ns);
 
 		// ITERACOES DO KSP (HIGFLOW_CRONO_KSP).  A fase 0 mediu eficiencia
 		// paralela de 22% em oito processos e levantou duas causas possiveis:

@@ -49,7 +49,8 @@ real L = 8.0;
 // registro passa a ser higflow_set_problem com a instancia abaixo.  Os corpos
 // sao os mesmos, so' mudaram de lugar e perderam o prefixo get_.
 // ---------------------------------------------------------------------------
-class NewtProblem : public HigFlowProblem, public HigFlowMultiphaseProblem {
+class NewtProblem : public HigFlowProblem, public HigFlowMultiphaseProblem,
+                  public HigFlowMultiphaseViscoelasticProblem {
 public:
     // Value of the pressure
     real pressure(Point center, real t) {
@@ -212,6 +213,31 @@ public:
             }
         return (real) dentro / (real) (N*N);
     }
+
+    // --- multifasico viscoelastico ------------------------------------------
+    // PORTADO do example2d_VOF_Oldroyd, que ja' tinha a definicao em 2D.  Sem
+    // estes quatro metodos ns->ed.mult.ve.problem fica NULO, e
+    // higflow_initialize_viscoelastic_mult_tensor o desreferencia: SIGSEGV em
+    // "Failing at address: (nil)", antes do passo 0.  As duas capacidades
+    // estavam DISJUNTAS em 2D -- os exemplos com AMR nao tinham a definicao
+    // viscoelastica, e os que a tinham nao tinham AMR.
+    //
+    // O kernel e' a IDENTIDADE (value = lambda), como no Oldroyd 2D e no 3D de
+    // referencia: as alternativas (log, raiz) estao comentadas la' e aqui nao
+    // se inventa uma terceira.
+    real tensor_multiphase(real fracvol, Point center, int i, int j, real t) {
+        return kernel(i, 1.0, 0.0) * (i == j);
+    }
+    real kernel(int dim, real lambda, real tol) {
+        return lambda;
+    }
+    real kernel_inverse(int dim, real lambda, real tol) {
+        return lambda;
+    }
+    real kernel_jacobian(int dim, real lambda, real tol) {
+        return 1.0;
+    }
+
 };
 
 static NewtProblem problema;
@@ -357,6 +383,10 @@ int main (int argc, char *argv[]) {
     higflow_create_domain(ns, cache, order_center);
     if (ns->contr.flowtype == MULTIPHASE)
         higflow_create_domain_multiphase(ns, cache, order_center, &problema);
+    // SO' quando a configuracao pede: o yaml ja' foi lido neste ponto, e
+    // chamar sempre alocaria os tensores de conformacao num caso newtoniano.
+    if (ns->ed.mult.contr.viscoelastic_either == true)
+        higflow_create_domain_multiphase_viscoelastic(ns, &problema);
     
     // Initialize the domain
     print0f("=+=+=+= Load Domain =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=\n");
@@ -687,6 +717,9 @@ int main (int argc, char *argv[]) {
         }
 
         if (ns->contr.flowtype == MULTIPHASE)
+            if (ns->ed.mult.contr.viscoelastic_either == true)
+            higflow_solver_step_multiphase_viscoelastic(ns);
+        else
             higflow_solver_step_multiphase(ns);
         else
             higflow_solver_step(ns);
