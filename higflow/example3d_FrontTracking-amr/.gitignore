@@ -1,0 +1,9 @@
+# artefatos de corrida: gerados, nao versionados
+# (mesmo padrao do example3d_VOF_rising-amr; antes este arquivo era `*`, de
+#  quando o diretorio era copia de trabalho -- virou exemplo em uso)
+output/
+VTKS/
+DATA/
+amrs/
+*.o
+ns-example-3d

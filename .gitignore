@@ -206,6 +206,9 @@ doc/artigo-ft-vof-ve/*.out
 doc/artigo-ft-vof-ve/*.toc
 doc/artigo-ft-vof-ve/*.fls
 doc/artigo-ft-vof-ve/*.fdb_latexmk
-higflow/example3d_FrontTracking-amr/
+# higflow/example3d_FrontTracking-amr/ saiu deste ignore em 11/10/2026:
+# era copia de trabalho e virou exemplo em uso (sensor de esteira, TSUR,
+# criterio AMR).  Os artefatos de corrida sao ignorados pelo .gitignore
+# LOCAL do diretorio, como no example3d_VOF_rising-amr.
 higflow/ve/
 conteiner/_build/

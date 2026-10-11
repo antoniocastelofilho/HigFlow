@@ -1,0 +1,137 @@
+# Must be set outwards
+# Try variables path of either PETSc versions (3.5.2, 3.5.3, 3.6.2):
+-include ${PETSC_DIR}/conf/variables
+-include ${PETSC_DIR}/lib/petsc-conf/petscvariables
+-include ${PETSC_DIR}/lib/petsc/conf/petscvariables
+
+# HigTree common
+include ${HIGTREE_DIR}/Makefile.common
+
+CC = mpic++
+
+DIM=3
+
+STANDARDS = -x c++ -std=gnu++17
+
+CFILE = ns-example-3d
+
+ifdef DEBUG
+	CFLAGS+= -g -ggdb -Og -Wall
+	GDB_FLAG = gdb --args
+	DEBUG_DESC = "gdb debug"
+else
+	OPTSOPT = -flto=8 -fno-fat-lto-objects
+	CFLAGS+= -march=native -mtune=native -Ofast -Werror
+	DEBUG_DESC = "No Debugging/Optimized"
+endif
+
+CFLAGS+= $(shell pkg-config --cflags glib-2.0 libfyaml hdf5)
+CFLAGS+= $(PETSC_CC_INCLUDES)
+CFLAGS+= -I$(SRCPATH) -I../src $(OPTSOPT) $(STANDARDS) -DDIM=$(DIM)
+
+LDFLAGS+= $(shell pkg-config --libs-only-L --libs-only-other glib-2.0 hdf5 libfyaml)
+LDFLAGS+= -L$(LIBPATH) $(OPTSOPT)
+
+LIBS+= -lhig$(DIM)d
+LIBS+= $(shell pkg-config --libs-only-l glib-2.0 hdf5 libfyaml)
+LIBS+= $(PETSC_LIB)
+LIBS+= $(PETSC_EXTRA_LIB)
+LIBS+= -lm -ltrilinos_zoltan -lHYPRE
+
+ARCH = $(shell uname)
+ifeq ($(ARCH), Linux)
+	LIBS+= -lrt
+endif
+
+ifeq ($(NP),)
+	NP = 1
+endif
+
+
+ifdef RESTART
+	LOAD_PATH = output/example-3d.save
+else
+	LOAD_PATH = input/example-3d.load
+endif
+
+OBJ1 = ns-example-3d.o 
+OBJ1 += ../src/hig-flow-kernel.o ../src/hig-flow-eval.o ../src/hig-flow-io.o ../src/hig-flow-discret.o   
+OBJ1 += ../src/hig-flow-ic.o ../src/hig-flow-bc.o ../src/hig-flow-terms.o ../src/hig-flow-step.o
+OBJ1 += ../src/hig-flow-res.o ../src/hig-flow-timestep.o
+# FASE B2 3D: o nucleo da superficie triangulada, o adaptador do solver e o
+# modulo do corpo rigido (de onde vem fi_suporte_facetas, que ja' e' 3D).
+OBJ1 += ../src/hig-flow-front-tracking-3d.o front-tracking-3d.o ../src/hig-flow-fronteira-imersa.o
+# Caminho MULTIFASICO: a fracao sai da superficie, mas rho(x), mu(x) e o momento
+# de coeficiente variavel sao o MESMO codigo que o VOF usa.
+OBJ1 += ../src/hig-flow-step-multiphase.o ../src/hig-flow-vof-adap-hf.o
+OBJ1 += ../src/hig-flow-vof-plic.o ../src/hig-flow-vof-9-cells.o
+OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature.o
+OBJ1 += ../src/hig-flow-vof-elvira.o
+# O ramo DIM==3 do passo multifasico usa outro conjunto: o 2D nunca o linka
+# porque cai no ramo #if DIM == 2.
+OBJ1 += ../src/hig-flow-vof-mehta.o ../src/hig-flow-vof-plic-3D.o
+OBJ1 += ../src/hig-flow-vof-advection-3D.o ../src/hig-flow-vof-HF-3D.o
+OBJ1 += ../src/hig-flow-vof-finite-difference-normal-curvature_3D.o
+# Viscoelastico multifasico: front-tracking viscoelastico e' o mesmo caminho.
+OBJ1 += ../src/hig-flow-step-multiphase-viscoelastic.o ../src/hig-flow-step-viscoelastic.o
+OBJ1 += ../src/hig-flow-mittag-leffler.o ../src/hig-flow-linear-algebra.o
+OBJ1 += ../src/hig-flow-viscoelastic-kernel.o ../src/hig-flow-step-generalized-newtonian.o
+OBJ1 += malha-adaptativa.o
+# Transferencia por posicao: o remalhamento VERIFICADO da fronteira imersa
+# (F1-F3, consenso de franja).  higflow_reconstroi_dominio depende dele.
+OBJ1 += ../src/hig-flow-remalha.o
+# O nucleo do criterio de refino, compartilhado com o VOF (modulo proprio
+# justamente para o VOF nao depender do front-tracking).
+OBJ1 += ../src/hig-flow-amr-criterio.o
+
+
+ns-example-3d: $(OBJ1)
+	$(CC) $(LDFLAGS) $(OBJ1) -o $@ $(LIBS)
+front-tracking-3d.o: ../examples-common/front-tracking-3d.c
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+# B4 3D: o refino adaptativo.  O arquivo e' o MESMO do 2D -- ele e' generico em
+# DIM, e as sementes, a medida de banda e a transferencia nao dependem da
+# dimensao.  Compilado aqui com DIM=3.
+malha-adaptativa.o: ../examples-common/malha-adaptativa.c ../examples-common/malha-adaptativa.h
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+../src/hig-flow-front-tracking-3d.o: ../src/hig-flow-front-tracking-3d.c ../src/hig-flow-front-tracking-3d.h
+	$(CC) $(CFLAGS) -I../src -c $< -o $@
+
+%.o: %.c ${HIGTREE_DIR}/lib/libhig$(DIM)d.a
+	$(CC) $(CFLAGS) -c $< -o $@
+
+run:
+	mkdir -p VTKS || true
+	mkdir -p DATA || true
+	mkdir -p output || true
+	mpirun -use-hwthread-cpus -n $(NP) $(GDB_FLAG) ./ns-example-3d \
+		$(LOAD_PATH) \
+		output/example.save \
+		VTKS/example.print \
+		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
+compilerflags:
+	@echo COMPILER_FLAGS=$(CFLAGS)
+
+clean :
+		$(RM) -f ns-example-3d.o ns-example-3d
+
+
+rebuild_higflow:
+	$(MAKE) -C .. clean
+	$(MAKE) -C .. DIM=$(DIM) DEBUG=$(DEBUG) RES=$(RES)
+
+rebuild_higtree:
+	$(MAKE) -C $(HIGTREE_DIR) clean
+	$(MAKE) -C $(HIGTREE_DIR) DIM=$(DIM) DEBUG=$(DEBUG)
+
+rebuild_hig:
+	$(MAKE) rebuild_higtree DEBUG=$(DEBUG)
+	$(MAKE) rebuild_higflow DEBUG=$(DEBUG) RES=$(RES)
+rebuild_all:
+	$(MAKE) rebuild_hig DEBUG=$(DEBUG) RES=$(RES)
+	$(MAKE) clean
+	$(MAKE)
+
+.PHONY: run clean compilerflags
