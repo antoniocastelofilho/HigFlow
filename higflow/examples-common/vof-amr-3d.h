@@ -58,7 +58,7 @@ void vof3_escreve_amr_criterio(higflow_solver *ns, real lx, real ly, real lz,
 //! limiares do dinamico, para a malha do passo 0 nao ser de outra familia.
 void vof3_escreve_amr_inicial(real lx, real ly, real lz, int nx, int ny, int nz,
                               int niveis, int cel_min,
-                              real (*fracvol)(const Point, const Point, real),
+                              real (*fracvol)(Point, Point, real),
                               const char *caminho);
 
 #endif

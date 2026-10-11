@@ -151,7 +151,7 @@ void vof3_escreve_amr_criterio(higflow_solver *ns, real lx, real ly, real lz,
 // -------------------------------------------------------- o criterio inicial
 void vof3_escreve_amr_inicial(real lx, real ly, real lz, int nx, int ny, int nz,
                               int niveis, int cel_min,
-                              real (*fracvol)(const Point, const Point, real),
+                              real (*fracvol)(Point, Point, real),
                               const char *caminho)
 {
     const real hx = lx / nx, hy = ly / ny, hz = lz / nz;
