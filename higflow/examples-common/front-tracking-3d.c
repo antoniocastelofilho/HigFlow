@@ -28,6 +28,7 @@
 // mudanca quando o paralelo entrar.
 
 #include "hig-flow-kernel.h"
+#include "criterio-esteira-pura.h"
 #include "hig-flow-fronteira-imersa.h"   // fi_suporte_facetas, fi_suporte_capacidade
 #include "hig-flow-front-tracking-3d.h"
 #include "hig-flow-amr-criterio.h"   // o nucleo do criterio, compartilhado com o VOF
@@ -517,10 +518,11 @@ extern "C" void ft3_escreve_amr_criterio(higflow_solver *ns, ft3_superficie *sup
                         du[a][b] = (up - um) / (2.0 * cd[b]);
                     }
                 }
-                const real wx = du[2][1] - du[1][2];
-                const real wy = du[0][2] - du[2][0];
-                const real wz = du[1][0] - du[0][1];
-                const real om = sqrt(wx*wx + wy*wy + wz*wz);
+                // |rot u| pela funcao COMPARTILHADA com o arreio, para o oraculo
+                // testar o codigo que RODA: e' aqui que sinal trocado ou eixo
+                // permutado passa sem sintoma -- a malha sai refinada no lugar
+                // quase certo e nada denuncia.
+                const real om = esteira_omega_grad(du);
                 int ii = (int)(cc[0]/hx), jj = (int)(cc[1]/hy), kk = (int)(cc[2]/hz);
                 if (ii < 0) ii = 0;  if (ii >= nx) ii = nx - 1;
                 if (jj < 0) jj = 0;  if (jj >= ny) jj = ny - 1;

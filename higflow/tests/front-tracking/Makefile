@@ -14,6 +14,12 @@
 #                    contra o laplaciano que suaviza encolhendo 9,7% (DIM=3)
 #   teste-amr3d      CRITERIO DE REFINO 3D: limiares, dilatacao contra exaustiva,
 #                    banda, e o formato do .amr conferido por releitura (DIM=3)
+#   teste-esteira    SENSOR DE VORTICIDADE da esteira: |rot u| contra forma
+#                    fechada (cisalhamentos nos tres planos, rotacao de corpo
+#                    rigido onde os termos SOMAM, irrotacional, uniforme)
+#   teste-vof-amr3d  CRITERIO DO VOF 3D: o PISO DE CINCO celulas por lado vence
+#                    a banda fisica (o PLIC e o transporte da fracao exigem),
+#                    e a mesma banda DOBRA a contagem ao refinar
 #
 # Cada arreio devolve codigo de saida (0 passou, 1 falhou) -- sao oraculos, nao
 # so' impressoes.  `make check` roda todos e falha se algum falhar.
@@ -23,7 +29,7 @@ MOD     = ../../src/hig-flow-front-tracking.c
 DEP     = $(MOD) ../../src/hig-flow-front-tracking.h
 
 ARREIOS = teste-b1 teste-curvatura teste-tensao teste-indicadora teste-persistencia \
-          teste-esfera3d teste-b1-3d teste-fracao3d teste-amr3d teste-tsur
+          teste-esfera3d teste-b1-3d teste-fracao3d teste-amr3d teste-tsur teste-esteira teste-vof-amr3d
 
 # O 3D compila com DIM=3 e contra OUTRO modulo: a frente 2D e' polilinha, a 3D e'
 # superficie triangulada, e os dois nucleos se recusam a compilar na dimensao do
@@ -51,6 +57,16 @@ teste-fracao3d: teste-fracao3d.c $(DEP3)
 # nucleo: deixa-lo no modulo do front-tracking faria o VOF depender dele.
 teste-amr3d: teste-amr3d.c ../../src/hig-flow-amr-criterio.c ../../src/hig-flow-amr-criterio.h
 	$(CC) $(CFLAGS3) teste-amr3d.c ../../src/hig-flow-amr-criterio.c -lm -o $@
+
+# A conta de |rot u| vem de um cabecalho `static inline` compartilhado com a
+# producao -- nao ha' copia a manter em sincronia.  Por isso o arreio compila
+# sem o solver: a amostragem das faces depende dele, a conta nao.
+teste-esteira: teste-esteira.c ../../examples-common/criterio-esteira-pura.h
+	$(CC) -O2 -Wall -o $@ teste-esteira.c -lm
+
+# Sem o solver: a parte testada e' a conta da banda, que nao toca PETSc nem MPI.
+teste-vof-amr3d: teste-vof-amr3d.c
+	$(CC) -O2 -Wall -o $@ teste-vof-amr3d.c -lm
 
 teste-tsur: teste-tsur.c $(DEP3)
 	$(CC) $(CFLAGS3) teste-tsur.c $(MOD3) -lm -o $@
