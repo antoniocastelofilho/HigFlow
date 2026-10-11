@@ -57,20 +57,127 @@ surface with surgery can refine locally along the interface, whereas a volume
 fraction with a per-cell planar reconstruction cannot represent curvature below
 one cell.
 
-\status{The VOF half is complete at the reference resolution --- 2001 steps to
-$t=4$, 161 extracted surfaces, all closed, $0.45\%$ volume drift. The
-front-tracking half is running with the filter of Section~\ref{sec:tsur}, which
-is what makes it comparable at all (Table~\ref{tab:undtime}).}
+\status{\textbf{The pair is closed at the reference resolution.} Both methods
+completed 2001 steps to $t=4$ with 161 extracted surfaces, all closed. The
+front-tracking run carries the filter of Section~\ref{sec:tsur}, which is what
+makes it comparable on this case at all.}
 
-What the VOF half settles on its own is narrower than the comparison, but it is
-not nothing: at $h=1/50$ the rear of the bubble reaches $z_{\min} = 1.805$ with
-the centroid at $2.042$, against $1.835$ and $2.054$ at $h=1/25$ --- the trailing
-edge is drawn out by $0.018$ more in units of $L$ relative to the centroid when
-the mesh is halved. That is the direction a cusp would produce, and it is also
-the direction a more resolved planar reconstruction would produce without any
-cusp. \missing{the front-tracking half, which is the only one of the two that
-can represent curvature below the cell and so the only one that can distinguish
-these}
+\begin{table}[htbp]
+\centering
+\caption{The pair at $t=4$, $50{\times}50{\times}150$, same instrument for both.}
+\label{tab:ftn50}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/grandeza/.style={column name={}, column type={l}},
+  columns/ft/.style={column name={front-tracking}, column type={r}},
+  columns/vof/.style={column name={VOF}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{ft-n50-final.dat}}
+\end{adjustbox}
+\end{table}
+
+\subsubsection{Two measures, and only one of them is free of the mesh}
+
+The cusp is read with two numbers, and the pair exists because they fail
+differently.
+
+The \textbf{asymmetry} $A = (z_c - z_{\min})/(z_{\max} - z_c)$ is $1$ for a
+sphere and grows as the rear is drawn out. It is \emph{integrated}, so no cell
+size bounds it.
+
+The \textbf{radius of curvature} $R$ at the lowest vertex --- a least-squares
+sphere through that vertex and its ring --- is \emph{local}, and a method that
+reconstructs one plane per cell cannot report a radius below the cell. It
+therefore has a floor, and the floor is the point.
+
+\begin{table}[htbp]
+\centering
+\caption{The two measures over time, both methods, reference resolution. The
+asymmetry agrees throughout; $R/R_{\mathrm{eq}}$ does not, until both reach the
+mesh floor.}
+\label{tab:cusppair}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns={t,ftA,vofA,dA,ftR,vofR},
+  columns/t/.style={column name={$t$}, column type={r}},
+  columns/ftA/.style={column name={FT $A$}, column type={r}},
+  columns/vofA/.style={column name={VOF $A$}, column type={r}},
+  columns/dA/.style={column name={diff.}, column type={r}},
+  columns/ftR/.style={column name={FT $R/R_{\mathrm{eq}}$}, column type={r}},
+  columns/vofR/.style={column name={VOF $R/R_{\mathrm{eq}}$}, column type={r}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{cuspide-par.dat}}
+\end{adjustbox}
+\end{table}
+
+\paragraph{The asymmetry is the result.} The two methods track each other to
+$0.2$--$2.4\%$ from $t=1.6$ to $t=4$, ending at $1.2846$ and $1.2907$ --- a
+difference of $0.5\%$. On the case the reference singles out as discriminating,
+with the two interface representations at their most different, the integrated
+shape of the cusp is the same.
+
+\paragraph{But their agreement in $R$ at $t=4$ is not convergence.} At $t=4$
+front-tracking gives $R = 0.02142$ and VOF $R = 0.02168$, within $1\%$ --- and
+$h = 1/50 = 0.02$, so \textbf{both are at $R \approx 1.07\,h$: one cell}. Two
+methods pinned at the same floor agree for a reason that has nothing to do with
+the physics, and reading that $1\%$ as convergence would be reading the mesh.
+
+The informative part of that column is the \emph{approach}, not the endpoint.
+VOF drops to $\approx 0.11$ by $t=2.4$ and then sits there for the rest of the
+run --- it reaches its floor early and stays. Front-tracking descends
+gradually, $0.40 \to 0.22 \to 0.13 \to 0.086$, arriving at the floor only at
+$t=4$. That is the expected signature of the structural difference argued in
+Section~\ref{sec:tsur}: a per-cell planar reconstruction saturates at the cell,
+while an explicit surface with local surgery can keep resolving below it until
+the mesh finally binds.
+
+\subsubsection{And at the coarse mesh, neither method had resolved it}
+
+\begin{table}[htbp]
+\centering
+\caption{The same two numbers at both resolutions, $t=4$.}
+\label{tab:cuspres}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\pgfplotstabletypeset[
+  col sep=space, string type,
+  columns/corrida/.style={column name={}, column type={l}},
+  columns/malha/.style={column name={mesh}, column type={l}},
+  columns/assim/.style={column name={$A$}, column type={r}},
+  columns/RRel/.style={column name={$R/R_{\mathrm{eq}}$}, column type={r}},
+  columns/obs/.style={column name={}, column type={l}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule},
+]{\dat{cuspide-resolucao.dat}}
+\end{adjustbox}
+\end{table}
+
+At $h=1/25$ the two differ by a factor of \emph{fifteen} in $R/R_{\mathrm{eq}}$
+--- $0.047$ against $0.709$. That is not a difference between methods; it is two
+different failures. VOF at $0.709$ has a trailing edge about as round as the
+bubble itself: no cusp is resolved at all. Front-tracking at $0.047$ is
+\emph{spuriously} sharp, because that run carries no filter and its lowest
+vertex is a zig-zag spike --- the sub-grid undulation of
+Table~\ref{tab:undulation} makes the local curvature unusable. The filtered
+$h=1/50$ run gives $0.086$, \emph{less} sharp than the unfiltered coarse run,
+which is the direct evidence that the coarse value was undulation and not cusp.
+
+So the paper's claim about the cusp is narrower than the one it was reaching
+for, and firmer: \textbf{at the reference resolution the two methods agree on
+the integrated shape of the cusp to $0.5\%$; the coarse mesh resolves it in
+neither, for two unrelated reasons; and the local curvature at $t=4$ is at the
+mesh floor in both and so cannot discriminate.}
+
+\caveat{The $h=1/25$ front-tracking run is unfiltered and the $h=1/50$ one is
+filtered, so the change between those two rows mixes resolution with the filter.
+Separating them needs a filtered run at $h=1/25$, which the cadence sweep of
+Section~\ref{sec:tsur} produces as a by-product.}
 
 \subsection{A model limit, not a numerical one}
 

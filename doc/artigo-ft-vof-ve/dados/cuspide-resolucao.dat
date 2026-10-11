@@ -1,0 +1,8 @@
+# The same two numbers at both resolutions, t=4.  The N=25 front-tracking run is
+# UNFILTERED and the N=50 one is filtered, so the row-to-row change mixes two
+# things; that is stated in the text rather than divided out.
+corrida malha assim RRel obs
+{front-tracking} {$25^2{\times}75$} 1.21281 0.04741 {no filter; $R$ set by zig-zag}
+{VOF} {$25^2{\times}75$} 1.14174 0.70861 {no cusp resolved}
+{front-tracking} {$50^2{\times}150$} 1.28460 0.08615 {filtered}
+{VOF} {$50^2{\times}150$} 1.29072 0.08703 {---}

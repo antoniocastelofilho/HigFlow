@@ -1,0 +1,13 @@
+# The cusp at the reference resolution, both methods, same instrument.
+# A = (z_c - z_min)/(z_max - z_c): a sphere gives 1; a trailing cusp stretches
+# the lower half and A grows.  Integrated, so it has NO mesh floor.
+# R/Req: radius of curvature at the lowest vertex, by a least-squares sphere
+# through it and its ring, over the volume-equivalent radius.  LOCAL, so it DOES
+# have a mesh floor -- see the last two rows, where both reach R ~ 1.07 h.
+t ftA vofA dA ftR vofR
+1.600 1.04541 1.06173 {1.6\%} 0.58687 1.38035
+2.400 1.14200 1.13595 {0.5\%} 0.40412 0.10876
+2.800 1.17525 1.16561 {0.8\%} 0.21611 0.10628
+3.200 1.23254 1.20378 {2.4\%} 0.12695 0.10831
+3.600 1.25960 1.25668 {0.2\%} 0.12803 0.09907
+4.000 1.28460 1.29072 {0.5\%} 0.08615 0.08703

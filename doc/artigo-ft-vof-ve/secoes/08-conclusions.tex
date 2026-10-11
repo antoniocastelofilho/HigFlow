@@ -35,10 +35,26 @@ $3.6\%$ and $1.2\%$. The asymmetry is the opposite of what the provenance
 suggests, since the reference was computed with VOF.
 \item Oldroyd-B did \emph{not} run away on the time scale of the rise: all
 twelve runs completed 2001 steps with zero non-finite values.
-\item The cusp case now exists at the reference resolution in VOF: 2001 steps to
-$t=4$, 161 extracted surfaces all closed, $0.45\%$ volume drift. The drop is
-$5.9\%$ at $h=1/25$ and $6.6\%$ at $h=1/50$ --- a bound below the measurement's
-own noise rather than a resolved dependence.
+\item \textbf{The cusp pair is closed at the reference resolution, and the two
+methods agree on the integrated shape of the cusp to $0.5\%$} --- asymmetry
+$1.2846$ in front-tracking against $1.2907$ in VOF, tracking each other to
+$0.2$--$2.4\%$ from $t=1.6$ onward. This is the discriminating case, with the
+two interface representations at their most different.
+\item But their agreement in the \emph{local} curvature at $t=4$ is not
+convergence: both give $R \approx 1.07\,h$, one cell. Two methods pinned at the
+same mesh floor agree for a reason unrelated to the physics. What the column
+does show is the \emph{approach}: VOF reaches its floor by $t=2.4$ and sits
+there, front-tracking descends gradually and arrives only at $t=4$ --- the
+signature of a per-cell planar reconstruction saturating at the cell while an
+explicit surface keeps resolving below it.
+\item At $h=1/25$ neither method had resolved the cusp, for two unrelated
+reasons: VOF reports a trailing edge as round as the bubble ($R/R_{\mathrm{eq}}
+= 0.71$), and the unfiltered front-tracking reports a spuriously sharp one
+($0.047$) because its lowest vertex is a zig-zag spike. The filtered $h=1/50$
+run gives $0.086$ --- \emph{less} sharp than the unfiltered coarse run, which is
+the direct evidence that the coarse value was undulation.
+\item The drop is $5.9\%$ at $h=1/25$ and $6.6\%$ at $h=1/50$ --- a bound below
+the measurement's own noise rather than a resolved dependence.
 \end{itemize}
 
 \subsection*{What was withdrawn}
@@ -67,7 +83,14 @@ what the marching-cubes-bias reading predicts.
 is verified, but no case has been run on an adapted mesh to completion.
 \item Why front-tracking's mass drift grows with refinement. The triangulation
 counts and the surgery counts are nearly identical at both resolutions, so
-neither explains it.
+neither explains it. At the reference resolution the filtered run drifts
+$1.43\%$ against VOF's $0.45\%$, and the filter is not the cause: its 51
+recorded applications change the volume by $3\times10^{-14}$ in total.
+\item Whether the $h=1/50$ agreement on the cusp survives separating resolution
+from the filter. The coarse front-tracking run is unfiltered and the fine one is
+filtered, so those two rows differ in two things at once. The cadence sweep of
+Section~\ref{sec:tsur} produces a filtered coarse run as a by-product and
+settles it.
 \item Which of the two readings explains the sign asymmetry: a difference
 between our volume-of-fluid and the reference's, or an upward bias in the
 marching-cubes extraction from which the shape quantities are read.
