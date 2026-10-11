@@ -193,6 +193,24 @@ doc/artigos/*/*.spl
 doc/artigos/*/*.fls
 doc/artigos/*/*.fdb_latexmk
 higflow/example3d_VOF_rising-ve/
+# COPIAS DE TRABALHO SUPERADAS.  Verificado em 11/10/2026 por comparacao de
+# conteudo: as duas sao subconjuntos dos exemplos rastreados, com ZERO funcoes
+# proprias, e nenhum .tex/.md/.sh as referencia.
+#
+#   example3d_FrontTracking-ve  <- example3d_FrontTracking
+#       542 linhas contra 918; 363 das 372 distintas identicas ao pai.
+#       FALTA o filtro TSUR e o criterio AMR -- e as corridas viscoelasticas
+#       3D do artigo usam o filtro, logo nao sairam dali.
+#
+#   example3d_VOF_rising-ve     <- example3d_VOF_rising
+#       531 linhas contra 668; 352 das 360 distintas identicas ao pai.
+#       Nada proprio.  O binario de ve/vof-N50-salva tem o md5 do PAI.
+#
+# Ficam ignoradas de proposito.  O contraste util e' com o
+# example3d_FrontTracking-amr, que tinha o MESMO rotulo de "copia de trabalho"
+# e era falso: ele virou o exemplo que carrega o sensor de esteira e o criterio
+# AMR 3D, e por isso entrou no controle de versao em d5bf74a.  A distincao nao
+# estava no nome nem no ignore, e sim no que cada um fazia.
 higflow/example3d_FrontTracking-ve/
 
 # Artigo: produtos de compilacao do LaTeX.  Os .dat de MEDICAO sao versionados
