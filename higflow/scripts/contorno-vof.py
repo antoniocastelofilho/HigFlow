@@ -8,8 +8,56 @@
 # interface reconstruida, e nao a reconstrucao PLIC do solver -- que nao esta'
 # exposta.  Serve para desenhar a forma; NAO serve para medir perimetro, e e' por
 # isso que a circularidade do lado VOF continua nao sendo reportada.
-import sys
+import sys, os, re, glob
 from collections import defaultdict
+
+# PARALELO.  Em n_p > 1 o solver escreve UM VTK POR RANK, e os arquivos sao uma
+# PARTICAO da malha -- medido: np=2 da' 4568+4809 e np=4 da' 2278+2290+2513+2296,
+# os dois somando exatamente as 9377 celulas do serial, sem duplicacao.  Ler um
+# so' devolveria o pedaco de um processo: uma curva ABERTA, ou pior, uma fechada
+# e plausivel que nao e' a bolha.
+#
+# A FUSAO TEM DE SER ANTES DA MEDIA NOS VERTICES.  Um vertice na fronteira entre
+# particoes aparece nos arquivos dos dois ranks, cada um enxergando so' as suas
+# celulas incidentes; medianizar antes de juntar daria a esse vertice metade das
+# contribuicoes, e o contorno entortaria exatamente ali.
+#
+# O desenho ja' ajudava: `valores_nos_vertices` indexa por COORDENADA
+# arredondada, nao por indice.  Entao concatenar os pontos e deslocar os indices
+# das celulas basta -- a fusao dos vertices sai de graca, inclusive entre ranks.
+#
+# A deteccao e' automatica: dado `p.print_0-12.vtk`, procura todos os
+# `p.print_<rank>-12.vtk`.  Quem chama nao precisa saber se a corrida foi
+# paralela, e as chamadas antigas continuam valendo.
+
+
+def arquivos_do_quadro(caminho):
+    """Todos os VTK do MESMO quadro, um por rank.  Devolve [caminho] se o nome
+    nao tiver a forma `<prefixo>_<rank>-<quadro>.vtk`."""
+    d, b = os.path.dirname(caminho), os.path.basename(caminho)
+    m = re.match(r"^(.*)_(\d+)-(\d+)\.vtk$", b)
+    if m is None:
+        return [caminho]
+    pref, _, quadro = m.groups()
+    fs = sorted(glob.glob(os.path.join(d, "%s_*-%s.vtk" % (pref, quadro))),
+                key=lambda p: int(re.match(r"^.*_(\d+)-\d+\.vtk$",
+                                           os.path.basename(p)).group(1)))
+    return fs if fs else [caminho]
+
+
+def le_varios(caminhos):
+    """Le' e CONCATENA varios VTK, deslocando os indices de celula."""
+    pontos, celulas, frac = [], [], []
+    for c in caminhos:
+        p, cl, fr = le_vtk(c)
+        if len(fr) < len(cl):            # sem FracVol neste rank: ignora
+            continue
+        off = len(pontos)
+        pontos.extend(p)
+        celulas.extend([[i + off for i in cel] for cel in cl])
+        frac.extend(fr[:len(cl)])
+    return pontos, celulas, frac
+
 
 def le_vtk(caminho):
     with open(caminho) as f:
@@ -102,7 +150,8 @@ def encadeia(segs, tol=1e-9):
 
 if __name__ == '__main__':
     vtk, saida = sys.argv[1], sys.argv[2]
-    pontos, celulas, frac = le_vtk(vtk)
+    arqs = arquivos_do_quadro(vtk)
+    pontos, celulas, frac = le_varios(arqs)
     vert, ch = valores_nos_vertices(pontos, celulas, frac)
     curvas = encadeia(marching(pontos, celulas, vert, ch))
     with open(saida, 'w') as f:
@@ -111,5 +160,19 @@ if __name__ == '__main__':
             for p in c: f.write(f"{p[0]:.8f} {p[1]:.8f}\n")
             f.write('\n')               # linha vazia: pgfplots quebra o caminho
     tot = sum(len(c) for c in curvas)
-    print(f"{vtk}: {len(celulas)} celulas, {len(curvas)} curva(s), "
-          f"{tot} pontos, maior com {len(curvas[0]) if curvas else 0}")
+    # GUARDA: curva ABERTA e' a assinatura de ter lido so' um rank de uma corrida
+    # paralela -- o contorno termina na fronteira da particao em vez de fechar.
+    # Tambem pega uma interface que toca a borda do dominio, que e' legitimo; por
+    # isso avisa em vez de falhar, mas avisa SEMPRE, porque o sintoma silencioso
+    # e' uma area plausivel e errada.
+    aviso = ""
+    if curvas:
+        c = curvas[0]
+        d = ((c[0][0]-c[-1][0])**2 + (c[0][1]-c[-1][1])**2) ** 0.5
+        if d > 1e-6:
+            aviso = (f"   <<< AVISO: a maior curva NAO FECHA (extremos a {d:.2e}). "
+                     f"Lidos {len(arqs)} rank(s); se a corrida foi paralela e aqui "
+                     f"diz 1, o nome do arquivo nao casa o padrao <pref>_<rank>-<quadro>.vtk")
+    print(f"{vtk}: {len(arqs)} rank(s), {len(celulas)} celulas, "
+          f"{len(curvas)} curva(s), {tot} pontos, "
+          f"maior com {len(curvas[0]) if curvas else 0}{aviso}")
