@@ -769,6 +769,19 @@ int main (int argc, char *argv[]) {
             print0f("===> Printing frame: %4d <====> tp = %15.10lf <===\n",ns->par.frame, ns->par.tp);
             higflow_print_vtk(ns, myrank);
             //higflow_print_vtk2D_parallel_single(ns, myrank, ntasks);
+            // A FRENTE, por quadro.  O campo que higflow_print_vtk escreve e' a
+            // FRACAO regenerada da geometria; a frente em si e' a representacao
+            // NATIVA do metodo, e e' ela que se sobrepoe a' curva do VOF.  Sem
+            // este despejo so' restava o `.frente` do ponto de salvamento, que e'
+            // sobrescrito -- e a comparacao de forma ficava sem o lado lagrangeano.
+            // O 3D ja' escreve p.print_frente_*.vtk; o 2D nao escrevia nada.
+            if (gota != NULL) {
+                ft_escreve_vtk(gota, argv[3], ns->par.frame);
+                char nomed[1024];
+                snprintf(nomed, sizeof nomed, "DATA/frentes/frente_%07d.dat",
+                         ns->par.step);
+                ft_grava(gota, nomed);
+            }
             ns->par.tp += ns->par.dtp;
             ns->par.frame++;
         }
