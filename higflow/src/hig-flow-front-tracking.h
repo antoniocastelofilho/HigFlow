@@ -205,6 +205,28 @@ void ft_advecta(ft_frente *f, ft_campo_u u, void *ctx, real t, real dt);
 //! fixa.  Devolve o numero de marcadores DEPOIS da cirurgia.
 int ft_cirurgia(ft_frente *f);
 
+// --- filtro de ondulacao submalha ------------------------------------------
+//
+// PORTE DO ft3_tsur, com o MESMO contrato.  O 3D percorre cada ARESTA da
+// superficie triangulada; aqui percorre cada SEGMENTO da polilinha.  O ponto de
+// base e' o ponto medio do segmento, logo as alturas dos dois extremos sao
+// iguais e opostas por construcao, e |h1| mede a inclinacao do segmento em
+// relacao a' normal local -- que e' a ondulacao.  Os dois extremos vao para uma
+// altura comum, ponderada pelas ESTRELAS (em 3D, volumes; aqui, comprimentos).
+//
+// O LIMIAR NAO E' AFINACAO, e e' a mesma razao do 3D: sem ele o filtro move todo
+// marcador em toda aplicacao, e reduzir perimetro a area fixa e' EXATAMENTE o
+// que a tensao superficial faz -- o filtro passaria a competir com a fisica que
+// o metodo resolve.  Conservar area nao protege disso; na circunferencia o
+// efeito e' invisivel, porque o estado liso ja' e' perimetro minimo.  E' a
+// elipse que expoe, e e' nela que o arreio mede.
+//
+// `rlx` e' a relaxacao: 0 reproduz o Freeflow (move o total), 1 nao move nada.
+// `limiar` e' a inclinacao minima que faz o segmento mover, em fracao da
+// MEIA-ARESTA -- o maximo que |h1| pode valer.
+// Devolve quantos marcadores moveu.
+int ft_tsur(ft_frente *f, real rlx, real limiar);
+
 // --- saida ----------------------------------------------------------------
 
 //! Grava a frente em VTK como POLILINHA (celulas de linha, nao pontos), para

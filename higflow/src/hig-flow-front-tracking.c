@@ -582,3 +582,109 @@ ft_frente *ft_le(const char *arquivo)
     fclose(fp);
     return f;
 }
+
+// ===========================================================================
+//  TSUR 2D: remocao da ondulacao submalha
+// ===========================================================================
+//
+// Ver o contrato no .h.  Porte do ft3_tsur, segmento a segmento.
+
+//! Normal unitaria no marcador `i`, perpendicular a' corda dos vizinhos e
+//! orientada para FORA.  Devolve 0 se a corda for degenerada.
+static int _normal_marcador(const ft_frente *f, int i, real nor[2])
+{
+    const real *a = f->x[(i - 1 + f->n) % f->n];
+    const real *b = f->x[(i + 1) % f->n];
+    const real tx = b[0] - a[0], ty = b[1] - a[1];
+    const real m = sqrt(tx*tx + ty*ty);
+    if (m < 1.0e-14) return 0;
+    // Perpendicular a' tangente.  A orientacao vem do sinal da area com sinal:
+    // numa curva de area positiva (anti-horaria) a normal EXTERNA e' (ty,-tx)/m.
+    real soma = 0.0;
+    for (int k = 0; k < f->n; k++) {
+        const real *p = f->x[k], *q = f->x[(k + 1) % f->n];
+        soma += p[0]*q[1] - q[0]*p[1];
+    }
+    const real s = (soma >= 0.0) ? 1.0 : -1.0;
+    nor[0] =  s * ty / m;
+    nor[1] = -s * tx / m;
+    return 1;
+}
+
+//! Comprimento da ESTRELA do marcador `i`: metade da soma dos dois segmentos
+//! incidentes.  E' o analogo plano do volume da estrela que o 3D usa como peso,
+//! e e' o que faz a altura comum nao ser a media simples quando os dois lados
+//! tem resolucao diferente.
+static real _estrela(const ft_frente *f, int i)
+{
+    const real *a = f->x[(i - 1 + f->n) % f->n];
+    const real *p = f->x[i];
+    const real *b = f->x[(i + 1) % f->n];
+    const real l1 = sqrt((p[0]-a[0])*(p[0]-a[0]) + (p[1]-a[1])*(p[1]-a[1]));
+    const real l2 = sqrt((b[0]-p[0])*(b[0]-p[0]) + (b[1]-p[1])*(b[1]-p[1]));
+    return 0.5 * (l1 + l2);
+}
+
+int ft_tsur(ft_frente *f, real rlx, real limiar)
+{
+    if (f == NULL || f->n < 4) return 0;
+
+    // Os deslocamentos sao acumulados e aplicados DE UMA VEZ.  Aplicar em
+    // seguida faria o segundo segmento ler posicoes ja' movidas pelo primeiro,
+    // e o resultado dependeria da ordem de percurso -- o que o 3D tambem evita.
+    const int n = f->n;
+    real *dx = (real *) calloc((size_t) n * 2, sizeof(real));
+    if (dx == NULL) return 0;
+    int *tocado = (int *) calloc((size_t) n, sizeof(int));
+    if (tocado == NULL) { free(dx); return 0; }
+
+    for (int e = 0; e < n; e++) {
+        const int v1 = e, v2 = (e + 1) % n;
+        real nor1[2], nor2[2];
+        if (!_normal_marcador(f, v1, nor1)) continue;
+        if (!_normal_marcador(f, v2, nor2)) continue;
+
+        real ne[2] = { nor1[0] + nor2[0], nor1[1] + nor2[1] };
+        const real m = sqrt(ne[0]*ne[0] + ne[1]*ne[1]);
+        if (m < 1.0e-7) continue;              // normais opostas: nada a definir
+        ne[0] /= m; ne[1] /= m;
+
+        const real meio[2] = { 0.5*(f->x[v1][0] + f->x[v2][0]),
+                               0.5*(f->x[v1][1] + f->x[v2][1]) };
+        const real d1[2] = { f->x[v1][0] - meio[0], f->x[v1][1] - meio[1] };
+        const real d2[2] = { f->x[v2][0] - meio[0], f->x[v2][1] - meio[1] };
+        const real h1 = d1[0]*ne[0] + d1[1]*ne[1];
+        const real h2 = d2[0]*ne[0] + d2[1]*ne[1];
+
+        // LIMIAR: |h1| contra a MEIA aresta, que e' o maximo que ele pode valer.
+        const real ax = f->x[v2][0] - f->x[v1][0];
+        const real ay = f->x[v2][1] - f->x[v1][1];
+        const real meia = 0.5 * sqrt(ax*ax + ay*ay);
+        if (meia <= 0.0 || fabs(h1) < limiar * meia) continue;
+
+        // Altura comum, ponderada pelas estrelas -- o analogo plano do STARVOL.
+        const real w1 = _estrela(f, v1), w2 = _estrela(f, v2);
+        if (w1 + w2 <= 0.0) continue;
+        const real hc = (w1*h1 + w2*h2) / (w1 + w2);
+
+        const real g = 1.0 - rlx;
+        dx[2*v1+0] += g * (hc - h1) * ne[0];
+        dx[2*v1+1] += g * (hc - h1) * ne[1];
+        dx[2*v2+0] += g * (hc - h2) * ne[0];
+        dx[2*v2+1] += g * (hc - h2) * ne[1];
+        tocado[v1] = 1; tocado[v2] = 1;
+    }
+
+    int movidos = 0;
+    for (int i = 0; i < n; i++) {
+        if (!tocado[i]) continue;
+        // Cada marcador e' extremo de DOIS segmentos, entao o deslocamento
+        // acumulado e' a soma das duas contribuicoes; a media e' o que o
+        // percurso por aresta produz naturalmente.
+        f->x[i][0] += 0.5 * dx[2*i+0];
+        f->x[i][1] += 0.5 * dx[2*i+1];
+        movidos++;
+    }
+    free(dx); free(tocado);
+    return movidos;
+}
