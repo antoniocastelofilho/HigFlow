@@ -519,6 +519,34 @@ int main (int argc, char *argv[]) {
     higflow_initialize_boundaries_yaml(ns);
 
     // Parametros do refino adaptativo, por ambiente.
+    // ---------------------------------------------------------------------
+    // Remocao de ondulacao submalha (TSUR 2D).  O padrao LIGADO a cada 20
+    // passos espelha o 3D, e por isso o exemplo ANUNCIA o intervalo no
+    // arranque: nenhuma corrida deve ter a frente suavizada sem que o log diga.
+    //
+    // SO' TSUR, e nao BALANCE+TSUR como em 3D.  O BALANCE 2D seria a
+    // IDENTIDADE: ele poe o vertice na altura que preserva o volume da
+    // estrela, e com um anel de dois vizinhos a estrela e' um triangulo de base
+    // fixa e area linear na altura, logo a altura que preserva e' a que ja' se
+    // tem.  Medido: |hf-h|/|h| = 1,3e-16.
+    //
+    // LIMIAR, e ele NAO e' afinacao.  Sem limiar o filtro move todo marcador em
+    // toda aplicacao, e reduzir perimetro a area fixa e' o que a tensao
+    // superficial faz -- o filtro competiria com a fisica.  Na circunferencia o
+    // efeito e' invisivel (o estado liso ja' e' perimetro minimo); e' a elipse
+    // que expoe, e o arreio mede nela: com limiar 0,02 a elipse lisa fica
+    // INTOCADA em 20 passadas e o modo alternado ainda cai 94%.
+    int  tsur_cada = 20;
+    real tsur_rlx  = 0.0;        // 0 reproduz o Freeflow (relaxacao total)
+    real tsur_lim  = 0.05;       // margem da borda de 0,02, como no 3D
+    { const char *e;
+      if ((e = getenv("FT_TSUR_CADA")) != NULL) tsur_cada = atoi(e);
+      if ((e = getenv("FT_TSUR_RLX"))  != NULL) tsur_rlx  = atof(e);
+      if ((e = getenv("FT_TSUR_LIM"))  != NULL) tsur_lim  = atof(e); }
+    print0f("=+=+=+= Ondulacao submalha: TSUR 2D a cada %d passo(s), "
+            "rlx=%g limiar=%g %s=+=+=+=\n", tsur_cada, (double) tsur_rlx,
+            (double) tsur_lim, tsur_cada > 0 ? "" : "(DESLIGADO) ");
+
     int  amr_niveis = 0, amr_celmin = 5, amr_cada = 0, amr_nx = 40, amr_ny = 80;
     real amr_lx = 1.0, amr_ly = 2.0;
     const char *amr_caminho = "amrs-hysing/criterio/dominio.amr";
@@ -597,6 +625,32 @@ int main (int argc, char *argv[]) {
         // B4: o passo multifasico e' outra rotina, e e' nela que o gancho do
         // front-tracking foi instalado -- chamar o monofasico com config
         // multifasica roda sem forca nenhuma, em silencio.
+        // ONDULACAO SUBMALHA: TSUR, portado do Freeflow (ver ft_tsur).
+        //
+        // A adveccao lagrangiana acumula zigue-zague na escala da malha.  O
+        // filtro o remove PRESERVANDO AREA -- medido no arreio: o modo
+        // alternado cai 94% em dez passadas com dA/A = 5,8e-05, contra uma
+        // media laplaciana que suaviza o mesmo e encolhe 65 vezes mais.
+        //
+        // ANTES do passo, de proposito: o gancho do front-tracking regenera a
+        // fracao volumetrica da GEOMETRIA da frente no passo seguinte, e
+        // suavizar depois dele deixaria o campo um passo atrasado em relacao a'
+        // frente que o gerou.  Mesma ordem do 3D.
+        //
+        // FT_TSUR_CADA controla o intervalo; 0 desliga.
+        if (tsur_cada > 0 && ns->par.step > 0 &&
+            ns->par.step % tsur_cada == 0 && gota != NULL) {
+            const real area_antes = ft_area(gota);
+            const real per_antes  = ft_perimetro(gota);
+            const int  nt2 = ft_tsur(gota, tsur_rlx, tsur_lim);
+            const real area_depois = ft_area(gota);
+            const real per_depois  = ft_perimetro(gota);
+            print0f("===> TSUR passo %d: moveu %d de %d, AREA %+.3e, "
+                    "perimetro %+.3e\n", ns->par.step, nt2, ft_num(gota),
+                    (double) ((area_depois - area_antes) / area_antes),
+                    (double) ((per_depois - per_antes) / per_antes));
+        }
+
         // REMALHAMENTO ADAPTATIVO, pelo caminho verificado da fronteira imersa.
         // A frente escreve o .amr multinivel pelo criterio (o MESMO do VOF:
         // celulas de interface como sementes, distancia define o nivel), com os

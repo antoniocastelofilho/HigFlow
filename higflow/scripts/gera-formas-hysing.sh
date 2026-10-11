@@ -25,7 +25,7 @@ for t in "$@"; do
         echo "t=$t  FT  passo $passo  AUSENTE ($ft)"
     fi
     if [ -f "$vtk" ]; then
-        python3 $S/contorno-vof.py "$vtk" $D/hy_vof_$k.dat
+        python3 $H/scripts/contorno-vof.py "$vtk" $D/hy_vof_$k.dat
         mv_msg=$(printf "t=%s  VOF quadro %s -> hy_vof_%s.dat" $t $quadro $k); echo "$mv_msg"
     else
         echo "t=$t  VOF quadro $quadro AUSENTE ($vtk)"
