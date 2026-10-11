@@ -87,6 +87,50 @@ values.
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-parcial.dat}}
 \end{adjustbox}
+\captionof{table}{Both methods over the early window.}\label{tab:parcial}
+
+
+\begin{figure}[htbp]
+\centering
+\begin{adjustbox}{max width=\linewidth}
+\begin{tikzpicture}
+\begin{axis}[
+  name=vc, width=7.2cm, height=5.0cm,
+  xlabel={$t$}, ylabel={$V_c$}, grid=major,
+  title={rise velocity, early window}, title style={font=\small},
+  legend style={font=\scriptsize, at={(0.5,-0.24)}, anchor=north},
+  legend columns=2, legend cell align=left,
+]
+\addplot[thick,mark=*,mark size=1.1]          table[x=t,y=vcft]  {\dat{hysing-parcial.dat}};
+\addlegendentry{front-tracking}
+\addplot[densely dashed,mark=o,mark size=1.4] table[x=t,y=vcvof] {\dat{hysing-parcial.dat}};
+\addlegendentry{VOF}
+\end{axis}
+\begin{axis}[
+  at={(vc.right of south east)}, anchor=left of south west,
+  width=7.2cm, height=5.0cm,
+  xlabel={$t$}, ylabel={$\Delta V_c$}, grid=major,
+  ymode=log, ymin=5e-5, ymax=2e-2,
+  title={divergence between the methods}, title style={font=\small},
+]
+\addplot[thick,mark=*,mark size=1.1] table[x=t,y=difvc] {\dat{hysing-divergencia-plot.dat}};
+\end{axis}
+\end{tikzpicture}
+\end{adjustbox}
+\caption{Left: the rise velocity of both methods over the early window, where
+the two are indistinguishable --- the curves overlap to plotting accuracy and
+the tabulated difference is at most \num{7.4e-5} (Table~\ref{tab:parcial}).
+Right: the difference between them over the window in which it grows, on a
+logarithmic axis; it grows by a factor of $68$ --- from \num{1.1e-4} to
+\num{7.5e-3} --- between $t=0.4$ and $t=1.6$, which is the deformation
+phase, and it is not monotone: the dip at $t=1.4$ is in the stored series. \textbf{Both panels are sampled
+windows, not the full run}: the stored series cover $t \le 0.35$ and
+$0.4 \le t \le 1.6$ respectively.
+\missing{the continuous series over the whole run to $t=3$. It is recoverable
+without new simulation --- both runs left 301 frames on disk --- but it is a
+re-reduction, not a plot of stored numbers.}}
+\label{fig:hysing-series}
+\end{figure}
 
 That mutual agreement does not survive the deformation. By $t=1.6$ the two
 methods differ by $3.4\%$ in $V_c$, and then --- this is the part worth
@@ -104,6 +148,7 @@ $t=3$, a difference of \num{5.8e-5}.
   every last row/.style={after row=\bottomrule},
 ]{\dat{hysing-divergencia.dat}}
 \end{adjustbox}
+\captionof{table}{Divergence between the two methods.}\label{tab:divergencia}
 
 This is the integral-versus-derivative asymmetry: $y_c$ smooths what $V_c$
 amplifies. A comparison made on centres of mass alone would conclude excellent
@@ -171,6 +216,55 @@ steps --- now with a measured reason to be first rather than for methodological
 completeness.
 
 \subsection{Shape}
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  name=evol, width=6.2cm, height=9.2cm, axis equal image,
+  xlabel={$x$}, ylabel={$y$}, grid=major,
+  xmin=0.11, xmax=0.89, ymin=0.22, ymax=1.32,
+  title={the bubble, $t=0$ to $t=3$}, title style={font=\small},
+  legend style={font=\scriptsize, at={(0.5,-0.13)}, anchor=north},
+  legend columns=2, legend cell align=left,
+]
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_0.dat}};
+\addlegendentry{front-tracking}
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_0.dat}};
+\addlegendentry{VOF}
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_1.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_1.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_2.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_2.dat}};
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_3.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_3.dat}};
+\end{axis}
+\begin{axis}[
+  at={(evol.right of south east)}, anchor=left of south west,
+  width=6.6cm, height=6.6cm, axis equal image,
+  xlabel={$x$}, grid=major,
+  xmin=0.147, xmax=0.167, ymin=0.794, ymax=0.814,
+  title={$t=1.9$, magnified 34 times}, title style={font=\small},
+  scaled ticks=false, tick label style={font=\tiny, /pgf/number format/fixed,
+                                        /pgf/number format/precision=3},
+  xtick={0.150,0.155,0.160,0.165}, ytick={0.795,0.800,0.805,0.810},
+]
+\addplot[thick]           table[x=x,y=y] {\dat{formas/hy_ft_2.dat}};
+\addplot[densely dashed]  table[x=x,y=y] {\dat{formas/hy_vof_2.dat}};
+\end{axis}
+\end{tikzpicture}
+\caption{The interface in the two methods at $t=0$, $1$, $1.9$ and $3$. The
+bubble rises from $y_c=0.5$ to $1.08$ and flattens: the width-to-height ratio
+goes from $1.00$ to $1.87$, and $t=1.9$ is the instant of maximum deformation
+--- the same instant as the minimum circularity. From $1.9$ to $3$ the shape
+barely changes ($1.87$ to $1.86$): the bubble reaches a steady regime. The two
+curves are \emph{indistinguishable} over the whole evolution; the right-hand
+panel magnifies 34 times the point of \emph{greatest} discrepancy at the
+instant of maximum deformation, where they separate by \num{4.7e-4} --- about
+\SI{8}{\percent} of one fine cell. The VOF curve is the
+$\mathrm{FracVol}=0.5$ contour by marching squares.}
+\label{fig:hysing-formas}
+\end{figure}
+
 
 \begin{adjustbox}{max width=\linewidth}
 \pgfplotstabletypeset[
