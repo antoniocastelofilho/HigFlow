@@ -1259,7 +1259,7 @@
 //! Zero truncamento passou de 5 camadas e 200,7 KB para 3 camadas e 19,6 KB --
 //! DEZ VEZES menos memoria.
 //
-//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_tres_camadas
+//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_raio_mais_dois
 
 //! H11  SATURACAO E' PONTO DESCARTADO, e nao ultimo slot usado.
 //!
@@ -1270,7 +1270,58 @@
 //! UM CONTADOR QUE ACUSA QUANDO NADA SE PERDEU DESACREDITA O ORACULO INTEIRO:
 //! quem o le' passa a ignora-lo, e com ele a saturacao verdadeira.
 //
-//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_tres_camadas
+//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_raio_mais_dois
+
+//! H18  A MASCARA DE FACES SO' AFIRMA O QUE COUBE INTEIRO, e e' escrita DEPOIS
+//! da carga util -- nunca antes.
+//!
+//! A folha publicada na franja leva, alem da geometria, a lista de vizinhos por
+//! face e uma MASCARA de quais faces o remetente conhece.  A mascara existe
+//! porque lista vazia e' ambigua: contorno do dominio, ou "nao me contaram"?
+//!
+//! A FORMA ERRADA escreve a mascara inteira primeiro e trunca a carga por
+//! capacidade.  A folha entao viaja afirmando conhecer uma face cuja lista
+//! ficou para tras -- e lista vazia com bit ligado e' exatamente a assinatura
+//! de uma PAREDE DO DOMINIO.  O fechamento aplica Dirichlet no MEIO do dominio.
+//!
+//! MEDIDO em tres dimensoes, antes do conserto: `CAMPOS` era `8 + max_viz*2`,
+//! mas a mascara ocupava o campo 8, de modo que cabiam `max_viz - 1` vizinhos.
+//! Numa malha uniforme, onde a folha tem seis vizinhos, o SEXTO nao cabia -- e
+//! o sexto e' a face 5, a ultima do laco.  Resultado: a linha interior somava
+//! -1,907e-02 onde um laplaciano tem de somar zero, e o erro contra a solucao
+//! exata mudava 11% com o numero de processos, sem nada acusar.
+//!
+//! UMA FACE PARCIAL E' PIOR QUE UMA FACE DESCONHECIDA: desconhecida, o
+//! fechamento se RECUSA a aplicar condicao e o esquema para; parcial, ele
+//! aplica a condicao errada e o resultado sai plausivel.
+//
+//! COBERTA-POR: test-poisson3d:o_operador_nao_depende_da_particao
+
+//! H19  AS RODADAS DE TROCA DA FRANJA SAO ITERADAS ATE' COBRIR, com parada
+//! MEDIDA e COLETIVA -- e nao fixadas em uma.
+//!
+//! A franja nativa do t8code e' `T8_GHOST_FACES`, e a documentacao de
+//! `t8_forest_set_ghost` diz que so' esse tipo e' suportado.  Logo UMA RODADA
+//! SO' ALCANCA VIZINHO DE FACE: o processo diagonalmente oposto numa quina nao
+//! e' vizinho de face de ninguem que fale comigo, e a celula dele nunca chega.
+//!
+//! AUMENTAR AS CAMADAS NAO RESOLVE, e foi o que confundiu o diagnostico: a
+//! informacao nao precisava ir mais LONGE, precisava ir por outro CAMINHO.  Com
+//! 2, 3 e 4 camadas o truncamento ficava preso em 192 suportes, todos nas
+//! celulas que tocam o centro do dominio -- onde as oito particoes se encontram.
+//!
+//! CADA RODADA AVANCA UM SALTO DE POSSE.  Medido, nivel 3: np=2 pede 1 rodada,
+//! np=4 pede 2, np=8 pede 3.  A parada e' a reducao global de "quantos pontos
+//! da caixa ainda faltam": um numero fixo de rodadas estaria certo para esta
+//! particao e errado para a proxima.
+//!
+//! E O ESQUEMA PEDE `raio + 2` CAMADAS, nao `raio + 1`: a caixa do suporte e'
+//! centrada na celula que contem o PONTO DE QUADRATURA, que fica sobre uma
+//! faceta e pode cair na celula vizinha.  Com `+1` o esquema sobrevivia por
+//! acidente -- a publicacao em torno dos fantasmas cobria o excedente sem que
+//! nada afirmasse isso.
+//
+//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_raio_mais_dois
 
 //! H12  A CONTAGEM DE FACETAS EM TRES DIMENSOES E' `N^2 (N+1)` POR DIRECAO --
 //! `N^2` colunas de `N+1` planos --, contra `N(N+1)` em duas.

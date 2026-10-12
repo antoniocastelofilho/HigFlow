@@ -50,6 +50,15 @@ endif
 endif
 
 BASE  = -std=gnu++20 -g -O1 -Wall
+# DEPENDENCIA DE CABECALHO, gerada pelo compilador.
+#
+# Sem isto, mudar um cabecalho NAO reconstroi quem o inclui, e o objeto antigo
+# fica ligado junto com o novo.  Custou um diagnostico inteiro: o
+# `camadas_necessarias()` e' INLINE no cabecalho, mudou de `+1` para `+2`, e o
+# objeto do Poisson continuou pedindo `+1` -- de modo que a medida dizia que o
+# conserto nao tinha efeito, quando o conserto nem estava no binario.  E' o pior
+# tipo de falha: nao ha' erro, ha' uma resposta errada com cara de medida.
+BASE += -MMD -MP
 # As duas definicoes abaixo NAO sao opcionais: sem elas o `t8.h` para com "MPI
 # configured differently in t8code and libsc", que aponta para o libsc e nao para
 # a definicao que falta.
@@ -316,3 +325,9 @@ clean:
 
 .PHONY: 2d 3d bench clean all
 all: 2d
+
+# OS ARQUIVOS DE DEPENDENCIA que o `-MMD` escreve ao lado de cada objeto.  O
+# `-` faz o make ignorar a ausencia deles na primeira construcao.
+# Os exemplos e testes compilam e ligam num passo so', entao o `.d` deles sai ao
+# lado do BINARIO, e nao em `obj/`.
+-include $(wildcard obj/2d/*.d obj/3d/*.d tests/*/*.d exemplos/*/*.d bench/*.d)

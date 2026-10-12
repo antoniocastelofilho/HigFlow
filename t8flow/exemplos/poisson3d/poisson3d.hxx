@@ -31,6 +31,7 @@
 
 #include <functional>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "contorno3d.hxx"
@@ -66,6 +67,30 @@ class Poisson {
   int iteracoes() const { return iteracoes_; }
   double residuo() const { return residuo_; }
 
+  //! Os tres tempos de `resolve`, SEPARADOS -- e sao tres, nao dois como no
+  //! lado bidimensional.
+  //
+  // SEPARADOS PORQUE ESCALAM DE FORMAS DIFERENTES, e a soma esconde isso:
+  //
+  //   a FRANJA e' COLETIVA.  Custa o cubo do raio em tres dimensoes, vale zero
+  //   em um processo e cresce com o numero deles -- e' a unica fase que pode
+  //   piorar com paralelismo;
+  //
+  //   a MONTAGEM nao comunica nada: cada processo monta as suas linhas.  Se ela
+  //   domina em np=1, o tempo total parece escalar bem sem que a parte dificil
+  //   escale;
+  //
+  //   a RESOLUCAO comunica a cada iteracao e e' a que escala pior.
+  //
+  // Em duas dimensoes o tempo somado chegou a sugerir ganho de 29,8x indo de um
+  // para oito processos -- superlinear, impossivel.  A causa era a montagem ser
+  // QUADRATICA, e so' apareceu quando as fases foram medidas separadas.
+  //
+  // Em segundos; valem zero antes do primeiro `resolve`.
+  double tempo_de_franja() const { return t_franja_; }
+  double tempo_de_montagem() const { return t_monta_; }
+  double tempo_de_resolucao() const { return t_resolve_; }
+
   //! Erro contra a solucao exata, nas duas normas.  REDUZEM entre processos: sem
   //! isso cada um devolveria o pior erro da sua particao, e o numero sairia
   //! MENOR que o verdadeiro.
@@ -82,6 +107,17 @@ class Poisson {
 
   //! Quantos ajustes MLS rebaixaram a ordem, e quantos suportes a franja
   //! truncou.  Zero e' o que se quer poder afirmar nos dois.
+  //! DESPEJA cada linha montada em `<prefixo>.<rank>`, no proximo `resolve`.
+  //
+  // Diagnostico, e usa o MESMO caminho de montagem que o solver -- uma segunda
+  // montagem so' para despejar divergiria exatamente onde e' dificil ver.
+  //
+  // Serve para uma pergunta que nenhuma norma responde: a matriz montada em
+  // paralelo e' a MESMA que a serial?  O oraculo `residuo_da_exata` e' um
+  // MAXIMO, e um maximo dominado pelas linhas de parede nao se move quando o
+  // interior muda.
+  void despeja_operador(const std::string &prefixo) { despejo_ = prefixo; }
+
   long rebaixamentos_mls() const { return rebaixos_; }
   long truncados_pela_franja() const { return truncados_; }
 
@@ -108,6 +144,10 @@ class Poisson {
   bool convergiu_ = false;
   int iteracoes_ = 0;
   double residuo_ = 0.0;
+  std::string despejo_;
+  double t_franja_ = 0.0;
+  double t_monta_ = 0.0;
+  double t_resolve_ = 0.0;
   mutable long rebaixos_ = 0;
   mutable long truncados_ = 0;
 };

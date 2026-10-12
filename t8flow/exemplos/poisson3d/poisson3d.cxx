@@ -1,6 +1,7 @@
 #include "poisson3d.hxx"
 
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <stdexcept>
 
@@ -206,6 +207,11 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
 
   const bool mlsg = (disc_.variante() == Variante::MlsGauss);
 
+  // AS TRES FASES SAO CRONOMETRADAS SEPARADAS -- ver `tempo_de_franja` e as
+  // vizinhas no cabecalho.  Em duas dimensoes o tempo somado escondeu uma
+  // montagem quadratica atras do que parecia ganho de paralelismo.
+  const double t_ini = sc_MPI_Wtime();
+
   std::unique_ptr<ConstrutorEstencil> ce;
   if (mlsg) {
     ce.reset(new ConstrutorEstencil(*m_, disc_.ordem_mls(), mls_maxpts_, 6));
@@ -223,6 +229,16 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
     // sub-faceta, que o `mlsgauss` faz e o `fluxo2` dispensa por ser de segunda
     // ordem.
     const_cast<Malha3 *>(m_)->exige_camadas(1);
+  }
+  t_franja_ = sc_MPI_Wtime() - t_ini;
+  const double t_pos_franja = sc_MPI_Wtime();
+
+  std::FILE *dump = nullptr;
+  if (!despejo_.empty()) {
+    char nome[512];
+    std::snprintf(nome, sizeof nome, "%s.%d", despejo_.c_str(),
+                  m_->processo());
+    dump = std::fopen(nome, "w");
   }
 
   // O MLS DA' LINHAS MUITO MAIS CHEIAS: ate' 125 pontos de suporte por ponto de
@@ -248,9 +264,16 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
         vals.push_back(kv.second);
       }
       const long id = m_->id_global(b, i);
+      if (dump) {
+        std::fprintf(dump, "%ld rhs %.17e nnz %zu", id, rhs, cols.size());
+        for (std::size_t q = 0; q < cols.size(); q++)
+          std::fprintf(dump, " %d:%.17e", cols[q], vals[q]);
+        std::fprintf(dump, "\n");
+      }
       s.linha(static_cast<int>(id), cols, vals);
       s.lado_direito(static_cast<int>(id), rhs);
     }
+  if (dump) std::fclose(dump);
 
   if (mlsg) {
     rebaixos_ = ce->mls().rebaixamentos();
@@ -258,8 +281,15 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
         static_cast<double>(ce->truncados_pela_franja())));
   }
 
+  // O `monta` do PETSc conta como MONTAGEM, e nao como resolucao -- e' onde o
+  // lado bidimensional corta, e cortar diferente faria os dois numeros
+  // significarem coisas diferentes com o mesmo nome.
   s.monta();
+  t_monta_ = sc_MPI_Wtime() - t_pos_franja;
+  const double t_pos_monta = sc_MPI_Wtime();
+
   s.resolve();
+  t_resolve_ = sc_MPI_Wtime() - t_pos_monta;
   convergiu_ = s.convergiu();
   iteracoes_ = s.iteracoes();
   residuo_ = s.residuo();

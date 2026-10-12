@@ -15,6 +15,8 @@
 #include "../testing.h"
 
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -207,6 +209,101 @@ int main(int argc, char **argv)
     try { Poisson p2(m, ContornoPorRegiao()); }
     catch (const std::invalid_argument &) { sem_bc = true; }
     T_CHECK_MSG(sem_bc, "contorno vazio foi aceito");
+  }
+
+  t_case("o_operador_nao_depende_da_particao");
+  {
+    // O ORACULO QUE FALTAVA, e cuja ausencia deixou a suite VERDE com o paralelo
+    // quebrado: este arquivo so' rodava em np=1, onde nao ha' franja, de modo
+    // que nenhum caso tocava o caminho que estava errado.
+    //
+    // O QUE SE AFIRMA AQUI NAO PRECISA DE REFERENCIA SERIAL -- e' propriedade
+    // do operador, verificavel em qualquer numero de processos:
+    //
+    //   UM LAPLACIANO ANIQUILA CONSTANTES, logo a linha de uma celula INTERIOR
+    //   soma zero.  Quando a franja fazia o fechamento tomar uma face de
+    //   particao por parede do dominio, o peso saia da linha e ia para o lado
+    //   direito: a soma da linha dava -1,907e-02 onde o serial dava 1e-17.  O
+    //   erro contra a solucao exata mudava 11% com `np`, e nada acusava;
+    //
+    //   O SUPORTE PEDIDO TEM DE CHEGAR INTEIRO.  `truncados_pela_franja`
+    //   diferente de zero significa pesos diferentes dos do serial perto das
+    //   fronteiras de particao -- resultado que depende de `np`.
+    //
+    // O primeiro oraculo que tentei NAO servia: `residuo_da_exata` e' um
+    // MAXIMO, dominado pelas linhas de parede, e ficou identico em 1,1591e+00
+    // nos quatro numeros de processos enquanto o interior divergia.
+    const Manufaturada &sol = manufaturada("grau2");
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, 2}}, sc_MPI_COMM_WORLD);
+    ContornoPorRegiao bc;
+    bc.padrao(Contorno::dirichlet([&sol](const Ponto3 &p) { return sol.u(p); }));
+    Poisson po(m, bc);
+    po.fonte([&sol](const Ponto3 &p) { return sol.f(p); });
+    po.discretizacao(Discretizacao::do_nome("vf-mlsgauss2"));
+    po.despeja_operador(std::string("/tmp/t8flow-op-teste"));
+    po.resolve(Motor::Petsc, 1e-12);
+
+    T_CHECK_MSG(po.truncados_pela_franja() == 0,
+                "%ld suportes truncados pela franja: os pesos perto das "
+                "fronteiras de particao nao sao os do serial",
+                po.truncados_pela_franja());
+
+    char nome[256];
+    std::snprintf(nome, sizeof nome, "/tmp/t8flow-op-teste.%d", m.processo());
+    std::FILE *f = std::fopen(nome, "r");
+    T_CHECK_MSG(f != nullptr, "o despejo do operador nao foi escrito");
+    if (f) {
+      long pior_id = -1;
+      double pior = 0.0;
+      long linhas = 0;
+      char buf[1 << 16];
+      while (std::fgets(buf, sizeof buf, f)) {
+        long id = 0, nnz = 0;
+        double rhs = 0.0;
+        char *q = buf;
+        id = std::strtol(q, &q, 10);
+        q += 4;                               // " rhs"
+        rhs = std::strtod(q, &q);
+        q += 4;                               // " nnz"
+        nnz = std::strtol(q, &q, 10);
+        (void) rhs;
+        (void) nnz;
+
+        // SO' AS CELULAS INTERIORES: na parede a condicao de Dirichlet move
+        // peso para o lado direito e a soma da linha NAO e' zero -- e deve
+        // mesmo nao ser.
+        const long idx = m.indice_do_id(id);
+        if (idx < 0) continue;
+        bool interior = true;
+        for (int fa = 0; fa < 6; fa++)
+          if (m.vizinhos_do_indice(idx, fa).empty()) interior = false;
+        if (!interior) continue;
+
+        double soma = 0.0;
+        for (;;) {
+          while (*q == ' ') q++;
+          // O FIM DE LINHA TERMINA O LACO, e nao so' o `\0`.  Sem isto o
+          // `strtol` nao consome o `\n`, nao avanca, e o laco NUNCA SAI -- o
+          // teste trava em vez de falhar, e travar e' pior que falhar.
+          if (*q == '\0' || *q == '\n') break;
+          char *antes = q;
+          std::strtol(q, &q, 10);             // coluna
+          if (*q == ':') q++;
+          soma += std::strtod(q, &q);
+          if (q == antes) break;              // nao avancou: linha malformada
+        }
+        linhas++;
+        if (std::fabs(soma) > std::fabs(pior)) { pior = soma; pior_id = id; }
+      }
+      std::fclose(f);
+      std::remove(nome);
+      T_CHECK_MSG(linhas > 0, "nenhuma celula interior neste processo");
+      T_CHECK_MSG(std::fabs(pior) < 1e-10,
+                  "a linha interior %ld soma %.3e, e um laplaciano aniquila "
+                  "constantes: ha' peso saindo da linha -- fechamento de "
+                  "contorno aplicado numa face de PARTICAO",
+                  pior_id, pior);
+    }
   }
 
   return t_end();

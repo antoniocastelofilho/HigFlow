@@ -190,6 +190,22 @@ class Malha3 {
   long bytes_publicados_na_franja() const { return bytes_pub_; }
   long saturacoes_da_franja() const { return saturacoes_; }
 
+  //! Quantas RODADAS de troca a franja precisou, e quantos pontos de caixa
+  //! ficaram faltando ao parar.
+  //
+  // UMA RODADA SO' ALCANCA VIZINHO DE FACE.  A franja nativa do t8code e'
+  // `T8_GHOST_FACES` -- a documentacao diz que so' esse tipo e' suportado --,
+  // de modo que o processo diagonalmente oposto numa quina nao e' vizinho de
+  // face de ninguem que fale comigo.  Em oito processos isso dava 192 suportes
+  // truncados no centro do dominio, e AUMENTAR AS CAMADAS NAO RESOLVIA: a
+  // informacao nao precisava ir mais longe, precisava ir por outro caminho.
+  //
+  // `faltando_na_franja` diferente de zero depois de `exige_camadas` significa
+  // que o esquema NAO tera' o suporte que pediu em parte do dominio -- e e'
+  // melhor ler isso aqui do que descobrir pelo resultado que muda com `np`.
+  int rodadas_de_franja() const { return rodadas_franja_; }
+  long faltando_na_franja() const { return faltando_franja_; }
+
   // ---- particao ------------------------------------------------------------
   int num_processos() const { return nprocs_; }
   int processo() const { return rank_; }
@@ -224,6 +240,8 @@ class Malha3 {
   int max_viz_ = 6;        //!< medido em `mede_vizinhos`; 6 e' o de malha uniforme
   long saturacoes_ = 0;
   long bytes_pub_ = 0;
+  int rodadas_franja_ = 0;
+  long faltando_franja_ = 0;
 
   // Indexados pelo INDICE DE FLORESTA: locais primeiro, franja depois.
   std::vector<long> id_g_;

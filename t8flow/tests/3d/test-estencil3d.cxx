@@ -271,7 +271,7 @@ int main(int argc, char **argv)
                 "que se esquece ao portar de 2D e' justamente essa");
   }
 
-  t_case("a_franja_geometrica_cobre_o_suporte_com_tres_camadas");
+  t_case("a_franja_geometrica_cobre_o_suporte_com_raio_mais_dois");
   {
     // A MEDIDA QUE DECIDIU A ARQUITETURA DA FRANJA, e o par de numeros e' o caso.
     //
@@ -293,16 +293,27 @@ int main(int argc, char **argv)
     Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
     ConstrutorEstencil ce(m, 3, 200, 6);
 
-    // O RAIO SAI DA ALGEBRA e as camadas saem do raio: ordem 3 pede raio 2, logo
-    // tres camadas.  Afirmar o numero aqui e' o que impede que alguem o mude por
-    // engano -- ele nao e' escolha, e' consequencia.
-    T_CHECK_MSG(ce.camadas_necessarias() == 3,
-                "ordem 3 devia pedir 3 camadas (raio 2 + 1), pede %d",
+    // O RAIO SAI DA ALGEBRA e as camadas saem do raio -- mas sao `raio + 2`, e
+    // nao `raio + 1` como este teste afirmou ate' ser refutado por medida.
+    //
+    // `exige_camadas(k)` promete cobertura de raio `k - 1` em torno de cada
+    // folha LOCAL.  A caixa do suporte nao e' centrada na folha local: e'
+    // centrada na celula que CONTEM O PONTO DE QUADRATURA, e esse ponto fica
+    // sobre uma FACETA, logo pode cair na celula vizinha.  Garantir raio `r` em
+    // torno dela exige raio `r + 1` em torno da minha: `k = r + 2`.
+    //
+    // COM `+ 1` O ESQUEMA SOBREVIVIA POR ACIDENTE: a fase B publicava caixas em
+    // torno dos fantasmas e cobria o excedente sem que nada afirmasse isso.
+    // Quando a fase B passou a parar assim que o criterio DECLARADO era
+    // atingido, o acidente sumiu e apareceram 4096 suportes truncados em dois
+    // processos -- com o resultado mudando com `np`.
+    T_CHECK_MSG(ce.camadas_necessarias() == 4,
+                "ordem 3 devia pedir 4 camadas (raio 2 + 2), pede %d",
                 ce.camadas_necessarias());
-    T_CHECK_MSG(ConstrutorEstencil(m, 2, 200, 6).camadas_necessarias() == 2,
-                "ordem 2 devia pedir 2 camadas (raio 1 + 1)");
-    T_CHECK_MSG(ConstrutorEstencil(m, 4, 200, 6).camadas_necessarias() == 3,
-                "ordem 4 devia pedir 3 camadas (raio 2 + 1, pois 5 valores bastam)");
+    T_CHECK_MSG(ConstrutorEstencil(m, 2, 200, 6).camadas_necessarias() == 3,
+                "ordem 2 devia pedir 3 camadas (raio 1 + 2)");
+    T_CHECK_MSG(ConstrutorEstencil(m, 4, 200, 6).camadas_necessarias() == 4,
+                "ordem 4 devia pedir 4 camadas (raio 2 + 2, pois 5 valores bastam)");
 
     // EM SERIAL a franja e' vazia e nada trunca -- o caso afirma isso para que a
     // ausencia de truncamento aqui nao seja confundida com a cobertura que so'

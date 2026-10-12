@@ -185,7 +185,21 @@ class ConstrutorEstencil {
   // O construtor poderia pedir sozinho, e nao pede: a malha e' compartilhada, e
   // um objeto que a modifica na construcao faz a ordem de criacao importar sem
   // que isso apareca em lugar nenhum.
-  int camadas_necessarias() const { return (ordem_ + 1) / 2 + 1; }
+  // O `+ 2` NAO E' MARGEM, E' A CONTA.
+  //
+  // `exige_camadas(k)` promete cobertura de raio `k - 1` em torno de cada folha
+  // LOCAL.  A caixa do suporte, porem, nao e' centrada na folha local: ela e'
+  // centrada na celula que CONTEM O PONTO DE QUADRATURA, e o ponto fica sobre
+  // uma FACETA -- logo pode cair na celula vizinha, a um passo da minha.  Para
+  // garantir raio `r` em torno dela preciso de raio `r + 1` em torno da minha,
+  // isto e', `k = r + 2`.
+  //
+  // Com `+ 1` o esquema pedia exatamente o que nao bastava, e sobrevivia por
+  // acidente: a fase B publicava caixas em torno dos fantasmas e cobria o
+  // excedente sem que nada afirmasse isso.  Quando a fase B passou a parar
+  // assim que o criterio declarado era atingido, o acidente sumiu e apareceram
+  // 4096 suportes truncados em dois processos.
+  int camadas_necessarias() const { return (ordem_ + 1) / 2 + 2; }
 
   //! Troca a estrategia de escolha do suporte.  O padrao e' `Caixa`, por
   //! medida: ver o comentario de `Suporte3`.

@@ -87,7 +87,13 @@ LADOS = {
         ("test-campos3d", (1,)),
         ("test-estencil3d", (1,)),
         ("test-malha3d", (1, 3)),
-        ("test-poisson3d", (1,)),
+        # EM PARALELO TAMBEM, e nao so' em np=1.
+        #
+        # Rodar este arquivo apenas em um processo deixou a suite VERDE com o
+        # paralelo quebrado: em np=1 nao ha' franja, logo nenhum caso tocava o
+        # caminho que estava errado.  O erro contra a solucao exata mudava 11%
+        # com `np` e nada acusava.
+        ("test-poisson3d", (1, 2, 4)),
     ],
 }
 

@@ -824,7 +824,16 @@ void Malha3::monta_franja_camadas(int k)
   // de uma local minha inclui celulas que conheco e outras que nao, e publico as
   // que conheco.  Quem recebe precisa justamente das que sao LOCAIS para mim.
   if (nf > 0 && k > 1) {
-    const int CAMPOS = 8 + max_viz_ * 2;   // 8 proprios, e (id+nivel) por vizinho
+    // 8 PROPRIOS, 1 DE MASCARA, e (id+nivel) por vizinho.
+    //
+    // O `9` ja' foi `8`: a mascara de faces entrou no campo 8 sem que a conta
+    // crescesse, e com isso cabiam `max_viz_ - 1` vizinhos em vez de
+    // `max_viz_`.  Numa malha uniforme, onde cada folha tem exatamente seis
+    // vizinhos, o SEXTO nao cabia -- e o sexto e' a face 5, a ultima do laco.
+    // A folha chegava com a mascara dizendo "conheco as seis" e a lista sem a
+    // face 5, de modo que o fechamento lia "face sem vizinho numa celula que
+    // conhece todas as faces" e aplicava DIRICHLET NO MEIO DO DOMINIO.
+    const int CAMPOS = 9 + max_viz_ * 2;
 
     // O RAIO E' `k - 1`: `exige_camadas(k)` pede cobertura de raio geometrico
     // `k - 1` em torno de cada folha local.  A conversao mantem a interface
@@ -854,12 +863,21 @@ void Malha3::monta_franja_camadas(int k)
       const long kq = static_cast<long>((cz - kb.lo[2]) / ((kb.hi[2] - kb.lo[2]) / div));
       return chave_celula(ib, nv, i, j, kq);
     };
-    for (const auto &kv : tab)
-      if (kv.second.nivel >= 0) {
-        const unsigned long long ch =
-            chave_de_folha(kv.second.cx, kv.second.cy, kv.second.cz, kv.second.nivel);
-        if (ch != ~0ULL) onde[ch] = kv.first;
-      }
+    // RECONSTRUIDO A CADA RODADA: a tabela cresce, e um indice de uma rodada
+    // anterior faria a rodada seguinte republicar o que ja' sabe e nao ver o
+    // que acabou de aprender.
+    auto reindexa = [&]() {
+      onde.clear();
+      nivel_local_max_ = -1;
+      for (const auto &kv : tab)
+        if (kv.second.nivel >= 0) {
+          const unsigned long long ch =
+              chave_de_folha(kv.second.cx, kv.second.cy, kv.second.cz, kv.second.nivel);
+          if (ch != ~0ULL) onde[ch] = kv.first;
+          if (kv.second.nivel > nivel_local_max_) nivel_local_max_ = kv.second.nivel;
+        }
+    };
+    reindexa();
 
     // Busca geometrica sobre o indice temporario, com a MESMA regra semiaberta
     // da busca definitiva -- duas regras produziriam duas malhas.
@@ -890,18 +908,58 @@ void Malha3::monta_franja_camadas(int k)
       return -1;
     };
 
-    // Os niveis locais ainda nao foram calculados nesta altura; a busca precisa
-    // deles para saber ate' onde descer.
-    nivel_local_max_ = -1;
-    for (const auto &kv : tab)
-      if (kv.second.nivel > nivel_local_max_) nivel_local_max_ = kv.second.nivel;
-
     const int MAXV = (2 * R + 1) * (2 * R + 1) * (2 * R + 1);
     const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
 
+    // QUANTOS PONTOS DA CAIXA DE RAIO `R` AINDA FALTAM, somado sobre as folhas
+    // locais.  E' o criterio de parada das rodadas, e e' o MESMO criterio que o
+    // estencil usa depois para contar truncamento -- medir uma coisa aqui e
+    // cobrar outra la' foi o que deixou passar a falha de quina.
+    auto falta_na_caixa = [&]() -> long {
+      long falta = 0;
+      for (long i = 0; i < n_locais_; i++) {
+        const Folha &me = tab[id_por_indice[static_cast<size_t>(i)]];
+        for (int ii = -R; ii <= R; ii++)
+          for (int jj = -R; jj <= R; jj++)
+            for (int kk2 = -R; kk2 <= R; kk2++) {
+              const Ponto3 p{me.cx + ii * me.hx, me.cy + jj * me.hy,
+                             me.cz + kk2 * me.hz};
+              if (!dentro_do_dominio(p)) continue;   // fora e' legitimo
+              if (acha(p[0], p[1], p[2]) < 0) falta++;
+            }
+      }
+      return falta;
+    };
+
     sc_array_t *arr = sc_array_new_count(passo * sizeof(double),
                                          static_cast<size_t>(n_locais_ + nf));
-    bytes_pub_ += static_cast<long>(passo * sizeof(double)) * n_locais_;
+
+    // AS RODADAS SAO ITERADAS ATE' COBRIR, e nao fixadas em uma.
+    //
+    // UMA RODADA SO' ALCANCA QUEM E' VIZINHO DE FACE.  A franja nativa do
+    // t8code e' `T8_GHOST_FACES` -- a documentacao diz que so' esse tipo e'
+    // suportado --, de modo que o processo diagonalmente oposto numa quina nao
+    // e' vizinho de face de ninguem que fale comigo, e uma rodada nunca traz a
+    // celula dele.  Em 8 processos isso aparecia como 192 suportes truncados no
+    // centro do dominio, onde as oito particoes se tocam, e AUMENTAR AS CAMADAS
+    // NAO RESOLVIA: a informacao nao viajava mais longe, ela nao viajava por
+    // aquele caminho.  Cada rodada avanca um salto de POSSE, e tres saltos
+    // bastam para a quina de oito.
+    //
+    // A PARADA E' MEDIDA E COLETIVA: para quando nenhuma folha local tem ponto
+    // de caixa faltando em processo nenhum.  Um numero fixo de rodadas estaria
+    // certo para esta particao e errado para a proxima.
+    const int TETO = 16;   // rede de seguranca; chegar nele e' defeito a apurar
+    rodadas_franja_ = 0;
+    faltando_franja_ = 0;
+    for (int rodada = 0; rodada < TETO; rodada++) {
+      reindexa();
+      long falta = falta_na_caixa(), falta_g = 0;
+      sc_MPI_Allreduce(&falta, &falta_g, 1, sc_MPI_LONG, sc_MPI_SUM, comm_);
+      faltando_franja_ = falta_g;
+      if (falta_g == 0) break;
+      rodadas_franja_++;
+      bytes_pub_ += static_cast<long>(passo * sizeof(double)) * n_locais_;
 
     for (long i = 0; i < n_locais_ + nf; i++) {
       double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
@@ -944,14 +1002,31 @@ void Malha3::monta_franja_camadas(int k)
             // vizinhos.  Sem ela, uma face sem vizinhos na lista e' ambigua:
             // contorno do dominio, ou "nao me contaram"?  Confundi-las aplica
             // condicao de contorno no MEIO do dominio.
-            int z = 8;
-            c[z++] = static_cast<double>(fo.faces);
-            for (int fa = 0; fa < 6; fa++)
-              for (size_t q = 0; q < fo.viz[static_cast<size_t>(fa)].size(); q++) {
-                if (z + 1 >= CAMPOS) break;
+            // A MASCARA SO' AFIRMA AS FACES QUE COUBERAM INTEIRAS.
+            //
+            // Antes ela era escrita de uma vez, antes da carga, e a carga era
+            // truncada por capacidade -- de modo que a folha viajava afirmando
+            // conhecer uma face cuja lista de vizinhos tinha ficado para tras.
+            // Quem recebe nao tem como desconfiar: lista vazia mais bit ligado
+            // e' exatamente a assinatura de uma parede do dominio.
+            //
+            // UMA FACE PARCIAL E' PIOR QUE UMA FACE DESCONHECIDA: desconhecida,
+            // o fechamento se RECUSA a aplicar condicao de contorno e o esquema
+            // para; parcial, ele aplica a condicao errada e o resultado sai
+            // plausivel.  Por isso o bit cai junto com a lista.
+            int z = 9;
+            unsigned char mascara = 0;
+            for (int fa = 0; fa < 6; fa++) {
+              const size_t nv = fo.viz[static_cast<size_t>(fa)].size();
+              if (!(fo.faces & (1u << fa))) continue;
+              if (z + 2 * static_cast<int>(nv) > CAMPOS) { descartou = true; continue; }
+              for (size_t q = 0; q < nv; q++) {
                 c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 6 + fa);
                 c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
               }
+              mascara |= static_cast<unsigned char>(1u << fa);
+            }
+            c[8] = static_cast<double>(mascara);
             slot++;
           }
       if (descartou) saturacoes_++;
@@ -978,7 +1053,7 @@ void Malha3::monta_franja_camadas(int k)
           if (mk != 0) {
             std::array<std::vector<long>, 6> nv;
             std::array<std::vector<int>, 6> nn;
-            for (int z = 9; z + 1 < CAMPOS; z += 2) {
+            for (int z = 9; z + 1 < CAMPOS; z += 2) {  // pares (id*6+face, nivel)
               if (c[z] < 0.0) continue;
               const long cod = static_cast<long>(c[z]);
               const size_t fa = static_cast<size_t>(cod % 6);
@@ -992,7 +1067,7 @@ void Malha3::monta_franja_camadas(int k)
         }
       }
     }
-
+    }   // fim da rodada
     sc_array_destroy(arr);
   }
 

@@ -856,19 +856,38 @@ void Malha::monta_franja_camadas(int k)
           c[0] = static_cast<double>(id);
           c[1] = fo.cx; c[2] = fo.cy; c[3] = fo.hx; c[4] = fo.hy;
           c[5] = static_cast<double>(fo.nivel);
-          // A MASCARA VAI JUNTO, e e' o que permite a quem recebe distinguir
-          // "face de contorno do dominio" de "face sobre a qual nao me contaram".
-          c[6] = static_cast<double>(fo.faces);
+          // A MASCARA SO' AFIRMA AS FACES QUE COUBERAM INTEIRAS, e e' escrita
+          // DEPOIS da carga, nao antes.
+          //
+          // A forma antiga escrevia `fo.faces` inteira e truncava a carga por
+          // capacidade, de modo que a folha podia viajar afirmando conhecer uma
+          // face cuja lista ficou para tras -- e lista vazia com bit ligado e'
+          // exatamente a assinatura de uma PAREDE DO DOMINIO.  Em duas dimensoes
+          // a carga cabe (quatro faces vezes dois vizinhos da transicao 2:1 e'
+          // o teto, e sao oito os lugares), de modo que isto nunca disparou
+          // aqui; em TRES dimensoes a mesma forma disparava, e o fechamento
+          // aplicava Dirichlet no meio do dominio.
+          //
+          // Fica consertado nos dois porque a diferenca entre "nao dispara" e
+          // "nao pode disparar" e' uma conta que alguem tem de refazer a cada
+          // mudanca de `CAMPOS` -- e e' justamente o tipo de conta que nao se
+          // refaz.
           int z = 7;
-          for (int fa = 0; fa < 4; fa++)
-            for (size_t q = 0; q < fo.viz[static_cast<size_t>(fa)].size(); q++) {
-              if (z + 1 >= CAMPOS) break;
-              // A FACE vai codificada no id, para que quem recebe saiba por qual
-              // face o vizinho entra -- sem isso a malha remota chegaria como uma
-              // lista de ids sem topologia.  E o NIVEL vai no campo seguinte.
+          unsigned char mascara = 0;
+          for (int fa = 0; fa < 4; fa++) {
+            const size_t nv = fo.viz[static_cast<size_t>(fa)].size();
+            if (!(fo.faces & (1u << fa))) continue;
+            if (z + 2 * static_cast<int>(nv) > CAMPOS) continue;
+            // A FACE vai codificada no id, para que quem recebe saiba por qual
+            // face o vizinho entra -- sem isso a malha remota chegaria como uma
+            // lista de ids sem topologia.  E o NIVEL vai no campo seguinte.
+            for (size_t q = 0; q < nv; q++) {
               c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 4 + fa);
               c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
             }
+            mascara |= static_cast<unsigned char>(1u << fa);
+          }
+          c[6] = static_cast<double>(mascara);
           slot++;
         }
       }

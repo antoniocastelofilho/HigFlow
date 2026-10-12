@@ -36,9 +36,13 @@ struct Linha {
   double e_l2 = 0.0;
   int iteracoes = 0;
   double residuo = 0.0;
+  double t_franja = 0.0;
+  double t_monta = 0.0;
+  double t_resolve = 0.0;
   bool convergiu = false;
   long rebaixos = 0;
   long truncados = 0;
+  double oraculo = 0.0;
 };
 
 }  // namespace
@@ -56,6 +60,9 @@ int main(int argc, char **argv)
   double fracao = 0.0;
   unsigned long semente = 2026;
   int mls_pontos = 200;
+  bool tempos = false;
+  std::string despejo;
+  int camadas = 0;
 
   for (int i = 1; i < argc; i++) {
     const char *a = argv[i];
@@ -66,6 +73,9 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--aleatorio=", 12)) fracao = std::atof(a + 12);
     else if (!std::strncmp(a, "--semente=", 10)) semente = std::strtoul(a + 10, nullptr, 10);
     else if (!std::strncmp(a, "--mls-pontos=", 13)) mls_pontos = std::atoi(a + 13);
+    else if (!std::strcmp(a, "--tempos")) tempos = true;
+    else if (!std::strncmp(a, "--despeja=", 10)) despejo = a + 10;
+    else if (!std::strncmp(a, "--camadas=", 10)) camadas = std::atoi(a + 10);
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       if (rank == 0)
         std::printf(
@@ -76,7 +86,8 @@ int main(int argc, char **argv)
             "  --aleatorio=F    quadtree adaptada: fracao F de celulas refinadas\n"
             "  --semente        a do refino aleatorio\n"
             "  --tol            tolerancia do solver\n"
-            "  --mls-pontos     teto do suporte do ajuste\n",
+            "  --mls-pontos     teto do suporte do ajuste\n"
+            "  --tempos         imprime franja/montagem/resolucao SEPARADOS\n",
             nomes_manufaturadas().c_str(),
             Discretizacao::nomes_validos().c_str());
       return 0;
@@ -115,8 +126,12 @@ int main(int argc, char **argv)
     if (fracao > 0.0) std::printf("            fracao %.2f, semente %lu\n", fracao, semente);
     std::printf("processos   %d\n", np);
     std::printf("tolerancia  %.1e\n\n", tol);
-    std::printf("nivel  celulas          h      erro inf   ordem       erro L2"
-                "   ordem   iters     residuo\n");
+    if (tempos)
+      std::printf("nivel  celulas          h      erro inf   iters"
+                  "     franja    montagem   resolucao       total\n");
+    else
+      std::printf("nivel  celulas          h      erro inf   ordem       erro L2"
+                  "   ordem   iters     residuo\n");
     std::fflush(stdout);
   }
 
@@ -125,6 +140,10 @@ int main(int argc, char **argv)
     Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nivel}}, sc_MPI_COMM_WORLD);
     if (fracao > 0.0) m.refina_aleatorio(fracao, semente, nivel + 1);
 
+    // MAIS CAMADAS DO QUE O ESQUEMA PEDE, para diagnostico: `exige_camadas` so'
+    // cresce, entao pedir antes do `resolve` sobrepoe o que ele pediria.
+    if (camadas > 0) m.exige_camadas(camadas);
+
     ContornoPorRegiao bc;
     bc.padrao(Contorno::dirichlet([&sol](const Ponto3 &p) { return sol.u(p); }));
 
@@ -132,6 +151,7 @@ int main(int argc, char **argv)
     po.fonte([&sol](const Ponto3 &p) { return sol.f(p); });
     po.discretizacao(d);
     po.mls(mls_pontos);
+    if (!despejo.empty()) po.despeja_operador(despejo);
     po.resolve(Motor::Petsc, tol);
 
     Linha l;
@@ -143,8 +163,12 @@ int main(int argc, char **argv)
     l.iteracoes = po.iteracoes();
     l.residuo = po.residuo();
     l.convergiu = po.convergiu();
+    l.t_franja = po.tempo_de_franja();
+    l.t_monta = po.tempo_de_montagem();
+    l.t_resolve = po.tempo_de_resolucao();
     l.rebaixos = po.rebaixamentos_mls();
     l.truncados = po.truncados_pela_franja();
+    l.oraculo = po.residuo_da_exata([&sol](const Ponto3 &p) { return sol.u(p); });
     tabela.push_back(l);
 
     if (rank == 0 && (l.rebaixos > 0 || l.truncados > 0))
@@ -154,6 +178,19 @@ int main(int argc, char **argv)
   }
 
   if (rank != 0) return 0;
+
+  if (tempos) {
+    // AS TRES FASES SEPARADAS.  Somar as tres e dividir pelo tempo de np=1
+    // produz um "ganho" que pode ser superlinear sem que nada seja superlinear:
+    // basta uma fase que nao comunica dominar em np=1.  Foi o que aconteceu em
+    // duas dimensoes, e so' apareceu quando as fases foram medidas separadas.
+    for (const Linha &l : tabela)
+      std::printf("%5d %8ld %10.3e %13.4e %7d %10.4f  %10.4f  %10.4f  %10.4f  %11.4e  %ld\n",
+                  l.nivel, l.celulas, l.h, l.e_inf, l.iteracoes, l.t_franja,
+                  l.t_monta, l.t_resolve, l.t_franja + l.t_monta + l.t_resolve,
+                  l.oraculo, l.truncados);
+    return 0;
+  }
 
   for (size_t k = 0; k < tabela.size(); k++) {
     const Linha &l = tabela[k];
