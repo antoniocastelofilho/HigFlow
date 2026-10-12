@@ -42,6 +42,25 @@
 //!     reproducao de um polinomio especifico pode absorver.
 //! COBERTA-POR: test-mls2d:pesos_somam_um
 
+//! N7  PESOS DE DERIVADA: `sum w_k u_k` aproxima `du/dx_dir` no alvo, EXATO para
+//!     polinomio de grau <= a ordem, e os pesos SOMAM ZERO (a derivada de uma
+//!     constante) -- a conferencia barata que pega escala e sinal sem depender de
+//!     campo nenhum.  Os de valor somam um; estes somam zero.
+//!
+//!     E A IMPLEMENTACAO PROPRIA CONCORDA COM O NUCLEO HERDADO no caso de valor --
+//!     o herdado resolve por QR, a propria por equacoes normais, e a diferenca
+//!     medida e' 1,2e-16.  Sem essa concordancia nao haveria oraculo para a
+//!     derivada, que so' existe na propria: `wls_calc` devolve pesos de VALOR e
+//!     deixa a matriz fatorada interna.
+//!
+//!     E' a peca que a reconstrucao de fluxo de alta ordem em malha adaptada
+//!     precisa, e que estava declarada como limite desde o inicio.
+//! COBERTA-POR: test-mls2d:os_pesos_proprios_de_valor_concordam_com_o_nucleo_herdado
+//! COBERTA-POR: test-mls2d:a_derivada_e_exata_para_polinomio_do_grau_da_ordem
+//! COBERTA-POR: test-mls2d:a_derivada_erra_no_grau_acima_da_ordem
+//! COBERTA-POR: test-mls2d:os_pesos_de_derivada_somam_zero
+//! COBERTA-POR: test-mls2d:derivada_malformada_e_recusada
+
 //! N3  O discretizador RECUSA uso invalido em vez de devolver numero ruim:
 //!     suporte abaixo do minimo da ordem, e numero de valores diferente do
 //!     numero de pontos.  Numeros ruins em silencio sao o modo de falha que

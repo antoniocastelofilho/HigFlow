@@ -58,6 +58,31 @@ class Mls {
   // este projeto mais paga.
   std::vector<double> pesos(const Ponto2 &alvo, const std::vector<Ponto2> &suporte) const;
 
+  //! PESOS DE DERIVADA: `sum w_k u_k` aproxima `du/dx_dir` no alvo, exato para
+  //! polinomio de grau <= `ordem`.
+  //
+  // A ALGEBRA E' A MESMA DO VALOR, com um vetor de avaliacao diferente -- e e' por
+  // isso que isto cabe aqui em vez de ser um modulo novo.  O ajuste resolve
+  //
+  //     c = (B^T W B)^-1 B^T W u
+  //
+  // e o valor no alvo e' `b(x)^T c`; a derivada e' `(db/dx_dir)(x)^T c`.  Com a
+  // base RELATIVA ao alvo, `b(x) = (1,0,0,...)` e `db/dx(x) = (0,1,0,...)`: troca-se
+  // o lado direito `e_0` por `e_1`, e mais nada.
+  //
+  // POR QUE ISTO NAO VEM DO `wls` HERDADO: ele nao expoe a derivada -- `wls_calc`
+  // devolve pesos de VALOR e a matriz fatorada fica interna.  Logo esta e' uma
+  // implementacao NOVA (equacoes normais com o mesmo peso WLSMOVING), e por isso
+  // os pesos de VALOR dela sao conferidos contra o herdado no teste: se as duas
+  // implementacoes do mesmo ajuste divergem, nao ha' oraculo para a derivada.
+  std::vector<double> pesos_derivada(const Ponto2 &alvo,
+                                     const std::vector<Ponto2> &suporte, int dir) const;
+
+  //! Pesos de VALOR pela implementacao propria -- existe para ser comparada com
+  //! `pesos()`, que vem do nucleo herdado.  Mesma conta, dois caminhos.
+  std::vector<double> pesos_proprios(const Ponto2 &alvo,
+                                     const std::vector<Ponto2> &suporte) const;
+
   //! Valor interpolado em `alvo`, dados os valores nos pontos do suporte.
   //
   // Exige `valores.size() == suporte.size()`.  Existe para que o chamador nao
