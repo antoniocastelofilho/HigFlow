@@ -1,10 +1,11 @@
 \section{A execução paralela}
 \label{sec:paralelo}
 
-\status{Pronta quanto à \emph{correção}: as cláusulas X1--X9 do contrato cobrem o
-que está afirmado aqui, e o arreio as executa em np = 1, 2 e 3. Não traz
-\emph{custo}: o tempo das rodadas de troca não foi medido, e a escalabilidade
-citada na seção \ref{sec:estrategias} precede esta implementação.}
+\status{Pronta quanto à \emph{correção} e ao \emph{custo da franja}: as cláusulas
+X1--X9 cobrem a primeira e o arreio as executa em np = 1, 2 e 3; a segunda está
+medida na seção \ref{sec:par-custo}. O que não traz é a \emph{escalabilidade do
+sistema inteiro} com esta implementação --- o número citado na seção
+\ref{sec:estrategias} a precede.}
 
 Esta seção é separada das anteriores por um motivo metodológico: tudo o que ela
 descreve é invisível em execução serial, e três defeitos reais do sistema viviam
@@ -118,6 +119,51 @@ saía \emph{menor} que o verdadeiro, isto é, o oráculo mentindo a favor do có
 a repartição preserva a contagem global, a área, os níveis e o número de células
 em transição, e refaz a franja; e a correspondência id\,$\to$\,geometria não
 depende da partição.
+
+\subsection{O custo da franja}
+\label{sec:par-custo}
+
+Tempo absoluto de franja não é resultado: vinte milissegundos podem ser
+desprezíveis ou dominantes. O que interpreta é a fração do tempo de resolver o
+sistema.
+
+\begin{center}
+\begin{tabular}{rrrrrr}
+\toprule
+nível & células & np & franja (3 camadas) & \% do fluxo & \% do MLS \\
+\midrule
+6 & \num{4096}  & 2 & \SI{19.0}{\milli\second} & 33\,\% & 7,2\,\% \\
+6 & \num{4096}  & 8 & \SI{10.9}{\milli\second} & 30\,\% & 12\,\% \\
+7 & \num{16384} & 2 & \SI{93.1}{\milli\second} & 33\,\% & \textbf{3,5\,\%} \\
+7 & \num{16384} & 8 & \SI{32.3}{\milli\second} & 35\,\% & \textbf{9,6\,\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{O resultado que decide a questão está na coluna do MLS, na passagem do
+nível 6 para o 7: a fração CAI com o tamanho do problema} --- de 7,2\,\% para
+3,5\,\% em np=2. A franja cresce com o número de folhas; o solver do MLS cresce
+mais rápido, porque sua matriz tem da ordem de 300 não-zeros por linha. No regime
+que importa --- muitas células por processo --- a franja é ruído.
+
+E a comparação é mais favorável do que a tabela mostra, por algo que ela não
+captura: a franja é remontada quando a \emph{malha muda}, e o sistema é resolvido
+a \emph{cada passo}.
+
+A medida produziu duas otimizações que não estavam previstas. A primeira:
+\texttt{exige\_camadas} em um processo só refazia todo o trabalho local --- 
+\SI{22}{\milli\second} numa malha de \num{4096} células, 26\,\% do tempo de
+resolver --- para não trocar dado nenhum; sem fantasmas não há o que refazer, e
+hoje a chamada apenas registra o número de camadas. A segunda: o buffer da troca
+era dimensionado por $(2K+1)^2$ em \emph{todas} as rodadas, embora a rodada $r$
+publique apenas a vizinhança de raio $r$; dimensioná-lo pela rodada reduziu o
+volume publicado em \num{2.1} vezes.
+
+\reserva{os tempos de solver em np=1 destoam --- ganho aparente de
+\num{29.8}$\times$ de np=1 para np=8 no MLS, que é \emph{superlinear}. Ganho
+superlinear quase sempre indica efeito de cache ou mudança no número de iterações
+do solver, não paralelismo. Não foi investigado, e por isso as frações acima usam
+np$\,\geq\,$2 como referência.}
 
 \paragraph{np=3 está na suíte por motivo medido.} Foi ele, e não np=2, que expôs a
 célula grossa da transição 2:1 na borda da franja. Número par de processos parte o

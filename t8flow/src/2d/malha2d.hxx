@@ -278,6 +278,19 @@ class Malha {
   // nem quatro camadas bastavam, porque a carga satura antes.
   std::vector<int> niveis_vizinhos_do_indice(long idx, int fa) const;
 
+  //! Quantos BYTES este processo publicou na ultima montagem da franja.
+  //
+  // Nao e' curiosidade: e' a grandeza que EXPLICA o custo.  A carga por folha e'
+  // `(2K+1)^2` entradas, logo o volume cresce com o QUADRADO do numero de
+  // camadas, e qualquer medida de tempo que nao venha acompanhada dela e' um
+  // numero sem mecanismo -- nao se sabe se dobrou por comunicacao, por memoria
+  // ou por ter medido outra coisa.
+  //
+  // Conta o que foi POSTO no canal, somando as rodadas; o que o t8code
+  // efetivamente transmite pela rede e' menor, porque so' as posicoes de franja
+  // dos vizinhos interessados viajam.  O numero daqui e' portanto um teto.
+  long bytes_publicados_na_franja() const { return bytes_pub_; }
+
   //! Quantas vezes a carga da troca SATUROU na ultima montagem da franja.
   //
   // Diferente de zero significa que alguma folha publicou menos vizinhanca do
@@ -354,6 +367,7 @@ class Malha {
   long n_fantasmas_ = 0;
   int camadas_ = 1;
   long saturacoes_ = 0;
+  long bytes_pub_ = 0;
 
   // Indexados pelo INDICE DE FLORESTA: locais primeiro, franja depois.
   std::vector<long> id_g_;

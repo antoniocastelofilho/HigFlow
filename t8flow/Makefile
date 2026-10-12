@@ -192,10 +192,17 @@ exemplos/%: exemplos/%.cxx $(OBJ2_T) $(OBJ2_N)
 # Compila com -DDIM=2 so' porque o cabecalho herdado exige a macro; o programa
 # escolhe a dimensao em TEMPO DE EXECUCAO (`--dim=`), porque ele nao usa nada do
 # nucleo herdado -- so' o t8code, que tem as duas dimensoes na mesma biblioteca.
-bench: bench/escalabilidade
+bench: bench/escalabilidade bench/franja
 
 bench/escalabilidade: bench/escalabilidade.cxx
 	$(CXX) $(CXXFLAGS2) $< -o $@ $(LDFLAGS) $(LIBS)
+
+# O ARREIO DA FRANJA usa as classes do t8Flow -- `Malha`, `Poisson` --, e por isso
+# liga os objetos de 2D, ao contrario do de escalabilidade, que fala direto com o
+# t8code.  Medir a franja pelo t8code cru nao seria possivel: as camadas acima da
+# primeira sao deste codigo, nao da biblioteca.
+bench/franja: bench/franja.cxx $(OBJ2_T) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
 $(OBJ2):
 	mkdir -p $(OBJ2)
@@ -230,7 +237,7 @@ tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_N)
 
 clean:
 	$(RM) -rf obj
-	$(RM) -f $(wildcard tests/2d/test-*[!x]) bench/escalabilidade $(EXEMPLOS2) 
+	$(RM) -f $(wildcard tests/2d/test-*[!x]) bench/escalabilidade bench/franja $(EXEMPLOS2) 
 	@echo "limpo: objetos das duas dimensoes e binarios de teste"
 
 .PHONY: 2d 3d bench clean all

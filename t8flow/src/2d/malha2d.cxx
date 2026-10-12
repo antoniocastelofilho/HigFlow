@@ -564,6 +564,21 @@ void Malha::exige_camadas(int k)
     throw std::invalid_argument("Malha::exige_camadas: " + std::to_string(k) +
                                 " -- a franja tem pelo menos uma camada");
   if (k <= camadas_) return;      // idempotente: pedir menos nao desfaz
+
+  // SEM FANTASMAS NAO HA' NADA A TROCAR, e portanto nada a refazer: a franja de
+  // um processo sozinho e' vazia em qualquer numero de camadas.  Registrar `k` e
+  // voltar e' o comportamento correto, nao um atalho.
+  //
+  // MEDIDO, e e' o motivo de esta guarda existir: sem ela, `exige_camadas` em
+  // np=1 refazia a fase A inteira -- percorrer as folhas, calcular centroides,
+  // consultar vizinhos -- e custava 22 ms numa malha de 4096 celulas, 26% do
+  // tempo de resolver o sistema pelo esquema de fluxo.  Vinte e seis por cento
+  // para nao trocar dado nenhum.
+  if (t8_forest_get_num_ghosts(f_) == 0) {
+    camadas_ = k;
+    return;
+  }
+
   monta_franja_camadas(k);
 }
 
@@ -601,6 +616,7 @@ void Malha::monta_franja_camadas(int k)
 {
   camadas_ = k;
   saturacoes_ = 0;
+  bytes_pub_ = 0;
   n_locais_ = static_cast<long>(t8_forest_get_local_num_leaf_elements(f_));
   const long nf = static_cast<long>(t8_forest_get_num_ghosts(f_));
   const long p0 = primeiro_id();
@@ -652,6 +668,7 @@ void Malha::monta_franja_camadas(int k)
   {
     sc_array_t *arr = sc_array_new_count(6 * sizeof(double),
                                          static_cast<size_t>(n_locais_ + nf));
+    bytes_pub_ += 6 * static_cast<long>(sizeof(double)) * n_locais_;
     long kk = 0;
     for (t8_locidx_t it = 0; it < narv; it++) {
       const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements(f_, it);
@@ -738,14 +755,27 @@ void Malha::monta_franja_camadas(int k)
   // O CUSTO CRESCE COM O QUADRADO DE K, e e' por isso que K e' escolha explicita
   // de quem monta o esquema e nao um padrao generoso.
   if (nf > 0 && k > 1) {
-    const int MAXV = (2 * k + 1) * (2 * k + 1);
     // 7 campos proprios mais 8 vizinhos de DOIS campos cada (codigo e nivel).
     const int CAMPOS = 7 + 8 * 2;
-    const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
 
     for (int rodada = 1; rodada < k; rodada++) {
+      // O BUFFER E' DIMENSIONADO PELA RODADA, e nao por `k`.
+      //
+      // A rodada `r` publica a vizinhanca de raio `r`, que numa malha uniforme
+      // tem no maximo `(2r+1)^2` folhas.  Dimensionar todas as rodadas por
+      // `(2k+1)^2` reservava, em cada uma, o espaco de que so' a ultima precisa:
+      // medido com k=4, 44,8 KB por celula postos no canal.
+      //
+      // A MARGEM `4r` e' para a malha ADAPTADA, onde a vizinhanca de raio `r`
+      // passa de `(2r+1)^2` porque uma celula grossa tem muitos vizinhos finos.
+      // Quando nem a margem basta, `saturacoes_` conta -- cortar em silencio foi
+      // o defeito que mandou esta investigacao atras da camada errada.
+      const int MAXV = (2 * rodada + 1) * (2 * rodada + 1) + 4 * rodada;
+      const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
+
       sc_array_t *arr = sc_array_new_count(passo * sizeof(double),
                                            static_cast<size_t>(n_locais_ + nf));
+      bytes_pub_ += static_cast<long>(passo * sizeof(double)) * n_locais_;
 
       for (long i = 0; i < n_locais_ + nf; i++) {
         double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));

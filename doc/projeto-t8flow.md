@@ -1145,10 +1145,108 @@ está na lista por motivo medido: foi ele, e não np=2, que expôs a célula gro
 transição na borda da franja. Número par de processos parte o quadrado ao meio e
 produz fronteiras alinhadas com a malha; ímpar não.
 
-### 15.6 O que ainda falta
+### 15.6 O custo da franja, medido
 
-1. **o custo das rodadas de troca não foi medido.** A escalabilidade de 1,6× em
-   np=4 foi medida *antes* da franja de K camadas, logo não vale mais;
+Medido em **12/10/2026**, com `bench/franja` e `bench/roda-franja.py`. A pergunta
+era a do item 1 da lista acima, e a resposta trouxe duas otimizações que não
+estavam previstas.
+
+**A disciplina da medida**, porque cada item já produziu resultado falso neste
+projeto: o tempo é o do rank **mais lento** (`MPI_MAX`), não a média — o relógio
+de parede é o do último a terminar; barreira antes de cada cronometragem;
+repetições com o **menor** valor valendo, e a **primeira descartada** (toca
+memória fria); a malha reconstruída a cada repetição, porque `exige_camadas` é
+idempotente e medir a segunda chamada mediria um `return`.
+
+**O contraste que valida a medida:** `camadas=1` sai em **0,000000 s**.
+`exige_camadas(1)` não faz rodada nenhuma, então qualquer tempo ali significaria
+que a medida mede outra coisa.
+
+#### Otimização 1: sem fantasmas, não há o que refazer
+
+A primeira medida mostrou o custo em **np=1**, onde não há franja alguma:
+
+| nível | células | `exige_camadas(k)` em np=1 |
+|---|---|---|
+| 5 | 1 024 | 5,0 ms (igual para k=2, 3, 4) |
+| 6 | 4 096 | 22,4 ms (igual para k=2, 3, 4) |
+
+Independente de `k` — porque as rodadas não rodavam (sem fantasmas) e o custo era
+a **fase A refeita**: percorrer as folhas, calcular centroides, consultar
+vizinhos. Vinte e dois milissegundos, **26% do tempo de resolver** pelo esquema de
+fluxo, para não trocar dado nenhum. Hoje `exige_camadas` com zero fantasmas
+apenas registra o número de camadas e volta.
+
+#### Otimização 2: o buffer é dimensionado pela rodada
+
+O canal é um array de itens de tamanho fixo, e o buffer era dimensionado por
+$(2K+1)^2$ em **todas** as rodadas — reservando, em cada uma, o espaço de que só a
+última precisa. A rodada $r$ publica a vizinhança de raio $r$. Medido em np=2,
+nível 5:
+
+| camadas | antes | depois | redução |
+|---|---|---|---|
+| 2 | 4,76 MB | 2,50 MB | 1,9× |
+| 3 | 18,5 MB | 8,72 MB | 2,1× |
+| 4 | 45,8 MB | 20,2 MB | 2,3× |
+
+e o tempo de k=4 caiu de 7,74 ms para 6,21 ms. A margem de $4r$ sobre $(2r+1)^2$
+existe para a malha adaptada, onde a vizinhança de raio $r$ passa daquele número
+porque uma célula grossa tem muitos vizinhos finos --- e `saturacoes_da_franja`
+confirma **zero** saturações até $K=4$ em malha adaptada.
+
+#### O que a franja custa, em relação ao que importa
+
+Tempo absoluto de franja não é resultado: 20 ms pode ser desprezível ou
+dominante. O que interpreta é a fração do tempo de **resolver o sistema** —
+já com as duas otimizações aplicadas:
+
+| nível | células | np | camadas | franja | % do fluxo 2ª ordem | % do MLS+Gauss |
+|---|---|---|---|---|---|---|
+| 6 | 4 096 | 2 | 3 | 19,0 ms | 33% | 7,2% |
+| 6 | 4 096 | 4 | 3 | 11,5 ms | 32% | 11% |
+| 6 | 4 096 | 8 | 3 | 10,9 ms | 30% | 12% |
+| 7 | 16 384 | 2 | 3 | 93,1 ms | 33% | **3,5%** |
+| 7 | 16 384 | 4 | 3 | 45,1 ms | 31% | **5,3%** |
+| 7 | 16 384 | 8 | 3 | 32,3 ms | 35% | **9,6%** |
+
+**O resultado que decide a questão está na coluna do MLS e na passagem do nível 6
+para o 7: a fração CAI com o tamanho do problema** — de 7,2% para 3,5% em np=2.
+A franja cresce com o número de folhas; o solver do MLS cresce mais rápido, porque
+a matriz dele tem da ordem de 300 não-zeros por linha. No regime que importa — o
+de muitas células por processo — a franja é ruído.
+
+Contra o esquema de fluxo a fração fica em ~32%, estável, porque os dois crescem
+linearmente. Mas esse esquema **não precisa** de três camadas: ele pede duas, e
+com duas a fração cai para 23–24%.
+
+E a comparação é ainda mais favorável do que a tabela mostra, por uma razão que a
+tabela não captura: a franja é remontada quando a **malha muda**, e o sistema é
+resolvido a **cada passo**. Com dez passos entre adaptações, o custo amortizado
+cai dez vezes.
+
+**A franja escala**: nível 7, 3 camadas, 93,1 ms em np=2 contra 32,3 ms em np=8 —
+2,9× em quatro vezes mais processos. Cada processo publica menos folhas.
+
+A **repartição** custa aproximadamente o mesmo que montar a franja de 3 camadas
+(32,9 contra 32,3 ms em np=8, nível 7), o que é esperado: ela refaz a franja.
+
+#### Uma ressalva declarada
+
+Os tempos de solver em **np=1** destoam: 10,1 s para o MLS no nível 7, contra
+0,34 s em np=8 — ganho aparente de 29,8×, **superlinear**. Ganho superlinear quase
+sempre indica efeito de cache ou mudança no número de iterações do solver, e não
+paralelismo puro. Não investiguei, e por isso as frações acima usam np≥2 como
+referência. O número de np=1 está na tabela de origem, não aqui.
+
+### 15.7 O que ainda falta
+
+1. ~~o custo das rodadas de troca~~ — **medido**, seção 15.6, e o resultado
+   fechou a questão: no regime de muitas células por processo a franja é ruído
+   (3,5% do solver do MLS no nível 7). Ficam duas coisas desta medida: a
+   **escalabilidade do sistema inteiro** com a franja nova (o 1,6× em np=4 da
+   seção 11 precede este trabalho), e o **ganho superlinear** de np=1 para np=8,
+   que não investiguei;
 2. **a repartição não é automática** após adaptação — hoje é chamada explícita.
    Decisão do usuário: automático esconde o custo, explícito é previsível;
 3. **guarda contra árvore de uma célula**, que o levantamento do t8code registra
