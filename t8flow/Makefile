@@ -192,9 +192,15 @@ exemplos/%: exemplos/%.cxx $(OBJ2_T) $(OBJ2_N)
 # Compila com -DDIM=2 so' porque o cabecalho herdado exige a macro; o programa
 # escolhe a dimensao em TEMPO DE EXECUCAO (`--dim=`), porque ele nao usa nada do
 # nucleo herdado -- so' o t8code, que tem as duas dimensoes na mesma biblioteca.
-bench: bench/escalabilidade bench/franja bench/densidade
+bench: bench/escalabilidade bench/franja bench/densidade bench/franja3d
 
 bench/escalabilidade: bench/escalabilidade.cxx
+	$(CXX) $(CXXFLAGS2) $< -o $@ $(LDFLAGS) $(LIBS)
+
+# O ARREIO DA FRANJA 3D fala direto com o t8code, como o de escalabilidade: a
+# medida vem ANTES do codigo 3D, e nao pode depender de decisoes de arquitetura
+# que ela mesma deve informar.
+bench/franja3d: bench/franja3d.cxx
 	$(CXX) $(CXXFLAGS2) $< -o $@ $(LDFLAGS) $(LIBS)
 
 # O ARREIO DA FRANJA usa as classes do t8Flow -- `Malha`, `Poisson` --, e por isso

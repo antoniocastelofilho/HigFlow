@@ -131,6 +131,63 @@ enum class Variante {
   MlsPontual,
 };
 
+//! ONDE UMA GRANDEZA VIVE.  O arranjo deslocado (MAC) e' a decisao do usuario
+//! para os DOIS solvers de Navier-Stokes, e ela so' significa algo se cada
+//! operador disser de onde le' e para onde escreve.
+enum class Local {
+  Centro,    //!< escalares e tensores: pressao, viscosidade, tensao
+  FacetaX,   //!< a componente `x` da velocidade, na faceta normal a `x`
+  FacetaY,   //!< a componente `y` da velocidade, na faceta normal a `y`
+};
+
+//! Os operadores que o passo de Navier-Stokes precisa, e as localizacoes de cada.
+//
+// POR QUE A TABELA VIVE AQUI e nao em cada solver: em MAC a localizacao de
+// entrada e a de saida sao DIFERENTES para quase todo operador, e e' justamente
+// isso que o arranjo compra -- o gradiente de pressao nasce onde a velocidade
+// mora, sem interpolacao, e o divergente da velocidade nasce onde a pressao
+// mora.  Essa e' a razao de o MAC nao precisar de estabilizacao: nao ha' par
+// pressao-velocidade colocalizado para produzir modo espurio.
+//
+// Escrever a tabela uma vez, aqui, e' o que impede que o t8SolverNS-FD e o
+// t8SolverNS-FV discordem sobre onde uma grandeza vive -- discordancia que nao
+// falharia, produziria escoamento.
+enum class Operador {
+  //! `grad p`: do CENTRO para a FACETA.  Sem interpolacao -- a diferenca entre
+  //! as duas celulas vizinhas cai exatamente sobre a faceta entre elas.
+  GradientePressao,
+
+  //! `div u`: da FACETA para o CENTRO.  Tambem sem interpolacao, e e' o par
+  //! exato do anterior: o divergente discreto e' o transposto (a menos de sinal)
+  //! do gradiente discreto, e e' dessa dualidade que vem a conservacao de massa
+  //! na projecao.
+  DivergenteVelocidade,
+
+  //! `lap u`: da FACETA para a MESMA faceta.  O termo viscoso.
+  LaplacianoVelocidade,
+
+  //! `u . grad u`: da FACETA para a MESMA faceta, mas lendo as DUAS componentes.
+  //
+  // E' O UNICO QUE EXIGE INTERPOLACAO, e por isso e' o unico lugar onde o
+  // arranjo deslocado cobra: para avancar a componente `x` e' preciso da
+  // componente `y` na faceta de `x`, e elas nao moram juntas.  A interpolacao
+  // que se escolhe ali decide a conservacao de quantidade de movimento, e a
+  // escolha NAO esta' feita -- ver `doc/projeto-t8flow.md`.
+  Adveccao,
+};
+
+//! De onde o operador le'.
+Local origem_de(Operador op, int direcao);
+
+//! Para onde o operador escreve.
+Local destino_de(Operador op, int direcao);
+
+//! O operador precisa interpolar entre localizacoes diferentes da mesma grandeza?
+//
+// Verdadeiro so' para a adveccao, e saber disso de antemao e' o que permite a um
+// solver declarar que nao a implementou ainda em vez de produzir numero.
+bool exige_interpolacao(Operador op);
+
 //! A escolha, e o que ela implica.
 //
 // Objeto de valor: sem estado mutavel, barato de copiar, e cada pergunta tem
@@ -219,6 +276,20 @@ class Discretizacao {
   // exemplo nao MENTIR na leitura que imprime: dizer "grau 2" para todas as
   // discretizacoes faria o texto errar exatamente onde ele serve para algo.
   int grau_exato(bool malha_adaptada) const;
+
+  //! O ARRANJO e' o deslocado (MAC) nas duas familias -- decisao do usuario em
+  //! 12/10/2026, e ela vale para o t8SolverNS-FD e o t8SolverNS-FV.
+  //
+  // E' uma funcao e nao uma constante porque a pergunta tem de poder ser feita a
+  // uma `Discretizacao`: quem recebe uma nao deveria precisar saber que a
+  // resposta e' a mesma para todas.  Se um dia uma variante colocalizada entrar,
+  // ela entra aqui e nao em cada ponto de uso.
+  //
+  // MAC EM DIFERENCAS FINITAS e' menos comum que colocalizado com estabilizacao,
+  // e foi escolhido pela mesma razao que em volumes finitos: sem par
+  // pressao-velocidade colocalizado nao ha' modo espurio de pressao, logo nao ha'
+  // o que estabilizar.  O preco e' a interpolacao na adveccao.
+  bool arranjo_deslocado() const { return true; }
 
   //! A ORDEM NOMINAL do esquema -- a ordem de convergencia que ele promete.
   //

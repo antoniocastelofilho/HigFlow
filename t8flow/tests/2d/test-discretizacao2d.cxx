@@ -237,5 +237,57 @@ int main(int argc, char **argv)
     printf("  (recusas: nome, ordem fora da faixa, ordem em variante que nao usa)\n");
   }
 
+  t_case("o_arranjo_e_deslocado_e_cada_operador_diz_de_onde_le_e_para_onde_escreve");
+  {
+    // O ARRANJO DESLOCADO (MAC) NAS DUAS FAMILIAS -- decisao do usuario.  Ela so'
+    // significa algo se cada operador disser as suas duas localizacoes, e e'
+    // isso que este caso afirma.
+    for (Variante v : {Variante::FluxoBalanco, Variante::MlsGauss,
+                       Variante::CompactoLele, Variante::MlsPontual}) {
+      T_CHECK_MSG(Discretizacao(v, 3).arranjo_deslocado(),
+                  "%s nao declarou arranjo deslocado", Discretizacao(v, 3).nome().c_str());
+    }
+
+    for (int d = 0; d < 2; d++) {
+      const Local fac = (d == 0) ? Local::FacetaX : Local::FacetaY;
+
+      // O GRADIENTE DE PRESSAO E O DIVERGENTE SAO DUAIS: um vai do centro para a
+      // faceta, o outro da faceta para o centro.  E' dessa dualidade que vem a
+      // conservacao de massa na projecao, e troca-la seria trocar o esquema.
+      T_CHECK_MSG(origem_de(Operador::GradientePressao, d) == Local::Centro &&
+                      destino_de(Operador::GradientePressao, d) == fac,
+                  "grad p na direcao %d nao vai do centro para a faceta", d);
+      T_CHECK_MSG(origem_de(Operador::DivergenteVelocidade, d) == fac &&
+                      destino_de(Operador::DivergenteVelocidade, d) == Local::Centro,
+                  "div u na direcao %d nao vai da faceta para o centro", d);
+
+      // O VISCOSO E A ADVECCAO FICAM NA FACETA, entrada e saida.
+      for (Operador op : {Operador::LaplacianoVelocidade, Operador::Adveccao})
+        T_CHECK_MSG(origem_de(op, d) == fac && destino_de(op, d) == fac,
+                    "operador de faceta na direcao %d saiu do lugar", d);
+    }
+
+    // SO' A ADVECCAO INTERPOLA, e e' o unico preco do arranjo deslocado: para
+    // avancar a componente `x` e' preciso da componente `y` sobre a faceta de
+    // `x`, e elas nao moram juntas.  Afirmar que os outros tres NAO interpolam e'
+    // a outra metade -- e' isso que o MAC compra.
+    T_CHECK_MSG(exige_interpolacao(Operador::Adveccao),
+                "a adveccao deveria exigir interpolacao");
+    for (Operador op : {Operador::GradientePressao, Operador::DivergenteVelocidade,
+                        Operador::LaplacianoVelocidade})
+      T_CHECK_MSG(!exige_interpolacao(op),
+                  "um operador que nao deveria interpolar declarou que interpola");
+
+    // DIRECAO INVALIDA E' RECUSADA: em 2D so' ha' 0 e 1, e aceitar 2 em silencio
+    // devolveria a faceta de `y` para uma direcao que nao existe.
+    bool lancou = false;
+    try { origem_de(Operador::GradientePressao, 2); }
+    catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "direcao 2 passou num codigo de duas dimensoes");
+
+    printf("  (arranjo MAC: grad centro->faceta, div faceta->centro, "
+           "viscoso e adveccao na faceta; so' a adveccao interpola)\n");
+  }
+
   return t_end();
 }

@@ -26,6 +26,56 @@ Familia familia_de(Variante v)
 
 }  // namespace
 
+namespace {
+
+//! A faceta da direcao `d`.  Existe para que a tabela de operadores nao repita
+//! o `?:` em cada entrada.
+Local faceta(int d) { return (d == 0) ? Local::FacetaX : Local::FacetaY; }
+
+}  // namespace
+
+Local origem_de(Operador op, int direcao)
+{
+  if (direcao < 0 || direcao > 1)
+    throw std::invalid_argument("origem_de: direcao " + std::to_string(direcao) +
+                                " -- em 2D so' ha' 0 (x) e 1 (y)");
+  switch (op) {
+    case Operador::GradientePressao:      return Local::Centro;
+    case Operador::DivergenteVelocidade:  return faceta(direcao);
+    case Operador::LaplacianoVelocidade:
+    case Operador::Adveccao:              return faceta(direcao);
+  }
+  throw std::invalid_argument("origem_de: operador desconhecido");
+}
+
+Local destino_de(Operador op, int direcao)
+{
+  if (direcao < 0 || direcao > 1)
+    throw std::invalid_argument("destino_de: direcao " + std::to_string(direcao) +
+                                " -- em 2D so' ha' 0 (x) e 1 (y)");
+  switch (op) {
+    case Operador::GradientePressao:      return faceta(direcao);
+    case Operador::DivergenteVelocidade:  return Local::Centro;
+    case Operador::LaplacianoVelocidade:
+    case Operador::Adveccao:              return faceta(direcao);
+  }
+  throw std::invalid_argument("destino_de: operador desconhecido");
+}
+
+bool exige_interpolacao(Operador op)
+{
+  // SO' A ADVECCAO, e a razao e' que ela e' o unico operador que le' as DUAS
+  // componentes da velocidade.  Para avancar a componente `x` e' preciso da
+  // componente `y` sobre a faceta de `x`, e elas nao moram juntas no arranjo
+  // deslocado.
+  //
+  // Os outros tres nao interpolam, e e' isso que o MAC compra: o gradiente de
+  // pressao nasce na faceta porque a diferenca entre as duas celulas vizinhas
+  // cai exatamente ali, e o divergente nasce no centro pela mesma razao,
+  // invertida.
+  return op == Operador::Adveccao;
+}
+
 Discretizacao::Discretizacao(Variante v, int ordem_mls)
     : variante_(v), familia_(familia_de(v)), ordem_mls_(0)
 {

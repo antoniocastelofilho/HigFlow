@@ -1521,7 +1521,80 @@ suporte virá da franja e a cláusula precisará de um caso novo.
 | lote em GPU em paralelo | verificado para contenção (17.5) |
 | ganho superlinear | **explicado**: montagem O(n²) (17.1) |
 
-## 18. O que vem depois
+## 18. O arranjo, e a medida que precede o 3D
+
+### 18.1 Decisão: deslocado (MAC) nos dois solvers
+
+Decisão do usuário em **12/10/2026**, e vale para o t8SolverNS-FD e o
+t8SolverNS-FV. Confirma o arranjo que o sistema já implementa (seção 12):
+escalares e tensores no centro, vetores nas facetas.
+
+MAC em **diferenças finitas** é menos comum que colocalizado com estabilização, e
+foi escolhido pela mesma razão que em volumes finitos: sem par
+pressão-velocidade colocalizado não há modo espúrio de pressão, logo não há o que
+estabilizar. O preço é a interpolação na advecção.
+
+A decisão só significa algo se cada operador disser de onde lê e para onde
+escreve, e essa tabela agora vive no módulo de discretização:
+
+| operador | de | para | interpola? |
+|---|---|---|---|
+| `grad p` | centro | faceta | não |
+| `div u` | faceta | centro | não |
+| `lap u` | faceta | mesma faceta | não |
+| `u·∇u` | faceta | mesma faceta | **sim** |
+
+As duas primeiras linhas são duais, e é dessa dualidade que vem a conservação de
+massa na projeção. A última é o único preço do arranjo: para avançar a componente
+*x* é preciso da componente *y* sobre a faceta de *x*, e elas não moram juntas.
+**A interpolação ali decide a conservação de quantidade de movimento, e a escolha
+não está feita.**
+
+### 18.2 Por que o 3D vem antes do solver
+
+Pergunta do usuário, e a resposta é sim — não por completude, mas porque a base
+3D **muda números que decidem o desenho do solver**. Construir Navier-Stokes
+sobre a base 2D e descobrir depois que a franja de três camadas é proibitiva em
+3D seria descobrir tarde.
+
+**Escopo decidido:** só o que o solver vai usar — malha HEX com blocos, refino e
+franja de K camadas; MLS; estêncil; contorno; campos; Poisson com `vf-fluxo2` e
+`vf-mlsgauss`; suíte e contrato. Ficam de fora os dois esquemas compactos (que
+recusam malha adaptada — são contraste, não ferramenta), o `df-mlspontual`
+(instável) e o lote em GPU (otimização).
+
+### 18.3 A carga da franja em 3D, medida antes de escrever o código
+
+`bench/franja3d` fala direto com o t8code, de propósito: a medida não pode
+depender de decisões de arquitetura que ela mesma deve informar.
+
+| | 2D (K=3) | 3D uniforme | 3D adaptada (caixa) |
+|---|---|---|---|
+| vizinhos por célula, teto teórico | 8 | 24 | 24 |
+| vizinhos, **máximo medido** | — | **6** | **9** |
+| campos por folha publicada | 23 | 19 | 25 |
+| carga por folha | 8,5 KB | 18,6 KB | **24,4 KB** |
+| total local, 2048 folhas | — | 37,1 MB | 59,5 MB |
+| tempo da troca, np=2 | — | 2,56 ms | — |
+
+**O achado que muda a arquitetura: o teto de 24 vizinhos nunca é atingido.** O
+máximo real é 9, mesmo em malha adaptada com transição 2:1 — porque uma célula
+tem no máximo uma face com vizinhos refinados em cada direção, e não todas as
+seis. Dimensionar a carga pelo teto desperdiçaria 2,7×, o que em 3D é a diferença
+entre 55 KB e 24 KB por folha.
+
+E a carga é **2,9× a do 2D, não 7×** como a razão `(2r+1)³/(2r+1)²` sugeria —
+pela mesma razão.
+
+**Conclusão: três camadas em 3D são viáveis, com uma condição que o 2D não
+precisou** — dimensionar a carga pelos vizinhos **reais** da malha, medidos na
+construção, e não por um teto. A carga escala com folhas *locais*: um milhão de
+células em mil processos dá 24 MB por processo. O que não escala é poucos
+processos com muitas células, e esse é o regime que a medida de escalabilidade
+tem de evitar.
+
+## 19. O que vem depois
+
 
 
 
