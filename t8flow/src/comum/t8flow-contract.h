@@ -1192,4 +1192,48 @@
 //
 //! COBERTA-POR: test-mls3d:o_peso_do_laplaciano_e_regularizado_quando_o_alvo_esta_no_suporte
 
+//! H7  O SUPORTE EM CRUZ NAO SUSTENTA A ORDEM 3 EM TRES DIMENSOES, e o suporte
+//! por CAIXA sustenta.  Medido na mesma malha, mesma ordem, mesmo teto:
+//!
+//!     aneis de face     504 de 512 ajustes rebaixam   (98,4%)
+//!     caixa, raio 2       0 de 512                    (0,0%)
+//!
+//! A razao e' a DISTRIBUICAO e nao a contagem: o crescimento por faces entrega
+//! media de 24,4 pontos para 20 monomios -- numero de sobra --, mas quase tudo
+//! alinhado aos eixos, e os monomios mistos `xy`, `xz`, `yz` e `xyz` ficam mal
+//! determinados.  Em duas dimensoes isso nao aparece, porque ha' menos termos
+//! mistos: a cruz de dois aneis da' 13 pontos para 10 monomios e sustenta.
+//
+//! COBERTA-POR: test-estencil3d:a_caixa_sustenta_a_ordem_tres_onde_a_cruz_nao_sustenta
+
+//! H8  O RAIO MINIMO DA CAIXA SAI DA ALGEBRA, e nao da contagem de pontos.
+//!
+//! Uma caixa de raio `r` tem `2r+1` valores DISTINTOS de coordenada por direcao,
+//! e um polinomio de grau `g` precisa de `g+1` para ser determinado naquela
+//! direcao.  Com menos, os monomios ficam linearmente DEPENDENTES nos dados:
+//! num cubo 3x3x3, onde `x` so' assume `-h`, `0` e `h`, vale `x^3 = h^2 x`
+//! EXATAMENTE, e a matriz normal e' singular.
+//!
+//! MEDIDO, e o sintoma apontou a causa: parando pela contagem, a caixa de raio 1
+//! dava 27 pontos para 20 monomios e 216 dos 512 ajustes rebaixavam.  Os 216
+//! eram exatamente `6^3` -- as celulas do INTERIOR, que paravam no raio 1; as de
+//! borda cresciam para o raio 2 por falta de pontos e nao rebaixavam.
+//
+//! COBERTA-POR: test-estencil3d:a_caixa_sustenta_a_ordem_tres_onde_a_cruz_nao_sustenta
+
+//! H9  O PONTO FORA DA FRANJA E' CONTADO; o fora do DOMINIO nao.  As duas
+//! respostas negativas de `id_do_ponto` sao diferentes, e confundi-las esconde a
+//! que importa -- um suporte truncado pela franja da' pesos diferentes dos do
+//! serial, logo um resultado que depende da particao.
+//!
+//! ESTA CLAUSULA EXISTE PORQUE A PRIMEIRA VERSAO DESCARTAVA OS DOIS EM SILENCIO,
+//! e a medida de quantas camadas bastam dava ZERO truncamento com qualquer
+//! numero -- bom demais, e portanto sintoma.  Com a distincao, a medida ficou:
+//!
+//!     camadas       2      3      4      5
+//!     truncados   150     48      2      0      (np=3, nivel 3)
+//!     KB/folha    5,2   26,6   83,0  200,7
+//
+//! COBERTA-POR: test-estencil3d:o_ponto_fora_da_franja_e_contado_e_o_fora_do_dominio_nao
+
 #endif

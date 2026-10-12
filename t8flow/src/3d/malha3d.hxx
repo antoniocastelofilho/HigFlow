@@ -153,6 +153,19 @@ class Malha3 {
   // ganho de paralelismo (secao 17.1 do projeto).
   long id_do_ponto(const Ponto3 &p) const;
 
+  //! O ponto esta' dentro de algum BLOCO, geometricamente?
+  //
+  // SEPARADA DE `id_do_ponto` porque as duas respostas negativas sao
+  // DIFERENTES e confundi-las esconde a segunda: um ponto fora do dominio e'
+  // legitimo -- o contorno trata --, e um ponto DENTRO do dominio que
+  // `id_do_ponto` nao acha significa que falta FRANJA.
+  //
+  // Sem a distincao, o suporte por caixa descarta os dois em silencio, e a
+  // medida de "quantas camadas bastam" da' zero truncamento com qualquer
+  // numero de camadas -- que foi exatamente o resultado bom demais que
+  // apareceu antes desta funcao existir.
+  bool dentro_do_dominio(const Ponto3 &p) const;
+
   // ---- a franja ------------------------------------------------------------
   long num_fantasmas() const { return n_fantasmas_; }
   int camadas_de_franja() const { return camadas_; }

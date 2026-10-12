@@ -1710,7 +1710,93 @@ O caso agora afirma a propriedade onde ela vale e mede o contraste onde ele
 existe — em vez de esperar, por analogia com 2D, uma diferença que a matemática
 diz não haver.
 
-## 21. O que vem depois
+## 21. O estêncil em três dimensões, e o suporte que a cruz não sustenta
+
+### 21.1 A medida que precedeu o código
+
+Quantos anéis a ordem 3 pede em 3D? O crescimento por faces entrega 6 vizinhos
+por anel. Medido numa malha uniforme de nível 3:
+
+| anel | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| célula do meio | 5 | 14 | 30 | 54 |
+| célula de **canto** | 4 | 10 | **20** | **35** |
+
+A ordem 3 pede 20 monômios e cabe em **três** anéis (contra dois em 2D); no
+canto dá exatamente 20 para 20 — matriz normal quadrada, sem redundância
+nenhuma.
+
+### 21.2 O número bastava, a distribuição não
+
+Com o suporte por anéis, **504 de 512 ajustes de ordem 3 rebaixaram a ordem —
+98,4%**. E não por falta de pontos: a média era 24,4 para 20 monômios.
+
+A causa é a **distribuição**. O crescimento por faces entrega um suporte em
+*cruz*, com quase tudo alinhado aos eixos, e os monômios mistos — `xy`, `xz`,
+`yz`, `xyz` — ficam mal determinados nele. Em duas dimensões isso não aparece,
+porque há menos termos mistos: a cruz de dois anéis dá 13 pontos para 10
+monômios e sustenta.
+
+A correção é buscar o suporte por **caixa geométrica**: os pontos em
+`c + (i,j,k)·h`. Só é viável porque `id_do_ponto` é O(níveis) — com a varredura
+linear que o 2D teve até ser consertada, 27 buscas por ponto de consulta
+tornariam a montagem inviável.
+
+### 21.3 O raio mínimo sai da álgebra, não da contagem
+
+A caixa de raio 1 melhorou muito (98,4% → 42,2%) e **ainda rebaixava**. O número
+revelou a causa: **216 = 6³**, exatamente as células do interior. Elas paravam no
+raio 1 por já terem pontos suficientes; as de borda cresciam para o raio 2 por
+falta deles, e não rebaixavam.
+
+Uma caixa de raio *r* tem `2r+1` valores **distintos** de coordenada por direção,
+e um polinômio de grau *g* precisa de `g+1` naquela direção. Num cubo 3×3×3, onde
+`x` só assume `−h`, `0` e `h`, vale `x³ = h²·x` **exatamente** — os monômios são
+linearmente dependentes nos dados e a matriz normal é singular.
+
+| ordem | valores necessários | raio mínimo |
+|---|---|---|
+| 2 | 3 | 1 |
+| 3 | 4 | **2** |
+| 4 | 5 | 2 |
+
+Com o raio pela álgebra: **zero rebaixamentos**, contra 504 dos anéis.
+
+### 21.4 Um resultado bom demais, que era sintoma
+
+A primeira medida de "quantas camadas de franja bastam" deu **zero truncamento
+com qualquer número de camadas**. Bom demais — e era: o suporte por caixa
+descartava em silêncio todo ponto que `id_do_ponto` não achava, sem distinguir
+**fora do domínio** (legítimo, o contorno trata) de **fora da franja**
+(truncamento, que muda os pesos).
+
+Com `dentro_do_dominio` separando os dois, a medida ficou:
+
+| camadas | truncados (np=3) | carga por folha |
+|---|---|---|
+| 2 | 150 | 5,2 KB |
+| 3 | 48 | 26,6 KB |
+| 4 | 2 | 83,0 KB |
+| **5** | **0** | **200,7 KB** |
+
+**O suporte por caixa de raio 2 exige cinco camadas de franja em 3D.**
+
+### 21.5 Uma otimização identificada e não feita
+
+As rodadas da franja publicam a vizinhança **topológica** (busca em largura por
+faces), e o suporte precisa da vizinhança **geométrica**. São coisas diferentes:
+a célula diagonal `(2,2,2)` está a raio geométrico 2 e a **seis** faces de
+distância, e é por isso que cinco camadas custam 200 KB por folha.
+
+Publicar a **caixa geométrica** nas rodadas — em vez da busca em largura —
+cobriria o mesmo alcance com uma rodada de 125 folhas: cerca de **26 KB por
+folha**, oito vezes menos. A estimativa é direta, mas não está medida, e a
+mudança é na `Malha3` e não no estêncil.
+
+**Fica registrado como trabalho identificado, não como feito.**
+
+## 22. O que vem depois
+
 
 
 

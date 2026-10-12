@@ -84,6 +84,7 @@ LADOS = {
     # malha, MLS, estencil, contorno, campos e Poisson de volumes finitos.
     "3d": [
         ("test-mls3d", (1,)),
+        ("test-estencil3d", (1,)),
         ("test-malha3d", (1, 3)),
     ],
 }

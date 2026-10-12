@@ -1082,6 +1082,17 @@ bool Malha3::expansivel_do_indice(long idx) const
 // BUSCA GEOMETRICA
 // ---------------------------------------------------------------------------
 
+bool Malha3::dentro_do_dominio(const Ponto3 &p) const
+{
+  for (const Bloco &k : blocos_) {
+    bool dentro = true;
+    for (int d = 0; d < 3; d++)
+      if (p[d] < k.lo[d] - EPS || p[d] > k.hi[d] + EPS) dentro = false;
+    if (dentro) return true;
+  }
+  return false;
+}
+
 long Malha3::id_do_ponto(const Ponto3 &p) const
 {
   // CONSULTA PELO INDICE ESPACIAL: O(niveis), e nao O(folhas).  Uma varredura
