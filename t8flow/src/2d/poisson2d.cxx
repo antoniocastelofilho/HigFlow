@@ -373,6 +373,37 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
   s.tolerancia(tol);
   s.max_iteracoes(max_it);
 
+  const bool compacto = (esquema_ != Esquema::Fluxo2);
+  long ng = 0;
+  std::vector<long> grade;
+  if (compacto) grade = grade_logica(&ng);
+  const std::pair<const std::vector<long> *, long> gp{&grade, ng};
+
+  if (compacto) {
+    for (long iy = 0; iy < ng; iy++)
+      for (long ix = 0; ix < ng; ix++) {
+        std::map<long, double> linha;
+        double rhs = 0.0;
+        monta_linha_compacta(ix, iy, &gp, &linha, &rhs);
+        std::vector<int> cols;
+        std::vector<double> vals;
+        for (const auto &kv : linha) {
+          cols.push_back(static_cast<int>(kv.first));
+          vals.push_back(kv.second);
+        }
+        const long id = grade[static_cast<size_t>(iy) * ng + ix];
+        s.linha(static_cast<int>(id), cols, vals);
+        s.lado_direito(static_cast<int>(id), rhs);
+      }
+    s.monta();
+    s.resolve();
+    convergiu_ = s.convergiu();
+    iteracoes_ = s.iteracoes();
+    residuo_ = s.residuo();
+    sol_ = s.solucao();
+    return;
+  }
+
   for (long b = 0; b < m_->num_blocos(); b++)
     for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
       std::map<long, double> linha;
@@ -419,12 +450,29 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
   const std::vector<std::pair<long, long>> idx = monta_indice(*m_);
   const long p0 = m_->primeiro_id();
 
+  const bool compacto = (esquema_ != Esquema::Fluxo2);
+  long ng = 0;
+  std::vector<long> grade;
+  if (compacto) grade = grade_logica(&ng);
+  const std::pair<const std::vector<long> *, long> gp{&grade, ng};
+
   double pior = 0.0;
   for (long b = 0; b < m_->num_blocos(); b++)
     for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
       std::map<long, double> linha;
       double rhs = 0.0;
-      monta_linha(b, i, &idx, &linha, &rhs);
+      if (compacto) {
+        // A celula e' localizada na grade pela GEOMETRIA, para o residuo medir o
+        // MESMO operador que o solver monta.
+        const Ponto2 cc = m_->centroide(b, i);
+        const Bloco &kk = m_->bloco(0);
+        const double hh = (kk.hi[0] - kk.lo[0]) / ng;
+        const long ix = static_cast<long>((cc[0] - kk.lo[0]) / hh);
+        const long iy = static_cast<long>((cc[1] - kk.lo[1]) / hh);
+        monta_linha_compacta(ix, iy, &gp, &linha, &rhs);
+      } else {
+        monta_linha(b, i, &idx, &linha, &rhs);
+      }
 
       double soma = 0.0;
       for (const auto &kv : linha) {
@@ -435,13 +483,199 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
         if (vb < 0) continue;
         soma += kv.second * exata(m_->centroide(vb, vi));
       }
-      // Normaliza pela area, para o numero nao crescer com o refino so' porque as
-      // linhas foram multiplicadas por |face|: o que se quer e' o residuo do
-      // LAPLACIANO, nao do balanco integrado.
-      const double area = m_->area(b, i);
-      pior = std::fmax(pior, std::fabs(soma - rhs) / area);
+      // Normaliza pela area no esquema de FLUXO, cujas linhas foram multiplicadas
+      // por |face|; o compacto ja' esta' na forma do laplaciano pontual, e dividir
+      // ali daria um numero que cresce com o refino sem significado.
+      const double norm = compacto ? 1.0 : m_->area(b, i);
+      pior = std::fmax(pior, std::fabs(soma - rhs) / norm);
     }
   return pior;
+}
+
+// ---------------------------------------------------------------------------
+// O ESQUEMA COMPACTO DE QUARTA ORDEM
+// ---------------------------------------------------------------------------
+
+std::vector<long> Poisson::grade_logica(long *n) const
+{
+  // SO' MALHA UNIFORME DE UM BLOCO.  O estencil compacto usa vizinhos DIAGONAIS, e
+  // em transicao 2:1 o vizinho diagonal pode nem existir como celula unica -- nao
+  // e' limitacao de implementacao, e' o esquema que nao esta' definido ali sem uma
+  // reconstrucao propria.  Recusar e' o que impede um resultado plausivel.
+  if (m_->num_blocos() != 1)
+    throw std::runtime_error("Poisson: o esquema compacto exige UM bloco; a malha tem " +
+                             std::to_string(m_->num_blocos()));
+  if (m_->nivel_minimo() != m_->nivel_maximo())
+    throw std::runtime_error(
+        "Poisson: o esquema compacto exige malha UNIFORME; esta tem niveis " +
+        std::to_string(m_->nivel_minimo()) + " a " + std::to_string(m_->nivel_maximo()) +
+        ".  O estencil usa vizinhos diagonais, e na transicao 2:1 eles nao estao"
+        " definidos sem reconstrucao propria");
+
+  const Bloco &k = m_->bloco(0);
+  const int div = 1 << m_->nivel(0, 0);
+  *n = div;
+
+  // A grade e' montada pela GEOMETRIA (busca por ponto), nao pela ordem de
+  // percurso: a ordem da curva de preenchimento nao e' lexicografica, e supor que
+  // fosse daria uma grade embaralhada que ainda "funciona" -- com a solucao
+  // permutada, que e' erro silencioso.
+  std::vector<long> g(static_cast<size_t>(div) * static_cast<size_t>(div), -1);
+  const double hx = (k.hi[0] - k.lo[0]) / div;
+  const double hy = (k.hi[1] - k.lo[1]) / div;
+  for (long iy = 0; iy < div; iy++)
+    for (long ix = 0; ix < div; ix++) {
+      const Ponto2 c = {k.lo[0] + (ix + 0.5) * hx, k.lo[1] + (iy + 0.5) * hy};
+      const long id = m_->id_do_ponto(c);
+      if (id < 0)
+        throw std::runtime_error("Poisson: a grade logica nao fechou em (" +
+                                 std::to_string(ix) + ", " + std::to_string(iy) + ")");
+      g[static_cast<size_t>(iy) * div + ix] = id;
+    }
+  return g;
+}
+
+namespace {
+
+//! Expressao linear nas incognitas: `sum coef*u[id] + cte`.
+struct Expr {
+  std::map<long, double> coef;
+  double cte = 0.0;
+};
+
+//! O valor da celula logica `(ix, iy)`, como expressao -- com FANTASMA quando o
+//! indice sai do dominio.
+//
+// O fantasma vem da interpolacao de QUATRO pontos que reproduz o valor de
+// Dirichlet na parede: com a parede em `s=0` e os centros em `h/2, 3h/2, 5h/2`, o
+// fantasma em `-h/2` satisfaz
+//
+//     g = (5/16) u_f + (15/16) u_0 - (5/16) u_1 + (1/16) u_2
+//     u_f = (16/5) g - 3 u_0 + u_1 - (1/5) u_2
+//
+// (a soma dos coeficientes de Lagrange e' 1, conferido: 5/16+15/16-5/16+1/16 = 1.)
+//
+// QUATRO PONTOS E NAO DOIS, e a razao e' a ordem: o fantasma de dois pontos
+// (`u_f = 2g - u_0`) e' exato para campo LINEAR e limitaria o esquema a segunda
+// ordem na primeira celula -- jogando fora a quarta ordem do interior.  Com quatro
+// pontos ele e' exato para grau 3, que e' o que o compacto precisa.
+//
+// O CANTO sai por COMPOSICAO: o fantasma diagonal e' o fantasma em `y` aplicado
+// sobre a coluna de fantasmas em `x`.  A recursao faz isso sozinha, e e' por isso
+// que a funcao chama a si mesma em vez de tratar o canto como caso especial --
+// caso especial de canto e' onde o sinal se perde.
+Expr valor(long ix, long iy, long n, const std::vector<long> &g,
+           const Malha &m, const ContornoPorRegiao &bc, int prof = 0)
+{
+  Expr e;
+  if (prof > 2) return e;                      // guarda contra recursao sem fim
+
+  if (ix >= 0 && ix < n && iy >= 0 && iy < n) {
+    e.coef[g[static_cast<size_t>(iy) * n + ix]] = 1.0;
+    return e;
+  }
+
+  // Decide a direcao do fantasma: a que saiu do dominio (se as duas sairam, trata
+  // `x` primeiro e deixa a recursao cuidar de `y`).
+  const bool fora_x = (ix < 0 || ix >= n);
+  const long passo = fora_x ? ((ix < 0) ? 1 : -1) : ((iy < 0) ? 1 : -1);
+
+  // O ponto da PAREDE, para a condicao ser avaliada no lugar certo.
+  const Bloco &k = m.bloco(0);
+  const double hx = (k.hi[0] - k.lo[0]) / n;
+  const double hy = (k.hi[1] - k.lo[1]) / n;
+  const long jx = fora_x ? ((ix < 0) ? 0 : n - 1) : ix;
+  const long jy = fora_x ? iy : ((iy < 0) ? 0 : n - 1);
+  Ponto2 pw = {k.lo[0] + (jx + 0.5) * hx, k.lo[1] + (jy + 0.5) * hy};
+  if (fora_x) pw[0] += (ix < 0 ? -hx / 2.0 : hx / 2.0);
+  else        pw[1] += (iy < 0 ? -hy / 2.0 : hy / 2.0);
+
+  const Contorno &cond = bc.em(pw);
+  if (cond.tipo != TipoContorno::Dirichlet)
+    throw std::runtime_error(
+        "Poisson: o esquema compacto monta so' DIRICHLET; a parede em (" +
+        std::to_string(pw[0]) + ", " + std::to_string(pw[1]) + ") e' outra condicao."
+        "  Neumann e Robin no compacto precisam de um fechamento proprio, de ordem"
+        " compativel -- montar com o de Dirichlet daria quarta ordem no interior e"
+        " segunda na parede, sem aviso");
+
+  e.cte = (16.0 / 5.0) * cond.g(pw);
+  const double peso[3] = {-3.0, 1.0, -1.0 / 5.0};
+  for (int r = 0; r < 3; r++) {
+    const long qx = fora_x ? (jx + passo * r) : ix;
+    const long qy = fora_x ? iy : (jy + passo * r);
+    const Expr sub = valor(qx, qy, n, g, m, bc, prof + 1);
+    for (const auto &kv : sub.coef) e.coef[kv.first] += peso[r] * kv.second;
+    e.cte += peso[r] * sub.cte;
+  }
+  return e;
+}
+
+}  // namespace
+
+void Poisson::monta_linha_compacta(long ix, long iy, const void *grade,
+                                   std::map<long, double> *linha_out,
+                                   double *rhs_out) const
+{
+  const std::pair<const std::vector<long> *, long> *gp =
+      static_cast<const std::pair<const std::vector<long> *, long> *>(grade);
+  const std::vector<long> &g = *gp->first;
+  const long n = gp->second;
+
+  const Bloco &k = m_->bloco(0);
+  const double h = (k.hi[0] - k.lo[0]) / n;
+  const Ponto2 c = {k.lo[0] + (ix + 0.5) * h, k.lo[1] + (iy + 0.5) * h};
+
+  // O ESTENCIL DE NOVE PONTOS.  Na forma de Mehrstellen,
+  //
+  //     (1/(6h^2)) [ 4(faces) + 1(diagonais) - 20(centro) ]  =  f + (h^2/12) lap f
+  //
+  // A soma dos coeficientes e' 4*4 + 4*1 - 20 = 0, como tem de ser para o
+  // laplaciano de uma constante dar zero -- a conferencia que pega escala e sinal.
+  const double esc = 1.0 / (6.0 * h * h);
+  const int dx[9] = {0, 1, -1, 0,  0,  1, -1,  1, -1};
+  const int dy[9] = {0, 0,  0, 1, -1,  1,  1, -1, -1};
+  const double w[9] = {-20.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0};
+
+  std::map<long, double> linha;
+  double cte = 0.0;
+  for (int t = 0; t < 9; t++) {
+    const Expr e = valor(ix + dx[t], iy + dy[t], n, g, *m_, contorno_);
+    for (const auto &kv : e.coef) linha[kv.first] += esc * w[t] * kv.second;
+    cte += esc * w[t] * e.cte;
+  }
+
+  // O LADO DIREITO, nas duas variantes.
+  double rhs = 0.0;
+  if (esquema_ == Esquema::Compacto4) {
+    // MEHRSTELLEN: exige `lap(f)` analitico.  Sem ele, rodar com zero daria
+    // SEGUNDA ordem e pareceria quarta falhando -- por isso recusa.
+    if (!lap_f_)
+      throw std::invalid_argument(
+          "Poisson: o esquema Compacto4 (Mehrstellen) exige `fonte_laplaciano`."
+          "  Rodar sem ele daria segunda ordem e pareceria quarta falhando;"
+          "  use Compacto4Lele, que usa apenas `f`");
+    rhs = f_(c) + (h * h / 12.0) * lap_f_(c);
+  } else {
+    // LELE: `A_x A_y f / (6/5)^2`, isto e' `f` nos NOVE pontos com os pesos do
+    // operador tridiagonal nas duas direcoes -- sem `lap(f)`.
+    //
+    // `f` e' avaliado inclusive FORA do dominio, e isso e' legitimo: ele e' uma
+    // funcao conhecida, nao um campo discreto.  Interpolar `f` ali em vez de
+    // avalia-lo introduziria erro onde nao ha' necessidade.
+    const double a[3] = {1.0 / 10.0, 1.0, 1.0 / 10.0};
+    double soma = 0.0;
+    for (int jx = -1; jx <= 1; jx++)
+      for (int jy = -1; jy <= 1; jy++) {
+        const Ponto2 q = {c[0] + jx * h, c[1] + jy * h};
+        soma += a[jx + 1] * a[jy + 1] * f_(q);
+      }
+    rhs = soma / (1.44);                        // (6/5)^2
+  }
+
+  // O termo conhecido dos fantasmas passa para o lado direito com sinal trocado.
+  *linha_out = linha;
+  *rhs_out = rhs - cte;
 }
 
 double Poisson::u(long id) const

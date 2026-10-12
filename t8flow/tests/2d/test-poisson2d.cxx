@@ -91,7 +91,8 @@ struct Resultado {
 // mudanca de padrao.  Padroes diferentes por nivel dariam uma "ordem" que mistura
 // as duas coisas.
 Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Paredes modo,
-               double fracao = 0.0, long *transicao = nullptr)
+               double fracao = 0.0, long *transicao = nullptr,
+               Esquema esq = Esquema::Fluxo2)
 {
   const Manufaturada &sol = manufaturada(nome_sol);
   Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_SELF);
@@ -100,6 +101,9 @@ Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Pare
   Poisson po(m, paredes(sol, modo));
   po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
   po.fechamento(fp);
+  po.esquema(esq);
+  if (esq == Esquema::Compacto4)
+    po.fonte_laplaciano([&sol](const Ponto2 &p) { return sol.lap_f(p); });
   po.resolve(Motor::Petsc, 1e-14);
 
   Resultado r;
@@ -404,6 +408,147 @@ int main(int argc, char **argv)
     T_CHECK_MSG(lancou, "nome de solucao inexistente passou sem reclamar");
     T_CHECK_MSG(msg.find("grau2") != std::string::npos,
                 "a mensagem nao lista as solucoes validas: \"%s\"", msg.c_str());
+  }
+
+  // ---- O ESQUEMA COMPACTO DE QUARTA ORDEM ------------------------------------
+  //
+  // Duas variantes do MESMO esquema de nove pontos, com lados direitos diferentes:
+  // Mehrstellen usa `f + (h^2/12) lap(f)` e exige `lap(f)` ANALITICO; Lele e'
+  // implicito na segunda derivada e usa `f` nos nove pontos vizinhos.  A algebra
+  // diz que sao equivalentes a O(h^4); os casos abaixo VERIFICAM em vez de confiar.
+
+  t_case("o_compacto_e_exato_ate_grau_3_e_o_limite_e_o_fechamento");
+  {
+    // O INTERIOR do esquema e' exato ate' grau 5 (o erro e' proporcional a
+    // derivadas de SEXTA ordem).  Mas o FECHAMENTO de parede usa quatro pontos --
+    // parede e tres celulas --, que e' exato ate' grau 3.  Logo o corte esta'
+    // entre grau 3 e grau 4, e nao entre 5 e 6.
+    //
+    // MEDIDO, e e' por isso que a clausula afirma o LIMITE e nao so' a exatidao:
+    //   grau1 1,44e-14   grau2 1,12e-13   grau3 3,58e-13   grau4 3,99e-05
+    for (const char *nome : {"grau1", "grau2", "grau3"}) {
+      const Resultado r = roda(nome, 4, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::Compacto4Lele);
+      T_CHECK_MSG(r.convergiu, "%s: o solver nao convergiu no compacto", nome);
+      T_CHECK_MSG(r.e_inf < MAQUINA, "%s no compacto: erro %.4e (limite %.0e)",
+                  nome, r.e_inf, MAQUINA);
+    }
+    // E O GRAU 4 NAO: se ele tambem fosse exato, a clausula estaria afirmando
+    // menos do que parece -- nao se saberia onde o esquema deixa de ser exato.
+    const Resultado r4 = roda("grau4", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr,
+                              Esquema::Compacto4Lele);
+    T_CHECK_MSG(r4.e_inf > 1e-7,
+                "o grau 4 deu erro %.4e no compacto -- se fosse de maquina, o "
+                "limite do fechamento nao estaria sendo exercitado", r4.e_inf);
+    printf("  (compacto, nivel 4: grau3 exato, grau4 %.3e)\n", r4.e_inf);
+  }
+
+  t_case("o_compacto_converge_em_QUARTA_ordem");
+  {
+    const Resultado a4 = roda("trig", 3, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr,
+                              Esquema::Compacto4Lele);
+    const Resultado b4 = roda("trig", 5, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr,
+                              Esquema::Compacto4Lele);
+    const double oi = std::log2(a4.e_inf / b4.e_inf) / 2.0;
+    const double ol = std::log2(a4.e_l2 / b4.e_l2) / 2.0;
+    T_CHECK_MSG(oi > 3.6 && oi < 4.4, "ordem na norma do maximo: %.2f (esperava ~4)", oi);
+    T_CHECK_MSG(ol > 3.6 && ol < 4.4, "ordem na norma 2: %.2f (esperava ~4)", ol);
+    printf("  (compacto, trig: ordem inf %.2f, L2 %.2f; erro %.3e -> %.3e)\n",
+           oi, ol, a4.e_inf, b4.e_inf);
+  }
+
+  t_case("o_compacto_e_muito_mais_preciso_que_o_de_segunda_ordem");
+  {
+    // O par que mostra que a quarta ordem nao e' so' uma taxa: no MESMO nivel, o
+    // erro tem de ser ordens de grandeza menor.  Sem este caso, "ordem 4" poderia
+    // conviver com um erro absoluto pior.
+    const Resultado dois = roda("trig", 5, FechamentoParede::TresPontos,
+                                Paredes::TodasDirichlet);
+    const Resultado quatro = roda("trig", 5, FechamentoParede::TresPontos,
+                                  Paredes::TodasDirichlet, 0.0, nullptr,
+                                  Esquema::Compacto4Lele);
+    T_CONTRASTE(quatro.e_inf > 1e-16 ? quatro.e_inf : 1e-16, dois.e_inf, 20.0,
+                "erro do compacto contra o de segunda ordem, mesmo nivel");
+    printf("  (nivel 5, trig: fluxo2 %.3e, compacto %.3e -- %.0fx)\n",
+           dois.e_inf, quatro.e_inf, dois.e_inf / quatro.e_inf);
+  }
+
+  t_case("mehrstellen_e_lele_concordam_na_ordem_do_truncamento");
+  {
+    // A VERIFICACAO DA ALGEBRA, que e' o motivo de ter as duas variantes.
+    // `A_x f / (6/5)` expande em `f + (h^2/12) f_xx + O(h^4)`, porque
+    // `(1/10)/(6/5) = 1/12`.  Logo os dois lados direitos sao o mesmo a O(h^4) --
+    // e os dois esquemas tem de dar resultados que diferem na ORDEM DO ERRO, nao
+    // mais que isso.
+    //
+    // Para polinomio de grau <= 4 eles dao valores IDENTICOS, porque ali o termo
+    // de O(h^4) do lado direito envolve derivadas de quarta ordem de `f`, que sao
+    // nulas.  Para a trigonometrica diferem em ~1%, que e' a ordem do proprio
+    // truncamento.
+    const Resultado m = roda("grau4", 4, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.0, nullptr, Esquema::Compacto4);
+    const Resultado l = roda("grau4", 4, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.0, nullptr, Esquema::Compacto4Lele);
+    T_NEAR(m.e_inf, l.e_inf, 1e-12,
+           "grau4: Mehrstellen e Lele tem de coincidir (lap f e' constante)");
+
+    const Resultado mt = roda("trig", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr, Esquema::Compacto4);
+    const Resultado lt = roda("trig", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr, Esquema::Compacto4Lele);
+    const double dif = std::fabs(mt.e_inf - lt.e_inf) / mt.e_inf;
+    T_CHECK_MSG(dif < 0.25,
+                "trig: Mehrstellen %.4e e Lele %.4e diferem %.1f%% -- mais que a "
+                "ordem do truncamento, logo nao sao o mesmo esquema",
+                mt.e_inf, lt.e_inf, 100.0 * dif);
+    printf("  (grau4 identicos; trig: Mehrstellen %.3e, Lele %.3e, dif %.1f%%)\n",
+           mt.e_inf, lt.e_inf, 100.0 * dif);
+  }
+
+  t_case("o_compacto_recusa_o_que_nao_sabe");
+  {
+    const Manufaturada &sol = manufaturada("grau2");
+
+    // MALHA ADAPTADA: o estencil usa vizinhos DIAGONAIS, que na transicao 2:1 nao
+    // estao definidos sem reconstrucao propria.
+    {
+      Malha m({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+      m.refina_aleatorio(0.4, 1, 4);
+      Poisson po(m, paredes(sol, Paredes::TodasDirichlet));
+      po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
+      po.esquema(Esquema::Compacto4Lele);
+      bool lancou = false;
+      try { po.resolve(); } catch (const std::runtime_error &) { lancou = true; }
+      T_CHECK_MSG(lancou, "o compacto aceitou malha adaptada");
+    }
+
+    // MEHRSTELLEN SEM `lap(f)`: rodar com zero daria SEGUNDA ordem e pareceria
+    // quarta falhando -- o pior resultado possivel, porque o numero sai plausivel.
+    {
+      Malha m({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+      Poisson po(m, paredes(sol, Paredes::TodasDirichlet));
+      po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
+      po.esquema(Esquema::Compacto4);          // sem fonte_laplaciano
+      bool lancou = false;
+      try { po.resolve(); } catch (const std::invalid_argument &) { lancou = true; }
+      T_CHECK_MSG(lancou, "Mehrstellen rodou sem lap(f)");
+    }
+
+    // NEUMANN: o fechamento do compacto e' de Dirichlet; usa-lo para Neumann daria
+    // quarta ordem no interior e segunda na parede, sem aviso.
+    {
+      Malha m({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+      Poisson po(m, paredes(sol, Paredes::TresNeumann));
+      po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
+      po.esquema(Esquema::Compacto4Lele);
+      bool lancou = false;
+      try { po.resolve(); } catch (const std::runtime_error &) { lancou = true; }
+      T_CHECK_MSG(lancou, "o compacto aceitou Neumann");
+    }
   }
 
   return t_end();

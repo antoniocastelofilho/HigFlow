@@ -523,6 +523,52 @@
 //! COBERTA-POR: test-poisson2d:nome_de_solucao_inexistente_e_recusado_com_a_lista
 
 // ---------------------------------------------------------------------------
+// Q -- O ESQUEMA COMPACTO DE QUARTA ORDEM (malha uniforme)
+// ---------------------------------------------------------------------------
+
+//! Q1  O compacto e' EXATO ATE' GRAU 3, e o LIMITE E' O FECHAMENTO -- nao o
+//!     interior.  O estencil de nove pontos tem erro proporcional a derivadas de
+//!     SEXTA ordem, logo seria exato ate' grau 5; o fechamento de parede usa
+//!     quatro pontos (parede e tres celulas) e e' exato ate' grau 3.  Medido, e o
+//!     corte e' nitido:
+//!
+//!         grau1 1,44e-14   grau2 1,12e-13   grau3 3,58e-13   grau4 3,99e-05
+//!
+//!     A clausula afirma o LIMITE e nao so' a exatidao: sem o grau 4 reprovando,
+//!     nao se saberia ONDE o esquema deixa de ser exato.
+//! COBERTA-POR: test-poisson2d:o_compacto_e_exato_ate_grau_3_e_o_limite_e_o_fechamento
+
+//! Q2  O compacto converge em QUARTA ordem (medido ~3,7 a 4,0 nas duas normas), e
+//!     e' ordens de grandeza mais preciso que o de segunda no MESMO nivel -- 70x
+//!     na trigonometrica, nivel 5.  As duas metades: "ordem 4" sozinha poderia
+//!     conviver com um erro absoluto pior.
+//! COBERTA-POR: test-poisson2d:o_compacto_converge_em_QUARTA_ordem
+//! COBERTA-POR: test-poisson2d:o_compacto_e_muito_mais_preciso_que_o_de_segunda_ordem
+
+//! Q3  MEHRSTELLEN E LELE SAO O MESMO ESQUEMA, verificado em vez de suposto.  O
+//!     primeiro usa `f + (h^2/12) lap(f)` e exige `lap(f)` ANALITICO; o segundo e'
+//!     implicito na segunda derivada e usa `f` nos nove pontos.  A algebra:
+//!     `A_x f / (6/5)` expande em `f + (h^2/12) f_xx + O(h^4)` porque
+//!     `(1/10)/(6/5) = 1/12`.
+//!
+//!     Medido: em polinomio de grau <= 4 dao valores IDENTICOS (ali o termo de
+//!     O(h^4) do lado direito envolve derivadas quartas de `f`, nulas); na
+//!     trigonometrica diferem 1,8%, que e' a ordem do proprio truncamento.
+//!
+//!     Ter as duas variantes e' o que permite esta verificacao -- e tem valor
+//!     pratico: `lap(f)` existe na manufatura e nao existe em problema real.
+//! COBERTA-POR: test-poisson2d:mehrstellen_e_lele_concordam_na_ordem_do_truncamento
+
+//! Q4  O compacto RECUSA o que nao sabe: malha ADAPTADA (o estencil usa vizinhos
+//!     DIAGONAIS, que na transicao 2:1 nao estao definidos sem reconstrucao
+//!     propria), mais de um bloco, NEUMANN (o fechamento e' de Dirichlet; usa-lo
+//!     para Neumann daria quarta ordem no interior e segunda na parede, sem
+//!     aviso), e Mehrstellen SEM `lap(f)` -- este ultimo porque rodar com zero
+//!     daria SEGUNDA ordem e pareceria quarta falhando, que e' o pior resultado
+//!     possivel: o numero sai plausivel.
+//! COBERTA-POR: test-poisson2d:o_compacto_recusa_o_que_nao_sabe
+
+// ---------------------------------------------------------------------------
 // T -- A TRANSICAO 2:1 NO OPERADOR (quadtree adaptada)
 // ---------------------------------------------------------------------------
 
@@ -665,6 +711,14 @@
 //      defeito, era o MESMO reaparecendo por um caminho deixado aberto.  Ali o
 //      dado de Neumann E' `du/dt` (a normal da parede e' a direcao transversal), e
 //      usa-lo e' exato -- com `du/dt = sgn*g`, nao `g`.
+//
+// LIMITE DA FAMILIA Q, e ele e' o fechamento: para o compacto ser exato ate' grau
+// 5 -- o que o interior permite -- o fechamento de parede precisaria de CINCO
+// pontos (parede e quatro celulas).  Com quatro, o corte fica em grau 3.  A ordem
+// de convergencia NAO sofre com isso (o erro do fechamento e' local e tambem
+// O(h^4)); o que se perde e' a exatidao em grau 4 e 5.  Subir o fechamento e' o
+// proximo passo natural desta familia, e e' trabalho isolado: a formula de
+// Lagrange e' a mesma com um no' a mais.
 //
 // LIMITES DAS FAMILIAS P e T, declarados: Robin nao montado no operador (so'
 // Dirichlet e Neumann), serial, e o PISO do erro e' o residuo do solver -- pedir menos de 1e-13 seria exigir do solver linear algo que

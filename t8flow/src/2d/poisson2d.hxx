@@ -87,6 +87,56 @@ enum class FechamentoParede {
   DoisPontos,   //!< `(u_c - g)/(h/2)`: classico, segunda ordem global, nao exato
 };
 
+//! O esquema de discretizacao do laplaciano.
+enum class Esquema {
+  //! BALANCO DE FLUXOS de segunda ordem, com cinco pontos.  E' o que funciona em
+  //! malha ADAPTADA (transicao 2:1) e com Neumann.
+  Fluxo2,
+
+  //! COMPACTO DE QUARTA ORDEM (Mehrstellen), nove pontos, so' em malha UNIFORME.
+  //
+  //     (1/(6h^2)) [ 4(u_E+u_W+u_N+u_S) + (u_NE+u_NW+u_SE+u_SW) - 20 u_C ]
+  //         =  f_C + (h^2/12) lap(f)_C
+  //
+  // O TERMO `h^2/12 lap(f)` E' O QUE FAZ A QUARTA ORDEM.  Sem ele, o estencil de
+  // nove pontos e' apenas uma media de dois laplacianos de segunda ordem -- o de
+  // cinco pontos e o diagonal -- e continua de segunda ordem.  "Compacto" quer
+  // dizer que a quarta ordem sai de um estencil de largura UM, sem precisar de
+  // vizinhos a dois passos: o preco e' o lado direito deixar de ser `f` e passar a
+  // envolver `lap(f)`.
+  //
+  // O erro e' proporcional a derivadas de SEXTA ordem, logo o esquema e' EXATO
+  // para polinomio de grau <= 5.
+  //
+  // SO' MALHA UNIFORME DE UM BLOCO, e a montagem recusa o resto: o estencil usa
+  // vizinhos DIAGONAIS, e em transicao 2:1 o vizinho diagonal pode nem existir
+  // como celula unica.  Nao e' limitacao de implementacao -- e' o esquema que nao
+  // esta' definido ali sem uma reconstrucao propria.
+  Compacto4,
+
+  //! O MESMO estencil de nove pontos, com o lado direito do esquema COMPACTO DE
+  //! LELE -- que e' implicito na segunda derivada:
+  //!
+  //!     (1/10) u''(i-1) + u''(i) + (1/10) u''(i+1)
+  //!          =  (6/5) (u(i+1) - 2u(i) + u(i-1)) / h^2
+  //!
+  //! Aplicando o operador tridiagonal nas duas direcoes a `lap(u) = f`, o lado
+  //! esquerdo da' os mesmos nove pontos em `u` e o lado direito fica `A_x A_y f` --
+  //! `f` nos NOVE pontos vizinhos, sem `lap(f)`.
+  //!
+  //! E OS DOIS SAO O MESMO ESQUEMA, conferido na algebra: `A_x f / (6/5)` expande
+  //! em `f + (h^2/12) f_xx + O(h^4)`, porque `(1/10)/(6/5) = 1/12`.  Logo
+  //! `A_x A_y f` e' `(6/5)^2 [f + (h^2/12) lap(f)] + O(h^4)`, e os estenceis em `u`
+  //! diferem pelo mesmo fator `(6/5)^2 = 1,44` -- medido contra o de Mehrstellen:
+  //! `-4,8 / -3,333 = 1,44` e `0,96 / 0,667 = 1,44`.
+  //!
+  //! A DIFERENCA PRATICA, e e' ela que faz valer ter os dois: Mehrstellen exige
+  //! `lap(f)` ANALITICO, que existe na manufatura e nao existe em problema real.
+  //! Lele usa apenas `f`, avaliado onde se precisa.  Ter os dois e comparar e' o
+  //! que verifica a algebra acima em vez de confiar nela.
+  Compacto4Lele,
+};
+
 class Poisson {
  public:
   Poisson(const Malha &m, ContornoPorRegiao contorno);
@@ -96,6 +146,20 @@ class Poisson {
 
   void fechamento(FechamentoParede fp) { fechamento_ = fp; }
   FechamentoParede fechamento() const { return fechamento_; }
+
+  //! Troca o esquema.  `Compacto4` exige malha uniforme de um bloco e Dirichlet
+  //! em todo o contorno -- `resolve` recusa, dizendo qual condicao falhou.
+  void esquema(Esquema e) { esquema_ = e; }
+  Esquema esquema() const { return esquema_; }
+
+  //! A fonte do termo de correcao do esquema compacto: `lap(f)`.
+  //
+  // Separado de `fonte` de proposito.  Ele e' EXATO na manufatura (derivado a
+  // mao), e aproxima-lo por diferencas introduziria no resultado um erro da mesma
+  // ordem do que o esquema promete remover.  Sem ele instalado, `Compacto4`
+  // RECUSA -- rodar com `lap(f) = 0` daria segunda ordem e pareceria quarta
+  // falhando.
+  void fonte_laplaciano(std::function<double(const Ponto2 &)> lf) { lap_f_ = std::move(lf); }
 
   //! Monta e resolve.  `tol` vai para o solver linear; o residuo relatado por ele
   //! e' o PISO do erro que se pode exigir da solucao -- pedir erro de maquina com
@@ -137,11 +201,21 @@ class Poisson {
   ContornoPorRegiao contorno_;
   std::function<double(const Ponto2 &)> f_;
   FechamentoParede fechamento_ = FechamentoParede::TresPontos;
+  Esquema esquema_ = Esquema::Fluxo2;
+  std::function<double(const Ponto2 &)> lap_f_;
 
   //! Monta a linha de uma celula.  `indice` e' o mapa id -> (bloco, folha), opaco
   //! aqui para o cabecalho nao depender do tipo interno.
   void monta_linha(long b, long i, const void *indice,
                    std::map<long, double> *linha, double *rhs) const;
+
+  //! Monta a linha pelo esquema COMPACTO.  Exige a grade logica (so' uniforme).
+  void monta_linha_compacta(long ix, long iy, const void *grade,
+                            std::map<long, double> *linha, double *rhs) const;
+
+  //! Valida e constroi a grade logica `(ix, iy) -> id` da malha uniforme.
+  //! Lanca se a malha nao for uniforme de um bloco.
+  std::vector<long> grade_logica(long *n) const;
 
   long primeiro_ = 0;
   long n_ = 0;

@@ -4,7 +4,7 @@ Relatório de **12/10/2026**. Primeiro exemplo do t8Flow, serial, e primeiro cas
 da suíte que resolve uma equação.
 
     exemplo   t8flow/exemplos/poisson-mms.cxx   (parametrizado, sem recompilar)
-    teste     t8flow/tests/2d/test-poisson2d.cxx   17 casos
+    teste     t8flow/tests/2d/test-poisson2d.cxx   22 casos
     modulos   src/2d/poisson2d, manufaturada2d, contorno2d, campos2d, malha2d
 
 ## 1. O que o método faz, e onde está a força dele
@@ -202,7 +202,67 @@ porque o que os encontrou foi sempre o mesmo oráculo:
 E a guarda do contrato pegou a mudança sozinha: a cláusula P4 ficou apontando para
 o caso de recusa de 2:1, que deixou de existir, e saiu como **CASO AUSENTE**.
 
-## 7. Limites declarados
+## 7. Diferenças compactas de quarta ordem (malha uniforme)
+
+Duas variantes do **mesmo** esquema de nove pontos, com lados direitos diferentes:
+
+| | lado direito | precisa de |
+|---|---|---|
+| **Mehrstellen** | `f + (h²/12)∇²f` | `∇²f` analítico |
+| **Lele** (implícito na segunda derivada) | `A_x A_y f` — `f` nos nove pontos | só `f` |
+
+O esquema de Lele parte de `(1/10)u''ᵢ₋₁ + u''ᵢ + (1/10)u''ᵢ₊₁ = (6/5)δ²u/h²`. Aplicando
+o operador tridiagonal nas duas direções a `∇²u = f`, o lado esquerdo dá os mesmos
+nove pontos e o direito fica `A_x A_y f`.
+
+**E os dois são o mesmo esquema**, conferido na álgebra: `A_x f/(6/5)` expande em
+`f + (h²/12)f_xx + O(h⁴)`, porque `(1/10)/(6/5) = 1/12`. Os estênceis em `u`
+diferem pelo fator `(6/5)² = 1,44` — medido contra Mehrstellen: `−4,8/−3,333 =
+1,44` e `0,96/0,667 = 1,44`.
+
+### 7.1 Os resultados
+
+| solução | erro inf (n5) | ordem inf | ordem L2 |
+|---|---|---|---|
+| grau 1, 2, 3 | 1e-14 a 4e-13 | **exato** | **exato** |
+| grau 4 | 2,59e-06 | 3,95 | 3,98 |
+| grau 6 | 1,22e-05 | 3,86 | 3,92 |
+| trigonométrica | 5,44e-05 | 3,86 | 3,93 |
+
+E no mesmo nível, contra o esquema de segunda ordem: **3,78e-03 → 5,44e-05, 70×**.
+
+### 7.2 O limite é o fechamento, não o interior
+
+O estêncil de nove pontos tem erro proporcional a derivadas de **sexta** ordem,
+logo seria exato até grau 5. Mas o fechamento de parede usa quatro pontos — a
+parede e três células — e é exato até grau **3**. O corte medido é nítido:
+
+    grau1 1,44e-14   grau2 1,12e-13   grau3 3,58e-13   grau4 3,99e-05
+
+A ordem de convergência não sofre com isso (o erro do fechamento também é O(h⁴));
+o que se perde é a **exatidão** em grau 4 e 5. Subir o fechamento para cinco
+pontos é trabalho isolado — a fórmula de Lagrange é a mesma com um nó a mais.
+
+### 7.3 A verificação entre as duas variantes
+
+Ter as duas é o que permite verificar a álgebra em vez de confiar nela:
+
+- em polinômio de grau ≤ 4 dão valores **idênticos** (ali o termo de O(h⁴) do lado
+  direito envolve derivadas quartas de `f`, que são nulas);
+- na trigonométrica diferem **1,8%**, que é a ordem do próprio truncamento.
+
+E há valor prático na diferença: `∇²f` existe na manufatura e **não** existe em
+problema real. O esquema de Lele usa apenas `f`.
+
+### 7.4 O que o compacto recusa
+
+Malha adaptada (o estêncil usa vizinhos **diagonais**, que na transição 2:1 não
+estão definidos sem reconstrução própria), mais de um bloco, Neumann (o fechamento
+é de Dirichlet; usá-lo para Neumann daria quarta ordem no interior e segunda na
+parede, sem aviso), e Mehrstellen **sem** `∇²f` — este porque rodar com zero daria
+segunda ordem e pareceria quarta falhando, com o número saindo plausível.
+
+## 8. Limites declarados
 
 - **a exatidão do grau 2 vale só na malha uniforme.** Na adaptada o esquema é de
   segunda ordem, e exato apenas para campo linear;
@@ -214,7 +274,7 @@ o caso de recusa de 2:1, que deixou de existir, e saiu como **CASO AUSENTE**.
 - **o piso do erro é o solver.** Pedir menos de 1e-13 seria exigir do solver linear
   algo que ele não promete com tolerância 1e-14.
 
-## 8. Como reproduzir
+## 9. Como reproduzir
 
 ```bash
 cd t8flow && make 2d
@@ -225,7 +285,8 @@ mpirun -n 1 ./exemplos/poisson-mms --ajuda      # lista as solucoes do catalogo
 
 Parâmetros: `--solucao` (grau1, grau2, grau3, trig), `--contorno` (dirichlet,
 misto, umdirichlet), `--fechamento` (3 ou 2), `--niveis`, `--tol`,
-`--aleatorio=FRAÇÃO` (quadtree adaptada), `--semente`. A configuração
+`--aleatorio=FRAÇÃO` (quadtree adaptada), `--semente`, `--esquema` (fluxo2,
+compacto4, lele4). A configuração
 inteira vai impressa no alto da saída — relatório sem a configuração é número sem
 procedência, e neste projeto um build sem o que se queria medir já produziu duas
 corridas "estáveis" que eram outra coisa.

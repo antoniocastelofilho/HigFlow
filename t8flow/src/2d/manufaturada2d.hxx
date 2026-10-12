@@ -7,6 +7,13 @@
 // aqui carrega as suas derivadas, e nao ha' diferenciacao automatica: derivada
 // numerica de `f` reintroduziria no oraculo o erro que ele existe para medir.
 //
+// `lap_f` EXISTE POR CAUSA DO ESQUEMA COMPACTO.  O esquema de quarta ordem de
+// Mehrstellen nao tem `f` no lado direito, e sim `f + (h^2/12) lap(f)` -- o termo
+// de correcao e' o que leva o esquema de nove pontos de segunda para quarta ordem.
+// Logo a manufatura precisa de `lap(f)` tambem EXATO, derivado a mao: aproxima-lo
+// por diferencas finitas introduziria no oraculo um erro da mesma ordem do que ele
+// mede.
+//
 // COMO AS SOLUCOES FORAM ESCOLHIDAS, e cada uma responde a uma pergunta:
 //
 //   grau1   lap = 0.  Qualquer esquema consistente acerta; serve de piso -- se ela
@@ -21,6 +28,14 @@
 //           e nao 2 -- o fechamento de tres pontos e' melhor do que o minimo que
 //           se exigiria dele.  Serve para o contraste nao ser confundido com
 //           defeito.
+//   grau4   para o esquema COMPACTO.  O de nove pontos com a correcao `h^2/12` tem
+//           erro proporcional a derivadas de SEXTA ordem, logo e' exato ate' grau
+//           5 -- e o grau 4 e' o caso em que o esquema de segunda ordem JA' falha e
+//           o compacto ainda acerta.  E' o par que separa os dois esquemas.
+//   grau6   o primeiro grau em que o compacto TAMBEM erra, porque as derivadas de
+//           sexta ordem deixam de ser nulas.  Serve para a ordem 4 ser mensuravel
+//           num polinomio, e para o "exato" do grau 4 nao ser lido como "exato
+//           sempre".
 //   trig    nao-polinomial.  E' a solucao para MEDIR ORDEM DE CONVERGENCIA: com
 //           polinomio exato nao ha' taxa para medir, porque o erro ja' e' zero.
 //
@@ -46,6 +61,7 @@ struct Manufaturada {
   std::function<double(const Ponto2 &)> dudx;
   std::function<double(const Ponto2 &)> dudy;
   std::function<double(const Ponto2 &)> f;      //!< lap(u), derivado a mao
+  std::function<double(const Ponto2 &)> lap_f;  //!< lap(f), tambem a mao
   int grau = -1;                                //!< -1 para nao-polinomial
 
   //! `du/dn` no ponto, dada a normal exterior -- o dado de Neumann.

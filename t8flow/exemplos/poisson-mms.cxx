@@ -122,6 +122,7 @@ int main(int argc, char **argv)
   std::string fech = "3";
   double tol = 1e-14;
   double fracao = 0.0;          // 0 = malha uniforme
+  std::string esq = "fluxo2";
   unsigned long semente = 2026;
 
   for (int i = 1; i < argc; i++) {
@@ -133,10 +134,15 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--tol=", 6)) tol = std::atof(a + 6);
     else if (!std::strncmp(a, "--aleatorio=", 12)) fracao = std::atof(a + 12);
     else if (!std::strncmp(a, "--semente=", 10)) semente = std::strtoul(a + 10, nullptr, 10);
+    else if (!std::strncmp(a, "--esquema=", 10)) esq = a + 10;
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       std::printf("uso: poisson-mms [--solucao=N] [--contorno=dirichlet|misto]\n"
                   "                 [--niveis=3,4,5] [--fechamento=3|2] [--tol=1e-14]\n"
-                  "                 [--aleatorio=FRACAO] [--semente=N]\n\n"
+                  "                 [--aleatorio=FRACAO] [--semente=N]\n"
+                  "                 [--esquema=fluxo2|compacto4|lele4]\n\n"
+                  "  --esquema      fluxo2    balanco de fluxos, 2a ordem, 5 pontos\n"
+                  "                 compacto4 Mehrstellen, 4a ordem, 9 pontos (usa lap f)\n"
+                  "                 lele4     compacto de Lele, 4a ordem, 9 pontos (usa f)\n\n"
                   "  --aleatorio=F  refina aleatoriamente uma fracao F das celulas (quadtree\n"
                   "                 adaptada, com transicao 2:1).  0 = malha uniforme.\n\n"
                   "solucoes disponiveis:\n");
@@ -169,7 +175,9 @@ int main(int argc, char **argv)
   std::printf("=== Poisson 2D, solucoes manufaturadas ===\n");
   std::printf("solucao     %s  --  %s\n", sol.nome.c_str(), sol.descricao.c_str());
   std::printf("contorno    %s (%zu regioes)\n", modo_bc.c_str(), bc.num_regioes());
-  std::printf("fechamento  %s pontos na parede\n", fech == "2" ? "DOIS" : "tres");
+  std::printf("esquema     %s\n", esq.c_str());
+  std::printf("fechamento  %s pontos na parede (so' no esquema de fluxo)\n",
+              fech == "2" ? "DOIS" : "tres");
   std::printf("solver      tolerancia %.1e\n", tol);
   if (fracao > 0.0)
     std::printf("dominio     [0,1]x[0,1], quadtree ADAPTADA (fracao %.2f, semente %lu)\n\n",
@@ -191,6 +199,15 @@ int main(int argc, char **argv)
     Poisson po(m, bc);
     po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
     po.fechamento(fp);
+    if (esq == "compacto4") {
+      po.esquema(Esquema::Compacto4);
+      po.fonte_laplaciano([&sol](const Ponto2 &p) { return sol.lap_f(p); });
+    } else if (esq == "lele4") {
+      po.esquema(Esquema::Compacto4Lele);
+    } else if (esq != "fluxo2") {
+      throw std::invalid_argument("esquema: \"" + esq +
+                                  "\" nao existe.  Validos: fluxo2, compacto4, lele4");
+    }
     po.resolve(Motor::Petsc, tol);
 
     Linha l;
