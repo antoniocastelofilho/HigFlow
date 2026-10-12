@@ -179,6 +179,46 @@ NavierStokes::NavierStokes(const Malha &m, const DominioFacetas &fd,
     }
   }
 
+  // O POISSON DA PROJECAO NAO PODE SER TODO-NEUMANN.
+  //
+  // Com velocidade de Dirichlet em toda a volta -- a caixa com tampa
+  // deslizante e' o caso classico --, a condicao natural da pressao e' Neumann
+  // em todas as paredes, e ai' o operador tem a CONSTANTE no nucleo: a pressao
+  // fica definida a menos de constante e a matriz e' singular.
+  //
+  // A SAIDA NAO E' FIXAR UMA CELULA INTERIOR por conta propria, e sim exigir
+  // que o caso imponha Dirichlet em pelo menos um ponto de parede -- ali o
+  // valor tem significado fisico e, numa solucao manufaturada, e' conhecido.
+  // Fixar uma celula escolhida pelo solver poria a arbitrariedade dentro da
+  // biblioteca, onde quem le' o resultado nao a ve'.
+  //
+  // E recusar e' melhor que resolver: o PETSc com matriz singular ou nao
+  // converge ou converge para um elemento qualquer do subespaco, e o segundo
+  // caso da' numero.
+  p_tem_dirichlet_ = false;
+  for (long b = 0; b < m.num_blocos() && !p_tem_dirichlet_; b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b) && !p_tem_dirichlet_; i++) {
+      const Ponto2 c = m.centroide(b, i);
+      const Ponto2 hh = m.lados_da_folha(b, i);
+      for (int d = 0; d < 2 && !p_tem_dirichlet_; d++)
+        for (int s2 = -1; s2 <= 1; s2 += 2) {
+          Ponto2 xn = c, xp = c;
+          xn[d] += s2 * hh[d];
+          xp[d] += s2 * hh[d] / 2.0;
+          if (m.id_do_ponto(xn) >= 0) continue;      // face interior
+          if (bc_p.em(xp).tipo == TipoContorno::Dirichlet) {
+            p_tem_dirichlet_ = true;
+            break;
+          }
+        }
+    }
+  if (!p_tem_dirichlet_)
+    throw std::invalid_argument(
+        "NavierStokes: a pressao tem Neumann em TODA a parede, e o Poisson da "
+        "projecao fica singular -- a constante esta' no nucleo.  Imponha "
+        "Dirichlet em pelo menos um ponto de parede; numa solucao manufaturada "
+        "o valor ali e' conhecido.");
+
   u_.preenche(0.0);
   ustar_.preenche(0.0);
   p_.preenche(0.0);
@@ -488,7 +528,7 @@ void NavierStokes::preditor()
       // uma ordem na pressao.
       if (proj_ == Projecao::Incremental) rhs -= grad_pressao(d, x);
 
-      if (fonte_faceta_) rhs += fonte_faceta_(x, d);
+      if (fonte_faceta_) rhs += fonte_faceta_(x, d, t_bc_);
 
       ustar_.em(d, f) = u_.em(d, f) + dt_ * rhs;
     }
@@ -512,6 +552,7 @@ void NavierStokes::resolve_pressao()
   const long n = m_->num_folhas();
   const long p0 = m_->primeiro_id();
   t8flow::Solver s(t8flow::Motor::Petsc, static_cast<int>(p0), static_cast<std::size_t>(n), 5);
+  double soma_b = 0.0;
   s.tolerancia(1e-12);
 
   for (long b = 0; b < m_->num_blocos(); b++)
@@ -538,7 +579,17 @@ void NavierStokes::resolve_pressao()
           // mesma, e percorre-la duas vezes abriria espaco para as duas
           // contas discordarem na borda.
           const long fid = faceta_em(d, xp);
-          if (fid >= 0) rhs += s2 * ustar_.em(d, fid) * area / dt_;
+          if (fid >= 0) {
+            const double fluxo = s2 * ustar_.em(d, fid) * area / dt_;
+            rhs += fluxo;
+            // SO' O FLUXO entra na compatibilidade, e nao o resto do lado
+            // direito.  O termo da condicao de Dirichlet tambem vai para o
+            // lado direito e NAO e' divergencia: soma-lo aqui faria o
+            // diagnostico acusar incompatibilidade onde nao ha', e um
+            // oraculo que acusa sem motivo acaba ignorado -- junto com a
+            // acusacao verdadeira.
+            soma_b += fluxo;
+          }
 
           if (viz >= 0) {
             linha[viz] += area / hh[d];
@@ -600,6 +651,7 @@ void NavierStokes::resolve_pressao()
       s.lado_direito(static_cast<int>(id), rhs);
     }
 
+  soma_rhs_ = soma_b;
   s.monta();
   s.resolve();
   it_pressao_ = s.iteracoes();
@@ -647,6 +699,10 @@ void NavierStokes::passo()
     throw std::runtime_error("NavierStokes::passo: o passo de tempo nao foi "
                              "instalado -- chame passo_de_tempo primeiro");
 
+  // O RELOGIO DO CONTORNO: `t^n` para o preditor, `t^{n+1}` para a aplicacao
+  // final.  Ver `instante_do_contorno` no cabecalho.
+  t_bc_ = t_;
+  if (relogio_) *relogio_ = t_bc_;
   aplica_contorno_velocidade();
   preditor();
   // O CONTORNO VALE PARA `u*` TAMBEM: o Poisson usa a divergencia de `u*`, e
@@ -665,6 +721,8 @@ void NavierStokes::passo()
 
   resolve_pressao();
   projeta();
+  t_bc_ = t_ + dt_;
+  if (relogio_) *relogio_ = t_bc_;
   aplica_contorno_velocidade();
 
   t_ += dt_;

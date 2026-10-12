@@ -139,8 +139,15 @@ class NavierStokes {
   // parede, de modo que um perfil de entrada parabolico e um dependente do
   // tempo sao o mesmo mecanismo.
 
-  //! Forca de corpo na faceta: `f(x, d)` devolve a componente `d` em `x`.
-  void termo_fonte_faceta(std::function<double(const Ponto2 &, int)> f)
+  //! Forca de corpo na faceta: `f(x, d, t)` devolve a componente `d` em `x`
+  //! no instante `t`.
+  //
+  // O INSTANTE ENTRA NA ASSINATURA, e nao e' capturado de fora: o termo fonte
+  // de uma solucao manufaturada depende do tempo, e deixar quem chama
+  // capturar um `double` por referencia faria o valor correto depender de
+  // QUANDO alguem o atualizou -- acoplamento invisivel entre o exemplo e a
+  // ordem interna do passo.
+  void termo_fonte_faceta(std::function<double(const Ponto2 &, int, double)> f)
   {
     fonte_faceta_ = std::move(f);
   }
@@ -160,6 +167,24 @@ class NavierStokes {
   const CampoEscalar &pressao() const { return p_; }
 
   double instante() const { return t_; }
+
+  //! ONDE FICA O RELOGIO QUE AS CONDICOES DE CONTORNO LEEM.
+  //
+  // `DadoDeContorno` e' funcao so' do ponto -- e' assim no modulo de contorno,
+  // e mudar a assinatura atingiria o Poisson, os campos e tudo o mais.  Uma
+  // condicao dependente do tempo captura um `double` por referencia, e o
+  // PASSO o move: `t^n` antes do preditor, `t^{n+1}` antes da aplicacao final.
+  //
+  // QUEM DECLARA O RELOGIO E' O CASO, e nao o solver, por ordem de
+  // construcao: a condicao precisa do relogio e o solver precisa da condicao.
+  // Com o relogio do lado de fora, a lambda o captura antes de o solver
+  // existir.
+  //
+  // E QUEM O MOVE E' O SOLVER, e nao o caso.  Se o caso o atualizasse antes de
+  // chamar `passo`, a condicao valeria no instante errado em metade das
+  // aplicacoes -- e isso nao falha: degrada a ordem no tempo, que e' o tipo de
+  // erro que se atribui ao esquema.
+  void relogio_do_contorno(double *t) { relogio_ = t; }
   long passos_dados() const { return n_passos_; }
 
   // ---- o passo -------------------------------------------------------------
@@ -178,6 +203,18 @@ class NavierStokes {
   //! E' o criterio de estacionariedade, e e' dele que o caso do canal sabe
   //! quando parar.
   double residuo_estacionario() const { return resid_estac_; }
+
+  //! A SOMA DOS FLUXOS no ultimo Poisson -- a condicao de compatibilidade.
+  //
+  // E' so' o fluxo de `u*` pelo contorno das celulas; os termos de condicao de
+  // contorno tambem vao para o lado direito e NAO sao divergencia.
+  //
+  // Fisicamente e' "o que entra e' o que sai": numa caixa fechada tem de ser
+  // nula.  Com Dirichlet na pressao em
+  // algum lugar o sistema resolve mesmo incompativel, e a vizinhanca do
+  // Dirichlet ABSORVE a incompatibilidade -- o resultado sai plausivel.  Por
+  // isso o numero fica a' vista.
+  double soma_do_lado_direito() const { return soma_rhs_; }
 
   int iteracoes_da_pressao() const { return it_pressao_; }
   bool pressao_convergiu() const { return conv_pressao_; }
@@ -226,6 +263,10 @@ class NavierStokes {
   double re_ = 1.0;
   double dt_ = 0.0;
   double t_ = 0.0;
+  double t_bc_ = 0.0;
+  double *relogio_ = nullptr;
+  bool p_tem_dirichlet_ = false;
+  mutable double soma_rhs_ = 0.0;
   long n_passos_ = 0;
   double resid_estac_ = 0.0;
   int it_pressao_ = 0;
@@ -243,7 +284,7 @@ class NavierStokes {
   Tempo tempo_ = Tempo::EulerExplicito;
   Projecao proj_ = Projecao::Incremental;
   Convectivo conv_ = Convectivo::Cubista;
-  std::function<double(const Ponto2 &, int)> fonte_faceta_;
+  std::function<double(const Ponto2 &, int, double)> fonte_faceta_;
   std::function<double(const Ponto2 &)> fonte_celula_;
 };
 

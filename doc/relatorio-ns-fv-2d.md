@@ -218,6 +218,110 @@ restrição 2:1 das facetas, que é o próximo item de peso.
 
 ---
 
+## 6b. A caixa com tampa deslizante, por solução manufaturada
+
+O caso que o canal não dava: aqui as duas componentes variam nas duas direções
+e **o termo convectivo é exercitado**.
+
+### A solução, e por que é essa
+
+Construída por **função de corrente**, `u = ∂ψ/∂y`, `v = −∂ψ/∂x`, de modo que a
+divergência é nula *por construção* e não por cancelamento que alguém conferiu
+uma vez. Numa manufaturada incompressível essa é a propriedade que não pode
+falhar: se `div u ≠ 0`, a projeção tenta corrigir o que é a própria solução.
+
+```
+ψ(x,y,t) = f(t) G(x) H(y),   G = sin²(πx),   H = sin(πy) − ½sin(2πy)
+f(t) = sin(2πt)     (f(0) = 0: o repouso é condição inicial EXATA)
+p(x,y) = cos(πx) cos(πy)
+```
+
+**Trigonométrica, não polinomial**, de propósito: um polinômio de grau baixo
+pode ser reproduzido *exatamente* por um esquema de segunda ordem, e aí a ordem
+medida é a da exatidão acidental, não a do esquema.
+
+Cada raiz de `G` e `H` tem um propósito — `G(0)=G(1)=0` anula `u` nas laterais,
+`G'(0)=G'(1)=0` anula `v` nelas, `H(0)=H(1)=0` anula `v` no fundo e na tampa,
+`H'(0)=0` anula `u` no fundo, e `H'(1) = −2π ≠ 0` deixa `u` na tampa. Logo
+`u(x,1,t) = −2π f(t) sin²(πx)` e **só a tampa depende do tempo**.
+
+A pressão também não é livre: o método de projeção impõe `∂δp/∂n = 0` nas
+paredes de Neumann, e uma pressão manufaturada com derivada normal não nula ali
+seria incompatível com o próprio esquema. `cos(πx)cos(πy)` tem derivada normal
+nula nos quatro lados e média zero.
+
+### O Poisson fica singular, e o caso resolve com um ponto
+
+Com velocidade de Dirichlet nas quatro paredes, a condição natural da pressão é
+Neumann em todas, e a constante fica no núcleo do operador. O módulo **recusa**
+esse caso em vez de resolver — o PETSc com matriz singular converge para um
+elemento qualquer do subespaço, e isso dá número.
+
+A saída é Dirichlet em **um ponto de parede**, onde a manufaturada dá o valor. A
+região é `x < h` no fundo, para ser exatamente uma faceta em qualquer nível;
+uma faixa de largura fixa cobriria mais facetas a cada refino e o caso deixaria
+de ser o mesmo.
+
+### Resultados — CUBISTA, `dt = h²/8`, `T = 1/16`
+
+| nível | h | `u` | `v` | `p` | div. máx. | compat. |
+|---|---|---|---|---|---|---|
+| 3 | 0,125  | 9,9661e−02 | 4,8182e−02 | 1,6469e+00 | 1,3e−13 | 3,2e−14 |
+| 4 | 0,0625 | 2,7059e−02 | 1,2173e−02 | 4,4805e−01 | 2,1e−13 | — |
+| 5 | 0,03125| 7,0255e−03 | 3,0479e−03 | 1,1381e−01 | 4,8e−13 | — |
+
+| grandeza | 3→4 | 4→5 |
+|---|---|---|
+| `u` | 1,88 | 1,95 |
+| `v` | 1,99 | 2,00 |
+| `p` | 1,88 | 1,98 |
+
+**Segunda ordem nas três**, incluindo a pressão. A divergência é zero de
+máquina e a compatibilidade — a soma dos fluxos, que numa caixa fechada tem de
+ser nula — dá 3,2e−14.
+
+### O caso discrimina, e o canal não discriminava
+
+Nível 4, `T = 1/16`, variando só o esquema convectivo:
+
+| esquema | `u` | `v` | `p` |
+|---|---|---|---|
+| central  | 2,7282e−02 | 1,1275e−02 | 4,2065e−01 |
+| **upwind1** | **5,4162e−02** | **6,3651e−02** | **2,3733e+00** |
+| cubista  | 2,7059e−02 | 1,2173e−02 | 4,4805e−01 |
+| quick    | 2,7648e−02 | 1,2165e−02 | 4,4223e−01 |
+
+O de primeira ordem é 2× pior em `u`, 5× em `v` e 5× em `p`; os três de segunda
+concordam entre si. **É a verificação de que o termo convectivo está sendo
+exercitado** — no canal os quatro davam o mesmo número.
+
+### Duas coisas que a medida ensinou
+
+**O upwind de primeira ordem estagna, e `p` até cresce com o refino.** Em
+`T = 1/16`: `u` 1,05e−01 → 5,42e−02 → 4,64e−02 (ordens 0,95 e 0,22) e `p` 2,38
+→ 2,37 → 2,65. Erro que cresce com refino é bandeira vermelha, e a causa foi
+medida: é **acúmulo no tempo**. Em `T = 1/64` o mesmo upwind converge
+normalmente (`u` 1,66e−02 → 5,58e−03 → 1,76e−03). A difusão numérica de
+primeira ordem amortece a solução progressivamente, e o ganho do refino é
+compensado pelo erro acumulado.
+
+**O tempo de simulação decide se o caso discrimina.** Em `T = 1/64` upwind e
+CUBISTA dão praticamente o mesmo (1,66e−02 contra 1,69e−02 em `u`); em
+`T = 1/16` separam por 6× em `u` e 23× em `p`. Uma corrida curta teria
+concluído *"todos os esquemas concordam"* — exatamente a cegueira que o canal
+tinha, por outro motivo.
+
+### E uma armadilha que virou recusa
+
+`T` tem de ser múltiplo inteiro de `dt`. Com `dt ~ h²`, um `T` qualquer dá
+número de passos fracionário e **cada nível para num instante diferente**; a
+solução exata depende do tempo, de modo que a comparação mistura erro de
+discretização com diferença de instante, e a ordem medida sai errada sem que
+nada acuse. Medido: com `T = 0,05` o nível 3 parava em 0,050781. O exemplo
+agora recusa e diz qual `T` serve.
+
+---
+
 ## 7. Em aberto
 
 **O Poisson não converge em `dt = 5·10⁻⁴`, nível 4, incremental.** Para no passo
