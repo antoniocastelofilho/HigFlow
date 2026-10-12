@@ -337,6 +337,33 @@ class Malha {
   int processo() const { return rank_; }
   sc_MPI_Comm comunicador() const { return comm_; }
 
+  //! O DESBALANCEAMENTO da particao: `folhas_do_maior / folhas_do_menor`.
+  //
+  // E' a medida que falta para decidir se vale reparticionar, e ela e' coletiva:
+  // um processo sozinho nao sabe se esta' sobrecarregado.  Vale 1 quando a
+  // divisao e' perfeita, e 1 tambem em np=1 -- onde a pergunta nao se poe.
+  //
+  // POR QUE ISTO EXISTE em vez de uma reparticao automatica: o t8code JA' tenta
+  // balancear.  A documentacao de `t8_forest_set_balance` diz que as florestas
+  // intermediarias sao reparticionadas e que "the resulting forest is
+  // load-balanced per default", e este codigo o chama com `no_repartition = 0`.
+  //
+  // So' que as medidas nao fecham:
+  //
+  //   refino em CAIXA, nivel 6, np 2/4/8    desbalanceamento 0% (perfeito)
+  //   refino ALEATORIO, nivel 6, np 8       11%
+  //   `bench/escalabilidade`, outra config  2,8x
+  //
+  // As tres sao do mesmo `set_balance(..., 0)`.  A diferenca nao esta'
+  // explicada, e ACRESCENTAR UM SEGUNDO AUTOMATICO em cima de um primeiro que
+  // nao se entende daria dois caminhos reparticionando -- redundante num caso,
+  // insuficiente noutro.  Medir e decidir explicitamente e' o unico que nao
+  // finge entender.
+  //
+  // O relogio de parede e' o do rank mais lento, logo e' o MAXIMO que importa, e
+  // nao a media: e' por isso que a razao e' max/min e nao max/media.
+  double desbalanceamento() const;
+
   //! REPARTICIONA pela curva de preenchimento, refazendo a franja.
   //
   // O refino local desbalanceia: medido 2,8x nesta maquina.  Reparticionar
@@ -375,6 +402,28 @@ class Malha {
   std::vector<double> lad_;     // 2 por folha
   std::vector<int> niv_;
   std::unordered_map<long, long> idx_por_id_;
+
+  //! INDICE ESPACIAL: (nivel, i, j) da celula -> indice de floresta.
+  //
+  // EXISTE PORQUE `id_do_ponto` ERA O(n) E A MONTAGEM O CHAMA O(n) VEZES, o que
+  // fazia a montagem do esquema MLS ser QUADRATICA -- num sistema cujo objetivo
+  // declarado e' escalonamento.
+  //
+  // E o sintoma apareceu primeiro como mentira sobre o paralelo: a montagem em
+  // np=1 levava 8,74 s contra 0,285 s em np=8, ganho de 30,7x em oito processos.
+  // Montagem paraleliza SEM comunicacao, logo o teto e' 8x; 30,7x so' e' possivel
+  // num algoritmo quadratico, onde dividir `n` por 8 da' 64x.  Por tres rodadas
+  // de investigacao isso foi atribuido a cache e a precondicionador.
+  //
+  // Com o indice a consulta e' O(niveis) -- para cada nivel presente na malha,
+  // quantiza o ponto e procura.  Poucos niveis, e a montagem volta a ser linear.
+  std::unordered_map<unsigned long long, long> ponto_por_celula_;
+
+  //! Niveis das folhas que ESTE processo conhece.  Sem reducao, de proposito:
+  //! `id_do_ponto` e' chamada de caminhos que divergem entre os processos, e uma
+  //! coletiva ali da' `MPI_ERR_TRUNCATE`.
+  int nivel_local_min_ = -1;
+  int nivel_local_max_ = -1;
 
   //! Vizinhos de face por indice: 4 faces, ate' 2 vizinhos cada (razao 2:1).
   //

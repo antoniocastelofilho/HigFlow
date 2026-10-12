@@ -84,11 +84,30 @@ void relata(const char *etapa, int nivel, int camadas, double fracao, long globa
   }
 }
 
-//! Constroi a malha do caso: uniforme ou com refino aleatorio.
+bool g_caixa = false;
+
+//! Constroi a malha do caso: uniforme, refino ALEATORIO, ou refino em CAIXA.
+//
+// A DISTINCAO ENTRE OS DOIS REFINOS DECIDE A QUESTAO DO PARTICIONAMENTO, e
+// confundi-los produziu um numero errado neste projeto.
+//
+//   ALEATORIO espalha: 40% das celulas refinadas, distribuidas por todo o
+//   dominio.  A curva de preenchimento continua dividindo bem, e o
+//   desbalanceamento fica em 1 a 11% -- medido.
+//
+//   EM CAIXA concentra: todas as celulas refinadas num canto.  A particao de
+//   ANTES do refino nao sabe disso, e o rank que ficou com a caixa recebe todas
+//   as filhas.  E' o padrao REAL de AMR -- refina-se onde ha' interface ou
+//   gradiente, e isso e' sempre localizado.
+//
+// A medida de 2,8x de desbalanceamento que o projeto registra veio da CAIXA, e
+// atribui-la ao aleatorio seria afirmar que repartir importa onde ele nao
+// importa.
 Malha *faz_malha(int nivel, double fracao)
 {
   Malha *m = new Malha({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_WORLD);
-  if (fracao > 0.0) m->refina_aleatorio(fracao, 2026, nivel + 1);
+  if (g_caixa) m->refina_caixa({0.0, 0.0}, {0.25, 0.25}, nivel + 2);
+  else if (fracao > 0.0) m->refina_aleatorio(fracao, 2026, nivel + 1);
   return m;
 }
 
@@ -113,6 +132,7 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--fracao=", 9)) fracao = std::atof(a + 9);
     else if (!std::strncmp(a, "--reps=", 7)) reps = std::atoi(a + 7);
     else if (!std::strcmp(a, "--sem-poisson")) com_poisson = false;
+    else if (!std::strcmp(a, "--caixa")) g_caixa = true;
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       if (g_rank == 0)
         std::printf("uso: mpirun -np N ./bench/franja [--nivel=L] [--camadas=K]\n"
@@ -123,8 +143,9 @@ int main(int argc, char **argv)
   if (reps < 2) reps = 2;   // uma e' descartada; precisa de pelo menos duas
 
   if (g_rank == 0) {
-    std::printf("config nivel=%d np=%d camadas_max=%d fracao=%.2f reps=%d\n",
-                nivel, g_np, camadas_max, fracao, reps);
+    std::printf("config nivel=%d np=%d camadas_max=%d fracao=%.2f reps=%d refino=%s\n",
+                nivel, g_np, camadas_max, fracao, reps,
+                g_caixa ? "CAIXA (concentrado)" : (fracao > 0.0 ? "aleatorio" : "nenhum"));
     std::fflush(stdout);
   }
 
@@ -213,6 +234,7 @@ int main(int argc, char **argv)
       double melhor = 1e300;
       long glob = 0, loc = 0, fr = 0;
       int iters = 0;
+      double t_monta = 0.0, t_solve = 0.0;
       for (int r = 0; r < reps; r++) {
         Malha *m = faz_malha(nivel, fracao);
         ContornoPorRegiao bc;
@@ -237,6 +259,11 @@ int main(int argc, char **argv)
         //
         // Sem este numero, "29,8x em np=8" nao e' interpretavel.
         iters = po.iteracoes();
+        // OS DOIS TEMPOS SEPARADOS: a montagem paraleliza sem comunicacao, a
+        // resolucao paraleliza mal.  Somados, escondem qual das duas explica o
+        // ganho superlinear.
+        t_monta = po.tempo_de_montagem();
+        t_solve = po.tempo_de_resolucao();
 
         glob = m->num_folhas_globais();
         loc = m->num_folhas();
@@ -246,7 +273,10 @@ int main(int argc, char **argv)
       }
       relata(c.nome, nivel, 0, fracao, glob, loc, fr, 0, melhor);
       if (g_rank == 0) {
-        std::printf("iteracoes %s nivel=%d np=%d its=%d\n", c.nome, nivel, g_np, iters);
+        std::printf("iteracoes %s nivel=%d np=%d its=%d monta=%.6f solve=%.6f "
+                    "fracao_monta=%.1f%%\n", c.nome, nivel, g_np, iters,
+                    t_monta, t_solve,
+                    100.0 * t_monta / ((t_monta + t_solve) > 0 ? (t_monta + t_solve) : 1.0));
         std::fflush(stdout);
       }
     }

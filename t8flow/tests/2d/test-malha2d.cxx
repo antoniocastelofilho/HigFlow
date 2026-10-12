@@ -279,5 +279,43 @@ int main(int argc, char **argv)
     T_CHECK_MSG(lancou, "faces com sobreposicao parcial passaram sem reclamar");
   }
 
+  t_case("arvore_de_uma_celula_e_recusada");
+  {
+    // UMA CELULA NAO TEM INTERIOR: as quatro facetas dela sao de fronteira, e
+    // nenhum estencil centrado nela acha vizinho dentro do proprio bloco.  O
+    // fechamento de contorno passaria a decidir o valor sozinho.
+    //
+    // O levantamento do t8code registra isto como defeito medido no sistema
+    // antecessor, com o preco: "so' apareceu como escoamento divergindo numa
+    // simulacao de meia hora".  Recusar custa uma excecao imediata.
+    bool lancou = false;
+    std::string msg;
+    try {
+      Malha m({{{0.0, 0.0}, {1.0, 1.0}, 0}}, sc_MPI_COMM_SELF);
+    } catch (const std::invalid_argument &e) {
+      lancou = true;
+      msg = e.what();
+    }
+    T_CHECK_MSG(lancou, "bloco de nivel 0 -- uma celula so' -- passou sem reclamar");
+    T_CHECK_MSG(msg.find("interior") != std::string::npos,
+                "a mensagem nao explica POR QUE uma celula nao serve: \"%s\"",
+                msg.c_str());
+
+    // E O CONTRASTE: nivel 1 passa.  Quatro celulas tambem nao tem interior em
+    // 2D, mas tem VIZINHANCA -- cada uma tem dois vizinhos dentro do bloco --, e
+    // o suporte cresce por anéis.  Sem este par, a guarda poderia estar recusando
+    // tudo e o caso passaria.
+    bool ok = true;
+    try {
+      Malha m({{{0.0, 0.0}, {1.0, 1.0}, 1}}, sc_MPI_COMM_SELF);
+      T_CHECK_MSG(m.num_folhas() == 4, "nivel 1 devia dar 4 folhas, deu %ld",
+                  m.num_folhas());
+    } catch (const std::exception &e) {
+      ok = false;
+      printf("  (nivel 1 recusado: %s)\n", e.what());
+    }
+    T_CHECK_MSG(ok, "nivel 1 foi recusado; a guarda esta' recusando demais");
+  }
+
   return t_end();
 }

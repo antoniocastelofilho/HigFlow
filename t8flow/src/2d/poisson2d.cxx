@@ -410,6 +410,7 @@ void Poisson::monta_linha(long b, long i, const void *indice,
 void Poisson::resolve(Motor motor, double tol, int max_it)
 {
   if (!f_) throw std::invalid_argument("Poisson::resolve: termo de fonte nao instalado");
+  const double t_ini = sc_MPI_Wtime();
   const std::vector<std::pair<long, long>> idx = monta_indice(*m_);
 
   // O MLS com ordem 3 e suporte largo da' linhas MUITO mais cheias: ~40 pontos de
@@ -492,8 +493,15 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
     ajustes_mls_ = ce->mls().ajustes();
     rebaixos_mls_ = ce->mls().rebaixamentos();
     truncados_franja_ = reduz_soma(static_cast<double>(ce->truncados_pela_franja()));
+    // A FRONTEIRA ENTRE OS DOIS TEMPOS E' O `monta()`: ele fecha a matriz no
+    // solver, e tudo antes dele e' montagem.  Nao ha' barreira aqui de proposito
+    // -- uma barreira mudaria o que se mede, atribuindo a' montagem a espera de
+    // quem chegou tarde; para separar a espera do trabalho, o lugar e' o arreio
+    // de medida, nao o operador.
     s.monta();
+    t_monta_ = sc_MPI_Wtime() - t_ini;
     s.resolve();
+    t_resolve_ = sc_MPI_Wtime() - t_ini - t_monta_;
     convergiu_ = s.convergiu();
     iteracoes_ = s.iteracoes();
     residuo_ = s.residuo();
@@ -517,8 +525,15 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
         s.linha(static_cast<int>(id), cols, vals);
         s.lado_direito(static_cast<int>(id), rhs);
       }
+    // A FRONTEIRA ENTRE OS DOIS TEMPOS E' O `monta()`: ele fecha a matriz no
+    // solver, e tudo antes dele e' montagem.  Nao ha' barreira aqui de proposito
+    // -- uma barreira mudaria o que se mede, atribuindo a' montagem a espera de
+    // quem chegou tarde; para separar a espera do trabalho, o lugar e' o arreio
+    // de medida, nao o operador.
     s.monta();
+    t_monta_ = sc_MPI_Wtime() - t_ini;
     s.resolve();
+    t_resolve_ = sc_MPI_Wtime() - t_ini - t_monta_;
     convergiu_ = s.convergiu();
     iteracoes_ = s.iteracoes();
     residuo_ = s.residuo();
@@ -546,7 +561,9 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
     }
 
   s.monta();
+  t_monta_ = sc_MPI_Wtime() - t_ini;
   s.resolve();
+  t_resolve_ = sc_MPI_Wtime() - t_ini - t_monta_;
 
   convergiu_ = s.convergiu();
   iteracoes_ = s.iteracoes();

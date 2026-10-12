@@ -57,7 +57,11 @@ LADOS = {
         ("test-refino2d", (1,)),
         ("test-numeracao2d", (1,)),
         ("test-campos2d", (1,)),
-        ("test-lote2d", (1,)),
+        # EM np>1 TAMBEM: o que se verifica ali e' a placa com varios clientes
+        # -- tres processos abrindo o mesmo dispositivo tem de dar a mesma
+        # resposta, porque a contencao atrasa e nao altera.  Ver a clausula Y4,
+        # que tambem diz o que isto NAO verifica.
+        ("test-lote2d", (1, 3)),
         ("test-estencil2d", (1,)),
         ("test-contorno2d", (1,)),
         ("test-discretizacao2d", (1,)),

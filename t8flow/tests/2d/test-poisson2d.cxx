@@ -785,5 +785,54 @@ int main(int argc, char **argv)
            "DF ordem %.2f erro %.3e)\n", ovf, vf5.e_inf, odf, df5.e_inf);
   }
 
+  t_case("a_montagem_cresce_linearmente_com_as_celulas");
+  {
+    // AFIRMAR QUE E' LINEAR E' NECESSARIO PORQUE ELA JA' FOI QUADRATICA, num
+    // sistema cujo objetivo declarado e' escalonamento.  `id_do_ponto` varria
+    // todas as folhas e a montagem do MLS a chamava uma vez por ponto de
+    // quadratura -- oito por celula.
+    //
+    // E O SINTOMA APARECEU COMO MENTIRA SOBRE O PARALELO: 8,74 s em np=1 contra
+    // 0,285 s em np=8, ganho de 30,7x em oito processos.  Montagem paraleliza sem
+    // comunicacao, logo o teto e' 8x; 30,7x so' e' possivel num algoritmo
+    // quadratico, onde dividir `n` por 8 da' 64x.  Tres rodadas de investigacao
+    // o atribuiram a cache e a precondicionador antes de alguem separar os
+    // cronometros.
+    //
+    // O ORACULO E' A RAZAO ENTRE DOIS NIVEIS: quadruplicar as celulas tem de
+    // quadruplicar o tempo, nao multiplica-lo por dezesseis.
+    const Manufaturada &sol = manufaturada("grau2");
+    double t[2] = {0.0, 0.0};
+    for (int k = 0; k < 2; k++) {
+      const int nivel = 4 + k;
+      double melhor = 1e300;
+      // TRES REPETICOES COM O MENOR VALENDO, e a primeira descartada: a maquina
+      // tem vizinhos, e a primeira passada toca memoria fria.
+      for (int r = 0; r < 3; r++) {
+        Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_SELF);
+        Poisson po(m, paredes(sol, Paredes::TodasDirichlet));
+        po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
+        po.esquema(Esquema::MlsGauss);
+        po.mls(3, 60);
+        po.resolve(Motor::Petsc, 1e-8);
+        if (r > 0 && po.tempo_de_montagem() < melhor) melhor = po.tempo_de_montagem();
+      }
+      t[k] = melhor;
+    }
+
+    // Quatro vezes mais celulas.  Linear daria razao ~4; quadratico, ~16.  O
+    // limite de 9 fica na faixa vazia entre os dois regimes -- longe o bastante
+    // de 4 para tolerar o ruido da maquina, e longe de 16 para nao deixar passar.
+    const double razao = (t[0] > 0.0) ? t[1] / t[0] : 0.0;
+    T_CHECK_MSG(t[0] > 0.0, "o cronometro de montagem nao mediu nada");
+    T_CHECK_MSG(razao < 9.0,
+                "quadruplicar as celulas multiplicou a montagem por %.1f (%.4f -> "
+                "%.4f s).  Linear daria ~4; isto e' quadratico, e um algoritmo "
+                "quadratico na montagem derruba o escalonamento do sistema",
+                razao, t[0], t[1]);
+    printf("  (montagem: %.4f s em 256 celulas, %.4f s em 1024 -- razao %.1f)\n",
+           t[0], t[1], razao);
+  }
+
   return t_end();
 }

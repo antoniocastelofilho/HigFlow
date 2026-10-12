@@ -258,6 +258,22 @@ class Poisson {
   double residuo() const { return residuo_; }
 
   //! Erro contra a solucao exata, na norma do MAXIMO.
+  //! Os dois tempos de `resolve`, SEPARADOS: montar a matriz e resolve-la.
+  //
+  // SEPARADOS PORQUE ELES ESCALAM DE FORMAS DIFERENTES, e somados escondem isso.
+  // A montagem paraleliza SEM COMUNICACAO NENHUMA -- cada processo monta as suas
+  // linhas --, e a resolucao paraleliza mal.  Se a montagem domina em np=1, o
+  // tempo total pode PARECER superlinear sem que nada seja superlinear.
+  //
+  // E' a ultima hipotese de pe' para o ganho de 39x por iteracao medido de np=1
+  // para np=8 no esquema MLS: o precondicionador foi refutado (as iteracoes
+  // AUMENTARAM 63%) e a hipotese de cache nao se sustentou (a matriz tem 19,6
+  // nao-zeros por linha, 3,85 MB no nivel 7, que cabe no L3 de 16 MiB).
+  //
+  // Em segundos; valem zero antes do primeiro `resolve`.
+  double tempo_de_montagem() const { return t_monta_; }
+  double tempo_de_resolucao() const { return t_resolve_; }
+
   //! Quantos ajustes MLS tiveram de REBAIXAR a ordem na ultima montagem.
   //
   // Zero e' o que se quer afirmar: um esquema que diz "ordem 4" com rebaixamento
@@ -307,6 +323,8 @@ class Poisson {
   mutable long rebaixos_mls_ = 0;
   mutable long ajustes_mls_ = 0;
   mutable double truncados_franja_ = 0.0;
+  double t_monta_ = 0.0;
+  double t_resolve_ = 0.0;
   std::function<double(const Ponto2 &)> lap_f_;
 
   //! Monta a linha de uma celula.  `indice` e' o mapa id -> (bloco, folha), opaco

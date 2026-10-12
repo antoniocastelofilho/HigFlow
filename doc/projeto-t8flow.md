@@ -1403,7 +1403,126 @@ sistema já implementa — escalares e tensores no centro, vetores nas facetas. 
 diferenças finitas cabe o deslocado **ou** o colocalizado com estabilização, e os
 dois levam a solvers bem diferentes. O t8SolverNS-FD terá de escolher.
 
-## 17. O que vem depois
+## 17. A montagem quadrática, o particionamento, e as guardas
+
+Feito em **12/10/2026**, fechando três pendências e descobrindo um defeito que
+nenhuma delas previa.
+
+### 17.1 A montagem era O(n²), e o sintoma se disfarçou de paralelismo
+
+A investigação do ganho superlinear (seção 15.6) tinha refutado o
+precondicionador e a hipótese de cache, e restava separar os cronômetros de
+montagem e resolução. Separados:
+
+| np | montagem | resolução | % montagem |
+|---|---|---|---|
+| 1 | 8,74 s | 0,278 s | **96,9%** |
+| 8 | 0,285 s | 0,050 s | 85,0% |
+
+**A montagem escalava 30,7× em oito processos.** Montagem paraleliza *sem
+comunicação nenhuma*, então o teto é 8× — e 30,7× só é possível num algoritmo
+quadrático, onde dividir *n* por 8 dá 64×.
+
+E era: `id_do_ponto` varria todas as folhas, O(n), e a montagem do esquema MLS a
+chama uma vez por ponto de quadratura — oito por célula. **O(n²), num sistema
+cujo objetivo declarado é escalonamento.**
+
+O conserto é um **índice espacial** `(bloco, nível, i, j) → índice de floresta`,
+construído junto com a franja; a consulta passa a ser O(níveis).
+
+| | antes | depois |
+|---|---|---|
+| montagem, nível 7, np=1 | 8,74 s | **0,679 s** (12,9×) |
+| ganho de np=1 para np=8 | 30,7× | **5,2×** |
+
+O superlinear desapareceu. A cláusula Y1 afirma a linearidade pela razão entre
+dois níveis: quadruplicar as células tem de quadruplicar o tempo, não
+multiplicá-lo por dezesseis.
+
+**A lição que vale além deste caso:** um número de escalabilidade *bom demais* é
+um sintoma, não um resultado. Três rodadas de investigação procuraram no lugar
+errado — cache, precondicionador — porque ninguém perguntou se o ganho era
+sequer *possível* para um algoritmo linear.
+
+### 17.2 Dois defeitos que o conserto introduziu, e o que os pegou
+
+O índice espacial, escrito de uma vez, trouxe dois erros. Ambos foram pegos por
+oráculos que já existiam — e é esse o argumento a favor deles.
+
+**A chave sem o bloco.** As coordenadas `(i, j)` são *relativas ao bloco*, logo a
+célula `(0,0)` do bloco 1 e a do bloco 0 colidiam. O arreio de numeração reportou
+na primeira execução: `bloco 1 folha 0: id 16, busca devolveu 3`.
+
+**Coletiva em caminho divergente.** `id_do_ponto` passou a chamar
+`nivel_minimo()`, que faz `Allreduce`, de dentro de laços locais que divergem
+entre processos — `MPI_ERR_TRUNCATE`. É o **mesmo** modo de falha que os testes
+deste projeto tiveram ("redução coletiva dentro de `if (rank == 0)`"), agora
+dentro da biblioteca, que é pior: quem chama não tem como saber. O conserto usa
+os níveis **locais**, que são também os corretos — a busca percorre o que este
+processo conhece.
+
+### 17.3 O particionamento: explícito, e por que
+
+A recomendação é **explícito**, e a razão mudou durante a medida. A primeira era
+"automático esconde o custo". A real é que **já existe um mecanismo automático,
+parcial, cujo comportamento não se consegue prever**:
+
+| fonte | desbalanceamento após adaptar |
+|---|---|
+| doc do t8code | "load-balanced per default" |
+| t8Flow, caixa, nível 6, np 2/4/8 | **1,00** (perfeito) |
+| t8Flow, aleatório, nível 6, np 8 | 1,11 |
+| `bench/escalabilidade`, outra config | **2,8** |
+
+As quatro são do mesmo `set_balance(…, 0)`. A diferença não está explicada, e
+acrescentar um segundo automático em cima de um primeiro que não se entende daria
+dois caminhos reparticionando — redundante num caso, insuficiente noutro.
+
+O que faltava não era a decisão, era **a medida**: `Malha::desbalanceamento()`,
+a razão `max/min` de folhas por processo. Sem ela quem adapta decide às cegas nos
+dois regimes. A cláusula Y2 exige que ela responda e que `reparticiona()` leve o
+valor ao teto da divisão inteira — medido, 1,0412 → 1,0013 em np=3.
+
+**Uma distinção que a medida obrigou a fazer:** refino *aleatório* espalha e
+desbalanceia 1 a 11%; refino *em caixa* concentra, e é o padrão real de AMR.
+Atribuir ao primeiro o número do segundo afirmaria que repartir importa onde ele
+não importa.
+
+### 17.4 A guarda contra árvore de uma célula
+
+Uma árvore de uma célula **não tem interior** — as quatro facetas dela são de
+fronteira, e nenhum estêncil centrado nela encontra vizinho dentro do próprio
+bloco. O levantamento do t8code registra isto como defeito medido no sistema
+antecessor, com o preço: *"só apareceu como escoamento divergindo numa simulação
+de meia hora"*.
+
+Agora é recusado na construção, com a explicação na mensagem. A cláusula Y3
+afirma a recusa **e o contraste**: nível 1 (quatro células) passa — sem esse par,
+a guarda poderia estar recusando tudo e o caso passaria.
+
+### 17.5 O lote em GPU com vários processos
+
+Três processos abrindo o mesmo dispositivo dão a **mesma** diferença contra a CPU
+(8,812e-11): a contenção atrasa, não altera. É o que a cláusula Y4 afirma.
+
+**O que ela não afirma, e dizê-lo faz parte dela:** o lote não foi exercitado
+sobre malha **particionada**. O arreio usa `sc_MPI_COMM_SELF`, logo cada processo
+resolve o problema inteiro — o que verifica a placa com vários clientes, e não o
+lote com suporte vindo da franja. Hoje o Poisson não usa o lote; quando usar, o
+suporte virá da franja e a cláusula precisará de um caso novo.
+
+### 17.6 O estado das pendências do paralelo
+
+| pendência (seção 15.7) | estado |
+|---|---|
+| custo das rodadas de troca | medido (15.6), e trouxe duas otimizações |
+| repartição automática ou explícita | **explícita**, com a medida exposta (17.3) |
+| guarda contra árvore de uma célula | feita (17.4) |
+| lote em GPU em paralelo | verificado para contenção (17.5) |
+| ganho superlinear | **explicado**: montagem O(n²) (17.1) |
+
+## 18. O que vem depois
+
 
 
 ### Itens herdados da lista anterior

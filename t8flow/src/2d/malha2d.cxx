@@ -177,6 +177,27 @@ Malha::Malha(const std::vector<Bloco> &blocos, sc_MPI_Comm comm)
     if (k.nivel < 0)
       throw std::invalid_argument("Malha: bloco " + std::to_string(b) +
                                   " com nivel negativo (" + std::to_string(k.nivel) + ")");
+
+    // ARVORE DE UMA CELULA E' RECUSADA, e a razao e' geometrica: uma arvore de
+    // uma celula NAO TEM INTERIOR -- todas as quatro facetas dela sao de
+    // fronteira.  Nenhum estencil centrado nela encontra vizinho dentro do
+    // proprio bloco, e o fechamento de contorno passa a decidir o valor sozinho.
+    //
+    // O LEVANTAMENTO DO T8CODE REGISTRA ISTO COMO DEFEITO MEDIDO no sistema
+    // antecessor, e com o preco: ele "so' apareceu como escoamento divergindo
+    // numa simulacao de meia hora".  Recusar na construcao custa uma excecao
+    // imediata; aceitar custa a meia hora, e depois a busca.
+    //
+    // O limite e' `nivel >= 1`, que da' 2x2 = quatro celulas.  Quatro tambem nao
+    // tem interior em 2D, mas tem VIZINHANCA: cada celula tem dois vizinhos
+    // dentro do bloco, e o suporte cresce por anéis entre blocos vizinhos.  Uma
+    // celula nao tem nem isso.
+    if (k.nivel < 1)
+      throw std::invalid_argument(
+          "Malha: bloco " + std::to_string(b) + " com nivel " +
+          std::to_string(k.nivel) + " tem UMA celula so', e uma celula nao tem "
+          "interior -- as quatro facetas dela sao de fronteira, e nenhum estencil "
+          "centrado nela acha vizinho no proprio bloco.  Use nivel >= 1");
   }
 
   // SOBREPOSICAO EM AREA e' recusada.  O HiGFlow assume dominios que nao se
@@ -584,6 +605,25 @@ void Malha::exige_camadas(int k)
 
 namespace {
 
+//! A chave do indice espacial: `(bloco, nivel, i, j)` numa palavra.
+//
+// O BLOCO ENTRA NA CHAVE, e esquece-lo foi um defeito que a suite pegou na
+// PRIMEIRA execucao: as coordenadas `(i, j)` sao RELATIVAS ao bloco, logo a
+// celula `(0,0)` do bloco 1 e a `(0,0)` do bloco 0 tem a mesma chave sem ele --
+// colidem, e a ultima inserida ganha.  O arreio de numeracao reportou
+// "bloco 1 folha 0: id 16, busca devolveu 3".
+//
+// A reparticao dos bits: 12 para o bloco (4096 blocos), 8 para o nivel (256
+// niveis, muito acima do que o t8code admite), 22 para cada coordenada (4
+// milhoes de celulas por direcao).  Somam 64.
+unsigned long long chave_celula(long bloco, int nivel, long i, long j)
+{
+  return (static_cast<unsigned long long>(bloco & 0xFFF) << 52) |
+         (static_cast<unsigned long long>(nivel & 0xFF) << 44) |
+         (static_cast<unsigned long long>(i & 0x3FFFFF) << 22) |
+         static_cast<unsigned long long>(j & 0x3FFFFF);
+}
+
 //! Indices de FLORESTA dos vizinhos de face -- crus, como o t8code os da'.
 //
 // Devolve INDICE e nao id de proposito: na primeira fase da montagem da franja o
@@ -896,7 +936,35 @@ void Malha::monta_franja_camadas(int k)
   id_g_.clear(); cen_.clear(); lad_.clear(); niv_.clear(); viz_.clear();
   viz_niv_.clear(); expansivel_.clear(); idx_por_id_.clear();
 
+  // A CHAVE DO INDICE ESPACIAL: nivel e as coordenadas inteiras da celula dentro
+  // do bloco.  Uma celula de nivel `L` no bloco `[lo, hi)` ocupa
+  // `[lo + i*h, lo + (i+1)*h)` com `h = (hi-lo)/2^L`, logo `(L, i, j)` a
+  // identifica sem ambiguidade -- e o centro dela da' `i` e `j` por divisao.
+  auto chave_de = [&](const Ponto2 &centro, int nivel) -> unsigned long long {
+    long ib = -1;
+    for (long bb = 0; bb < static_cast<long>(blocos_.size()); bb++) {
+      const Bloco &k = blocos_[static_cast<size_t>(bb)];
+      bool dentro = true;
+      for (int d = 0; d < 2; d++)
+        if (centro[d] < k.lo[d] - EPS || centro[d] > k.hi[d] + EPS) dentro = false;
+      if (dentro) { ib = bb; break; }
+    }
+    if (ib < 0) return ~0ULL;
+    const Bloco &kb = blocos_[static_cast<size_t>(ib)];
+    const int div = 1 << nivel;
+    const double hx = (kb.hi[0] - kb.lo[0]) / div;
+    const double hy = (kb.hi[1] - kb.lo[1]) / div;
+    const long i = static_cast<long>((centro[0] - kb.lo[0]) / hx);
+    const long j = static_cast<long>((centro[1] - kb.lo[1]) / hy);
+    return chave_celula(ib, nivel, i, j);
+  };
+
+  ponto_por_celula_.clear();
+
   auto empurra = [&](long id, const Folha &fo) {
+    const long ix = static_cast<long>(id_g_.size());
+    const unsigned long long ch = chave_de(Ponto2{fo.cx, fo.cy}, fo.nivel);
+    if (ch != ~0ULL) ponto_por_celula_[ch] = ix;
     idx_por_id_[id] = static_cast<long>(id_g_.size());
     id_g_.push_back(id);
     cen_.push_back(fo.cx); cen_.push_back(fo.cy);
@@ -920,6 +988,15 @@ void Malha::monta_franja_camadas(int k)
   for (long id : resto) empurra(id, tab[id]);
 
   n_fantasmas_ = static_cast<long>(id_g_.size()) - n_locais_;
+
+  // OS NIVEIS LOCAIS, para a busca espacial.  Calculados aqui porque aqui a
+  // tabela esta' completa, e sem reducao nenhuma -- ver `id_do_ponto`.
+  nivel_local_min_ = -1;
+  nivel_local_max_ = -1;
+  for (int nv : niv_) {
+    if (nivel_local_min_ < 0 || nv < nivel_local_min_) nivel_local_min_ = nv;
+    if (nv > nivel_local_max_) nivel_local_max_ = nv;
+  }
 }
 
 std::vector<long> Malha::vizinhos_do_indice(long idx, int fa) const
@@ -992,6 +1069,23 @@ long Malha::indice_do_id(long id) const
   return (it == idx_por_id_.end()) ? -1 : it->second;
 }
 
+double Malha::desbalanceamento() const
+{
+  if (nprocs_ <= 1) return 1.0;   // um processo nao se desbalanceia
+
+  long n = num_folhas(), lmin = 0, lmax = 0;
+  sc_MPI_Allreduce(&n, &lmin, 1, sc_MPI_LONG, sc_MPI_MIN, comm_);
+  sc_MPI_Allreduce(&n, &lmax, 1, sc_MPI_LONG, sc_MPI_MAX, comm_);
+
+  // PARTICAO VAZIA da' razao infinita, e isso e' a resposta certa: um processo
+  // sem folha nenhuma nao esta' "bem balanceado", esta' ocioso.  Devolver 1 ali
+  // -- que seria o reflexo de evitar a divisao por zero -- afirmaria o contrario
+  // do que se mediu.
+  if (lmin <= 0) return (lmax > 0) ? std::numeric_limits<double>::infinity() : 1.0;
+
+  return static_cast<double>(lmax) / static_cast<double>(lmin);
+}
+
 void Malha::reparticiona()
 {
   // PARTICAO EM COMMIT PROPRIO, e a franja junto com ela.
@@ -1010,45 +1104,73 @@ void Malha::reparticiona()
 
 long Malha::id_do_ponto(const Ponto2 &p) const
 {
-  // PERCORRE AS LOCAIS E AS DE FRANJA, pela mesma regra, SEM preferir as locais.
+  // CONSULTA PELO INDICE ESPACIAL: O(niveis), e nao O(folhas).
   //
-  // Preferir a local seria o reflexo natural e estragaria a conservacao: o
-  // ponto de quadratura sobre uma faceta que e' fronteira de PARTICAO seria
-  // atribuido a uma celula diferente em cada um dos dois processos, os suportes
-  // divergiriam, e os dois fluxos pela mesma faceta deixariam de se cancelar.
+  // A versao anterior varria todas as folhas locais e de franja.  Como a
+  // montagem do esquema MLS chama esta funcao uma vez por ponto de quadratura --
+  // oito por celula --, a montagem inteira era QUADRATICA.  Medido no nivel 7:
+  // 8,74 s em np=1 contra 0,285 s em np=8, ganho de 30,7x em oito processos, que
+  // num algoritmo linear seria impossivel (o teto e' 8x, porque a montagem nao
+  // comunica).  Esse 30,7x foi atribuido a cache e a precondicionador por tres
+  // rodadas de investigacao antes de alguem separar os cronometros.
   //
-  // A regra SEMIABERTA [lo, hi) e' global e nao depende de quem pergunta, e e'
-  // isso que faz os dois processos chegarem a' MESMA celula.  Com ela, o
-  // criterio aqui e' puramente geometrico, e a unica diferenca entre serial e
-  // paralelo e' a faixa de folhas que este processo conhece.
-  const long n = n_locais_ + n_fantasmas_;
-  for (long x = 0; x < n; x++) {
-    const Ponto2 c = centroide_do_indice(x);
-    const Ponto2 h = lados_do_indice(x);
+  // A SEMANTICA E' A MESMA, e tem de ser: a regra semiaberta `[lo, hi)` decide
+  // quem fica com o ponto sobre a faceta, e ela e' GLOBAL -- nao depende de quem
+  // pergunta.  E' dela que vem a conservacao do esquema de fluxo em paralelo
+  // (clausula D7), porque os dois processos que compartilham uma faceta chegam a'
+  // mesma celula.  Mudar a busca sem preservar a regra quebraria isso em
+  // silencio.
+  if (ponto_por_celula_.empty()) return -1;
 
-    // O BLOCO da folha e' identificado pela geometria, porque a folha de franja
-    // nao traz a arvore do dono.  Com blocos disjuntos o centro decide sozinho.
-    const Bloco *kb = nullptr;
-    for (const Bloco &k : blocos_) {
+  // OS NIVEIS SAO OS LOCAIS, e nao `nivel_minimo()`/`nivel_maximo()`.
+  //
+  // Aqueles sao COLETIVOS -- fazem `Allreduce` --, e esta funcao e' chamada de
+  // dentro de lacos locais que divergem entre os processos: um rank com mais
+  // folhas chamaria o `Allreduce` mais vezes que os outros.  O sintoma foi
+  // `MPI_ERR_TRUNCATE`, e e' o mesmo modo de falha que os testes deste projeto
+  // tiveram ("reducao coletiva dentro de `if (rank == 0)`") -- aqui dentro da
+  // biblioteca, que e' pior, porque quem chama nao tem como saber.
+  //
+  // E o local e' o CERTO, nao so' o seguro: a busca percorre as folhas que ESTE
+  // processo conhece, logo o intervalo de niveis que interessa e' o delas.
+  const int nmin = nivel_local_min_;
+  const int nmax = nivel_local_max_;
+  if (nmin < 0 || nmax < 0) return -1;
+
+  // DO MAIS FINO PARA O MAIS GROSSO.  Numa malha adaptada o ponto cai dentro de
+  // celulas de varios niveis ao mesmo tempo -- a celula fina esta' contida na
+  // regiao que a grossa ocuparia --, e a FOLHA e' a mais fina que existe.
+  // Varrer do grosso para o fino encontraria uma celula que nao e' folha.
+  for (int nivel = nmax; nivel >= nmin; nivel--) {
+    for (long ib = 0; ib < static_cast<long>(blocos_.size()); ib++) {
+      const Bloco &k = blocos_[static_cast<size_t>(ib)];
+      // O bloco e' semiaberto como as celulas, com a mesma excecao no limite
+      // superior do dominio -- senao um ponto na borda de cima nao pertenceria a
+      // bloco nenhum.
       bool no_bloco = true;
       for (int d = 0; d < 2; d++)
-        if (c[d] < k.lo[d] - EPS || c[d] > k.hi[d] + EPS) no_bloco = false;
-      if (no_bloco) { kb = &k; break; }
-    }
-    if (kb == nullptr) continue;
+        if (p[d] < k.lo[d] - EPS || p[d] > k.hi[d] + EPS) no_bloco = false;
+      if (!no_bloco) continue;
 
-    bool dentro = true;
-    for (int d = 0; d < 2; d++) {
-      const double lo = c[d] - h[d] / 2.0;
-      const double hi = c[d] + h[d] / 2.0;
-      // SEMIABERTO [lo, hi): ponto sobre a face comum cai na celula de
-      // coordenada maior.  No limite superior do DOMINIO o fechado volta, senao
-      // a borda de cima nao pertenceria a celula nenhuma.
-      const bool ultima = (hi > kb->hi[d] - EPS);
-      const bool ok = (p[d] >= lo - EPS) && (ultima ? (p[d] <= hi + EPS) : (p[d] < hi - EPS));
-      if (!ok) { dentro = false; break; }
+      const int div = 1 << nivel;
+      const double hx = (k.hi[0] - k.lo[0]) / div;
+      const double hy = (k.hi[1] - k.lo[1]) / div;
+
+      // A QUANTIZACAO REPRODUZ A REGRA SEMIABERTA.  O `EPS` empurra o ponto que
+      // esta' exatamente sobre uma faceta para a celula de coordenada MAIOR, que
+      // e' o que `[lo, hi)` manda; e no limite superior do dominio ele e' puxado
+      // de volta, para que a borda de cima pertenca a' ultima celula.
+      double fx = (p[0] - k.lo[0] + EPS) / hx;
+      double fy = (p[1] - k.lo[1] + EPS) / hy;
+      long i = static_cast<long>(fx);
+      long j = static_cast<long>(fy);
+      if (i >= div) i = div - 1;
+      if (j >= div) j = div - 1;
+      if (i < 0 || j < 0) continue;
+
+      const auto it = ponto_por_celula_.find(chave_celula(ib, nivel, i, j));
+      if (it != ponto_por_celula_.end()) return id_global_do_indice(it->second);
     }
-    if (dentro) return id_global_do_indice(x);
   }
   return -1;
 }

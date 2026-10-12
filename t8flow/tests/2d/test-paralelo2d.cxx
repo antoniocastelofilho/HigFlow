@@ -506,5 +506,57 @@ int main(int argc, char **argv)
     }
   }
 
+  t_case("o_desbalanceamento_e_medido_e_a_reparticao_o_zera");
+  {
+    // O QUE ESTE CASO AFIRMA NAO E' QUE A PARTICAO ESTEJA BOA, e sim que ela
+    // seja MENSURAVEL -- porque as medidas deste projeto nao fecham e a decisao
+    // de reparticionar depende delas.
+    //
+    // O t8code ja' tenta balancear (`set_balance` com `no_repartition = 0`, e a
+    // documentacao promete "load-balanced per default"), mas:
+    //
+    //     refino em CAIXA, nivel 6, np 2/4/8     1,00 (perfeito)
+    //     refino ALEATORIO, nivel 6, np 8        1,11
+    //     `bench/escalabilidade`, outra config   2,8
+    //
+    // Por isso a reparticao e' EXPLICITA: um segundo mecanismo automatico em
+    // cima de um primeiro que nao se entende seria redundante num caso e
+    // insuficiente noutro.
+    Malha m({{{0.0, 0.0}, {1.0, 1.0}, 5}}, sc_MPI_COMM_WORLD);
+    m.refina_aleatorio(0.4, 2026, 6);
+
+    const double antes = m.desbalanceamento();
+    T_CHECK_MSG(antes >= 1.0,
+                "desbalanceamento %.3f e' menor que 1 -- a razao max/min nao pode "
+                "ser", antes);
+
+    m.reparticiona();
+    const double depois = m.desbalanceamento();
+
+    // A REPARTICAO LEVA A 1,0 EXATAMENTE quando as folhas dividem pelo numero de
+    // processos, e a no maximo `1 + 1/minimo` quando nao dividem -- a curva de
+    // preenchimento distribui o resto uma folha por processo.
+    const long por_processo = m.num_folhas_globais() / NP;
+    const double teto = 1.0 + (por_processo > 0 ? 1.0 / por_processo : 1.0);
+    T_CHECK_MSG(depois <= teto + 1e-12,
+                "depois de reparticionar o desbalanceamento e' %.6f, acima do teto "
+                "%.6f que a divisao inteira admite", depois, teto);
+    T_CHECK_MSG(depois <= antes + 1e-12,
+                "reparticionar PIOROU o balanco: %.3f -> %.3f", antes, depois);
+
+    if (NP > 1) {
+      if (EU == 0)
+        printf("  (Y2: desbalanceamento %.4f -> %.4f, teto %.4f, np=%d)\n",
+               antes, depois, teto, NP);
+    } else {
+      T_CHECK_MSG(antes == 1.0 && depois == 1.0,
+                  "np=1 deveria dar desbalanceamento 1,0 exato; deu %.3f e %.3f",
+                  antes, depois);
+      if (EU == 0)
+        printf("  (Y2: np=1, desbalanceamento 1,0 por construcao -- este caso NAO "
+               "mede o paralelo)\n");
+    }
+  }
+
   return t_end();
 }

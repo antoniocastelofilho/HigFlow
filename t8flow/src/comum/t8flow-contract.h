@@ -1032,4 +1032,80 @@
 //
 //! COBERTA-POR: test-discretizacao2d:a_instabilidade_do_pontual_em_malha_adaptada_e_declarada
 
+
+// ---------------------------------------------------------------------------
+// Y -- CUSTO: o que tem de crescer linearmente, e o balanco da particao
+// ---------------------------------------------------------------------------
+
+//! Y1  A MONTAGEM DA MATRIZ E' LINEAR no numero de celulas, e afirmar isso e'
+//! necessario porque ela JA' FOI QUADRATICA -- num sistema cujo objetivo
+//! declarado e' escalonamento.
+//!
+//! `id_do_ponto` varria todas as folhas (O(n)) e a montagem do esquema MLS a
+//! chama uma vez por ponto de quadratura, oito por celula: O(n^2).
+//!
+//! E O SINTOMA APARECEU COMO MENTIRA SOBRE O PARALELO, nao como lentidao.  A
+//! montagem levava 8,74 s em np=1 contra 0,285 s em np=8 -- ganho de 30,7x em
+//! oito processos.  Montagem paraleliza SEM comunicacao, logo o teto e' 8x; 30,7x
+//! so' e' possivel num algoritmo quadratico, onde dividir `n` por 8 da' 64x.  Esse
+//! numero foi atribuido a cache e a precondicionador por tres rodadas de
+//! investigacao antes de alguem separar os cronometros de montagem e resolucao.
+//!
+//! Com o indice espacial a consulta e' O(niveis): 0,679 s em np=1, e o ganho de
+//! np=1 para np=8 caiu para 5,2x -- sublinear, como tem de ser.
+//!
+//! O ORACULO E' A RAZAO ENTRE DOIS NIVEIS: quadruplicar as celulas tem de
+//! quadruplicar o tempo, nao multiplica-lo por dezesseis.
+//
+//! COBERTA-POR: test-poisson2d:a_montagem_cresce_linearmente_com_as_celulas
+
+//! Y2  O DESBALANCEAMENTO DA PARTICAO E' MEDIDO, e nao presumido em nenhuma das
+//! duas direcoes.
+//!
+//! O t8code JA' tenta balancear: a documentacao de `t8_forest_set_balance` diz
+//! que as florestas intermediarias sao reparticionadas e que o resultado fica
+//! "load-balanced per default", e este codigo o chama com `no_repartition = 0`.
+//!
+//! So' que as medidas nao fecham.  Todas do MESMO `set_balance(..., 0)`:
+//!
+//!     refino em CAIXA, nivel 6, np 2/4/8     desbalanceamento 1,00 (perfeito)
+//!     refino ALEATORIO, nivel 6, np 8        1,11
+//!     `bench/escalabilidade`, outra config   2,8
+//!
+//! A diferenca nao esta' explicada.  Por isso a reparticao deste sistema e'
+//! EXPLICITA e nao automatica: acrescentar um segundo mecanismo automatico em
+//! cima de um primeiro que nao se entende daria dois caminhos reparticionando --
+//! redundante num caso, insuficiente noutro.
+//!
+//! O que a clausula exige e' que `desbalanceamento()` RESPONDA, e que
+//! `reparticiona()` o leve a 1,0 exatamente.  Sem a medida, quem adapta decide
+//! as cegas nos dois regimes.
+//
+//! COBERTA-POR: test-paralelo2d:o_desbalanceamento_e_medido_e_a_reparticao_o_zera
+
+//! Y3  ARVORE DE UMA CELULA E' RECUSADA NA CONSTRUCAO.  Uma arvore de uma celula
+//! NAO TEM INTERIOR -- as quatro facetas dela sao de fronteira --, e nenhum
+//! estencil centrado nela encontra vizinho dentro do proprio bloco.
+//!
+//! O levantamento do t8code registra isto como defeito MEDIDO no sistema
+//! antecessor, e com o preco: ele "so' apareceu como escoamento divergindo numa
+//! simulacao de meia hora".  Recusar na construcao custa uma excecao imediata.
+//
+//! COBERTA-POR: test-malha2d:arvore_de_uma_celula_e_recusada
+
+//! Y4  O LOTE DE ESTENCEIS EM GPU SUPORTA VARIOS PROCESSOS na mesma placa, sem
+//! corromper resultado.  Tres processos abrindo o mesmo dispositivo dao a MESMA
+//! diferenca contra a CPU (8,812e-11), que e' o que se quer: a contencao atrasa,
+//! nao altera.
+//!
+//! O QUE ESTA CLAUSULA NAO AFIRMA, e dizer isso faz parte dela: o lote NAO foi
+//! exercitado sobre malha PARTICIONADA.  O arreio usa `sc_MPI_COMM_SELF`, logo
+//! cada processo resolve o problema inteiro -- o que verifica a placa com varios
+//! clientes, e nao o lote com suporte vindo da franja.
+//!
+//! A distincao importa porque hoje o Poisson nao usa o lote; quando usar, o
+//! suporte virá' da franja e esta clausula precisara' de um caso novo.
+//
+//! COBERTA-POR: test-lote2d:gpu_bate_com_cpu_nos_pesos
+
 #endif
