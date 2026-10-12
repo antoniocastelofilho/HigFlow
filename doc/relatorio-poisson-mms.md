@@ -262,10 +262,118 @@ estão definidos sem reconstrução própria), mais de um bloco, Neumann (o fech
 parede, sem aviso), e Mehrstellen **sem** `∇²f` — este porque rodar com zero daria
 segunda ordem e pareceria quarta falhando, com o número saindo plausível.
 
-## 8. Limites declarados
+## 8. Derivada MLS na faceta e quadratura de Gauss
 
-- **a exatidão do grau 2 vale só na malha uniforme.** Na adaptada o esquema é de
-  segunda ordem, e exato apenas para campo linear;
+O esquema de fluxo de segunda ordem perde a exatidão do grau 2 na malha adaptada
+(seção 6), e o compacto de quarta ordem não serve na malha adaptada por construção
+(seção 7.4). O esquema `mlsgauss` fecha esse vão: é o único do sistema que passa de
+segunda ordem **em malha adaptada**.
+
+### 8.1 As duas peças, e por que as duas
+
+O fluxo pela faceta é `∫ ∂u/∂n ds`. O esquema anterior aproximava os dois fatores em
+primeira/segunda ordem, e levantar um só não passa de segunda ordem:
+
+| peça | antes | agora |
+|---|---|---|
+| derivada no ponto | diferença de dois centros | ajuste **MLS de ordem 3 ou 4** |
+| quadratura da faceta | ponto médio (exata p/ linear) | **Gauss 2 pontos** (exata p/ cúbico) |
+| quadratura do volume | `f(c)·A` (exata p/ linear) | **Gauss 2×2** (exata p/ bicúbico) |
+
+A terceira linha é o achado que eu não esperava, e está medido na seção 8.3.
+
+### 8.2 Conservação, por construção e não por acerto
+
+O suporte do estêncil depende apenas do **ponto** de quadratura, não da célula que
+pergunta. Logo as duas células que compartilham uma faceta obtêm o mesmo fluxo, sem
+ninguém combinar nada — inclusive na transição 2:1, onde a célula grossa parte a
+faceta em duas sub-facetas e a fina não parte a sua.
+
+A cláusula D7 afirma isso pelo caminho onde pode falhar: o oráculo refaz a geometria
+das sub-facetas por conta própria e compara os estênceis peso a peso. Oito
+sub-facetas de transição, diferença **0,0e+00** no ponto e no peso. Isso importa
+porque um esquema **não conservativo ainda converge** — nenhum dos testes de
+convergência pegaria um erro de indexação na sub-faceta.
+
+### 8.3 Os resultados
+
+Malha uniforme, todas as paredes Dirichlet:
+
+| solução | fluxo2 | mlsgauss ordem 3 | mlsgauss ordem 4 |
+|---|---|---|---|
+| grau 2 | exato | exato | exato |
+| grau 3 | 1,71e-04 | **exato** (7,99e-15) | exato |
+| grau 4 | ordem 2 | 5,50e-06, ordem 3,7 | **exato** (5,91e-14) |
+| trig | ordem 2 | 3,30e-04, ordem 2,8 | 1,11e-04, **ordem 3,8** |
+
+Malha adaptada (`--aleatorio=0.4`), que é a razão de existir do esquema:
+
+| solução | fluxo2 | mlsgauss ordem 3 |
+|---|---|---|
+| grau 1 | exato | exato |
+| grau 2 | 3,86e-03 (ordem 2) | **exato** (2,59e-13) |
+| grau 3 | ordem 2 | **exato** (4,86e-14) |
+| grau 4 | ordem 2 | 4,08e-06, ordem 3,6 |
+| trig | ordem 2 | 1,76e-04, **ordem 3,1** |
+
+**O grau de exatidão é a ordem do ajuste MLS, em malha uniforme e em adaptada.** É a
+propriedade que o esquema de fluxo não tem.
+
+### 8.4 A quadratura da fonte era o limite, não o fluxo
+
+Com o fluxo da faceta já exato e `∫f dA` ainda na regra do ponto médio, o esquema
+**travava em segunda ordem**. Grau 4 com ajuste de ordem 4, malha uniforme — a única
+diferença entre as duas colunas é a quadratura do volume:
+
+| nível | ponto médio | Gauss 2×2 |
+|---|---|---|
+| 3 | 1,49e-03 | 1,51e-14 |
+| 4 | 3,81e-04 (ordem 1,97) | 2,52e-14 |
+| 5 | 9,58e-05 (ordem 1,99) | 5,91e-14 |
+
+A regra do ponto médio é um erro `O(h²)` **relativo** em `∫f dA`; no esquema de fluxo
+de segunda ordem ele se escondia atrás do erro do próprio fluxo. O interruptor
+`--fonte-ponto-medio` existe para esta medida: verde que nunca foi vermelho não prova
+nada.
+
+### 8.5 A ordem 4 em malha adaptada rebaixa, e agora isso aparece
+
+Medido: em malha adaptada com ordem 4, **8 dos 5172** ajustes não sustentam a ordem.
+A causa é o suporte, não o condicionamento: o crescimento por anéis entrega **12 a 16
+pontos**, contra 15 monômios que a ordem 4 pede.
+
+O que o código fazia antes era pior que o problema: `resolve_pequeno` só recusava
+pivô abaixo de `1e-300` — a singularidade exata — e devolvia um **vetor de zeros**.
+O efeito era uma linha da matriz silenciosamente errada:
+
+| nível | erro inf (antes do conserto) |
+|---|---|
+| 3 | 2,36e-10 |
+| 4 | **3,32e-01** |
+| 5 | 2,35e-10 |
+
+Um nível com erro de 3,3e-01 cercado por 1e-10 nos vizinhos. Dois consertos:
+
+1. **a base é adimensionalizada** pelo raio do suporte. Sem isso a matriz normal da
+   ordem 4 tem condicionamento `O(h⁻⁸)` — com `h = 3e-2` isso passa de `1e12`;
+2. **o rebaixamento de ordem é registrado.** Quando o suporte não sustenta a ordem
+   pedida, o ajuste cai para a que ele sustenta e `rebaixamentos()` conta; o exemplo
+   imprime um AVISO. Zero é o que se quer poder afirmar, e as cláusulas D4–D6 o
+   afirmam explicitamente.
+
+Com o rebaixamento, o erro de 3,32e-01 cai para 1,25e-10 — mas a **exatidão do grau 4
+se perde** na malha adaptada, e deve se perder: oito pontos de quadratura usam ordem
+menor. **A ordem utilizável em malha adaptada é 3**, e levá-la a 4 é um trabalho de
+seleção de suporte — mais pontos escolhidos por qualidade geométrica, não por anéis —
+não de quadratura nem de fechamento.
+
+## 9. Limites declarados
+
+- **a exatidão do grau 2 vale só na malha uniforme** *no esquema de fluxo*. Na
+  adaptada ele é de segunda ordem, exato apenas para campo linear; o `mlsgauss`
+  recupera a exatidão até o grau 3 (seção 8);
+- **a ordem 4 do `mlsgauss` não sobrevive à malha adaptada.** Rebaixa em 8 de 5172
+  ajustes, por falta de pontos no suporte, e o rebaixamento é contado e avisado;
 - **Robin não está montado.** Dirichlet e Neumann sim. Robin mistura valor e
   derivada na mesma faceta: a linha ganha coeficiente que depende de α, β e h, e
   montá-lo como se fosse Neumann daria resultado plausível e errado;
@@ -274,19 +382,24 @@ segunda ordem e pareceria quarta falhando, com o número saindo plausível.
 - **o piso do erro é o solver.** Pedir menos de 1e-13 seria exigir do solver linear
   algo que ele não promete com tolerância 1e-14.
 
-## 9. Como reproduzir
+## 10. Como reproduzir
 
 ```bash
 cd t8flow && make 2d
 mpirun -n 1 ./exemplos/poisson-mms --solucao=grau2 --contorno=dirichlet --niveis=3,4,5
 mpirun -n 1 ./exemplos/poisson-mms --solucao=trig --aleatorio=0.4 --niveis=3,4,5,6
+mpirun -n 1 ./exemplos/poisson-mms --esquema=mlsgauss --mls-ordem=4 --niveis=3,4,5 \
+       --solucao=grau4                          # exato: derivada MLS + Gauss
+mpirun -n 1 ./exemplos/poisson-mms --esquema=mlsgauss --aleatorio=0.4 \
+       --solucao=grau3 --niveis=3,4,5            # exato em malha ADAPTADA
 mpirun -n 1 ./exemplos/poisson-mms --ajuda      # lista as solucoes do catalogo
 ```
 
 Parâmetros: `--solucao` (grau1, grau2, grau3, trig), `--contorno` (dirichlet,
 misto, umdirichlet), `--fechamento` (3 ou 2), `--niveis`, `--tol`,
 `--aleatorio=FRAÇÃO` (quadtree adaptada), `--semente`, `--esquema` (fluxo2,
-compacto4, lele4). A configuração
+compacto4, lele4, mlsgauss), `--mls-ordem`, `--mls-pontos`,
+`--fonte-ponto-medio`. A configuração
 inteira vai impressa no alto da saída — relatório sem a configuração é número sem
 procedência, e neste projeto um build sem o que se queria medir já produziu duas
 corridas "estáveis" que eram outra coisa.

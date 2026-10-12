@@ -1,0 +1,172 @@
+% Artigo: o t8Flow -- estrategias de um sistema de CFD sobre o t8code, e a
+% verificacao da equacao de Poisson pelo metodo das solucoes manufaturadas.
+%
+% Compila com pdflatex + bibtex + pdflatex + pdflatex, ou latexmk -pdf main
+% No Overleaf: enviar a pasta inteira; este e' o arquivo principal.
+%
+% MESMA CONVENCAO DOS OUTROS ARTIGOS DESTA ARVORE: os NUMEROS vivem em
+% dados/*.dat, gerados por ./gera-dados.sh, e sao lidos por pgfplotstable --
+% nunca digitados no texto.  Regenerar uma medida troca o .dat e o texto
+% acompanha, sem a chance de a tabela e a prosa discordarem.
+%
+% O DESENHO DO ARTIGO e' uma matriz de ESQUEMA x MALHA, e a estrutura segue
+% dela em vez de separar validacao de resultados:
+%
+%                       | malha uniforme | malha adaptada (quadtree 2:1)
+%   fluxo 2a ordem      |   grau 2       |   grau 1
+%   compacto 4a ordem   |   grau 3       |   recusa
+%   MLS + Gauss         |   grau = ordem |   grau = ordem
+%
+% As nove celulas dessa matriz -- incluindo a recusa, que e' um resultado -- sao
+% o que o artigo tem de trazer, e cada uma esta' medida.
+%
+% STATUS DE CADA SECAO -- o que tem respaldo medido e o que nao tem.  Cada secao
+% abre com um bloco \status{} dizendo isso, e esses blocos somem do PDF quando
+% \nostatus e' definido.  Existem para que ninguem -- nos inclusive -- leia um
+% paragrafo de planejamento como resultado.
+%
+%   1 Introducao            PRONTA
+%   2 Estrategias           PRONTA: todas as decisoes tomadas e implementadas
+%   3 Aproximacoes          PRONTA: as cinco medidas, com os contrastes
+%   4 Metodo de verificacao PRONTA
+%   5 Resultados            PRONTA: malha uniforme e adaptada, 2D, serial
+%   6 Verificacao da suite  PRONTA: 69 clausulas, 141 casos
+%   7 Conclusoes            PRONTA
+%
+%   O QUE O ARTIGO NAO TRAZ, e diz onde: o CUSTO do paralelo, tres dimensoes, e
+%   Robin dentro do operador.  Estao na secao 7.2 como trabalho declarado, nao
+%   escondidos entre os resultados.  A CORRECAO do paralelo esta' na secao 8.
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{adjustbox}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[margin=2.7cm]{geometry}
+
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning}
+
+\newcommand{\dat}[1]{dados/#1}
+
+% \status{...}: o bloco que diz qual respaldo a secao tem.  Definir \nostatus
+% antes de \begin{document} para suprimi-los na versao de submissao.
+\newcommand{\status}[1]{%
+  \ifdefined\nostatus\else
+    \begingroup
+    \par\medskip\noindent
+    \colorbox{yellow!18}{\begin{minipage}{0.97\linewidth}
+      \small\textbf{Situação desta seção.} #1
+    \end{minipage}}\par\medskip
+    \endgroup
+  \fi}
+
+% \falta{...}: uma lacuna pontual dentro do texto, visivel de proposito.
+\newcommand{\falta}[1]{\textcolor{red!70!black}{\textbf{[falta:} #1\textbf{]}}}
+% \reserva: nao e' o mesmo que \falta.  \falta marca o que falta MEDIR;
+% \reserva marca o que foi medido mas com uma ressalva que muda a leitura.
+% Confundir os dois esconderia o segundo tipo entre pendencias, quando ele e'
+% um resultado com reserva.
+\newcommand{\reserva}[1]{\par\smallskip\noindent\textcolor{orange!60!black}{%
+  \textbf{[reserva:} #1\textbf{]}}\par\smallskip}
+
+% Tabela de convergencia lida de um .dat.  Onde o esquema e' EXATO o gerador
+% escreve "---" na coluna de ordem, e a tabela o repassa: um esquema exato nao TEM ordem para medir, e
+% imprimir um numero ali seria ruido dividido por ruido.
+\newcommand{\tabconv}[2]{%
+  \pgfplotstabletypeset[
+    col sep=space,
+    columns={nivel,celulas,h,einf,ordinf,eL2,ordL2},
+    columns/nivel/.style={column name=nível, int detect},
+    columns/celulas/.style={column name=células, int detect},
+    columns/h/.style={column name=$h$, sci, sci zerofill, precision=3},
+    columns/einf/.style={column name=$\|e\|_\infty$, sci, sci zerofill, precision=3},
+    columns/ordinf/.style={column name=ordem, string type, column type=r},
+    columns/eL2/.style={column name=$\|e\|_2$, sci, sci zerofill, precision=3},
+    columns/ordL2/.style={column name=ordem, string type, column type=r},
+    every head row/.style={before row=\toprule, after row=\midrule},
+    every last row/.style={after row=\bottomrule},
+  ]{\dat{#1}}%
+  \par\smallskip\noindent\footnotesize #2\par}
+
+\title{t8Flow: um sistema de escoamentos sobre florestas adaptativas\\
+       \large Estratégias de projeto e verificação da equação de Poisson\\
+       pelo método das soluções manufaturadas}
+\author{\falta{autores}}
+\date{12 de outubro de 2026}
+
+\emergencystretch=3em
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este trabalho apresenta o \textbf{t8Flow}, um sistema de dinâmica de fluidos
+computacional construído sobre a biblioteca de florestas adaptativas
+\textsc{t8code}, e a verificação de seu operador de Poisson pelo método das
+soluções manufaturadas. Duas decisões de projeto governam o resto: a
+\emph{floresta é a estrutura} --- a malha não é produzida pelo t8code e copiada
+para outra árvore, e nenhum processo detém a malha inteira --- e \emph{há um
+domínio só}, de modo que nenhuma propriedade precise de tradução de índice entre
+malhas paralelas. A segunda decisão vem de um defeito medido no sistema
+antecessor, onde dois domínios coincidentes em malha uniforme tornavam um índice
+errado acidentalmente certo, e a falha só aparecia com refino.
+
+Reaproveita-se do antecessor~\cite{sousa2019} o que é independente de malha: o invólucro de
+solvers lineares e o aproximador por mínimos quadrados móveis ponderados. Sobre
+essa base verificam-se \textbf{cinco} aproximações para o laplaciano em volumes
+finitos: balanço de fluxos de segunda ordem com fechamento de parede de três e de
+dois pontos, o esquema compacto de quarta ordem em suas formas de Mehrstellen e
+de derivada segunda implícita de Lele, e um esquema novo de reconstrução por
+mínimos quadrados com quadratura de Gauss.
+
+Os resultados estabelecem o grau de exatidão de cada esquema em malha uniforme e
+em malha \emph{quadtree} com transições 2:1, e três achados estruturam a
+discussão. Primeiro, a exatidão do grau~2 do esquema de fluxo é propriedade da
+malha uniforme e se perde na adaptada, onde ele é exato apenas para campo linear.
+Segundo, o esquema compacto atinge quarta ordem mas é exato só até o grau~3, e o
+limite é o fechamento de parede, não o interior. Terceiro, a aproximação por
+mínimos quadrados com quadratura de Gauss é exata até o grau da ordem do ajuste
+\emph{tanto em malha uniforme como em adaptada}, e o fator que a destravava não
+era o fluxo na face: era a quadratura do termo de fonte no volume, cuja regra do
+ponto médio mantinha o esquema inteiro em segunda ordem.
+
+A execução paralela é tratada em seção própria, e por um motivo metodológico:
+tudo nela é invisível em execução serial, e três defeitos reais do sistema viviam
+exatamente nessa invisibilidade --- entre eles um que fazia um esquema
+\emph{exato} para campo linear errar \num{1.70e-1} com dois processos, onde com
+um errava \num{3.97e-13}.
+
+Toda afirmação de exatidão vem acompanhada de um contraste --- a mesma medida
+onde ela deve falhar --- e a suíte de testes nasceu junto com o código, com
+69 cláusulas de contrato lidas pelo próprio arreio de execução, que exige
+um caso passando para cada uma.
+\end{abstract}
+
+\tableofcontents
+
+\input{secoes/01-introducao}
+\input{secoes/02-estrategias}
+\input{secoes/03-aproximacoes}
+\input{secoes/04-metodo}
+\input{secoes/05-resultados}
+\input{secoes/06-verificacao}
+\input{secoes/08-paralelo}
+\input{secoes/07-conclusoes}
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}

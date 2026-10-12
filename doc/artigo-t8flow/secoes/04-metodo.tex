@@ -1,0 +1,128 @@
+\section{Método de verificação}
+\label{sec:metodo}
+
+\status{Pronta. O catálogo de soluções, as normas e o oráculo de resíduo do
+operador estão todos implementados e são o que produziu os números da seção
+\ref{sec:resultados}.}
+
+\subsection{O problema e as soluções manufaturadas}
+
+Resolve-se, no quadrado unitário $\Omega=[0,1]^2$,
+\begin{equation}
+  \nabla^2 u = f \quad\text{em } \Omega,
+  \qquad
+  \alpha u + \beta\,\frac{\partial u}{\partial n} = g \quad\text{em } \partial\Omega .
+  \label{eq:poisson}
+\end{equation}
+
+O método das soluções manufaturadas inverte a direção usual: escolhe-se $u$,
+\emph{deriva-se} $f=\nabla^2 u$ analiticamente, impõem-se as condições de
+contorno a partir do próprio $u$, e compara-se a solução discreta com $u$. A
+vantagem decisiva é que a solução exata é conhecida em todo ponto, e portanto o
+erro é mensurável sem refino de referência.
+
+O catálogo tem seis soluções, com todas as derivadas escritas a mão --- nunca por
+diferenciação numérica, que introduziria o erro que se quer medir:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+nome & grau & papel \\
+\midrule
+\texttt{grau1} & 1 & campo linear: todo esquema consistente é exato \\
+\texttt{grau2} & 2 & o pedido original; separa malha uniforme de adaptada \\
+\texttt{grau3} & 3 & separa o fluxo de segunda ordem do compacto e do MLS \\
+\texttt{grau4} & 4 & separa o compacto do MLS de ordem 4 \\
+\texttt{grau6} & 6 & acima de toda exatidão disponível \\
+\texttt{trig}  & --- & $\sin/\cos$: não polinomial, logo há ordem a medir \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Os coeficientes de cada monômio são \textbf{distintos}, de propósito: assim o
+valor identifica a posição, e um esquema que troque os eixos não passa por acaso.
+
+\subsection{As normas e a ordem}
+
+O erro é medido em duas normas, a do máximo e a $L_2$ ponderada por área:
+\begin{equation}
+  \|e\|_\infty = \max_c |u_c - u(\mathbf{x}_c)|,
+  \qquad
+  \|e\|_2 = \sqrt{\frac{\sum_c A_c\,(u_c - u(\mathbf{x}_c))^2}{\sum_c A_c}} .
+  \label{eq:normas}
+\end{equation}
+A ponderação por área da norma $L_2$ é necessária em malha adaptada: sem ela, as
+células pequenas --- que são muitas --- dominariam a média sem corresponder à
+fração do domínio que ocupam.
+
+A ordem de convergência é estimada entre níveis consecutivos de refino,
+\begin{equation}
+  p = \log_2 \frac{\|e\|_{h}}{\|e\|_{h/2}} .
+  \label{eq:ordem}
+\end{equation}
+
+\paragraph{Onde o esquema é exato não há ordem para medir.} Isso não é uma
+ressalva: é a razão pela qual as tabelas da seção \ref{sec:resultados} exibem um
+travessão em vez de um número. Com erro de máquina em dois níveis consecutivos,
+\eqref{eq:ordem} divide ruído por ruído e produz qualquer valor. Imprimir esse
+valor sugeriria uma taxa de convergência onde existe apenas aritmética de ponto
+flutuante.
+
+\subsection{O piso do erro é o solver}
+
+Todas as corridas usam PETSc com tolerância \num{1e-14}. O erro residual
+observado onde o esquema é exato fica na faixa de \num{1e-15} a \num{1e-13}, e
+ele é \textbf{resíduo do solver linear}, não do esquema. Exigir menos que isso
+seria pedir ao solver algo que ele não promete com essa tolerância. Os casos da
+suíte usam \num{1e-10} como limiar de ``erro de máquina'' por essa razão.
+
+\subsection{O resíduo do operador, como oráculo independente}
+\label{sec:met-residuo}
+
+A comparação da solução discreta com a exata mede o sistema inteiro: esquema,
+condições de contorno e solver juntos. Para separar o esquema do resto, há um
+segundo oráculo, que não resolve nada:
+\begin{equation}
+  r = \max_c \frac{\bigl|(A\,\mathbf{u}^{\text{exata}})_c - b_c\bigr|}{\text{normalização}_c},
+  \label{eq:residuo}
+\end{equation}
+isto é: monta-se o operador, aplica-se à \emph{solução exata amostrada nos centros
+das células}, e compara-se com o lado direito. Se o esquema é exato para aquela
+solução, $r$ é de máquina --- sem solver envolvido.
+
+Duas propriedades fazem desse oráculo mais que uma conveniência. Primeiro, ele
+distingue \textbf{consistência} de \textbf{convergência}: um operador pode ser
+consistente e o sistema divergir por causa do contorno, ou vice-versa. Segundo, a
+montagem é \emph{a mesma função} que o solver usa --- extraída para que os dois
+caminhos compartilhem um único código. Duas montagens separadas divergiriam
+exatamente onde é difícil ver: perto da parede.
+
+O valor desse oráculo ficou patente na transição 2:1. O resíduo do operador em
+malha adaptada, para grau~2, dá \num{4.5} --- contra \num{2.27e-13} na uniforme.
+Esse contraste de treze ordens de grandeza é o que afirma, sem ambiguidade, que a
+diferença é do \emph{esquema na transição}, não do solver nem do contorno.
+
+\subsection{Contraste obrigatório}
+
+Nenhuma afirmação de exatidão entra na suíte sozinha. Para cada ``o erro é de
+máquina'' há um caso vizinho medindo a condição em que ele deixa de ser:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+afirmação & contraste que a acompanha \\
+\midrule
+grau 2 exato com fechamento de 3 pontos & grau 2 com fechamento de 2 pontos \\
+grau 3 exato no MLS de ordem 3 & grau 3 no fluxo de segunda ordem \\
+grau 2 exato em malha adaptada com MLS & grau 2 em malha adaptada com fluxo \\
+grau 4 exato com Gauss $2\times2$ na fonte & o mesmo com a fonte no ponto médio \\
+pesos próprios concordam com o herdado & concordância \emph{exatamente} nula é recusada \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A última linha merece explicação: um caso que afirma ``as duas implementações
+concordam'' e obtém diferença exatamente zero não está comparando duas
+implementações --- está comparando uma consigo mesma. Esse foi um defeito real na
+comparação CPU--GPU (seção \ref{sec:est-gpu}), e desde então a concordância
+perfeita é tratada como sintoma, não como sucesso.

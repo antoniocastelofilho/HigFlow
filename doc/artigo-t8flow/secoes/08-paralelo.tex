@@ -1,0 +1,124 @@
+\section{A execução paralela}
+\label{sec:paralelo}
+
+\status{Pronta quanto à \emph{correção}: as cláusulas X1--X9 do contrato cobrem o
+que está afirmado aqui, e o arreio as executa em np = 1, 2 e 3. Não traz
+\emph{custo}: o tempo das rodadas de troca não foi medido, e a escalabilidade
+citada na seção \ref{sec:estrategias} precede esta implementação.}
+
+Esta seção é separada das anteriores por um motivo metodológico: tudo o que ela
+descreve é invisível em execução serial, e três defeitos reais do sistema viviam
+exatamente nessa invisibilidade. Relatá-los é o conteúdo mais transferível do
+trabalho.
+
+\subsection{A franja de $K$ camadas}
+
+A camada de fantasmas nativa da biblioteca tem \textbf{uma} camada, e uma camada
+não basta. O ponto de quadratura de Gauss está \emph{sobre} a faceta, logo a
+célula que o contém pode ser de franja --- e a partir dela o suporte do ajuste MLS
+ainda precisa abrir os anéis inteiros. Medido com uma camada:
+
+\begin{center}
+\texttt{suporte de 1 pontos em 6 aneis, minimo 10 para ordem 3}
+\end{center}
+
+As camadas adicionais vêm de \textbf{rodadas de troca}: cada processo publica, por
+folha sua, a vizinhança que já conhece, e cada rodada estende o alcance em um
+anel. A regra é $K = \text{anéis} + 1$, e a diferença de um foi \emph{medida}, não
+deduzida --- com $K$ igual ao número de anéis, np=2 truncou 32 suportes e np=3
+falhou.
+
+\paragraph{A alternativa rejeitada.} Crescer o suporte a partir da célula local
+adjacente ao ponto resolveria o problema e destruiria a conservação: o suporte
+passaria a depender de \emph{quem pergunta}, e os dois fluxos pela mesma faceta
+deixariam de se cancelar --- perdendo exatamente a propriedade que a seção
+\ref{sec:aprox-mlsgauss} obtém por construção.
+
+\subsection{Defeito 1: a franja ordenada por id}
+
+O mais caro, e o mais instrutivo porque \textbf{o comentário advertindo contra ele
+estava escrito na mesma função}.
+
+A documentação da biblioteca é explícita: a consulta de vizinhos numera
+$0 \ldots n_{\text{loc}}-1$ para as folhas locais e
+$n_{\text{loc}} \ldots n_{\text{loc}}+n_{\text{fan}}-1$ para as da primeira
+camada de franja. O achatamento da tabela interna ordenou \emph{toda} a franja por
+id --- porque id é determinístico e parecia a escolha limpa. O efeito: o índice
+devolvido para o terceiro fantasma passou a designar outra folha, e a consulta
+entregava um id que \textbf{existe}, só que de outra célula.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+caso & np=1 & np=2 \\
+\midrule
+\texttt{grau1} adaptado, fluxo de 2ª ordem & \num{3.97e-13} & \textbf{\num{1.70e-1}} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+O esquema é \textbf{exato} para campo linear, logo o número de processos não podia
+mudar nada --- e é essa impossibilidade que torna o caso um oráculo. Somente as
+camadas 2 e acima podem ser ordenadas por id: elas não têm índice da biblioteca.
+
+\subsection{Defeito 2: face de franja indistinguível de contorno}
+
+Uma face sem vizinhos na lista significa \textbf{duas} coisas: contorno do
+domínio, ou ``o dono desta folha me contou sobre as outras faces e não sobre
+esta''. Com um indicador booleano por folha as duas se confundiam, e a segunda era
+tratada como a primeira: o esquema aplicava condição de contorno \textbf{no meio
+do domínio}, ao longo de toda a fronteira de partição, em silêncio.
+
+O conserto é uma \textbf{máscara de faces conhecidas}, um bit por face, publicada
+junto com os vizinhos na troca.
+
+\subsection{Defeito 3: o retrocesso silencioso}
+
+O gradiente transversal da transição 2:1 precisa do nível do vizinho transversal
+da célula grossa. A primeira versão o buscava na tabela e, quando faltava, caía
+num valor de reserva --- o nível da própria célula grossa. Isso dava espaçamento
+errado, distância errada, gradiente errado.
+
+Duas lições, e a segunda custou mais que a primeira. A primeira: \textbf{o valor
+de reserva plausível foi pior que uma recusa}. A segunda: a busca pela causa foi
+para o lugar errado. Tentei mais camadas de franja, até quatro, e as ausências não
+iam a zero --- porque não eram camadas: era a \textbf{carga da troca saturando},
+já que em malha adaptada a vizinhança de uma célula grossa tem muitos vizinhos
+finos. O conserto foi fazer o nível \emph{viajar junto} com o id do vizinho, o que
+economiza uma camada inteira, e \textbf{contar} a saturação em vez de cortá-la
+calada.
+
+\subsection{O que está verificado}
+
+Mesmo problema, mesmo resultado, variando apenas o número de processos:
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+caso & np=1 & np=2 & np=3 \\
+\midrule
+\texttt{grau2} uniforme, fluxo 2ª ordem        & \num{2.99e-13} & \num{2.75e-13} & \num{1.15e-13} \\
+\texttt{grau2} \textbf{adaptado}, fluxo 2ª ordem & \num{3.9960e-3} & \num{3.9960e-3} & \num{3.9960e-3} \\
+\texttt{grau3} uniforme, MLS+Gauss             & \num{7.99e-15} & \num{2.18e-14} & \num{3.81e-14} \\
+\texttt{grau2} \textbf{adaptado}, MLS+Gauss      & \num{7.02e-13} & \num{3.54e-13} & \num{1.55e-13} \\
+\texttt{grau4} uniforme, MLS ordem 4           & \num{2.52e-14} & \num{2.11e-13} & \num{2.51e-14} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{A segunda linha é o oráculo mais forte da tabela.} Um esquema que
+\emph{não} é exato dando erro \emph{idêntico} nos três casos significa matriz
+bit-a-bit igual --- nenhuma das outras linhas afirma tanto, porque onde o esquema é
+exato o que varia é resíduo do solver linear, que legitimamente depende da
+partição (o precondicionamento depende dela).
+
+Também verificado: as normas e o resíduo reduzem entre processos; o resíduo
+percorre a linha inteira --- antes descartava as colunas fora da faixa local, e
+saía \emph{menor} que o verdadeiro, isto é, o oráculo mentindo a favor do código;
+a repartição preserva a contagem global, a área, os níveis e o número de células
+em transição, e refaz a franja; e a correspondência id\,$\to$\,geometria não
+depende da partição.
+
+\paragraph{np=3 está na suíte por motivo medido.} Foi ele, e não np=2, que expôs a
+célula grossa da transição 2:1 na borda da franja. Número par de processos parte o
+quadrado ao meio e produz fronteiras alinhadas com a malha; ímpar não.

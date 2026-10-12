@@ -1,0 +1,16 @@
+# Auxiliares do LaTeX: nao entram no repositorio.
+#
+# O PDF tambem nao, e isso e' deliberado: ele e' DERIVADO das fontes e dos
+# `dados/*.dat`, e versionar um derivado convida a divergencia entre ele e o que
+# o compilador produziria -- alguem le' um PDF commitado que nao corresponde mais
+# ao texto.  Para obter o PDF: `latexmk -pdf main`.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.pdf
+*.synctex.gz

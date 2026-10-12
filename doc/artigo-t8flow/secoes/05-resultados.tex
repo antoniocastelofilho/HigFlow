@@ -1,0 +1,179 @@
+\section{Resultados}
+\label{sec:resultados}
+
+\status{Pronta para malha uniforme e adaptada, em duas dimensões e em execução
+serial. Todos os números vêm de \texttt{dados/*.dat}, gerados por
+\texttt{gera-dados.sh}; nenhum foi digitado no texto. O que não foi medido ---
+paralelo e três dimensões --- está na seção \ref{sec:conc-falta}, não aqui.}
+
+Todas as corridas usam o quadrado unitário, condição de Dirichlet em todas as
+paredes tomada da própria solução exata, PETSc com tolerância \num{1e-14}, e três
+níveis de refino ($h = \num{1.25e-1}$, \num{6.25e-2}, \num{3.125e-2}). A malha
+adaptada é uma \emph{quadtree} obtida por refino aleatório de 40\% das células com
+semente fixa, balanceada em 2:1.
+
+\subsection{Mapa dos graus de exatidão}
+
+O resultado central, antes das tabelas: o \textbf{grau de exatidão} de cada
+esquema em cada tipo de malha. É a tabela que decide qual esquema serve para quê.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+esquema & malha uniforme & malha adaptada (2:1) \\
+\midrule
+fluxo, fechamento de 2 pontos & 1 & 1 \\
+fluxo, fechamento de 3 pontos & \textbf{2} & 1 \\
+compacto (Mehrstellen, Lele)  & \textbf{3} & \emph{recusa} \\
+MLS + Gauss, ordem 3          & \textbf{3} & \textbf{3} \\
+MLS + Gauss, ordem 4          & \textbf{4} & 3$^{\ast}$ \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+\footnotesize $^{\ast}$ A ordem 4 \emph{rebaixa} em malha adaptada por falta de
+pontos no suporte, e o rebaixamento é contado --- seção \ref{sec:res-rebaixo}.
+\end{center}
+
+\subsection{Malha uniforme: o esquema de fluxo}
+
+\paragraph{Grau 2 é exato, e é o pedido original.}
+
+\tabconv{unif-fluxo2-grau2.dat}{Grau 2, fluxo de segunda ordem, fechamento de
+três pontos, malha uniforme. O erro é de máquina nas duas normas e \emph{não
+melhora nem piora com o refino} --- o que é a assinatura de um esquema exato: o
+que sobra é resíduo do solver, e ele não depende de $h$.}
+
+\paragraph{O contraste do fechamento.} Com dois pontos na parede em vez de três,
+o mesmo grau 2 deixa de ser exato:
+
+\tabconv{unif-fluxo2-2pt-grau2.dat}{Grau 2, mesmo esquema, fechamento de
+\textbf{dois} pontos. Erro de \num{1.16e-3} contra \num{3.91e-13} --- dez ordens
+de grandeza --- e ordem $\approx 2$. Esta tabela é o que dá sentido à anterior.}
+
+\paragraph{Grau 3 e o caso trigonométrico.}
+
+\tabconv{unif-fluxo2-grau3.dat}{Grau 3, fluxo de segunda ordem. A ordem medida é
+$\approx\num{2.95}$, acima de 2: para um campo cúbico as derivadas de quarta
+ordem se anulam e o termo dominante do truncamento desaparece. Não é erro de
+medida, e é por isso que o grau 3 \emph{não} serve sozinho para distinguir os
+esquemas --- o caso trigonométrico serve.}
+
+\tabconv{unif-fluxo2-trig.dat}{Solução trigonométrica, fluxo de segunda ordem.
+Ordem \num{1.97} na norma do máximo. Aqui nenhuma derivada se anula, e a ordem
+medida é a ordem do esquema.}
+
+\subsection{Malha uniforme: o compacto de quarta ordem}
+
+\tabconv{unif-lele4-grau3.dat}{Grau 3, compacto na forma de derivada segunda
+implícita. Exato --- e o grau 3 é o teto, limitado pelo fantasma de quatro pontos
+na parede \eqref{eq:fantasma4}, não pelo estêncil interior.}
+
+\tabconv{unif-lele4-grau4.dat}{Grau 4, o mesmo esquema. Deixa de ser exato, e
+converge em ordem \num{3.95} --- quarta ordem, como projetado. A exatidão se perde
+em grau 4 e a \emph{ordem} não sofre, porque o erro do fechamento é local e também
+$O(h^4)$.}
+
+\tabconv{unif-lele4-trig.dat}{Solução trigonométrica, compacto. Ordem
+\num{3.86} na norma do máximo, contra \num{1.97} do esquema de fluxo na mesma
+malha e na mesma solução.}
+
+\subsection{Malha uniforme: MLS com quadratura de Gauss}
+
+\tabconv{unif-mls3-grau3.dat}{Grau 3, MLS de ordem 3 com Gauss. Exato, com erro
+na faixa do solver.}
+
+\tabconv{unif-mls4-grau4.dat}{Grau 4, MLS de \textbf{ordem 4} com Gauss. Exato ---
+o grau de exatidão acompanha a ordem do ajuste, que é a propriedade que distingue
+este esquema dos outros quatro.}
+
+\tabconv{unif-mls4-trig.dat}{Solução trigonométrica, MLS de ordem 4. Ordem
+\num{3.82} na norma do máximo; com ordem 3 o mesmo caso dá \num{2.83}. A ordem de
+convergência também acompanha a ordem do ajuste.}
+
+\subsection{O fator que destravava o esquema era a quadratura da fonte}
+\label{sec:res-fonte}
+
+Este é o achado que mais mudou o resultado, e ele é medido isoladamente trocando
+\textbf{uma} coisa: a quadratura de $\int_{\Omega_c} f\,\mathrm{d}A$. A derivada
+na faceta é exata nas duas corridas abaixo; a malha, a solução, o solver e a ordem
+do ajuste são os mesmos.
+
+\tabconv{unif-mls4-pm-grau4.dat}{Grau 4, MLS de ordem 4 com Gauss na faceta mas
+a fonte na regra do \textbf{ponto médio}. O esquema \textbf{trava em segunda
+ordem}: \num{9.58e-5} e ordem \num{1.99}, contra \num{5.91e-14} exato com Gauss
+$2\times2$ --- dez ordens de grandeza de diferença.}
+
+A regra do ponto médio é um erro $O(h^2)$ \emph{relativo} em
+$\int_{\Omega_c} f\,\mathrm{d}A$. No esquema de fluxo de segunda ordem esse erro
+se escondia atrás do erro do próprio fluxo, e nunca foi o termo dominante. Com o
+fluxo levado à ordem alta, ele passa a ser --- e nenhum trabalho adicional sobre o
+fluxo teria efeito enquanto a fonte permanecesse no ponto médio.
+
+O sinalizador \verb|--fonte-ponto-medio| existe exatamente para produzir essa
+tabela, e a cláusula D6 do contrato a exige. Sem o interruptor, ``usamos Gauss
+$2\times2$ na fonte'' seria uma afirmação sem prova.
+
+\subsection{Malha adaptada: onde os esquemas se separam}
+
+\paragraph{O esquema de fluxo perde a exatidão do grau 2.}
+
+\tabconv{adap-fluxo2-grau2.dat}{Grau 2, fluxo de segunda ordem, malha adaptada.
+O erro é \num{1.12e-3} --- comparar com \num{3.91e-13} na malha uniforme --- e
+converge em ordem \num{1.84}. A exatidão do grau 2 era propriedade da malha
+uniforme.}
+
+A causa é a quadratura: na transição, a distância entre os centros ($3h/4$) não é
+a distância do centro à face ($h/2$), e o termo de curvatura não cancela. Isso
+\textbf{não} é defeito, e afirmar explicitamente que a exatidão se perde é o que
+impede alguém de ``consertar'' o que está correto. Na malha adaptada o esquema de
+fluxo é exato apenas para campo linear.
+
+\paragraph{O MLS com Gauss recupera a exatidão, e a estende.}
+
+\tabconv{adap-mls3-grau2.dat}{Grau 2, MLS de ordem 3 com Gauss, \textbf{na mesma
+malha adaptada} --- mesma fração, mesma semente. Exato: \num{1.52e-12} contra
+\num{1.12e-3} do esquema de fluxo.}
+
+\tabconv{adap-mls3-grau3.dat}{Grau 3, MLS de ordem 3, malha adaptada. Também
+exato. O grau de exatidão em malha adaptada é o mesmo da malha uniforme, que é a
+razão de existir deste esquema.}
+
+\tabconv{adap-mls3-grau4.dat}{Grau 4, MLS de ordem 3, malha adaptada. Acima da
+ordem do ajuste, logo não exato, e converge em ordem \num{3.56}.}
+
+\tabconv{adap-mls3-trig.dat}{Solução trigonométrica, MLS de ordem 3, malha
+adaptada. Ordem \num{3.08} na norma do máximo, contra \num{1.84} do esquema de
+fluxo na mesma malha.}
+
+\subsection{A ordem 4 não sobrevive à malha adaptada}
+\label{sec:res-rebaixo}
+
+Uma medida negativa, e ela é um resultado. Em malha adaptada com ordem 4,
+\textbf{8 dos \num{5172}} ajustes MLS não sustentam a ordem pedida. A causa é o
+\emph{suporte}, não o condicionamento: o crescimento por anéis entrega de 12 a 16
+pontos, contra os 15 monômios que a ordem 4 exige. Em malha uniforme o mesmo
+crescimento entrega suporte regular e não há rebaixamento algum.
+
+A consequência é que a exatidão de grau 4 se perde na malha adaptada --- e deve
+se perder: oito pontos de quadratura usam ordem menor que a declarada. A ordem
+utilizável em malha adaptada é~3, e levá-la a~4 é um trabalho de \emph{seleção de
+suporte} --- mais pontos, escolhidos por qualidade geométrica em vez de por anéis
+--- não de quadratura nem de fechamento.
+
+O que torna essa medida possível é o contador de rebaixamento descrito na seção
+\ref{sec:aprox-mls}. Antes dele, o mesmo caso produzia o defeito relatado na
+seção \ref{sec:verif-defeitos}.
+
+\subsection{Conservação na faceta de transição}
+
+A cláusula D7 compara, nas sub-facetas de transição 2:1, os pontos de quadratura
+e os estênceis de derivada vistos dos \emph{dois} lados --- com o oráculo
+recalculando a geometria por conta própria. Em oito sub-facetas de transição, a
+diferença máxima é \textbf{\num{0.0e+00}} no ponto e \textbf{\num{0.0e+00}} no
+peso: identidade exata, não concordância numérica.
+
+Isso é consequência do desenho, não de um acerto: o suporte depende do ponto, não
+de quem pergunta. E merece oráculo próprio porque um esquema não conservativo
+\emph{ainda converge} --- a propriedade é invisível para toda a bateria de
+tabelas acima.

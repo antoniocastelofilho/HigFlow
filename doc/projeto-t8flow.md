@@ -1047,7 +1047,118 @@ deslocados), que é onde o fluxo é avaliado no arranjo deslocado.
 
 ---
 
-## 14. O que vem depois
+## 15. O preparo para o paralelo, e os três defeitos que ele expôs
+
+Feito em **12/10/2026**. O que segue é o que o caminho serial não exercitava, e os
+defeitos que apareceram ao exercitá-lo — todos reais, todos medidos.
+
+### 15.1 A franja de K camadas
+
+A franja nativa do t8code tem **uma** camada (`T8_GHOST_FACES`), e uma camada não
+basta: o ponto de quadratura está *sobre* a faceta, logo a célula que o contém
+pode ser de franja, e a partir dela o suporte do MLS ainda precisa abrir os anéis
+inteiros. Medido com uma camada só:
+
+```
+ConstrutorEstencil: suporte de 1 pontos em 6 aneis, minimo 10 para ordem 3
+```
+
+As camadas adicionais vêm de **rodadas de troca**: cada processo publica, por
+folha sua, a vizinhança que já conhece, e cada rodada estende o alcance em um
+anel. A regra é **camadas = anéis + 1**, e a diferença de um foi medida, não
+deduzida: com `anéis` camadas, np=2 truncou 32 suportes e np=3 falhou.
+
+A alternativa rejeitada: crescer o suporte a partir da célula local adjacente.
+Isso faria o suporte depender de *quem pergunta*, e os dois fluxos pela mesma
+faceta deixariam de se cancelar — perdendo a conservação que a cláusula D7 afirma
+em `0,0e+00`.
+
+### 15.2 Defeito 1: a franja ordenada por id
+
+**O mais caro, e o mais instrutivo: o comentário advertindo contra ele estava
+escrito na mesma função.**
+
+A documentação do t8code é explícita — `leaf_face_neighbors` numera
+`0 … num_local−1` para as locais e `num_local … num_local+num_ghosts−1` para as
+da camada 1. O achatamento da tabela ordenou **toda** a franja por id, porque id
+é determinístico e parecia a escolha limpa. O efeito: o índice que o t8code
+devolvia para o terceiro fantasma passava a designar outra folha, e
+`ids_vizinhos` entregava um id que **existe** — só que de outra célula.
+
+| caso | np=1 | np=2 |
+|---|---|---|
+| `grau1` adaptado, fluxo 2ª ordem | 3,97e-13 | **1,70e-01** |
+
+O esquema é **exato** para campo linear, então o np não podia mudar nada. Só as
+camadas 2 e acima podem ser ordenadas por id — elas não têm índice do t8code.
+
+### 15.3 Defeito 2: face de franja indistinguível de contorno
+
+Uma face sem vizinhos na lista significa **duas** coisas: contorno do domínio, ou
+"o dono desta folha me contou sobre as outras faces e não sobre esta". Com um
+`bool` por folha as duas se confundiam, e a segunda era tratada como a primeira —
+o esquema aplicava condição de contorno **no meio do domínio**, ao longo de toda a
+fronteira de partição, em silêncio.
+
+O conserto é uma **máscara de faces conhecidas**, um bit por face, publicada junto
+com os vizinhos.
+
+### 15.4 Defeito 3: o fallback silencioso do nível transversal
+
+O gradiente transversal da transição 2:1 precisa do nível do vizinho transversal
+da célula grossa. A primeira versão o buscava na tabela e, quando faltava, caía
+num fallback: o nível da própria célula grossa. Isso dava `h` errado, distância
+errada, gradiente errado.
+
+Duas lições: **o fallback plausível foi pior que uma recusa**; e a busca pela causa
+foi para o lugar errado — tentei mais camadas de franja, até quatro, e as ausências
+não iam a zero. Não eram camadas: era a **carga da troca saturando**, porque em
+malha adaptada a vizinhança de uma célula grossa tem muitos vizinhos finos. O
+conserto foi fazer o **nível viajar junto com o id** do vizinho, o que economiza
+uma camada inteira, e **contar a saturação** (`saturacoes_da_franja`) em vez de
+cortá-la calada.
+
+### 15.5 O que está verificado
+
+Mesmo problema, mesmo resultado, em np=1 a 4:
+
+| caso | np=1 | np=2 | np=3 |
+|---|---|---|---|
+| `grau2` uniforme, fluxo2 | 2,99e-13 | 2,75e-13 | 1,15e-13 |
+| `grau2` **adaptado**, fluxo2 | 3,9960e-03 | 3,9960e-03 | 3,9960e-03 |
+| `grau3` uniforme, MLS+Gauss | 7,99e-15 | 2,18e-14 | 3,81e-14 |
+| `grau2` **adaptado**, MLS+Gauss | 7,02e-13 | 3,54e-13 | 1,55e-13 |
+| `grau4` uniforme, MLS ordem 4 | 2,52e-14 | 2,11e-13 | 2,51e-14 |
+
+A segunda linha é o oráculo mais forte da tabela: um esquema que **não** é exato
+dando erro **idêntico** nos três np significa matriz bit-a-bit igual. Onde o
+esquema é exato, o que varia é resíduo do solver, que legitimamente depende da
+partição — o precondicionamento depende dela.
+
+Também verificado: as normas e o resíduo reduzem; o resíduo percorre a linha
+inteira (antes descartava as colunas fora da faixa local, saindo **menor** que o
+verdadeiro — o oráculo mentindo a favor do código); a repartição preserva a malha
+e refaz a franja; e `id → geometria` não depende da partição.
+
+As cláusulas X1 a X9 cobrem isso, e o arreio as roda em **np = 1, 2 e 3**. np=3
+está na lista por motivo medido: foi ele, e não np=2, que expôs a célula grossa da
+transição na borda da franja. Número par de processos parte o quadrado ao meio e
+produz fronteiras alinhadas com a malha; ímpar não.
+
+### 15.6 O que ainda falta
+
+1. **o custo das rodadas de troca não foi medido.** A escalabilidade de 1,6× em
+   np=4 foi medida *antes* da franja de K camadas, logo não vale mais;
+2. **a repartição não é automática** após adaptação — hoje é chamada explícita.
+   Decisão do usuário: automático esconde o custo, explícito é previsível;
+3. **guarda contra árvore de uma célula**, que o levantamento do t8code registra
+   como defeito que custou "meia hora de simulação divergindo";
+4. **o lote de estênceis em GPU nunca rodou em paralelo.**
+
+## 16. O que vem depois
+
+### Itens herdados da lista anterior
+
 
 ### 13.1 O estêncil com a ordem desejada, como na HiGTree
 

@@ -1,0 +1,278 @@
+\section{As aproximações}
+\label{sec:aproximacoes}
+
+\status{Pronta. As cinco aproximações estão implementadas e medidas no mesmo
+arreio; os coeficientes abaixo são os do código, não os da literatura reescritos.
+A equivalência entre as duas formas do compacto foi verificada, não suposta
+(seção \ref{sec:aprox-equiv}).}
+
+Esta seção descreve o aproximador por mínimos quadrados móveis, que é a base
+comum, e em seguida as cinco aproximações do laplaciano que foram medidas.
+
+\subsection{Mínimos quadrados móveis ponderados}
+\label{sec:aprox-mls}
+
+O aproximador é o da família de superfícies por mínimos quadrados
+móveis~\cite{lancaster1981}, na forma em que o sistema antecessor o emprega para
+interpolar em árvores não graduadas~\cite{sousa2019}.
+
+Dado um ponto-alvo $\mathbf{x}$ e uma nuvem de suporte $\{\mathbf{x}_k\}_{k=1}^n$
+com valores $u_k$, o ajuste procura o polinômio $p$ de grau $m$ que minimiza
+
+\begin{equation}
+  \sum_{k=1}^{n} D_k^2 \bigl[p(\mathbf{x}_k) - u_k\bigr]^2,
+  \qquad
+  D_k^2 = \frac{1}{\|\mathbf{x}_k - \mathbf{x}\|^2 + \varepsilon},
+  \label{eq:mls-funcional}
+\end{equation}
+
+e devolve, não o polinômio, mas o vetor de \textbf{pesos} $w_k$ tal que o
+funcional desejado de $p$ em $\mathbf{x}$ seja $\sum_k w_k u_k$. O peso móvel de
+\eqref{eq:mls-funcional} --- cada ponto pesado pelo inverso do quadrado da
+distância --- é o que faz o ajuste ser \emph{móvel}: o polinômio que sai depende
+do ponto onde se pergunta, e não é um ajuste global.
+
+\paragraph{A base é relativa e adimensionalizada.} Os monômios são escritos na
+variável deslocada e escalada
+\begin{equation}
+  \mathbf{s}_k = \frac{\mathbf{x}_k - \mathbf{x}}{L},
+  \qquad
+  L = \max_k \|\mathbf{x}_k - \mathbf{x}\|,
+  \label{eq:mls-escala}
+\end{equation}
+e em duas dimensões a base tem $3$, $6$, $10$ e $15$ monômios para as ordens
+$1$ a $4$. O deslocamento é o que torna o funcional de avaliação trivial: no
+alvo, $\mathbf{s}=\mathbf{0}$, e portanto o valor é o coeficiente do monômio
+constante, $\partial/\partial x$ é o coeficiente de $s_x$, e assim por diante.
+
+A \emph{escala} de \eqref{eq:mls-escala} é menos óbvia e foi necessária. Sem ela,
+a matriz normal da ordem~4 tem número de condição da ordem de $h^{-8}$; com
+$h=\num{3e-2}$ isso passa de $10^{12}$, e o ajuste degrada \textbf{em silêncio}
+--- devolvendo pesos, não erro. Com a escala, o condicionamento não depende de
+$h$, e a cláusula D2 do contrato afirma isso pelo caminho em que falharia: a
+mesma reprodução de grau~4 em um suporte mil vezes menor ($h=\num{1e-3}$).
+
+O peso $D_k^2$, note-se, \textbf{permanece na escala física}. Ele é o peso do
+núcleo herdado, e alterá-lo mudaria o ajuste em vez de apenas recondicioná-lo ---
+o que tornaria as duas implementações incomparáveis. Essa comparabilidade é o que
+permite a cláusula N7: os pesos de valor da implementação própria concordam com
+os do núcleo herdado, que resolve o mesmo problema por decomposição QR, com
+diferença máxima de \num{1.249e-16}. O caso \emph{rejeita} a concordância
+exatamente nula como suspeita.
+
+\paragraph{Resolução e os três funcionais.} Com $b_i$ os monômios, a matriz
+normal e o lado direito são
+\begin{equation}
+  M_{ij} = \sum_k D_k^2\, b_i(\mathbf{s}_k)\, b_j(\mathbf{s}_k),
+  \qquad
+  M\mathbf{y} = \mathbf{e}_q,
+  \qquad
+  w_k = D_k^2 \sum_i y_i\, b_i(\mathbf{s}_k),
+  \label{eq:mls-normal}
+\end{equation}
+onde $q$ seleciona o funcional: $q=0$ dá o \textbf{valor}, $q=1$ e $q=2$ dão
+$\partial/\partial x$ e $\partial/\partial y$. Para os funcionais de derivada os
+pesos são divididos por $L$, desfazendo a escala da variável.
+
+Duas conferências baratas e independentes do campo acompanham cada ajuste: os
+pesos de \emph{valor} somam $1$ (um ajuste que reproduz a constante não pode
+fazer outra coisa) e os de \emph{derivada} somam $0$. São conferências que pegam
+erro de escala e de sinal que a reprodução de um campo específico pode absorver.
+
+\paragraph{O rebaixamento de ordem é registrado, nunca silencioso.} Quando o
+suporte não sustenta a ordem pedida, o ajuste cai para a ordem que ele sustenta,
+e um contador registra. A decisão é tomada pela razão entre o menor e o maior
+pivô da eliminação --- não é o número de condição, mas é barata, monótona nele, e
+a faixa é inequívoca: um suporte saudável dá razão entre $10^{-2}$ e $10^{-5}$, e
+os ajustes que produziam o defeito descrito na seção \ref{sec:verificacao} ficavam
+abaixo de $10^{-13}$. O limiar está na faixa vazia entre os dois regimes.
+
+\paragraph{O estêncil: suporte por anéis e fechamento de contorno.} O suporte
+cresce por \textbf{anéis} de vizinhos de face a partir da célula que contém o
+ponto, e a parada só é avaliada com o anel \emph{fechado por inteiro} --- parar no
+meio de um anel faria o suporte, e portanto os pesos, depender da ordem de
+visita. Células de contorno entram pela relação afim descrita na seção
+\ref{sec:aprox-bc}, de modo que o valor em cada ponto de suporte é
+$a\,u[\mathrm{id}] + b$: o termo $a$ vai para a matriz e o termo $b$ para o lado
+direito. Um único laço trata os três tipos de condição, e reusá-lo entre o
+funcional de valor e o de derivada não é economia --- é o que garante que o
+fechamento entre nos dois do mesmo modo.
+
+\subsection{Balanço de fluxos de segunda ordem}
+\label{sec:aprox-fluxo}
+
+A aproximação de referência, em volumes finitos:
+\begin{equation}
+  \int_{\Omega_c} \nabla^2 u \,\mathrm{d}A
+  \;=\; \oint_{\partial\Omega_c} \frac{\partial u}{\partial n} \,\mathrm{d}s
+  \;\approx\; \sum_{f} \frac{|f|}{d_f}\,\bigl(u_{\mathrm{viz}} - u_c\bigr),
+  \label{eq:fv}
+\end{equation}
+com $|f|$ a medida da faceta e $d_f$ a distância entre os centros. Na transição
+2:1 os três fatores mudam juntos, e a implementação os escreve de forma única em
+termos de $\varphi = 2^{\,n_c - n_{\mathrm{viz}}}$:
+\begin{equation}
+  h_{\mathrm{viz}} = \varphi\,h_c,
+  \qquad
+  |f| = \ell\,\min(1,\varphi),
+  \qquad
+  d_f = \tfrac{1}{2}\bigl(h_c + h_{\mathrm{viz}}\bigr),
+  \label{eq:fv-transicao}
+\end{equation}
+mais uma \textbf{correção transversal}, porque na transição o segmento que une os
+dois centros não é normal à faceta. A correção usa o gradiente transversal tomado
+na célula \emph{grossa}, e seu sinal depende apenas do deslocamento transversal
+entre os centros --- não de qual dos dois lados é o grosso. Fazê-lo depender disso
+\textbf{dobrou} o erro na medição (\num{7.8e-2} contra \num{3.9e-2}), e esse foi o
+sintoma que identificou a fórmula errada.
+
+\subsection{O fechamento de parede}
+\label{sec:aprox-bc}
+
+\paragraph{A relação afim.} Toda condição de contorno entra pela mesma forma
+$\alpha u + \beta\,\partial u/\partial n = g$ na parede, convertida em
+$u_{\text{fantasma}} = A\,u_c + B$ com
+\begin{equation}
+  A = \frac{\beta - \alpha h/2}{\alpha h/2 + \beta},
+  \qquad
+  B = \frac{g\,h}{\alpha h/2 + \beta}.
+  \label{eq:bc-afim}
+\end{equation}
+Os dois casos limites saem de \eqref{eq:bc-afim} sem caso especial: Dirichlet
+($\beta=0$) dá $A=-1$, $B=2g$ --- reflexão em torno do valor na parede; Neumann
+($\alpha=0$) dá $A=1$, $B=hg$ --- extrapolação pela derivada. Robin é o caso
+geral. A escolha de uma relação afim única, em vez de três ramos, é o que permite
+que o mesmo laço de montagem sirva aos três.
+
+\paragraph{Três pontos, e o contraste de dois.} No esquema de fluxo, a derivada
+normal na parede é construída com a célula de contorno, a vizinha e a seguinte,
+a distâncias $s_1=h/2$ e $s_2 = s_1 + (h+h_{\mathrm{viz}})/2$ da parede:
+\begin{equation}
+  \frac{\partial u}{\partial n}\bigg|_{\text{parede}}
+  \approx
+  \underbrace{\frac{-s_1-s_2}{s_1 s_2}}_{c_g} u_g
+  + \underbrace{\frac{s_2}{s_1(s_2-s_1)}}_{c_1} u_1
+  + \underbrace{\frac{-s_1}{s_2(s_2-s_1)}}_{c_3} u_3 .
+  \label{eq:fech3}
+\end{equation}
+O fechamento de \emph{dois} pontos permanece disponível e serve de contraste
+controlado: com ele, o grau~2 deixa de ser exato e passa a convergir em segunda
+ordem --- verde que nunca foi vermelho não prova nada.
+
+Um erro de medida vale registro, porque foi instrutivo: em uma versão, $s_2$ foi
+medido a partir do \emph{centro} da célula em vez da parede, de modo que na malha
+uniforme ele valia $h$ em vez de $3h/2$. A regressão de grau~2 acusou
+instantaneamente --- \num{1.97e-1} contra \num{3e-13}.
+
+\subsection{Compacto de quarta ordem: Mehrstellen}
+\label{sec:aprox-mehrstellen}
+
+Na malha uniforme, o estêncil compacto de nove pontos:
+\begin{equation}
+  \frac{1}{6h^2}
+  \begin{bmatrix}
+    1 & 4 & 1\\
+    4 & -20 & 4\\
+    1 & 4 & 1
+  \end{bmatrix} u
+  \;=\;
+  f + \frac{h^2}{12}\nabla^2 f .
+  \label{eq:mehrstellen}
+\end{equation}
+A correção $h^2\nabla^2 f/12$ no lado direito é o que compra a quarta ordem a
+partir de um estêncil que, sem ela, é de segunda.
+
+O fechamento de parede aqui é um \textbf{fantasma de quatro pontos}, obtido da
+interpolação que reproduz o valor prescrito na parede:
+\begin{equation}
+  u_{\text{fantasma}} = \tfrac{16}{5}g - 3u_0 + u_1 - \tfrac{1}{5}u_2 ,
+  \label{eq:fantasma4}
+\end{equation}
+aplicado recursivamente, com os cantos tratados por composição. E é esse
+fechamento, não o interior, que limita a \textbf{exatidão} a grau~3 --- o que a
+seção \ref{sec:resultados} mede.
+
+Este esquema \textbf{recusa} o que não sabe tratar: malha com mais de um bloco, e
+malha adaptada. O estêncil de nove pontos pressupõe espaçamento uniforme, e
+aplicá-lo em uma transição 2:1 daria um número plausível e errado.
+
+\subsection{Compacto de quarta ordem: derivada segunda implícita}
+\label{sec:aprox-lele}
+
+A segunda forma do compacto aproxima a derivada segunda \emph{implicitamente},
+na família de Lele~\cite{lele1992}:
+\begin{equation}
+  \tfrac{1}{10}u''_{i-1} + u''_i + \tfrac{1}{10}u''_{i+1}
+  \;=\;
+  \frac{6}{5}\,\frac{u_{i-1}-2u_i+u_{i+1}}{h^2}.
+  \label{eq:lele}
+\end{equation}
+Em duas dimensões o operador aplicado é o produto tensorial $A_x A_y$ dos
+operadores implícitos de cada direção, e o lado direito é $A_x A_y f$ dividido
+pelo fator $(6/5)^2 = \num{1.44}$.
+
+\subsection{As duas formas do compacto são o mesmo esquema}
+\label{sec:aprox-equiv}
+
+Isso foi \textbf{verificado, não suposto}: as duas formas produzem resultados
+idênticos para soluções polinomiais de grau até~4 e diferem em \num{1.8}\% no
+caso trigonométrico, o que é compatível com a mesma ordem de truncamento e
+constantes distintas. Afirmar a equivalência sem medi-la seria afirmar o que a
+álgebra sugere mas a implementação pode contradizer --- e o fator \num{1.44} é
+exatamente o lugar onde uma implementação contradiz a álgebra em silêncio.
+
+\subsection{Reconstrução por mínimos quadrados com quadratura de Gauss}
+\label{sec:aprox-mlsgauss}
+
+A quinta aproximação é a que fecha o vão entre as outras quatro: as duas formas
+do compacto não servem em malha adaptada, e o de fluxo perde nela a exatidão de
+grau~2. O fluxo pela faceta é
+$\int_f \partial u/\partial n \,\mathrm{d}s$, e o esquema leva \textbf{os dois
+fatores} à ordem alta, porque levantar um só não passa de segunda ordem:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+fator & fluxo de segunda ordem & reconstrução MLS \\
+\midrule
+derivada no ponto & diferença de dois centros & ajuste MLS de ordem 3 ou 4 \\
+quadratura da faceta & ponto médio (exata p/ linear) & Gauss de 2 pontos (exata p/ cúbico) \\
+quadratura do volume & $f(c)\,A$ (exata p/ linear) & Gauss $2\times2$ (exata p/ bicúbico) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A terceira linha é o achado central deste trabalho, e a seção
+\ref{sec:res-fonte} a mede isoladamente.
+
+\paragraph{A quadratura da faceta.} Com $\mathbf{c}_f$ o centro da sub-faceta e
+$\ell$ a sua medida, os dois nós de Gauss e os pesos normalizados para média são
+\begin{equation}
+  \mathbf{x}_q = \mathbf{c}_f \pm \frac{1}{\sqrt{3}}\,\frac{\ell}{2}\,\hat{\mathbf{t}},
+  \qquad w_q = \tfrac{1}{2},
+  \qquad
+  \text{fluxo} = \ell \sum_{q=1}^{2} w_q \left.\frac{\partial u}{\partial n}\right|_{\mathbf{x}_q} .
+  \label{eq:gauss-faceta}
+\end{equation}
+Na transição 2:1 a faceta da célula grossa é coberta por \textbf{duas}
+sub-facetas, cada uma do tamanho da face da vizinha fina, e o fluxo total é a
+soma. Integrar a face inteira de uma vez daria o fluxo médio sobre ela, que não é
+a soma dos dois fluxos finos quando a derivada varia ao longo dela.
+
+\paragraph{A quadratura do volume.} A fonte é integrada por Gauss $2\times2$,
+\begin{equation}
+  \int_{\Omega_c} f \,\mathrm{d}A \approx
+  A \sum_{q_x=1}^{2}\sum_{q_y=1}^{2} w_{q_x} w_{q_y}\, f(\mathbf{x}_{q_x q_y}),
+  \label{eq:gauss-volume}
+\end{equation}
+exata para $f$ bicúbico, o que cobre $f=\nabla^2 u$ de qualquer $u$ de grau até~5.
+
+\paragraph{Conservação, por construção.} O suporte do estêncil de derivada
+depende apenas do \textbf{ponto} de quadratura, nunca da célula que pergunta.
+Logo as duas células que compartilham uma faceta obtêm o mesmo fluxo, sem que
+ninguém combine nada --- inclusive na transição 2:1, onde a grossa parte a faceta
+e a fina não parte a sua. Isso importa porque um esquema \textbf{não conservativo
+ainda converge}: nenhum dos testes de ordem de convergência pegaria um erro de
+indexação na sub-faceta. A cláusula D7 afirma a propriedade pelo caminho em que
+ela falharia, com o oráculo refazendo a geometria das sub-facetas por conta
+própria e comparando os estênceis peso a peso.

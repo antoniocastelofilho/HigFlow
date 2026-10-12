@@ -1,0 +1,110 @@
+\section{A suíte, e o que ela já pegou}
+\label{sec:verificacao}
+
+\status{Pronta. O estado relatado é o da execução de 12 de outubro de 2026: 141
+casos, nenhum falhando, contrato 69/69. Os defeitos da seção
+\ref{sec:verif-defeitos} são todos reais, e cada um está nomeado com o oráculo que
+o encontrou.}
+
+\subsection{Contrato lido pelo arreio}
+
+A suíte é organizada como um \textbf{contrato}: um cabeçalho com cláusulas
+numeradas, cada uma declarando uma propriedade que o sistema afirma, explicando
+por que ela merece ser afirmada, e nomeando o caso de teste que a verifica. O
+arreio de execução \emph{lê as cláusulas do próprio cabeçalho} e exige um caso
+passando para cada uma --- cláusula sem teste sai como \textbf{falha}, não como
+omissão.
+
+Isso não é formalidade. Em um dos passos deste trabalho, um refator removeu o caso
+que cobria uma cláusula, e o arreio reportou ``caso ausente'' nomeando a cláusula
+--- o que uma suíte que apenas conta testes passando não faria.
+
+O estado atual, em duas dimensões:
+
+\begin{center}
+\begin{tabular}{llr}
+\toprule
+grupo & assunto & cláusulas \\
+\midrule
+N & mínimos quadrados móveis: valor, derivada, recusas & 7 \\
+B, F & floresta, blocos, suporte & 4 \\
+M, R & malha, numeração, refino & 13 \\
+G, A, L & GPU, arranjo deslocado, lote de estênceis & 15 \\
+E, C & estêncil, condições de contorno por região & 12 \\
+P, Q, T & Poisson, compacto, malha adaptada & 11 \\
+D & derivada de ordem alta e quadratura de Gauss & 7 \\
+\midrule
+\multicolumn{2}{l}{\textbf{total}} & \textbf{69} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Quatro guardas no arreio merecem menção, porque cada uma existe por um modo de
+falha observado: ela nomeia o prefixo de cláusula sem cobertura em vez de apenas
+somar; faz \verb|make clean| por configuração, para que um binário compilado com
+outro sinalizador não seja medido como se fosse deste; exige a linha de resumo do
+executável, para que um processo que morreu antes de terminar não conte como
+aprovado; e executa tudo por \verb|mpirun| mesmo com um processo, para que o
+caminho de execução seja o mesmo do paralelo.
+
+\subsection{Quatro defeitos que só o contraste encontrou}
+\label{sec:verif-defeitos}
+
+Esta subseção existe porque a disciplina de oráculo é barata de descrever e difícil
+de levar a sério, e o argumento mais convincente a seu favor é a lista do que ela
+pegou neste trabalho.
+
+\paragraph{1. O estêncil medido onde o ajuste é degenerado.} Os primeiros testes
+de estêncil e de contorno mediam o ajuste \emph{no centro da célula}. Ali o MLS é
+degenerado por construção --- peso $1$ na própria célula, lado direito
+$\approx 0$ --- de modo que o fechamento de contorno \textbf{nunca era
+exercitado}. Os casos passavam. O que denunciou foi o contraste: ele dava apenas
+\num{1e-10} quando devia dar ordens de grandeza. Com alvos deslocados do centro, o
+contraste passou a \num{1.9e-1}, e uma cláusula nova agora \emph{afirma} a
+degeneração no centro, para que ninguém a redescubra como surpresa.
+
+\paragraph{2. A correção transversal com sinal dependente de quem é grosso.} Na
+transição 2:1, fazer o sinal da correção transversal depender de qual lado é o
+grosso \textbf{dobrou} o erro: \num{7.8e-2} contra \num{3.9e-2}. A fórmula correta
+é independente disso. O sintoma --- erro exatamente duas vezes maior --- foi o que
+identificou a causa.
+
+\paragraph{3. O \emph{nan} silencioso do ajuste de ordem 4.} Este é o mais grave,
+e é o que motivou o contador de rebaixamento. A rotina de eliminação recusava
+pivô somente abaixo de \num{1e-300} --- isto é, apenas a singularidade exata --- e,
+ao recusar, devolvia um \textbf{vetor de zeros}. Em malha uniforme isso nunca
+ocorria. Em malha adaptada com ordem 4, ocorria em 8 de \num{5172} ajustes, e o
+efeito era uma linha da matriz silenciosamente errada:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+nível & $\|e\|_\infty$ (antes do conserto) \\
+\midrule
+3 & \num{2.36e-10} \\
+4 & \textbf{\num{3.32e-1}} \\
+5 & \num{2.35e-10} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Um nível com erro de \num{3.3e-1} cercado por \num{1e-10} nos vizinhos. O conserto
+tem duas partes --- a base adimensionalizada e o rebaixamento contado --- e ambas
+estão descritas na seção \ref{sec:aprox-mls}.
+
+\paragraph{4. O ponteiro nulo no ramo que não o usa.} Ao estender a montagem para
+o esquema novo, uma edição por substituição de texto inseriu a leitura dos
+contadores de MLS \emph{também} no ramo do esquema compacto, onde o objeto
+correspondente é um ponteiro nulo. O compilador não acusou, o esquema novo
+funcionava, e o compacto --- que passava antes --- quebrava com violação de
+segmentação. O experimento que localizou isso em um passo foi trocar a
+\emph{ordem} dos casos no arreio: a falha permaneceu no mesmo ponto lógico, o que
+descartou de uma vez a hipótese de acumulação de estado e apontou para o caso.
+
+\subsection{O padrão, destilado}
+
+Os quatro têm a mesma forma: \textbf{a afirmação estava certa e o oráculo não
+discriminava}. Em três dos quatro, o que denunciou não foi um caso falhando --- foi
+um \emph{contraste insuficiente}, isto é, um número que devia ser grande e era
+pequeno. Daí a regra de que nenhuma afirmação de exatidão entra na suíte sem o par
+que mede onde ela falha.

@@ -1,0 +1,77 @@
+\section{Conclusões}
+\label{sec:conclusoes}
+
+\status{Pronta. Cada conclusão abaixo remete à seção que a mede; as pendências
+estão separadas em \ref{sec:conc-falta} e não misturadas com os resultados.}
+
+\subsection{O que foi estabelecido}
+
+\paragraph{A floresta como estrutura é viável, e a herança é real.} O invólucro
+de solvers lineares e o aproximador por mínimos quadrados do sistema antecessor
+do sistema antecessor~\cite{sousa2019} são genuinamente independentes de malha, compilam sem modificação sob o padrão do
+t8code, e produzem os mesmos pesos da implementação própria em \num{1.249e-16}
+(seção \ref{sec:aprox-mls}). O que não é herdável é a propriedade da estrutura ---
+e é nisso que o sistema novo difere.
+
+\paragraph{O grau de exatidão é a propriedade que separa os esquemas.} Não a
+ordem de convergência. Os cinco esquemas medidos têm ordens que se parecem em
+alguns casos e graus de exatidão que não se parecem em nenhum: o esquema de fluxo
+é exato em grau 2 na malha uniforme e em grau 1 na adaptada; o compacto é exato em
+grau 3 e recusa a malha adaptada; o MLS com Gauss é exato até o grau da ordem do
+ajuste em ambas (seção \ref{sec:resultados}).
+
+\paragraph{A quadratura do termo de fonte era o limite, e não o fluxo.} Com a
+derivada na faceta já exata, a regra do ponto médio no volume mantinha o esquema
+inteiro em segunda ordem --- \num{9.58e-5} e ordem \num{1.99}, contra exato com
+Gauss $2\times2$. Nenhum trabalho adicional sobre o fluxo teria efeito enquanto a
+fonte permanecesse ali (seção \ref{sec:res-fonte}). Esse é o resultado deste
+trabalho que menos se antecipa da análise e mais se impõe da medida.
+
+\paragraph{Conservação na transição 2:1 sai do desenho.} Fazer o suporte do
+estêncil depender apenas do ponto de quadratura, e nunca da célula que pergunta,
+dá fluxo idêntico visto dos dois lados --- diferença \num{0.0e+00}, identidade
+exata --- inclusive onde a célula grossa parte a faceta e a fina não parte a sua.
+A propriedade precisa de oráculo próprio porque um esquema não conservativo ainda
+converge.
+
+\paragraph{Medida negativa também é resultado.} A ordem 4 do MLS não sobrevive à
+malha adaptada: 8 de \num{5172} ajustes rebaixam, por falta de pontos no suporte
+--- de 12 a 16 contra os 15 monômios exigidos. A ordem utilizável em malha
+adaptada é 3, e a via para 4 é seleção de suporte, não quadratura (seção
+\ref{sec:res-rebaixo}).
+
+\subsection{O que este trabalho não traz}
+\label{sec:conc-falta}
+
+Declarado aqui, e não diluído entre os resultados:
+
+\begin{itemize}
+\item \textbf{a medida de custo do paralelo.} A execução paralela em si está
+      feita e verificada (seção \ref{sec:paralelo}); o que falta é o
+      \emph{custo}: a escalabilidade de \num{1.6}$\times$ em np=4 citada na
+      seção \ref{sec:estrategias} foi medida \emph{antes} da franja de $K$
+      camadas, e portanto não vale mais;
+\item \textbf{três dimensões.} A base de código tridimensional não existe ainda,
+      por decisão de projeto (seção \ref{sec:estrategias}). A medida de
+      escalabilidade que importa --- muito trabalho por processo --- está nesse
+      regime;
+\item \textbf{Robin dentro do operador de Poisson.} A relação afim
+      \eqref{eq:bc-afim} trata os três tipos, e o estêncil a usa; o operador de
+      Poisson monta Dirichlet e Neumann. Montar Robin como se fosse Neumann daria
+      resultado plausível e errado, e por isso ele recusa em vez de aproximar;
+\item \textbf{fechamento de parede de ordem 5}, que elevaria a exatidão do
+      compacto de grau 3 para grau 5. O limite medido é o fechamento, não o
+      interior (seção \ref{sec:resultados}), de modo que esse é o passo natural
+      dessa família.
+\end{itemize}
+
+\subsection{O que transferimos de método}
+
+Fechamos com o que consideramos o resultado mais transferível, e ele não é
+numérico. Em todos os defeitos deste trabalho (seção \ref{sec:verif-defeitos}), o
+que separou causa de sintoma foi experimento controlado com \textbf{uma} variável
+--- mesma malha, mesmo binário, mesmo solver, mudando só o que se quer isolar ---
+e oráculo com \textbf{contraste}. Afirmações de exatidão sem o par que mede onde
+elas falham não distinguem um esquema correto de um oráculo cego: em três dos
+quatro defeitos, o que denunciou não foi um caso falhando, e sim um contraste que
+devia ser grande e era pequeno.

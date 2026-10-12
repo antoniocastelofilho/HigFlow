@@ -1,0 +1,189 @@
+\section{Estratégias de projeto}
+\label{sec:estrategias}
+
+\status{Pronta. Todas as decisões descritas estão implementadas; as que foram
+tomadas após medida trazem a medida. A seção \ref{sec:est-escala} traz números de
+escalabilidade em duas dimensões, medidos nesta máquina, e declara que o regime
+tridimensional não foi medido.}
+
+\subsection{A floresta é a estrutura}
+
+A decisão da qual as outras dependem. No t8Flow a malha \textbf{é} a floresta do
+t8code: a topologia, a numeração, os vizinhos e a partição vêm dela, e nenhuma
+estrutura paralela as duplica. Isso tem três consequências imediatas:
+
+\begin{itemize}
+\item \textbf{nenhum processo detém a malha inteira.} A curva de preenchimento
+      de espaço (ordem de Morton) particiona as folhas, e cada processo conhece
+      as suas mais uma camada de fantasmas de face;
+\item \textbf{o refino é da floresta.} Adaptar é chamar o adaptador do t8code e
+      \emph{reconfirmar} o balanceamento 2:1; não há sincronização entre duas
+      estruturas que possam divergir;
+\item \textbf{a partição é do t8code.} Não há cálculo próprio de balanceamento de
+      carga. Essa é uma renúncia deliberada, e a seção \ref{sec:est-escala} a
+      quantifica.
+\end{itemize}
+
+\subsection{Multiblocos é multiárvore}
+
+O t8Flow é multiblocos, como o antecessor, e essa foi a peça que encaixou sem
+atrito: a malha grossa (\emph{cmesh}) do t8code é nativamente multiárvore, e
+\textbf{um bloco é uma árvore}. Blocos vizinhos são unidos pelas faces
+coincidentes; uma sobreposição parcial de faces é recusada com exceção, porque
+unir faces que não coincidem exatamente produziria uma topologia plausível e
+errada.
+
+\subsection{Um domínio só}
+\label{sec:est-dominio}
+
+Esta decisão vem de um defeito concreto do antecessor, e por isso é relatada com
+ele.
+
+No antecessor, o domínio da fração volumétrica do método VOF é, por construção,
+uma malha \emph{uniforme no nível mais fino}, separada da árvore adaptativa que
+carrega a quantidade de movimento. Sete funções de advecção tridimensional
+percorriam a árvore adaptativa e usavam o índice obtido ali \emph{diretamente}
+como índice de uma propriedade que vive no outro domínio. As contagens medidas
+nos campos salvos:
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+propriedade & células \\
+\midrule
+fração volumétrica (domínio uniforme) & \num{375000} \\
+velocidade (árvore adaptativa)        & $\approx$ \num{81000} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Em malha uniforme os dois domínios coincidem célula a célula, e o índice
+errado é acidentalmente o certo.} Foi por isso que todo o conjunto de testes
+tridimensionais passou por anos. Com um nível de refino, oitenta mil iterações
+escreviam em um vetor de trezentos e setenta e cinco mil posições sem relação
+geométrica com a célula de origem --- e a fração parou de advectar, em silêncio,
+enquanto a quantidade de movimento continuava correta.
+
+A decisão para o sistema novo é, portanto, \textbf{um domínio só}: toda
+propriedade vive na mesma floresta. Dois domínios paralelos exigiriam tradução de
+índice explícita e verificada, e herdar o arranjo sem a tradução herdaria a
+classe inteira de defeito. Paga-se barato no início e caro depois.
+
+\subsection{Herança do que é independente de malha}
+
+Duas peças do antecessor~\cite{sousa2019} foram reaproveitadas sem modificação, depois de
+verificado que não dependem da estrutura de malha:
+
+\begin{description}
+\item[o invólucro de solvers lineares,] com implementações para PETSc,
+      \emph{hypre}, SOR, um solver centralizado e um que escreve o sistema em
+      disco. A interface recebe linhas, um lado direito, e devolve a solução;
+      nada nela conhece malha;
+\item[o aproximador por mínimos quadrados móveis ponderados] (seção
+      \ref{sec:aprox-mls}) --- a interpolação sem malha que é a contribuição
+      central de~\cite{sousa2019} e o que permite àquele método operar em
+      árvores \emph{não graduadas} ---, que recebe uma nuvem de pontos e um
+      ponto-alvo e devolve pesos. Também não conhece malha.
+\end{description}
+
+Uma verificação metodológica vale registro, porque a primeira tentativa dela foi
+\emph{inválida}: para decidir se um arquivo é independente de malha, tentou-se
+compilá-lo com um diretório de cabeçalhos-sombra vazios. O teste não provou nada,
+porque a diretiva \verb|#include "x.h"| procura primeiro o diretório do próprio
+arquivo-fonte --- de modo que a sombra nunca se aplicava, e um arquivo que
+\emph{depende} de malha foi declarado independente. O conserto foi copiar cada
+fonte para fora da árvore antes de compilar.
+
+\subsection{Duas e três dimensões em bases separadas}
+
+O t8code trata malhas bidimensionais e tridimensionais; o t8Flow mantém
+\textbf{bases de código separadas} para cada uma, começando pela
+bidimensional. A alternativa --- uma base só, com a dimensão como parâmetro de
+compilação --- economiza linhas e cobra em outro lugar: cada laço sobre direções,
+cada contagem de vizinhos de face e cada fórmula de quadratura ganha um caso que
+não é exercitado no regime em que se está trabalhando. Com bases separadas, o
+código bidimensional é lido e testado como código bidimensional.
+
+\subsection{Armazenamento: centros e facetas}
+
+As propriedades escalares e tensoriais vivem nos \textbf{centros} das células; as
+vetoriais, nas \textbf{facetas} --- o arranjo deslocado (MAC), que é o que torna
+o acoplamento pressão--velocidade estável sem estabilização adicional.
+
+A numeração de facetas exige uma decisão de propriedade, e ela é: a faceta
+pertence à célula para a qual é a face \emph{``menos''} em cada direção, e
+exatamente a uma. As faces ``mais'' que caem no contorno do domínio recebem
+faceta própria, porque não há célula à direita que as possua. Em uma malha
+uniforme de $N\times N$ isso dá $N(N+1)$ facetas por direção, e essa contagem é
+afirmada pela suíte --- é barata e pega erro de propriedade antes que ele apareça
+como divergência que não fecha.
+
+\subsection{Estênceis em lote, e a GPU quando houver}
+\label{sec:est-gpu}
+
+O estêncil de ordem arbitrária é pedido ponto a ponto ou \textbf{em lote}: $N$
+pontos de consulta, $N$ estênceis, em uma chamada. A forma de pedir foi definida
+antes do \emph{back-end}, porque é ela que decide se a execução em acelerador é
+possível.
+
+\begin{description}
+\item[seleção do suporte] fica sempre na CPU --- é navegação de malha, busca por
+      vizinhança, crescimento por anéis;
+\item[a resolução dos sistemas normais] é o que vai para o acelerador, com
+      implementação em \textbf{OpenCL} (escolhido por portabilidade: funciona com
+      placas AMD via \emph{rusticl}, Intel via NEO, e NVIDIA);
+\item[o \emph{back-end} de CPU existe sempre,] e a escolha entre os dois é
+      \textbf{sinalizador de compilação}, não detecção silenciosa em tempo de
+      execução.
+\end{description}
+
+Precisão simples basta para o estêncil, e isso foi uma decisão consciente: os
+pesos entram depois em um sistema linear resolvido em precisão dupla, e o erro
+dos pesos é de truncamento do ajuste, não de arredondamento.
+
+O oráculo desse caminho é \emph{ponto a ponto contra a CPU}, e ele encontrou um
+defeito que a reprodução polinomial não encontrava: o núcleo em OpenCL usava
+mínimos quadrados \textbf{não ponderados}, enquanto o núcleo herdado usa o peso
+móvel $1/(d^2+\varepsilon)$. Ambos reproduzem polinômios do grau da ordem
+exatamente --- e por isso o teste de reprodução passava nos dois ---, mas com
+\emph{pesos diferentes}: diferença medida de \num{0.311} em um peso individual.
+Ponderado corretamente, a diferença caiu para \num{8.8e-11}.
+
+Dois percalços de medição no mesmo caminho, registrados porque são o tipo de erro
+que faz um relatório afirmar o contrário do que mediu. Primeiro, recompilar com o
+sinalizador trocado \emph{não} reconstruía, porque o sinalizador não estava nas
+dependências do \emph{make}; o conserto foi gravar a configuração em um arquivo
+conferido na leitura do \emph{makefile}. Segundo, a diferença GPU--CPU medida deu
+\textbf{exatamente zero} --- porque com a GPU compilada ela é o \emph{back-end}
+padrão, e a ``referência de CPU'' estava sendo calculada na GPU. O caso agora
+força a CPU explicitamente e \emph{rejeita} o zero exato como suspeito.
+
+\subsection{A escalabilidade, medida}
+\label{sec:est-escala}
+
+Duas medidas, nesta máquina, em duas dimensões.
+
+A primeira é o \textbf{ganho de divisão}: \num{9377} células em quatro processos
+renderam apenas \num{1.6}$\times$. A leitura não é que não escala --- é que
+\num{2300} células por processo é pouco trabalho para o custo de comunicação. O
+regime em que a divisão vence é o de mais células por processo, e ele é limitado
+por \emph{tamanho}, não por dimensão.
+
+\reserva{o regime tridimensional, onde o antecessor tem \num{375000} células ---
+quarenta vezes mais trabalho por processo ---, \textbf{não} foi medido neste
+trabalho. Sem essa medida, o escalonamento em três dimensões é expectativa, não
+resultado.}
+
+A segunda é o \textbf{desbalanceamento por refino local}: refinar aleatoriamente
+desbalanceia a partição em \num{2.8}$\times$, e reparticionar corrige isso a um
+custo de 3 a 6\% do tempo de passo.
+
+\subsection{A suíte nasce com o código}
+
+A última estratégia é de processo, e foi pedida explicitamente: a suíte de testes
+nasce junto com o código, e não depois dele. A forma que isso toma aqui é um
+\textbf{contrato} --- um cabeçalho com cláusulas numeradas, cada uma declarando
+uma propriedade que o sistema afirma e nomeando o caso que a verifica. O arreio
+de execução \emph{lê as cláusulas do contrato} e exige um caso passando para cada
+uma: cláusula sem teste sai como falha, não como omissão. A seção
+\ref{sec:verificacao} descreve o estado e o que ele já pegou.

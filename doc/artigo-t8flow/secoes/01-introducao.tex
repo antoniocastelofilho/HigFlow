@@ -1,0 +1,82 @@
+\section{Introdução}
+\label{sec:introducao}
+
+\status{Pronta. O contexto e as decisões aqui estão todos implementados e
+cobertos por cláusulas do contrato de testes; as referências ao sistema
+antecessor vêm do código dele, não de memória.}
+
+Sistemas de dinâmica de fluidos computacional com refino adaptativo de malha
+enfrentam, cedo ou tarde, a mesma pergunta de projeto: \emph{quem é dono da
+estrutura da malha}. A resposta determina o que escala, o que pode ser refinado,
+e onde um erro de índice se esconde.
+
+O sistema antecessor deste trabalho --- o \textsc{HiGFlow}, cujo método de
+diferenças finitas com interpolação sem malha em árvores não graduadas está em
+Sousa \emph{et al.}~\cite{sousa2019} --- resolveu essa pergunta de um modo que
+funcionou por anos e esgotou-se: a árvore hierárquica própria é dona da
+estrutura, e uma biblioteca externa de florestas
+adaptativas, a \textsc{t8code}~\cite{t8code}, entra apenas como \emph{produtora}
+de malha. O levantamento que precedeu este trabalho mediu o limite dessa escolha
+no próprio código: a fonte que produz malha pelo t8code declara, em letras, que
+só sabe tratar malha uniforme, um nível e um \emph{patch} por bloco, e
+\emph{recusa} refino em vez de aproximar.
+
+Essa é uma recusa honesta, e é também o fim da linha. Um sistema que queira as
+propriedades de escalonamento do t8code precisa do inverso: a floresta sendo a
+estrutura, com o resto lendo dela. Esse é o t8Flow.
+
+\subsection{O que este artigo traz}
+
+Duas coisas, e elas se sustentam mutuamente.
+
+A primeira é o conjunto de \textbf{estratégias de projeto} (seção
+\ref{sec:estrategias}): quais decisões foram tomadas, quais alternativas foram
+medidas antes de descartar, e --- no caso mais importante --- qual defeito
+concreto do antecessor motivou qual decisão. Decisões de arquitetura justificadas
+por gosto envelhecem mal; as daqui estão justificadas por medida ou por defeito
+observado.
+
+A segunda é a \textbf{verificação do operador de Poisson} pelo método das
+soluções manufaturadas (seções \ref{sec:metodo} e \ref{sec:resultados}). A
+equação de Poisson é o lugar certo para começar: ela é o passo de projeção de
+qualquer método de passo fracionado para escoamento incompressível, é o passo
+mais caro, e é onde uma malha adaptativa cobra o preço da transição entre níveis.
+Um operador de Poisson que não seja exato para os polinômios que promete não
+produzirá ordem em escoamento algum.
+
+\subsection{Cinco aproximações, não uma}
+
+O ponto central do artigo é que \textbf{cinco} aproximações distintas do
+laplaciano foram implementadas e medidas no \emph{mesmo} arreio --- mesma malha,
+mesmo solver linear, mesmas condições de contorno, mesmo catálogo de soluções
+manufaturadas --- de modo que a diferença medida seja atribuível ao esquema e não
+ao arranjo:
+
+\begin{enumerate}
+\item balanço de fluxos de segunda ordem com fechamento de parede de
+      \textbf{três pontos};
+\item o mesmo com fechamento de \textbf{dois pontos}, que serve de contraste;
+\item o compacto de quarta ordem na forma \textbf{Mehrstellen} (nove pontos, com
+      correção $h^2\nabla^2 f/12$ no termo de fonte);
+\item o compacto de quarta ordem na forma de \textbf{derivada segunda implícita}
+      de Lele~\cite{lele1992};
+\item reconstrução por \textbf{mínimos quadrados móveis com quadratura de
+      Gauss}, apresentada aqui.
+\end{enumerate}
+
+O quinto é novo neste sistema e existe por uma razão que os resultados tornam
+precisa: é o único dos cinco que passa de segunda ordem \emph{em malha
+adaptada}. Os dois compactos não servem em malha adaptada por construção --- o
+estêncil de nove pontos pressupõe espaçamento uniforme --- e o de fluxo perde,
+na transição 2:1, a exatidão de grau~2 que tinha na malha uniforme.
+
+\subsection{A disciplina de oráculo}
+
+Uma observação metodológica, porque ela governa a forma de toda a seção de
+resultados. Neste projeto, \emph{nenhuma afirmação de exatidão aparece sozinha}.
+Cada uma vem com um contraste: a mesma medida feita onde ela \textbf{deve}
+falhar. Um teste que afirma ``o erro é de máquina'' sem exibir a condição em que
+o erro deixa de ser de máquina não distingue um esquema correto de um oráculo
+cego --- e a seção \ref{sec:verificacao} relata quatro defeitos reais deste
+trabalho que \emph{apenas} o contraste encontrou, incluindo um que produzia erro
+de \num{3.3e-1} em um nível de refino cercado por \num{1e-10} nos vizinhos.
