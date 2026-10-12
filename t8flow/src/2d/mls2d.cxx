@@ -1,3 +1,14 @@
+// Implementacao do discretizador 2D.  O PORQUE de cada escolha de interface esta'
+// no `mls2d.hxx`; aqui ficam as decisoes de implementacao, que sao tres:
+//
+//   1. a travessia para o nucleo herdado e' `reinterpret_cast<Point *>` sobre um
+//      vetor de `std::array<double,2>`, sustentada por `static_assert` -- conversao
+//      de TIPO, nao de dados;
+//   2. o suporte do chamador e' COPIADO antes de ir ao herdado, porque a API dele
+//      recebe ponteiro nao-const e pode reordenar os pontos;
+//   3. as recusas lancam `std::invalid_argument` com os NUMEROS na mensagem --
+//      "suporte de 5 pontos, minimo 6 para ordem 2" poupa a rodada de depuracao
+//      que um "argumento invalido" obriga.
 #include "mls2d.hxx"
 
 #include <stdexcept>

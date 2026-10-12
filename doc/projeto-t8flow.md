@@ -611,10 +611,10 @@ atual tem as duas fachadas da seção 7.1.
 
     t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
-    t8flow/src/comum/t8flow-contract.h  14 clausulas: N1..N6 B1 F1 F2 M1..M5
+    t8flow/src/comum/t8flow-contract.h  19 clausulas: N1..N6 B1 F1 F2 M1..M5 R1..R5
     t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}    o solver
-    t8flow/src/2d/malha2d.{hxx,cxx}     a malha multiblocos
+    t8flow/src/2d/malha2d.{hxx,cxx}     a malha multiblocos e o refino local
     t8flow/tests/testing.h              arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx          5 casos
     t8flow/tests/2d/test-solver2d.cxx       6 casos
@@ -650,7 +650,41 @@ fora — ele inclui `t8_cmesh_internal/t8_cmesh_types.h`, que o install não lev
 sobrecarga C (`t8_cmesh_register_geometry(cmesh, t8_geometry_linear_new())`) está
 no header público e funciona.
 
-### 10.2 Três achados do primeiro contato com o núcleo herdado
+### 10.2 O refino local dentro de um bloco
+
+`Malha::refina_caixa(lo, hi, nivel_alvo)` refina toda folha cujo **centro** caia
+na caixa, até o nível pedido, e **reequilibra**.
+
+**A razão 2:1 vem do `t8_forest_set_balance`, não do critério.** Sem ele, o salto
+é o que o critério pedir: um refino de dois níveis numa caixa deixa 4:1 na borda
+dela, a malha commita, as contagens fecham, e o salto atravessa o estêncil do
+discretizador sem aviso. Por isso o caso de teste pede **dois** níveis de uma vez
+— com um nível só, nenhuma violação de 2:1 seria possível e o teste passaria sem
+o equilíbrio.
+
+**Os commits são separados:** refino num, equilíbrio em outro. Pedir `set_adapt`,
+`set_ghost` e `set_partition` no mesmo commit do t8code derruba com np>1 e
+**funciona** em np=1 — das piores armadilhas, porque o teste serial não a vê.
+
+**Dois testes meus estavam errados antes de o código estar**, e os dois foram
+pegos pela própria suíte:
+
+1. *"toda folha de nível máximo tem o centro dentro da caixa"* — **falso**, e
+   reprovou com 7 folhas fora. O critério julga a célula **antes** de dividir, e os
+   filhos herdam a decisão do pai: a região refinada é a caixa **dilatada** por até
+   uma célula do nível final. A afirmação que vale é a do R4 — o refino não vaza
+   *além* de uma célula.
+2. *um `t8_forest_unref` a mais* — o `commit` **consome** a floresta passada em
+   `set_adapt`/`set_balance`. Liberar de novo não dá erro nenhum: a floresta fica
+   inválida, as contagens vão a **zero**, e a malha parece simplesmente vazia. Quem
+   pegou foi a **conservação de área** (0 contra 1); a contagem de folhas não
+   pegaria.
+
+A área, aliás, é o oráculo que a contagem não substitui: refino divide célula, e a
+soma das áreas das folhas de um bloco tem de ser a área da caixa dele — antes e
+depois, em 1e-13.
+
+### 10.3 Três achados do primeiro contato com o núcleo herdado
 
 1. **`Point` é array cru.** `typedef coordtype Point[DIM]` (`coord.h:31`) não é
    copiável nem construível in-place, então `std::vector<Point>` **não compila** —
@@ -670,7 +704,7 @@ no header público e funciona.
    PETSc: o link exige hypre, debug-write e centralized. Uma guarda por motor, no
    padrão que o SOR já usa, é limpeza barata e está na lista.
 
-### 10.3 Os controles, porque verde que nunca foi vermelho não prova nada
+### 10.4 Os controles, porque verde que nunca foi vermelho não prova nada
 
     ordem do ajuste 2 -> 1            N1 REPROVA nas duas metades
     centroides deslocados meia h      F2 CONTINUA VERDE  (limitacao conhecida)
@@ -687,6 +721,8 @@ no header público e funciona.
                                         centroide-na-caixa continua verde
     nivel uniforme global em vez de   M1 reprova em dois blocos (64 folhas onde
       por arvore                        se esperavam 16 e 4)
+    t8_forest_set_balance removido    R3 reprova com salto de 2 niveis, e SO' ela
+    adapt nao recursivo               R1 reprova: nivel maximo 3 em vez de 4
 
 **E um oráculo meu estava frouxo, o que só a sabotagem mostrou.** O comentário do
 `test-malha2d` afirmava que "centroide dentro da caixa" pegava a troca da ordem

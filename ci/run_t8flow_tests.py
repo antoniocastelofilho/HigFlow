@@ -54,6 +54,7 @@ LADOS = {
         ("test-solver2d", (1,)),
         ("test-floresta2d", (1,)),
         ("test-malha2d", (1,)),
+        ("test-refino2d", (1,)),
     ],
     "3d": [],
 }
@@ -77,6 +78,14 @@ def le_contrato(caminho):
 
 
 def constroi(lado, prefixos, verboso):
+    """Limpa e constroi um lado (`2d` ou `3d`), devolvendo True se deu.
+
+    O `make clean` vem ANTES e nao e' opcional: os objetos do nucleo herdado sao
+    por dimensao (`Point` e' `real[DIM]`) e nao carregam o DIM no nome, entao
+    objetos da dimensao anterior seriam ligados em silencio.  Um clean que FALHA e'
+    tao ruim quanto nenhum, por isso o aviso -- foi assim que a guarda nasceu
+    inoperante na primeira versao, com o Makefile exigindo DIM no alvo clean.
+    """
     cmd = ["make", "-C", T8FLOW, lado]
     cmd += ["%s=%s" % (k, v) for k, v in prefixos.items()]
     limpa = subprocess.run(["make", "-C", T8FLOW, "clean"],
@@ -122,6 +131,13 @@ def roda(binario, np, verboso):
 
 
 def main():
+    """Constroi, roda e COBRA o contrato; devolve 0 so' se tudo fechar.
+
+    Falha se algum caso reprovar, se algum binario nao for construido, se algum
+    binario nao imprimir a linha de resumo, ou se alguma clausula do contrato ficar
+    sem caso que a afirme.  As quatro coisas contam igual: clausula sem teste e'
+    falha, nao omissao.
+    """
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--t8code", help="prefixo de instalacao do t8code")

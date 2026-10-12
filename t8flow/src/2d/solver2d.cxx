@@ -1,3 +1,18 @@
+// Implementacao da fachada do solver.  O PORQUE das quatro armadilhas que ela
+// concentra esta' no `solver2d.hxx`; aqui ficam as decisoes de implementacao:
+//
+//   1. `traduz()` e' o UNICO lugar que converte `Motor` em `SolverEngine`, e
+//      `nome_do_motor()` e' o unico que faz a aritmetica do deslocamento entre as
+//      duas listas do herdado.  Concentrar as duas e' o que permite um teste
+//      cobra-las;
+//   2. `linha_definida_` existe para a guarda de `monta()`: um `bool` por linha
+//      local, porque o caminho de pre-alocacao do PETSc ABORTA se alguma ficar
+//      sem valores, e abort tres camadas abaixo nao diz qual linha falta;
+//   3. os vetores do chamador sao COPIADOS antes de ir ao herdado -- `slv_set_Ai`
+//      recebe ponteiros nao-const;
+//   4. `convergiu()`, `iteracoes()` e `residuo()` leem campos do `struct solver`
+//      direto, porque o herdado nao tem acessor para eles.  E' acoplamento
+//      conhecido, nao descuido: se o layout mudar, quebra no compilador.
 #include "solver2d.hxx"
 
 #include <stdexcept>

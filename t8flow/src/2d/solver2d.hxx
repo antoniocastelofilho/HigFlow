@@ -84,14 +84,30 @@ class Solver {
 
   void resolve();
 
+  //! Valor da incognita `id_global` na solucao.
   double x(int id_global) const;
+
+  //! A solucao local inteira, na ordem dos ids (`primeiro_id` em diante).
   std::vector<double> solucao() const;
 
+  //! Se a iteracao atingiu a tolerancia.  E' o UNICO relato de que ela atingiu:
+  //! um motor que para na iteracao maxima tambem devolve, com residuo e tudo.
+  //! Por isso nenhum oraculo deste projeto se apoia so' nisto -- o criterio e' o
+  //! valor da solucao.
   bool convergiu() const;
+
+  //! Iteracoes gastas na ultima resolucao.
   int iteracoes() const;
+
+  //! Residuo relatado pelo motor na ultima resolucao.  Diagnostico, nao oraculo:
+  //! quem o calcula e' o proprio solver.
   double residuo() const;
 
+  //! Tolerancia da iteracao (a mesma para relativa e absoluta, como no herdado).
   void tolerancia(double eps);
+
+  //! Teto de iteracoes.  Atingi-lo NAO e' erro para o herdado: ele retorna, e so'
+  //! `convergiu()` distingue.
   void max_iteracoes(int n);
 
  private:

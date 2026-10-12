@@ -143,6 +143,49 @@
 //! COBERTA-POR: test-malha2d:suporte_da_malha_erra_mais_no_grau_acima
 
 // ---------------------------------------------------------------------------
+// R -- REFINO LOCAL DENTRO DE UM BLOCO
+// ---------------------------------------------------------------------------
+
+//! R1  O refino local sobe ao nivel pedido na regiao pedida, e nao rebaixa nada.
+//!     Afirmado com salto de DOIS niveis de uma vez -- um nivel so' nunca
+//!     produziria violacao de 2:1, e o R3 passaria sem o equilibrio.
+//! COBERTA-POR: test-refino2d:a_malha_comeca_uniforme_em_cada_bloco
+//! COBERTA-POR: test-refino2d:o_refino_subiu_ao_nivel_pedido
+//! COBERTA-POR: test-refino2d:o_refino_nao_rebaixou_nada
+//! COBERTA-POR: test-refino2d:o_refino_aumentou_as_folhas_so_onde_pediu
+
+//! R2  O refino CONSERVA A AREA de cada bloco, folha a folha.  Contagem de
+//!     folhas nao substitui isto: celula perdida ou com geometria errada entra na
+//!     contagem do mesmo jeito.
+//! COBERTA-POR: test-refino2d:o_refino_conserva_a_area_de_cada_bloco
+
+//! R3  A razao entre niveis de celulas vizinhas e' no maximo 2:1, em TODAS as
+//!     folhas e TODAS as faces.  E' o que o `t8_forest_set_balance` existe para
+//!     garantir; sem ele a malha COMMITA, as contagens fecham, e o salto
+//!     atravessa o estencil do discretizador sem aviso.  Medido: com o balance
+//!     removido, so' esta clausula reprova (salto de 2 niveis).
+//! COBERTA-POR: test-refino2d:a_razao_entre_niveis_vizinhos_e_no_maximo_2_para_1
+
+//! R4  O refino nao VAZA alem de uma celula da caixa pedida, e nao transforma
+//!     interface entre blocos em contorno -- a face que da' para o outro bloco
+//!     continua com vizinho depois do refino.  O segundo e' o modo de falha mais
+//!     caro desta frente.
+//! COBERTA-POR: test-refino2d:o_refino_maximo_nao_vaza_alem_de_uma_celula_da_caixa
+//! COBERTA-POR: test-refino2d:o_bloco_que_a_caixa_nao_alcanca_ganhou_so_transicao
+//! COBERTA-POR: test-refino2d:a_interface_entre_blocos_continua_com_vizinho_depois_do_refino
+
+//! R5  O discretizador reproduz polinomio sobre suporte que ATRAVESSA a transicao
+//!     de nivel, e erra mais no grau acima.  E o refino RECUSA o que nao faz
+//!     sentido: caixa degenerada, caixa fora de todos os blocos, e nivel alvo que
+//!     nao aprofundaria nada -- este ultimo porque aceito calado deixaria a malha
+//!     PARECER refinada.
+//! COBERTA-POR: test-refino2d:mls_reproduz_polinomio_sobre_suporte_com_transicao_de_nivel
+//! COBERTA-POR: test-refino2d:suporte_com_transicao_erra_mais_no_grau_acima
+//! COBERTA-POR: test-refino2d:caixa_degenerada_e_recusada
+//! COBERTA-POR: test-refino2d:caixa_fora_de_todos_os_blocos_e_recusada
+//! COBERTA-POR: test-refino2d:nivel_alvo_que_nao_aprofunda_e_recusado
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -166,11 +209,24 @@
 // caixa, e todo centroide continua dentro dela.  So' a ordem de percurso acusou.
 // O comentario estava errado ate' a sabotagem ser rodada.
 //
-// Tambem ausentes, previstas no doc/projeto-t8flow.md: numeracao global contigua por rank
-// alcancada por busca por ponto (nao pelo percurso que a gerou, que e'
+// Duas licoes de oraculo da rodada do refino, as duas de testes MEUS que estavam
+// errados antes do codigo estar:
+//
+//   * "toda folha de nivel maximo tem o centro dentro da caixa" e' FALSO, e
+//     reprovou com 7 folhas fora.  O criterio e' aplicado a' celula ANTES de
+//     dividir e os filhos herdam a decisao do pai, entao a regiao refinada e' a
+//     caixa DILATADA por ate' uma celula do nivel final.  A afirmacao que vale e'
+//     a do R4: o refino nao vaza ALEM de uma celula;
+//   * o `t8_forest_commit` CONSOME a floresta passada em `set_adapt`/`set_balance`.
+//     O `unref` extra que eu havia escrito deixou a malha VAZIA -- sem erro, sem
+//     aviso, contagens em zero.  Quem pegou foi a area (0 contra 1).
+//
+// Tambem ausentes, previstas no doc/projeto-t8flow.md: numeracao global contigua
+// por rank alcancada por busca por ponto (nao pelo percurso que a gerou, que e'
 // tautologia); conteudo da franja depois do sync na profundidade de PRODUCAO (5)
-// e em np=3, que e' o menor np em que pareamento transposto aparece; a banda fina
-// da decisao 4; posse distribuida; e o lado 3D inteiro.
+// e em np=3, que e' o menor np em que pareamento transposto aparece; a guarda
+// contra arvore de UMA celula (que nao tem interior, e a franja declarada e' de
+// cinco); a banda fina da decisao 4; posse distribuida; e o lado 3D inteiro.
 // ---------------------------------------------------------------------------
 
 #endif

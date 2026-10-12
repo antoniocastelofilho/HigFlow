@@ -1,3 +1,20 @@
+// Implementacao da malha multiblocos 2D.  O PORQUE do desenho -- multiarvore,
+// juncoes, limites -- esta' no `malha2d.hxx`.  Aqui ficam as decisoes de
+// implementacao, e cada uma tem uma razao que o cabecalho nao cobre:
+//
+//   1. `EPS` e as comparacoes.  `igual()` e' RELATIVA (escala com os valores) e
+//      `sobrepoe()` exige sobreposicao em MEDIDA -- toque de borda nao conta.
+//      Sem essa distincao, dois blocos encostados contariam como sobrepostos e a
+//      malha seria recusada;
+//   2. o nivel alvo por arvore vai pelo `user_data` da floresta, em `struct
+//      Alvos`, porque o callback de adapt do t8code nao aceita contexto proprio.
+//      Por PONTEIRO para vetor e nao por estatico de arquivo: estatico impediria
+//      duas malhas vivas ao mesmo tempo;
+//   3. o criterio do refino local julga o CENTRO da celula, e a consequencia
+//      disso esta' comentada em `adapt_caixa`;
+//   4. os commits do t8code sao SEPARADOS (refino num, equilibrio em outro), e o
+//      `t8_forest_commit` CONSOME a floresta de origem -- as duas coisas estao
+//      comentadas onde acontecem, porque errar qualquer uma falha em silencio.
 #include "malha2d.hxx"
 
 #include <cmath>
@@ -50,6 +67,41 @@ int adapt_por_arvore(t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t wh
 
   const int nivel = scheme->element_get_level(tree_class, elements[0]);
   return (nivel < (*a->nivel)[static_cast<size_t>(b)]) ? 1 : 0;
+}
+
+//! Contexto do refino local, visto pelo callback.
+struct Caixa {
+  double lo[2];
+  double hi[2];
+  int nivel_alvo;
+};
+
+int adapt_caixa(t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
+                const t8_eclass_t tree_class, t8_locidx_t /*lelement_id*/,
+                const t8_scheme_c *scheme, const int /*is_family*/,
+                const int /*num_elements*/, t8_element_t *elements[])
+{
+  const Caixa *cx = static_cast<const Caixa *>(t8_forest_get_user_data(forest));
+  if (cx == nullptr) return 0;
+
+  if (scheme->element_get_level(tree_class, elements[0]) >= cx->nivel_alvo) return 0;
+
+  // O CRITERIO E' O CENTRO DA CELULA, nao a interseccao com a caixa, e a
+  // diferenca importa: por interseccao, uma celula grossa que toca a caixa de
+  // raspao e' refinada inteira, e o refino vaza para fora da regiao pedida a cada
+  // nivel.  Pelo centro, a regiao refinada converge para a caixa.
+  //
+  // CONSEQUENCIA A NAO ESQUECER, e ela derrubou a primeira versao do teste: o
+  // criterio julga a celula ANTES de dividir, e os filhos HERDAM a decisao do
+  // pai.  Logo a regiao efetivamente refinada e' a caixa DILATADA por ate' uma
+  // celula do nivel final -- um filho de uma celula cujo centro estava na caixa
+  // pode ter o seu proprio centro fora dela.  Quem precisa de refino contido na
+  // caixa tem de pedir a caixa menor, ou julgar a celula pelos cantos.
+  double c[3];
+  t8_forest_element_centroid(forest_from, which_tree, elements[0], c);
+  for (int d = 0; d < 2; d++)
+    if (c[d] < cx->lo[d] || c[d] > cx->hi[d]) return 0;
+  return 1;
 }
 
 }  // namespace
@@ -263,6 +315,137 @@ int Malha::num_vizinhos(long b, long i, int fa) const
   T8_FREE(dual);
   T8_FREE(idx);
   return nviz;
+}
+
+int Malha::nivel(long b, long i) const
+{
+  const t8_locidx_t it = static_cast<t8_locidx_t>(b);
+  if (b < 0 || b >= static_cast<long>(t8_forest_get_num_local_trees(f_)))
+    throw std::out_of_range("Malha::nivel: arvore " + std::to_string(b) + " nao e' local");
+  if (i < 0 || i >= num_folhas_do_bloco(b))
+    throw std::out_of_range("Malha::nivel: folha " + std::to_string(i) +
+                            " fora da arvore " + std::to_string(b));
+  const t8_element_t *e = t8_forest_get_leaf_element_in_tree(f_, it, static_cast<t8_locidx_t>(i));
+  const t8_scheme_c *esquema = t8_forest_get_scheme(f_);
+  return esquema->element_get_level(t8_forest_get_tree_class(f_, it), e);
+}
+
+double Malha::area(long b, long i) const
+{
+  const t8_locidx_t it = static_cast<t8_locidx_t>(b);
+  if (b < 0 || b >= static_cast<long>(t8_forest_get_num_local_trees(f_)))
+    throw std::out_of_range("Malha::area: arvore " + std::to_string(b) + " nao e' local");
+  const t8_element_t *e = t8_forest_get_leaf_element_in_tree(f_, it, static_cast<t8_locidx_t>(i));
+  return t8_forest_element_volume(f_, it, e);
+}
+
+std::vector<int> Malha::niveis_vizinhos(long b, long i, int fa) const
+{
+  if (fa < 0 || fa > 3)
+    throw std::out_of_range("Malha::niveis_vizinhos: face " + std::to_string(fa) +
+                            " -- o QUAD tem 4 (0:x-, 1:x+, 2:y-, 3:y+)");
+  const t8_locidx_t it = static_cast<t8_locidx_t>(b);
+  const t8_element_t *e = t8_forest_get_leaf_element_in_tree(f_, it, static_cast<t8_locidx_t>(i));
+
+  t8_element_t **vz = nullptr;
+  int *dual = nullptr, nviz = 0;
+  t8_locidx_t *idx = nullptr;
+  t8_eclass_t vec;
+  t8_forest_leaf_face_neighbors(f_, it, e, const_cast<const t8_element_t ***>(&vz), fa,
+                                &dual, &nviz, &idx, &vec);
+
+  // O NIVEL SAI DO ELEMENTO DEVOLVIDO, nao do indice.  O indice que esta funcao
+  // devolve e' da FLORESTA local, nao da arvore -- trata-lo como indice de arvore
+  // entrega um elemento existente, so' que OUTRO, e o erro e' silencioso.
+  const t8_scheme_c *esquema = t8_forest_get_scheme(f_);
+  std::vector<int> niveis;
+  niveis.reserve(static_cast<size_t>(nviz));
+  for (int k = 0; k < nviz; k++)
+    niveis.push_back(esquema->element_get_level(vec, vz[k]));
+
+  T8_FREE(vz);
+  T8_FREE(dual);
+  T8_FREE(idx);
+  return niveis;
+}
+
+int Malha::nivel_minimo() const
+{
+  int v = -1;
+  const t8_locidx_t narv = t8_forest_get_num_local_trees(f_);
+  for (t8_locidx_t it = 0; it < narv; it++) {
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements(f_, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const int n = nivel(it, ie);
+      if (v < 0 || n < v) v = n;
+    }
+  }
+  return v;
+}
+
+int Malha::nivel_maximo() const
+{
+  int v = -1;
+  const t8_locidx_t narv = t8_forest_get_num_local_trees(f_);
+  for (t8_locidx_t it = 0; it < narv; it++) {
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements(f_, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const int n = nivel(it, ie);
+      if (n > v) v = n;
+    }
+  }
+  return v;
+}
+
+void Malha::refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo)
+{
+  for (int d = 0; d < 2; d++)
+    if (!(hi[d] > lo[d] + EPS))
+      throw std::invalid_argument(
+          "Malha::refina_caixa: caixa degenerada na direcao " + std::to_string(d));
+
+  // A caixa tem de alcancar algum bloco, E tem de pedir mais nivel do que esse
+  // bloco ja' tem.  Refino que nao refina nada e' quase sempre engano de quem
+  // chamou -- e aceito calado deixaria a malha PARECER refinada.
+  bool alcanca = false, aprofunda = false;
+  for (const Bloco &k : blocos_) {
+    if (sobrepoe(k.lo[0], k.hi[0], lo[0], hi[0]) && sobrepoe(k.lo[1], k.hi[1], lo[1], hi[1])) {
+      alcanca = true;
+      if (nivel_alvo > k.nivel) aprofunda = true;
+    }
+  }
+  if (!alcanca)
+    throw std::invalid_argument("Malha::refina_caixa: a caixa nao intersecta bloco nenhum");
+  if (!aprofunda)
+    throw std::invalid_argument(
+        "Malha::refina_caixa: nivel_alvo " + std::to_string(nivel_alvo) +
+        " nao e' maior que o nivel de nenhum bloco que a caixa alcanca -- nada seria refinado");
+
+  Caixa cx{{lo[0], lo[1]}, {hi[0], hi[1]}, nivel_alvo};
+
+  // COMMIT 1: o refino.  Recursivo, para subir mais de um nivel numa passada.
+  t8_forest_t refinada;
+  t8_forest_init(&refinada);
+  t8_forest_set_user_data(refinada, &cx);
+  t8_forest_set_adapt(refinada, f_, adapt_caixa, 1 /* recursivo */);
+  t8_forest_commit(refinada);
+
+  // COMMIT 2: o equilibrio 2:1.  Em commit SEPARADO -- ver o cabecalho.  Sem
+  // ele, um refino de dois niveis numa caixa deixa 4:1 na borda dela, a malha
+  // commita, as contagens fecham, e o salto atravessa o estencil do
+  // discretizador sem aviso.
+  t8_forest_t equilibrada;
+  t8_forest_init(&equilibrada);
+  t8_forest_set_balance(equilibrada, refinada, 0);
+  t8_forest_commit(equilibrada);
+
+  // NAO HA' `unref` AQUI, e isto custou uma malha vazia: o `t8_forest_commit`
+  // CONSOME a floresta de origem passada em `set_adapt`/`set_balance` -- ele faz
+  // o unref dela.  Liberar de novo nao da' erro nenhum: a floresta fica invalida,
+  // as contagens vao a ZERO, e a malha parece simplesmente... vazia.  O caso
+  // `o_refino_conserva_a_area_de_cada_bloco` pegou (area 0 contra 1), e nenhum
+  // "funcionou" teria pegado.
+  f_ = equilibrada;
 }
 
 }  // namespace t8flow2d

@@ -47,6 +47,7 @@ class Mls {
   static int min_pontos(int ordem);
 
   int ordem() const { return ordem_; }
+  //! Teto de pontos do suporte, com que o interpolador foi dimensionado.
   int max_pontos() const { return max_pontos_; }
 
   //! Pesos de interpolacao em `alvo` a partir de `suporte`.

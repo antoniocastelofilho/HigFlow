@@ -37,7 +37,10 @@ class Arranque {
   Arranque(const Arranque &) = delete;
   Arranque &operator=(const Arranque &) = delete;
 
+  //! Rank deste processo em MPI_COMM_WORLD, lido uma vez no arranque.
   int rank() const { return rank_; }
+
+  //! Numero de processos em MPI_COMM_WORLD.
   int num_ranks() const { return num_ranks_; }
 
  private:

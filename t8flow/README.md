@@ -42,7 +42,8 @@ make 2d && mpirun -n 1 ./tests/2d/test-mls2d
 Estrutura, pela decisão 7:
 
     src/comum/   sem dimensão: arranque, contrato
-    src/2d/      o discretizador (mls2d), o solver (solver2d), a malha (malha2d)
+    src/2d/      o discretizador (mls2d), o solver (solver2d), a malha
+                 multiblocos com refino local (malha2d)
     src/3d/      quando existir
     tests/2d/
 
@@ -99,7 +100,10 @@ arquivo:
   discrimina" — que é o seu trabalho. Os pontos de consulta são assimétricos de
   propósito;
 - nenhuma física roda aqui, np vai só até 1, não há partição, nem franja, nem
-  refino local *dentro* de um bloco, nem domínio. Tudo isso é o trabalho adiante;
+  domínio. Tudo isso é o trabalho adiante;
+- **o refino local não tem a guarda contra árvore de uma célula** — uma árvore de
+  uma célula não tem interior, toda faceta dela é de fronteira, e a franja
+  declarada do HiGFlow é de cinco. A guarda entra quando a franja entrar;
 - **"centroide dentro da caixa" não pega espelhamento** — medido: trocar a ordem
   dos vértices do QUAD reflete o mapeamento dentro da *mesma* caixa, e todo
   centroide continua dentro dela. Quem acusa é a ordem de percurso (a folha 1
@@ -121,3 +125,13 @@ reprovou:
 
 A última é a que justifica a fachada: ela converte um abort três camadas abaixo em
 exceção que nomeia a linha que falta.
+
+No refino local, os controles são:
+
+    t8_forest_set_balance removido   R3 reprova com salto de 2 níveis — e SÓ ela
+    adapt não recursivo              R1 reprova: nível máximo 3 em vez de 4
+
+E dois testes meus estavam errados antes de o código estar: "toda folha de nível
+máximo tem o centro dentro da caixa" é falso (o critério julga a célula *antes* de
+dividir, e os filhos herdam a decisão do pai), e um `unref` a mais deixou a malha
+**vazia** — sem erro, contagens em zero. Quem pegou foi a conservação de área.

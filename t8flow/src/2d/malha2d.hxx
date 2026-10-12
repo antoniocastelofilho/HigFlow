@@ -62,6 +62,7 @@ class Malha {
   Malha(const Malha &) = delete;
   Malha &operator=(const Malha &) = delete;
 
+  //! Numero de blocos pedidos -- uma arvore por bloco, em serie.
   long num_blocos() const { return static_cast<long>(blocos_.size()); }
   const Bloco &bloco(long b) const;
 
@@ -88,6 +89,47 @@ class Malha {
   //! contorno do dominio.
   int num_vizinhos(long b, long i, int fa) const;
 
+  //! Nivel de refino da folha.
+  int nivel(long b, long i) const;
+
+  //! Area da folha.  Existe para o oraculo de CONSERVACAO: a soma das areas das
+  //! folhas de um bloco tem de ser a area da caixa dele, antes e depois de
+  //! qualquer refino.  Contagem de folhas nao pega celula perdida ou duplicada
+  //! com geometria errada; area pega.
+  double area(long b, long i) const;
+
+  //! Niveis dos vizinhos da folha pela face `fa`.
+  //
+  // E' o insumo do oraculo 2:1 -- e o oraculo fica no TESTE, nao aqui: codigo que
+  // verifica a si mesmo nao discrimina.
+  std::vector<int> niveis_vizinhos(long b, long i, int fa) const;
+
+  //! REFINO LOCAL: refina ate' `nivel_alvo` toda folha cujo CENTRO caia na caixa
+  //! [lo, hi], e reequilibra a floresta.
+  //
+  // Depois desta chamada a razao entre niveis de celulas vizinhas e' no maximo
+  // 2:1 -- nao porque o criterio seja suave, mas porque o `t8_forest_set_balance`
+  // insere o refino de transicao.  SEM o balance o salto e' o que o criterio
+  // pedir: um refino de dois niveis numa caixa da' 4:1 na borda dela, e isso
+  // atravessa o estencil do discretizador sem nenhum aviso.
+  //
+  // A ORDEM DOS COMMITS NAO E' LIVRE: adapt num commit, balance em OUTRO.  Pedir
+  // `set_adapt`, `set_ghost` e `set_partition` no mesmo commit do t8code derruba
+  // com np>1 e FUNCIONA em np=1 -- armadilha medida, e das piores, porque o teste
+  // serial nao a ve.
+  //
+  // Lanca `std::invalid_argument` se a caixa for degenerada, se nao intersectar
+  // nenhum bloco, ou se `nivel_alvo` nao for maior que o nivel de algum bloco que
+  // a caixa alcanca -- pedir refino que nao refina nada e' quase sempre engano de
+  // quem chamou, e aceitar calado deixaria a malha parecer refinada.
+  void refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo);
+
+  //! Maior e menor nivel presentes na malha.
+  int nivel_minimo() const;
+  int nivel_maximo() const;
+
+  //! A floresta crua, para quem precisa da API do t8code direto.  A posse fica
+  //! com a Malha: nao chamar `unref` nisto.
   t8_forest_t forest() const { return f_; }
 
  private:

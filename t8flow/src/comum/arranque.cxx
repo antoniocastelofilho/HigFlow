@@ -1,3 +1,8 @@
+// Implementacao do arranque.  A ORDEM e o motivo dela estao no `arranque.hxx` --
+// e sao a razao de este arquivo existir.  Aqui so' se acrescenta o que a ordem
+// nao diz: o rank e o numero de processos sao lidos UMA vez, depois do
+// `higtree_initialize`, porque antes dele o `MPI_Comm_rank` nao tem comunicador
+// valido.
 #include "arranque.hxx"
 
 #include <mpi.h>
