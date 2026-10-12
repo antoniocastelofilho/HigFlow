@@ -412,6 +412,40 @@
 //!     caso existe para ninguem voltar a medir fechamento ali e achar que mediu.
 //! COBERTA-POR: test-contorno2d:no_proprio_centro_da_celula_o_estencil_e_a_identidade
 
+//! C6  CONDICAO POR REGIAO: paredes diferentes com condicoes diferentes, cada
+//!     regiao com nome e predicado de POSICAO.  Afirmada no ensaio que o Poisson
+//!     vai precisar -- quatro paredes, TRES tipos (Dirichlet no sul, Neumann no
+//!     norte, Robin com coeficientes distintos no oeste e no leste), todas
+//!     alimentadas com o dado exato do mesmo campo, e a reproducao valendo nas
+//!     quatro.  O caso tambem afirma QUAL regiao responde em cada parede: sem
+//!     isso, "a condicao certa foi aplicada" nao e' verificavel.
+//!
+//!     O predicado e' GEOMETRICO e nao por id de faceta: id depende da numeracao,
+//!     que muda com refino e particao -- contorno declarado por id teria de ser
+//!     refeito a cada adaptacao.  (O HiGFlow declara por `sim_boundary` com id, e
+//!     paga esse preco.)
+//! COBERTA-POR: test-contorno2d:quatro_paredes_com_tres_tipos_de_condicao_reproduzem_o_campo
+//! COBERTA-POR: test-contorno2d:trocar_a_condicao_de_uma_so_parede_piora
+
+//! C7  PAREDE SEM REGIAO e' RECUSADA, e PAREDE EM DUAS REGIOES tambem.
+//!
+//!     A primeira porque contorno sem condicao faz a conta rodar com a parede
+//!     ausente -- resultado plausivel e errado, e dos defeitos mais caros em
+//!     simulacao.  Quem quiser cobrir o resto instala um PADRAO, explicitamente.
+//!
+//!     A segunda porque a alternativa -- "a primeira que casa vence" -- faria a
+//!     condicao depender da ORDEM DE REGISTRO.  E' o oposto do que o
+//!     `cell_find_in_center` do HiGFlow faz, de proposito: lá o `break` no
+//!     primeiro bloco e' justamente o que a clausula C8 proibe para localizacao.
+//! COBERTA-POR: test-contorno2d:parede_sem_regiao_e_recusada
+//! COBERTA-POR: test-contorno2d:parede_em_duas_regioes_e_recusada
+//! COBERTA-POR: test-contorno2d:o_padrao_cobre_o_que_nenhuma_regiao_cobre
+
+//! C8  REGIAO MALFORMADA e' recusada no registro: nome repetido (o diagnostico
+//!     ficaria ambiguo justamente quando importa), predicado ausente, dado `g`
+//!     ausente.
+//! COBERTA-POR: test-contorno2d:regiao_malformada_e_recusada
+
 // ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
@@ -493,6 +527,11 @@
 // Duas guardas ficaram: os alvos sao DESLOCADOS do centro (que e' tambem o uso
 // real -- interpolar em faceta, canto, ponto de projecao), e os casos de contraste
 // exigem erro grande em VALOR ABSOLUTO, nao apenas uma razao.
+//
+// LIMITE DA FAMILIA C: a regiao e' consultada por VARREDURA de todas as regioes
+// registradas, O(regioes) por faceta de contorno.  Sao poucas, e varrer todas e'
+// o que permite RECUSAR sobreposicao em vez de esconde-la -- parar na primeira
+// seria mais rapido e dependeria da ordem.
 //
 // LIMITE DA FAMILIA E, declarado: so' DIRICHLET no construtor;  Neumann e Robin entram pela familia C,
 // por celula FANTASMA, e isso resolveu o limite que estava declarado aqui.  E a

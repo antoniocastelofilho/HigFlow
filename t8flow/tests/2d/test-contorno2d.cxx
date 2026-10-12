@@ -336,6 +336,197 @@ int main(int argc, char **argv)
                 "medir fechamento ali nao mede nada", e.rhs);
   }
 
+  // ---- CONDICAO POR REGIAO -------------------------------------------------
+  //
+  // E' o ensaio que o Poisson com solucoes manufaturadas vai precisar: paredes
+  // diferentes com condicoes diferentes, todas alimentadas com o dado EXATO do
+  // mesmo campo analitico, e a reproducao valendo nas quatro.
+
+  t_case("quatro_paredes_com_tres_tipos_de_condicao_reproduzem_o_campo");
+  {
+    using t8flow2d::ContornoPorRegiao;
+    const double eps = 1e-9;
+    const double al = 2.0, be = 1.0;
+
+    ContornoPorRegiao r;
+    // SUL: Dirichlet.  NORTE: Neumann.  OESTE e LESTE: Robin, com coeficientes
+    // distintos entre si -- se a regiao fosse ignorada e uma condicao valesse para
+    // tudo, a reproducao cairia em tres das quatro paredes.
+    r.registra("sul", [eps](const Ponto2 &p) { return std::fabs(p[1]) < eps; },
+               Contorno::dirichlet([](const Ponto2 &p) { return u(p); }));
+    r.registra("norte", [eps](const Ponto2 &p) { return std::fabs(p[1] - 1.0) < eps; },
+               Contorno::neumann([](const Ponto2 &p) { return dudn(p, dudx, dudy); }));
+    r.registra("oeste", [eps](const Ponto2 &p) { return std::fabs(p[0]) < eps; },
+               Contorno::robin(al, be, [al, be](const Ponto2 &p) {
+                 return al * u(p) + be * dudn(p, dudx, dudy);
+               }));
+    r.registra("leste", [eps](const Ponto2 &p) { return std::fabs(p[0] - 1.0) < eps; },
+               Contorno::robin(0.5, 3.0, [](const Ponto2 &p) {
+                 return 0.5 * u(p) + 3.0 * dudn(p, dudx, dudy);
+               }));
+
+    T_CHECK_MSG(r.num_regioes() == 4, "%zu regioes registradas, esperava 4",
+                r.num_regioes());
+
+    // QUAL regiao responde em cada parede -- sem isto, "a condicao certa foi
+    // aplicada" nao e' verificavel.
+    T_CHECK_MSG(r.nome_em({0.5, 0.0}) == "sul", "a parede sul respondeu \"%s\"",
+                r.nome_em({0.5, 0.0}).c_str());
+    T_CHECK_MSG(r.nome_em({0.5, 1.0}) == "norte", "a parede norte respondeu \"%s\"",
+                r.nome_em({0.5, 1.0}).c_str());
+    T_CHECK_MSG(r.nome_em({0.0, 0.5}) == "oeste", "a parede oeste respondeu \"%s\"",
+                r.nome_em({0.0, 0.5}).c_str());
+    T_CHECK_MSG(r.nome_em({1.0, 0.5}) == "leste", "a parede leste respondeu \"%s\"",
+                r.nome_em({1.0, 0.5}).c_str());
+
+    ConstrutorEstencil ce(m, ORDEM, MAXP);
+    ce.contorno(r);
+    long n = 0, rr = 0;
+    const double pior = pior_perto_da_borda(m, ce, u, &n, &rr);
+    T_CHECK_MSG(n > 0 && rr > 0, "%ld celulas de borda, %ld com rhs", n, rr);
+    T_NEAR(pior, 0.0, 1e-10,
+           "pior erro na borda com quatro regioes e tres tipos de condicao");
+    printf("  (quatro paredes, tres tipos: pior erro %.3e em %ld celulas de borda)\n",
+           pior, n);
+  }
+
+  t_case("trocar_a_condicao_de_uma_so_parede_piora");
+  {
+    // CONTRASTE da regiao: tudo igual ao caso de cima, so' a parede NORTE recebendo
+    // o dado de outro campo.  Se a regiao nao estivesse decidindo nada, trocar uma
+    // parede so' nao mudaria o resultado.
+    using t8flow2d::ContornoPorRegiao;
+    const double eps = 1e-9;
+    const double al = 2.0, be = 1.0;
+    ContornoPorRegiao r;
+    r.registra("sul", [eps](const Ponto2 &p) { return std::fabs(p[1]) < eps; },
+               Contorno::dirichlet([](const Ponto2 &p) { return u(p); }));
+    r.registra("norte", [eps](const Ponto2 &p) { return std::fabs(p[1] - 1.0) < eps; },
+               Contorno::neumann([](const Ponto2 &p) {
+                 return dudn(p, [](const Ponto2 &) { return -1.0; },
+                                [](const Ponto2 &) { return 7.0; });   // de `v`
+               }));
+    r.registra("oeste", [eps](const Ponto2 &p) { return std::fabs(p[0]) < eps; },
+               Contorno::robin(al, be, [al, be](const Ponto2 &p) {
+                 return al * u(p) + be * dudn(p, dudx, dudy);
+               }));
+    r.registra("leste", [eps](const Ponto2 &p) { return std::fabs(p[0] - 1.0) < eps; },
+               Contorno::robin(0.5, 3.0, [](const Ponto2 &p) {
+                 return 0.5 * u(p) + 3.0 * dudn(p, dudx, dudy);
+               }));
+
+    ConstrutorEstencil ce(m, ORDEM, MAXP);
+    ce.contorno(r);
+    long n = 0, rr = 0;
+    const double pior = pior_perto_da_borda(m, ce, u, &n, &rr);
+    T_CHECK_MSG(pior > 1e-3,
+                "trocar o dado da parede norte deu erro de so' %.3e -- a regiao nao "
+                "esta' decidindo nada", pior);
+    printf("  (so' a parede norte com dado errado: pior erro %.3e)\n", pior);
+  }
+
+  t_case("parede_sem_regiao_e_recusada");
+  {
+    using t8flow2d::ContornoPorRegiao;
+    const double eps = 1e-9;
+    ContornoPorRegiao r;
+    // So' a parede sul coberta: as outras tres ficam descobertas, e isso tem de
+    // LANCAR em vez de rodar sem condicao.  Contorno sem condicao faz a conta
+    // andar com a parede ausente -- resultado plausivel e errado.
+    r.registra("sul", [eps](const Ponto2 &p) { return std::fabs(p[1]) < eps; },
+               Contorno::dirichlet([](const Ponto2 &p) { return u(p); }));
+    ConstrutorEstencil ce(m, ORDEM, MAXP);
+    ce.contorno(r);
+
+    bool lancou = false;
+    try {
+      // uma celula do topo, cuja parede norte nao tem regiao
+      const long iN = [&] {
+        for (long i = 0; i < m.num_folhas_do_bloco(0); i++)
+          if (m.centroide(0, i)[1] > 0.9) return i;
+        return -1L;
+      }();
+      T_CHECK_MSG(iN >= 0, "nao achei celula no topo");
+      if (iN >= 0) {
+        const Ponto2 c = m.centroide(0, iN);
+        const Ponto2 h = m.lados_da_folha(0, iN);
+        ce.em({c[0] + 0.24 * h[0], c[1] + 0.16 * h[1]});
+      }
+    } catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "parede sem regiao passou sem reclamar");
+  }
+
+  t_case("parede_em_duas_regioes_e_recusada");
+  {
+    using t8flow2d::ContornoPorRegiao;
+    ContornoPorRegiao r;
+    // Duas regioes que se sobrepoem de proposito.  "A primeira que casa vence"
+    // faria a condicao depender da ORDEM DE REGISTRO; aqui isso e' recusado.
+    r.registra("tudo", [](const Ponto2 &) { return true; },
+               Contorno::dirichlet([](const Ponto2 &p) { return u(p); }));
+    r.registra("sul", [](const Ponto2 &p) { return std::fabs(p[1]) < 1e-9; },
+               Contorno::neumann([](const Ponto2 &p) { return dudn(p, dudx, dudy); }));
+
+    bool lancou = false;
+    try { r.em({0.5, 0.0}); }
+    catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "ponto em duas regioes passou sem reclamar");
+    T_CHECK_MSG(r.nome_em({0.5, 0.0}).find("ambigua") != std::string::npos,
+                "o diagnostico de ambiguidade nao nomeia o problema: \"%s\"",
+                r.nome_em({0.5, 0.0}).c_str());
+  }
+
+  t_case("o_padrao_cobre_o_que_nenhuma_regiao_cobre");
+  {
+    using t8flow2d::ContornoPorRegiao;
+    const double eps = 1e-9;
+    ContornoPorRegiao r;
+    r.registra("sul", [eps](const Ponto2 &p) { return std::fabs(p[1]) < eps; },
+               Contorno::neumann([](const Ponto2 &p) { return dudn(p, dudx, dudy); }));
+    r.padrao(Contorno::dirichlet([](const Ponto2 &p) { return u(p); }));
+
+    T_CHECK_MSG(r.nome_em({0.5, 0.0}) == "sul", "a regiao explicita nao venceu o padrao");
+    T_CHECK_MSG(r.nome_em({0.5, 1.0}) == "(padrao)", "o padrao nao cobriu o norte");
+
+    ConstrutorEstencil ce(m, ORDEM, MAXP);
+    ce.contorno(r);
+    long n = 0, rr = 0;
+    const double pior = pior_perto_da_borda(m, ce, u, &n, &rr);
+    T_NEAR(pior, 0.0, 1e-10, "pior erro com uma regiao mais padrao");
+  }
+
+  t_case("regiao_malformada_e_recusada");
+  {
+    using t8flow2d::ContornoPorRegiao;
+    ContornoPorRegiao r;
+    r.registra("sul", [](const Ponto2 &p) { return std::fabs(p[1]) < 1e-9; },
+               Contorno::dirichlet([](const Ponto2 &p) { return u(p); }));
+    // nome repetido: o diagnostico ficaria ambiguo justamente quando importa
+    bool lancou = false;
+    try {
+      r.registra("sul", [](const Ponto2 &) { return false; },
+                 Contorno::dirichlet([](const Ponto2 &) { return 0.0; }));
+    } catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "nome de regiao repetido passou sem reclamar");
+
+    // sem predicado
+    lancou = false;
+    try {
+      r.registra("vazia", t8flow2d::OndeFica{},
+                 Contorno::dirichlet([](const Ponto2 &) { return 0.0; }));
+    } catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "regiao sem predicado passou sem reclamar");
+
+    // sem dado
+    lancou = false;
+    try {
+      Contorno c;
+      c.tipo = TipoContorno::Dirichlet;
+      r.registra("sem-dado", [](const Ponto2 &) { return true; }, c);
+    } catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "condicao sem dado `g` passou sem reclamar");
+  }
+
   t_case("sem_condicao_instalada_o_suporte_curto_e_recusado");
   {
     ConstrutorEstencil ce(m, 2, 40, 1);

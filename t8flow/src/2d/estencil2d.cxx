@@ -85,7 +85,7 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
         if (vz.empty()) {
           // FACE DE CONTORNO.  Sem condicao instalada o contorno nao contribui, e
           // o suporte vai faltar pontos -- que e' melhor que contribuir com zero.
-          if (!tem_contorno_) continue;
+          if (regioes_.vazio()) continue;
 
           const Ponto2 c = m_->centroide(b, i);
           const Ponto2 h = m_->lados_da_folha(b, i);
@@ -95,7 +95,11 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
           Ponto2 parede = c;
           parede[d] += sinal * h[d] / 2.0;          // centro da faceta
 
-          if (contorno_.tipo == TipoContorno::Dirichlet) {
+          // A REGIAO decide qual condicao vale NESTA faceta.  Ponto descoberto ou
+          // em duas regioes faz `em()` lancar -- ver o `contorno2d.hxx`.
+          const Contorno &cond = regioes_.em(parede);
+
+          if (cond.tipo == TipoContorno::Dirichlet) {
             // DIRICHLET amostra a PAREDE: o valor ali e' conhecido e nao depende de
             // incognita nenhuma.  E' o caminho mais direto, e nao se troca por
             // fantasma de proposito -- refletir (A=-1) amplifica o erro do interior,
@@ -103,7 +107,7 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
             s.pontos.push_back(parede);
             s.ids.push_back(-1);
             s.a.push_back(0.0);
-            s.b.push_back(contorno_.g(parede));
+            s.b.push_back(cond.g(parede));
             s.paredes++;
           } else {
             // NEUMANN e ROBIN usam FANTASMA: um ponto do lado de FORA, espelhado
@@ -112,7 +116,7 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
             Ponto2 fantasma = c;
             fantasma[d] += sinal * h[d];
             double A = 0.0, B = 0.0;
-            contorno_.afim(parede, h[d], &A, &B);
+            cond.afim(parede, h[d], &A, &B);
             s.pontos.push_back(fantasma);
             s.ids.push_back(m_->id_global(b, i));   // a celula ESPELHADA
             s.a.push_back(A);
@@ -170,8 +174,8 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
         "ConstrutorEstencil: suporte de " + std::to_string(s.pontos.size()) +
         " pontos em " + std::to_string(max_aneis_) + " aneis, minimo " +
         std::to_string(minimo) + " para ordem " + std::to_string(ordem_) +
-        (tem_contorno_ ? "" : " (nenhuma condicao de contorno instalada: o contorno"
-                              " nao contribuiu)"));
+        (regioes_.vazio() ? " (nenhuma condicao de contorno instalada: o contorno"
+                            " nao contribuiu)" : ""));
 
   for (size_t a = 0; a < s.pontos.size(); a++)
     for (size_t b = a + 1; b < s.pontos.size(); b++) {

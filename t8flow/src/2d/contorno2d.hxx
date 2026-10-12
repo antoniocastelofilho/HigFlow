@@ -55,8 +55,10 @@
 #ifndef T8FLOW_CONTORNO2D_HXX
 #define T8FLOW_CONTORNO2D_HXX
 
+#include <cstddef>
 #include <functional>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "mls2d.hxx"
@@ -104,6 +106,68 @@ struct Contorno {
   // anular -- `alfa*h/2 + beta == 0` significa condicao degenerada naquela celula,
   // e resolver com ela daria numero plausivel e errado.
   void afim(const Ponto2 &x_parede, double h, double *A, double *B) const;
+};
+
+//! Onde uma regiao de contorno esta': predicado sobre o ponto da parede.
+//
+// Geometrico e nao por id de faceta, e a escolha tem razao: o id depende da
+// numeracao, que muda com refino e com particao -- um contorno declarado por id
+// teria de ser refeito a cada adaptacao.  O predicado e' sobre a POSICAO, que nao
+// muda.  (O HiGFlow declara por `sim_boundary` registrada com id, e paga esse
+// preco: as condicoes sao reinstaladas quando o dominio se refaz.)
+using OndeFica = std::function<bool(const Ponto2 &)>;
+
+//! As condicoes de contorno POR REGIAO.
+//
+// Cada regiao tem nome, um predicado que diz onde ela fica, e a condicao que vale
+// la'.  O nome nao e' enfeite: ele aparece nas mensagens de erro, e "nenhuma
+// regiao cobre (1.000, 0.375)" e' diagnostico, enquanto "contorno sem condicao"
+// nao e'.
+//
+// DUAS RECUSAS DELIBERADAS, e as duas contra o que seria mais permissivo:
+//
+//   * PONTO SEM REGIAO lanca, em vez de ficar sem condicao.  Contorno sem condicao
+//     e' um dos defeitos mais caros em simulacao -- a conta roda, o resultado e'
+//     plausivel, e a parede simplesmente nao esta' la'.  Quem quiser cobrir o resto
+//     instala `padrao()`, explicitamente;
+//   * PONTO EM DUAS REGIOES lanca, nomeando as duas.  A alternativa -- "a primeira
+//     que casa vence" -- faz a condicao depender da ORDEM DE REGISTRO, que e'
+//     exatamente o tipo de dependencia de ordem que este projeto ja' pagou caro
+//     (ver a clausula de desempate da HiGTree, que passava por sorte).  E' o
+//     oposto do que o `cell_find_in_center` do HiGFlow faz, de proposito.
+class ContornoPorRegiao {
+ public:
+  //! Registra uma regiao.  Ordem de registro NAO importa -- se importasse, a
+  //! sobreposicao seria silenciosa em vez de recusada.
+  void registra(std::string nome, OndeFica onde, Contorno c);
+
+  //! Condicao para o que nenhuma regiao cobre.  Sem ela, ponto descoberto LANCA.
+  void padrao(Contorno c);
+
+  //! A condicao no ponto da parede.  Lanca se nenhuma regiao cobrir (e nao houver
+  //! padrao), ou se DUAS cobrirem.
+  const Contorno &em(const Ponto2 &x_parede) const;
+
+  //! O nome da regiao que cobre o ponto, ou "(padrao)".  Para diagnostico e para
+  //! o teste poder afirmar QUAL regiao respondeu -- sem isso, "a condicao certa
+  //! foi aplicada" nao e' verificavel.
+  std::string nome_em(const Ponto2 &x_parede) const;
+
+  std::size_t num_regioes() const { return regioes_.size(); }
+  bool tem_padrao() const { return tem_padrao_; }
+  bool vazio() const { return regioes_.empty() && !tem_padrao_; }
+
+ private:
+  struct Regiao {
+    std::string nome;
+    OndeFica onde;
+    Contorno cond;
+  };
+  const Regiao *acha(const Ponto2 &x, std::string *ambigua) const;
+
+  std::vector<Regiao> regioes_;
+  Contorno padrao_;
+  bool tem_padrao_ = false;
 };
 
 }  // namespace t8flow2d

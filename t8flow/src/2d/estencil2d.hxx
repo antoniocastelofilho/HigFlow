@@ -62,19 +62,32 @@ class ConstrutorEstencil {
   //! grossa cercada de contorno cresceria indefinidamente.
   ConstrutorEstencil(const Malha &m, int ordem, int max_pontos, int max_aneis = 4);
 
-  //! Instala a condicao de fronteira: Dirichlet, Neumann ou Robin.
+  //! Instala as condicoes de fronteira POR REGIAO -- parede norte diferente da
+  //! sul, que e' o que o Poisson com solucoes manufaturadas precisa.
   //
   // Sem condicao instalada o contorno NAO contribui, e o suporte perto da parede
   // fica com menos pontos -- o que faz `em()` LANCAR em vez de devolver um ajuste
-  // de ordem menor sem avisar.
-  //
-  // Uma condicao para todo o contorno, por enquanto.  Condicao POR REGIAO (parede
-  // norte diferente da sul) e' o passo seguinte e nao um parametro a mais aqui:
-  // exige dizer a que regiao cada faceta pertence, que e' informacao da malha.
-  void contorno(Contorno c) { contorno_ = std::move(c); tem_contorno_ = true; }
+  // de ordem menor sem avisar.  E com condicoes instaladas, uma faceta de contorno
+  // que nenhuma regiao cobrir faz `em()` LANCAR tambem: contorno sem condicao e'
+  // pior que contorno ausente, porque a conta roda.
+  void contorno(ContornoPorRegiao r) { regioes_ = std::move(r); }
 
-  //! Atalho para o caso mais comum.
+  //! Atalho: UMA condicao para todo o contorno.  E' o caso simples, e ele continua
+  //! sendo uma regiao -- a que cobre tudo --, nao um caminho separado: dois
+  //! caminhos divergem.
+  void contorno(Contorno c)
+  {
+    ContornoPorRegiao r;
+    r.padrao(std::move(c));
+    regioes_ = std::move(r);
+  }
+
+  //! Atalho do atalho, para o caso mais comum de todos.
   void dirichlet(ValorDeContorno v) { contorno(Contorno::dirichlet(std::move(v))); }
+
+  //! As regioes instaladas, para diagnostico e para o teste poder afirmar QUAL
+  //! regiao respondeu em cada parede.
+  const ContornoPorRegiao &regioes() const { return regioes_; }
 
   int ordem() const { return ordem_; }
   int max_pontos() const { return max_pontos_; }
@@ -133,8 +146,7 @@ class ConstrutorEstencil {
   int ordem_;
   int max_pontos_;
   int max_aneis_;
-  Contorno contorno_;
-  bool tem_contorno_ = false;
+  ContornoPorRegiao regioes_;
   mutable Mls mls_;
 };
 

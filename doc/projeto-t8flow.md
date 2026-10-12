@@ -611,7 +611,7 @@ atual tem as duas fachadas da seção 7.1.
 
     t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
-    t8flow/src/comum/t8flow-contract.h  44 clausulas: N B F1..F3 M R G A L E C
+    t8flow/src/comum/t8flow-contract.h  47 clausulas: N B F1..F3 M R G A L E C
     t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}    o solver
     t8flow/src/2d/malha2d.{hxx,cxx}     malha, refino local, numeracao global
@@ -992,19 +992,58 @@ grande em **valor absoluto**, não apenas uma razão. E a degeneração no nó p
 ser **afirmada** (cláusula C5) em vez de evitada em silêncio — para ninguém voltar
 a medir fechamento ali e achar que mediu.
 
-### 13.4 O que falta para o Poisson com soluções manufaturadas
+### 13.4 A condição por região
+
+Feita antes do Poisson, a pedido do usuário — e é o que o método das soluções
+manufaturadas precisa: paredes diferentes com condições diferentes.
+
+Cada região tem **nome**, um **predicado de posição** e a condição que vale lá. O
+predicado é geométrico e **não** por id de faceta: id depende da numeração, que
+muda com refino e com partição, então contorno declarado por id teria de ser
+refeito a cada adaptação. (O HiGFlow declara por `sim_boundary` registrada com id,
+e paga esse preço.)
+
+**Duas recusas deliberadas**, as duas contra o que seria mais permissivo:
+
+- **parede sem região lança**, em vez de ficar sem condição — contorno sem
+  condição faz a conta rodar com a parede ausente, e isso é um dos defeitos mais
+  caros em simulação. Quem quiser cobrir o resto instala um `padrao()`,
+  explicitamente;
+- **parede em duas regiões lança**, nomeando as duas. A alternativa — "a primeira
+  que casa vence" — faria a condição depender da **ordem de registro**. É o oposto
+  do que o `cell_find_in_center` do HiGFlow faz, e de propósito: lá o `break` no
+  primeiro bloco é justamente o que a cláusula C8 do contrato de malha proíbe para
+  localização.
+
+O ensaio: quatro paredes, três tipos — Dirichlet no sul, Neumann no norte, Robin
+com coeficientes distintos no oeste e no leste —, todas alimentadas com o dado
+exato do mesmo campo analítico.
+
+    quatro paredes, tres tipos      pior erro 8,9e-16 em 48 celulas de borda
+    so' a parede norte com dado     pior erro 1,9e-01
+      de outro campo
+
+O segundo número é o contraste da região: se ela não estivesse decidindo nada,
+trocar **uma** parede não mudaria o resultado. E o caso também afirma **qual**
+região responde em cada parede — sem isso, "a condição certa foi aplicada" não é
+verificável.
+
+### 13.5 O que falta para o Poisson com soluções manufaturadas
 
 O próximo passo. O que já existe: as três condições, o estêncil com a ordem
 pedida, a numeração global, o solver. O que falta:
 
-1. **Condição por região** — parede norte diferente da sul. Hoje é uma condição
-   para todo o contorno, e por região exige dizer a que região cada faceta
-   pertence, que é informação da malha e não um parâmetro a mais do estêncil.
-2. **O operador** — montar `∇²u = f` célula a célula com os estênceis, o que é
+1. **O operador** — montar `∇²u = f` célula a célula com os estênceis, o que é
    usar o que existe, não construir peça nova.
-3. **A solução manufaturada** — escolher `u`, derivar `f = ∇²u` e os dados de
+2. **A solução manufaturada** — escolher `u`, derivar `f = ∇²u` e os dados de
    contorno analiticamente, e medir a **ordem de convergência** refinando a malha.
    É o oráculo mais forte disponível, e o que o método existe para dar.
+
+E uma advertência que a cláusula C5 já deixou medida: **o operador não pode ser
+montado avaliando o estêncil no centro da célula**. Ali o ajuste móvel é degenerado
+— peso 1,0 na própria célula, `rhs` ~0 — e o estêncil é a identidade. Para o
+laplaciano, os estênceis têm de ser pedidos nas **facetas** (ou em pontos
+deslocados), que é onde o fluxo é avaliado no arranjo deslocado.
 
 ---
 
