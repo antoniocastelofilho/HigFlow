@@ -965,6 +965,59 @@ gargalo é memória, não aritmética. Para o que o lote faz (muitos ajustes de 
 quadrados *pequenos*, 6 a 60 pontos cada), a diferença entre as APIs fica abaixo do
 custo de transferir os dados.
 
+### 13.2.1 O OpenCL foi instalado e exercitado em 12/10/2026
+
+O usuário instalou `mesa-opencl-icd`, `intel-opencl-icd`, `clinfo`,
+`opencl-headers` e `ocl-icd-opencl-dev`. A sonda de execução
+(`bench/probe-opencl.c`) **compila um kernel, executa e confere contra a CPU** —
+porque runtime instalado e `clinfo` listando não é "a placa calcula".
+
+O que ela calcula não é vetor-soma: é o núcleo do lote de estênceis. Para cada
+consulta, com 16 pontos de suporte, monta a matriz normal do ajuste de ordem 1 em
+2D e resolve o 3×3 por eliminação com pivotamento. Oráculo: o mesmo da suíte —
+reprodução polinomial **com contraste** (ordem 1 reproduz linear exatamente e erra
+no quadrático).
+
+Lote de 20 000 estênceis:
+
+| | fp64 | erro, campo linear | tempo | contraste |
+|---|---|---|---|---|
+| CPU (double), 1 núcleo | — | 6,66e-16 | 0,0190 s | 4,84e-02 ✓ |
+| Intel UHD 630 | **sim** | **6,66e-16** | 0,0034 s | 4,84e-02 ✓ |
+| AMD Radeon RX 5500M (rusticl) | **não** → float | **2,77e-07** | 0,0013 s | 4,84e-02 ✓ |
+
+**As duas placas calculam, e o contraste confirma nas duas** que o ajuste está
+acontecendo — não é um número plausível por acidente.
+
+**Três achados de projeto, e o terceiro é uma decisão do usuário:**
+
+1. **A Intel dá o resultado idêntico ao da CPU** — 6,66e-16 no pior caso, o mesmo
+   valor. É o caminho sem risco de precisão.
+2. **A Radeon é a mais rápida, mas não tem fp64 pelo rusticl** — ela não expõe
+   `CL_DEVICE_DOUBLE_FP_CONFIG`, então o lote roda em float e o erro de reprodução
+   sobe para 2,8e-07, nove ordens de grandeza acima do double. Isso é o piso da
+   precisão naquele dispositivo, não um defeito do código.
+3. **Se float serve é decisão de formulação.** Se o estêncil alimenta o solver de
+   pressão com tolerância 1e-10, não serve. Se alimenta interpolação de saída,
+   serve com folga. A pergunta é do usuário, e a resposta muda o back-end.
+
+**Como ler os ganhos, e isso está impresso na própria sonda:** a CPU de referência
+é **serial**. Esta máquina tem 8 núcleos físicos, então a referência honesta é ~8×
+mais rápida e o ganho de cada placa cai pelo mesmo fator — **14× contra um núcleo é
+menos de 2× contra oito**. O ganho real aparece quando a ordem do ajuste sobe (em
+ordem 2 são 6 monômios e um 6×6 por consulta, não 3×3) e quando o lote é grande o
+suficiente para a transferência se diluir.
+
+Caminho se a dupla precisão na Radeon for necessária: HIP/ROCm, cujo runtime já
+está na máquina (`libamdhip64.so.7`) mas sem compilador (`hipcc`) — e o gfx1012 não
+é oficialmente suportado pelo ROCm, costuma exigir
+`HSA_OVERRIDE_GFX_VERSION=10.1.0`. É mais trabalho que o rusticl e cobre um
+fabricante só.
+
+**O rusticl precisa de `RUSTICL_ENABLE=radeonsi`** — sem a variável, a plataforma
+aparece com **zero dispositivos**, que se lê como driver quebrado em vez de driver
+desabilitado. Terá de entrar no arranque do t8Flow ou no README.
+
 **O estado desta máquina, sondado em 11/10/2026** (`bench/sonda-gpu.sh`):
 
     placas       Intel UHD 630 (integrada) + AMD Radeon RX 5500M (Navi 14, gfx1012)
@@ -974,10 +1027,7 @@ custo de transferir os dados.
     OpenCL       loader presente, NENHUM ICD registrado -> nao funciona hoje
     Vulkan       radeon_icd.json presente
 
-O ICD é o que falta, e no Ubuntu 26.04 (Mesa 26.0.8) o caminho é o **rusticl**:
-`mesa-opencl-icd` para a AMD, `intel-opencl-icd` para a Intel, `clinfo` para
-conferir. O rusticl vem desabilitado por padrão — precisa de
-`RUSTICL_ENABLE=radeonsi`.
+*(O ICD que faltava nessa sondagem foi instalado no dia seguinte — ver 13.2.1.)*
 
 **O que não sei, e não vou supor:** o que as outras máquinas do grupo têm. Para
 isso existe o `bench/sonda-gpu.sh` — ele não instala nada, não exige privilégio, e

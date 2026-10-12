@@ -57,6 +57,7 @@ LADOS = {
         ("test-refino2d", (1,)),
         ("test-numeracao2d", (1,)),
         ("test-campos2d", (1,)),
+        ("test-lote2d", (1,)),
     ],
     "3d": [],
 }
@@ -125,6 +126,12 @@ def roda(binario, np, verboso):
             continue
         if re.match(r"resumo \d+ casos, \d+ falharam", linha):
             resumo = True
+            continue
+        # Linha de CONTEXTO: um teste pode passar exercitando um caminho opcional
+        # ou SALTANDO-o, e o verde nao distingue.  Quem declara, aparece.
+        m = re.match(r"(\S+) (sim|nao)$", linha)
+        if m:
+            print("    contexto: %s = %s" % (m.group(1), m.group(2)))
     if not resumo:
         print("    SEM LINHA DE RESUMO -- binario obsoleto, segfault no meio, ou "
               "nenhum caso rodou.  Saida bruta:")

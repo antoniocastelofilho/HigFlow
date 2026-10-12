@@ -39,6 +39,38 @@ dependência têm padrão apontando para a árvore principal e podem ser trocado
 make 2d && mpirun -n 1 ./tests/2d/test-mls2d
 ```
 
+## CPU ou GPU: a escolha é de quem compila
+
+O lote de estênceis (`src/2d/lote2d.hxx`) tem dois back-ends, e a flag `GPU`
+decide:
+
+```bash
+make 2d            # detecta OpenCL; se houver, a GPU fica DISPONÍVEL, padrão CPU
+make 2d GPU=sim    # exige OpenCL e faz a GPU ser o PADRÃO do lote
+make 2d GPU=nao    # CPU só, mesmo que haja OpenCL instalado
+```
+
+São três estados e não dois: "detectei e deixei disponível" é diferente de "o
+usuário pediu", e tratar os dois igual tira a escolha de quem compila. Com
+`GPU=sim` sem OpenCL, o build **para** com a causa — quem pediu placa quer saber
+que não há, não receber CPU em silêncio.
+
+**A versão de CPU é de primeira classe**, não plano B: funciona sem OpenCL
+instalado, sem OpenCL compilado e sem placa, e é ela que define o resultado
+correto. Quem não tem GPU tem a suíte inteira verde — os casos de placa se
+declaram `SALTADO` na saída, e o teste imprime `gpu-exercitada sim|nao` para o
+verde nunca significar "a GPU foi testada" quando não foi.
+
+**A configuração entra na dependência do make.** Trocar `GPU=sim` por `GPU=nao`
+reconstrói sozinho: a configuração é um selo em `obj/.config`, conferido no parse.
+Sem isso, o binário do build anterior ficava no lugar anunciando a configuração
+errada — aconteceu aqui, e é a mesma classe de "build sem o que se quer medir"
+que já custou duas corridas medidas como t8code que eram malha uniforme.
+
+**Para a Radeon, o rusticl precisa de `RUSTICL_ENABLE=radeonsi`** — sem a
+variável a plataforma aparece com zero dispositivos, que se lê como driver
+quebrado em vez de desabilitado.
+
 Estrutura, pela decisão 7:
 
     src/comum/   sem dimensão: arranque, contrato
@@ -109,6 +141,10 @@ arquivo:
   centroide continua dentro dela. Quem acusa é a ordem de percurso (a folha 1
   deslocada em X da folha 0). O comentário do teste afirmava o contrário até a
   sabotagem ser rodada;
+- **diferença exatamente zero entre dois back-ends não é boa notícia** — medido:
+  com `GPU=sim` o padrão é a placa, e o vetor de referência que o teste chamava de
+  "cpu" foi calculado na GPU; a comparação deu 0,000e+00 porque comparava GPU com
+  GPU. Hoje o caso força a CPU e **recusa** diferença zero;
 - **a contagem de junções não prova que houve junção** — medido: com o
   `t8_cmesh_set_join` removido, o contador continua certo e só o conteúdo (face
   entre blocos tem vizinho) acusa;

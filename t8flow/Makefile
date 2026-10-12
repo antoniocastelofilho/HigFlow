@@ -62,10 +62,63 @@ BASE += -I$(PETSC_ROOT)/include -I$(PETSC_ARCH_DIR)/include
 BASE += -I/usr/include/hypre
 BASE += $(shell pkg-config --cflags glib-2.0)
 
+# A ESCOLHA DO BACK-END E' DE QUEM COMPILA, pela variavel `GPU`:
+#
+#     make 2d            AUTO -- detecta OpenCL; se houver, a GPU fica
+#                        DISPONIVEL mas o padrao continua CPU
+#     make 2d GPU=sim    EXIGE OpenCL e faz a GPU ser o padrao do lote.  Sem
+#                        OpenCL, o build PARA com a causa -- quem pediu placa
+#                        quer saber que nao ha', e nao receber CPU em silencio
+#     make 2d GPU=nao    CPU so', mesmo que haja OpenCL instalado.  O codigo de
+#                        placa sai do binario
+#
+# Tres estados e nao dois: "detectei e deixei disponivel" e' diferente de "o
+# usuario pediu", e tratar os dois igual tira dele a escolha.  Com GPU=sim o lote
+# comeca em GPU; nos outros dois comeca em CPU, e `usa_back_end()` troca em
+# execucao quando houver placa.
+GPU ?=
+ifeq ($(GPU),nao)
+  T8FLOW_GPU_MODO = desligada por GPU=nao
+else
+  OPENCL_H := $(firstword $(wildcard /usr/include/CL/cl.h))
+  OPENCL_L := $(firstword $(wildcard /usr/lib/x86_64-linux-gnu/libOpenCL.so /usr/lib64/libOpenCL.so))
+endif
+
+ifeq ($(GPU),sim)
+ifeq ($(and $(OPENCL_H),$(OPENCL_L)),)
+$(error GPU=sim pedido, mas falta OpenCL: header /usr/include/CL/cl.h ou \
+libOpenCL.so ausentes.  Instale `opencl-headers ocl-icd-opencl-dev` -- e o \
+RUNTIME tambem (um ICD em /etc/OpenCL/vendors/), porque o loader sozinho nao \
+calcula.  Ou use `make 2d` para detectar, ou `make 2d GPU=nao` para CPU so')
+endif
+endif
+
+# OPENCL E' OPCIONAL, E A DETECCAO E' AUTOMATICA.  A versao de CPU do lote de
+# estenceis funciona sem nada disto -- quem nao tem placa nao perde
+# funcionalidade, so' velocidade.  Por isso a ausencia de OpenCL NAO e' erro de
+# build: a macro simplesmente nao e' definida e o codigo de placa sai do binario.
+#
+# Exige o HEADER e a biblioteca de LINK (`libOpenCL.so`, nao so' o `.so.1`): o
+# runtime sozinho nao compila nada, e detectar pelo `.so.1` daria erro de link no
+# fim do build em vez de ausencia detectada no comeco.
+ifneq ($(and $(OPENCL_H),$(OPENCL_L)),)
+BASE += -DT8FLOW_COM_OPENCL
+LIBS_CL = -lOpenCL
+ifeq ($(GPU),sim)
+BASE += -DT8FLOW_GPU_PADRAO
+$(info t8flow: OpenCL encontrado, e GPU=sim -- a GPU e' o PADRAO do lote)
+else
+$(info t8flow: OpenCL encontrado -- GPU disponivel, padrao continua CPU (use GPU=sim))
+endif
+else
+LIBS_CL =
+$(info t8flow: lote so' em CPU -- $(if $(T8FLOW_GPU_MODO),$(T8FLOW_GPU_MODO),sem OpenCL: header ou libOpenCL.so ausentes))
+endif
+
 LDFLAGS = -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LDFLAGS+= -L$(PETSC_ARCH_DIR)/lib -Wl,-rpath,$(PETSC_ARCH_DIR)/lib
 LIBS    = -lt8 -lp4est -lsc -lpetsc -lHYPRE
-LIBS   += $(shell pkg-config --libs glib-2.0) -lm
+LIBS   += $(shell pkg-config --libs glib-2.0) -lm $(LIBS_CL)
 
 # O NUCLEO HERDADO: as unidades independentes de malha, compiladas AQUI e nao
 # linkadas da libhig*.a -- a biblioteca traz a estrutura, que e' o que o t8Flow
@@ -84,11 +137,37 @@ NUCLEO_CPP = rng.cpp
 COMUM_SRC = src/comum/arranque.cxx
 
 # ---------------------------------------------------------------------------
+# A CONFIGURACAO ENTRA NA DEPENDENCIA, e isto nao e' refinamento: sem isso,
+# trocar `GPU=sim` por `GPU=nao` NAO reconstroi nada -- os objetos e os binarios
+# do build anterior continuam atualizados aos olhos do make, e o programa roda
+# com a configuracao ERRADA sem um aviso.
+#
+# Aconteceu aqui: depois de `make GPU=nao`, um `make GPU=sim` nao recompilou, e o
+# teste anunciou "compilado SEM OpenCL" num build pedido COM.  E' a mesma classe
+# de "build sem o que se quer medir" que neste projeto ja' custou duas corridas
+# medidas como t8code que eram malha uniforme.
+#
+# O remedio e' um SELO: a configuracao e' gravada em `obj/.config` e conferida no
+# parse do Makefile.  Mudou, limpa.  Nao ha' como esquecer o `clean` porque nao
+# ha' `clean` a lembrar.
+CFG_GPU  := $(if $(filter sim,$(GPU)),sim,$(if $(filter nao,$(GPU)),nao,auto))
+CFG_SELO := gpu=$(CFG_GPU) opencl=$(if $(and $(OPENCL_H),$(OPENCL_L)),sim,nao)
+CFG_ARQ  := obj/.config
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
+CFG_ANTES := $(shell cat $(CFG_ARQ) 2>/dev/null)
+ifneq ($(CFG_SELO),$(CFG_ANTES))
+$(info t8flow: configuracao mudou [$(if $(CFG_ANTES),$(CFG_ANTES),nenhuma) -> $(CFG_SELO)] -- limpando antes)
+$(shell rm -rf obj; find tests -maxdepth 2 -type f ! -name '*.cxx' ! -name '*.h' -delete 2>/dev/null; mkdir -p obj; printf '%s' '$(CFG_SELO)' > $(CFG_ARQ))
+endif
+endif
+
+# ---------------------------------------------------------------------------
 # 2D
 # ---------------------------------------------------------------------------
 OBJ2 = obj/2d
 CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d
-SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx
+SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx \
+         src/2d/lote2d.cxx
 OBJ2_N = $(addprefix $(OBJ2)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ2_T = $(addprefix $(OBJ2)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC2:.cxx=.o)))
 TESTES2 = $(basename $(wildcard tests/2d/test-*.cxx))

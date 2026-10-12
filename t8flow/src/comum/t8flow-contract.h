@@ -268,6 +268,56 @@
 //! COBERTA-POR: test-campos2d:divergencia_de_campo_constante_e_zero
 
 // ---------------------------------------------------------------------------
+// L -- O LOTE DE ESTENCEIS, com CPU e GPU
+// ---------------------------------------------------------------------------
+
+//! L1  O lote de CPU devolve um estencil por consulta, com os ids PRESERVADOS na
+//!     ordem do suporte, e reproduz o grau da ordem pedida -- errando no grau
+//!     acima.  A CPU e' implementacao de PRIMEIRA CLASSE: funciona sem OpenCL
+//!     instalado, sem OpenCL compilado e sem placa.
+//!
+//!     E O PADRAO DE BACK-END E' DE QUEM COMPILA: `make GPU=sim` faz a GPU ser o
+//!     padrao, `GPU=nao` tira o codigo de placa do binario, e sem a variavel a
+//!     placa fica disponivel com padrao CPU.  Tres estados, porque "detectei" e
+//!     "o usuario pediu" sao diferentes.  O caso afirma a COERENCIA entre a flag
+//!     e o comportamento -- o unico lado afirmavel de dentro de um build --, e a
+//!     saida declara qual build foi testado.
+//! COBERTA-POR: test-lote2d:o_back_end_padrao_segue_a_flag_de_compilacao
+//! COBERTA-POR: test-lote2d:o_lote_de_cpu_devolve_um_estencil_por_consulta_com_ids_preservados
+//! COBERTA-POR: test-lote2d:cpu_reproduz_o_grau_da_ordem
+//! COBERTA-POR: test-lote2d:cpu_erra_mais_no_grau_acima_da_ordem
+
+//! L2  Os pesos somam 1 -- reproducao da constante, independente do campo de
+//!     teste.  Pega erro de ESCALA que a reproducao de um polinomio especifico
+//!     absorve.
+//! COBERTA-POR: test-lote2d:os_pesos_somam_um
+
+//! L3  O lote RECUSA uso invalido ANTES de escolher o back-end, identificando a
+//!     consulta: suporte abaixo do minimo da ordem, e numero de ids diferente do
+//!     numero de pontos.  Validar depois de escolher faria "funciona na CPU e
+//!     quebra na placa" ser possivel.
+//! COBERTA-POR: test-lote2d:suporte_insuficiente_e_recusado_identificando_a_consulta
+//! COBERTA-POR: test-lote2d:ids_em_numero_diferente_do_suporte_e_recusado
+
+//! L4  Sem GPU o lote CONTINUA FUNCIONANDO e DIZ por que nao ha' placa; e pedir
+//!     GPU explicitamente sem GPU LANCA, em vez de cair na CPU em silencio -- quem
+//!     pediu placa quer saber que nao ha'.
+//! COBERTA-POR: test-lote2d:sem_gpu_o_lote_continua_funcionando_e_diz_por_que
+
+//! L5  Com GPU, os PESOS batem com os da CPU (nao o valor interpolado: valor pode
+//!     bater por cancelamento com pesos errados), e a GPU passa no MESMO oraculo
+//!     de reproducao -- bater com a CPU nao basta se as duas estiverem erradas
+//!     juntas.  Lote heterogeneo cai na CPU com o resultado CERTO, e ordem que o
+//!     kernel nao cobre se declara indisponivel em vez de calcular errado.
+//!
+//!     **CONDICIONAL, e a saida declara:** sem placa estes casos SALTAM e passam.
+//!     O teste imprime `gpu-exercitada sim|nao` e o driver reporta, para
+//!     "contrato 100%" nunca significar "a GPU nao foi testada".
+//! COBERTA-POR: test-lote2d:gpu_bate_com_cpu_nos_pesos
+//! COBERTA-POR: test-lote2d:lote_heterogeneo_cai_na_cpu_com_o_resultado_certo
+//! COBERTA-POR: test-lote2d:ordem_que_o_kernel_nao_cobre_nao_vai_para_a_gpu_em_silencio
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -310,6 +360,30 @@
 //   * o `t8_forest_commit` CONSOME a floresta passada em `set_adapt`/`set_balance`.
 //     O `unref` extra que eu havia escrito deixou a malha VAZIA -- sem erro, sem
 //     aviso, contagens em zero.  Quem pegou foi a area (0 contra 1).
+//
+// TRES DEFEITOS QUE A FAMILIA L PEGOU, e os tres sao de ORACULO -- nenhum era do
+// calculo em si:
+//
+//   1. o teste chamava de "cpu" um vetor calculado com o back-end PADRAO, e com
+//      `make GPU=sim` o padrao e' a placa.  A comparacao GPU-contra-CPU comparava
+//      GPU contra GPU e dava diferenca EXATAMENTE ZERO.  Zero nao era boa noticia:
+//      era o oraculo deixando de existir.  Hoje o caso forca a CPU e RECUSA
+//      diferenca zero, dizendo o motivo;
+//   2. trocar `GPU=sim` por `GPU=nao` nao reconstruia nada -- a flag nao entrava
+//      na dependencia do make, e o binario do build anterior ficava no lugar
+//      anunciando a configuracao errada.  Hoje a configuracao e' um SELO em
+//      `obj/.config`, conferido no parse: mudou, limpa;
+//   3. o kernel fazia minimos quadrados SEM PESO, e o `wls` herdado e' WLSMOVING: o kernel
+//      peso `D_i = 1/sqrt(|x-p_i|^2 + EPSMACH)` nas linhas, resolvido por QR.  Com 16 pontos
+//      e 3 monomios o sistema tem 13 graus de liberdade, entao os dois ajustes
+//      REPRODUZEM OS MESMOS POLINOMIOS com pesos completamente diferentes -- a
+//      reproducao nao podia acusar, e nao acusou.  Quem acusou foi a comparacao
+//      GPU-contra-CPU: 0,311.  Com a ponderacao no kernel, 8,8e-11.
+//
+// A tolerancia de 1e-10 nao e' arbitraria: e' o patamar de dois ALGORITMOS
+// diferentes (QR no herdado, equacoes normais no kernel) resolvendo o mesmo ajuste.
+// E em dispositivo sem fp64 ela e' 1e-4, porque o kernel roda em float -- medido
+// 5,8e-07 na Radeon via rusticl.
 //
 // LIMITE DA FAMILIA A: o criterio de "face mais e' contorno" e' `num_vizinhos == 0`,
 // que vale em np=1.  Sob particionamento, face sem vizinho LOCAL inclui face de
