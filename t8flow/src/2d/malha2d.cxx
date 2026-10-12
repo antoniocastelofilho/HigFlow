@@ -369,6 +369,37 @@ std::vector<int> Malha::niveis_vizinhos(long b, long i, int fa) const
   return niveis;
 }
 
+std::vector<long> Malha::ids_vizinhos(long b, long i, int fa) const
+{
+  if (fa < 0 || fa > 3)
+    throw std::out_of_range("Malha::ids_vizinhos: face " + std::to_string(fa) +
+                            " -- o QUAD tem 4 (0:x-, 1:x+, 2:y-, 3:y+)");
+  const t8_locidx_t it = static_cast<t8_locidx_t>(b);
+  const t8_element_t *e = t8_forest_get_leaf_element_in_tree(f_, it, static_cast<t8_locidx_t>(i));
+
+  t8_element_t **vz = nullptr;
+  int *dual = nullptr, nviz = 0;
+  t8_locidx_t *idx = nullptr;
+  t8_eclass_t vec;
+  t8_forest_leaf_face_neighbors(f_, it, e, const_cast<const t8_element_t ***>(&vz), fa,
+                               &dual, &nviz, &idx, &vec);
+
+  // O INDICE QUE O T8CODE DEVOLVE E' DA FLORESTA LOCAL, nao da arvore.  Tratar
+  // como indice de arvore entrega um elemento existente, so' que OUTRO -- erro
+  // silencioso, e esta' na lista de armadilhas desta frente.  O id global e'
+  // `primeiro_id() + indice_de_floresta`, direto, porque a numeracao local E' a
+  // ordem de percurso da floresta.
+  const long p0 = primeiro_id();
+  std::vector<long> ids;
+  ids.reserve(static_cast<size_t>(nviz));
+  for (int k = 0; k < nviz; k++) ids.push_back(p0 + static_cast<long>(idx[k]));
+
+  T8_FREE(vz);
+  T8_FREE(dual);
+  T8_FREE(idx);
+  return ids;
+}
+
 int Malha::nivel_minimo() const
 {
   int v = -1;

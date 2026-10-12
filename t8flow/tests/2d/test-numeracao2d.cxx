@@ -228,6 +228,40 @@ int main(int argc, char **argv)
                 "nao e' o escrito pelo percurso", pior, pior_id);
   }
 
+  // OS IDS DOS VIZINHOS tem de ser os ids das celulas que a GEOMETRIA diz serem
+  // vizinhas.  E' a verificacao que pega a confusao entre indice de FLORESTA e
+  // indice de ARVORE -- confundi-los devolve um elemento existente, so' que outro,
+  // e nenhuma contagem acusa.
+  t_case("os_ids_dos_vizinhos_batem_com_a_geometria");
+  {
+    long conferidos = 0, errados = 0;
+    for (long b = 0; b < m.num_blocos(); b++)
+      for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
+        const Ponto2 c = m.centroide(b, i);
+        const Ponto2 h = m.lados_da_folha(b, i);
+        for (int fa = 0; fa < 4; fa++) {
+          const std::vector<long> vz = m.ids_vizinhos(b, i, fa);
+          if (vz.size() != 1) continue;          // 2:1 e contorno a parte
+          const int d = fa / 2;
+          const double sinal = (fa % 2 == 0) ? -1.0 : 1.0;
+          Ponto2 alem = c;
+          alem[d] += sinal * h[d];               // centro do vizinho de mesmo nivel
+          const long esperado = m.id_do_ponto(alem);
+          if (esperado < 0) continue;            // vizinho de outro nivel
+          conferidos++;
+          if (vz[0] != esperado) {
+            if (errados == 0)
+              T_CHECK_MSG(false,
+                          "bloco %ld folha %ld face %d: vizinho %ld, a geometria "
+                          "diz %ld", b, i, fa, vz[0], esperado);
+            errados++;
+          }
+        }
+      }
+    T_CHECK_MSG(conferidos > 0, "nenhum vizinho conferido -- o caso nao mediu nada");
+    T_CHECK_MSG(errados == 0, "%ld vizinhos com id divergente da geometria", errados);
+  }
+
   // E A MESMA COISA DEPOIS DO REFINO, que e' quando os dois caminhos tem a chance
   // real de divergir: a numeracao muda inteira e os niveis deixam de ser
   // uniformes.

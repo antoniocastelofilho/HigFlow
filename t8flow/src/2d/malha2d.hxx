@@ -98,6 +98,14 @@ class Malha {
   //! com geometria errada; area pega.
   double area(long b, long i) const;
 
+  //! Ids GLOBAIS dos vizinhos da folha pela face `fa`.  Vazio quando a face e'
+  //! contorno do dominio; dois ou mais quando o lado de la' e' mais fino (2:1).
+  //
+  // O id sai do indice de FLORESTA que o t8code devolve, convertido para (arvore,
+  // folha) -- e nao do indice tratado como se fosse de arvore.  Essa confusao
+  // entrega um elemento EXISTENTE, so' que outro, e o erro e' silencioso.
+  std::vector<long> ids_vizinhos(long b, long i, int fa) const;
+
   //! Niveis dos vizinhos da folha pela face `fa`.
   //
   // E' o insumo do oraculo 2:1 -- e o oraculo fica no TESTE, nao aqui: codigo que

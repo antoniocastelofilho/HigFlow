@@ -167,7 +167,7 @@ endif
 OBJ2 = obj/2d
 CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d
 SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx \
-         src/2d/lote2d.cxx
+         src/2d/lote2d.cxx src/2d/estencil2d.cxx
 OBJ2_N = $(addprefix $(OBJ2)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ2_T = $(addprefix $(OBJ2)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC2:.cxx=.o)))
 TESTES2 = $(basename $(wildcard tests/2d/test-*.cxx))

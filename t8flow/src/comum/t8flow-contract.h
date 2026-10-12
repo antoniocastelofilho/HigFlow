@@ -87,6 +87,19 @@
 //!     (2^L)^2 folhas em 2D.  Contagem exata.
 //! COBERTA-POR: test-floresta2d:floresta_uniforme_tem_as_folhas_do_nivel
 
+//! F3  O SUPORTE CAI NA GRADE E E' LOCAL.  "Na grade": cada ponto do suporte e' o
+//!     centroide de uma celula que EXISTE -- conferido pedindo a' malha o id
+//!     daquele ponto e comparando com o id que o suporte declara -- ou o centro de
+//!     uma faceta de CONTORNO, e esse esta' sobre a borda do dominio.  "Local": o
+//!     diametro e' de poucas celulas e o numero de pontos e' menor que a malha.
+//!
+//!     E' a clausula que a REPRODUCAO POLINOMIAL NAO DA'.  Medido: deslocando os
+//!     centroides do suporte meia celula, F2 continua verde -- a reproducao
+//!     verifica a discretizacao, nao a malha.  Com a F3, o mesmo deslocamento
+//!     reprova com "29 de 50 pontos do suporte fora da grade".
+//! COBERTA-POR: test-estencil2d:F3_todo_ponto_do_suporte_esta_na_grade
+//! COBERTA-POR: test-estencil2d:F3_o_suporte_e_local_e_nao_a_malha_inteira
+
 //! F2  O SUPORTE de um ponto e' colhido da floresta -- um centroide por folha --
 //!     e alimenta o discretizador, que reproduz polinomio sobre ele.  E' o
 //!     contrato malha/discretizacao: a malha entrega suporte, a discretizacao
@@ -318,14 +331,53 @@
 //! COBERTA-POR: test-lote2d:ordem_que_o_kernel_nao_cobre_nao_vai_para_a_gpu_em_silencio
 
 // ---------------------------------------------------------------------------
+// E -- O ESTENCIL COM A ORDEM DESEJADA (como na HiGTree)
+// ---------------------------------------------------------------------------
+
+//! E1  O estencil reproduz EXATAMENTE o grau da ordem pedida no interior, e erra
+//!     no grau acima.  A ordem e' a pedida, nao a que o suporte permitiu: suporte
+//!     insuficiente faz a chamada LANCAR em vez de devolver um ajuste de ordem
+//!     menor, que daria numeros plausiveis e errados.
+//! COBERTA-POR: test-estencil2d:o_estencil_reproduz_o_grau_da_ordem_no_interior
+//! COBERTA-POR: test-estencil2d:o_estencil_erra_mais_no_grau_acima_da_ordem
+//! COBERTA-POR: test-estencil2d:sem_condicao_de_contorno_o_suporte_perto_da_parede_e_recusado
+//! COBERTA-POR: test-estencil2d:ponto_fora_do_dominio_e_recusado
+
+//! E2  O FECHAMENTO DE CONTORNO funciona: junto a' parede, parte do suporte vem
+//!     das facetas de contorno, o peso daquele ponto multiplica o valor de
+//!     Dirichlet e vai para o `rhs` -- e o ponto NAO aparece em `ids`.  A
+//!     reproducao vale ate' a parede, que e' o unico oraculo que exercita o `rhs`.
+//!
+//!     O campo de contorno VARIA nas duas direcoes de proposito: com valor
+//!     constante -- parede de nao-deslizamento, que e' quase todo exemplo --
+//!     fechar contra a parede ERRADA da' o mesmo numero, e foi assim que nove
+//!     defeitos de fechamento sobreviveram cinco anos na HiGTree.  Medido: fazendo
+//!     o ponto de contorno entrar como CELULA, este caso reprova com "nenhum
+//!     estencil junto a' parede teve rhs".
+//! COBERTA-POR: test-estencil2d:o_estencil_reproduz_junto_a_parede_pelo_fechamento
+
+//! E3  O ANEL E' FECHADO: o crescimento do suporte nunca para no meio de um anel
+//!     de vizinhanca, e o conjunto de ids nao depende da ordem de visita.  Parar
+//!     no meio faz o suporte -- e os pesos -- depender do percurso, que e' como a
+//!     clausula de desempate da HiGTree passava por SORTE.  Medido: decidindo a
+//!     parada dentro do laco de faces, o suporte cai para 3 pontos onde o anel
+//!     fechado da' 5.
+//! COBERTA-POR: test-estencil2d:o_anel_e_fechado_e_o_suporte_nao_depende_da_ordem_de_percurso
+
+//! E4  O LOTE de estenceis da' o mesmo que um-por-um, com o `rhs` preservado nos
+//!     dois caminhos.  A selecao do suporte fica na CPU (e' navegacao de malha,
+//!     nao aritmetica densa); o que vai para a placa sao os pesos.
+//! COBERTA-POR: test-estencil2d:o_lote_de_estenceis_da_o_mesmo_que_um_por_um
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
 //
 //   * deslocando TODOS os centroides do suporte meia celula, os casos de F2
 //     continuam VERDES.  A reproducao polinomial verifica a DISCRETIZACAO, nao a
-//     malha.  Quem verificaria a malha e' "o suporte cai na grade e e' local" --
-//     sera' a clausula F3, e ainda nao existe;
+//     malha.  Quem verifica a malha e' a F3, que hoje EXISTE -- e com o mesmo
+//     deslocamento ela reprova, "29 de 50 pontos fora da grade";
 //   * baixando a ordem do ajuste de 2 para 1, N1 reprova nas duas metades.  O
 //     oraculo discrimina, e isso foi conferido e nao suposto.
 //
@@ -385,14 +437,19 @@
 // E em dispositivo sem fp64 ela e' 1e-4, porque o kernel roda em float -- medido
 // 5,8e-07 na Radeon via rusticl.
 //
+// LIMITE DA FAMILIA E, declarado: so' DIRICHLET.  Neumann precisa de derivada na
+// faceta, que muda a LINHA do ajuste e nao so' o lado direito -- e' trabalho
+// proprio, nao um `else`.  E a selecao de suporte varre a malha para traduzir id
+// em (bloco, folha): O(folhas) por consulta, aceitavel em caminho de montagem e
+// nao em laco quente.  Dito para nao ser suposto rapido.
+//
 // LIMITE DA FAMILIA A: o criterio de "face mais e' contorno" e' `num_vizinhos == 0`,
 // que vale em np=1.  Sob particionamento, face sem vizinho LOCAL inclui face de
 // FRANJA, e a distincao exige a camada de ghost -- que o t8Flow nao tem.  A posse
 // das facetas tera' de ser reexaminada quando a franja entrar.
 //
 // Tambem ausentes, previstas no doc/projeto-t8flow.md: numeracao global contigua
-// por rank alcancada por busca por ponto (nao pelo percurso que a gerou, que e'
-// tautologia); conteudo da franja depois do sync na profundidade de PRODUCAO (5)
+// conteudo da franja depois do sync na profundidade de PRODUCAO (5)
 // e em np=3, que e' o menor np em que pareamento transposto aparece; a guarda
 // contra arvore de UMA celula (que nao tem interior, e a franja declarada e' de
 // cinco); a banda fina da decisao 4; posse distribuida; e o lado 3D inteiro.

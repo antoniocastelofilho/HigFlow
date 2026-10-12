@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -186,9 +187,17 @@ LoteEstenceis::LoteEstenceis(int ordem, int max_pontos)
   std::vector<cl_platform_id> plats(nplat);
   clGetPlatformIDs(nplat, plats.data(), nullptr);
 
-  // Prefere dispositivo com fp64: a precisao vale mais que a velocidade quando o
-  // resultado alimenta o solver.  Medido: a placa mais rapida desta maquina e'
-  // justamente a que NAO tem fp64.
+  // A ESCOLHA DO DISPOSITIVO, e ela mudou por DECISAO DO USUARIO em 12/10/2026:
+  // **float basta para o estencil**.  Antes isto preferia fp64, porque precisao
+  // valeria mais que velocidade; com float suficiente, preferir fp64 passaria a
+  // escolher a placa MAIS LENTA desta maquina de proposito -- a integrada tem
+  // fp64 e a discreta nao.
+  //
+  // O padrao agora e' o PRIMEIRO dispositivo do tipo GPU, e quem quiser outro diz
+  // por `T8FLOW_OPENCL_DISPOSITIVO=<pedaco do nome>`.  Nao se adivinha qual placa
+  // e' mais rapida a partir de `MAX_COMPUTE_UNITS`: esta maquina tem 24 nos DOIS
+  // dispositivos, e eles diferem por um fator de tres na medida.
+  const char *pedido = std::getenv("T8FLOW_OPENCL_DISPOSITIVO");
   cl_device_id escolhido = nullptr;
   bool escolhido_fp64 = false;
   std::string escolhido_nome;
@@ -204,15 +213,29 @@ LoteEstenceis::LoteEstenceis(int ordem, int max_pontos)
       char nome[256] = {0};
       clGetDeviceInfo(devs[d], CL_DEVICE_NAME, sizeof nome, nome, nullptr);
       const bool tem = (fp != 0);
-      if (escolhido == nullptr || (tem && !escolhido_fp64)) {
-        escolhido = devs[d];
-        escolhido_fp64 = tem;
-        escolhido_nome = nome;
+      const std::string nm = nome;
+
+      cl_device_type tipo = 0;
+      clGetDeviceInfo(devs[d], CL_DEVICE_TYPE, sizeof tipo, &tipo, nullptr);
+      const bool e_gpu = (tipo & CL_DEVICE_TYPE_GPU) != 0;
+
+      // Pedido explicito vence tudo, e vence inclusive a preferencia por GPU:
+      // quem nomeia o dispositivo sabe o que quer.
+      if (pedido != nullptr && nm.find(pedido) != std::string::npos) {
+        escolhido = devs[d]; escolhido_fp64 = tem; escolhido_nome = nm;
+        p = nplat;   // para os lacos: achou o pedido
+        break;
+      }
+      if (pedido == nullptr && escolhido == nullptr && e_gpu) {
+        escolhido = devs[d]; escolhido_fp64 = tem; escolhido_nome = nm;
       }
     }
   }
   if (escolhido == nullptr) {
-    gpu_->porque_nao = "plataforma OpenCL presente, porem ZERO dispositivos";
+    gpu_->porque_nao = (pedido != nullptr)
+        ? std::string("nenhum dispositivo com \"") + pedido +
+              "\" no nome (T8FLOW_OPENCL_DISPOSITIVO)"
+        : "plataforma OpenCL presente, porem nenhum dispositivo do tipo GPU";
     return;
   }
 
