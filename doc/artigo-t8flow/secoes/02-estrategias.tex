@@ -3,8 +3,8 @@
 
 \status{Pronta. Todas as decisões descritas estão implementadas; as que foram
 tomadas após medida trazem a medida. A seção \ref{sec:est-escala} traz números de
-escalabilidade em duas dimensões, medidos nesta máquina, e declara que o regime
-tridimensional não foi medido.}
+escalabilidade em duas dimensões e a seção \ref{sec:par-escala} os de três,
+todos medidos nesta máquina.}
 
 \subsection{A floresta é a estrutura}
 
@@ -169,10 +169,14 @@ renderam apenas \num{1.6}$\times$. A leitura não é que não escala --- é que
 regime em que a divisão vence é o de mais células por processo, e ele é limitado
 por \emph{tamanho}, não por dimensão.
 
-\reserva{o regime tridimensional, onde o antecessor tem \num{375000} células ---
-quarenta vezes mais trabalho por processo ---, \textbf{não} foi medido neste
-trabalho. Sem essa medida, o escalonamento em três dimensões é expectativa, não
-resultado.}
+O regime tridimensional, onde o antecessor tem \num{375000} células --- quarenta
+vezes mais trabalho por processo ---, passou a ser medido e está na seção
+\ref{sec:par-escala}: \num{4.92}$\times$ em oito processos no esquema de fluxo,
+com \num{262144} células e erro idêntico ao serial.
+
+\reserva{essa medida foi feita em \textbf{oito núcleos físicos}, e é o teto
+desta máquina. O escalonamento além disso --- que é onde o regime do antecessor
+de fato vive --- continua sendo expectativa, não resultado.}
 
 A segunda é o \textbf{desbalanceamento por refino local}: refinar aleatoriamente
 desbalanceia a partição em \num{2.8}$\times$, e reparticionar corrige isso a um

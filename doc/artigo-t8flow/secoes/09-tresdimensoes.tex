@@ -1,0 +1,108 @@
+\section{Três dimensões}
+\label{sec:tres-dimensoes}
+
+A base tridimensional foi construída depois da bidimensional, em arquivos
+separados, pela razão de projeto da seção~\ref{sec:estrategias}. O escopo foi
+declarado antes de começar e cumprido sem alargamento: \textbf{só o que o solver
+de Navier--Stokes vai usar} --- malha, ajuste por mínimos quadrados móveis,
+estêncil, campos e o Poisson que os verifica. Compactos, laplaciano pontual e
+lote em GPU ficaram de fora, declaradamente.
+
+Esta seção registra o que \emph{mudou} de duas para três dimensões, e a parte
+que importa não é trocar um 2 por um 3.
+
+\subsection{O teto teórico que nunca é atingido}
+
+Um hexaedro tem seis faces, e na transição 2:1 cada face pode ter
+\textbf{quatro} vizinhos --- contra duas faces e dois vizinhos em duas dimensões.
+O teto teórico é $6\times 4 = 24$ vizinhos por célula, e dimensionar a carga da
+troca por ele é a escolha óbvia.
+
+A medida (\texttt{bench/franja3d}, feita \emph{antes} de o código tridimensional
+existir) a desautoriza: o máximo real é \textbf{9} em malha adaptada e 6 em
+uniforme. Uma célula tem, no máximo, uma face com vizinhos refinados em cada
+direção --- não as seis. Dimensionar pelo teto custaria \num{2.7} vezes mais
+memória, e a classe de malha passou a \emph{medir} os vizinhos na construção em
+vez de presumi-los.
+
+\subsection{O suporte em cruz não sustenta ordem 3}
+
+A base polinomial explode com a dimensão: 4, 10, 20 e 35 monômios para as ordens
+1 a 4, contra 3, 6, 10 e 15 em duas dimensões. O suporte mínimo é o número de
+monômios, de modo que a ordem 3 pede 20 pontos onde antes pedia 10.
+
+Crescer o suporte por \textbf{anéis de vizinhos de face} --- a estratégia que
+funciona em duas dimensões --- falha aqui, e falha quase sempre: numa malha
+uniforme de nível 3, \textbf{504 dos 512} ajustes de ordem 3 rebaixaram a ordem,
+\SI{98.4}{\percent}. Os pontos em cruz são colineares com o alvo em cada direção,
+e colinearidade não sustenta monômios cruzados.
+
+A substituição é o suporte por \textbf{caixa geométrica}, e o raio dela sai da
+álgebra, não de escolha: uma caixa de raio $r$ tem $2r+1$ valores distintos por
+direção, e reproduzir grau $g$ exige $g+1$ deles, logo $r \geq \lceil g/2\rceil$.
+A primeira versão usava raio 1 --- 27 pontos para 20 monômios, número de sobra ---
+e ainda rebaixava em 216 dos 512 ajustes. Os 216 eram exatamente $6^3$: as células
+interiores, onde uma caixa $3\times3\times3$ tem só três valores distintos por
+direção e $x^3 = h^2 x$ sobre eles. \textbf{Número de pontos suficiente não é
+posicionamento suficiente}, e o contador de rebaixamento foi o que disse isso.
+
+\subsection{Publicar a caixa, e não propagar por faces}
+
+A célula mais distante da caixa de raio 2 está a seis faces de distância.
+Propagando por faces, cobri-la exigia cinco camadas e \SI{200.7}{\kilo\byte} por
+folha. Publicando a \emph{caixa}, o dono de um fantasma meu tem como locais
+justamente as células que me faltam:
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+camadas & 2 & 3 & 5 \\
+\midrule
+truncados, propagação topológica & 150 & 48 & 0 \\
+truncados, publicação da caixa   &  69 & 0  & 0 \\
+KB por folha                     & 4,3 & 19,6 & 114,0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Zero truncamento passou de cinco camadas e \SI{200.7}{\kilo\byte} para três
+camadas e \SI{19.6}{\kilo\byte}: \textbf{dez vezes menos memória}.
+
+\reserva{o primeiro resultado desta medida foi ``zero truncamento com qualquer
+número de camadas'', que é bom demais. O suporte por caixa descartava em silêncio
+os pontos que não achava, e as duas respostas negativas de uma busca geométrica
+são diferentes: um ponto \emph{fora do domínio} é legítimo --- o contorno trata
+---, e um ponto \emph{dentro} que não se acha significa que falta franja.
+Confundi-las esconde a segunda. Os números acima são os de depois da distinção.}
+
+\subsection{O Poisson em três dimensões}
+
+O oráculo primário continua sendo o \textbf{grau de exatidão}, não a ordem de
+convergência, e cada afirmação de exatidão vem com o contraste onde ela deve
+falhar.
+
+\begin{center}
+\begin{tabular}{llrr}
+\toprule
+solução & esquema & malha & erro $\infty$ \\
+\midrule
+\texttt{grau1} & fluxo 2ª ordem    & uniforme, $8^3$   & \num{1.5447e-11} \\
+\texttt{grau2} & fluxo 2ª ordem    & uniforme, $8^3$   & \num{2.9505e-3} \\
+\texttt{grau2} & MLS+Gauss ordem 2 & uniforme, $8^3$   & \num{5.0082e-12} \\
+\texttt{grau2} & fluxo 2ª ordem    & \textbf{adaptada} & \num{1.0451e-1} \\
+\texttt{grau2} & MLS+Gauss ordem 2 & \textbf{adaptada} & \num{1.9738e-11} \\
+\texttt{grau3} & MLS+Gauss ordem 3 & uniforme, $8^3$   & \num{1.2479e-13} \\
+\texttt{grau4} & MLS+Gauss ordem 3 & uniforme, $8^3$   & \num{2.4062e-3} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+As linhas andam em pares e é o par que afirma algo. O fluxo de segunda ordem é
+exato para grau 1 e perde grau 2 --- e perde \emph{muito} mais na malha adaptada
+($\num{1.0e-1}$ contra $\num{3.0e-3}$), que é o resultado conhecido de que o
+balanço de fluxos de segunda ordem degrada na transição 2:1. O MLS de ordem 2
+recupera a exatidão de grau 2 \emph{inclusive} na malha adaptada, e o de ordem 3
+é exato em grau 3 e falha em grau 4, exatamente onde deve.
+
+Na solução trigonométrica, onde não há exatidão a afirmar, a ordem medida é a
+esperada: \num{1.97} e \num{1.98} do nível 3 ao 5 para o esquema de ordem 2.

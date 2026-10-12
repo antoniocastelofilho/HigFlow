@@ -46,15 +46,27 @@ adaptada é 3, e a via para 4 é seleção de suporte, não quadratura (seção
 Declarado aqui, e não diluído entre os resultados:
 
 \begin{itemize}
-\item \textbf{a medida de custo do paralelo.} A execução paralela em si está
-      feita e verificada (seção \ref{sec:paralelo}); o que falta é o
-      \emph{custo}: a escalabilidade de \num{1.6}$\times$ em np=4 citada na
-      seção \ref{sec:estrategias} foi medida \emph{antes} da franja de $K$
-      camadas, e portanto não vale mais;
-\item \textbf{três dimensões.} A base de código tridimensional não existe ainda,
-      por decisão de projeto (seção \ref{sec:estrategias}). A medida de
-      escalabilidade que importa --- muito trabalho por processo --- está nesse
-      regime;
+\item \textbf{o custo da franja iterativa.} A escalabilidade está medida
+      (seção \ref{sec:par-escala}) e o resultado é sublinear e consistente ---
+      \num{4.92}$\times$ em oito processos no esquema de fluxo, com erro
+      idêntico ao serial. O que falta é a otimização que a própria medida
+      aponta: a franja custa \SI{38}{\percent} do tempo em np=8 no esquema MLS
+      e não diminui com o número de processos. Corrigir a resposta custou
+      escala, e é aí que está o próximo ganho;
+\item \textbf{o laplaciano pontual de ordem 4 acima do nível 5.} Em duas
+      dimensões ele converge até o nível 5 e o sistema deixa de convergir a
+      partir do 6 --- resíduo \num{3.0e4}, sinalizado como não convergido. É
+      condicionamento da matriz, não do ajuste: as ordens 2 e 3 convergem a
+      \num{1e-15} no mesmo problema. Fica registrado porque o esquema está
+      documentado como o único que passa de segunda ordem em malha adaptada, e
+      essa afirmação tem um teto que o texto antes não dizia;
+\item \textbf{o solver de Navier--Stokes.} A base tridimensional foi construída
+      para ele (seção \ref{sec:tres-dimensoes}) e a decisão de arranjo está
+      tomada --- deslocado (MAC) nos dois solvers, o de diferenças finitas e o
+      de volumes finitos. A decisão em aberto é a \textbf{interpolação da
+      advecção}: é o único operador que cruza localizações, já que a velocidade
+      vive nas facetas e o fluxo convectivo precisa dela onde ela não está, e o
+      que se escolhe ali decide se o esquema conserva quantidade de movimento;
 \item \textbf{Robin dentro do operador de Poisson.} A relação afim
       \eqref{eq:bc-afim} trata os três tipos, e o estêncil a usa; o operador de
       Poisson monta Dirichlet e Neumann. Montar Robin como se fosse Neumann daria
@@ -75,3 +87,19 @@ e oráculo com \textbf{contraste}. Afirmações de exatidão sem o par que mede 
 elas falham não distinguem um esquema correto de um oráculo cego: em três dos
 quatro defeitos, o que denunciou não foi um caso falhando, e sim um contraste que
 devia ser grande e era pequeno.
+
+Os dois defeitos que o lado tridimensional acrescentou (seção
+\ref{sec:paralelo}) acrescentam uma segunda regra, e ela é sobre a
+\emph{cobertura} do oráculo e não sobre a sua força. O arquivo de teste do
+Poisson tridimensional era rigoroso --- sete casos, cada afirmação de exatidão
+com o seu contraste --- e rodava \textbf{só em um processo}. Um oráculo forte no
+regime errado deixa a suíte verde com o código errado, e a correção não foi
+escrever um caso melhor: foi \textbf{rodar os que já existiam no regime onde o
+defeito vive}, mais um caso que afirma propriedade do operador em vez de
+comparar com uma referência serial que em paralelo não existe.
+
+E uma terceira, que custou um dia inteiro e não é sobre numérica: o
+\texttt{Makefile} não rastreava dependência de cabeçalho, de modo que uma
+correção \emph{inline} não entrava no binário e a medida dizia que a correção
+não tinha efeito. \textbf{Toda medida pressupõe que se está medindo o que se
+pensa estar medindo}, e essa pressuposição também precisa de verificação.

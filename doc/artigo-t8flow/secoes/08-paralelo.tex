@@ -1,16 +1,19 @@
 \section{A execução paralela}
 \label{sec:paralelo}
 
-\status{Pronta quanto à \emph{correção} e ao \emph{custo da franja}: as cláusulas
-X1--X9 cobrem a primeira e o arreio as executa em np = 1, 2 e 3; a segunda está
-medida na seção \ref{sec:par-custo}. O que não traz é a \emph{escalabilidade do
-sistema inteiro} com esta implementação --- o número citado na seção
-\ref{sec:estrategias} a precede.}
+\status{Pronta. As cláusulas X1--X9 e H18--H19 cobrem a correção, e o arreio as
+executa em np = 1, 2, 3 e 4; o custo da franja está na seção
+\ref{sec:par-custo} e a escalabilidade do sistema inteiro na seção
+\ref{sec:par-escala}, esta última limitada a oito núcleos físicos.}
 
 Esta seção é separada das anteriores por um motivo metodológico: tudo o que ela
-descreve é invisível em execução serial, e três defeitos reais do sistema viviam
-exatamente nessa invisibilidade. Relatá-los é o conteúdo mais transferível do
-trabalho.
+descreve é invisível em execução serial, e \textbf{cinco} defeitos reais do
+sistema viviam exatamente nessa invisibilidade. Relatá-los é o conteúdo mais
+transferível do trabalho.
+
+Os três primeiros apareceram em duas dimensões; os dois últimos, em três --- e o
+quarto é o segundo voltando por baixo do seu próprio conserto, o que é a razão
+de valer a pena relatá-lo.
 
 \subsection{A franja de $K$ camadas}
 
@@ -89,6 +92,89 @@ finos. O conserto foi fazer o nível \emph{viajar junto} com o id do vizinho, o 
 economiza uma camada inteira, e \textbf{contar} a saturação em vez de cortá-la
 calada.
 
+\subsection{Defeito 4: a máscara que mentia}
+
+O defeito 2 foi consertado com uma máscara de faces conhecidas, um bit por face,
+publicada junto com os vizinhos. Em três dimensões a máscara \textbf{mentia}, e
+o defeito 2 voltou por baixo do seu próprio conserto.
+
+A máscara era escrita \emph{antes} da carga útil, e a carga era truncada por
+capacidade. O campo da máscara entrou no bloco publicado sem que a conta de
+tamanho crescesse: cabiam $\mathtt{max\_viz}-1$ vizinhos onde a folha tem
+$\mathtt{max\_viz}$. Numa malha uniforme, onde cada folha tem seis vizinhos, o
+\textbf{sexto} ficava para trás --- e o sexto é a face 5, a última do laço. A
+folha chegava afirmando conhecer as seis faces com a lista da sexta ausente, e
+\emph{lista vazia com bit ligado é exatamente a assinatura de uma parede do
+domínio}. O fechamento aplicava Dirichlet no meio do domínio, de novo.
+
+O conserto tem duas partes, e a segunda importa mais que a primeira. A capacidade
+foi corrigida; e a máscara passou a ser escrita \textbf{depois} da carga,
+afirmando apenas as faces que couberam inteiras. \textbf{Uma face parcial é pior
+que uma face desconhecida}: desconhecida, o fechamento se recusa a aplicar
+condição e o esquema para; parcial, ele aplica a condição errada e o resultado
+sai plausível. O mesmo endurecimento foi feito em duas dimensões, onde a carga
+cabe e portanto o defeito nunca disparou --- a diferença entre ``não dispara'' e
+``não pode disparar'' é uma conta que alguém tem de refazer a cada mudança de
+tamanho, e é justamente o tipo de conta que não se refaz.
+
+\subsection{Defeito 5: uma rodada de troca só alcança vizinho de face}
+
+A franja nativa do t8code é \texttt{T8\_GHOST\_FACES}, e a documentação de
+\texttt{t8\_forest\_set\_ghost} registra que \emph{só} esse tipo é suportado.
+Logo o processo diagonalmente oposto numa quina não é vizinho de face de ninguém
+que fale comigo, e uma rodada de publicação nunca traz a célula dele. Em oito
+processos isso aparecia como 192 suportes truncados, todos nas células que tocam
+o centro do domínio --- onde as oito partições se encontram.
+
+\textbf{Aumentar as camadas não resolvia}, e foi isso que confundiu o
+diagnóstico: com 2, 3 e 4 camadas o truncamento ficava preso em 192. A informação
+não precisava ir mais \emph{longe}; precisava ir por outro \emph{caminho}.
+
+A fase de publicação passa a \textbf{iterar até cobrir}, com parada medida e
+coletiva: quantos pontos da caixa ainda faltam, reduzido entre todos os
+processos. Cada rodada avança um salto de posse, e o número de rodadas sai da
+partição, não de uma constante --- medido no nível 3: np=2 pede 1 rodada, np=4
+pede 2, np=8 pede 3. Um número fixo estaria certo para esta partição e errado
+para a próxima.
+
+O mesmo trabalho expôs uma terceira peça. O esquema pedia $r+1$ camadas e precisa
+de $r+2$: a caixa do suporte não é centrada na folha local, e sim na célula que
+contém o \textbf{ponto de quadratura}, que fica sobre uma faceta e pode cair na
+célula vizinha. Com $r+1$ o esquema sobrevivia por acidente --- a publicação em
+torno dos fantasmas cobria o excedente sem que nada afirmasse isso --- e o
+acidente sumiu quando a publicação passou a parar no critério declarado.
+
+\subsection{O oráculo que faltava, e o que ele exigiu}
+\label{sec:par-oraculo}
+
+Os defeitos 4 e 5 ficaram invisíveis por um motivo que não é sobre eles: o
+arquivo de teste do Poisson tridimensional \textbf{só rodava em um processo}, e
+em um processo não há franja. A suíte ficou verde com o paralelo errado.
+
+O primeiro oráculo que tentamos não discriminava. O resíduo direto do operador,
+$\max|A\,u_{\text{exata}} - b|$, é um \emph{máximo}, dominado pelas linhas de
+parede: ficou idêntico em \num{1.1591} nos quatro números de processos enquanto
+o interior divergia.
+
+O que achou foi a \textbf{soma da linha}. Um laplaciano aniquila constantes,
+logo a linha de uma célula interior soma zero --- e isso é propriedade do
+operador, verificável em qualquer número de processos, sem referência serial. Em
+série somava \num{1e-17}; em paralelo, \num{-1.907e-2} em quatro linhas. Soma
+diferente de zero significa peso \emph{saindo} da linha, indo para o lado direito
+como condição de contorno, que é exatamente o sintoma do defeito 4.
+
+O caso novo afirma as duas coisas que não precisam de serial --- soma de linha
+interior nula e zero suportes truncados --- e roda em np=1, 2 e 4. Verificamos
+que ele \textbf{discrimina}: com os defeitos reintroduzidos, passa em np=1 e
+reprova em np=2.
+
+\reserva{o defeito ficou mais um dia escondido por uma causa que não é de
+numérica: o \texttt{Makefile} não rastreava dependência de cabeçalho. A função
+que calcula as camadas é \emph{inline} no cabeçalho; mudou de $r+1$ para $r+2$ e
+o objeto do Poisson continuou pedindo $r+1$. A medida dizia que o conserto não
+tinha efeito quando o conserto não estava no binário --- não há erro, há uma
+resposta errada com cara de medida.}
+
 \subsection{O que está verificado}
 
 Mesmo problema, mesmo resultado, variando apenas o número de processos:
@@ -159,11 +245,57 @@ era dimensionado por $(2K+1)^2$ em \emph{todas} as rodadas, embora a rodada $r$
 publique apenas a vizinhança de raio $r$; dimensioná-lo pela rodada reduziu o
 volume publicado em \num{2.1} vezes.
 
-\reserva{os tempos de solver em np=1 destoam --- ganho aparente de
-\num{29.8}$\times$ de np=1 para np=8 no MLS, que é \emph{superlinear}. Ganho
-superlinear quase sempre indica efeito de cache ou mudança no número de iterações
-do solver, não paralelismo. Não foi investigado, e por isso as frações acima usam
-np$\,\geq\,$2 como referência.}
+\subsection{A escalabilidade, e o superlinear que não era}
+\label{sec:par-escala}
+
+Uma versão anterior deste texto registrava, como ressalva, um ganho aparente de
+\num{29.8}$\times$ de np=1 para np=8 no esquema MLS --- \emph{superlinear} em
+oito processos, portanto impossível. A hipótese declarada na época era cache ou
+mudança no número de iterações. \textbf{Era nenhuma das duas}: a montagem do
+operador era \textbf{quadrática}. A busca geométrica que converte ponto em
+índice era uma varredura linear, chamada uma vez por linha; com índice espacial,
+o mesmo problema caiu de \SI{8.74}{\second} para \SI{0.679}{\second} e o ganho
+aparente virou \num{5.2}$\times$ --- sublinear, como tem de ser.
+
+A lição não é sobre o algoritmo: é que \textbf{um ganho impossível não é um
+bônus, é um sintoma}, e o que ele indicava era um defeito de complexidade no
+caminho mais quente do código, disfarçado de boa notícia.
+
+Com isso resolvido, a medida tridimensional. Oito núcleos \textbf{físicos} nesta
+máquina --- os dezesseis que o sistema relata são fios, e medir acima de oito
+mede contenção de fio, não escalabilidade:
+
+\begin{center}
+\begin{tabular}{lrrrrrr}
+\toprule
+esquema & células & np & montagem & resolução & total & ganho \\
+\midrule
+fluxo 2ª ordem & \num{262144} & 1 & \SI{5.84}{\second} & \SI{2.56}{\second} & \SI{8.41}{\second} & --- \\
+               &              & 2 & \SI{3.12}{\second} & \SI{1.82}{\second} & \SI{4.94}{\second} & \num{1.70}$\times$ \\
+               &              & 4 & \SI{1.60}{\second} & \SI{0.96}{\second} & \SI{2.56}{\second} & \num{3.28}$\times$ \\
+               &              & 8 & \SI{1.00}{\second} & \SI{0.71}{\second} & \SI{1.71}{\second} & \num{4.92}$\times$ \\
+\midrule
+MLS+Gauss      & \num{32768}  & 1 & \SI{6.12}{\second} & \SI{1.11}{\second} & \SI{7.24}{\second} & --- \\
+               &              & 2 & \SI{3.20}{\second} & \SI{0.48}{\second} & \SI{4.49}{\second} & \num{1.61}$\times$ \\
+               &              & 4 & \SI{1.71}{\second} & \SI{0.20}{\second} & \SI{2.67}{\second} & \num{2.71}$\times$ \\
+               &              & 8 & \SI{1.08}{\second} & \SI{0.14}{\second} & \SI{1.96}{\second} & \num{3.70}$\times$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Nos dois esquemas o erro em np=8 é igual ao de np=1 com desvio relativo
+\num{0.00e0}}, e é essa linha que autoriza a leitura das outras: ganho sobre
+resultado diferente não é ganho. As três fases são cronometradas separadas de
+propósito --- somadas, uma fase que não comunica dominando em np=1 faz o total
+parecer escalar bem sem que a parte difícil escale.
+
+Duas ressalvas, declaradas em vez de escondidas. A primeira: o número de
+iterações do solver muda com np (60 para 91 no fluxo, 25 para 35 no MLS), logo
+parte do que se vê é o precondicionador por blocos, não paralelismo. A segunda,
+que é hoje o limite: no esquema MLS a franja iterativa custa \SI{0.74}{\second}
+em np=8 --- \SI{38}{\percent} do total --- e \emph{não} diminui com o número de
+processos. Corrigir a resposta custou escala, e a próxima otimização está aí, não
+no solver.
 
 \paragraph{np=3 está na suíte por motivo medido.} Foi ele, e não np=2, que expôs a
 célula grossa da transição 2:1 na borda da franja. Número par de processos parte o

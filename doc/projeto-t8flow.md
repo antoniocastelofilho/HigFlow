@@ -1938,7 +1938,147 @@ adaptada), o laplaciano pontual (instável nela) e o lote em GPU (otimização).
 O Poisson 3D **recusa** discretização que não seja de volumes finitos, com a
 lista dos válidos na mensagem.
 
-## 24. O que vem depois
+## 24. O paralelo do 3D dava resposta errada em silêncio
+
+O pedido era medir escalabilidade. A verificação que vem **antes** da medida —
+o resultado paralelo é o mesmo do serial? — reprovou, e o que apareceu foi
+defeito de correção, não de desempenho.
+
+### O sintoma, e o oráculo que não servia
+
+No esquema `vf-mlsgauss` o erro contra a solução exata mudava com o número de
+processos: 1,758e-03 em np=1 contra 1,308e-03 em np=8, 11%. O esquema de fluxo
+não era afetado — e é por isso que nada acusava.
+
+O oráculo que eu tinha **não discriminava**. `residuo_da_exata` é um `max|A u −
+b|`, dominado pelas linhas de parede, e ficou idêntico em 1,1591e+00 nos quatro
+números de processos enquanto o interior divergia. Um máximo não vê o interior
+mudar enquanto a parede domina.
+
+O que achou foi a **soma da linha**: um laplaciano aniquila constantes, logo a
+linha de uma célula interior soma zero. Em série somava 1e-17; em paralelo,
+−1,907e-02 em quatro das 64 linhas. Soma diferente de zero significa peso
+*saindo* da linha — indo para o lado direito como condição de contorno.
+
+A sequência que localizou a causa, registrada porque a ordem importou:
+
+| sonda | resultado | o que eliminou |
+|---|---|---|
+| erro por np, caso exato | 1e-11 em todos | nada — tudo é zero, não discrimina |
+| erro por np, caso **não-exato** | muda 11% | o problema existe |
+| `residuo_da_exata` | idêntico | o oráculo é cego aqui |
+| despejo da matriz, linha a linha | 4 de 64 diferem | localizou as linhas |
+| soma da linha | −1,907e-02 | peso sai da linha → contorno |
+| geometria por célula, serial × paralelo | idêntica | não é geometria |
+| vizinhança por célula | **face 5 vazia na cópia de franja** | a causa |
+
+### Causa 1: a máscara mentia
+
+A folha publicada leva geometria, lista de vizinhos por face, e uma máscara de
+quais faces o remetente conhece. A máscara era escrita **antes** da carga, e a
+carga era truncada por capacidade: `CAMPOS = 8 + max_viz*2`, mas a máscara
+ocupava o campo 8, de modo que cabiam `max_viz − 1` vizinhos. Malha uniforme tem
+seis vizinhos por folha; o sexto — a face 5, última do laço — ficava para trás
+com o bit ligado.
+
+Lista vazia com bit ligado é exatamente a assinatura de uma parede do domínio.
+O fechamento aplicava **Dirichlet no meio do domínio**.
+
+Conserto em duas partes, e a segunda vale mais: a capacidade foi corrigida; e a
+máscara passa a ser escrita **depois** da carga, afirmando só as faces que
+couberam inteiras. **Uma face parcial é pior que uma face desconhecida** —
+desconhecida, o fechamento se recusa e o esquema para; parcial, ele aplica a
+condição errada e o resultado sai plausível.
+
+O mesmo endurecimento foi feito em 2D, onde a carga cabe (4 faces × 2 vizinhos
+da transição 2:1 é o teto, e são 8 os lugares) e portanto nunca disparou. A
+diferença entre "não dispara" e "não pode disparar" é uma conta que alguém tem
+de refazer a cada mudança de `CAMPOS`, e é o tipo de conta que não se refaz.
+
+### Causa 2: uma rodada só alcança vizinho de face
+
+A franja nativa do t8code é `T8_GHOST_FACES`, e `t8_forest_set_ghost` documenta
+que só esse tipo é suportado. Logo o processo diagonalmente oposto numa quina
+não é vizinho de face de ninguém que fale comigo. Em 8 processos: 192 suportes
+truncados, todos nas células que tocam o centro do domínio.
+
+**Aumentar as camadas não resolvia** — com 2, 3 e 4 camadas o truncamento ficava
+preso em 192. A informação não precisava ir mais *longe*, precisava ir por outro
+*caminho*. A fase B passa a iterar até cobrir, com parada medida e coletiva
+(quantos pontos de caixa faltam, reduzido entre todos). Cada rodada avança um
+salto de posse:
+
+| np | 2 | 4 | 8 |
+|---|---|---|---|
+| rodadas (nível 3) | 1 | 2 | 3 |
+
+### Causa 3: o esquema pedia `raio + 1` e precisa de `raio + 2`
+
+A caixa do suporte não é centrada na folha local: é centrada na célula que
+contém o **ponto de quadratura**, que fica sobre uma faceta e pode cair na
+célula vizinha. Garantir raio `r` em torno dela exige raio `r+1` em torno da
+minha.
+
+Com `+1` o esquema sobrevivia **por acidente**: a fase B publicava caixas em
+torno dos fantasmas e cobria o excedente sem que nada afirmasse isso. Quando a
+fase B passou a parar no critério declarado, o acidente sumiu e apareceram 4096
+suportes truncados em np=2. Um conserto que *expõe* um defeito preexistente é o
+comportamento certo.
+
+### Por que a suíte estava verde
+
+`test-poisson3d` só rodava em **np=1**, onde não há franja. Sete casos
+rigorosos, cada exatidão com seu contraste — e nenhum tocava o caminho errado.
+
+Passa a rodar em np=1, 2 e 4, com um caso que afirma o que **não precisa de
+referência serial**: soma de linha interior nula e zero suportes truncados.
+Verificado que discrimina — com os defeitos reintroduzidos, passa em np=1 e
+reprova em np=2 com o diagnóstico exato.
+
+A lição é sobre **cobertura** do oráculo, não sobre a força dele: um oráculo
+forte no regime errado deixa a suíte verde com o código errado.
+
+### E o Makefile não rastreava cabeçalho
+
+Custou um diagnóstico inteiro. `camadas_necessarias()` é inline no cabeçalho,
+mudou de `+1` para `+2`, e o objeto do Poisson continuou pedindo `+1` — a medida
+dizia que o conserto não tinha efeito quando o conserto nem estava no binário.
+Entrou `-MMD -MP` com `-include` dos `.d`.
+
+**Toda medida pressupõe que se está medindo o que se pensa estar medindo**, e
+essa pressuposição também precisa de verificação.
+
+### A escalabilidade, enfim
+
+Oito núcleos **físicos** (os 16 que o `nproc` relata são fios; acima de 8 mede-se
+contenção, não paralelismo):
+
+| esquema | células | np=2 | np=4 | np=8 |
+|---|---|---|---|---|
+| `vf-fluxo2` | 262144 | 1,70× | 3,28× | 4,92× |
+| `vf-mlsgauss2` | 32768 | 1,61× | 2,71× | 3,70× |
+
+Nos dois, o erro em np=8 é **igual** ao de np=1, desvio relativo 0,00e+00.
+
+Não há superlinear: a montagem cresce linearmente com as células (8× células dão
+9,1× e 7,5×). O 29,8× aparente do lado 2D era montagem **quadrática** — busca
+geométrica linear chamada uma vez por linha —, e com índice espacial caiu de
+8,74 s para 0,679 s, virando 5,2×. **Ganho impossível não é bônus, é sintoma.**
+
+Duas ressalvas declaradas: as iterações do solver mudam com np (60→91 no fluxo,
+25→35 no MLS), logo parte do que se vê é o precondicionador por blocos; e a
+franja iterativa custa 0,74 s no MLS em np=8 — 38% do total — e **não** diminui
+com o número de processos. Corrigir a resposta custou escala, e a próxima
+otimização está aí, não no solver.
+
+### Achado lateral, não consertado
+
+`mlspontual` de ordem 4 em 2D: converge até o nível 5 (1,30e-04) e o **solver**
+deixa de convergir a partir do 6 — resíduo 3,02e+04, sinalizado `NAO CONVERGIU`.
+Ordens 2 e 3 convergem a 1e-15 no mesmo problema, logo é condicionamento da
+matriz, não do ajuste. Pré-existente, serial, fora do escopo desta volta.
+
+## 25. O que vem depois
 
 
 
