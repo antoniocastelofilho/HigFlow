@@ -46,13 +46,19 @@ adaptada é 3, e a via para 4 é seleção de suporte, não quadratura (seção
 Declarado aqui, e não diluído entre os resultados:
 
 \begin{itemize}
-\item \textbf{o custo da franja iterativa.} A escalabilidade está medida
+\item \textbf{a escalabilidade acima de oito processos.} Está medida até lá
       (seção \ref{sec:par-escala}) e o resultado é sublinear e consistente ---
-      \num{4.92}$\times$ em oito processos no esquema de fluxo, com erro
-      idêntico ao serial. O que falta é a otimização que a própria medida
-      aponta: a franja custa \SI{38}{\percent} do tempo em np=8 no esquema MLS
-      e não diminui com o número de processos. Corrigir a resposta custou
-      escala, e é aí que está o próximo ganho;
+      \num{4.93}$\times$ no esquema de fluxo e \num{5.87}$\times$ no MLS, com
+      erro idêntico ao serial. Oito é o número de núcleos \emph{físicos} desta
+      máquina, e acima disso se mede contenção de fio. O regime do antecessor,
+      com \num{375000} células, vive além desse teto;
+\item \textbf{a troca da franja, que é o que sobrou dela.} Depois da
+      otimização da seção \ref{sec:par-otimiza} a franja caiu de
+      \SI{38}{\percent} para \SI{15}{\percent} do tempo, e um terço do que
+      resta é comunicação pura. Reduzi-la exige mudar o formato da mensagem ---
+      hoje cada folha publica a caixa inteira, e boa parte dela são células que
+      o destinatário já tem como locais. Isso pede mensagem por destinatário, e
+      não um bloco só para todos;
 \item \textbf{o laplaciano pontual de ordem 4 acima do nível 5.} Em duas
       dimensões ele converge até o nível 5 e o sistema deixa de convergir a
       partir do 6 --- resíduo \num{3.0e4}, sinalizado como não convergido. É

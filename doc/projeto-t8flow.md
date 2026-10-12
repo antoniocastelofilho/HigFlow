@@ -2078,7 +2078,80 @@ deixa de convergir a partir do 6 — resíduo 3,02e+04, sinalizado `NAO CONVERGI
 Ordens 2 e 3 convergem a 1e-15 no mesmo problema, logo é condicionamento da
 matriz, não do ajuste. Pré-existente, serial, fora do escopo desta volta.
 
-## 25. O que vem depois
+## 25. A franja iterativa: de 38% para 15%
+
+Corrigir a resposta custou escala (seção 24), e a fase B iterativa virou o
+limite: 0,74 s em np=8, 38% da corrida, sem diminuir com o número de processos.
+
+### Medir por fase deslocou a atenção inteira
+
+np=8, nível 5, 3 rodadas, total 0,666 s:
+
+| fase | tempo | % | | fase | tempo | % |
+|---|---|---|---|---|---|---|
+| publica | 0,296 s | 44% | | troca | 0,062 s | 9% |
+| zera | 0,138 s | 21% | | funde | 0,015 s | 2% |
+| conta | 0,080 s | 12% | | resto | 0,075 s | 11% |
+
+**A troca era 9%.** O custo não era comunicar, era *preparar* o que se comunica
+— e três dos quatro maiores itens eram trabalho jogado fora.
+
+### Os cinco desperdícios
+
+1. **Publicava-se a caixa de toda folha local**, e a troca só leva o bloco das
+   que são fantasma de alguém — dois terços eram preenchidas, apagadas e
+   ignoradas. O critério é **exato**, não heurística: com `T8_GHOST_FACES`, sou
+   fantasma de `P` exatamente quando algum vizinho meu de face é fantasma para
+   mim.
+2. **Dois percursos idênticos** sobre a mesma caixa — um para o critério de
+   parada, outro para a carga. O percurso é o que custa: `(2R+1)³` buscas por
+   folha. Contar durante o preenchimento não muda o que se mede.
+3. **Folha coberta continua coberta** — a tabela só cresce. Quem publica
+   percorre sempre, porque o que ela *sabe* cresce.
+4. **A deduplicação alocava**: um `std::set` por folha e por rodada.
+5. **A fase A era refeita a cada chamada** — 98 mil consultas de vizinhança ao
+   t8code em np=2, 55% do tempo ali. O resultado já estava nos arrays
+   achatados. Para reaproveitá-los, o achatamento passou a guardar a **máscara
+   inteira** de faces conhecidas, não só `completa()`.
+
+### A otimização que foi revertida
+
+Fica registrada porque o raciocínio é convincente e está errado. A fusão é a
+única leitora das vagas não usadas e só lê o primeiro campo, então marcar só
+esse campo deveria substituir o apagamento em bloco. **Ficou mais lento** —
+0,062 s → 0,088 s: a escrita espaçada de um campo a cada `CAMPOS` doubles toca
+exatamente as mesmas linhas de cache que o apagamento sequencial, sem economizar
+tráfego, e ainda perde a vetorização.
+
+**Economizar escritas não é o mesmo que economizar memória tocada.**
+
+### O resultado
+
+| np | antes | depois | |
+|---|---|---|---|
+| 2 | 0,805 s | 0,148 s | 5,4× |
+| 4 | — | 0,154 s | |
+| 8 | 0,666 s | 0,186 s | 3,6× |
+
+Em np=8 a troca passou de 9% a 33% **sem mudar de valor absoluto**: o que sobrou
+é comunicação, que é o que uma franja deve ser.
+
+No esquema MLS: ganho de **3,70× → 5,87×**, eficiência de **46% → 73%**, franja
+de **38% → 15%** do tempo. O esquema de fluxo não muda (4,93×) — pede uma camada
+e não entra na fase B.
+
+Erro em np=8 idêntico ao de np=1 em todos os casos, desvio 0,00e+00.
+**Otimização que muda o resultado não é otimização.**
+
+### O que sobrou
+
+Um terço da franja é comunicação pura. Reduzi-la exige mudar o formato da
+mensagem: hoje cada folha publica a caixa inteira, e boa parte dela são células
+que o destinatário já tem como locais. Isso pede mensagem **por destinatário**,
+não um bloco só para todos — e o `ghost_exchange_data` do t8code não oferece
+isso.
+
+## 26. O que vem depois
 
 
 

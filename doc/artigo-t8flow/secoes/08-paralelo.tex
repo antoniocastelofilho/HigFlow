@@ -266,22 +266,25 @@ máquina --- os dezesseis que o sistema relata são fios, e medir acima de oito
 mede contenção de fio, não escalabilidade:
 
 \begin{center}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-esquema & células & np & montagem & resolução & total & ganho \\
+esquema & células & np & franja & montagem & resolução & total & ganho \\
 \midrule
-fluxo 2ª ordem & \num{262144} & 1 & \SI{5.84}{\second} & \SI{2.56}{\second} & \SI{8.41}{\second} & --- \\
-               &              & 2 & \SI{3.12}{\second} & \SI{1.82}{\second} & \SI{4.94}{\second} & \num{1.70}$\times$ \\
-               &              & 4 & \SI{1.60}{\second} & \SI{0.96}{\second} & \SI{2.56}{\second} & \num{3.28}$\times$ \\
-               &              & 8 & \SI{1.00}{\second} & \SI{0.71}{\second} & \SI{1.71}{\second} & \num{4.92}$\times$ \\
+fluxo 2ª ordem & \num{262144} & 1 & --- & \SI{5.40}{\second} & \SI{2.60}{\second} & \SI{8.00}{\second} & --- \\
+               &              & 2 & --- & \SI{3.54}{\second} & \SI{1.83}{\second} & \SI{5.37}{\second} & \num{1.49}$\times$ \\
+               &              & 4 & --- & \SI{1.60}{\second} & \SI{0.96}{\second} & \SI{2.57}{\second} & \num{3.12}$\times$ \\
+               &              & 8 & --- & \SI{0.93}{\second} & \SI{0.69}{\second} & \SI{1.62}{\second} & \num{4.93}$\times$ \\
 \midrule
-MLS+Gauss      & \num{32768}  & 1 & \SI{6.12}{\second} & \SI{1.11}{\second} & \SI{7.24}{\second} & --- \\
-               &              & 2 & \SI{3.20}{\second} & \SI{0.48}{\second} & \SI{4.49}{\second} & \num{1.61}$\times$ \\
-               &              & 4 & \SI{1.71}{\second} & \SI{0.20}{\second} & \SI{2.67}{\second} & \num{2.71}$\times$ \\
-               &              & 8 & \SI{1.08}{\second} & \SI{0.14}{\second} & \SI{1.96}{\second} & \num{3.70}$\times$ \\
+MLS+Gauss      & \num{32768}  & 1 & --- & \SI{6.23}{\second} & \SI{0.78}{\second} & \SI{7.01}{\second} & --- \\
+               &              & 2 & \SI{0.15}{\second} & \SI{3.18}{\second} & \SI{0.48}{\second} & \SI{3.81}{\second} & \num{1.84}$\times$ \\
+               &              & 4 & \SI{0.16}{\second} & \SI{1.69}{\second} & \SI{0.20}{\second} & \SI{2.05}{\second} & \num{3.43}$\times$ \\
+               &              & 8 & \SI{0.18}{\second} & \SI{0.89}{\second} & \SI{0.12}{\second} & \SI{1.20}{\second} & \num{5.87}$\times$ \\
 \bottomrule
 \end{tabular}
 \end{center}
+
+O esquema de fluxo não tem coluna de franja porque pede uma camada só e não
+entra na fase iterativa --- a célula vazia é informação, não omissão.
 
 \textbf{Nos dois esquemas o erro em np=8 é igual ao de np=1 com desvio relativo
 \num{0.00e0}}, e é essa linha que autoriza a leitura das outras: ganho sobre
@@ -289,13 +292,91 @@ resultado diferente não é ganho. As três fases são cronometradas separadas d
 propósito --- somadas, uma fase que não comunica dominando em np=1 faz o total
 parecer escalar bem sem que a parte difícil escale.
 
-Duas ressalvas, declaradas em vez de escondidas. A primeira: o número de
-iterações do solver muda com np (60 para 91 no fluxo, 25 para 35 no MLS), logo
-parte do que se vê é o precondicionador por blocos, não paralelismo. A segunda,
-que é hoje o limite: no esquema MLS a franja iterativa custa \SI{0.74}{\second}
-em np=8 --- \SI{38}{\percent} do total --- e \emph{não} diminui com o número de
-processos. Corrigir a resposta custou escala, e a próxima otimização está aí, não
-no solver.
+Ressalva declarada: o número de iterações do solver muda com np (60 para 91 no
+fluxo, 25 para 35 no MLS), logo parte do que se vê é o precondicionador por
+blocos, não paralelismo.
+
+\subsection{A franja iterativa, que era o limite}
+\label{sec:par-otimiza}
+
+Corrigir a resposta custou escala. A fase iterativa que consertou a quina de
+oito processos custava \SI{0.74}{\second} em np=8 --- \SI{38}{\percent} do
+tempo da corrida --- e não diminuía com o número de processos. Era o teto do
+esquema MLS, e os números da tabela acima já são os de depois de removê-lo.
+
+A medida por fase, antes de otimizar, desloca a atenção inteira:
+
+\begin{center}
+\begin{tabular}{lrrlrr}
+\toprule
+fase & antes & & fase & antes & \\
+\midrule
+publica & \SI{0.296}{\second} & 44\,\% & troca & \SI{0.062}{\second} & 9\,\% \\
+zera    & \SI{0.138}{\second} & 21\,\% & funde & \SI{0.015}{\second} & 2\,\% \\
+conta   & \SI{0.080}{\second} & 12\,\% & resto & \SI{0.075}{\second} & 11\,\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{A troca era \SI{9}{\percent}.} O custo não era comunicar, era
+\emph{preparar} o que se comunica --- e três dos quatro maiores itens eram
+trabalho jogado fora:
+
+\begin{itemize}
+\item publicava-se a caixa de \emph{toda} folha local, e a troca só leva o
+      bloco das que são fantasma de alguém: dois terços das folhas eram
+      preenchidas, apagadas e ignoradas. O critério de quem publica é
+      \textbf{exato}, não heurística --- com \texttt{T8\_GHOST\_FACES}, sou
+      fantasma de $P$ exatamente quando algum vizinho meu de face é fantasma
+      para mim;
+\item eram \emph{dois} percursos idênticos sobre a mesma caixa, um para o
+      critério de parada e outro para a carga, e o percurso é o que custa:
+      $(2R+1)^3$ buscas geométricas por folha. Contar durante o preenchimento
+      não muda o que se mede --- os dois liam o mesmo estado;
+\item \textbf{folha coberta continua coberta}: a tabela só cresce ao longo das
+      rodadas, logo percorrer de novo uma folha já inteira confirma o que já se
+      sabia. Quem publica percorre sempre, porque o que ela \emph{sabe} cresce;
+\item a desduplicação alocava --- um \texttt{std::set} construído e destruído
+      por folha e por rodada;
+\item e a fase inicial era refeita a cada chamada: o construtor monta a franja
+      de uma camada e \texttt{exige\_camadas} refazia tudo, inclusive as seis
+      consultas de vizinhança ao t8code por folha local (98 mil chamadas em
+      np=2, \SI{55}{\percent} do tempo ali). O resultado delas já está nos
+      arranjos achatados, e eles são até mais ricos.
+\end{itemize}
+
+\reserva{uma otimização foi tentada e \textbf{revertida}, e fica registrada
+porque o raciocínio que a motivou é convincente e está errado. A fusão é a única
+leitora das vagas não usadas e só lê o primeiro campo de cada uma, logo marcar
+só esse campo deveria substituir o apagamento em bloco. Ficou \emph{mais lento}
+--- \SI{0.062}{\second} para \SI{0.088}{\second} ---, porque a escrita espaçada
+de um campo a cada \texttt{CAMPOS} doubles toca exatamente as mesmas linhas de
+cache que o apagamento sequencial, sem economizar tráfego nenhum, e ainda perde
+a vetorização. \textbf{Economizar escritas não é o mesmo que economizar memória
+tocada.}}
+
+O resultado, no mesmo caso:
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+np & antes & depois & \\
+\midrule
+2 & \SI{0.805}{\second} & \SI{0.148}{\second} & \num{5.4}$\times$ \\
+4 & --- & \SI{0.154}{\second} & \\
+8 & \SI{0.666}{\second} & \SI{0.186}{\second} & \num{3.6}$\times$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Em np=8 a troca passou de \SI{9}{\percent} a \SI{33}{\percent} \emph{sem mudar
+de valor absoluto}: o que sobrou da franja é comunicação, que é o que uma franja
+deve ser. No esquema MLS o ganho foi de \num{3.70}$\times$ para
+\num{5.87}$\times$ e a eficiência de \SI{46}{\percent} para \SI{73}{\percent}.
+
+E a verificação que acompanha cada passo: o erro em np=8 continua idêntico ao de
+np=1, desvio relativo \num{0.00e0}. \textbf{Otimização que muda o resultado não
+é otimização.}
 
 \paragraph{np=3 está na suíte por motivo medido.} Foi ele, e não np=2, que expôs a
 célula grossa da transição 2:1 na borda da franja. Número par de processos parte o
