@@ -17,3 +17,4 @@ tests/*/test-*
 # construir e commitar sem limpar versionaria um compilado desta maquina.
 bench/escalabilidade
 bench/probe-opencl
+exemplos/poisson-mms

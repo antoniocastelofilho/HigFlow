@@ -447,6 +447,57 @@
 //! COBERTA-POR: test-contorno2d:regiao_malformada_e_recusada
 
 // ---------------------------------------------------------------------------
+// P -- A EQUACAO DE POISSON, por solucoes manufaturadas
+// ---------------------------------------------------------------------------
+
+//! P1  Com solucao de GRAU 2 e fechamento de TRES pontos, o erro e' de MAQUINA nas
+//!     DUAS normas -- do maximo e L2 discreta ponderada por area.  Vale com todas
+//!     as paredes de Dirichlet, com duas de Neumann, e com TRES de Neumann (uma so'
+//!     de Dirichlet, o minimo para o problema nao ser singular).
+//!
+//!     E A EXATIDAO NAO DEPENDE DO REFINO: se o erro caisse como h^2 seria
+//!     convergencia, nao exatidao, e o caso estaria passando por a malha ser fina.
+//!     O caso exige que a razao entre os niveis 3 e 5 fique entre 0,25 e 4.
+//! COBERTA-POR: test-poisson2d:grau2_com_dirichlet_da_erro_de_maquina_nas_duas_normas
+//! COBERTA-POR: test-poisson2d:a_exatidao_do_grau2_nao_depende_do_refino
+//! COBERTA-POR: test-poisson2d:grau2_com_neumann_em_duas_paredes_tambem_da_erro_de_maquina
+//! COBERTA-POR: test-poisson2d:grau2_com_uma_parede_dirichlet_e_tres_neumann_da_erro_de_maquina
+
+//! P2  O FECHAMENTO DE DOIS PONTOS perde a exatidao, e converge em ~2.  As duas
+//!     metades importam: se ele tambem desse erro de maquina, a P1 nao
+//!     distinguiria esquema exato de sistema montado como IDENTIDADE -- que
+//!     tambem daria 1e-13.  Medido: 1,16e-03 contra 3,91e-13, dez ordens de
+//!     grandeza, com ordem 1,82 -> 1,93.
+//! COBERTA-POR: test-poisson2d:o_fechamento_de_dois_pontos_perde_a_exatidao
+//! COBERTA-POR: test-poisson2d:o_fechamento_de_dois_pontos_converge_em_segunda_ordem
+
+//! P3  ORDEM DE CONVERGENCIA ~2 onde HA' erro para medir: solucao trigonometrica,
+//!     com Dirichlet em tudo e com tres Neumann.  E a ordem so' e' calculada se o
+//!     erro estiver acima do ruido do solver -- `log2` de ruido sobre ruido e' um
+//!     numero aleatorio que pareceria uma taxa.
+//!
+//!     E O GRAU 3 COM TRES NEUMANN cai para ordem ~2, e isso NAO e' defeito: o
+//!     dado de Neumann e' o fluxo exato NO CENTRO da faceta, e o balanco precisa
+//!     do fluxo MEDIO.  A quadratura do ponto medio e' exata para integrando
+//!     LINEAR -- grau 2 tem `du/dn` linear na faceta, grau 3 tem quadratico.  E' a
+//!     razao de a exatidao do grau 2 nao ser sorte: a quadratura e' exata nos DOIS
+//!     lugares, no fluxo e na fonte.
+//! COBERTA-POR: test-poisson2d:a_solucao_trigonometrica_converge_em_segunda_ordem
+//! COBERTA-POR: test-poisson2d:com_tres_neumann_o_grau3_converge_em_segunda_ordem
+//! COBERTA-POR: test-poisson2d:com_tres_neumann_a_trigonometrica_tambem_converge_em_segunda_ordem
+
+//! P4  A MONTAGEM RECUSA o que nao sabe, em vez de produzir resultado plausivel:
+//!     transicao 2:1 (na face grossa o fluxo e' a soma dos dois lados finos, e a
+//!     linha deixa de ser a mesma), Robin (mistura valor e derivada na MESMA
+//!     faceta), fonte nao instalada, contorno vazio, e nome de solucao inexistente
+//!     -- este com a LISTA dos validos na mensagem, porque errar o nome e receber a
+//!     solucao padrao em silencio seria medir uma coisa e reportar outra.
+//! COBERTA-POR: test-poisson2d:fonte_nao_instalada_e_recusada
+//! COBERTA-POR: test-poisson2d:contorno_vazio_e_recusado
+//! COBERTA-POR: test-poisson2d:malha_com_transicao_2_para_1_e_recusada
+//! COBERTA-POR: test-poisson2d:nome_de_solucao_inexistente_e_recusado_com_a_lista
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -527,6 +578,11 @@
 // Duas guardas ficaram: os alvos sao DESLOCADOS do centro (que e' tambem o uso
 // real -- interpolar em faceta, canto, ponto de projecao), e os casos de contraste
 // exigem erro grande em VALOR ABSOLUTO, nao apenas uma razao.
+//
+// LIMITES DA FAMILIA P, declarados: malha UNIFORME (a transicao 2:1 e' recusada),
+// Robin nao montado (so' Dirichlet e Neumann), serial, e o PISO do erro e' o
+// residuo do solver -- pedir menos de 1e-13 seria exigir do solver linear algo que
+// ele nao promete com tolerancia 1e-14.
 //
 // LIMITE DA FAMILIA C: a regiao e' consultada por VARREDURA de todas as regioes
 // registradas, O(regioes) por faceta de contorno.  Sao poucas, e varrer todas e'

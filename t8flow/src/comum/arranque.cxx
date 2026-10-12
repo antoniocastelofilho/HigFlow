@@ -5,6 +5,8 @@
 // valido.
 #include "arranque.hxx"
 
+#include <cstdlib>
+
 #include <mpi.h>
 
 #include <t8.h>
@@ -17,6 +19,15 @@ namespace t8flow {
 
 Arranque::Arranque(int *argc, char ***argv)
 {
+  // O PETSc LE' O argv DO PROGRAMA e reclama do que nao reconhece: um exemplo com
+  // `--solucao=grau2` termina com "There are 3 unused database options", que
+  // parece erro e nao e'.  `-options_left no` desliga esse aviso, e vai por
+  // ambiente porque o PETSc ainda nao esta' inicializado aqui -- quem o inicializa
+  // e' o solver, preguicoso.  Nao sobrescreve PETSC_OPTIONS existente: quem
+  // definiu quis algo.
+  if (std::getenv("PETSC_OPTIONS") == nullptr)
+    setenv("PETSC_OPTIONS", "-options_left no", 0);
+
   // 1. MPI, e o estado global que o PETSc herdado vai precisar.
   higtree_initialize(argc, argv);
 

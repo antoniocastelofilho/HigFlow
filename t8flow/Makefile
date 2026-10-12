@@ -168,13 +168,21 @@ OBJ2 = obj/2d
 CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d
 SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
-         src/2d/contorno2d.cxx
+         src/2d/contorno2d.cxx src/2d/poisson2d.cxx \
+         src/2d/manufaturada2d.cxx
 OBJ2_N = $(addprefix $(OBJ2)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ2_T = $(addprefix $(OBJ2)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC2:.cxx=.o)))
 TESTES2 = $(basename $(wildcard tests/2d/test-*.cxx))
 BINS2   = $(TESTES2)
 
-2d: $(BINS2)
+EXEMPLOS2 = $(basename $(wildcard exemplos/*.cxx))
+
+2d: $(BINS2) $(EXEMPLOS2)
+
+# OS EXEMPLOS entram no alvo `2d` e NAO num alvo separado, de proposito: exemplo
+# que nao e' construido junto apodrece.  Eles usam os mesmos objetos dos testes.
+exemplos/%: exemplos/%.cxx $(OBJ2_T) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) -Itests $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
 # A MEDIDA DE ESCALABILIDADE e' ferramenta, nao teste: usa o t8code direto, roda
 # em COMM_WORLD com np>1, e NAO entra na suite -- o que ela produz e' numero para
@@ -222,7 +230,7 @@ tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_N)
 
 clean:
 	$(RM) -rf obj
-	$(RM) -f $(wildcard tests/2d/test-*[!x]) bench/escalabilidade 
+	$(RM) -f $(wildcard tests/2d/test-*[!x]) bench/escalabilidade $(EXEMPLOS2) 
 	@echo "limpo: objetos das duas dimensoes e binarios de teste"
 
 .PHONY: 2d 3d bench clean all
