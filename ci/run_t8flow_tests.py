@@ -80,7 +80,11 @@ LADOS = {
         # alinhadas com a malha; impar nao.
         ("test-paralelo2d", (1, 2, 3)),
     ],
-    "3d": [],
+    # O LADO 3D, em construcao.  O escopo e' "so' o que o solver vai usar":
+    # malha, MLS, estencil, contorno, campos e Poisson de volumes finitos.
+    "3d": [
+        ("test-malha3d", (1, 3)),
+    ],
 }
 
 
@@ -199,7 +203,11 @@ def main():
             print("  " + f)
         return 2
 
-    lados = (a.lado,) if a.lado else ("2d",)
+    # OS DOIS LADOS POR PADRAO.  Enquanto o 3D nao existia, o padrao era so' o
+    # 2D; agora que existe, deixa-lo de fora do padrao o faria APODRECER -- e' o
+    # mesmo argumento pelo qual os exemplos entram no alvo de construcao em vez
+    # de ter alvo proprio.  `--lado` continua, para quem quer um so'.
+    lados = (a.lado,) if a.lado else ("2d", "3d")
     clausulas = le_contrato(CONTRATO)
     print("Contrato: %d clausulas em %s" % (len(clausulas), os.path.relpath(CONTRATO, RAIZ)))
 

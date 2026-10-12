@@ -3,7 +3,7 @@
 Relatório de **12/10/2026**. Primeiro exemplo do t8Flow, serial, e primeiro caso
 da suíte que resolve uma equação.
 
-    exemplo   t8flow/exemplos/poisson-mms.cxx   (parametrizado, sem recompilar)
+    exemplo   t8flow/exemplos/poisson/poisson-mms.cxx   (parametrizado, sem recompilar)
     teste     t8flow/tests/2d/test-poisson2d.cxx   22 casos
     modulos   src/2d/poisson2d, manufaturada2d, contorno2d, campos2d, malha2d
 
@@ -386,13 +386,13 @@ não de quadratura nem de fechamento.
 
 ```bash
 cd t8flow && make 2d
-mpirun -n 1 ./exemplos/poisson-mms --solucao=grau2 --contorno=dirichlet --niveis=3,4,5
-mpirun -n 1 ./exemplos/poisson-mms --solucao=trig --aleatorio=0.4 --niveis=3,4,5,6
-mpirun -n 1 ./exemplos/poisson-mms --esquema=mlsgauss --mls-ordem=4 --niveis=3,4,5 \
+mpirun -n 1 ./exemplos/poisson/poisson-mms --solucao=grau2 --contorno=dirichlet --niveis=3,4,5
+mpirun -n 1 ./exemplos/poisson/poisson-mms --solucao=trig --aleatorio=0.4 --niveis=3,4,5,6
+mpirun -n 1 ./exemplos/poisson/poisson-mms --esquema=mlsgauss --mls-ordem=4 --niveis=3,4,5 \
        --solucao=grau4                          # exato: derivada MLS + Gauss
-mpirun -n 1 ./exemplos/poisson-mms --esquema=mlsgauss --aleatorio=0.4 \
+mpirun -n 1 ./exemplos/poisson/poisson-mms --esquema=mlsgauss --aleatorio=0.4 \
        --solucao=grau3 --niveis=3,4,5            # exato em malha ADAPTADA
-mpirun -n 1 ./exemplos/poisson-mms --ajuda      # lista as solucoes do catalogo
+mpirun -n 1 ./exemplos/poisson/poisson-mms --ajuda      # lista as solucoes do catalogo
 ```
 
 Parâmetros: `--solucao` (grau1, grau2, grau3, trig), `--contorno` (dirichlet,

@@ -1593,7 +1593,66 @@ células em mil processos dá 24 MB por processo. O que não escala é poucos
 processos com muitas células, e esse é o regime que a medida de escalabilidade
 tem de evitar.
 
-## 19. O que vem depois
+## 19. A malha em três dimensões, e onde o Poisson passou a morar
+
+### 19.1 Biblioteca e exemplo, separados
+
+Observação do usuário: *o Poisson e a Manufaturada são exemplos e não deveriam
+estar no `src`*. Correto, e a separação é agora explícita:
+
+| fica em `src/` | fica em `exemplos/poisson/` |
+|---|---|
+| malha, estêncil, contorno, campos | o operador de Poisson |
+| MLS, lote, invólucro de solver | o catálogo de soluções manufaturadas |
+| a escolha de discretização | o programa de MMS |
+
+O critério: **nada em `src/` sabe que equação se está resolvendo.** O catálogo de
+soluções com derivadas analíticas só serve para verificar, e o operador de
+Poisson resolve *uma* equação escolhida.
+
+**Consequência declarada, porque ela vai cobrar:** o passo de projeção de
+Navier-Stokes *é* uma equação de Poisson, logo o t8SolverNS vai precisar de um
+operador de Poisson em `src/`. Ele nascerá da extração deste — a parte que monta
+e resolve, sem as funções de erro e sem a fonte manufaturada, que são
+verificação. Registrar isso agora é o que impede que alguém, mais tarde, faça o
+solver depender do exemplo e inverta a dependência.
+
+### 19.2 A malha 3D
+
+Portada com os quatro modos de falha do paralelo **já consertados**, e não
+redescobertos. O que é genuinamente diferente de duas dimensões:
+
+- **HEX tem seis faces e oito vértices.** A ordem dos vértices que o `cmesh`
+  espera é a de bits, e errá-la produz um hexaedro torcido que *commita sem
+  erro*. Em 2D a intuição de "sentido anti-horário" ajuda a acertar; com oito
+  vértices ela não se aplica, e o único recurso é verificar a geometria
+  resultante — o que o teste faz, com dois blocos e um deles deslocado;
+- **na transição 2:1 uma face tem quatro vizinhos**, não dois, porque a face de
+  um hexaedro é um quadrado e refinar o vizinho a parte em quatro. Medido: 12
+  faces com quatro vizinhos na malha do teste;
+- **a franja se dimensiona pelos vizinhos medidos**, não pelo teto. O máximo
+  medido é **9**, contra o teto teórico de 24 — e `mede_vizinhos()` roda na
+  construção e a cada refino.
+
+### 19.3 Um vazamento que só o 3D expôs
+
+O construtor lança exceção quando dois blocos encostam com faces parcialmente
+sobrepostas. No 3D, escrito de primeira, esse `throw` acontecia **depois** do
+`t8_cmesh_init` — vazando o `cmesh`. O `sc_finalize` detecta (*"Memory balance
+(t8)"*) e **aborta o processo**: a suíte dava nove casos verdes e o programa
+morria em seguida, o que num arreio aparece como código de saída errado com
+resumo correto.
+
+O conserto no 3D foi **validar as junções antes de criar o `cmesh`** — a recusa
+não precisa desmontar nada. O 2D trata o mesmo caso por outro caminho, chamando
+`t8_cmesh_destroy` antes do `throw`; as duas soluções são válidas, e a do 3D
+apenas dispensa lembrar de desmontar.
+
+**Nota de cobertura:** o caso de teste que exercita essa recusa **não existe** no
+lado 2D. A guarda está lá e funciona, mas nada a verifica.
+
+## 20. O que vem depois
+
 
 
 

@@ -23,4 +23,4 @@ bench/franja
 bench/densidade
 bench/franja3d
 bench/probe-opencl
-exemplos/poisson-mms
+exemplos/poisson/poisson-mms

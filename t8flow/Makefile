@@ -165,24 +165,41 @@ endif
 # 2D
 # ---------------------------------------------------------------------------
 OBJ2 = obj/2d
-CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d
-SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/discretizacao2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx \
+CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson
+
+# O QUE E' BIBLIOTECA fica em `src/`: malha, estencil, contorno, campos, o ajuste
+# por minimos quadrados, o lote, o invólucro de solver e a escolha de
+# discretizacao.  Nada aqui sabe que equacao se esta' resolvendo.
+SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/discretizacao2d.cxx \
+         src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
-         src/2d/contorno2d.cxx src/2d/poisson2d.cxx \
-         src/2d/manufaturada2d.cxx
+         src/2d/contorno2d.cxx
+
+# O QUE E' EXEMPLO fica em `exemplos/`, e o operador de Poisson com as solucoes
+# manufaturadas e' exemplo: ele resolve UMA equacao escolhida, e o catalogo de
+# solucoes com derivadas analiticas so' serve para verificar.
+#
+# CONSEQUENCIA DECLARADA, porque ela vai cobrar: o passo de projecao de
+# Navier-Stokes E' uma equacao de Poisson, logo o t8SolverNS vai precisar de um
+# operador de Poisson em `src/`.  Ele nascera' da extracao deste -- a parte que
+# monta e resolve, sem as funcoes de erro e sem a fonte manufaturada, que sao
+# verificacao.
+SRC2_EX = exemplos/poisson/poisson2d.cxx exemplos/poisson/manufaturada2d.cxx
 OBJ2_N = $(addprefix $(OBJ2)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ2_T = $(addprefix $(OBJ2)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC2:.cxx=.o)))
+OBJ2_X = $(addprefix $(OBJ2)/,$(notdir $(SRC2_EX:.cxx=.o)))
 TESTES2 = $(basename $(wildcard tests/2d/test-*.cxx))
 BINS2   = $(TESTES2)
 
-EXEMPLOS2 = $(basename $(wildcard exemplos/*.cxx))
+EXEMPLOS2 = $(basename $(wildcard exemplos/*/*.cxx))
+EXEMPLOS2 := $(filter-out exemplos/poisson/poisson2d exemplos/poisson/manufaturada2d,$(EXEMPLOS2))
 
 2d: $(BINS2) $(EXEMPLOS2)
 
 # OS EXEMPLOS entram no alvo `2d` e NAO num alvo separado, de proposito: exemplo
 # que nao e' construido junto apodrece.  Eles usam os mesmos objetos dos testes.
-exemplos/%: exemplos/%.cxx $(OBJ2_T) $(OBJ2_N)
-	$(CXX) $(CXXFLAGS2) -Itests $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
+exemplos/%: exemplos/%.cxx $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) -Itests $< $(OBJ2_T) $(OBJ2_X) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
 # A MEDIDA DE ESCALABILIDADE e' ferramenta, nao teste: usa o t8code direto, roda
 # em COMM_WORLD com np>1, e NAO entra na suite -- o que ela produz e' numero para
@@ -207,11 +224,11 @@ bench/franja3d: bench/franja3d.cxx
 # liga os objetos de 2D, ao contrario do de escalabilidade, que fala direto com o
 # t8code.  Medir a franja pelo t8code cru nao seria possivel: as camadas acima da
 # primeira sao deste codigo, nao da biblioteca.
-bench/densidade: bench/densidade.cxx $(OBJ2_T) $(OBJ2_N)
-	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
+bench/densidade: bench/densidade.cxx $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_X) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
-bench/franja: bench/franja.cxx $(OBJ2_T) $(OBJ2_N)
-	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
+bench/franja: bench/franja.cxx $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_X) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
 $(OBJ2):
 	mkdir -p $(OBJ2)
@@ -230,23 +247,53 @@ $(OBJ2)/%.o: src/comum/%.cxx | $(OBJ2)
 $(OBJ2)/%.o: src/2d/%.cxx | $(OBJ2)
 	$(CXX) $(CXXFLAGS2) -c $< -o $@
 
+$(OBJ2)/%.o: exemplos/poisson/%.cxx | $(OBJ2)
+	$(CXX) $(CXXFLAGS2) -c $< -o $@
+
 # O binario DEPENDE dos objetos: sem isso o make o considera atualizado quando so'
 # a biblioteca mudou, o teste roda obsoleto e da' os numeros da versao anterior.
 # Aconteceu na HiGTree e quase enterrou uma correcao como "nao funciona".
-tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_N)
-	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
+tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_X) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
 # ---------------------------------------------------------------------------
-# 3D -- ainda nao escrito, e o alvo diz isso em vez de falhar obscuro.
+# 3D -- hexaedros.  Base SEPARADA do 2D, nao gerada por macro (decisao 7).
+#
+# O ESCOPO E' "SO' O QUE O SOLVER VAI USAR", decidido pelo usuario: malha, MLS,
+# estencil, contorno, campos e Poisson com os dois esquemas de volumes finitos.
+# Ficam de fora os dois compactos (que recusam malha adaptada -- sao contraste,
+# nao ferramenta), o laplaciano pontual (instavel) e o lote em GPU.
 # ---------------------------------------------------------------------------
-3d:
-	@echo "O lado 3D ainda nao existe.  A decisao 7 e' comecar pelo 2D:"
-	@echo "o codigo 3D sera' src/3d/ e tests/3d/, escrito e nao gerado por macro."
-	@exit 1
+OBJ3 = obj/3d
+CXXFLAGS3 = $(BASE) -DDIM=3 -Isrc/3d
+SRC3   = src/3d/malha3d.cxx
+OBJ3_N = $(addprefix $(OBJ3)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
+OBJ3_T = $(addprefix $(OBJ3)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC3:.cxx=.o)))
+TESTES3 = $(basename $(wildcard tests/3d/test-*.cxx))
+
+3d: $(TESTES3)
+
+$(OBJ3):
+	mkdir -p $(OBJ3)
+
+$(OBJ3)/%.o: $(HIGTREE_SRC)/%.c | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -x c++ -c $< -o $@
+
+$(OBJ3)/%.o: $(HIGTREE_SRC)/%.cpp | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -c $< -o $@
+
+$(OBJ3)/%.o: src/comum/%.cxx | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -c $< -o $@
+
+$(OBJ3)/%.o: src/3d/%.cxx | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -c $< -o $@
+
+tests/3d/%: tests/3d/%.cxx tests/testing.h $(OBJ3_T) $(OBJ3_N)
+	$(CXX) $(CXXFLAGS3) $< $(OBJ3_T) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
 
 clean:
 	$(RM) -rf obj
-	$(RM) -f $(wildcard tests/2d/test-*[!x]) bench/escalabilidade bench/franja $(EXEMPLOS2) 
+	$(RM) -f $(wildcard tests/2d/test-*[!x]) $(wildcard tests/3d/test-*[!x]) bench/escalabilidade bench/franja $(EXEMPLOS2) 
 	@echo "limpo: objetos das duas dimensoes e binarios de teste"
 
 .PHONY: 2d 3d bench clean all
