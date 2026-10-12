@@ -1,0 +1,252 @@
+// NAVIER-STOKES INCOMPRESSIVEL EM VOLUMES FINITOS, bidimensional, newtoniano.
+//
+// E' o `t8SolverNS-FV` da decisao de arquitetura: o modulo de discretizacao
+// escolhe a familia, e este resolve a equacao nela.  O arranjo e' DESLOCADO
+// (MAC) -- escalares e tensores nos centros, vetores nas facetas --, que e' o
+// que torna o acoplamento pressao-velocidade estavel sem estabilizacao.
+//
+// AS ESTRATEGIAS SAO AS DO HIGFLOW, por decisao: o objetivo declarado e'
+// comparar os dois sistemas no mesmo caso, e um metodo diferente faz qualquer
+// diferenca medida ser inconclusiva -- nao se sabe se veio da malha, que e' o
+// que se quer medir, ou do metodo, que nao e'.
+//
+//   SEGREGADO, por PROJECAO.  Preditor sem (ou com) a pressao antiga, Poisson
+//   para a correcao, projecao da velocidade.  Nao incremental e incremental;
+//   a incremental e' de segunda ordem na pressao e a nao incremental de
+//   primeira, e a diferenca entre as duas e' um oraculo barato;
+//
+//   AVANCO por EULER EXPLICITO e EULER SEMI-IMPLICITO.  Os de ordem mais alta
+//   do HiGFlow -- RK2, RK3, Crank-Nicolson, BDF2 -- cabem na mesma estrutura e
+//   nao estao aqui: entram quando houver caso que os exercite;
+//
+//   CONVECTIVO DE SEGUNDA ORDEM.  Central, upwind de primeira (para contraste,
+//   nao para producao) e os de segunda do HiGFlow.  O padrao e' CUBISTA, que e'
+//   o do caso de referencia.
+//
+// O QUE ESTE ARQUIVO NAO TRAZ, declarado aqui e nao descoberto depois: malha
+// ADAPTADA.  A transicao 2:1 numa faceta de velocidade nao e' o mesmo problema
+// que numa faceta de fluxo escalar -- a componente normal e a tangencial se
+// restringem de formas diferentes, e errar isso produz divergencia que nao
+// fecha em vez de erro visivel.  O construtor RECUSA malha com transicao, em
+// vez de rodar e dar numero.
+//
+// O CASO QUE O VERIFICA E' O CANAL, e a escolha nao e' de conveniencia: o
+// escoamento de Poiseuille tem solucao analitica `u = (3/2)(1 - y^2)`, `v = 0`,
+// `dp/dx = -2 u_max / Re`, e ela e' QUADRATICA em `y`.  O laplaciano de tres
+// pontos e' exato para quadraticas, o termo convectivo se anula identicamente
+// (`u` nao depende de `x` e `v` e' nulo) e o gradiente de pressao e' constante.
+// Logo o estacionario discreto tem de bater com o analitico em PRECISAO DE
+// MAQUINA -- que e' afirmacao muito mais forte que ordem de convergencia, pela
+// mesma razao de sempre: a ordem pode estar certa com a constante errada.
+
+#ifndef T8FLOW_2D_NAVIERSTOKES2D_HXX
+#define T8FLOW_2D_NAVIERSTOKES2D_HXX
+
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "campos2d.hxx"
+#include "contorno2d.hxx"
+#include "malha2d.hxx"
+#include "solverlin.hxx"
+
+namespace t8flow2d {
+
+//! O avanco no tempo.
+enum class Tempo {
+  EulerExplicito,      //!< `u* = u + dt (-conv + visc - grad p)`; estabilidade por `dt`
+  EulerSemiImplicito,  //!< viscoso IMPLICITO; remove a restricao difusiva de `dt`
+};
+
+//! O acoplamento pressao-velocidade.
+enum class Projecao {
+  NaoIncremental,  //!< o preditor ignora a pressao; `p^{n+1} = dp`.  1a ordem em `p`
+  Incremental,     //!< o preditor usa `p^n`; `p^{n+1} = p^n + dp`.  2a ordem em `p`
+};
+
+//! A discretizacao do termo convectivo.
+//
+// A ORDEM NAO E' O UNICO EIXO: entre os de segunda ordem, o que muda e' o
+// limitador.  Central nao limita e oscila onde o gradiente e' forte; CUBISTA e
+// QUICK limitam de formas diferentes.  Upwind de primeira esta' aqui para
+// CONTRASTE -- um caso que da' o mesmo resultado com upwind de primeira e com
+// CUBISTA nao esta' exercitando o termo convectivo.
+enum class Convectivo {
+  Central,   //!< 2a ordem, sem limitador
+  Upwind1,   //!< 1a ordem.  Para contraste, nao para producao
+  Cubista,   //!< 2a ordem limitado.  O padrao, e o do caso de referencia
+  Quick,     //!< 2a ordem limitado
+};
+
+std::string nome_de(Tempo t);
+std::string nome_de(Projecao p);
+std::string nome_de(Convectivo c);
+Tempo tempo_do_nome(const std::string &s);
+Projecao projecao_do_nome(const std::string &s);
+Convectivo convectivo_do_nome(const std::string &s);
+
+class NavierStokes {
+ public:
+  //! A malha, o dominio de facetas e o contorno.
+  //
+  // O CONTORNO DA VELOCIDADE E' POR COMPONENTE, como o `velocity_0` e
+  // `velocity_1` do HiGFlow, e nao um so' para o vetor: na saida do canal a
+  // componente normal tem Neumann e a tangencial tambem, mas numa parede movel
+  // a normal e' Dirichlet nulo e a tangencial Dirichlet nao nulo.  Um contorno
+  // unico para as duas obrigaria a codificar essa diferenca dentro do dado.
+  //
+  // O DA PRESSAO E' SEPARADO dos dois porque e' mesmo diferente: no canal a
+  // entrada tem velocidade de Dirichlet com pressao de Neumann, e a saida o
+  // inverso.  Essa troca e' a condicao de contorno do metodo de projecao, nao
+  // um detalhe do caso.
+  NavierStokes(const Malha &m, const DominioFacetas &fd,
+               const ContornoPorRegiao &bc_u0, const ContornoPorRegiao &bc_u1,
+               const ContornoPorRegiao &bc_p);
+
+  NavierStokes(const NavierStokes &) = delete;
+  NavierStokes &operator=(const NavierStokes &) = delete;
+
+  // ---- parametros ----------------------------------------------------------
+  void reynolds(double re);
+  void passo_de_tempo(double dt);
+  void tempo(Tempo t) { tempo_ = t; }
+  void projecao(Projecao p) { proj_ = p; }
+  void convectivo(Convectivo c) { conv_ = c; }
+
+  double reynolds() const { return re_; }
+  double passo_de_tempo() const { return dt_; }
+  Tempo tempo() const { return tempo_; }
+  Projecao projecao() const { return proj_; }
+  Convectivo convectivo() const { return conv_; }
+
+  // ---- os termos fonte, que sao FUNCOES DO USUARIO -------------------------
+  //
+  // Como no HiGFlow, e separados em DOIS como la': o de FACETA entra na equacao
+  // de quantidade de movimento (forca de corpo -- gravidade, Lorentz, fronteira
+  // imersa) e o de CELULA entra na continuidade (fonte de massa).
+  //
+  // Sao `std::function`, e nao ponteiros de funcao com contexto: quem monta o
+  // caso escreve uma lambda que captura o que precisar, e nao ha' um `void*`
+  // atravessando a interface.  Nao instalado vale ZERO -- e vale zero de
+  // verdade, sem ramo, porque o laco testa o `std::function` uma vez por passo
+  // e nao uma vez por faceta.
+  //
+  // O MESMO VALE PARA AS CONDICOES DE CONTORNO: `Contorno::dirichlet` e as
+  // irmas tomam `DadoDeContorno`, que tambem e' `std::function` do ponto da
+  // parede, de modo que um perfil de entrada parabolico e um dependente do
+  // tempo sao o mesmo mecanismo.
+
+  //! Forca de corpo na faceta: `f(x, d)` devolve a componente `d` em `x`.
+  void termo_fonte_faceta(std::function<double(const Ponto2 &, int)> f)
+  {
+    fonte_faceta_ = std::move(f);
+  }
+
+  //! Fonte de massa na celula: `f(x)`.  Entra no lado direito do Poisson da
+  //! projecao, e um valor nao nulo significa escoamento NAO solenoidal -- o
+  //! que e' legitimo e raro, e por isso vale zero por omissao.
+  void termo_fonte_celula(std::function<double(const Ponto2 &)> f)
+  {
+    fonte_celula_ = std::move(f);
+  }
+
+  // ---- estado --------------------------------------------------------------
+  CampoVetorial &velocidade() { return u_; }
+  const CampoVetorial &velocidade() const { return u_; }
+  CampoEscalar &pressao() { return p_; }
+  const CampoEscalar &pressao() const { return p_; }
+
+  double instante() const { return t_; }
+  long passos_dados() const { return n_passos_; }
+
+  // ---- o passo -------------------------------------------------------------
+  //! Um passo de tempo completo.
+  void passo();
+
+  //! A DIVERGENCIA MAXIMA do campo de velocidade, reduzida entre processos.
+  //
+  // E' o oraculo mais barato que existe aqui e o unico que nao precisa de
+  // solucao de referencia: o metodo de projecao EXISTE para zerar isto, e um
+  // valor que nao cai ao nivel da tolerancia do solver diz que a projecao nao
+  // esta' fazendo o que promete -- antes de qualquer comparacao com perfil.
+  double divergencia_maxima() const;
+
+  //! A variacao da velocidade no ultimo passo, `max|u^{n+1} - u^n| / dt`.
+  //! E' o criterio de estacionariedade, e e' dele que o caso do canal sabe
+  //! quando parar.
+  double residuo_estacionario() const { return resid_estac_; }
+
+  int iteracoes_da_pressao() const { return it_pressao_; }
+  bool pressao_convergiu() const { return conv_pressao_; }
+
+  //! Quantos termos convectivos TIVERAM DE CAIR para primeira ordem por falta
+  //! de ponto a montante, no ultimo passo.
+  //
+  // Nao e' defeito -- perto da parede o ponto `U` do esquema de segunda ordem
+  // cai fora do dominio e nao ha' o que fazer --, mas tem de ser VISIVEL: um
+  // esquema que se anuncia de segunda ordem e cai para primeira em parte do
+  // dominio entrega menos do que diz, e sem o contador isso e' invisivel.
+  long rebaixamentos_convectivos() const { return rebaixos_conv_; }
+
+ private:
+  void aplica_contorno_velocidade();
+  void preditor();
+  void resolve_pressao();
+  void projeta();
+
+  //! A faceta da direcao `d` cujo centro e' `x`, ou -1 se nao houver.
+  long faceta_em(int d, const Ponto2 &x) const;
+
+  //! `u_d` na posicao `xf + s*h_e` na direcao `e`.  FECHA O CONTORNO quando a
+  //! posicao cai fora: a parede esta' no meio do caminho, e a relacao e' a
+  //! afim da condicao -- reflexao para Dirichlet, extrapolacao para Neumann.
+  double u_vizinha(int d, const Ponto2 &xf, int e, int s, bool *achou) const;
+
+  //! O valor transportado na posicao a jusante/montante, pelo esquema
+  //! escolhido.  `V` e' a velocidade que advecta, e o sinal dela decide quem
+  //! e' `C`, `D` e `U`.
+  double valor_na_face(int d, const Ponto2 &xf, int e, int s, double V) const;
+
+  double conveccao(int d, const Ponto2 &xf) const;
+  double difusao(int d, const Ponto2 &xf) const;
+  double grad_pressao(int d, const Ponto2 &xf) const;
+  double velocidade_que_advecta(int d, const Ponto2 &xf, int e, int s) const;
+
+  const Malha *m_ = nullptr;
+  const DominioFacetas *fd_ = nullptr;
+  const ContornoPorRegiao *bcu_[2] = {nullptr, nullptr};
+  const ContornoPorRegiao *bcp_ = nullptr;
+
+  CampoVetorial u_, ustar_;
+  CampoEscalar p_, dp_;
+
+  double re_ = 1.0;
+  double dt_ = 0.0;
+  double t_ = 0.0;
+  long n_passos_ = 0;
+  double resid_estac_ = 0.0;
+  int it_pressao_ = 0;
+  bool conv_pressao_ = false;
+
+  Ponto2 h_{0.0, 0.0};                 //!< lados da folha; malha uniforme
+  //! Indice de FACETA POR PONTO, por direcao.  Nao existe em `DominioFacetas`
+  //! porque o consumidor dele e' o esquema, nao a numeracao: quem monta a
+  //! equacao pergunta "qual e' a faceta meio passo adiante", e quem numera nao
+  //! tem por que saber disso.  A chave quantiza em `h/2`, que e' exato para as
+  //! posicoes de faceta de uma malha uniforme.
+  std::unordered_map<unsigned long long, long> fac_por_ponto_[2];
+  mutable long rebaixos_conv_ = 0;
+
+  Tempo tempo_ = Tempo::EulerExplicito;
+  Projecao proj_ = Projecao::Incremental;
+  Convectivo conv_ = Convectivo::Cubista;
+  std::function<double(const Ponto2 &, int)> fonte_faceta_;
+  std::function<double(const Ponto2 &)> fonte_celula_;
+};
+
+}  // namespace t8flow2d
+
+#endif  // T8FLOW_2D_NAVIERSTOKES2D_HXX

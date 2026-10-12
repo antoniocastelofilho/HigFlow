@@ -26,12 +26,14 @@
 
 static int  _t_cases = 0;
 static int  _t_failed = 0;
+static int  _t_pulados = 0;
+static int  _t_case_pulado = 0;
 static int  _t_case_failed = 0;
 static char _t_case_name[128] = "";
 
 static void _t_case_end(void) {
     if (_t_case_name[0] == '\0') return;
-    if (!_t_case_failed) printf("caso %s PASS\n", _t_case_name);
+    if (!_t_case_failed && !_t_case_pulado) printf("caso %s PASS\n", _t_case_name);
     _t_case_name[0] = '\0';
 }
 
@@ -40,6 +42,7 @@ static void t_case(const char *nome) {
     _t_case_end();
     snprintf(_t_case_name, sizeof _t_case_name, "%s", nome);
     _t_case_failed = 0;
+    _t_case_pulado = 0;
     _t_cases++;
 }
 
@@ -51,10 +54,32 @@ static void _t_fail(const char *fmt, ...) {
     printf("\n");
 }
 
+//! O CASO NAO PODE SER EXECUTADO, e isso e' DITO -- nao e' um PASS.
+//
+// Um caso que depende de algo externo (a arvore de outro sistema, um arquivo de
+// referencia, um dispositivo) e que simplesmente nao roda quando o externo
+// falta vira verde sem ter verificado nada.  Esse e' o pior resultado possivel
+// de um teste: ele afirma, e nao mediu.
+//
+// Por isso o pulado tem linha PROPRIA na saida, conta no resumo, e o arreio de
+// contrato NAO o aceita como cobertura de clausula.
+static void _t_pular(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+static void _t_pular(const char *fmt, ...) {
+    if (!_t_case_pulado) { _t_case_pulado = 1; _t_pulados++; }
+    printf("caso %s PULADO ", _t_case_name);
+    va_list ap; va_start(ap, fmt); vprintf(fmt, ap); va_end(ap);
+    printf("\n");
+}
+#define T_PULADO(...) _t_pular(__VA_ARGS__)
+
 //! Encerra o programa e devolve o codigo de saida.
 static int t_end(void) {
     _t_case_end();
-    printf("resumo %d casos, %d falharam\n", _t_cases, _t_failed);
+    if (_t_pulados > 0)
+        printf("resumo %d casos, %d falharam, %d PULADOS\n",
+               _t_cases, _t_failed, _t_pulados);
+    else
+        printf("resumo %d casos, %d falharam\n", _t_cases, _t_failed);
     return _t_failed == 0 ? 0 : 1;
 }
 

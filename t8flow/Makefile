@@ -70,6 +70,10 @@ BASE += -I$(T8CODE)/include -I$(HIGTREE_SRC) -Isrc/comum
 BASE += -I$(PETSC_ROOT)/include -I$(PETSC_ARCH_DIR)/include
 BASE += -I/usr/include/hypre
 BASE += $(shell pkg-config --cflags glib-2.0)
+# O LEITOR DE YAML e' o MESMO do HiGFlow (libfyaml), de proposito: o objetivo e'
+# que o mesmo arquivo de caso rode nos dois sistemas, e dois leitores diferentes
+# do mesmo arquivo sao dois lugares onde a interpretacao pode divergir.
+BASE += $(shell pkg-config --cflags libfyaml) -Isrc/comum/io
 
 # A ESCOLHA DO BACK-END E' DE QUEM COMPILA, pela variavel `GPU`:
 #
@@ -127,7 +131,7 @@ endif
 LDFLAGS = -L$(T8CODE)/lib -Wl,-rpath,$(T8CODE)/lib
 LDFLAGS+= -L$(PETSC_ARCH_DIR)/lib -Wl,-rpath,$(PETSC_ARCH_DIR)/lib
 LIBS    = -lt8 -lp4est -lsc -lpetsc -lHYPRE
-LIBS   += $(shell pkg-config --libs glib-2.0) -lm $(LIBS_CL)
+LIBS   += $(shell pkg-config --libs glib-2.0) $(shell pkg-config --libs libfyaml) -lm $(LIBS_CL)
 
 # O NUCLEO HERDADO: as unidades independentes de malha, compiladas AQUI e nao
 # linkadas da libhig*.a -- a biblioteca traz a estrutura, que e' o que o t8Flow
@@ -144,6 +148,11 @@ NUCLEO_C   = wls.c coord.c utils.c allocator.c rect.c point-cloud.c \
 NUCLEO_CPP = rng.cpp
 
 COMUM_SRC = src/comum/arranque.cxx src/comum/solverlin.cxx
+COMUM_SRC+= src/comum/io/configuracao.cxx
+# O ESCRITOR VTK E' BIDIMENSIONAL e por isso nao entra no `COMUM_SRC`, que e'
+# construido pelos dois lados: ele inclui `campos2d.hxx`.  O modulo de IO e'
+# comum; a parte dele que toca geometria nao pode ser.
+SRC2_IO = src/comum/io/saida_vtk2d.cxx
 
 # ---------------------------------------------------------------------------
 # A CONFIGURACAO ENTRA NA DEPENDENCIA, e isto nao e' refinamento: sem isso,
@@ -182,7 +191,8 @@ CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson
 SRC2   = src/2d/mls2d.cxx src/2d/discretizacao2d.cxx \
          src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
-         src/2d/contorno2d.cxx
+         src/2d/contorno2d.cxx src/2d/navierstokes2d.cxx
+SRC2  += $(SRC2_IO)
 
 # O QUE E' EXEMPLO fica em `exemplos/`, e o operador de Poisson com as solucoes
 # manufaturadas e' exemplo: ele resolve UMA equacao escolhida, e o catalogo de
@@ -197,7 +207,11 @@ SRC2_EX = exemplos/poisson/poisson2d.cxx exemplos/poisson/manufaturada2d.cxx
 OBJ2_N = $(addprefix $(OBJ2)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ2_T = $(addprefix $(OBJ2)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC2:.cxx=.o)))
 OBJ2_X = $(addprefix $(OBJ2)/,$(notdir $(SRC2_EX:.cxx=.o)))
+# OS TESTES DO LADO 2D e os do MODULO COMUM.  Os comuns sao construidos com as
+# flags de 2D por escolha, nao por acaso: o modulo nao depende da dimensao, e
+# construi-lo nos dois lados seria pagar duas vezes para testar a mesma coisa.
 TESTES2 = $(basename $(wildcard tests/2d/test-*.cxx))
+TESTES2+= $(basename $(wildcard tests/comum/test-*.cxx))
 BINS2   = $(TESTES2)
 
 # OS EXEMPLOS SAO DECLARADOS, e nao varridos.
@@ -207,7 +221,7 @@ BINS2   = $(TESTES2)
 # apareceu e o alvo `2d` tentou construir `manufaturada3d` como exemplo seu.
 # Um exemplo e' um programa com `main`; as pecas nao sao, e a diferenca nao se
 # descobre por padrao de nome.
-EXEMPLOS2 = exemplos/poisson/poisson-mms
+EXEMPLOS2 = exemplos/poisson/poisson-mms exemplos/canal/canal
 
 2d: $(BINS2) $(EXEMPLOS2)
 
@@ -256,6 +270,9 @@ $(OBJ2)/%.o: $(HIGTREE_SRC)/%.c | $(OBJ2)
 $(OBJ2)/%.o: $(HIGTREE_SRC)/%.cpp | $(OBJ2)
 	$(CXX) $(CXXFLAGS2) -c $< -o $@
 
+$(OBJ2)/%.o: src/comum/io/%.cxx | $(OBJ2)
+	$(CXX) $(CXXFLAGS2) -c $< -o $@
+
 $(OBJ2)/%.o: src/comum/%.cxx | $(OBJ2)
 	$(CXX) $(CXXFLAGS2) -c $< -o $@
 
@@ -269,6 +286,9 @@ $(OBJ2)/%.o: exemplos/poisson/%.cxx | $(OBJ2)
 # a biblioteca mudou, o teste roda obsoleto e da' os numeros da versao anterior.
 # Aconteceu na HiGTree e quase enterrou uma correcao como "nao funciona".
 tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_X) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
+
+tests/comum/%: tests/comum/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
 	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_X) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 
 # ---------------------------------------------------------------------------
@@ -301,6 +321,9 @@ $(OBJ3)/%.o: $(HIGTREE_SRC)/%.c | $(OBJ3)
 	$(CXX) $(CXXFLAGS3) -x c++ -c $< -o $@
 
 $(OBJ3)/%.o: $(HIGTREE_SRC)/%.cpp | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -c $< -o $@
+
+$(OBJ3)/%.o: src/comum/io/%.cxx | $(OBJ3)
 	$(CXX) $(CXXFLAGS3) -c $< -o $@
 
 $(OBJ3)/%.o: src/comum/%.cxx | $(OBJ3)

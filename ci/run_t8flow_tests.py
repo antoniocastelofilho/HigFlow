@@ -49,6 +49,16 @@ PADROES = {
 #
 # Cada entrada: (nome do binario, numeros de processo a exercitar).
 LADOS = {
+    # O MODULO COMUM nao tem dimensao, e por isso tem lado proprio em vez de
+    # ser pendurado no 2D: pendura-lo ali faria o relatorio dizer "lado 2d" para
+    # um defeito que nao e' de nenhuma das duas dimensoes.
+    #
+    # O alvo de `make` dele e' o de 2D -- o modulo e' construido uma vez, com as
+    # flags de 2D, porque construi-lo duas vezes seria pagar dobrado para
+    # testar a mesma coisa.
+    "comum": [
+        ("test-configuracao", (1,)),
+    ],
     "2d": [
         ("test-mls2d", (1,)),
         ("test-solver2d", (1,)),
@@ -124,7 +134,11 @@ def constroi(lado, prefixos, verboso):
     tao ruim quanto nenhum, por isso o aviso -- foi assim que a guarda nasceu
     inoperante na primeira versao, com o Makefile exigindo DIM no alvo clean.
     """
-    cmd = ["make", "-C", T8FLOW, lado]
+    # O LADO "comum" NAO TEM ALVO PROPRIO de make: o modulo e' construido junto
+    # com o 2D, de proposito, porque nao depende da dimensao.  O lado existe
+    # para o RELATORIO -- um defeito dele nao e' "do lado 2d".
+    alvo = "2d" if lado == "comum" else lado
+    cmd = ["make", "-C", T8FLOW, alvo]
     cmd += ["%s=%s" % (k, v) for k, v in prefixos.items()]
     limpa = subprocess.run(["make", "-C", T8FLOW, "clean"],
                            capture_output=True, text=True)
@@ -217,7 +231,11 @@ def main():
     # 2D; agora que existe, deixa-lo de fora do padrao o faria APODRECER -- e' o
     # mesmo argumento pelo qual os exemplos entram no alvo de construcao em vez
     # de ter alvo proprio.  `--lado` continua, para quem quer um so'.
-    lados = (a.lado,) if a.lado else ("2d", "3d")
+    # O LADO "comum" ENTRA NO PADRAO pelo mesmo argumento do 3D: um lado fora
+    # do padrao APODRECE.  Ele vem primeiro porque os outros dois dependem do
+    # modulo comum, e um defeito ali explicaria falhas nos dois -- relatar a
+    # causa antes do sintoma poupa a procura.
+    lados = (a.lado,) if a.lado else ("comum", "2d", "3d")
     clausulas = le_contrato(CONTRATO)
     print("Contrato: %d clausulas em %s" % (len(clausulas), os.path.relpath(CONTRATO, RAIZ)))
 
