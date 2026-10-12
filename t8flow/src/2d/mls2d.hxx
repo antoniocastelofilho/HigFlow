@@ -75,6 +75,24 @@ class Mls {
   // implementacao NOVA (equacoes normais com o mesmo peso WLSMOVING), e por isso
   // os pesos de VALOR dela sao conferidos contra o herdado no teste: se as duas
   // implementacoes do mesmo ajuste divergem, nao ha' oraculo para a derivada.
+  //! Pesos do LAPLACIANO pontual: `soma w_k u_k` aproxima `lap(u)` em `alvo`.
+  //
+  // E' o que a familia de DIFERENCAS FINITAS precisa em malha adaptada, onde o
+  // estencil compacto de nove pontos nao serve -- ele pressupoe espacamento
+  // uniforme.  Com o ajuste MLS o laplaciano sai de um suporte qualquer, sem
+  // hipotese sobre como os pontos estao dispostos.
+  //
+  // EXIGE ORDEM >= 2, por uma razao que nao e' tecnica: um ajuste linear nao TEM
+  // segunda derivada, e devolver zero seria responder "o laplaciano e' nulo" a
+  // uma pergunta mal posta.  Recusa.
+  //
+  // A conferencia barata, independente do campo: os pesos somam ZERO (o
+  // laplaciano de uma constante), e somam zero tambem contra qualquer campo
+  // linear -- duas conferencias, porque a primeira sozinha nao pega erro de
+  // escala na parte quadratica.
+  std::vector<double> pesos_laplaciano(const Ponto2 &alvo,
+                                       const std::vector<Ponto2> &suporte) const;
+
   //! Quantos ajustes proprios foram feitos, e quantos tiveram de REBAIXAR a ordem.
   //
   // Nao e' estatistica decorativa: em malha adaptada o suporte as vezes nao

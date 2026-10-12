@@ -421,6 +421,7 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
   s.max_iteracoes(max_it);
 
   const bool mlsg = (esquema_ == Esquema::MlsGauss);
+  const bool mlsp = (esquema_ == Esquema::MlsPontual);
   const bool compacto = (esquema_ == Esquema::Compacto4 ||
                          esquema_ == Esquema::Compacto4Lele);
 
@@ -432,7 +433,15 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
   // devolveria vazio e a correcao transversal seria OMITIDA: em malha uniforme a
   // correcao e' zero e nada apareceria, e em malha adaptada o erro voltaria a ser
   // o de um esquema sem correcao -- medido em 3,9e-02 contra o exato.
-  if (!compacto) const_cast<Malha *>(m_)->exige_camadas(mlsg ? mls_aneis_ + 1 : 2);
+  // AS CAMADAS DE FRANJA QUE CADA FAMILIA PEDE.  O laplaciano pontual consulta o
+  // suporte no CENTRO da celula, e nao sobre a faceta -- logo a celula que
+  // contem o ponto e' sempre LOCAL, e `aneis` camadas bastam.  O `MlsGauss`
+  // precisa de uma a mais, porque o ponto de quadratura esta' sobre a faceta e a
+  // celula que o contem pode ser de franja.
+  if (!compacto)
+    const_cast<Malha *>(m_)->exige_camadas(mlsg   ? mls_aneis_ + 1
+                                           : mlsp ? mls_aneis_
+                                                  : 2);
 
   long ng = 0;
   std::vector<long> grade;
@@ -440,7 +449,7 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
   const std::pair<const std::vector<long> *, long> gp{&grade, ng};
 
   std::unique_ptr<ConstrutorEstencil> ce;
-  if (mlsg) {
+  if (mlsg || mlsp) {
     ce.reset(new ConstrutorEstencil(*m_, mls_ordem_, mls_maxpts_, mls_aneis_));
     ce->contorno(contorno_);
     ce->mls().zera_contadores();
@@ -463,12 +472,13 @@ void Poisson::resolve(Motor motor, double tol, int max_it)
     const_cast<Malha *>(m_)->exige_camadas(mls_aneis_ + 1);
   }
 
-  if (mlsg) {
+  if (mlsg || mlsp) {
     for (long b = 0; b < m_->num_blocos(); b++)
       for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
         std::map<long, double> linha;
         double rhs = 0.0;
-        monta_linha_mls(b, i, ce.get(), &linha, &rhs);
+        if (mlsp) monta_linha_mls_pontual(b, i, ce.get(), &linha, &rhs);
+        else monta_linha_mls(b, i, ce.get(), &linha, &rhs);
         std::vector<int> cols;
         std::vector<double> vals;
         for (const auto &kv : linha) {
@@ -563,6 +573,7 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
   const long p0 = m_->primeiro_id();
 
   const bool mlsg = (esquema_ == Esquema::MlsGauss);
+  const bool mlsp = (esquema_ == Esquema::MlsPontual);
   const bool compacto = (esquema_ == Esquema::Compacto4 ||
                          esquema_ == Esquema::Compacto4Lele);
 
@@ -574,7 +585,15 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
   // devolveria vazio e a correcao transversal seria OMITIDA: em malha uniforme a
   // correcao e' zero e nada apareceria, e em malha adaptada o erro voltaria a ser
   // o de um esquema sem correcao -- medido em 3,9e-02 contra o exato.
-  if (!compacto) const_cast<Malha *>(m_)->exige_camadas(mlsg ? mls_aneis_ + 1 : 2);
+  // AS CAMADAS DE FRANJA QUE CADA FAMILIA PEDE.  O laplaciano pontual consulta o
+  // suporte no CENTRO da celula, e nao sobre a faceta -- logo a celula que
+  // contem o ponto e' sempre LOCAL, e `aneis` camadas bastam.  O `MlsGauss`
+  // precisa de uma a mais, porque o ponto de quadratura esta' sobre a faceta e a
+  // celula que o contem pode ser de franja.
+  if (!compacto)
+    const_cast<Malha *>(m_)->exige_camadas(mlsg   ? mls_aneis_ + 1
+                                           : mlsp ? mls_aneis_
+                                                  : 2);
 
   long ng = 0;
   std::vector<long> grade;
@@ -582,7 +601,7 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
   const std::pair<const std::vector<long> *, long> gp{&grade, ng};
 
   std::unique_ptr<ConstrutorEstencil> ce;
-  if (mlsg) {
+  if (mlsg || mlsp) {
     ce.reset(new ConstrutorEstencil(*m_, mls_ordem_, mls_maxpts_, mls_aneis_));
     ce->contorno(contorno_);
     ce->mls().zera_contadores();
@@ -595,7 +614,9 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
     for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
       std::map<long, double> linha;
       double rhs = 0.0;
-      if (mlsg) {
+      if (mlsp) {
+        monta_linha_mls_pontual(b, i, ce.get(), &linha, &rhs);
+      } else if (mlsg) {
         monta_linha_mls(b, i, ce.get(), &linha, &rhs);
       } else if (compacto) {
         // A celula e' localizada na grade pela GEOMETRIA, para o residuo medir o
@@ -633,7 +654,12 @@ double Poisson::residuo_da_exata(const std::function<double(const Ponto2 &)> &ex
       // Normaliza pela area no esquema de FLUXO, cujas linhas foram multiplicadas
       // por |face|; o compacto ja' esta' na forma do laplaciano pontual, e dividir
       // ali daria um numero que cresce com o refino sem significado.
-      const double norm = compacto ? 1.0 : m_->area(b, i);   // o MLS tambem integra
+      // A NORMALIZACAO E' DA FAMILIA, e quem a conhece e' a `Discretizacao`:
+      // volumes finitos dividem pela area (a linha foi multiplicada por `|face|`),
+      // diferencas finitas nao dividem (a linha ja' esta' na forma pontual).
+      // Dividir pela area em DF daria um numero que CRESCE com o refino sem
+      // significado -- e isso ja' aconteceu neste projeto.
+      const double norm = discretizacao().normalizacao_do_residuo(m_->area(b, i));
       pior = std::fmax(pior, std::fabs(soma - rhs) / norm);
     }
   return reduz_max(pior);
@@ -728,6 +754,31 @@ void Poisson::monta_linha_mls(long b, long i, const void *construtor,
 
   *linha_out = linha;
   *rhs_out = rhs;
+}
+
+void Poisson::monta_linha_mls_pontual(long b, long i, const void *construtor,
+                                      std::map<long, double> *linha_out,
+                                      double *rhs_out) const
+{
+  const ConstrutorEstencil &ce = *static_cast<const ConstrutorEstencil *>(construtor);
+  const Ponto2 c = m_->centroide(b, i);
+
+  // A LINHA E' O LAPLACIANO NO PONTO, sem quadratura e sem area.  E' o que
+  // diferencas finitas significa: a equacao e' imposta no centro, nao integrada
+  // sobre a celula.
+  //
+  // E A FONTE E' `f(c)`, tambem sem integrar.  Misturar as duas coisas -- linha
+  // pontual com fonte integrada, ou o contrario -- nao falharia: daria um
+  // operador consistente com outra equacao, que converge para a coisa errada.
+  // E' por isso que a escolha vive na `Discretizacao`, onde as duas decisoes sao
+  // a MESMA decisao.
+  const Estencil e = ce.laplaciano_em(c);
+
+  std::map<long, double> linha;
+  for (size_t k = 0; k < e.ids.size(); k++) linha[e.ids[k]] += e.pesos[k];
+
+  *linha_out = linha;
+  *rhs_out = f_(c) - e.rhs;
 }
 
 // ---------------------------------------------------------------------------
@@ -932,16 +983,41 @@ double Poisson::u(long id) const
 // residuo: a malha nao tem opiniao sobre como se combina um erro.  O
 // comunicador vem dela.
 
+void Poisson::discretizacao(const Discretizacao &d)
+{
+  switch (d.variante()) {
+    case Variante::FluxoBalanco:        esquema_ = Esquema::Fluxo2; break;
+    case Variante::MlsGauss:            esquema_ = Esquema::MlsGauss; break;
+    case Variante::CompactoMehrstellen: esquema_ = Esquema::Compacto4; break;
+    case Variante::CompactoLele:        esquema_ = Esquema::Compacto4Lele; break;
+    case Variante::MlsPontual:          esquema_ = Esquema::MlsPontual; break;
+  }
+  if (d.ordem_mls() > 0) mls(d.ordem_mls(), mls_maxpts_);
+}
+
+Discretizacao Poisson::discretizacao() const
+{
+  switch (esquema_) {
+    case Esquema::Fluxo2:         return Discretizacao(Variante::FluxoBalanco);
+    case Esquema::MlsGauss:       return Discretizacao(Variante::MlsGauss, mls_ordem_);
+    case Esquema::Compacto4:      return Discretizacao(Variante::CompactoMehrstellen);
+    case Esquema::Compacto4Lele:  return Discretizacao(Variante::CompactoLele);
+    case Esquema::MlsPontual:     return Discretizacao(Variante::MlsPontual, mls_ordem_);
+  }
+  return Discretizacao::padrao();
+}
+
 std::map<long, double> Poisson::linha_montada(long b, long i, double *rhs) const
 {
   if (!f_) throw std::invalid_argument("Poisson::linha_montada: fonte nao instalada");
   const std::vector<std::pair<long, long>> idx = monta_indice(*m_);
   std::map<long, double> linha;
   double r = 0.0;
-  if (esquema_ == Esquema::MlsGauss) {
+  if (esquema_ == Esquema::MlsGauss || esquema_ == Esquema::MlsPontual) {
     ConstrutorEstencil ce(*m_, mls_ordem_, mls_maxpts_, mls_aneis_);
     ce.contorno(contorno_);
-    monta_linha_mls(b, i, &ce, &linha, &r);
+    if (esquema_ == Esquema::MlsPontual) monta_linha_mls_pontual(b, i, &ce, &linha, &r);
+    else monta_linha_mls(b, i, &ce, &linha, &r);
   } else if (esquema_ == Esquema::Compacto4 || esquema_ == Esquema::Compacto4Lele) {
     long ng = 0;
     const std::vector<long> grade = grade_logica(&ng);

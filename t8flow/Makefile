@@ -166,7 +166,7 @@ endif
 # ---------------------------------------------------------------------------
 OBJ2 = obj/2d
 CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d
-SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx \
+SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/discretizacao2d.cxx src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
          src/2d/contorno2d.cxx src/2d/poisson2d.cxx \
          src/2d/manufaturada2d.cxx
@@ -192,7 +192,7 @@ exemplos/%: exemplos/%.cxx $(OBJ2_T) $(OBJ2_N)
 # Compila com -DDIM=2 so' porque o cabecalho herdado exige a macro; o programa
 # escolhe a dimensao em TEMPO DE EXECUCAO (`--dim=`), porque ele nao usa nada do
 # nucleo herdado -- so' o t8code, que tem as duas dimensoes na mesma biblioteca.
-bench: bench/escalabilidade bench/franja
+bench: bench/escalabilidade bench/franja bench/densidade
 
 bench/escalabilidade: bench/escalabilidade.cxx
 	$(CXX) $(CXXFLAGS2) $< -o $@ $(LDFLAGS) $(LIBS)
@@ -201,6 +201,9 @@ bench/escalabilidade: bench/escalabilidade.cxx
 # liga os objetos de 2D, ao contrario do de escalabilidade, que fala direto com o
 # t8code.  Medir a franja pelo t8code cru nao seria possivel: as camadas acima da
 # primeira sao deste codigo, nao da biblioteca.
+bench/densidade: bench/densidade.cxx $(OBJ2_T) $(OBJ2_N)
+	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
+
 bench/franja: bench/franja.cxx $(OBJ2_T) $(OBJ2_N)
 	$(CXX) $(CXXFLAGS2) $< $(OBJ2_T) $(OBJ2_N) -o $@ $(LDFLAGS) $(LIBS)
 

@@ -244,6 +244,12 @@ Estencil ConstrutorEstencil::derivada_em(const Ponto2 &x, int dir) const
   return monta(s, mls_.pesos_derivada(x, s.pontos, dir));
 }
 
+Estencil ConstrutorEstencil::laplaciano_em(const Ponto2 &x) const
+{
+  const Suporte s = suporte_em(x);
+  return monta(s, mls_.pesos_laplaciano(x, s.pontos));
+}
+
 void ConstrutorEstencil::em_lote(const std::vector<Ponto2> &alvos, LoteEstenceis &lote,
                                  std::vector<Estencil> &saida) const
 {

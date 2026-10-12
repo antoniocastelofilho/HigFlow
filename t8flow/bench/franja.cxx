@@ -212,6 +212,7 @@ int main(int argc, char **argv)
     for (const auto &c : casos) {
       double melhor = 1e300;
       long glob = 0, loc = 0, fr = 0;
+      int iters = 0;
       for (int r = 0; r < reps; r++) {
         Malha *m = faz_malha(nivel, fracao);
         ContornoPorRegiao bc;
@@ -226,6 +227,17 @@ int main(int argc, char **argv)
         po.resolve(Motor::Petsc, 1e-10);
         const double dt = MPI_Wtime() - t0;
 
+        // AS ITERACOES VAO JUNTO COM O TEMPO, e nao sao detalhe: elas separam as
+        // duas explicacoes possiveis para um ganho SUPERLINEAR com o numero de
+        // processos.  Se o numero de iteracoes CAI com np, o ganho e' do
+        // precondicionador -- o PETSc usa um por bloco, e mais blocos mudam o
+        // precondicionador, nao so' a divisao do trabalho.  Se as iteracoes
+        // ficam constantes, o ganho e' de memoria (cache), e ai' a comparacao de
+        // tempo entre np diferentes nao mede paralelismo.
+        //
+        // Sem este numero, "29,8x em np=8" nao e' interpretavel.
+        iters = po.iteracoes();
+
         glob = m->num_folhas_globais();
         loc = m->num_folhas();
         fr = m->num_fantasmas();
@@ -233,6 +245,10 @@ int main(int argc, char **argv)
         if (r > 0 && dt < melhor) melhor = dt;
       }
       relata(c.nome, nivel, 0, fracao, glob, loc, fr, 0, melhor);
+      if (g_rank == 0) {
+        std::printf("iteracoes %s nivel=%d np=%d its=%d\n", c.nome, nivel, g_np, iters);
+        std::fflush(stdout);
+      }
     }
   }
 

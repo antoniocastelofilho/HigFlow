@@ -332,5 +332,126 @@ int main(int argc, char **argv)
     T_NEAR(dx, 2.0, 1e-4, "du/dx de campo linear com ajuste rebaixado");
   }
 
+  // -------------------------------------------------------------------------
+  // W3, W4 -- o laplaciano pontual, e o peso que ele exige
+  // -------------------------------------------------------------------------
+
+  t_case("o_laplaciano_pontual_e_exato_ate_o_grau_da_ordem");
+  {
+    // O ALVO FORA DO SUPORTE neste caso, para medir o laplaciano sem a
+    // complicacao do ponto coincidente -- que o caso seguinte isola.
+    const std::vector<Ponto2> p36 = grade(6, 0.2);
+    for (int ord : {2, 3}) {
+      Mls m(ord, static_cast<int>(p36.size()));
+      const std::vector<double> w = m.pesos_laplaciano(alvo, p36);
+
+      double soma = 0.0, l2 = 0.0, l3 = 0.0;
+      const std::vector<double> v2 = amostra(p36, grau2);
+      const std::vector<double> v3 = amostra(p36, grau3);
+      for (size_t k = 0; k < w.size(); k++) {
+        soma += w[k];
+        l2 += w[k] * v2[k];
+        l3 += w[k] * v3[k];
+      }
+
+      // grau2 = 1 + 2x - 3y + 0,5x^2 - 0,6y^2 + 0,25xy  ->  lap = 1,0 - 1,2 = -0,2
+      // grau3 acrescenta 4x^3 - 2,5y^3                  ->  lap += 24x - 15y
+      const double e2 = -0.2;
+      const double e3 = e2 + 24.0 * alvo[0] - 15.0 * alvo[1];
+
+      // OS PESOS SOMAM ZERO: o laplaciano de uma constante.  Conferencia barata e
+      // independente do campo, que pega erro de sinal e de escala grosseiro.
+      T_NEAR(soma, 0.0, 1e-7, "pesos do laplaciano somam zero");
+      T_NEAR(l2, e2, 1e-7, "laplaciano de campo de grau 2");
+
+      if (ord >= 3) {
+        T_NEAR(l3, e3, 1e-6, "laplaciano de campo de grau 3 com ajuste de ordem 3");
+      } else {
+        // CONTRASTE: a ordem 2 nao reproduz o laplaciano de um cubico.  Sem este
+        // par, "o laplaciano esta' certo" nao distingue ajuste de coincidencia.
+        T_CONTRASTE(std::fabs(l2 - e2) > 1e-14 ? std::fabs(l2 - e2) : 1e-14,
+                    std::fabs(l3 - e3), 1e3,
+                    "grau 2 contra grau 3 no laplaciano de ordem 2");
+      }
+    }
+
+    // ORDEM 1 E' RECUSADA: um ajuste linear nao TEM segunda derivada, e devolver
+    // zero seria responder a uma pergunta mal posta.
+    bool lancou = false;
+    try {
+      Mls m1(1, static_cast<int>(p36.size()));
+      m1.pesos_laplaciano(alvo, p36);
+    } catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "ordem 1 passou no laplaciano; nao ha' segunda derivada ali");
+  }
+
+  t_case("o_peso_do_laplaciano_e_regularizado_quando_o_alvo_esta_no_suporte");
+  {
+    // O CASO QUE EXPOS O DEFEITO.  No laplaciano pontual o alvo e' o centro da
+    // celula, e o centro ESTA' no suporte -- sempre.  Com o peso herdado
+    // `1/(d^2 + EPSMACH)` esse ponto recebe peso da ordem de 1e32 e o ajuste
+    // passa a INTERPOLAR: reproduz o valor ali exatamente, as custas de tudo o
+    // mais.  A matriz normal fica efetivamente de posto 1, os pivos despencam, e
+    // o ajuste REBAIXA em silencio.
+    //
+    // Para o funcional VALOR esse comportamento e' o certo (clausula C5); para a
+    // segunda derivada e' fatal.  Medido antes do conserto: as ordens 3 e 4
+    // rebaixavam sempre e davam exatamente o resultado da ordem 2 -- o que
+    // apareceu, no Poisson, como ordem 2 num esquema que deveria dar mais.
+    const double h = 0.1;
+    std::vector<Ponto2> sup;
+    const Ponto2 centro = {0.5, 0.5};
+    for (int i = -2; i <= 2; i++)
+      for (int j = -2; j <= 2; j++) sup.push_back({centro[0] + i * h, centro[1] + j * h});
+
+    // O ALVO E' UM PONTO DO SUPORTE -- e' o `i = j = 0`.
+    bool achou = false;
+    for (const Ponto2 &p : sup)
+      if (std::fabs(p[0] - centro[0]) < 1e-15 && std::fabs(p[1] - centro[1]) < 1e-15)
+        achou = true;
+    T_CHECK_MSG(achou, "o caso nao mede nada: o alvo nao esta' no suporte");
+
+    for (int ord : {2, 3, 4}) {
+      Mls m(ord, static_cast<int>(sup.size()));
+      const std::vector<double> w = m.pesos_laplaciano(centro, sup);
+
+      // NENHUM REBAIXAMENTO: e' a afirmacao central deste caso.  Com o peso
+      // singular, as ordens 3 e 4 rebaixavam aqui.
+      T_CHECK_MSG(m.rebaixamentos() == 0,
+                  "ordem %d rebaixou com o alvo dentro do suporte -- o peso nao "
+                  "esta' regularizado", ord);
+
+      double lap = 0.0;
+      for (size_t k = 0; k < w.size(); k++) lap += w[k] * grau2(sup[k]);
+      T_NEAR(lap, -0.2, 1e-7, "laplaciano de grau 2 com o alvo no suporte");
+    }
+
+    // E O GANHO DE ORDEM E' REAL, nao so' ausencia de rebaixamento: a ordem 4 tem
+    // de reproduzir o laplaciano de um campo de grau 4, e a ordem 2 nao.
+    double l4_o2 = 0.0, l4_o4 = 0.0;
+    {
+      Mls m2(2, static_cast<int>(sup.size()));
+      Mls m4(4, static_cast<int>(sup.size()));
+      const std::vector<double> w2 = m2.pesos_laplaciano(centro, sup);
+      const std::vector<double> w4 = m4.pesos_laplaciano(centro, sup);
+      const std::vector<double> v4 = amostra(sup, grau4);
+      for (size_t k = 0; k < w2.size(); k++) {
+        l4_o2 += w2[k] * v4[k];
+        l4_o4 += w4[k] * v4[k];
+      }
+    }
+    // grau4 acrescenta 1,7x^4 - 0,9x^3y + 0,4x^2y^2 + 1,1xy^3 - 2,2y^4
+    //   lap = 20,4x^2 - 5,4xy + 0,8y^2 + 0,8x^2 + 6,6xy - 26,4y^2
+    const double x = centro[0], y = centro[1];
+    const double e4 = -0.2 + 24.0 * x - 15.0 * y
+                      + 20.4 * x * x - 5.4 * x * y + 0.8 * y * y
+                      + 0.8 * x * x + 6.6 * x * y - 26.4 * y * y;
+    const double er4 = std::fabs(l4_o4 - e4);
+    const double er2 = std::fabs(l4_o2 - e4);
+    T_NEAR(er4, 0.0, 1e-6, "laplaciano de grau 4 com ajuste de ordem 4");
+    T_CONTRASTE(er4 > 1e-14 ? er4 : 1e-14, er2, 1e3,
+                "grau 4 no laplaciano: ordem 4 contra ordem 2");
+  }
+
   return t_end();
 }

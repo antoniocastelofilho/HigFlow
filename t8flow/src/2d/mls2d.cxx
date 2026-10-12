@@ -166,6 +166,10 @@ double resolve_pequeno(double M[NMAX][NMAX], double *rhs, int n)
 // os dois regimes.
 constexpr double RAZAO_MINIMA = 1e-11;
 
+//! Codigo do funcional LAPLACIANO em `pesos_de`.  Fora da faixa dos `e_q` de
+//! proposito, para que um `qual` valido nunca colida com ele.
+constexpr int LAPL = -100;
+
 std::vector<double> pesos_de_1(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
                                int ord, int qual);
 
@@ -180,7 +184,12 @@ std::vector<double> pesos_de(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
   // ponderada do suporte.  Para DERIVADA a ordem 0 nao tem o funcional, logo o
   // loop termina sem resposta e `ajustes_nulos()` conta: e' o sinal certo, porque
   // derivada nula fingida de derivada verdadeira seria pior que a recusa.
-  for (int o = ord; o >= 0; o--) {
+  // O PISO DO REBAIXAMENTO DEPENDE DO FUNCIONAL: o valor sobrevive ate' a ordem
+  // 0 (media ponderada), a derivada precisa de 1, e o laplaciano precisa de 2.
+  // Descer abaixo do piso produziria um funcional que a base nao tem, e devolver
+  // zero ali seria afirmar que a segunda derivada e' nula.
+  const int piso = (qual == LAPL) ? 2 : 0;
+  for (int o = ord; o >= piso; o--) {
     const std::vector<double> w = pesos_de_1(alvo, sup, o, qual);
     if (!w.empty()) {
       if (ord_usada) *ord_usada = o;
@@ -221,23 +230,60 @@ std::vector<double> pesos_de_1(const Ponto2 &alvo, const std::vector<Ponto2> &su
   // diferente que reproduz os mesmos polinomios com pesos diferentes, e a
   // comparacao com o herdado perderia o sentido -- foi exatamente o defeito que o
   // lote de estenceis em GPU teve.
+  // O REGULARIZADOR DO PESO, e ele e' diferente para o LAPLACIANO.
+  //
+  // O peso herdado e' `1/(d^2 + EPSMACH)`, com `EPSMACH` da ordem de `1e-32`.
+  // Quando o alvo COINCIDE com um ponto do suporte -- o que acontece sempre no
+  // laplaciano pontual, porque o alvo e' o centro da celula e o centro esta' no
+  // suporte -- esse ponto recebe peso da ordem de `1e32` e o ajuste passa a
+  // INTERPOLAR: ele reproduz o valor ali exatamente, as custas de tudo o mais.
+  //
+  // Para o funcional VALOR isso e' o comportamento certo, e a clausula C5 o
+  // registra: no centro da celula o ajuste e' degenerado, peso 1 na propria
+  // celula.  Para a SEGUNDA DERIVADA e' fatal -- a matriz normal fica
+  // efetivamente de posto 1, os pivos despencam, e o ajuste REBAIXA para a
+  // ordem 2 em silencio.
+  //
+  // MEDIDO: com o peso herdado, o laplaciano de ordem 3 e 4 num suporte 5x5
+  // centrado rebaixava sempre, e dava exatamente o resultado da ordem 2 -- o que
+  // apareceu, no Poisson, como ordem 2 de convergencia num esquema que deveria
+  // dar 3.
+  //
+  // O regularizador `(TAU*L)^2` limita o peso do ponto coincidente a
+  // `1/(TAU*L)^2`, que e' da ordem do peso dos vizinhos mais proximos.  Troca
+  // interpolacao por APROXIMACAO, que e' o que a segunda derivada precisa.
+  const double TAU = 0.25;
+  const double reg = (qual == LAPL) ? (TAU * L) * (TAU * L) : EPSMACH;
+
   std::vector<double> p2(static_cast<size_t>(n));
   for (int k = 0; k < n; k++) {
     const double dx = sup[static_cast<size_t>(k)][0] - alvo[0];
     const double dy = sup[static_cast<size_t>(k)][1] - alvo[1];
     nmon = base_rel(dx / L, dy / L, ord, b);
     // O PESO FICA NA ESCALA FISICA, de proposito: e' o peso do herdado, e mexer
-    // nele mudaria o ajuste em vez de so' recondiciona-lo.
-    p2[static_cast<size_t>(k)] = 1.0 / (dx * dx + dy * dy + EPSMACH);
+    // nele mudaria o ajuste em vez de so' recondiciona-lo.  O regularizador e' a
+    // unica licenca, e so' para o laplaciano -- ver acima.
+    p2[static_cast<size_t>(k)] = 1.0 / (dx * dx + dy * dy + reg);
     for (int i = 0; i < nmon; i++)
       for (int j = 0; j < nmon; j++) M[i][j] += p2[static_cast<size_t>(k)] * b[i] * b[j];
   }
 
   // O LADO DIREITO E' O VETOR DE AVALIACAO: `e_0` para valor, `e_1` para `d/dx`,
-  // `e_2` para `d/dy` -- porque a base e' relativa ao alvo.
+  // `e_2` para `d/dy` -- porque a base e' relativa ao alvo, e no alvo so'
+  // sobrevive o coeficiente do monomio correspondente.
+  //
+  // O LAPLACIANO (`qual == LAPL`) e' o unico que nao e' um `e_q`: ele e'
+  // `2*c_xx + 2*c_yy`, os coeficientes de `dx^2` e `dy^2` na base escalada, que
+  // ocupam as posicoes 3 e 5.  O fator 2 vem de `d^2(x^2)/dx^2 = 2`.
   double y[NMAX] = {};
-  if (qual < 0 || qual >= nmon) return {};   // a ordem nao tem este funcional
-  y[qual] = 1.0;
+  if (qual == LAPL) {
+    if (nmon < 6) return {};        // ordem < 2 nao tem segunda derivada
+    y[3] = 2.0;
+    y[5] = 2.0;
+  } else {
+    if (qual < 0 || qual >= nmon) return {};   // a ordem nao tem este funcional
+    y[qual] = 1.0;
+  }
   if (resolve_pequeno(M, y, nmon) < RAZAO_MINIMA) return {};
 
   std::vector<double> w(static_cast<size_t>(n), 0.0);
@@ -249,9 +295,16 @@ std::vector<double> pesos_de_1(const Ponto2 &alvo, const std::vector<Ponto2> &su
     for (int i = 0; i < nmon; i++) sv += y[i] * b[i];
     w[static_cast<size_t>(k)] = p2[static_cast<size_t>(k)] * sv;
   }
-  // `qual >= 1` e' derivada: desfaz a escala da variavel.
-  if (qual >= 1)
+  // DESFAZ A ESCALA DA VARIAVEL: a primeira derivada e' de ordem 1 em `1/L`, e o
+  // laplaciano, que e' de segunda ordem, e' de `1/L^2`.  Esquecer o expoente aqui
+  // daria um laplaciano com o fator errado -- que ainda reproduz a constante e
+  // ainda soma zero, logo as duas conferencias baratas NAO o pegariam; so' a
+  // reproducao de um campo quadratico pega.
+  if (qual == LAPL) {
+    for (int k = 0; k < n; k++) w[static_cast<size_t>(k)] /= (L * L);
+  } else if (qual >= 1) {
     for (int k = 0; k < n; k++) w[static_cast<size_t>(k)] /= L;
+  }
   return w;
 }
 
@@ -314,6 +367,24 @@ const std::vector<double> &Mls::conta(const std::vector<double> &w) const
   if (ord_usada_ < ordem_) rebaixos_++;
   if (ord_usada_ == 0) nulos_++;
   return w;
+}
+
+std::vector<double> Mls::pesos_laplaciano(const Ponto2 &alvo,
+                                          const std::vector<Ponto2> &suporte) const
+{
+  if (ordem_ < 2)
+    throw std::invalid_argument(
+        "Mls::pesos_laplaciano: ordem " + std::to_string(ordem_) +
+        " -- um ajuste de ordem menor que 2 nao tem segunda derivada");
+  if (ordem_ > ORDEM_PROPRIA_MAX)
+    throw std::invalid_argument(
+        "Mls::pesos_laplaciano: ordem " + std::to_string(ordem_) + " acima de " +
+        std::to_string(ORDEM_PROPRIA_MAX) + ", que e' o limite da base propria");
+  if (static_cast<int>(suporte.size()) < min_pontos(ordem_))
+    throw std::invalid_argument("Mls::pesos_laplaciano: suporte de " +
+                                std::to_string(suporte.size()) + " pontos, minimo " +
+                                std::to_string(min_pontos(ordem_)));
+  return conta(pesos_de(alvo, suporte, ordem_, LAPL, &ord_usada_));
 }
 
 }  // namespace t8flow2d

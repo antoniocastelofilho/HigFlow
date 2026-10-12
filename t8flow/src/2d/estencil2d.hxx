@@ -122,6 +122,16 @@ class ConstrutorEstencil {
   long truncados_pela_franja() const { return truncados_; }
   void zera_contadores_de_franja() const { truncados_ = 0; }
 
+  //! O estencil do LAPLACIANO em `x`: ids, pesos e `rhs`.
+  //
+  // E' o que a familia de DIFERENCAS FINITAS usa para montar a linha, e nao tem
+  // quadratura nenhuma: o laplaciano e' avaliado no ponto, nao integrado.
+  //
+  // Mesmo suporte e mesmo fechamento de contorno do valor e da derivada --
+  // reusar a montagem nao e' economia, e' o que garante que o contorno entre do
+  // mesmo jeito nos tres funcionais.  Divergir ali so' aparece perto da parede.
+  Estencil laplaciano_em(const Ponto2 &x) const;
+
   //! O ajuste MLS por tras, para ler os contadores de rebaixamento de ordem.
   const Mls &mls() const { return mls_; }
 

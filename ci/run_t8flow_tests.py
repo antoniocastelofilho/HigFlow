@@ -60,6 +60,7 @@ LADOS = {
         ("test-lote2d", (1,)),
         ("test-estencil2d", (1,)),
         ("test-contorno2d", (1,)),
+        ("test-discretizacao2d", (1,)),
         ("test-poisson2d", (1,)),
 
         # O ARREIO DO PARALELO E' O UNICO QUE RODA EM np>1, e tem de rodar.

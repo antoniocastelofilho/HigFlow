@@ -956,4 +956,80 @@
 //
 //! COBERTA-POR: test-paralelo2d:o_mapa_de_id_para_geometria_nao_depende_da_particao
 
+
+// ---------------------------------------------------------------------------
+// W -- O MODULO DE DISCRETIZACAO: diferencas finitas ou volumes finitos
+//
+// Este grupo cobre a ESCOLHA entre as duas familias, que nao e' de implementacao
+// e sim de significado da incognita.  Os solvers de Navier-Stokes que virao --
+// um por familia -- serao construidos sobre esta base, e e' aqui que o contrato
+// entre eles e' escrito.
+// ---------------------------------------------------------------------------
+
+//! W1  A FAMILIA SAI DA VARIANTE, nunca e' informada junto.  Informar as duas
+//! abriria a possibilidade de informa-las INCONSISTENTES, e um par
+//! (familia, variante) incoerente e' o defeito que o modulo existe para impedir.
+//!
+//! O caso afirma a tabela inteira: cada variante tem a familia certa, e o nome
+//! de cada uma traz o prefixo da familia.
+//
+//! COBERTA-POR: test-discretizacao2d:a_familia_sai_da_variante_e_o_nome_traz_o_prefixo
+
+//! W2  AS QUATRO CONSEQUENCIAS DA FAMILIA ANDAM JUNTAS: o que a incognita
+//! significa, como a fonte entra, como o residuo normaliza, e o que o operador
+//! impoe.  Separa-las e' um erro que NAO FALHA -- um operador de volumes finitos
+//! com fonte pontual continua convergindo, em ordem reduzida e com a constante
+//! errada.  Nenhum teste de convergencia o pega.
+//
+//! COBERTA-POR: test-discretizacao2d:as_consequencias_da_familia_andam_juntas
+
+//! W3  O LAPLACIANO PONTUAL DO MLS e' exato ate' o grau da ordem, e exige ordem
+//! pelo menos 2 -- um ajuste linear nao TEM segunda derivada, e devolver zero
+//! seria responder a uma pergunta mal posta.
+//
+//! COBERTA-POR: test-mls2d:o_laplaciano_pontual_e_exato_ate_o_grau_da_ordem
+
+//! W4  O PESO DO LAPLACIANO E' REGULARIZADO, e sem isso ele degrada em silencio.
+//!
+//! O peso herdado e' `1/(d^2 + EPSMACH)`.  Quando o alvo COINCIDE com um ponto do
+//! suporte -- o que acontece SEMPRE no laplaciano pontual, porque o alvo e' o
+//! centro da celula e o centro esta' no suporte -- esse ponto recebe peso da
+//! ordem de 1e32 e o ajuste passa a INTERPOLAR.  Para o funcional VALOR isso e'
+//! o comportamento certo (clausula C5); para a segunda derivada e' fatal.
+//!
+//! MEDIDO: com o peso herdado, as ordens 3 e 4 do laplaciano REBAIXAVAM sempre e
+//! davam exatamente o resultado da ordem 2 -- o que apareceu, no Poisson, como
+//! ordem 2 de convergencia num esquema que deveria dar mais.
+//!
+//! O contraste e' o caso: com o alvo DENTRO do suporte, ordem 4 tem de reproduzir
+//! o laplaciano de um grau 4; sem o regularizador, nao reproduz.
+//
+//! COBERTA-POR: test-mls2d:o_peso_do_laplaciano_e_regularizado_quando_o_alvo_esta_no_suporte
+
+//! W5  AS DUAS FAMILIAS DAO RESULTADOS DIFERENTES COM TUDO O MAIS IGUAL -- mesmo
+//! ajuste, mesma ordem, mesmo suporte, mesmo fechamento de contorno.  A unica
+//! diferenca e' integrar contra avaliar, e ela aparece:
+//!
+//!     malha uniforme, MLS ordem 3, solucao trigonometrica
+//!       vf-mlsgauss     ordem 2,83
+//!       df-mlspontual   ordem 2,03
+//!
+//! Afirmar que diferem e' o que impede alguem de tratar a escolha como detalhe de
+//! implementacao.
+//
+//! COBERTA-POR: test-poisson2d:as_duas_familias_diferem_com_tudo_o_mais_igual
+
+//! W6  A INSTABILIDADE DO LAPLACIANO PONTUAL EM MALHA ADAPTADA e' DECLARADA, e
+//! nao descoberta em producao.
+//!
+//! O balanco de fluxos garante a estrutura da matriz por construcao -- cada
+//! faceta contribui `+coef` ao vizinho e `-coef` a' diagonal, com `coef > 0` --,
+//! e o laplaciano pontual nao garante nada.  Medido em malha adaptada com ordem
+//! 3: 20 mil iteracoes sem convergir, erro 1,3e+06.
+//!
+//! `estavel_em_malha_adaptada()` responde, e a clausula exige que ele responda
+//! NAO para a variante pontual: o que se proibe aqui e' a resposta otimista.
+//
+//! COBERTA-POR: test-discretizacao2d:a_instabilidade_do_pontual_em_malha_adaptada_e_declarada
+
 #endif

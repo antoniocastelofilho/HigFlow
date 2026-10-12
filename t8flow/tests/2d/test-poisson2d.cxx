@@ -105,7 +105,7 @@ Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Pare
   po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
   po.fechamento(fp);
   po.esquema(esq);
-  if (esq == Esquema::MlsGauss) {
+  if (esq == Esquema::MlsGauss || esq == Esquema::MlsPontual) {
     po.mls(mls_ordem, 60);
     if (fonte_ponto_medio) po.quadratura_fonte(Poisson::QuadFonte::PontoMedio);
   }
@@ -738,6 +738,51 @@ int main(int argc, char **argv)
     T_NEAR(pior_peso, 0.0, 1e-12, "pesos do estencil de derivada vistos dos dois lados");
     printf("  (%d sub-facetas de transicao: ponto %.1e, peso %.1e)\n",
            pares, pior_ponto, pior_peso);
+  }
+
+  // -------------------------------------------------------------------------
+  // W5 -- as duas familias, com tudo o mais igual
+  // -------------------------------------------------------------------------
+
+  t_case("as_duas_familias_diferem_com_tudo_o_mais_igual");
+  {
+    // MESMO AJUSTE, MESMA ORDEM, MESMO SUPORTE, MESMO FECHAMENTO DE CONTORNO.  A
+    // unica diferenca entre as duas corridas e' integrar a equacao contra
+    // impo-la no ponto -- e e' isso que o caso mede.
+    //
+    // Afirmar que DIFEREM e' o que impede alguem de tratar a escolha da familia
+    // como detalhe de implementacao.  E o grau 3 e' onde as duas concordam
+    // (ambas exatas), logo nao serve: a solucao trigonometrica serve.
+    long r1 = 0, r2 = 0;
+    const Resultado vf4 = roda("trig", 4, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::MlsGauss, 3, false, &r1);
+    const Resultado vf5 = roda("trig", 5, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::MlsGauss, 3, false, &r1);
+    const Resultado df4 = roda("trig", 4, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::MlsPontual, 3, false, &r2);
+    const Resultado df5 = roda("trig", 5, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::MlsPontual, 3, false, &r2);
+
+    const double ovf = std::log2(vf4.e_inf / vf5.e_inf);
+    const double odf = std::log2(df4.e_inf / df5.e_inf);
+
+    // VOLUMES FINITOS chega perto de 3 com ajuste de ordem 3; DIFERENCAS FINITAS
+    // fica em 2, porque o truncamento do laplaciano pontual exato ate' grau 3 e'
+    // `O(h^2)` -- vem da quarta derivada.
+    T_CHECK_MSG(ovf > 2.5, "volumes finitos deu ordem %.2f, esperada ~2,8", ovf);
+    T_CHECK_MSG(odf > 1.7 && odf < 2.4,
+                "diferencas finitas deu ordem %.2f, esperada ~2", odf);
+    // A ORDEM DOS ARGUMENTOS E' (melhor, pior), e inverte-la foi o primeiro
+    // resultado deste caso: o contraste saiu 0,023x e o arreio reprovou dizendo
+    // "o oraculo nao discrimina", que e' exatamente o trabalho dele.
+    T_CONTRASTE(vf5.e_inf, df5.e_inf, 5.0,
+                "erro das duas familias no nivel 5 com o MESMO ajuste de ordem 3");
+    printf("  (W5: mesma ordem de ajuste; VF ordem %.2f erro %.3e, "
+           "DF ordem %.2f erro %.3e)\n", ovf, vf5.e_inf, odf, df5.e_inf);
   }
 
   return t_end();

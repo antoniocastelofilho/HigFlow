@@ -71,6 +71,7 @@
 #include <vector>
 
 #include "contorno2d.hxx"
+#include "discretizacao2d.hxx"
 #include "malha2d.hxx"
 #include "solver2d.hxx"
 
@@ -158,6 +159,20 @@ enum class Esquema {
   // Serve em malha uniforme e adaptada, com Dirichlet e com Neumann -- o
   // fechamento vem do `ConstrutorEstencil`, que ja' trata os tres tipos.
   MlsGauss,
+
+  //! LAPLACIANO PONTUAL por ajuste MLS -- diferencas finitas em malha qualquer.
+  //
+  // E' a variante que torna a escolha da FAMILIA realmente livre.  Sem ela,
+  // escolher diferencas finitas em malha ADAPTADA nao leva a lugar nenhum: as
+  // duas variantes compactas recusam malha adaptada por construcao, porque o
+  // estencil de nove pontos pressupoe espacamento uniforme.
+  //
+  // A linha e' o laplaciano avaliado NO CENTRO, sem quadratura nenhuma, e o lado
+  // direito e' `f(centro)` -- sem integrar.  Comparar esta variante com a
+  // `MlsGauss` e' comparar as duas familias com TUDO O MAIS IGUAL: mesmo ajuste,
+  // mesma ordem, mesmo suporte, mesmo fechamento de contorno.  A diferenca
+  // medida e' a diferenca entre integrar e avaliar.
+  MlsPontual,
 };
 
 class Poisson {
@@ -174,6 +189,17 @@ class Poisson {
   //! em todo o contorno -- `resolve` recusa, dizendo qual condicao falhou.
   void esquema(Esquema e) { esquema_ = e; }
   Esquema esquema() const { return esquema_; }
+
+  //! Instala a escolha de DISCRETIZACAO -- familia e variante de uma vez.
+  //
+  // E' a interface preferida; `esquema()` continua para quem ja' a usa.  A
+  // diferenca nao e' de gosto: `Discretizacao` carrega junto as CONSEQUENCIAS da
+  // escolha -- o que a incognita significa, como a fonte entra, como o residuo
+  // normaliza --, e e' isso que impede que as quatro decisoes se separem.
+  void discretizacao(const Discretizacao &d);
+
+  //! A escolha instalada.
+  Discretizacao discretizacao() const;
 
   //! Como `integral f dA` e' calculada no esquema `MlsGauss`.
   //
@@ -304,6 +330,10 @@ class Poisson {
   //! Reducoes entre processos.  Identidade em np=1, e sem ramo separado para ele.
   double reduz_max(double v) const;
   double reduz_soma(double v) const;
+
+  //! Monta a linha pelo laplaciano PONTUAL do MLS (diferencas finitas).
+  void monta_linha_mls_pontual(long b, long i, const void *construtor,
+                               std::map<long, double> *linha, double *rhs) const;
 
   //! Monta a linha pelo esquema de reconstrucao MLS com quadratura de Gauss.
   void monta_linha_mls(long b, long i, const void *construtor,

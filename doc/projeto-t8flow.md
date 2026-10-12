@@ -1231,13 +1231,41 @@ cai dez vezes.
 A **repartição** custa aproximadamente o mesmo que montar a franja de 3 camadas
 (32,9 contra 32,3 ms em np=8, nível 7), o que é esperado: ela refaz a franja.
 
-#### Uma ressalva declarada
+#### O ganho superlinear: duas hipóteses, uma refutada
 
-Os tempos de solver em **np=1** destoam: 10,1 s para o MLS no nível 7, contra
-0,34 s em np=8 — ganho aparente de 29,8×, **superlinear**. Ganho superlinear quase
-sempre indica efeito de cache ou mudança no número de iterações do solver, e não
-paralelismo puro. Não investiguei, e por isso as frações acima usam np≥2 como
-referência. O número de np=1 está na tabela de origem, não aqui.
+Os tempos de np=1 destoam: 8,35 s para o MLS no nível 7 contra 0,347 s em np=8.
+Ganho superlinear quase sempre indica uma de duas coisas, e **medir as iterações
+do solver separa as duas**:
+
+| esquema | np | iterações | tempo | **por iteração** |
+|---|---|---|---|---|
+| MLS+Gauss | 1 | 43 | 8,35 s | **194 ms** |
+| MLS+Gauss | 8 | 70 | 0,347 s | **4,95 ms** |
+| fluxo 2ª ordem | 1 | 100 | 0,486 s | 4,86 ms |
+| fluxo 2ª ordem | 8 | 124 | 0,090 s | 0,73 ms |
+
+**O precondicionador está refutado.** Ele explicaria o ganho por *menos*
+iterações; as iterações **aumentaram** 63% (43 → 70) e o tempo caiu assim mesmo.
+Por iteração o ganho é **39×** em oito processos — ainda mais superlinear que o
+número bruto.
+
+**A hipótese de cache também não se sustenta como estava.** Ela supunha a matriz
+do MLS muito mais densa; medido com `bench/densidade`, são **19,6** não-zeros por
+linha contra 4,9 do esquema de fluxo — 4× mais densa, não 60×. No nível 7 isso dá
+3,85 MB, que **cabe** no L3 de 16 MiB desta máquina (i9-9880H). A matriz sozinha
+não explica.
+
+**O que resta, e é a medida que falta:** `resolve()` cronometra *montagem mais
+resolução juntas*, e as duas escalam de formas diferentes — a montagem do MLS é
+cara (oito pontos de quadratura por célula, cada um com seleção de suporte e
+ajuste) e paraleliza **sem comunicação nenhuma**, enquanto a resolução paraleliza
+mal. Se a montagem domina em np=1, o tempo total pode parecer superlinear sem que
+nada seja superlinear.
+
+Separar os dois cronômetros é barato e é o próximo experimento. **Decisão do
+usuário (12/10/2026): fazê-lo junto com o caso 3D**, onde a contagem de células é
+muito maior e o custo mais representativo — aqui, com 16 384 células, a montagem e
+a resolução estão perto demais para separá-las com confiança.
 
 ### 15.7 O que ainda falta
 
@@ -1253,7 +1281,130 @@ referência. O número de np=1 está na tabela de origem, não aqui.
    como defeito que custou "meia hora de simulação divergindo";
 4. **o lote de estênceis em GPU nunca rodou em paralelo.**
 
-## 16. O que vem depois
+## 16. O módulo de discretização, e os dois solvers que virão
+
+Feito em **12/10/2026**, a pedido do usuário, e com um destino declarado por ele:
+**t8SolverNS-FD** e **t8SolverNS-FV** — dois solvers de Navier-Stokes, um por
+família, construídos sobre esta base. Isso muda o peso do módulo: ele não é uma
+opção dentro do Poisson, é a **fronteira entre os dois solvers**.
+
+### 16.1 A escolha não é de implementação
+
+A diferença entre as famílias é de **significado da incógnita**, e ela se propaga
+por quatro lugares que precisam concordar:
+
+| | volumes finitos | diferenças finitas |
+|---|---|---|
+| a equação que se impõe | integrada sobre a célula | pontual no centro |
+| como a fonte entra | integrada (e a quadratura importa — cláusula D6) | avaliada no centro |
+| como o resíduo normaliza | pela área | por nada |
+| o que a incógnita significa | **eixo separado** — ver 16.2 | |
+
+**Misturar os quatro é um erro que não falha, é um erro que converge.** Um
+operador de volumes finitos com fonte pontual continua convergindo, em ordem
+reduzida e com a constante errada. Nenhum teste de convergência o pega; o que o
+pega é a exatidão polinomial, que é o oráculo desta suíte.
+
+### 16.2 Dois eixos, e colapsá-los foi um erro meu
+
+Uma pergunta do usuário expôs isto: *"tem como discretizar por FV com ordem maior
+que 2?"*. Tem — e a resposta mostrou que a tabela acima estava errada ao dizer que
+volumes finitos implica incógnita-média.
+
+Em **segunda** ordem os dois eixos são indistinguíveis: a média sobre a célula e o
+valor no centro diferem por `O(h²)`, que é a própria ordem do esquema. Acima de
+segunda ordem eles se separam, e aparecem três combinações:
+
+| equação | incógnita | o que é |
+|---|---|---|
+| integrada | média | VF clássico de alta ordem; exige reconstrução média→pontual |
+| integrada | pontual | **o que o `vf-mlsgauss` faz** — conservativo, sem reconstrução |
+| pontual | pontual | diferenças finitas |
+
+**A medida que decide:** `vf-mlsgauss` de ordem 3 é exato para grau 3 comparado
+com o **valor no centro** (erro 1e-14). Se a incógnita fosse a média, essa
+comparação daria `O(h²)` — a diferença entre a média e o valor central de um
+cúbico não é zero. Logo a incógnita é pontual, e dizer o contrário no módulo
+descreveria um esquema que não é o que roda.
+
+### 16.3 As cinco opções, nomeadas com a ordem
+
+A ordem é **parte do nome**, e isso não é cosmética: "volumes finitos de quarta
+ordem" tem de ser uma opção nomeável, não um parâmetro separado que alguém
+precise descobrir que existe.
+
+| nome | família | ordem | malha adaptada |
+|---|---|---|---|
+| `vf-fluxo2` | VF | 2 | sim, grau 1 |
+| `vf-mlsgauss2/3/4` | VF | 2/3/4 | **sim, grau = ordem** |
+| `df-mehrstellen4` | DF | 4 | **recusa** |
+| `df-lele4` | DF | 4 | **recusa** |
+| `df-mlspontual2..4` | DF | 2/3/4 | trata, **instável** |
+
+### 16.4 A variante nova, e o defeito que ela expôs
+
+`df-mlspontual` — laplaciano pontual por pesos MLS — existe porque sem ela
+escolher diferenças finitas em malha adaptada não leva a lugar nenhum: as duas
+compactas recusam a malha por construção.
+
+Implementá-la expôs um defeito fino. No laplaciano pontual o alvo é o centro da
+célula, e o centro **está** no suporte — sempre. Com o peso herdado
+`1/(d² + ε)` e ε de máquina, esse ponto recebe peso da ordem de `10³²` e o ajuste
+passa a **interpolar**. Para o funcional *valor* esse é o comportamento certo (é a
+cláusula C5); para a **segunda derivada** é fatal: a matriz normal fica
+efetivamente de posto 1, os pivôs despencam, e o ajuste **rebaixa em silêncio**.
+
+Medido antes do conserto: as ordens 3 e 4 rebaixavam sempre e davam exatamente o
+resultado da ordem 2 — o que apareceu, no Poisson, como ordem 2 de convergência
+num esquema que deveria dar mais. O conserto é um regularizador `(0,25·L)²` no
+peso, **apenas** para o funcional laplaciano; o peso do valor continua o herdado,
+porque a comparabilidade com o núcleo (cláusula N7) depende dele.
+
+### 16.5 As duas famílias medidas com tudo o mais igual
+
+Mesmo ajuste, mesma ordem, mesmo suporte, mesmo fechamento de contorno. A única
+diferença é integrar contra avaliar:
+
+| malha | discretização | solução trigonométrica |
+|---|---|---|
+| uniforme | `vf-mlsgauss3` | ordem **2,83**, erro 3,30e-04 |
+| uniforme | `df-mlspontual3` | ordem **2,03**, erro 1,41e-02 |
+
+Contraste de **43×** no erro. A razão é o truncamento: o laplaciano pontual exato
+até grau 3 erra na quarta derivada, o que é `O(h²)`; o fluxo integrado com
+derivada de ordem 3 na faceta faz melhor.
+
+### 16.6 Uma ressalva que não escondo
+
+**`df-mlspontual` é instável em malha adaptada.** O balanço de fluxos garante a
+estrutura da matriz por construção — cada faceta contribui `+coef` ao vizinho e
+`−coef` à diagonal, com `coef = |face|/dist > 0`, logo a linha é diagonalmente
+dominante com os sinais certos, em qualquer malha. O laplaciano pontual não
+garante nada: monta uma linha que aproxima o laplaciano, e a estrutura resultante
+depende do suporte.
+
+Medido em malha adaptada: ordem 3 **não converge** em 20 mil iterações, erro
+1,3e+06. Ordem 4 converge, em 1,4 mil iterações contra 59 da ordem 3 em malha
+uniforme. `estavel_em_malha_adaptada()` responde **não** para as duas, e a
+cláusula W6 exige essa resposta: convergir uma vez não é estabilidade, e uma
+lista de escolhas que não distingue o verificado do experimental convida ao erro
+mais caro.
+
+### 16.7 O que isto deixa pronto para os dois solvers
+
+Com Navier-Stokes entram outros operadores — divergente, gradiente, advecção — e
+cada um terá a mesma pergunta. Responder uma vez, aqui, é o que impede que o
+divergente seja de volumes finitos enquanto o laplaciano é de diferenças finitas
+sem que ninguém perceba.
+
+**O que ainda não está decidido, e é do usuário:** o **arranjo das variáveis** em
+cada solver. Em volumes finitos o natural é o deslocado (MAC), que é o que este
+sistema já implementa — escalares e tensores no centro, vetores nas facetas. Em
+diferenças finitas cabe o deslocado **ou** o colocalizado com estabilização, e os
+dois levam a solvers bem diferentes. O t8SolverNS-FD terá de escolher.
+
+## 17. O que vem depois
+
 
 ### Itens herdados da lista anterior
 
