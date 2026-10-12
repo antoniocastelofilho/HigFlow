@@ -613,16 +613,26 @@ void NavierStokes::preditor()
       b[d] += h_min_[d] / 4.0;
       if (m_->id_do_ponto(a) < 0 || m_->id_do_ponto(b) < 0) continue;
 
-      double rhs = -conveccao(d, f) + difusao(d, f);
+      // `RHO` NA FACETA, e nao na celula: a equacao de quantidade de
+      // movimento vive na faceta, e dividir pela densidade da celula errada
+      // desloca a inercia meio passo -- o que, atraves de uma interface com
+      // razao 10 de densidade, e' erro de dezenas por cento.
+      const double rho_f = rho_na_faceta(d, f);
+
+      // A DIVISAO POR `RHO` E' SO' DOS TERMOS DE FORCA, e nao do convectivo:
+      // `div(uu)` ja' e' aceleracao.  Dividi-lo tambem seria dividir duas
+      // vezes quando `rho` e' constante e uma vez de menos quando nao e'.
+      double rhs = -conveccao(d, f) + g_[d]
+                   + (tensao_viscosa(d, f) + (forca_campo_ ? forca_campo_->em(d, f) : 0.0))
+                         / rho_f;
 
       // A PRESSAO ANTIGA ENTRA SO' NA INCREMENTAL, e e' nisso que as duas
       // diferem.  Sem ela o preditor ignora o gradiente que ja' se conhece, e
       // a projecao tem de reconstrui-lo inteiro a cada passo -- o que custa
       // uma ordem na pressao.
-      if (proj_ == Projecao::Incremental) rhs -= grad_campo(p_, d, f);
+      if (proj_ == Projecao::Incremental) rhs -= grad_campo(p_, d, f) / rho_f;
 
       if (fonte_faceta_) rhs += fonte_faceta_(x, d, t_bc_);
-      if (forca_campo_) rhs += forca_campo_->em(d, f);
 
       ustar_.em(d, f) = u_.em(d, f) + dt_ * rhs;
     }
@@ -711,7 +721,13 @@ void NavierStokes::resolve_pressao()
             const double h_viz = hh[d] * fator;
             const double face = hh[t] * std::fmin(1.0, fator);
             const double dist = (hh[d] + h_viz) / 2.0;
-            const double coef = face / dist;
+            // O COEFICIENTE E' `1/rho` NA FACE, e e' o que faz o operador
+            // deixar de ser laplaciano.  Tem de ser o MESMO `rho` que a
+            // projecao usa na mesma faceta: se diferirem, o par `div`/`grad`
+            // nao fecha e a divergencia sobra -- o mesmo modo de falha que o
+            // gradiente transversal com duas fontes ja' produziu.
+            const double coef =
+                face / (dist * rho_na_face(c, d, static_cast<int>(sinal), hh[d]));
 
             linha[vz[k]] += coef;
             linha[id] -= coef;
@@ -810,7 +826,7 @@ void NavierStokes::projeta()
       // diria -- o solver convergiria igual.  E' o par `div`/`grad` que fecha,
       // nao cada um.  Por isso a mesma funcao, com outro campo.
       const double antes = u_.em(d, f);
-      u_.em(d, f) = ustar_.em(d, f) - dt_ * grad_campo(dp_, d, f);
+      u_.em(d, f) = ustar_.em(d, f) - dt_ * grad_campo(dp_, d, f) / rho_na_faceta(d, f);
       maxd = std::max(maxd, std::fabs(u_.em(d, f) - antes));
     }
   resid_estac_ = maxd / dt_;
@@ -1154,6 +1170,165 @@ double NavierStokes::grad_transversal(const CampoEscalar &campo, long b,
   double g = 0.0;
   for (const auto &kv : w) g += kv.second * campo.em(kv.first);
   return g;
+}
+
+// ===========================================================================
+// PROPRIEDADES VARIAVEIS
+// ===========================================================================
+
+double NavierStokes::rho_em(const Ponto2 &x) const
+{
+  // SEM CAMPO, densidade UM.  E' o caminho monofasico, e ele tem de ser exato
+  // e nao "equivalente": e' por ele que os casos monofasicos continuam
+  // verificando este codigo depois da mudanca.
+  if (rho_ == nullptr) return 1.0;
+  const long id = m_->id_do_ponto(x);
+  if (id < 0) return 1.0;
+  return rho_->em(id);
+}
+
+double NavierStokes::mu_em(const Ponto2 &x) const
+{
+  if (mu_ == nullptr) return 1.0 / re_;
+  const long id = m_->id_do_ponto(x);
+  if (id < 0) return 1.0 / re_;
+  return mu_->em(id);
+}
+
+double NavierStokes::rho_na_face(const Ponto2 &c, int d, int s2,
+                                 double hd) const
+{
+  // A MEDIA ARITMETICA das duas celulas, como no HiGFlow.
+  //
+  // E TEM DE SER A MESMA que a projecao usa na mesma faceta.  Se o Poisson e a
+  // projecao usarem densidades diferentes na mesma face, o par `div`/`grad`
+  // nao fecha e a divergencia sobra -- o modo de falha que o gradiente
+  // transversal com duas fontes ja' produziu aqui, e que custou 9,5e-06.
+  if (rho_ == nullptr) return 1.0;
+  const long a = m_->id_do_ponto(c);
+  Ponto2 q = c;
+  q[d] += s2 * hd;
+  const long b = m_->id_do_ponto(q);
+  const double ra = (a >= 0) ? rho_->em(a) : 1.0;
+  const double rb = (b >= 0) ? rho_->em(b) : ra;
+  return 0.5 * (ra + rb);
+}
+
+double NavierStokes::rho_na_faceta(int d, long fid) const
+{
+  if (rho_ == nullptr) return 1.0;
+  const Ponto2 xf = fd_->centro(d, fid);
+  double r[2];
+  int n = 0;
+  for (int lado = 0; lado < 2; lado++) {
+    Ponto2 p = xf;
+    p[d] += (lado == 0 ? -1.0 : 1.0) * h_min_[d] / 4.0;
+    const long id = m_->id_do_ponto(p);
+    r[lado] = (id >= 0) ? rho_->em(id) : 0.0;
+    if (id >= 0) n++;
+  }
+  if (n == 2) return 0.5 * (r[0] + r[1]);
+  if (n == 1) return r[0] + r[1];
+  return 1.0;
+}
+
+double NavierStokes::mu_na_quina(const Ponto2 &xq) const
+{
+  // A MEDIA HARMONICA DAS QUATRO CELULAS que cercam a quina, como no HiGFlow.
+  //
+  //     mu = 4 / (1/v1 + 1/v2 + 1/v3 + 1/v4)
+  //
+  // Harmonica porque e' ela que preserva a continuidade da tensao cisalhante
+  // atraves de uma interface plana.  Com a aritmetica, a tensao salta ali -- e
+  // "ali" e' justamente onde os dois fluidos se tocam.
+  //
+  // Uma celula que nao exista -- quina no contorno -- simplesmente nao entra,
+  // e a media e' das que existem.  Trata-la como viscosidade zero faria a
+  // harmonica ir a zero e a parede virar livre de tensao.
+  if (mu_ == nullptr) return 1.0 / re_;
+  double soma = 0.0;
+  int n = 0;
+  for (int sy = -1; sy <= 1; sy += 2)
+    for (int sx = -1; sx <= 1; sx += 2) {
+      const Ponto2 q{xq[0] + sx * h_min_[0] / 4.0, xq[1] + sy * h_min_[1] / 4.0};
+      const long id = m_->id_do_ponto(q);
+      if (id < 0) continue;
+      const double v = mu_->em(id);
+      if (v <= 0.0) continue;
+      soma += 1.0 / v;
+      n++;
+    }
+  if (n == 0) return 1.0 / re_;
+  return n / soma;
+}
+
+double NavierStokes::tensao_viscosa(int d, long fid) const
+{
+  // `div(mu grad u) / rho`, em FORMA DE FLUXO e com `mu` no MEIO do caminho.
+  //
+  // E' A FORMA DO HIGFLOW, e a escolha e' deliberada apesar de o tensor
+  // COMPLETO ser mais correto com viscosidade variavel.
+  //
+  // O que se descarta e' `div(mu grad u^T)`.  Com `mu` CONSTANTE ele vale
+  // `mu grad(div u)` e some num campo solenoidal; com `mu` VARIANDO ele nao
+  // some, e o que ele carrega e' justamente a tensao cisalhante atraves da
+  // interface -- onde o problema vive.  Entao a forma completa e' melhor, e
+  // nao esta' aqui.
+  //
+  // A RAZAO E' DE COMPARABILIDADE, nao de dificuldade: o objetivo declarado e'
+  // medir este sistema CONTRA o HiGFlow no mesmo caso, e dois metodos que
+  // diferem em mais de uma coisa produzem diferencas sem dono.  Trocar a forma
+  // do termo viscoso junto com tudo o mais tornaria qualquer discrepancia na
+  // bolha ascendente inatribuivel.  Fica como o proximo eixo a variar, DEPOIS
+  // de a comparacao fechar.
+  //
+  // COM `mu` UNIFORME ISTO E' O LAPLACIANO SOBRE `Re`, bit a bit: os casos
+  // monofasicos continuam verificando este codigo exatamente.
+  const double aqui = u_.em(d, fid);
+  const Ponto2 xf = fd_->centro(d, fid);
+  double total = 0.0;
+
+  for (int e = 0; e < 2; e++) {
+    double fluxo[2], dist[2];
+    for (int lado = 0; lado < 2; lado++) {
+      const int sgn = (lado == 0) ? -1 : +1;
+      const Vizinha v = vizinha_de(d, fid, e, sgn);
+      const double uv = v.dentro ? v.valor : contorno_vizinho(d, fid, e, sgn);
+      const double dd = v.dentro ? v.dist : dist_ate_parede(d, fid, e, sgn);
+      if (dd <= 0.0) { fluxo[lado] = 0.0; dist[lado] = 1.0; continue; }
+
+      // `mu` NO MEIO DO CAMINHO, e por duas regras DIFERENTES conforme a
+      // direcao -- e' assim no HiGFlow, e a diferenca nao e' detalhe.
+      //
+      //   `e == d`: a posicao e' um CENTRO DE CELULA, e `mu` e' o valor dela.
+      //   Nao ha' media a fazer: o ponto E' onde a propriedade vive;
+      //
+      //   `e != d`: a posicao e' uma QUINA, e `mu` e' a media HARMONICA das
+      //   QUATRO celulas que a cercam.  Harmonica, e nao aritmetica: e' ela
+      //   que preserva a continuidade da TENSAO CISALHANTE atraves de uma
+      //   interface plana.  Com a aritmetica a tensao salta na interface, e
+      //   isso nao falha -- muda a taxa de deformacao exatamente onde os dois
+      //   fluidos se tocam, que e' o que o caso bifasico mede.
+      //
+      // Tomar o valor de UMA celula na quina -- o que a regra semiaberta de
+      // `id_do_ponto` devolveria -- seria escolher arbitrariamente uma das
+      // quatro, e com razao 10 de viscosidade a escolha vale uma ordem de
+      // grandeza.
+      Ponto2 xm = xf;
+      xm[e] += sgn * dd / 2.0;
+      const double mu_m = (e == d) ? mu_em(xm) : mu_na_quina(xm);
+      // O FLUXO ENTRA SEM O SINAL DO LADO.  A divergencia e'
+      // `(fluxo_+ - fluxo_-)/D`, e com `fluxo_s = mu (u_s - u)/d_s` os dois
+      // ja' saem com o sinal certo -- o de fora aponta para fora nos dois
+      // lados.  Multiplicar pelo sinal do lado soma onde devia subtrair, e o
+      // laplaciano vira o oposto do que e': medido, a caixa manufaturada foi
+      // de 9,97e-02 para 1,15e+01.
+      fluxo[lado] = mu_m * (uv - aqui) / dd;
+      dist[lado] = dd;
+    }
+    total += (fluxo[0] + fluxo[1]) / ((dist[0] + dist[1]) / 2.0);
+  }
+  return total;
 }
 
 }  // namespace t8flow2d

@@ -153,6 +153,35 @@ class NavierStokes {
     fonte_faceta_ = std::move(f);
   }
 
+  // ---- propriedades variaveis ---------------------------------------------
+  //
+  // POR OMISSAO NAO HA' CAMPO, e o solver usa `rho = 1` e `mu = 1/Re`.  E' o
+  // que o lado monofasico sempre fez, e manter esse caminho EXATO -- e nao
+  // "equivalente" -- e' o que permite os casos monofasicos continuarem
+  // verificando o codigo depois desta mudanca.
+  //
+  // COM CAMPO, a equacao passa a ser
+  //
+  //     rho (du/dt + div(uu)) = -grad p + div(mu (grad u + grad u^T))
+  //                             + rho g + f
+  //
+  // e tres coisas mudam de verdade: o preditor divide por `rho` NA FACETA, o
+  // Poisson da projecao ganha coeficiente `1/rho` -- deixa de ser laplaciano e
+  // vira operador de coeficiente variavel --, e o termo viscoso deixa de ser
+  // `mu lap(u)`.
+  //
+  // O TENSOR COMPLETO NAO E' LUXO.  Com `mu` constante `div(mu grad u^T)` e'
+  // `mu grad(div u)`, que some num campo solenoidal -- mas com `mu` variando
+  // ele NAO some, e deixa-lo de fora erra a tensao cisalhante exatamente
+  // atraves da interface, que e' onde o problema vive.
+  void densidade(const CampoEscalar *rho) { rho_ = rho; }
+  void viscosidade(const CampoEscalar *mu) { mu_ = mu; }
+
+  //! A GRAVIDADE, como aceleracao.  Entra como `g`, e nao como `rho g / rho`:
+  //! e' a variacao de `rho` que impede a pressao de a equilibrar em toda
+  //! parte, e e' dai' que vem o empuxo.
+  void gravidade(const Ponto2 &g) { g_ = g; }
+
   //! FORCA POR FACETA, como CAMPO e nao como funcao do ponto.
   //
   // A tensao superficial do front-tracking nasce assim: ela e' distribuida dos
@@ -342,6 +371,27 @@ class NavierStokes {
   //! velocidade que advecta, e o SINAL dela decide quem e' `C`, `D` e `U`.
   double valor_na_face(int d, long fid, int e, int s, double V) const;
 
+  //! `rho` e `mu` num PONTO, interpolados do campo de celulas.  Sem campo
+  //! instalado devolvem `1` e `1/Re`, que e' o caminho monofasico EXATO.
+  double rho_em(const Ponto2 &x) const;
+  double mu_em(const Ponto2 &x) const;
+
+  //! `mu` NA QUINA: media HARMONICA das quatro celulas que a cercam, como
+  //! no HiGFlow.  Harmonica porque e' ela que preserva a continuidade da
+  //! tensao cisalhante atraves de uma interface plana.
+  double mu_na_quina(const Ponto2 &xq) const;
+
+  //! `rho` na FACE entre a celula de centro `c` e a vizinha no lado `s2` da
+  //! direcao `d`: media aritmetica, como no HiGFlow.  O Poisson a usa.
+  double rho_na_face(const Ponto2 &c, int d, int s2, double hd) const;
+
+  //! `rho` na FACETA.  TEM de dar o mesmo que `rho_na_face` na mesma face --
+  //! o preditor e a projecao a usam, e o Poisson usa a outra.
+  double rho_na_faceta(int d, long fid) const;
+
+  //! `div(mu grad u)` na faceta, em forma de fluxo.
+  double tensao_viscosa(int d, long fid) const;
+
   double conveccao(int d, long fid) const;
   double difusao(int d, long fid) const;
   //! O gradiente de um campo de CELULA numa faceta.  Recebe o campo porque
@@ -398,6 +448,9 @@ class NavierStokes {
   Convectivo conv_ = Convectivo::Cubista;
   std::function<double(const Ponto2 &, int, double)> fonte_faceta_;
   const CampoVetorial *forca_campo_ = nullptr;
+  const CampoEscalar *rho_ = nullptr;
+  const CampoEscalar *mu_ = nullptr;
+  Ponto2 g_{0.0, 0.0};
   std::function<double(const Ponto2 &)> fonte_celula_;
 };
 
