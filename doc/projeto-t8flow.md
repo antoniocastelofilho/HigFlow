@@ -1824,7 +1824,52 @@ Saturação é **ponto descartado**, não último slot usado. Um contador que ac
 quando nada se perdeu desacredita o oráculo inteiro: quem o lê passa a ignorá-lo,
 e com ele a saturação verdadeira.
 
-## 22. O que vem depois
+## 22. Os campos em três dimensões
+
+O arranjo deslocado (MAC) que você decidiu, agora em 3D: escalares e tensores nos
+**centros**, vetores nas **facetas**.
+
+### 22.1 As três trocas que a dimensão impõe
+
+| | 2D | 3D |
+|---|---|---|
+| componentes do tensor | 4 | **9** |
+| direções de faceta | 2 | **3** |
+| medida de uma faceta | comprimento `h` | **área `h·h`** |
+
+A terceira é a que mais facilmente passa despercebida numa tradução. Em duas
+dimensões a medida é `h[1−d]`, um lado só; em três é o produto dos **dois** lados
+transversais. **Um fluxo com a dimensão errada ainda converge — para a equação
+errada**, e nenhum teste de convergência o pega.
+
+### 22.2 Os oráculos, e por que são esses
+
+**A contagem de facetas: `N²(N+1)` por direção**, contra `N(N+1)` em 2D. É a
+conferência mais barata da regra de propriedade — a faceta pertence à célula para
+a qual é a face "menos", e exatamente a uma. O número que a tradução descuidada
+produziria é `6N³` ("cada célula tem suas seis facetas"), que conta cada faceta
+interna **duas vezes**.
+
+**A soma das medidas: exatamente `N+1`.** As facetas de uma direção cobrem o
+domínio `N+1` vezes — os `N+1` planos perpendiculares a ela —, cada plano com
+área 1. Com a medida errada (comprimento em vez de área) daria `(N+1)·N`: um
+fator `N`, que **cresce com o refino**.
+
+**O tensor com nove componentes distintas.** O índice de 2D era `2·lin + col`;
+mantê-lo em 3×3 faria componentes colidirem — `(1,1)` e `(0,3)` no mesmo lugar —
+e `(2,*)` sairia do vetor. O caso escreve valor distinto nas nove e confere
+todas.
+
+### 22.3 O que o port pegou
+
+As guardas de direção continuavam recusando `d = 2` — cinco delas, todas com a
+mensagem *"em 2D são 2"*. O teste abortou na primeira linha que pediu a direção
+`z`, que é exatamente o erro que a cláusula H14 descreve: **em três dimensões, o
+que se esquece ao portar é a terceira direção**, e ela não falha sozinha — falha
+quando alguém a pede.
+
+## 23. O que vem depois
+
 
 
 

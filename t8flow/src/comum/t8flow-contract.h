@@ -1272,4 +1272,45 @@
 //
 //! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_tres_camadas
 
+//! H12  A CONTAGEM DE FACETAS EM TRES DIMENSOES E' `N^2 (N+1)` POR DIRECAO --
+//! `N^2` colunas de `N+1` planos --, contra `N(N+1)` em duas.
+//!
+//! E' a conferencia mais barata da regra de propriedade: a faceta pertence a'
+//! celula para a qual e' a face "menos", e exatamente a uma.  O numero errado
+//! que a traducao descuidada produziria e' `6 N^3` -- "cada celula tem suas seis
+//! facetas" --, e ele conta cada faceta interna DUAS vezes.
+//!
+//! Contar pega o erro de propriedade antes que ele apareca como divergente que
+//! nao fecha, que e' onde apareceria sem esta clausula.
+//
+//! COBERTA-POR: test-campos3d:a_contagem_de_facetas_segue_a_regra_de_propriedade
+//! COBERTA-POR: test-campos3d:cada_faceta_tem_exatamente_um_dono
+
+//! H13  A MEDIDA DE UMA FACETA E' UMA AREA, e nao um comprimento.
+//!
+//! E' A TROCA QUE MAIS FACILMENTE PASSA DESPERCEBIDA numa traducao de duas
+//! dimensoes: la' a medida e' `h[1-d]`, um lado so'; aqui e' o produto dos DOIS
+//! lados transversais.  Um fluxo com a dimensao errada AINDA CONVERGE -- para a
+//! equacao errada --, e nenhum teste de convergencia o pega.
+//!
+//! O ORACULO E' A SOMA: as facetas de uma direcao cobrem o dominio `N+1` vezes
+//! (os `N+1` planos perpendiculares a ela), cada plano com area 1, logo a soma
+//! das medidas e' exatamente `N+1`.  Com a medida errada daria `(N+1) N` -- um
+//! fator `N`, que CRESCE com o refino.
+//
+//! COBERTA-POR: test-campos3d:a_medida_da_faceta_e_uma_AREA_e_nao_um_comprimento
+
+//! H14  O TENSOR TEM NOVE COMPONENTES e o campo vetorial TRES, e as componentes
+//! sao independentes.
+//!
+//! O indice de duas dimensoes era `2*lin + col`; manter aquele em 3x3 faria
+//! componentes COLIDIREM -- `(1,1)` e `(0,3)` cairiam no mesmo lugar, e `(2,*)`
+//! sairia do vetor.  O caso escreve um valor distinto nas nove e confere todas.
+//!
+//! No vetorial, o risco e' o laco que nao acompanha a dimensao: ele deixaria a
+//! componente `z` sem inicializar, em silencio.
+//
+//! COBERTA-POR: test-campos3d:o_tensor_tem_nove_componentes_e_o_indice_recusa_o_que_nao_existe
+//! COBERTA-POR: test-campos3d:o_campo_vetorial_tem_uma_componente_por_direcao_de_faceta
+
 #endif
