@@ -961,35 +961,66 @@ void Malha3::monta_franja_camadas(int k)
       return -1;
     };
 
+    // A MENSAGEM E' POR DESTINATARIO, e nao um bloco por folha.
+    //
+    // A forma anterior usava `t8_forest_ghost_exchange_data`: um bloco de
+    // tamanho fixo por folha, com a caixa de raio `R` em torno dela, o mesmo
+    // conteudo indo para todos.  Era correta e cara por duas razoes
+    // independentes:
+    //
+    //   A CELULA IA REPETIDA.  As caixas de folhas vizinhas se sobrepoem quase
+    //   inteiramente, e uma celula aparecia em ate' `(2R+1)^3` blocos -- 125
+    //   copias da mesma geometria na mesma mensagem.  Aqui cada celula vai UMA
+    //   VEZ por destinatario;
+    //
+    //   IA O QUE O DESTINATARIO JA' TINHA.  Metade da caixa de uma folha de
+    //   interface e' formada por celulas LOCAIS de quem recebe.  O dono sai do
+    //   id -- a particao e' contigua em id, e os inicios sao trocados uma vez
+    //   --, de modo que da' para nao enviar.
+    //
+    // QUEM RECEBE NAO PERDE NADA: a fusao antiga ja' percorria os blocos
+    // celula a celula e ignorava de qual folha tinham vindo.  A estrutura de
+    // caixa existia so' no transporte.
     const int MAXV = (2 * R + 1) * (2 * R + 1) * (2 * R + 1);
-    const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
+    (void) MAXV;
 
-    // QUEM PUBLICA: so' a folha que e' FANTASMA DE ALGUEM.
-    //
-    // A troca do t8code leva o bloco de uma folha local para os processos que a
-    // tem como fantasma.  Uma folha local que nao e' fantasma de ninguem tem o
-    // bloco preenchido, zerado e ignorado -- trabalho inteiramente perdido, e
-    // em np=8 nivel 5 isso era DOIS TERCOS das folhas (1352 de 4096 estao na
-    // superficie do sub-bloco).
-    //
-    // O CRITERIO E' EXATO, nao heuristica: a franja nativa e' `T8_GHOST_FACES`,
-    // logo sou fantasma de `P` exatamente quando alguma folha local de `P` e'
-    // minha vizinha de FACE -- isto e', quando algum vizinho meu de face e'
-    // fantasma para mim.
-    // O CRITERIO DE PARADA -- quantos pontos da caixa de raio `R` ainda faltam
-    // -- e' contado DENTRO do laco de preenchimento, e nao num percurso
-    // proprio.  E' o mesmo criterio que o estencil usa depois para contar
-    // truncamento: medir uma coisa aqui e cobrar outra la' foi o que deixou
-    // passar a falha de quina.
+    // OS INICIOS DA PARTICAO, uma vez.  `primeiro_id` e' o primeiro id global
+    // deste processo e a particao e' contigua, logo o dono de um id e' o
+    // ultimo processo cujo inicio nao o ultrapassa.
+    std::vector<long> inicio(static_cast<size_t>(nprocs_) + 1, 0);
+    {
+      long meu = primeiro_id();
+      sc_MPI_Allgather(&meu, 1, sc_MPI_LONG, inicio.data(), 1, sc_MPI_LONG, comm_);
+      inicio[static_cast<size_t>(nprocs_)] = num_folhas_globais();
+    }
+    auto dono = [&](long id) -> int {
+      const auto it = std::upper_bound(inicio.begin(),
+                                       inicio.begin() + nprocs_, id);
+      return static_cast<int>(it - inicio.begin()) - 1;
+    };
+
+    // OS DESTINATARIOS DE CADA FOLHA LOCAL: os donos dos vizinhos de face que
+    // nao sao meus.  Com `T8_GHOST_FACES` essa e' exatamente a lista de quem
+    // me tem como fantasma, e a lista vazia e' o antigo "nao publica".
+    std::vector<std::vector<int>> destinos(static_cast<size_t>(n_locais_));
+    for (long i = 0; i < n_locais_; i++) {
+      if (!publica[static_cast<size_t>(i)]) continue;
+      const Folha &me = tab[id_por_indice[static_cast<size_t>(i)]];
+      for (int fa = 0; fa < 6; fa++)
+        for (long v : me.viz[static_cast<size_t>(fa)]) {
+          const int d = dono(v);
+          if (d == rank_ || d < 0 || d >= nprocs_) continue;
+          std::vector<int> &dd = destinos[static_cast<size_t>(i)];
+          if (std::find(dd.begin(), dd.end(), d) == dd.end()) dd.push_back(d);
+        }
+    }
 
     t_prologo_ += sc_MPI_Wtime() - t_entrada;
 
     long n_publicadores = 0;
     for (long i = 0; i < n_locais_; i++)
       if (publica[static_cast<size_t>(i)]) n_publicadores++;
-
-    std::vector<long> posto;
-    posto.reserve(static_cast<size_t>(MAXV));
+    (void) n_publicadores;
 
     // FOLHA COBERTA CONTINUA COBERTA, e por isso nao precisa ser percorrida de
     // novo.
@@ -1000,13 +1031,8 @@ void Malha3::monta_franja_camadas(int k)
     // `(2R+1)^3` buscas geometricas para confirmar o que ja' se sabia.
     //
     // QUEM PUBLICA PERCORRE SEMPRE, coberta ou nao: o que ela SABE cresce a
-    // cada rodada, e e' esse crescimento que os vizinhos estao esperando.  A
-    // economia e' sobre as folhas de dentro, que nao publicam para ninguem --
-    // em np=8 nivel 5 sao dois tercos delas.
+    // cada rodada, e e' esse crescimento que os vizinhos estao esperando.
     std::vector<char> coberta(static_cast<size_t>(n_locais_), 0);
-
-    sc_array_t *arr = sc_array_new_count(passo * sizeof(double),
-                                         static_cast<size_t>(n_locais_ + nf));
 
     // AS RODADAS SAO ITERADAS ATE' COBRIR, e nao fixadas em uma.
     //
@@ -1017,8 +1043,7 @@ void Malha3::monta_franja_camadas(int k)
     // celula dele.  Em 8 processos isso aparecia como 192 suportes truncados no
     // centro do dominio, onde as oito particoes se tocam, e AUMENTAR AS CAMADAS
     // NAO RESOLVIA: a informacao nao viajava mais longe, ela nao viajava por
-    // aquele caminho.  Cada rodada avanca um salto de POSSE, e tres saltos
-    // bastam para a quina de oito.
+    // aquele caminho.  Cada rodada avanca um salto de POSSE.
     //
     // A PARADA E' MEDIDA E COLETIVA: para quando nenhuma folha local tem ponto
     // de caixa faltando em processo nenhum.  Um numero fixo de rodadas estaria
@@ -1026,157 +1051,201 @@ void Malha3::monta_franja_camadas(int k)
     const int TETO = 16;   // rede de seguranca; chegar nele e' defeito a apurar
     rodadas_franja_ = 0;
     faltando_franja_ = 0;
+
+    // O CRITERIO DE PARADA -- quantos pontos da caixa de raio `R` ainda faltam
+    // -- e' contado DENTRO do laco de montagem, e nao num percurso proprio.
+    // E' o mesmo criterio que o estencil usa depois para contar truncamento:
+    // medir uma coisa aqui e cobrar outra la' foi o que deixou passar a falha
+    // de quina.
+    // OS PROCESSOS COM QUEM SE FALA, uma vez.  Uniao dos destinatarios das
+    // folhas locais, em ordem crescente para que os dois lados de cada par
+    // casem as mensagens na mesma ordem.
+    std::vector<int> vizinhos_rank;
+    for (long i = 0; i < n_locais_; i++)
+      for (int d : destinos[static_cast<size_t>(i)])
+        if (std::find(vizinhos_rank.begin(), vizinhos_rank.end(), d) ==
+            vizinhos_rank.end())
+          vizinhos_rank.push_back(d);
+    std::sort(vizinhos_rank.begin(), vizinhos_rank.end());
+
+    std::vector<std::vector<long>> para(static_cast<size_t>(nprocs_));
+    std::vector<int> n_env(static_cast<size_t>(nprocs_)),
+        n_rec(static_cast<size_t>(nprocs_)),
+        d_env(static_cast<size_t>(nprocs_)), d_rec(static_cast<size_t>(nprocs_));
+    std::vector<double> buf_env, buf_rec;
+
     for (int rodada = 0; rodada < TETO; rodada++) {
       double tq = sc_MPI_Wtime();
       reindexa();
       t_reindexa_ += sc_MPI_Wtime() - tq;
-      tq = sc_MPI_Wtime();
 
-      // APAGA SO' O BLOCO DE QUEM PUBLICA.
-      //
-      // As folhas de FRANJA nao precisam: a troca as sobrescreve, e quem as
-      // escreve e' o dono.  As locais que nao sao fantasma de ninguem tambem
-      // nao: nada as le'.  Apagar os tres grupos custava 21% do tempo da franja
-      // para que dois deles fossem descartados.
-      //
-      // E E' APAGAMENTO EM BLOCO, de proposito.  Tentei marcar so' o primeiro
-      // campo das vagas nao usadas -- a fusao e' a unica leitora e so' le' esse
-      // campo --, e ficou MAIS LENTO: a escrita espacada de um campo a cada
-      // `CAMPOS` doubles toca exatamente as mesmas linhas de cache que o
-      // apagamento sequencial, sem economizar trafego nenhum, e ainda perde a
-      // vetorizacao.  Medido: 0,062 s para 0,088 s em np=8.  Economizar
-      // ESCRITAS nao e' o mesmo que economizar MEMORIA TOCADA.
-      for (long i = 0; i < n_locais_; i++) {
-        if (!publica[static_cast<size_t>(i)]) continue;
-        double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
-        for (size_t z = 0; z < passo; z++) b[z] = -1.0;
-      }
-      t_zera_ += sc_MPI_Wtime() - tq;
+      // NAO HA' FASE DE APAGAR.  O que se envia e' construido do zero a cada
+      // rodada, e tem o tamanho do que de fato se envia -- nao ha' buffer de
+      // tamanho fixo para limpar.  Na forma anterior esse apagamento era 21%
+      // do tempo da franja.
       tq = sc_MPI_Wtime();
+      for (int d : vizinhos_rank) para[static_cast<size_t>(d)].clear();
 
-      // UM PERCURSO SO' faz as duas coisas: conta o que falta e preenche o que
-      // se publica.
-      //
-      // Eram dois percursos identicos sobre a mesma caixa -- um para o
-      // criterio de parada, outro para a carga --, e o percurso e' o que
-      // custa: sao `(2R+1)^3` buscas geometricas por folha.  Contar durante o
-      // preenchimento nao muda o que se mede, porque os dois liam o MESMO
-      // estado da tabela.
-      //
-      // O preco e' um preenchimento perdido na ultima rodada, quando a conta
-      // der zero e o laco sair sem trocar.  E' um preenchimento sobre os
-      // publicadores apenas, e sai muito mais barato que um percurso inteiro.
       long falta = 0, falta_g = 0;
 
-    for (long i = 0; i < n_locais_; i++) {
-      const bool publico = publica[static_cast<size_t>(i)] != 0;
-      if (!publico && coberta[static_cast<size_t>(i)]) continue;
+      // UM PERCURSO SO' faz as duas coisas: conta o que falta e escolhe o que
+      // cada destinatario precisa receber.
+      for (long i = 0; i < n_locais_; i++) {
+        const std::vector<int> &dd = destinos[static_cast<size_t>(i)];
+        if (dd.empty() && coberta[static_cast<size_t>(i)]) continue;
 
-      double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
-      const long eu = id_por_indice[static_cast<size_t>(i)];
-      const Folha &me = tab[eu];
-      long falta_aqui = 0;
-
-      int slot = 0;
-      bool descartou = false;
-      // DEDUPLICACAO SEM ALOCAR.  Era um `std::set` construido e destruido por
-      // folha e por rodada -- ate' 125 insercoes em arvore com alocacao cada --,
-      // e isso dominava o preenchimento.  Sao no maximo `MAXV` ids, contiguos
-      // na memoria, e a varredura linear sobre eles e' mais rapida que a
-      // arvore em toda a faixa que ocorre aqui.
-      posto.clear();
-      for (int ii = -R; ii <= R; ii++)
-        for (int jj = -R; jj <= R; jj++)
-          for (int kk2 = -R; kk2 <= R; kk2++) {
-            const Ponto3 pq{me.cx + ii * me.hx, me.cy + jj * me.hy,
-                            me.cz + kk2 * me.hz};
-            const long id = acha(pq[0], pq[1], pq[2]);
-            if (id < 0) {
-              // FORA DO DOMINIO e' legitimo; DENTRO e nao achado e' franja que
-              // falta, e e' o criterio de parada das rodadas.
-              if (dentro_do_dominio(pq)) falta_aqui++;
-              continue;
-            }
-            if (!publico) continue;
-            bool repetido = false;
-            for (long q : posto)
-              if (q == id) { repetido = true; break; }
-            if (repetido) continue;
-            posto.push_back(id);
-            const auto it = tab.find(id);
-            if (it == tab.end() || it->second.nivel < 0) continue;
-
-            // SATURACAO E' PONTO DESCARTADO, e nao ultimo slot usado.
-            //
-            // A primeira versao contava `slot >= MAXV` depois do laco, o que
-            // marcava saturacao sempre que a caixa preenchia exatamente os
-            // slots -- 216 falsos positivos com raio 1, onde a caixa tem 27
-            // pontos e `MAXV` e' 27.  Um contador que acusa quando nada se
-            // perdeu desacredita o oraculo inteiro.
-            if (slot >= MAXV) { descartou = true; continue; }
-            const Folha &fo = it->second;
-
-            double *c = b + static_cast<size_t>(slot) * CAMPOS;
-            c[0] = static_cast<double>(id);
-            c[1] = fo.cx; c[2] = fo.cy; c[3] = fo.cz;
-            c[4] = fo.hx; c[5] = fo.hy; c[6] = fo.hz;
-            c[7] = static_cast<double>(fo.nivel);
-            // A MASCARA DE FACES CONHECIDAS, no primeiro campo do bloco de
-            // vizinhos.  Sem ela, uma face sem vizinhos na lista e' ambigua:
-            // contorno do dominio, ou "nao me contaram"?  Confundi-las aplica
-            // condicao de contorno no MEIO do dominio.
-            // A MASCARA SO' AFIRMA AS FACES QUE COUBERAM INTEIRAS.
-            //
-            // Antes ela era escrita de uma vez, antes da carga, e a carga era
-            // truncada por capacidade -- de modo que a folha viajava afirmando
-            // conhecer uma face cuja lista de vizinhos tinha ficado para tras.
-            // Quem recebe nao tem como desconfiar: lista vazia mais bit ligado
-            // e' exatamente a assinatura de uma parede do dominio.
-            //
-            // UMA FACE PARCIAL E' PIOR QUE UMA FACE DESCONHECIDA: desconhecida,
-            // o fechamento se RECUSA a aplicar condicao de contorno e o esquema
-            // para; parcial, ele aplica a condicao errada e o resultado sai
-            // plausivel.  Por isso o bit cai junto com a lista.
-            int z = 9;
-            unsigned char mascara = 0;
-            for (int fa = 0; fa < 6; fa++) {
-              const size_t nv = fo.viz[static_cast<size_t>(fa)].size();
-              if (!(fo.faces & (1u << fa))) continue;
-              if (z + 2 * static_cast<int>(nv) > CAMPOS) { descartou = true; continue; }
-              for (size_t q = 0; q < nv; q++) {
-                c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 6 + fa);
-                c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
+        const Folha &me = tab[id_por_indice[static_cast<size_t>(i)]];
+        long falta_aqui = 0;
+        for (int ii = -R; ii <= R; ii++)
+          for (int jj = -R; jj <= R; jj++)
+            for (int kk2 = -R; kk2 <= R; kk2++) {
+              const Ponto3 pq{me.cx + ii * me.hx, me.cy + jj * me.hy,
+                              me.cz + kk2 * me.hz};
+              const long id = acha(pq[0], pq[1], pq[2]);
+              if (id < 0) {
+                // FORA DO DOMINIO e' legitimo; DENTRO e nao achado e' franja
+                // que falta, e e' o criterio de parada das rodadas.
+                if (dentro_do_dominio(pq)) falta_aqui++;
+                continue;
               }
-              mascara |= static_cast<unsigned char>(1u << fa);
+              if (dd.empty()) continue;
+              const auto it = tab.find(id);
+              if (it == tab.end() || it->second.nivel < 0) continue;
+              const int do_id = dono(id);
+              for (int d : dd) {
+                // NAO MANDAR O QUE E' DELE.  A celula cujo dono e' o
+                // destinatario esta' entre as LOCAIS dele, e a versao local e'
+                // a autoritativa -- mandar e' gastar banda para ser
+                // descartado.
+                if (d == do_id) continue;
+                para[static_cast<size_t>(d)].push_back(id);
+              }
             }
-            c[8] = static_cast<double>(mascara);
-            slot++;
+        falta += falta_aqui;
+        if (falta_aqui == 0) coberta[static_cast<size_t>(i)] = 1;
+      }
+
+      // DESDUPLICA cada lista.  Marcar durante o percurso exigiria um mapa por
+      // destinatario; ordenar e unificar uma vez por rodada e' mais barato e
+      // deixa a mensagem em ordem estavel, que e' reprodutivel entre corridas.
+      for (int d : vizinhos_rank) {
+        std::vector<long> &v = para[static_cast<size_t>(d)];
+        std::sort(v.begin(), v.end());
+        v.erase(std::unique(v.begin(), v.end()), v.end());
+      }
+      t_publica_ += sc_MPI_Wtime() - tq;
+
+      tq = sc_MPI_Wtime();
+      sc_MPI_Allreduce(&falta, &falta_g, 1, sc_MPI_LONG, sc_MPI_SUM, comm_);
+      t_reduz_ += sc_MPI_Wtime() - tq;
+      faltando_franja_ = falta_g;
+      if (falta_g == 0) break;
+      rodadas_franja_++;
+
+      // ---- monta as mensagens ------------------------------------------
+      tq = sc_MPI_Wtime();
+      long total_env = 0;
+      for (int d : vizinhos_rank) {
+        n_env[static_cast<size_t>(d)] =
+            static_cast<int>(para[static_cast<size_t>(d)].size() * CAMPOS);
+        d_env[static_cast<size_t>(d)] = static_cast<int>(total_env);
+        total_env += n_env[static_cast<size_t>(d)];
+      }
+      buf_env.assign(static_cast<size_t>(total_env), -1.0);
+      bytes_pub_ += total_env * static_cast<long>(sizeof(double));
+
+      for (int d : vizinhos_rank) {
+        double *c = buf_env.data() + d_env[static_cast<size_t>(d)];
+        for (long id : para[static_cast<size_t>(d)]) {
+          const Folha &fo = tab[id];
+          c[0] = static_cast<double>(id);
+          c[1] = fo.cx; c[2] = fo.cy; c[3] = fo.cz;
+          c[4] = fo.hx; c[5] = fo.hy; c[6] = fo.hz;
+          c[7] = static_cast<double>(fo.nivel);
+
+          // A MASCARA SO' AFIRMA AS FACES QUE COUBERAM INTEIRAS, e e' escrita
+          // DEPOIS da carga.
+          //
+          // Escrita antes, com a carga truncada por capacidade, a folha viaja
+          // afirmando conhecer uma face cuja lista ficou para tras -- e lista
+          // vazia com bit ligado e' exatamente a assinatura de uma parede do
+          // dominio.  O fechamento aplicava Dirichlet no MEIO do dominio.
+          //
+          // UMA FACE PARCIAL E' PIOR QUE UMA FACE DESCONHECIDA: desconhecida,
+          // o fechamento se RECUSA a aplicar condicao e o esquema para;
+          // parcial, ele aplica a condicao errada e o resultado sai plausivel.
+          int z = 9;
+          unsigned char mascara = 0;
+          for (int fa = 0; fa < 6; fa++) {
+            const size_t nv = fo.viz[static_cast<size_t>(fa)].size();
+            if (!(fo.faces & (1u << fa))) continue;
+            if (z + 2 * static_cast<int>(nv) > CAMPOS) { saturacoes_++; continue; }
+            for (size_t q = 0; q < nv; q++) {
+              c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 6 + fa);
+              c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
+            }
+            mascara |= static_cast<unsigned char>(1u << fa);
           }
-      if (descartou) saturacoes_++;
-      falta += falta_aqui;
-      if (falta_aqui == 0) coberta[static_cast<size_t>(i)] = 1;
-    }
+          c[8] = static_cast<double>(mascara);
+          while (z < CAMPOS) c[z++] = -1.0;
+          c += CAMPOS;
+        }
+      }
 
-    t_publica_ += sc_MPI_Wtime() - tq;
+      // PONTO A PONTO, E SO' COM OS VIZINHOS.
+      //
+      // Um coletivo `Alltoall` custaria `O(nprocos)` por rodada em cada
+      // processo mesmo quando cada um fala com tres.  A vizinhanca e'
+      // SIMETRICA -- se `P` me tem como fantasma, eu o tenho como fantasma,
+      // porque adjacencia de face e' simetrica --, logo a lista de quem me
+      // envia e' a mesma de quem eu envio, e nao ha' o que descobrir.
+      // OS PEDIDOS SAO INDEXADOS, e nao empilhados com `&req.back()`: aquela
+      // forma so' e' valida enquanto a reserva aguentar, e e' invariante que
+      // ninguem relembra ao acrescentar uma mensagem.
+      const size_t nv_rank = vizinhos_rank.size();
+      std::vector<sc_MPI_Request> req(2 * nv_rank);
 
-    tq = sc_MPI_Wtime();
-    sc_MPI_Allreduce(&falta, &falta_g, 1, sc_MPI_LONG, sc_MPI_SUM, comm_);
-    t_reduz_ += sc_MPI_Wtime() - tq;
-    faltando_franja_ = falta_g;
-    if (falta_g == 0) break;
-    rodadas_franja_++;
-    bytes_pub_ += static_cast<long>(passo * sizeof(double)) * n_publicadores;
+      for (size_t q = 0; q < nv_rank; q++)
+        sc_MPI_Irecv(&n_rec[static_cast<size_t>(vizinhos_rank[q])], 1,
+                     sc_MPI_INT, vizinhos_rank[q], 7001, comm_, &req[q]);
+      for (size_t q = 0; q < nv_rank; q++)
+        sc_MPI_Isend(&n_env[static_cast<size_t>(vizinhos_rank[q])], 1,
+                     sc_MPI_INT, vizinhos_rank[q], 7001, comm_, &req[nv_rank + q]);
+      if (!req.empty())
+        sc_MPI_Waitall(static_cast<int>(req.size()), req.data(),
+                       sc_MPI_STATUSES_IGNORE);
 
-    tq = sc_MPI_Wtime();
-    t8_forest_ghost_exchange_data(f_, arr);
-    t_troca_ += sc_MPI_Wtime() - tq;
-    tq = sc_MPI_Wtime();
+      long total_rec = 0;
+      for (size_t q = 0; q < vizinhos_rank.size(); q++) {
+        const int d = vizinhos_rank[q];
+        d_rec[static_cast<size_t>(d)] = static_cast<int>(total_rec);
+        total_rec += n_rec[static_cast<size_t>(d)];
+      }
+      buf_rec.resize(static_cast<size_t>(total_rec));
 
-    for (long i = n_locais_; i < n_locais_ + nf; i++) {
-      const double *b =
-          static_cast<const double *>(sc_array_index_int(arr, static_cast<int>(i)));
-      for (int slot = 0; slot < MAXV; slot++) {
-        const double *c = b + static_cast<size_t>(slot) * CAMPOS;
+      size_t nr = 0;
+      for (size_t q = 0; q < nv_rank; q++) {
+        const int d = vizinhos_rank[q];
+        if (n_rec[static_cast<size_t>(d)] <= 0) continue;
+        sc_MPI_Irecv(buf_rec.data() + d_rec[static_cast<size_t>(d)],
+                     n_rec[static_cast<size_t>(d)], sc_MPI_DOUBLE, d, 7002,
+                     comm_, &req[nr++]);
+      }
+      for (size_t q = 0; q < nv_rank; q++) {
+        const int d = vizinhos_rank[q];
+        if (n_env[static_cast<size_t>(d)] <= 0) continue;
+        sc_MPI_Isend(buf_env.data() + d_env[static_cast<size_t>(d)],
+                     n_env[static_cast<size_t>(d)], sc_MPI_DOUBLE, d, 7002,
+                     comm_, &req[nr++]);
+      }
+      if (nr > 0)
+        sc_MPI_Waitall(static_cast<int>(nr), req.data(), sc_MPI_STATUSES_IGNORE);
+      t_troca_ += sc_MPI_Wtime() - tq;
+
+      // ---- funde o recebido --------------------------------------------
+      tq = sc_MPI_Wtime();
+      for (long q = 0; q + CAMPOS <= total_rec; q += CAMPOS) {
+        const double *c = buf_rec.data() + q;
         if (c[0] < 0.0) continue;
         const long id = static_cast<long>(c[0]);
         Folha &fo = tab[id];
@@ -1186,28 +1255,24 @@ void Malha3::monta_franja_camadas(int k)
           fo.hx = c[4]; fo.hy = c[5]; fo.hz = c[6];
           fo.nivel = static_cast<int>(c[7]);
         }
-        if (!fo.completa()) {
-          const unsigned char mk = static_cast<unsigned char>(c[8]);
-          if (mk != 0) {
-            std::array<std::vector<long>, 6> nv;
-            std::array<std::vector<int>, 6> nn;
-            for (int z = 9; z + 1 < CAMPOS; z += 2) {  // pares (id*6+face, nivel)
-              if (c[z] < 0.0) continue;
-              const long cod = static_cast<long>(c[z]);
-              const size_t fa = static_cast<size_t>(cod % 6);
-              nv[fa].push_back(cod / 6);
-              nn[fa].push_back(static_cast<int>(c[z + 1]));
-            }
-            fo.viz = nv;
-            fo.viz_nivel = nn;
-            fo.faces = mk;
-          }
+        if (fo.completa()) continue;
+        const unsigned char mk = static_cast<unsigned char>(c[8]);
+        if (mk == 0) continue;
+        std::array<std::vector<long>, 6> nv;
+        std::array<std::vector<int>, 6> nn;
+        for (int z = 9; z + 1 < CAMPOS; z += 2) {  // pares (id*6+face, nivel)
+          if (c[z] < 0.0) continue;
+          const long cod = static_cast<long>(c[z]);
+          const size_t fa = static_cast<size_t>(cod % 6);
+          nv[fa].push_back(cod / 6);
+          nn[fa].push_back(static_cast<int>(c[z + 1]));
         }
+        fo.viz = nv;
+        fo.viz_nivel = nn;
+        fo.faces = mk;
       }
-    }
-    t_funde_ += sc_MPI_Wtime() - tq;
+      t_funde_ += sc_MPI_Wtime() - tq;
     }   // fim da rodada
-    sc_array_destroy(arr);
   }
 
   // =========================================================================
