@@ -83,6 +83,7 @@ LADOS = {
     # O LADO 3D, em construcao.  O escopo e' "so' o que o solver vai usar":
     # malha, MLS, estencil, contorno, campos e Poisson de volumes finitos.
     "3d": [
+        ("test-mls3d", (1,)),
         ("test-malha3d", (1, 3)),
     ],
 }

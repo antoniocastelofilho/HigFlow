@@ -1108,4 +1108,88 @@
 //
 //! COBERTA-POR: test-lote2d:gpu_bate_com_cpu_nos_pesos
 
+
+// ---------------------------------------------------------------------------
+// H -- O LADO TRIDIMENSIONAL (hexaedros)
+//
+// As clausulas deste grupo cobrem o que e' PROPRIO de tres dimensoes.  O que
+// vale igual nos dois lados nao se repete aqui: os quatro modos de falha do
+// paralelo (X1..X9), o rebaixamento registrado (D3) e a regularizacao do peso
+// do laplaciano (W4) ja' estao afirmados, e o codigo 3D nasceu com eles
+// consertados em vez de redescobri-los.
+//
+// O ESCOPO DO LADO 3D e' "so' o que o solver vai usar", decidido pelo usuario:
+// malha, MLS, estencil, contorno, campos e Poisson de volumes finitos.  Ficam
+// de fora os esquemas compactos, o laplaciano pontual e o lote em GPU.
+// ---------------------------------------------------------------------------
+
+//! H1  A ORDEM DOS OITO VERTICES DO HEXAEDRO, que o `cmesh` espera em ordem de
+//! bits (`x` mais rapido, depois `y`, depois `z`).  Troca-la produz um hexaedro
+//! TORCIDO que commita sem erro nenhum.
+//!
+//! EM DUAS DIMENSOES A INTUICAO DE "SENTIDO ANTI-HORARIO" AJUDA a acertar; com
+//! oito vertices ela nao se aplica, e o unico recurso e' verificar a geometria
+//! resultante.  O oraculo e' duplo, porque cada metade deixa passar o que a
+//! outra pega: o centroide de cada folha cai dentro da caixa do bloco dela, E a
+//! soma dos volumes da' a soma dos blocos.  Um hexaedro torcido pode ter o
+//! centroide no lugar certo e volume errado.
+//!
+//! Dois blocos, e o segundo DESLOCADO: com um bloco so' na origem, uma troca
+//! que espelhe o cubo em torno do centro passaria.
+//
+//! COBERTA-POR: test-malha3d:o_centroide_de_cada_folha_cai_dentro_da_caixa_do_bloco
+
+//! H2  NA TRANSICAO 2:1 UMA FACE TEM QUATRO VIZINHOS, nao dois: a face de um
+//! hexaedro e' um quadrado, e refinar o vizinho a parte em quatro.  Afirmar o
+//! numero e' o que distingue HEX de QUAD tratado como HEX.
+//
+//! COBERTA-POR: test-malha3d:o_hex_tem_seis_faces_e_a_transicao_parte_cada_uma_em_quatro
+
+//! H3  A FRANJA SE DIMENSIONA PELOS VIZINHOS MEDIDOS, e nao pelo teto teorico.
+//!
+//! O teto e' 24 -- seis faces vezes quatro --, e o maximo REAL e' 9 em malha
+//! adaptada e 6 em uniforme, porque uma celula tem no maximo uma face com
+//! vizinhos refinados em cada direcao, e nao todas as seis.
+//!
+//! MEDIDO ANTES DO CODIGO EXISTIR (`bench/franja3d`), e o resultado mudou a
+//! arquitetura: dimensionar pelo teto custaria 2,7 vezes mais memoria -- em
+//! tres dimensoes, a diferenca entre 55 KB e 24 KB por folha publicada.
+//
+//! COBERTA-POR: test-malha3d:o_hex_tem_seis_faces_e_a_transicao_parte_cada_uma_em_quatro
+
+//! H4  A BASE DO MLS EM TRES DIMENSOES TEM 4, 10, 20 E 35 MONOMIOS nas ordens 1
+//! a 4 -- contra 3, 6, 10 e 15 em duas.  A contagem e' a conferencia mais barata
+//! de que a base e' a certa, e o suporte minimo sai dela.
+//!
+//! A CONSEQUENCIA E' DE PROJETO, nao de contagem: a ordem 3 pede 20 pontos de
+//! suporte onde em 2D pedia 10, o que significa mais aneis, que significa mais
+//! camadas de franja -- e em tres dimensoes a franja custa o cubo do raio.
+//
+//! COBERTA-POR: test-mls3d:a_base_de_tres_dimensoes_tem_4_10_20_e_35_monomios
+
+//! H5  O LAPLACIANO SOMA AS TRES SEGUNDAS DERIVADAS, e o erro de somar duas --
+//! o que uma traducao descuidada do codigo 2D produziria -- daria um operador
+//! que AINDA soma zero nos pesos e AINDA reproduz a constante.
+//!
+//! Nenhuma das duas conferencias baratas o pegaria; o que o pega e' o VALOR do
+//! laplaciano de um campo quadratico com coeficientes distintos nas tres
+//! direcoes.
+//
+//! COBERTA-POR: test-mls3d:o_laplaciano_soma_as_TRES_segundas_derivadas
+
+//! H6  EM SUPORTE SIMETRICO A ORDEM 2 JA' ALCANCA O GRAU 3 NO LAPLACIANO, e esta
+//! clausula existe porque a MEDIDA corrigiu uma expectativa.
+//!
+//! Esperava-se que a ordem 3 reproduzisse o laplaciano de um cubico e a ordem 2
+//! nao.  As duas reproduzem, em 4e-13.  A razao e' real: num suporte simetrico
+//! em torno do alvo os monomios IMPARES nao contribuem para o laplaciano no
+//! centro -- a contribuicao de `x^3` se cancela contra pesos simetricos.
+//!
+//! E' SUPERCONVERGENCIA DO ESTENCIL SIMETRICO, e importa porque em malha
+//! uniforme o centro de uma celula ve' exatamente esse suporte.  O CONTRASTE
+//! existe fora da simetria: com o alvo deslocado, ordem 3 da' 7,3e-13 e ordem 2
+//! da' 6,4e-01.
+//
+//! COBERTA-POR: test-mls3d:o_peso_do_laplaciano_e_regularizado_quando_o_alvo_esta_no_suporte
+
 #endif

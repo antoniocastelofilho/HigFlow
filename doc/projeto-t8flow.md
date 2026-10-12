@@ -1651,7 +1651,67 @@ apenas dispensa lembrar de desmontar.
 **Nota de cobertura:** o caso de teste que exercita essa recusa **não existe** no
 lado 2D. A guarda está lá e funciona, mas nada a verifica.
 
-## 20. O que vem depois
+## 20. O MLS em três dimensões
+
+### 20.1 O que a dimensão custa
+
+A base explode, e isso não é detalhe — é o que decide a ordem utilizável:
+
+| ordem | monômios em 2D | monômios em 3D |
+|---|---|---|
+| 1 | 3 | 4 |
+| 2 | 6 | 10 |
+| 3 | 10 | **20** |
+| 4 | 15 | **35** |
+
+O suporte mínimo é o número de monômios, logo a ordem 3 em 3D pede **20** pontos
+onde em 2D pedia 10. Com o suporte crescendo por anéis de vizinhos de face, isso
+significa mais anéis → mais camadas de franja → e em três dimensões a franja
+custa o **cubo** do raio.
+
+E a matriz normal é 35×35 na ordem 4, contra 15×15 em duas dimensões; resolvê-la
+é cúbico nisso, o que põe o ajuste de ordem 4 em 3D a cerca de **13×** o custo
+do mesmo em 2D, por ponto. É um número a ter em mente antes de escolher a ordem
+no solver.
+
+### 20.2 O que veio consertado de origem
+
+O MLS 3D nasceu com os três consertos que o 2D custou descobrir, e não os
+redescobriu: a base adimensionalizada pelo raio do suporte, o rebaixamento de
+ordem **registrado** em vez de pesos nulos silenciosos, e o regularizador do peso
+no laplaciano — que é o que impede o ajuste de *interpolar* quando o alvo
+coincide com um ponto do suporte, como o laplaciano pontual sempre faz.
+
+A concordância com o núcleo herdado (que resolve o mesmo problema por
+decomposição QR) é de **7,77e-16**, e o caso rejeita a concordância
+*exatamente* nula — diferença zero entre duas implementações significa que só
+uma rodou.
+
+### 20.3 Uma expectativa que a medida corrigiu
+
+Eu esperava que, no laplaciano, a ordem 3 reproduzisse um campo cúbico e a ordem
+2 não. **As duas reproduzem**, em 4e-13.
+
+A razão é real: num suporte **simétrico** em torno do alvo, os monômios ímpares
+não contribuem para o laplaciano no centro — a contribuição de `x³` se cancela
+contra pesos simétricos. É superconvergência do estêncil simétrico, e importa
+porque em malha uniforme o centro de uma célula vê exatamente esse suporte: **a
+ordem 2 já entrega grau 3 no laplaciano ali**.
+
+O contraste existe, só que fora da simetria. Com o alvo deslocado dentro do
+suporte:
+
+| ajuste | erro no laplaciano de um cúbico |
+|---|---|
+| ordem 3 | 7,3e-13 |
+| ordem 2 | **6,4e-01** |
+
+O caso agora afirma a propriedade onde ela vale e mede o contraste onde ele
+existe — em vez de esperar, por analogia com 2D, uma diferença que a matemática
+diz não haver.
+
+## 21. O que vem depois
+
 
 
 
