@@ -19,6 +19,7 @@
 #include "../testing.h"
 
 #include <cmath>
+#include <algorithm>
 #include <functional>
 
 #include "arranque.hxx"
@@ -129,33 +130,57 @@ int main(int argc, char **argv)
            "a divergencia de `u = x, v = 0` em malha adaptada, que vale 1");
   }
 
-  t_case("o_passo_recusa_a_malha_adaptada_dizendo_o_que_falta");
+  t_case("o_passo_fecha_a_divergencia_em_malha_adaptada");
   {
-    // O FLUXO JA' TRATA 2:1; o estencil da quantidade de movimento ainda nao.
-    // A recusa esta' no PASSO e nao na construcao, de proposito: medir o fluxo
-    // numa malha adaptada e' parte de chegar la'.
+    // O ORACULO DA RESTRICAO 2:1, e o unico que nao precisa de solucao de
+    // referencia: o metodo de projecao EXISTE para zerar a divergencia.  Se o
+    // gradiente que a projecao aplica nao for o mesmo que a divergencia do
+    // Poisson supos, o campo corrigido nao e' solenoidal -- e NADA diz, porque
+    // o solver converge igual.  E' o par `div`/`grad` que fecha, nao cada um.
+    //
+    // Na transicao 2:1 ha' tres jeitos de o par deixar de fechar: a face da
+    // grossa coberta por duas facetas finas (somatorio), a distancia entre
+    // centros que nao e' `h` (coeficiente), e os centros desalinhados da
+    // normal (correcao transversal).  Qualquer um deles quebra isto.
     Malha m({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_WORLD);
-    m.refina_caixa({0.0, 0.0}, {0.5, 0.5}, 4);
+    m.refina_caixa({0.25, 0.25}, {0.75, 0.75}, 4);
+    T_CHECK_MSG(m.num_folhas_em_transicao() > 0,
+                "a malha deste caso nao tem transicao 2:1");
+
     DominioFacetas fd(m);
     ContornoPorRegiao b0, b1, bp;
-    arma(&b0, &b1, &bp, 1.0 / 16.0);
-
-    bool construiu = true;
-    try { NavierStokes ns(m, fd, b0, b1, bp); }
-    catch (const std::exception &) { construiu = false; }
-    T_CHECK_MSG(construiu,
-                "a construcao recusou malha adaptada -- os operadores de fluxo "
-                "precisam ser mediveis nela");
-
+    arma(&b0, &b1, &bp, 1.0 / 8.0);
     NavierStokes ns(m, fd, b0, b1, bp);
-    ns.passo_de_tempo(1e-4);
-    bool lancou = false;
-    std::string msg;
-    try { ns.passo(); }
-    catch (const std::runtime_error &e) { lancou = true; msg = e.what(); }
-    T_CHECK_MSG(lancou, "o passo aceitou malha com transicao 2:1");
-    T_CHECK_MSG(msg.find("quantidade de movimento") != std::string::npos,
-                "a mensagem nao diz O QUE falta: \"%s\"", msg.c_str());
+    ns.reynolds(1.0);
+    ns.passo_de_tempo(1.0 / 8.0 / 8.0 / 16.0 / 16.0);
+
+    // Uma forca de corpo qualquer, para que haja o que projetar: sem fonte o
+    // campo fica no repouso e "divergencia nula" nao afirma nada.
+    ns.termo_fonte_faceta([](const Ponto2 &x, int d, double) {
+      return (d == 0) ? std::sin(3.0 * x[1]) : std::cos(3.0 * x[0]);
+    });
+
+    for (int k = 0; k < 5; k++) {
+      ns.passo();
+      T_CHECK_MSG(ns.pressao_convergiu(),
+                  "o Poisson da projecao nao convergiu no passo %d", k + 1);
+    }
+    T_BELOW(ns.divergencia_maxima(), 1e-12,
+            "a divergencia depois de cinco passos em malha ADAPTADA");
+
+    // A COMPATIBILIDADE: numa caixa fechada o que entra e' o que sai.
+    T_BELOW(std::fabs(ns.soma_do_lado_direito()), 1e-10,
+            "a soma dos fluxos do Poisson numa caixa fechada");
+
+    // CONTRASTE: o campo NAO e' trivialmente nulo -- sem isto, "divergencia
+    // 1e-14" nao distingue a projecao funcionando de nada ter acontecido.
+    double maxu = 0.0;
+    for (int d = 0; d < 2; d++)
+      for (long f = 0; f < fd.num_facetas(d); f++)
+        maxu = std::max(maxu, std::fabs(ns.velocidade().em(d, f)));
+    T_CHECK_MSG(maxu > 1e-6,
+                "a velocidade ficou em %.3e -- nada se moveu, e a divergencia "
+                "nula nao afirma nada", maxu);
   }
 
   t_case("a_pressao_toda_neumann_e_recusada");

@@ -50,6 +50,7 @@ int main(int argc, char **argv)
   double re = 1.0, T = 0.0625, cfl_dif = 8.0;
   int nivel = 4;
   long cada_vtk = 0;
+  double refina = 0.0;
   std::string disc_conv = "cubista", disc_proj = "incremental";
 
   for (int i = 1; i < argc; i++) {
@@ -61,6 +62,7 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--convectivo=", 13)) disc_conv = a + 13;
     else if (!std::strncmp(a, "--projecao=", 11)) disc_proj = a + 11;
     else if (!std::strncmp(a, "--vtk=", 6)) cada_vtk = std::atol(a + 6);
+    else if (!std::strncmp(a, "--refina=", 9)) refina = std::atof(a + 9);
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       if (rank == 0)
         std::printf(
@@ -83,8 +85,21 @@ int main(int argc, char **argv)
   }
 
   Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_WORLD);
+  // REFINO OPCIONAL numa caixa interior, para exercitar a transicao 2:1 com a
+  // mesma solucao manufaturada -- o erro passa a ser comparavel entre a malha
+  // uniforme e a adaptada, que e' o que torna a comparacao uma medida.
+  if (refina > 0.0)
+    m.refina_caixa({0.25, 0.25}, {0.25 + refina, 0.25 + refina}, nivel + 1);
   DominioFacetas fd(m);
-  const double hh = 1.0 / (1 << nivel);
+  // O PASSO SAI DO `h` MINIMO, e nao do da base.
+  //
+  // O limite difusivo do Euler explicito e' `Re h^2 / 4`, com o `h` da MENOR
+  // celula -- refinar um pedaco aperta o passo por 4 em todo o dominio, nao
+  // so' ali.  Usar o `h` da base deu campo divergindo em silencio na primeira
+  // tentativa: o solver nao reclama, o resultado sai NaN depois de algumas
+  // centenas de passos.
+  const double h_base = 1.0 / (1 << nivel);
+  const double hh = (refina > 0.0) ? h_base / 2.0 : h_base;
   const double dt = hh * hh / cfl_dif;
 
   // O RELOGIO DO CONTORNO vive AQUI, e quem o move e' o solver.  Ver
@@ -127,11 +142,16 @@ int main(int argc, char **argv)
   // e a regiao e' definida por `x < h` para que seja EXATAMENTE uma faceta em
   // qualquer nivel de refino -- uma faixa de largura fixa cobriria mais
   // facetas a cada refino, e o caso deixaria de ser o mesmo.
-  auto no_pino = [EPSG, hh](const Ponto2 &x) {
-    return std::fabs(x[1]) < EPSG && x[0] < hh;
+  // O PINO USA O `h` DA PAREDE, e nao o `h` minimo do dominio.
+  //
+  // Com refino no interior o minimo cai pela metade e `x < h_min` nao casa com
+  // faceta nenhuma do fundo -- a pressao fica toda-Neumann e o solver recusa.
+  // A regiao tem de ser a largura de UMA faceta DAQUELA parede.
+  auto no_pino = [EPSG, h_base](const Ponto2 &x) {
+    return std::fabs(x[1]) < EPSG && x[0] < h_base;
   };
-  auto no_fundo_sem_pino = [EPSG, hh](const Ponto2 &x) {
-    return std::fabs(x[1]) < EPSG && x[0] >= hh;
+  auto no_fundo_sem_pino = [EPSG, h_base](const Ponto2 &x) {
+    return std::fabs(x[1]) < EPSG && x[0] >= h_base;
   };
   bcp.registra("pino", no_pino, Contorno::dirichlet([](const Ponto2 &x) {
     return caixa::p_exata(x, 0.0);
@@ -182,8 +202,8 @@ int main(int argc, char **argv)
 
   if (rank == 0) {
     std::printf("caso        caixa com tampa deslizante, solucao MANUFATURADA\n");
-    std::printf("dominio     [0,1]^2, %ld celulas, h = %.5g\n",
-                m.num_folhas_globais(), hh);
+    std::printf("dominio     [0,1]^2, %ld celulas, h_min = %.5g, em transicao 2:1: %ld\n",
+                m.num_folhas_globais(), hh, m.num_folhas_em_transicao());
     std::printf("Re          %.4g\n", re);
     std::printf("dt          %.5g  (= h^2 / %.3g; limite difusivo h^2 Re / 4)\n",
                 dt, cfl_dif);

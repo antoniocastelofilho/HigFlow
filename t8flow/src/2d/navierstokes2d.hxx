@@ -244,6 +244,56 @@ class NavierStokes {
     Ponto2 centro;
   };
 
+  //! De que CELULA uma faceta e', e de que LADO.
+  //
+  // A faceta pertence ao lado mais fino, logo a celula dona e' a mais fina das
+  // duas -- e e' a partir dela que todo o estencil se orienta: o passo ao
+  // longo da normal e' o lado DELA, nao um `h` global que a malha adaptada nao
+  // tem.
+  struct Dono { long b, i; int lado; };
+
+  //! `u_d` NO PONTO `x`, por interpolacao dentro da celula que o contem.
+  //
+  // E' a primitiva de que todo o resto depende, e existe por um fato da
+  // transicao 2:1: a face de uma celula FINA cai no MEIO da GROSSA vizinha, e
+  // ali nao ha' faceta nenhuma.  Nao e' caso excepcional -- acontece em metade
+  // das celulas finas de qualquer interface.
+  //
+  // Quando ha' faceta no ponto, devolve o valor dela.  Quando nao ha',
+  // interpola LINEARMENTE entre as duas faces de direcao `d` da celula que
+  // contem o ponto, cada uma tomada como a media de fluxo das suas
+  // sub-facetas.  Em malha uniforme o primeiro caso e' o unico, e o segundo
+  // nunca roda -- o caminho geral REDUZ ao particular, que e' o que faz os
+  // casos uniformes verificarem o codigo adaptado.
+  double u_no_ponto(int d, const Ponto2 &x, bool *dentro) const;
+
+  //! A MEDIA DE FLUXO das sub-facetas de uma face: `soma(u . medida) / soma(medida)`.
+  //
+  // E' a RESTRICAO da componente normal, e a ponderacao nao e' detalhe: e' o
+  // que faz a vazao que sai das duas finas ser a que entra na grossa.  Media
+  // aritmetica daria o mesmo aqui, onde as duas sub-facetas tem a mesma
+  // medida, e daria DIFERENTE se algum dia a razao deixar de ser 2:1 -- e
+  // estaria errada sem avisar.
+  double media_de_fluxo(long b, long i, int d, int lado) const;
+
+  //! O gradiente TRANSVERSAL da pressao numa celula, por diferenca central
+  //! entre os vizinhos em `t` (ou lateral, quando so' ha' um).
+  double grad_transversal(const CampoEscalar &campo, long b, long i,
+                          int t) const;
+
+  //! O vizinho de uma faceta na direcao `e`, lado `s`: VALOR e DISTANCIA.
+  //
+  // A distancia nao e' `h`: ao longo da normal (`e == d`) e' o lado da celula
+  // que se atravessa, e transversalmente e' a meia-soma dos lados das duas.
+  // Supor `h` uniforme aqui e' o que quebra o esquema em malha adaptada, e
+  // quebra sem erro visivel -- produz um laplaciano plausivel e errado.
+  struct Vizinha {
+    double valor = 0.0;
+    double dist = 0.0;
+    bool dentro = false;     //!< falso quando saiu do dominio (contorno)
+  };
+  Vizinha vizinha_de(int d, long fid, int e, int s) const;
+
   //! AS SUB-FACETAS de uma face.
   //
   // Em transicao 2:1 a face da celula GROSSA e' coberta por DUAS facetas, cada
@@ -257,20 +307,27 @@ class NavierStokes {
   // divergencia daquela celula sairia errada sem nada acusar.
   std::vector<SubFaceta> sub_facetas(long b, long i, int d, int lado) const;
 
-  //! `u_d` na posicao `xf + s*h_e` na direcao `e`.  FECHA O CONTORNO quando a
-  //! posicao cai fora: a parede esta' no meio do caminho, e a relacao e' a
-  //! afim da condicao -- reflexao para Dirichlet, extrapolacao para Neumann.
-  double u_vizinha(int d, const Ponto2 &xf, int e, int s, bool *achou) const;
+  //! O valor FANTASMA fora do dominio, pela condicao de contorno, com a parede
+  //! a MEIO LADO DA CELULA DONA -- e nao a meio `h` global, que a malha
+  //! adaptada nao tem.
+  double contorno_vizinho(int d, long fid, int e, int s) const;
+  double dist_ate_parede(int d, long fid, int e, int s) const;
 
-  //! O valor transportado na posicao a jusante/montante, pelo esquema
-  //! escolhido.  `V` e' a velocidade que advecta, e o sinal dela decide quem
-  //! e' `C`, `D` e `U`.
-  double valor_na_face(int d, const Ponto2 &xf, int e, int s, double V) const;
+  //! O lado do VOLUME DE CONTROLE da faceta na direcao `e`: meia celula de
+  //! cada lado ao longo da normal, a celula dona inteira na transversal.
+  double comprimento_do_volume(int d, long fid, int e) const;
 
-  double conveccao(int d, const Ponto2 &xf) const;
-  double difusao(int d, const Ponto2 &xf) const;
-  double grad_pressao(int d, const Ponto2 &xf) const;
-  double velocidade_que_advecta(int d, const Ponto2 &xf, int e, int s) const;
+  //! O valor transportado na face do volume, pelo esquema escolhido.  `V` e' a
+  //! velocidade que advecta, e o SINAL dela decide quem e' `C`, `D` e `U`.
+  double valor_na_face(int d, long fid, int e, int s, double V) const;
+
+  double conveccao(int d, long fid) const;
+  double difusao(int d, long fid) const;
+  //! O gradiente de um campo de CELULA numa faceta.  Recebe o campo porque
+  //! o preditor o quer de `p` e a projecao de `dp` -- e tem de ser o MESMO
+  //! operador: e' o par `div`/`grad` que fecha, nao cada um.
+  double grad_campo(const CampoEscalar &campo, int d, long fid) const;
+  double velocidade_que_advecta(int d, long fid, int e, int s) const;
 
   const Malha *m_ = nullptr;
   const DominioFacetas *fd_ = nullptr;
@@ -306,6 +363,13 @@ class NavierStokes {
   //! tem por que saber disso.  A chave quantiza em `h/2`, que e' exato para as
   //! posicoes de faceta de uma malha uniforme.
   std::unordered_map<unsigned long long, long> fac_por_ponto_[2];
+
+  //! Dono de cada faceta, por direcao.  Montado uma vez.
+  std::vector<Dono> dono_[2];
+
+  //! `(bloco, folha)` por id global.  `id_do_ponto` devolve id, e todo o
+  //! estencil precisa de `(b, i)` para perguntar lado, nivel e sub-facetas.
+  std::unordered_map<long, std::pair<long, long>> bi_por_id_;
   mutable long rebaixos_conv_ = 0;
 
   Tempo tempo_ = Tempo::EulerExplicito;

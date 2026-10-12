@@ -218,6 +218,32 @@ NavierStokes::NavierStokes(const Malha &m, const DominioFacetas &fd,
         "Dirichlet em pelo menos um ponto de parede; numa solucao manufaturada "
         "o valor ali e' conhecido.");
 
+  // `(bloco, folha)` POR ID, e o DONO de cada faceta.  Os dois sao consultados
+  // uma vez por termo por faceta; monta-los por varredura a cada consulta
+  // daria o mesmo quadratico que ja' custou caro no Poisson.
+  bi_por_id_.reserve(static_cast<size_t>(m.num_folhas()) * 2);
+  for (long b = 0; b < m.num_blocos(); b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
+      bi_por_id_[m.id_global(b, i)] = {b, i};
+
+  for (int d = 0; d < 2; d++) dono_[d].assign(
+      static_cast<size_t>(fd.num_facetas(d)), Dono{-1, -1, -1});
+  for (long b = 0; b < m.num_blocos(); b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
+      for (int d = 0; d < 2; d++)
+        for (int lado = 0; lado < 2; lado++) {
+          const long f = fd.id_faceta(b, i, d, lado);
+          if (f >= 0) dono_[d][static_cast<size_t>(f)] = Dono{b, i, lado};
+        }
+  for (int d = 0; d < 2; d++)
+    for (long f = 0; f < fd.num_facetas(d); f++)
+      if (dono_[d][static_cast<size_t>(f)].b < 0)
+        throw std::runtime_error(
+            "NavierStokes: a faceta " + std::to_string(f) + " da direcao " +
+            std::to_string(d) + " nao tem dono.  O estencil se orienta pela "
+            "celula dona -- o passo ao longo da normal e' o lado DELA, e sem "
+            "dono nao ha' passo.");
+
   u_.preenche(0.0);
   ustar_.preenche(0.0);
   p_.preenche(0.0);
@@ -248,80 +274,6 @@ long NavierStokes::faceta_em(int d, const Ponto2 &x) const
 {
   const auto it = fac_por_ponto_[d].find(chave_de_ponto(x, h_min_));
   return (it == fac_por_ponto_[d].end()) ? -1 : it->second;
-}
-
-double NavierStokes::u_vizinha(int d, const Ponto2 &xf, int e, int s,
-                               bool *achou) const
-{
-  const long aqui_f = faceta_em(d, xf);
-  if (aqui_f < 0)
-    throw std::runtime_error(
-        "NavierStokes::u_vizinha: nao ha' faceta da direcao " +
-        std::to_string(d) + " em (" + std::to_string(xf[0]) + ", " +
-        std::to_string(xf[1]) + ").  Esta funcao fecha o contorno supondo que "
-        "a parede esta' a MEIO PASSO, e isso so' vale partindo de uma faceta "
-        "que existe.");
-
-  Ponto2 xn = xf;
-  xn[e] += s * h_[e];
-  const long f = faceta_em(d, xn);
-  if (f >= 0) {
-    if (achou) *achou = true;
-    return u_.em(d, f);
-  }
-  if (achou) *achou = false;
-
-  // FORA DO DOMINIO: a parede esta' no MEIO DO CAMINHO, e e' la' que a
-  // condicao vive.  Tomar a condicao no ponto fantasma em vez de na parede
-  // seria perguntar a uma regiao que nao o cobre -- e, com `padrao` instalado,
-  // obter resposta errada em silencio.
-  Ponto2 xp = xf;
-  xp[e] += s * h_[e] / 2.0;
-  const Contorno &c = bcu_[d]->em(xp);
-  const double dentro = u_.em(d, aqui_f);
-  switch (c.tipo) {
-    case TipoContorno::Dirichlet:
-      // REFLEXAO: a media entre o de dentro e o fantasma e' o valor na parede.
-      return 2.0 * c.g(xp) - dentro;
-    case TipoContorno::Neumann:
-      return dentro + s * h_[e] * c.g(xp);
-    case TipoContorno::Robin: {
-      double A = 0.0, B = 0.0;
-      c.afim(xp, h_[e], &A, &B);
-      return A * dentro + B;
-    }
-  }
-  return dentro;
-}
-
-double NavierStokes::velocidade_que_advecta(int d, const Ponto2 &xf, int e,
-                                            int s) const
-{
-  // A VELOCIDADE NA POSICAO DO FLUXO, que fica meio passo adiante na direcao
-  // `e`.  Para `e == d` essa posicao e' um CENTRO DE CELULA e a velocidade ali
-  // e' a media das duas facetas vizinhas; para `e != d` e' uma QUINA, e a
-  // velocidade que atravessa e' a componente `e`, media das duas facetas de
-  // direcao `e` que a cercam.
-  //
-  // Confundir as duas e' o erro classico do arranjo deslocado, e ele nao falha:
-  // produz um termo convectivo plausivel e errado.
-  if (e == d) {
-    bool achou = false;
-    const double adiante = u_vizinha(d, xf, d, s, &achou);
-    return 0.5 * (u_.em(d, faceta_em(d, xf)) + adiante);
-  }
-
-  // Quina: as duas facetas de direcao `e` adjacentes, uma de cada lado em `d`.
-  Ponto2 a = xf, b = xf;
-  a[e] += s * h_[e] / 2.0;
-  a[d] -= h_[d] / 2.0;
-  b[e] += s * h_[e] / 2.0;
-  b[d] += h_[d] / 2.0;
-  const long fa = faceta_em(e, a), fb = faceta_em(e, b);
-  if (fa >= 0 && fb >= 0) return 0.5 * (u_.em(e, fa) + u_.em(e, fb));
-  if (fa >= 0) return u_.em(e, fa);
-  if (fb >= 0) return u_.em(e, fb);
-  return 0.0;
 }
 
 // ===========================================================================
@@ -359,110 +311,247 @@ double nvd(Convectivo c, double fc)
 
 }  // namespace
 
-double NavierStokes::valor_na_face(int d, const Ponto2 &xf, int e, int s,
+double NavierStokes::contorno_vizinho(int d, long fid, int e, int s) const
+{
+  // O FECHAMENTO DE CONTORNO, com a parede a MEIO LADO DA CELULA DONA.
+  //
+  // `h/2` da celula dona, e nao um `h` global: numa malha adaptada a faceta
+  // junto a' parede pode ser fina ou grossa, e refletir pela distancia errada
+  // poe a parede no lugar errado -- sem erro visivel, com a condicao valendo
+  // em outro ponto.
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  const Ponto2 xf = fd_->centro(d, fid);
+  const double aqui = u_.em(d, fid);
+  if (e == d) return aqui;              // nao ocorre em faceta interior
+
+  Ponto2 xp = xf;
+  xp[e] += s * hC[e] / 2.0;
+  const Contorno &c = bcu_[d]->em(xp);
+  switch (c.tipo) {
+    case TipoContorno::Dirichlet:
+      return 2.0 * c.g(xp) - aqui;      // reflexao: a media da' o valor na parede
+    case TipoContorno::Neumann:
+      return aqui + s * hC[e] * c.g(xp);
+    case TipoContorno::Robin: {
+      double A = 0.0, B = 0.0;
+      c.afim(xp, hC[e], &A, &B);
+      return A * aqui + B;
+    }
+  }
+  return aqui;
+}
+
+double NavierStokes::dist_ate_parede(int d, long fid, int e, int s) const
+{
+  (void) s;
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  // O FANTASMA esta' a' distancia de um lado inteiro: meio ate' a parede, meio
+  // do outro lado dela.
+  return hC[e];
+}
+
+double NavierStokes::comprimento_do_volume(int d, long fid, int e) const
+{
+  // O VOLUME DE CONTROLE DA FACETA: meia celula de cada lado ao longo da
+  // normal, e a celula dona inteira na transversal.
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  if (e != d) return hC[e];
+
+  const Ponto2 xf = fd_->centro(d, fid);
+  double soma = 0.0;
+  int n = 0;
+  for (int lado = 0; lado < 2; lado++) {
+    Ponto2 p = xf;
+    p[d] += (lado == 0 ? -1.0 : 1.0) * h_min_[d] / 4.0;
+    const long id = m_->id_do_ponto(p);
+    const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+    if (it == bi_por_id_.end()) continue;
+    soma += m_->lados_da_folha(it->second.first, it->second.second)[d] / 2.0;
+    n++;
+  }
+  return (n == 2) ? soma : hC[d];
+}
+
+double NavierStokes::velocidade_que_advecta(int d, long fid, int e, int s) const
+{
+  // A VELOCIDADE NA POSICAO DO FLUXO.  Para `e == d` essa posicao e' um CENTRO
+  // DE CELULA e a componente que atravessa e' a propria `d`; para `e != d` e'
+  // uma QUINA, e a que atravessa e' a componente `e`.
+  //
+  // Confundir as duas e' o erro classico do arranjo deslocado, e ele nao
+  // falha: produz um termo convectivo plausivel e errado.
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  const Ponto2 cC = m_->centroide(dn.b, dn.i);
+  const Ponto2 xf = fd_->centro(d, fid);
+  bool ok = false;
+
+  if (e == d) {
+    Ponto2 p = xf;
+    p[d] += s * h_min_[d] / 4.0;
+    const long id = m_->id_do_ponto(p);
+    const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+    if (it == bi_por_id_.end()) return u_.em(d, fid);
+    const double v = u_no_ponto(
+        d, m_->centroide(it->second.first, it->second.second), &ok);
+    return ok ? v : u_.em(d, fid);
+  }
+
+  Ponto2 quina = xf;
+  quina[e] = cC[e] + s * hC[e] / 2.0;
+  const double v = u_no_ponto(e, quina, &ok);
+  return ok ? v : 0.0;
+}
+
+double NavierStokes::valor_na_face(int d, long fid, int e, int s,
                                    double V) const
 {
   // QUEM E' `C`, `D` E `U` DEPENDE DO SINAL DE `V`, e nao da geometria: o
   // esquema olha para montante, e montante troca de lado quando o escoamento
-  // troca.  Fixar `C` como "o daqui" e' o erro que faz o upwind virar
-  // downwind na metade do dominio, e ele nao falha -- difunde.
-  bool tem_d = false, tem_u = false;
-  const double aqui = u_.em(d, faceta_em(d, xf));
-  const double alem = u_vizinha(d, xf, e, s, &tem_d);
+  // troca.  Fixar `C` como "o daqui" faz o upwind virar downwind na metade do
+  // dominio, e isso nao falha -- difunde.
+  const double aqui = u_.em(d, fid);
+  const Vizinha vz = vizinha_de(d, fid, e, s);
+  const double alem = vz.dentro ? vz.valor : contorno_vizinho(d, fid, e, s);
+
+  if (conv_ == Convectivo::Upwind1) return (V >= 0.0) ? aqui : alem;
+  if (conv_ == Convectivo::Central) return 0.5 * (aqui + alem);
 
   double phiC, phiD, phiU;
+  bool tem_u = false;
   if (V >= 0.0) {
     phiC = aqui;
     phiD = alem;
-    phiU = u_vizinha(d, xf, e, -s, &tem_u);
+    // O PONTO A MONTANTE TEM DE EXISTIR DE VERDADE.  Fora do dominio ha' o
+    // fantasma do contorno, e usa-lo aqui seria legitimo -- mas e' OUTRO
+    // esquema, e trocar o esquema junto com o suporte 2:1 faria qualquer
+    // diferenca medida ficar sem dono.  Fora do dominio, rebaixa e CONTA.
+    const Vizinha vu = vizinha_de(d, fid, e, -s);
+    tem_u = vu.dentro;
+    phiU = vu.dentro ? vu.valor : phiC;
   } else {
     phiC = alem;
     phiD = aqui;
-    // O ponto a montante agora esta' DOIS passos adiante, e aqui o fechamento
-    // de contorno NAO vale.
-    //
-    // `u_vizinha` supoe que a parede esta' a meio passo -- o que e' verdade
-    // para o PRIMEIRO passo para fora, e falso para o segundo: dali a parede
-    // ja' ficou para tras, e o ponto medio cai fora do dominio.  Chamando-a
-    // mesmo assim, o contorno e' consultado num ponto que regiao nenhuma
-    // cobre; com `padrao` instalado isso nao lanca, devolve a condicao errada
-    // em silencio.
-    //
-    // Entao a busca aqui e' ESTRITA: ou a faceta existe, ou o esquema de
-    // segunda ordem nao tem como ser montado e cai para upwind, contado.
-    Ponto2 x2 = xf, x3 = xf;
-    x2[e] += s * h_[e];
-    x3[e] += 2.0 * s * h_[e];
-    const long f3 = faceta_em(d, x3);
-    if (f3 >= 0) {
-      phiU = u_.em(d, f3);
-      tem_u = true;
-    } else {
-      tem_u = false;
-      phiU = phiC;
-    }
+    // O PONTO A MONTANTE ESTA' DOIS PASSOS ADIANTE, e ali o fechamento de
+    // contorno NAO vale: ele supoe a parede a meio caminho, e do segundo
+    // passo em diante ela ja' ficou para tras.  A busca e' ESTRITA.
+    Ponto2 x2 = fd_->centro(d, fid);
+    x2[e] += 2.0 * s * m_->lados_da_folha(dono_[d][static_cast<size_t>(fid)].b,
+                                          dono_[d][static_cast<size_t>(fid)].i)[e];
+    const long f2 = faceta_em(d, x2);
+    if (f2 >= 0) { phiU = u_.em(d, f2); tem_u = true; }
+    else { phiU = phiC; tem_u = false; }
   }
-
-  if (conv_ == Convectivo::Upwind1) return phiC;
-  if (conv_ == Convectivo::Central) return 0.5 * (phiC + phiD);
 
   // SEM O PONTO A MONTANTE o esquema de segunda ordem nao existe, e a queda
-  // para upwind e' CONTADA.  Perto da parede isso e' inevitavel; no meio do
+  // para upwind e' CONTADA.  Perto da parede e' inevitavel; no meio do
   // dominio seria sintoma.
-  if (!tem_u) {
-    rebaixos_conv_++;
-    return phiC;
-  }
+  if (!tem_u) { rebaixos_conv_++; return phiC; }
 
   const double den = phiD - phiU;
-  if (std::fabs(den) < EPS) return phiC;        // campo localmente plano
+  if (std::fabs(den) < EPS) return phiC;          // campo localmente plano
   const double fc = (phiC - phiU) / den;
   return phiU + nvd(conv_, fc) * den;
 }
 
-double NavierStokes::conveccao(int d, const Ponto2 &xf) const
+double NavierStokes::conveccao(int d, long fid) const
 {
-  // FORMA DIVERGENTE, `sum_e d(u_e u_d)/dx_e`, e nao a advectiva `u_e du_d/dx_e`.
+  // FORMA DIVERGENTE, `sum_e d(u_e u_d)/dx_e`, e nao a advectiva.
   //
-  // As duas coincidem no continuo porque a divergencia e' nula, e NAO coincidem
-  // no discreto: a divergente conserva quantidade de movimento por construcao,
-  // e a advectiva so' a conserva quando a divergencia discreta ja' e' nula --
-  // o que no meio do passo ela nao e'.
+  // As duas coincidem no continuo porque a divergencia e' nula, e NAO
+  // coincidem no discreto: a divergente conserva quantidade de movimento por
+  // construcao, e a advectiva so' a conserva quando a divergencia discreta ja'
+  // e' nula -- o que no meio do passo ela nao e'.
   double soma = 0.0;
   for (int e = 0; e < 2; e++) {
-    const double Vp = velocidade_que_advecta(d, xf, e, +1);
-    const double Vm = velocidade_que_advecta(d, xf, e, -1);
-    const double fp = valor_na_face(d, xf, e, +1, Vp);
-    const double fm = valor_na_face(d, xf, e, -1, Vm);
-    soma += (Vp * fp - Vm * fm) / h_[e];
+    const double Vp = velocidade_que_advecta(d, fid, e, +1);
+    const double Vm = velocidade_que_advecta(d, fid, e, -1);
+    const double fp = valor_na_face(d, fid, e, +1, Vp);
+    const double fm = valor_na_face(d, fid, e, -1, Vm);
+    const double L = comprimento_do_volume(d, fid, e);
+    if (L > 0.0) soma += (Vp * fp - Vm * fm) / L;
   }
   return soma;
 }
 
-double NavierStokes::difusao(int d, const Ponto2 &xf) const
+double NavierStokes::difusao(int d, long fid) const
 {
-  const double aqui = u_.em(d, faceta_em(d, xf));
+  // A SEGUNDA DERIVADA COM ESPACAMENTO DESIGUAL, e nao a de tres pontos
+  // igualmente espacados:
+  //
+  //     d2u/dx2 = 2/(dm+dp) . [ (up-u0)/dp - (u0-um)/dm ]
+  //
+  // Em malha uniforme `dm = dp` e ela vira a formula de sempre -- um caminho
+  // so', e e' por isso que os casos uniformes verificam este codigo.
+  //
+  // Na transicao a formula e' de PRIMEIRA ordem, e nao de segunda: com
+  // `dm != dp` o termo de terceira derivada nao cancela.  Isso e' propriedade
+  // do estencil desigual, nao defeito -- e o preco aparece na norma do maximo
+  // perto da interface, nao na norma 2.  Fica dito para nao ser atribuido ao
+  // esquema depois.
+  const double aqui = u_.em(d, fid);
   double lap = 0.0;
   for (int e = 0; e < 2; e++) {
-    const double mais = u_vizinha(d, xf, e, +1, nullptr);
-    const double menos = u_vizinha(d, xf, e, -1, nullptr);
-    lap += (mais - 2.0 * aqui + menos) / (h_[e] * h_[e]);
+    const Vizinha vp = vizinha_de(d, fid, e, +1);
+    const Vizinha vm = vizinha_de(d, fid, e, -1);
+    const double up = vp.dentro ? vp.valor : contorno_vizinho(d, fid, e, +1);
+    const double um = vm.dentro ? vm.valor : contorno_vizinho(d, fid, e, -1);
+    const double dp = vp.dentro ? vp.dist : dist_ate_parede(d, fid, e, +1);
+    const double dm = vm.dentro ? vm.dist : dist_ate_parede(d, fid, e, -1);
+    if (dp <= 0.0 || dm <= 0.0) continue;
+    lap += 2.0 / (dm + dp) * ((up - aqui) / dp - (aqui - um) / dm);
   }
   return lap / re_;
 }
 
-double NavierStokes::grad_pressao(int d, const Ponto2 &xf) const
+double NavierStokes::grad_campo(const CampoEscalar &campo, int d,
+                                long fid) const
 {
-  // A PRESSAO VIVE NOS CENTROS e a faceta esta' EXATAMENTE entre dois deles --
-  // e' isso que o arranjo deslocado compra: o gradiente na faceta e' uma
-  // diferenca de dois pontos, de segunda ordem, sem interpolacao e sem o modo
-  // de tabuleiro que o arranjo colocado admite.
-  Ponto2 a = xf, b = xf;
-  a[d] -= h_[d] / 2.0;
-  b[d] += h_[d] / 2.0;
-  const long ca = m_->id_do_ponto(a), cb = m_->id_do_ponto(b);
-  if (ca < 0 || cb < 0) return 0.0;   // faceta de contorno: nao se resolve ali
-  return (p_.em(cb) - p_.em(ca)) / h_[d];
+  // A PRESSAO VIVE NOS CENTROS, e a faceta esta' entre dois deles -- mas em
+  // malha adaptada NAO esta' no meio, e os centros NAO estao alinhados com a
+  // normal.  Sao dois consertos, e nenhum e' opcional.
+  //
+  // A DISTANCIA e' a soma dos dois meios-lados, `(h_menos + h_mais)/2`, e nao
+  // `h`.  Usar `h` da celula fina daria um gradiente duas vezes maior do lado
+  // grosso.
+  //
+  // A CORRECAO TRANSVERSAL desloca o valor do lado GROSSO para a linha
+  // transversal da faceta: o centro da grossa esta' deslocado em `t`, e a
+  // diferenca bruta mede a derivada ao longo da LINHA DOS CENTROS, que tem
+  // componente transversal.  Para a celula FINA esse erro NAO cancela, porque
+  // ela ve' uma unica face contra a grossa.
+  //
+  // MEDIDO NO POISSON deste mesmo projeto, sem a correcao: o grau 1, exato em
+  // malha uniforme, deu 3,9e-02 na adaptada, e a solucao trigonometrica teve
+  // ordem NEGATIVA.  Nao era erro de O(h): era de O(1).
+  const Ponto2 xf = fd_->centro(d, fid);
+  const int t = 1 - d;
+
+  long bi[2] = {-1, -1}, ii[2] = {-1, -1};
+  for (int lado = 0; lado < 2; lado++) {
+    Ponto2 p = xf;
+    p[d] += (lado == 0 ? -1.0 : 1.0) * h_min_[d] / 4.0;
+    const long id = m_->id_do_ponto(p);
+    const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+    if (it == bi_por_id_.end()) return 0.0;   // faceta de contorno: nao se resolve ali
+    bi[lado] = it->second.first;
+    ii[lado] = it->second.second;
+  }
+
+  double val[2], meio[2];
+  for (int lado = 0; lado < 2; lado++) {
+    const Ponto2 c = m_->centroide(bi[lado], ii[lado]);
+    const Ponto2 hh = m_->lados_da_folha(bi[lado], ii[lado]);
+    meio[lado] = hh[d] / 2.0;
+    const double delta = xf[t] - c[t];        // zero quando os centros alinham
+    val[lado] = campo.em(m_->id_global(bi[lado], ii[lado]));
+    if (std::fabs(delta) > 1e-14 * hh[t])
+      val[lado] += delta * grad_transversal(campo, bi[lado], ii[lado], t);
+  }
+  return (val[1] - val[0]) / (meio[0] + meio[1]);
 }
 
 // ===========================================================================
@@ -477,9 +566,11 @@ void NavierStokes::aplica_contorno_velocidade()
   for (int d = 0; d < 2; d++)
     for (long f = 0; f < fd_->num_facetas(d); f++) {
       const Ponto2 x = fd_->centro(d, f);
+      const Dono &dn = dono_[d][static_cast<size_t>(f)];
+      const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
       Ponto2 a = x, b = x;
-      a[d] -= h_[d] / 2.0;
-      b[d] += h_[d] / 2.0;
+      a[d] -= h_min_[d] / 4.0;
+      b[d] += h_min_[d] / 4.0;
       const long ca = m_->id_do_ponto(a), cb = m_->id_do_ponto(b);
       if (ca >= 0 && cb >= 0) continue;        // interior
       if (ca < 0 && cb < 0)
@@ -494,11 +585,14 @@ void NavierStokes::aplica_contorno_velocidade()
         // NEUMANN NA COMPONENTE NORMAL: `du/dn = g`, e o unico valor interior
         // disponivel esta' uma faceta adentro.
         const int s = (ca >= 0) ? -1 : +1;      // para dentro
+        // O PASSO E' O LADO DA CELULA DONA, nao um `h` global: a faceta junto
+        // a' parede pode ser fina ou grossa, e extrapolar pela distancia
+        // errada poe a condicao valendo em outro ponto, sem erro visivel.
         Ponto2 xi = x;
-        xi[d] += s * h_[d];
+        xi[d] += s * hC[d];
         const long fi = faceta_em(d, xi);
         if (fi < 0) continue;                   // dominio de uma celula so'
-        u_.em(d, f) = u_.em(d, fi) - s * h_[d] * c.g(x);
+        u_.em(d, f) = u_.em(d, fi) - s * hC[d] * c.g(x);
       }
     }
 }
@@ -515,17 +609,17 @@ void NavierStokes::preditor()
     for (long f = 0; f < fd_->num_facetas(d); f++) {
       const Ponto2 x = fd_->centro(d, f);
       Ponto2 a = x, b = x;
-      a[d] -= h_[d] / 2.0;
-      b[d] += h_[d] / 2.0;
+      a[d] -= h_min_[d] / 4.0;
+      b[d] += h_min_[d] / 4.0;
       if (m_->id_do_ponto(a) < 0 || m_->id_do_ponto(b) < 0) continue;
 
-      double rhs = -conveccao(d, x) + difusao(d, x);
+      double rhs = -conveccao(d, f) + difusao(d, f);
 
       // A PRESSAO ANTIGA ENTRA SO' NA INCREMENTAL, e e' nisso que as duas
       // diferem.  Sem ela o preditor ignora o gradiente que ja' se conhece, e
       // a projecao tem de reconstrui-lo inteiro a cada passo -- o que custa
       // uma ordem na pressao.
-      if (proj_ == Projecao::Incremental) rhs -= grad_pressao(d, x);
+      if (proj_ == Projecao::Incremental) rhs -= grad_campo(p_, d, f);
 
       if (fonte_faceta_) rhs += fonte_faceta_(x, d, t_bc_);
 
@@ -537,20 +631,16 @@ void NavierStokes::resolve_pressao()
 {
   // O POISSON DA PROJECAO: `lap(dp) = div(u*) / dt`.
   //
-  // A CONDICAO DELE NAO E' A DA PRESSAO, e' DERIVADA dela, e confundir as duas
-  // e' erro de formulacao e nao de implementacao:
-  //
-  //   onde a pressao tem NEUMANN, o incremento tem Neumann HOMOGENEO -- a
-  //   componente normal da velocidade ja' satisfaz a condicao depois do
-  //   preditor, e a projecao nao pode altera-la;
-  //
-  //   onde a pressao tem DIRICHLET, o incremento tem Dirichlet do VALOR na
-  //   nao incremental (ali `p = dp`) e HOMOGENEO na incremental (ali o valor
-  //   ja' esta' em `p^n`).  Na incremental isso exige que `p^0` satisfaca a
-  //   condicao -- com `p^0 = 0` e saida em zero, satisfaz.
+  // A CONDICAO DELE NAO E' A DA PRESSAO, e' DERIVADA dela -- confundir as duas
+  // e' erro de formulacao, nao de implementacao.  Onde a pressao tem NEUMANN o
+  // incremento tem Neumann HOMOGENEO; onde tem DIRICHLET, o incremento vale
+  // `g` na nao incremental (ali `p = dp`) e `g - p^n_parede` na incremental --
+  // Dirichlet homogeneo prenderia a VARIACAO e nao a pressao, e o nivel ficaria
+  // no que o transiente deixou.
   const long n = m_->num_folhas();
   const long p0 = m_->primeiro_id();
-  t8flow::Solver s(t8flow::Motor::Petsc, static_cast<int>(p0), static_cast<std::size_t>(n), 5);
+  t8flow::Solver s(t8flow::Motor::Petsc, static_cast<int>(p0),
+                   static_cast<std::size_t>(n), 9);
   double soma_b = 0.0;
   s.tolerancia(1e-12);
 
@@ -562,82 +652,141 @@ void NavierStokes::resolve_pressao()
       const double vol = hh[0] * hh[1];
 
       std::map<long, double> linha;
-      double diag = 0.0, rhs = 0.0;
+      double rhs = 0.0;
 
       for (int d = 0; d < 2; d++) {
-        const double area = hh[(d + 1) % 2];
-        for (int s2 = -1; s2 <= 1; s2 += 2) {
-          Ponto2 xn = c;
-          xn[d] += s2 * hh[d];
-          const long viz = m_->id_do_ponto(xn);
+        const int t = 1 - d;
+        for (int lado = 0; lado < 2; lado++) {
+          const double sinal = (lado == 0) ? -1.0 : 1.0;
 
-          Ponto2 xp = c;
-          xp[d] += s2 * hh[d] / 2.0;          // a parede/faceta
-
-          // A DIVERGENCIA DE `u*`, montada na MESMA varredura: a faceta e' a
-          // mesma, e percorre-la duas vezes abriria espaco para as duas
-          // contas discordarem na borda.
-          const long fid = faceta_em(d, xp);
-          if (fid >= 0) {
-            const double fluxo = s2 * ustar_.em(d, fid) * area / dt_;
+          // A DIVERGENCIA DE `u*` SOMA AS SUB-FACETAS, na mesma varredura: a
+          // faceta e' a mesma, e percorre-la duas vezes abriria espaco para as
+          // duas contas discordarem na borda.
+          const std::vector<SubFaceta> sfs = sub_facetas(b, i, d, lado);
+          for (const SubFaceta &sf : sfs) {
+            const double fluxo = sinal * ustar_.em(d, sf.id) * sf.medida / dt_;
             rhs += fluxo;
-            // SO' O FLUXO entra na compatibilidade, e nao o resto do lado
-            // direito.  O termo da condicao de Dirichlet tambem vai para o
-            // lado direito e NAO e' divergencia: soma-lo aqui faria o
-            // diagnostico acusar incompatibilidade onde nao ha', e um
-            // oraculo que acusa sem motivo acaba ignorado -- junto com a
-            // acusacao verdadeira.
             soma_b += fluxo;
           }
 
-          if (viz >= 0) {
-            linha[viz] += area / hh[d];
-            diag -= area / hh[d];
-            continue;
-          }
-
-          const Contorno &cp = bcp_->em(xp);
-          if (cp.tipo == TipoContorno::Dirichlet) {
-            // O VALOR DO INCREMENTO NA PAREDE NAO E' ZERO NA INCREMENTAL, e
-            // supor que fosse custou um nivel de pressao inteiro.
-            //
-            // A condicao e' `p^{n+1} = g`, logo `dp_parede = g - p^n_parede`.
-            // Com Dirichlet HOMOGENEO no incremento, `dp = 0` resolve a
-            // equacao do ponto fixo seja qual for o nivel de `p` -- a
-            // condicao nao prende `p`, prende so' a VARIACAO dele.  Medido no
-            // canal: o primeiro passo, de partida impulsiva, deixava `p` em
-            // 62,99 perto da saida e o nivel ficava la' para sempre, com o
-            // GRADIENTE certo (22,74 contra 23,25 de faixa) e o campo inteiro
-            // deslocado.  A nao incremental nao sofria disso porque recalcula
-            // `p` do zero a cada passo.
-            //
-            // `p^n` na parede vem de EXTRAPOLACAO LINEAR das duas celulas mais
-            // proximas -- a parede esta' a `h/2` da primeira e a `3h/2` da
-            // segunda, logo `p_parede = (3 p_c - p_cc)/2`.  Extrapolar a ordem
-            // zero (`p_parede = p_c`) forcaria `p_c -> g` e introduziria um
-            // erro de `h/2` vezes o gradiente -- exatamente o tipo de erro que
-            // parece pequeno e e' de primeira ordem.
+          const std::vector<long> vz = m_->ids_vizinhos(b, i, 2 * d + lado);
+          if (vz.empty()) {
+            // ---- parede ------------------------------------------------
+            Ponto2 xp = c;
+            xp[d] += sinal * hh[d] / 2.0;
+            const Contorno &cp = bcp_->em(xp);
+            if (cp.tipo != TipoContorno::Dirichlet) continue;   // Neumann: fluxo nulo
             double val = cp.g(xp);
             if (proj_ == Projecao::Incremental) {
               Ponto2 xcc = c;
-              xcc[d] -= s2 * hh[d];
+              xcc[d] -= sinal * hh[d];
               const long cc = m_->id_do_ponto(xcc);
-              const double p_parede = (cc >= 0)
-                                          ? 1.5 * p_.em(id) - 0.5 * p_.em(cc)
-                                          : p_.em(id);
+              const double p_parede =
+                  (cc >= 0) ? 1.5 * p_.em(id) - 0.5 * p_.em(cc) : p_.em(id);
               val -= p_parede;
             }
-            diag -= 2.0 * area / hh[d];
-            rhs -= 2.0 * area * val / hh[d];
+            linha[id] -= 2.0 * hh[t] / hh[d];
+            rhs -= 2.0 * hh[t] * val / hh[d];
+            continue;
           }
-          // NEUMANN HOMOGENEO: fluxo nulo, nada a somar -- e e' por isso que
-          // nao ha' ramo.  Escrever `+= 0` convidaria alguem a "consertar".
+
+          // ---- face interna, UNIFORME OU EM TRANSICAO 2:1, uma formula ---
+          //
+          //     |face| = o menor dos dois lados transversais
+          //     dist   = (h_self + h_viz) / 2
+          //     coef   = |face| / dist
+          //
+          // UMA formula e nao tres (uniforme, grossa->fina, fina->grossa):
+          // tres divergem, e divergir aqui quebra a CONSERVACAO sem quebrar
+          // nada visivel.  Ela e' conservativa por construcao -- o coeficiente
+          // que a grossa usa para cada fina e' IGUAL ao que a fina usa para a
+          // grossa, logo o que sai de uma entra na outra e a matriz fica
+          // simetrica.
+          const std::vector<int> nvz = m_->niveis_vizinhos(b, i, 2 * d + lado);
+          const int nivel_self = m_->nivel(b, i);
+          for (size_t k = 0; k < vz.size(); k++) {
+            const int dn = nivel_self - (k < nvz.size() ? nvz[k] : nivel_self);
+            const double fator = std::pow(2.0, static_cast<double>(dn));
+            const double h_viz = hh[d] * fator;
+            const double face = hh[t] * std::fmin(1.0, fator);
+            const double dist = (hh[d] + h_viz) / 2.0;
+            const double coef = face / dist;
+
+            linha[vz[k]] += coef;
+            linha[id] -= coef;
+
+            // ---- A CORRECAO TRANSVERSAL, e ela NAO e' opcional ----------
+            //
+            // Na transicao 2:1 os dois centros NAO estao alinhados com a
+            // normal: o centro da fina esta' deslocado um quarto de celula do
+            // centro da grossa.  A diferenca bruta mede a derivada ao longo da
+            // LINHA DOS CENTROS, que tem componente transversal -- e para a
+            // celula FINA esse erro NAO cancela, porque ela ve' uma unica face
+            // contra a grossa.
+            //
+            // MEDIDO no Poisson deste projeto, sem ela: o grau 1, exato em
+            // malha uniforme, deu 3,9e-02 na adaptada, e a trigonometrica teve
+            // ordem NEGATIVA.  Nao era erro de O(h): era de O(1).
+            //
+            // ENTRA COMO COEFICIENTE, e nao como correcao diferida com o
+            // incremento do passo anterior: diferida introduziria um erro de
+            // ordem `dt` que se atribuiria ao esquema.
+            const auto itv = bi_por_id_.find(vz[k]);
+            if (itv == bi_por_id_.end()) continue;
+            const long bv = itv->second.first, iv = itv->second.second;
+            const Ponto2 cv = m_->centroide(bv, iv);
+            const double delta = cv[t] - c[t];
+            if (std::fabs(delta) < 1e-14 * hh[t]) continue;
+
+            // O GRADIENTE E' AVALIADO NA CELULA GROSSA -- e' ela que precisa
+            // ser deslocada para a linha do centro da sub-face.  O SINAL nao
+            // depende de quem e' o grosso: refazendo a algebra, o fluxo da'
+            // `coef*p_viz - coef*p_self - coef*delta*(dp/dt)` nos dois casos,
+            // e o que muda e' so' ONDE a derivada e' avaliada.
+            const bool self_grosso = (h_viz < hh[d]);
+            const long gb = self_grosso ? b : bv;
+            const long gi = self_grosso ? i : iv;
+
+            // GRADIENTE TRANSVERSAL na grossa, como coeficientes.  Cada lado
+            // contribui com a media dos vizinhos dele; parede com Neumann
+            // homogeneo contribui com a PROPRIA celula, que e' o que
+            // `d(dp)/dn = 0` quer dizer.
+            const Ponto2 cg = m_->centroide(gb, gi);
+            const Ponto2 hg = m_->lados_da_folha(gb, gi);
+            const long gid = m_->id_global(gb, gi);
+            std::map<long, double> lado_v[2];
+            double dist_l[2] = {0.0, 0.0};
+            for (int lt = 0; lt < 2; lt++) {
+              const std::vector<long> vt = m_->ids_vizinhos(gb, gi, 2 * t + lt);
+              if (vt.empty()) {                      // parede: Neumann homogeneo
+                lado_v[lt][gid] = 1.0;
+                dist_l[lt] = hg[t] / 2.0;
+                continue;
+              }
+              double soma_d = 0.0;
+              int nn = 0;
+              for (long q : vt) {
+                const auto itq = bi_por_id_.find(q);
+                if (itq == bi_por_id_.end()) continue;
+                lado_v[lt][q] += 1.0;
+                soma_d += std::fabs(
+                    m_->centroide(itq->second.first, itq->second.second)[t] - cg[t]);
+                nn++;
+              }
+              if (nn == 0) { lado_v[lt][gid] = 1.0; dist_l[lt] = hg[t] / 2.0; continue; }
+              for (auto &kv : lado_v[lt]) kv.second /= nn;
+              dist_l[lt] = soma_d / nn;
+            }
+            const double dtot = dist_l[0] + dist_l[1];
+            if (dtot <= 0.0) continue;
+            for (const auto &kv : lado_v[1]) linha[kv.first] -= coef * delta * kv.second / dtot;
+            for (const auto &kv : lado_v[0]) linha[kv.first] += coef * delta * kv.second / dtot;
+          }
         }
       }
 
       if (fonte_celula_) rhs -= fonte_celula_(c) * vol;
 
-      linha[id] += diag;
       std::vector<int> cols;
       std::vector<double> vals;
       cols.reserve(linha.size());
@@ -673,13 +822,18 @@ void NavierStokes::projeta()
     for (long f = 0; f < fd_->num_facetas(d); f++) {
       const Ponto2 x = fd_->centro(d, f);
       Ponto2 a = x, b = x;
-      a[d] -= h_[d] / 2.0;
-      b[d] += h_[d] / 2.0;
-      const long ca = m_->id_do_ponto(a), cb = m_->id_do_ponto(b);
-      if (ca < 0 || cb < 0) continue;
+      a[d] -= h_min_[d] / 4.0;
+      b[d] += h_min_[d] / 4.0;
+      if (m_->id_do_ponto(a) < 0 || m_->id_do_ponto(b) < 0) continue;
 
+      // O GRADIENTE AQUI E' O MESMO OPERADOR DO PREDITOR, e tem de ser.
+      //
+      // Se a projecao usasse um gradiente diferente do que a divergencia do
+      // Poisson supos, o campo corrigido NAO teria divergencia nula e nada
+      // diria -- o solver convergiria igual.  E' o par `div`/`grad` que fecha,
+      // nao cada um.  Por isso a mesma funcao, com outro campo.
       const double antes = u_.em(d, f);
-      u_.em(d, f) = ustar_.em(d, f) - dt_ * (dp_.em(cb) - dp_.em(ca)) / h_[d];
+      u_.em(d, f) = ustar_.em(d, f) - dt_ * grad_campo(dp_, d, f);
       maxd = std::max(maxd, std::fabs(u_.em(d, f) - antes));
     }
   resid_estac_ = maxd / dt_;
@@ -698,22 +852,11 @@ void NavierStokes::passo()
     throw std::runtime_error("NavierStokes::passo: o passo de tempo nao foi "
                              "instalado -- chame passo_de_tempo primeiro");
 
-  // A TRANSICAO 2:1 E' RECUSADA AQUI, e nao na construcao.
-  //
-  // Os operadores de FLUXO ja' a tratam -- `divergencia_maxima` e o Poisson da
-  // projecao somam sub-facetas --, e medi-los numa malha adaptada e' parte de
-  // chegar la'.  O que falta e' o estencil da quantidade de movimento: numa
-  // faceta de velocidade a componente NORMAL se restringe por conservacao de
-  // vazao e a TANGENCIAL por interpolacao, e aplicar a mesma regra as duas
-  // produz divergencia que nao fecha -- defeito que aparece como o solver de
-  // pressao nao convergindo, longe da causa.
-  if (m_->num_folhas_em_transicao() > 0)
-    throw std::runtime_error(
-        "NavierStokes::passo: a malha tem " +
-        std::to_string(m_->num_folhas_em_transicao()) +
-        " folhas em transicao 2:1.  Os operadores de fluxo ja' a tratam; o "
-        "estencil da quantidade de movimento ainda nao -- a restricao da "
-        "componente normal e a da tangencial sao diferentes.");
+  // A TRANSICAO 2:1 NAO E' MAIS RECUSADA.  Os tres termos -- convectivo,
+  // difusivo e gradiente de pressao -- e o Poisson da projecao tratam faces
+  // de tamanhos diferentes pela mesma formula que trata as iguais, e os
+  // casos uniformes reproduzem BIT A BIT o que davam antes: o caminho geral
+  // reduz ao particular, logo eles verificam o codigo adaptado.
 
   // O RELOGIO DO CONTORNO: `t^n` para o preditor, `t^{n+1}` para a aplicacao
   // final.  Ver `instante_do_contorno` no cabecalho.
@@ -729,8 +872,8 @@ void NavierStokes::passo()
     for (long f = 0; f < fd_->num_facetas(d); f++) {
       const Ponto2 x = fd_->centro(d, f);
       Ponto2 a = x, b = x;
-      a[d] -= h_[d] / 2.0;
-      b[d] += h_[d] / 2.0;
+      a[d] -= h_min_[d] / 4.0;
+      b[d] += h_min_[d] / 4.0;
       if (m_->id_do_ponto(a) >= 0 && m_->id_do_ponto(b) >= 0) continue;
       ustar_.em(d, f) = u_.em(d, f);
     }
@@ -815,6 +958,190 @@ double NavierStokes::divergencia_maxima() const
       maxv = std::max(maxv, std::fabs(fluxo / vol));
     }
   return maxv;
+}
+
+// ===========================================================================
+// AS PRIMITIVAS DO ESTENCIL EM MALHA ADAPTADA
+// ===========================================================================
+
+double NavierStokes::media_de_fluxo(long b, long i, int d, int lado) const
+{
+  double num = 0.0, den = 0.0;
+  for (const SubFaceta &sf : sub_facetas(b, i, d, lado)) {
+    num += u_.em(d, sf.id) * sf.medida;
+    den += sf.medida;
+  }
+  return (den > 0.0) ? num / den : 0.0;
+}
+
+double NavierStokes::u_no_ponto(int d, const Ponto2 &x, bool *dentro) const
+{
+  // CAMINHO CURTO: ha' faceta exatamente aqui.  E' o unico que roda em malha
+  // uniforme, e e' por isso que os casos uniformes verificam este codigo.
+  const long f = faceta_em(d, x);
+  if (f >= 0) {
+    if (dentro) *dentro = true;
+    return u_.em(d, f);
+  }
+
+  // NAO HA' FACETA: o ponto cai no MEIO de uma celula na direcao `d` -- e' o
+  // que acontece com a face de uma fina contra a grossa vizinha.  O valor sai
+  // da interpolacao linear entre as DUAS faces de direcao `d` dessa celula.
+  const long id = m_->id_do_ponto(x);
+  if (id < 0) {
+    if (dentro) *dentro = false;
+    return 0.0;
+  }
+  const auto it = bi_por_id_.find(id);
+  if (it == bi_por_id_.end()) {
+    if (dentro) *dentro = false;
+    return 0.0;
+  }
+  const long b = it->second.first, i = it->second.second;
+  const Ponto2 c = m_->centroide(b, i);
+  const Ponto2 hh = m_->lados_da_folha(b, i);
+
+  auto dentro_da_celula = [&](long bb, long ii) {
+    const Ponto2 cc = m_->centroide(bb, ii);
+    const Ponto2 h2 = m_->lados_da_folha(bb, ii);
+    const double vm = media_de_fluxo(bb, ii, d, 0);
+    const double vp = media_de_fluxo(bb, ii, d, 1);
+    double lam = (x[d] - (cc[d] - h2[d] / 2.0)) / h2[d];
+    if (lam < 0.0) lam = 0.0;
+    if (lam > 1.0) lam = 1.0;
+    return (1.0 - lam) * vm + lam * vp;
+  };
+
+  const double v_aqui = dentro_da_celula(b, i);
+
+  // E A INTERPOLACAO TRANSVERSAL, que faltava e nao e' detalhe.
+  //
+  // As facetas de direcao `d` ficam no centro da celula na direcao `q = 1-d`.
+  // Um ponto FORA desse centro -- a QUINA do volume de controle, por exemplo,
+  // que e' onde a velocidade que advecta e' avaliada -- nao e' representado
+  // por interpolacao so' ao longo de `d`.
+  //
+  // MEDIDO ao esquecer disto: a quina devolvia a faceta de UMA das duas
+  // celulas vizinhas em vez da media das duas, e o erro da caixa manufaturada
+  // subiu 20% em `u` e 37% em `v`.  O canal mal se mexeu -- nele `v` e' nulo e
+  // o convectivo se anula --, que e' exatamente por que ele nao serve para
+  // verificar isto.
+  const int q = 1 - d;
+  const double delta = x[q] - c[q];
+  if (std::fabs(delta) < 1e-12 * hh[q]) {
+    if (dentro) *dentro = true;
+    return v_aqui;
+  }
+
+  Ponto2 pv = x;
+  pv[q] = c[q] + (delta > 0.0 ? 1.0 : -1.0) * (hh[q] / 2.0 + h_min_[q] / 4.0);
+  pv[d] = c[d];                        // dentro da faixa, para a busca nao errar
+  const long idv = m_->id_do_ponto(pv);
+  const auto itv = (idv >= 0) ? bi_por_id_.find(idv) : bi_por_id_.end();
+  if (itv == bi_por_id_.end()) {        // sem vizinha: nao ha' o que interpolar
+    if (dentro) *dentro = true;
+    return v_aqui;
+  }
+  const long bv = itv->second.first, iv = itv->second.second;
+  const double hv = m_->lados_da_folha(bv, iv)[q];
+  const double v_viz = dentro_da_celula(bv, iv);
+  double mu = std::fabs(delta) / ((hh[q] + hv) / 2.0);
+  if (mu > 1.0) mu = 1.0;
+  if (dentro) *dentro = true;
+  return (1.0 - mu) * v_aqui + mu * v_viz;
+}
+
+NavierStokes::Vizinha NavierStokes::vizinha_de(int d, long fid, int e,
+                                               int s) const
+{
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 xf = fd_->centro(d, fid);
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  const Ponto2 cC = m_->centroide(dn.b, dn.i);
+  Vizinha v;
+
+  if (e == d) {
+    // AO LONGO DA NORMAL: o vizinho e' a OUTRA FACE de uma celula, e a
+    // distancia e' o lado DELA.  Isso vale sempre -- entre duas faces opostas
+    // da mesma celula a distancia e' exatamente o lado, em qualquer nivel.
+    const bool para_dentro = (dn.lado == 0) ? (s > 0) : (s < 0);
+    if (para_dentro) {
+      v.valor = media_de_fluxo(dn.b, dn.i, d, 1 - dn.lado);
+      v.dist = hC[d];
+      v.dentro = true;
+      return v;
+    }
+    // Para fora da celula dona: atravessa a do outro lado da faceta.
+    Ponto2 p = xf;
+    p[d] += s * h_min_[d] / 4.0;          // um cutucao, so' para cair dentro
+    const long id = m_->id_do_ponto(p);
+    const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+    if (it == bi_por_id_.end()) { v.dentro = false; return v; }
+    const long bb = it->second.first, ii = it->second.second;
+    // A faceta e' a face "menos" dessa celula quando se anda em +d.
+    const int lado_perto = (s > 0) ? 0 : 1;
+    v.valor = media_de_fluxo(bb, ii, d, 1 - lado_perto);
+    v.dist = m_->lados_da_folha(bb, ii)[d];
+    v.dentro = true;
+    return v;
+  }
+
+  // TRANSVERSALMENTE: atravessa a face de `t` da celula dona.  A distancia e'
+  // a MEIA-SOMA dos lados das duas -- a distancia entre os centros --, e nao o
+  // lado de nenhuma delas.
+  const int t = e;
+  Ponto2 p = xf;
+  // O cutucao em `d` poe o ponto DENTRO da faixa da celula dona: `xf` esta'
+  // exatamente sobre a face, e sem isso a busca pode cair na celula errada.
+  p[d] += (dn.lado == 0 ? 1.0 : -1.0) * h_min_[d] / 4.0;
+  p[t] = cC[t] + s * (hC[t] / 2.0 + h_min_[t] / 4.0);
+  const long id = m_->id_do_ponto(p);
+  const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+  if (it == bi_por_id_.end()) { v.dentro = false; return v; }
+  const long bb = it->second.first, ii = it->second.second;
+  const Ponto2 hN = m_->lados_da_folha(bb, ii);
+  const Ponto2 cN = m_->centroide(bb, ii);
+
+  // O ALVO esta' na coordenada `d` DA FACETA e na linha de centro da vizinha.
+  Ponto2 alvo;
+  alvo[d] = xf[d];
+  alvo[t] = cN[t];
+  bool ok = false;
+  v.valor = u_no_ponto(d, alvo, &ok);
+  v.dist = (hC[t] + hN[t]) / 2.0;
+  v.dentro = ok;
+  return v;
+}
+
+double NavierStokes::grad_transversal(const CampoEscalar &campo, long b,
+                                      long i, int t) const
+{
+  // DIFERENCA CENTRAL entre os vizinhos em `t`, ou lateral quando so' ha' um.
+  // Sem vizinho de nenhum lado o gradiente e' nulo -- celula isolada na
+  // direcao transversal, que so' acontece num dominio de uma celula.
+  const Ponto2 c = m_->centroide(b, i);
+  const double pc = campo.em(m_->id_global(b, i));
+  double va = pc, vb = pc, da = 0.0, db = 0.0;
+  for (int lado = 0; lado < 2; lado++) {
+    const std::vector<long> vz = m_->ids_vizinhos(b, i, 2 * t + lado);
+    if (vz.empty()) continue;
+    double soma = 0.0, dist = 0.0;
+    int n = 0;
+    for (long id : vz) {
+      const auto it = bi_por_id_.find(id);
+      if (it == bi_por_id_.end()) continue;
+      soma += campo.em(id);
+      dist += std::fabs(m_->centroide(it->second.first, it->second.second)[t] - c[t]);
+      n++;
+    }
+    if (n == 0) continue;
+    if (lado == 0) { va = soma / n; da = dist / n; }
+    else { vb = soma / n; db = dist / n; }
+  }
+  if (da > 0.0 && db > 0.0) return (vb - va) / (da + db);
+  if (db > 0.0) return (vb - pc) / db;
+  if (da > 0.0) return (pc - va) / da;
+  return 0.0;
 }
 
 }  // namespace t8flow2d
