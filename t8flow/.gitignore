@@ -23,11 +23,18 @@ bench/franja
 bench/densidade
 bench/franja3d
 bench/probe-opencl
-# OS BINARIOS DOS EXEMPLOS, por padrao de nome e nao um a um.
+# OS BINARIOS DOS EXEMPLOS, pelo que E' FONTE e nao pelo nome do binario.
 #
-# A forma antiga listava `exemplos/poisson-mms` pelo caminho exato, e quando o
-# exemplo mudou de diretorio a regra deixou de casar -- o binario de 5,4 MB
-# entrou num commit.  Um padrao que acompanha a estrutura nao tem esse modo de
-# falha.
-exemplos/*/poisson-mms
-exemplos/poisson-mms
+# Esta regra ja' falhou DUAS vezes por depender de nome: `exemplos/poisson-mms`
+# pelo caminho exato parou de casar quando o exemplo mudou de diretorio (um
+# binario de 5,4 MB entrou num commit), e `exemplos/*/poisson-mms` parou de
+# casar quando o exemplo tridimensional se chamou `poisson3d-mms`.
+#
+# A forma abaixo inverte o criterio: dentro de um diretorio de exemplo, IGNORA
+# TUDO e readmite o que tem extensao de fonte.  Um binario novo nasce ignorado
+# sem que ninguem precise lembrar de acrescentar o nome dele aqui -- que e'
+# exatamente a lembranca que falhou nas duas vezes.
+exemplos/*/*
+!exemplos/*/*.cxx
+!exemplos/*/*.hxx
+!exemplos/*/*.md

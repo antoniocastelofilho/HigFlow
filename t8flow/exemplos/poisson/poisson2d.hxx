@@ -73,9 +73,15 @@
 #include "contorno2d.hxx"
 #include "discretizacao2d.hxx"
 #include "malha2d.hxx"
-#include "solver2d.hxx"
+#include "solverlin.hxx"
 
 namespace t8flow2d {
+
+// O SOLVER VIVE EM `src/comum/` e no namespace `t8flow`: ele nao tem nada de
+// bidimensional.  Estes dois `using` sao o que mantem o codigo que ja' o
+// chamava pelo nome curto funcionando sem mudanca.
+using t8flow::Motor;
+using t8flow::Solver;
 
 //! Como a derivada normal e' fechada na parede.
 //

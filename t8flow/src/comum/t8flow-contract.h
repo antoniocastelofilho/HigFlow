@@ -1313,4 +1313,50 @@
 //! COBERTA-POR: test-campos3d:o_tensor_tem_nove_componentes_e_o_indice_recusa_o_que_nao_existe
 //! COBERTA-POR: test-campos3d:o_campo_vetorial_tem_uma_componente_por_direcao_de_faceta
 
+//! H15  O POISSON 3D E' EXATO ATE' O GRAU DA ORDEM DO AJUSTE, em malha uniforme
+//! e em ADAPTADA, e o esquema de fluxo nao e'.  Medido:
+//!
+//!                       vf-fluxo2    vf-mlsgauss
+//!     grau 1 uniforme    1,40e-13          --
+//!     grau 2 uniforme    8,95e-03     7,73e-13
+//!     grau 2 ADAPTADA    1,55e-01     7,55e-12
+//!     grau 3, ordem 3         --      1,16e-13
+//!
+//! A linha da malha adaptada e' a razao de existir do esquema: dez ordens de
+//! grandeza, e e' onde a face de um hexaedro e' partida em QUATRO.
+//!
+//! O ORACULO E' A EXATIDAO POLINOMIAL e nao a ordem de convergencia: a ordem
+//! pode estar certa com a constante errada; a exatidao nao.
+//
+//! COBERTA-POR: test-poisson3d:o_mlsgauss_e_exato_ate_o_grau_da_ordem_do_ajuste
+//! COBERTA-POR: test-poisson3d:o_mlsgauss_de_ordem_tres_e_exato_no_grau_tres
+//! COBERTA-POR: test-poisson3d:na_malha_adaptada_o_mlsgauss_mantem_a_exatidao
+
+//! H16  A QUADRATURA EM TRES DIMENSOES E' 2x2 NA FACETA e 2x2x2 NO VOLUME --
+//! quatro pontos num retangulo e oito num hexaedro, contra dois e quatro em
+//! duas dimensoes.
+//!
+//! E A FONTE POR GAUSS NO VOLUME NAO E' DETALHE: em duas dimensoes, com o fluxo
+//! da faceta ja' exato e a fonte na regra do ponto medio, o esquema TRAVAVA em
+//! segunda ordem.  A regra do ponto medio e' erro `O(h^2)` RELATIVO em
+//! `integral f dV`, e no esquema de segunda ordem ele se escondia atras do erro
+//! do proprio fluxo.
+//!
+//! Na transicao 2:1 a face e' coberta por QUATRO sub-facetas, e o fluxo total e'
+//! a soma.  Integrar a face inteira de uma vez daria o fluxo MEDIO sobre ela,
+//! que nao e' a soma dos quatro quando a derivada varia.
+//
+//! COBERTA-POR: test-poisson3d:na_malha_adaptada_o_mlsgauss_mantem_a_exatidao
+
+//! H17  O LADO 3D RECUSA DISCRETIZACAO QUE NAO SEJA DE VOLUMES FINITOS, e a
+//! recusa e' explicita e com a lista dos validos -- nao um numero produzido em
+//! silencio.
+//!
+//! O escopo foi decidido pelo usuario: "so' o que o solver vai usar".  Os dois
+//! esquemas compactos recusam malha adaptada (sao contraste, nao ferramenta) e o
+//! laplaciano pontual e' instavel nela.  Eles entram quando houver medida que os
+//! sustente em tres dimensoes.
+//
+//! COBERTA-POR: test-poisson3d:o_poisson_3d_recusa_discretizacao_que_nao_e_de_volumes_finitos
+
 #endif

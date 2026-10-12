@@ -1868,7 +1868,78 @@ mensagem *"em 2D são 2"*. O teste abortou na primeira linha que pediu a direç�
 que se esquece ao portar é a terceira direção**, e ela não falha sozinha — falha
 quando alguém a pede.
 
-## 23. O que vem depois
+## 23. O Poisson em três dimensões: o 3D alcança o 2D
+
+É onde tudo o que foi construído se encontra — a malha de hexaedros, a franja
+geométrica de 19,6 KB, o suporte por caixa de raio 2, a medida de faceta como
+área, e a transição 2:1 com faces partidas em quatro.
+
+### 23.1 Os resultados
+
+| caso | `vf-fluxo2` | `vf-mlsgauss` |
+|---|---|---|
+| grau 1, uniforme | **1,40e-13** (exato) | — |
+| grau 2, uniforme | 8,95e-03 (ordem 1,60) | **7,73e-13** |
+| grau 2, **adaptada** | 1,55e-01 | **7,55e-12** |
+| grau 3, ordem 3 | — | **1,16e-13** |
+| grau 4, ordem 3 | — | 5,61e-03 (contraste) |
+| trigonométrica, ordem 2 | — | ordem 1,75 |
+
+**A linha da malha adaptada é a razão de existir do esquema: dez ordens de
+grandeza.** É onde a face de um hexaedro é partida em quatro, e onde a
+quadratura de sub-faceta tem de somar os quatro fluxos — integrar a face inteira
+de uma vez daria o fluxo *médio*, que não é a soma dos quatro.
+
+O oráculo principal é a **exatidão polinomial**, não a ordem de convergência: a
+ordem pode estar certa com a constante errada; a exatidão não.
+
+### 23.2 O que a terceira dimensão muda no operador
+
+| | 2D | 3D |
+|---|---|---|
+| quadratura na faceta | 2 pontos | **2×2** |
+| quadratura no volume | 2×2 | **2×2×2** |
+| sub-facetas na transição 2:1 | 2 | **4** |
+| razão de áreas na transição | 1/2 | **1/4** |
+
+A última é sutil: o fator da transição entra ao **quadrado**, porque a medida é
+uma área. `|face| = área · min(1, fator²)`.
+
+### 23.3 Uma peça que mudou de lugar
+
+O invólucro do solver linear vivia em `src/2d/` e **não tem nada de
+bidimensional** — zero ocorrências de `Ponto2` ou de `Malha`. Portar o 3D expôs
+isso: a alternativa era duplicar duzentas linhas sem uma única diferença.
+
+Foi para `src/comum/solverlin.{hxx,cxx}`, namespace `t8flow`. É a mesma classe de
+observação que tirou o Poisson de `src/`: lá o critério era *nada em `src/` sabe
+que equação se está resolvendo*; aqui é *nada em `src/comum/` sabe em quantas
+dimensões*.
+
+**O nome é `solverlin` e não `solver` por uma razão de build:** o núcleo herdado
+tem um `solver.c`, e os dois virariam o mesmo `solver.o`. O erro aparece como
+"multiple definition" de símbolos do herdado, apontando para o arquivo errado.
+
+### 23.4 O estado do lado 3D
+
+O escopo que você definiu — "só o que o solver vai usar" — está **completo**:
+
+| peça | estado |
+|---|---|
+| malha HEX, blocos, refino, franja de K camadas | feita |
+| MLS (valor, derivada, laplaciano) | feito |
+| estêncil com suporte por caixa | feito |
+| contorno (Dirichlet, Neumann, Robin) | feito |
+| campos (MAC: centros e facetas) | feitos |
+| Poisson `vf-fluxo2` e `vf-mlsgauss` | feito |
+
+Ficaram de fora, por decisão: os dois esquemas compactos (recusam malha
+adaptada), o laplaciano pontual (instável nela) e o lote em GPU (otimização).
+O Poisson 3D **recusa** discretização que não seja de volumes finitos, com a
+lista dos válidos na mensagem.
+
+## 24. O que vem depois
+
 
 
 

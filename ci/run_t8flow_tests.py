@@ -87,6 +87,7 @@ LADOS = {
         ("test-campos3d", (1,)),
         ("test-estencil3d", (1,)),
         ("test-malha3d", (1, 3)),
+        ("test-poisson3d", (1,)),
     ],
 }
 

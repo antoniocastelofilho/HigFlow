@@ -13,14 +13,14 @@
 //   4. `convergiu()`, `iteracoes()` e `residuo()` leem campos do `struct solver`
 //      direto, porque o herdado nao tem acessor para eles.  E' acoplamento
 //      conhecido, nao descuido: se o layout mudar, quebra no compilador.
-#include "solver2d.hxx"
+#include "solverlin.hxx"
 
 #include <stdexcept>
 #include <string>
 
 #include "solver.h"
 
-namespace t8flow2d {
+namespace t8flow {
 
 namespace {
 
@@ -143,4 +143,4 @@ double Solver::residuo() const { return s_->SolverResidual; }
 void Solver::tolerancia(double eps) { slv_set_eps(s_, eps); }
 void Solver::max_iteracoes(int n) { slv_set_maxiteration(s_, n); }
 
-}  // namespace t8flow2d
+}  // namespace t8flow

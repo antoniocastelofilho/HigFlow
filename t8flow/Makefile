@@ -134,7 +134,7 @@ NUCLEO_C   = wls.c coord.c utils.c allocator.c rect.c point-cloud.c \
              solver-centralized.c
 NUCLEO_CPP = rng.cpp
 
-COMUM_SRC = src/comum/arranque.cxx
+COMUM_SRC = src/comum/arranque.cxx src/comum/solverlin.cxx
 
 # ---------------------------------------------------------------------------
 # A CONFIGURACAO ENTRA NA DEPENDENCIA, e isto nao e' refinamento: sem isso,
@@ -170,7 +170,7 @@ CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson
 # O QUE E' BIBLIOTECA fica em `src/`: malha, estencil, contorno, campos, o ajuste
 # por minimos quadrados, o lote, o invólucro de solver e a escolha de
 # discretizacao.  Nada aqui sabe que equacao se esta' resolvendo.
-SRC2   = src/2d/mls2d.cxx src/2d/solver2d.cxx src/2d/discretizacao2d.cxx \
+SRC2   = src/2d/mls2d.cxx src/2d/discretizacao2d.cxx \
          src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
          src/2d/contorno2d.cxx
@@ -191,8 +191,14 @@ OBJ2_X = $(addprefix $(OBJ2)/,$(notdir $(SRC2_EX:.cxx=.o)))
 TESTES2 = $(basename $(wildcard tests/2d/test-*.cxx))
 BINS2   = $(TESTES2)
 
-EXEMPLOS2 = $(basename $(wildcard exemplos/*/*.cxx))
-EXEMPLOS2 := $(filter-out exemplos/poisson/poisson2d exemplos/poisson/manufaturada2d,$(EXEMPLOS2))
+# OS EXEMPLOS SAO DECLARADOS, e nao varridos.
+#
+# O wildcard `exemplos/*/*.cxx` pegava as PECAS junto com os programas, e a lista
+# de excecoes crescia a cada peca nova -- ate' que o diretorio do lado 3D
+# apareceu e o alvo `2d` tentou construir `manufaturada3d` como exemplo seu.
+# Um exemplo e' um programa com `main`; as pecas nao sao, e a diferenca nao se
+# descobre por padrao de nome.
+EXEMPLOS2 = exemplos/poisson/poisson-mms
 
 2d: $(BINS2) $(EXEMPLOS2)
 
@@ -265,13 +271,19 @@ tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
 # nao ferramenta), o laplaciano pontual (instavel) e o lote em GPU.
 # ---------------------------------------------------------------------------
 OBJ3 = obj/3d
-CXXFLAGS3 = $(BASE) -DDIM=3 -Isrc/3d
-SRC3   = src/3d/mls3d.cxx src/3d/malha3d.cxx src/3d/contorno3d.cxx src/3d/estencil3d.cxx src/3d/campos3d.cxx
+CXXFLAGS3 = $(BASE) -DDIM=3 -Isrc/3d -Iexemplos/poisson3d
+SRC3   = src/3d/mls3d.cxx src/3d/malha3d.cxx src/3d/contorno3d.cxx src/3d/estencil3d.cxx src/3d/campos3d.cxx src/3d/discretizacao3d.cxx
 OBJ3_N = $(addprefix $(OBJ3)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ3_T = $(addprefix $(OBJ3)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC3:.cxx=.o)))
 TESTES3 = $(basename $(wildcard tests/3d/test-*.cxx))
 
-3d: $(TESTES3)
+# O EXEMPLO do Poisson 3D e o catalogo de solucoes manufaturadas: exemplo, e nao
+# biblioteca -- nada em `src/` sabe que equacao se esta' resolvendo.
+SRC3_EX = exemplos/poisson3d/poisson3d.cxx exemplos/poisson3d/manufaturada3d.cxx
+OBJ3_X  = $(addprefix $(OBJ3)/,$(notdir $(SRC3_EX:.cxx=.o)))
+EXEMPLOS3 = exemplos/poisson3d/poisson3d-mms
+
+3d: $(TESTES3) $(EXEMPLOS3)
 
 $(OBJ3):
 	mkdir -p $(OBJ3)
@@ -288,8 +300,14 @@ $(OBJ3)/%.o: src/comum/%.cxx | $(OBJ3)
 $(OBJ3)/%.o: src/3d/%.cxx | $(OBJ3)
 	$(CXX) $(CXXFLAGS3) -c $< -o $@
 
-tests/3d/%: tests/3d/%.cxx tests/testing.h $(OBJ3_T) $(OBJ3_N)
-	$(CXX) $(CXXFLAGS3) $< $(OBJ3_T) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
+$(OBJ3)/%.o: exemplos/poisson3d/%.cxx | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -c $< -o $@
+
+tests/3d/%: tests/3d/%.cxx tests/testing.h $(OBJ3_T) $(OBJ3_X) $(OBJ3_N)
+	$(CXX) $(CXXFLAGS3) $< $(OBJ3_T) $(OBJ3_X) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
+
+exemplos/poisson3d/%: exemplos/poisson3d/%.cxx $(OBJ3_T) $(OBJ3_X) $(OBJ3_N)
+	$(CXX) $(CXXFLAGS3) -Itests $< $(OBJ3_T) $(OBJ3_X) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
 
 clean:
 	$(RM) -rf obj

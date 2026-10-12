@@ -49,7 +49,7 @@
 
 struct solver;   // o herdado, opaco aqui
 
-namespace t8flow2d {
+namespace t8flow {
 
 //! Motor do sistema linear.  `Qualquer` deixa o herdado decidir em execucao
 //! (variavel de ambiente `HIGTREE_SOLVER_ENGINE`, ou heuristica).
@@ -119,6 +119,6 @@ class Solver {
   std::vector<bool> linha_definida_;
 };
 
-}  // namespace t8flow2d
+}  // namespace t8flow
 
 #endif

@@ -12,10 +12,10 @@
 #include <vector>
 
 #include "arranque.hxx"
-#include "solver2d.hxx"
+#include "solverlin.hxx"
 
-using t8flow2d::Motor;
-using t8flow2d::Solver;
+using t8flow::Motor;
+using t8flow::Solver;
 
 int main(int argc, char **argv)
 {

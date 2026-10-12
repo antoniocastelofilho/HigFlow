@@ -31,13 +31,13 @@
 
 #include "arranque.hxx"
 #include "malha2d.hxx"
-#include "solver2d.hxx"
+#include "solverlin.hxx"
 
 using t8flow2d::Bloco;
 using t8flow2d::Malha;
-using t8flow2d::Motor;
+using t8flow::Motor;
 using t8flow2d::Ponto2;
-using t8flow2d::Solver;
+using t8flow::Solver;
 
 //! Valor que identifica a posicao: coeficientes distintos e nao comensuraveis.
 static double marca(const Ponto2 &p)
