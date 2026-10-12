@@ -192,7 +192,7 @@ SRC2   = src/2d/mls2d.cxx src/2d/discretizacao2d.cxx \
          src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
          src/2d/contorno2d.cxx src/2d/navierstokes2d.cxx \
-         src/2d/criterio2d.cxx
+         src/2d/criterio2d.cxx src/2d/frente2d.cxx
 SRC2  += $(SRC2_IO)
 
 # O QUE E' EXEMPLO fica em `exemplos/`, e o operador de Poisson com as solucoes
