@@ -4,7 +4,7 @@ Relatório de **12/10/2026**. Primeiro exemplo do t8Flow, serial, e primeiro cas
 da suíte que resolve uma equação.
 
     exemplo   t8flow/exemplos/poisson-mms.cxx   (parametrizado, sem recompilar)
-    teste     t8flow/tests/2d/test-poisson2d.cxx   13 casos
+    teste     t8flow/tests/2d/test-poisson2d.cxx   17 casos
     modulos   src/2d/poisson2d, manufaturada2d, contorno2d, campos2d, malha2d
 
 ## 1. O que o método faz, e onde está a força dele
@@ -132,11 +132,80 @@ são os que **impedem o verde de significar menos do que parece**:
   com a lista dos válidos na mensagem, porque errar o nome e receber a solução
   padrão em silêncio seria medir uma coisa e reportar outra.
 
-## 6. Limites declarados
+## 6. Quadtree adaptada: a transição 2:1
 
-- **malha uniforme.** Com transição 2:1 uma faceta passa a ter dois vizinhos e a
-  linha deixa de ser a mesma; a montagem recusa em vez de somar como se fossem um.
-  É o próximo obstáculo, e já estava apontado antes deste trabalho;
+Acrescentado em **12/10/2026**, com malha gerada por refino aleatório
+reprodutível (40% sorteado, 106 de 136 folhas em transição).
+
+### 6.1 O esquema
+
+Para cada vizinho, **a mesma fórmula** da faceta uniforme: a face compartilhada
+tem o tamanho do menor dos dois, e a distância é a soma dos meios-passos. Uma
+fórmula e não três (uniforme, grossa→fina, fina→grossa), porque três divergem — e
+divergir ali quebra a **conservação** sem quebrar nada visível. A igualdade
+conferida:
+
+    grossa->fina:  larg_C/2 / (3h_C/4)  =  (2/3) larg_C/h_C
+    fina->grossa:  larg_F   / (3h_F/2)  =  (2/3) larg_C/h_C
+
+Logo o que sai de uma entra na outra com o mesmo valor, e a matriz fica simétrica.
+
+**Mais a correção transversal, que não é opcional.** Na transição os centros não
+estão alinhados com a normal — o centro da fina está deslocado um quarto de célula
+—, e para a célula **fina** esse erro não cancela, porque ela vê uma única face
+contra a grossa. A correção desloca o valor do lado grosso para a linha normal do
+centro da sub-face, usando o gradiente transversal.
+
+### 6.2 Os resultados
+
+O oráculo principal aqui **não** é o erro da solução: é o **resíduo do operador**,
+`max |A·u_exata − b| / área`, sem passar pelo solver. O erro da solução mistura
+consistência, condicionamento e tolerância, e quando é grande não se sabe qual dos
+três.
+
+| | malha uniforme | quadtree adaptada |
+|---|---|---|
+| resíduo do operador, grau 1 | 1,14e-13 | **4,55e-13** |
+| resíduo do operador, grau 1 + 3 Neumann | — | **1,82e-12** |
+| resíduo do operador, grau 2 | 2,27e-13 | **4,50e+00** |
+
+| solução (adaptada) | erro inf | ordem inf | erro L2 | ordem L2 |
+|---|---|---|---|---|
+| grau 1 | 6,7e-16 → 3,9e-12 | **exato** | idem | **exato** |
+| grau 2 | 1,63e-02 → 2,96e-04 | 2,08 / 1,78 / 1,92 | | 2,16 / 1,94 / 1,98 |
+| trigonométrica | 4,80e-02 → 1,09e-03 | 1,63 / 2,11 / 1,73 | | 2,07 / 2,10 / 1,80 |
+
+**O operador é exato para campo linear** na malha adaptada, inclusive com três
+paredes de Neumann. **O grau 2 deixa de ser exato** — a exatidão era propriedade da
+malha uniforme, exatamente como a análise da quadratura previa: na transição, a
+distância entre os centros (3h/4) não é a distância do centro à face (h/2), e o
+termo de curvatura não cancela. A convergência fica em ~2.
+
+### 6.3 Os três defeitos, e o que os achou
+
+Nenhum era de formulação — todos de sinal ou de caminho esquecido. Guardo os três
+porque o que os encontrou foi sempre o mesmo oráculo:
+
+1. **a correção transversal com o sinal dependendo de quem era o grosso.** O erro
+   **dobrou** em vez de cair — 7,8e-02 contra 3,9e-02 sem correção nenhuma. Erro que
+   dobra é a assinatura de uma correção invertida, e foi o que levou a refazer a
+   álgebra em vez de ajustar números. A conta certa não depende de quem é o grosso;
+2. **`s2` medido do centro em vez da parede** no fechamento genérico. Em malha
+   uniforme deu `h` onde o certo é `3h/2`, e o caso de regressão do grau 2 pegou na
+   hora: 1,97e-01 em vez de 3e-13;
+3. **com parede de Neumann no lado transversal, a correção era abandonada** — e o
+   resíduo voltava a **53,3**, exatamente o valor de quando não havia correção
+   nenhuma. O número repetido foi o que apontou a causa: não era outro defeito, era
+   o **mesmo** reaparecendo por um caminho que eu havia deixado aberto. Ali o dado
+   de Neumann *é* `∂u/∂t`, e usá-lo é exato — com `∂u/∂t = sgn·g`, não `g`.
+
+E a guarda do contrato pegou a mudança sozinha: a cláusula P4 ficou apontando para
+o caso de recusa de 2:1, que deixou de existir, e saiu como **CASO AUSENTE**.
+
+## 7. Limites declarados
+
+- **a exatidão do grau 2 vale só na malha uniforme.** Na adaptada o esquema é de
+  segunda ordem, e exato apenas para campo linear;
 - **Robin não está montado.** Dirichlet e Neumann sim. Robin mistura valor e
   derivada na mesma faceta: a linha ganha coeficiente que depende de α, β e h, e
   montá-lo como se fosse Neumann daria resultado plausível e errado;
@@ -145,16 +214,18 @@ são os que **impedem o verde de significar menos do que parece**:
 - **o piso do erro é o solver.** Pedir menos de 1e-13 seria exigir do solver linear
   algo que ele não promete com tolerância 1e-14.
 
-## 7. Como reproduzir
+## 8. Como reproduzir
 
 ```bash
 cd t8flow && make 2d
 mpirun -n 1 ./exemplos/poisson-mms --solucao=grau2 --contorno=dirichlet --niveis=3,4,5
+mpirun -n 1 ./exemplos/poisson-mms --solucao=trig --aleatorio=0.4 --niveis=3,4,5,6
 mpirun -n 1 ./exemplos/poisson-mms --ajuda      # lista as solucoes do catalogo
 ```
 
 Parâmetros: `--solucao` (grau1, grau2, grau3, trig), `--contorno` (dirichlet,
-misto, umdirichlet), `--fechamento` (3 ou 2), `--niveis`, `--tol`. A configuração
+misto, umdirichlet), `--fechamento` (3 ou 2), `--niveis`, `--tol`,
+`--aleatorio=FRAÇÃO` (quadtree adaptada), `--semente`. A configuração
 inteira vai impressa no alto da saída — relatório sem a configuração é número sem
 procedência, e neste projeto um build sem o que se queria medir já produziu duas
 corridas "estáveis" que eram outra coisa.

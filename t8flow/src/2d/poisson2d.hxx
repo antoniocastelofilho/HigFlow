@@ -44,14 +44,30 @@
 // de uma constante, e o solver nao converge ou converge para qualquer uma.  Isso
 // nao e' defeito da montagem, e' propriedade do problema; o exemplo avisa.
 //
-// LIMITE DESTA PRIMEIRA VERSAO, declarado: MALHA UNIFORME.  Com transicao 2:1 uma
-// faceta passa a ter DOIS vizinhos, o fluxo pela face grossa e' a soma dos dois, e
-// a linha deixa de ser a mesma -- a montagem RECUSA, em vez de somar como se
-// fossem um.  E' o caso que o relatorio ja' aponta como o proximo obstaculo.
+// A TRANSICAO 2:1 ESTA' MONTADA, pela MESMA formula da faceta uniforme: para cada
+// vizinho, a face compartilhada tem o tamanho do MENOR dos dois e a distancia e' a
+// soma dos meios-passos.  Uma formula e nao tres, porque tres divergem -- e
+// divergir ali quebra a CONSERVACAO sem quebrar nada visivel.  A igualdade
+// conferida:
+//
+//     grossa->fina:  larg_C/2 / (3h_C/4)  =  (2/3) larg_C/h_C
+//     fina->grossa:  larg_F   / (3h_F/2)  =  (2/3) larg_C/h_C
+//
+// Logo o que sai de uma entra na outra com o mesmo valor, e a matriz fica
+// simetrica.
+//
+// O QUE ISSO NAO PROMETE, e a analise da quadratura ja' diz por que: na face de
+// transicao os centros NAO estao alinhados com a normal -- o centro da sub-face
+// fina esta' deslocado um quarto de celula do centro da grossa --, e a distancia
+// entre centros (3h/4) nao e' a distancia do centro da grossa a' face (h/2).  Os
+// termos de deslocamento das DUAS sub-faces se cancelam por simetria, mas os de
+// curvatura NAO.  Entao nao se espera exatidao para grau 2 na malha adaptada, e
+// sim segunda ordem -- e o teste MEDE em vez de supor.
 #ifndef T8FLOW_POISSON2D_HXX
 #define T8FLOW_POISSON2D_HXX
 
 #include <functional>
+#include <map>
 #include <vector>
 
 #include "contorno2d.hxx"
@@ -107,11 +123,25 @@ class Poisson {
   //! Incognitas do sistema -- uma por celula.
   long num_incognitas() const { return n_; }
 
+  //! `max |A*u_exata - b| / area`: o ORACULO DIRETO DO OPERADOR, sem o solver.
+  //
+  // Mede a CONSISTENCIA do esquema.  O erro da SOLUCAO mistura consistencia,
+  // condicionamento e tolerancia do solver, e quando ele e' grande nao se sabe
+  // qual dos tres -- foi o que faltou quando o esquema de transicao 2:1 deu ordem
+  // negativa.  Aqui, se o esquema reproduz a exata, isto e' zero a menos de
+  // arredondamento, qualquer que seja o solver.
+  double residuo_da_exata(const std::function<double(const Ponto2 &)> &exata) const;
+
  private:
   const Malha *m_;
   ContornoPorRegiao contorno_;
   std::function<double(const Ponto2 &)> f_;
   FechamentoParede fechamento_ = FechamentoParede::TresPontos;
+
+  //! Monta a linha de uma celula.  `indice` e' o mapa id -> (bloco, folha), opaco
+  //! aqui para o cabecalho nao depender do tipo interno.
+  void monta_linha(long b, long i, const void *indice,
+                   std::map<long, double> *linha, double *rhs) const;
 
   long primeiro_ = 0;
   long n_ = 0;

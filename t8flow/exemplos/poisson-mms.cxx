@@ -121,6 +121,8 @@ int main(int argc, char **argv)
   std::string niveis_txt = "3,4,5";
   std::string fech = "3";
   double tol = 1e-14;
+  double fracao = 0.0;          // 0 = malha uniforme
+  unsigned long semente = 2026;
 
   for (int i = 1; i < argc; i++) {
     const char *a = argv[i];
@@ -129,9 +131,14 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--niveis=", 9)) niveis_txt = a + 9;
     else if (!std::strncmp(a, "--fechamento=", 13)) fech = a + 13;
     else if (!std::strncmp(a, "--tol=", 6)) tol = std::atof(a + 6);
+    else if (!std::strncmp(a, "--aleatorio=", 12)) fracao = std::atof(a + 12);
+    else if (!std::strncmp(a, "--semente=", 10)) semente = std::strtoul(a + 10, nullptr, 10);
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       std::printf("uso: poisson-mms [--solucao=N] [--contorno=dirichlet|misto]\n"
-                  "                 [--niveis=3,4,5] [--fechamento=3|2] [--tol=1e-14]\n\n"
+                  "                 [--niveis=3,4,5] [--fechamento=3|2] [--tol=1e-14]\n"
+                  "                 [--aleatorio=FRACAO] [--semente=N]\n\n"
+                  "  --aleatorio=F  refina aleatoriamente uma fracao F das celulas (quadtree\n"
+                  "                 adaptada, com transicao 2:1).  0 = malha uniforme.\n\n"
                   "solucoes disponiveis:\n");
       for (const std::string &n : manufaturadas_disponiveis())
         std::printf("  %-8s %s\n", n.c_str(), manufaturada(n).descricao.c_str());
@@ -164,11 +171,22 @@ int main(int argc, char **argv)
   std::printf("contorno    %s (%zu regioes)\n", modo_bc.c_str(), bc.num_regioes());
   std::printf("fechamento  %s pontos na parede\n", fech == "2" ? "DOIS" : "tres");
   std::printf("solver      tolerancia %.1e\n", tol);
-  std::printf("dominio     [0,1]x[0,1], malha UNIFORME\n\n");
+  if (fracao > 0.0)
+    std::printf("dominio     [0,1]x[0,1], quadtree ADAPTADA (fracao %.2f, semente %lu)\n\n",
+                fracao, semente);
+  else
+    std::printf("dominio     [0,1]x[0,1], malha UNIFORME\n\n");
 
   std::vector<Linha> tab;
   for (int nivel : niveis) {
     Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_SELF);
+    if (fracao > 0.0) {
+      // UMA passada, e com a MESMA semente em todos os niveis: assim as malhas da
+      // sequencia tem o mesmo PADRAO de adaptacao, e a taxa medida e' de refino de
+      // malha e nao de mudanca de padrao.  Padroes diferentes por nivel dariam uma
+      // "ordem" que mistura as duas coisas.
+      m.refina_aleatorio(fracao, semente, nivel + 1);
+    }
 
     Poisson po(m, bc);
     po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
@@ -178,7 +196,7 @@ int main(int argc, char **argv)
     Linha l;
     l.nivel = nivel;
     l.celulas = m.num_folhas();
-    l.h = 1.0 / (1 << nivel);
+    l.h = 1.0 / (1 << nivel);      // h do nivel BASE; a malha adaptada tem h/2 em parte
     l.e_inf = po.erro_inf([&sol](const Ponto2 &p) { return sol.u(p); });
     l.e_l2 = po.erro_l2([&sol](const Ponto2 &p) { return sol.u(p); });
     l.iteracoes = po.iteracoes();

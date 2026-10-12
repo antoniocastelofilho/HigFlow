@@ -509,15 +509,50 @@
 //! COBERTA-POR: test-poisson2d:com_tres_neumann_a_trigonometrica_tambem_converge_em_segunda_ordem
 
 //! P4  A MONTAGEM RECUSA o que nao sabe, em vez de produzir resultado plausivel:
-//!     transicao 2:1 (na face grossa o fluxo e' a soma dos dois lados finos, e a
-//!     linha deixa de ser a mesma), Robin (mistura valor e derivada na MESMA
-//!     faceta), fonte nao instalada, contorno vazio, e nome de solucao inexistente
-//!     -- este com a LISTA dos validos na mensagem, porque errar o nome e receber a
-//!     solucao padrao em silencio seria medir uma coisa e reportar outra.
+//!     Robin (mistura valor e derivada na MESMA faceta), fonte nao instalada,
+//!     contorno vazio, e nome de solucao inexistente -- este com a LISTA dos
+//!     validos na mensagem, porque errar o nome e receber a solucao padrao em
+//!     silencio seria medir uma coisa e reportar outra.
+//!
+//!     A transicao 2:1 SAIU desta lista: ela era recusada e hoje e' montada, e a
+//!     familia T cobre o que isso exige.  O driver pegou a mudanca sozinho -- a
+//!     clausula ficou apontando para um caso removido e saiu como "CASO AUSENTE",
+//!     que e' exatamente o trabalho dele.
 //! COBERTA-POR: test-poisson2d:fonte_nao_instalada_e_recusada
 //! COBERTA-POR: test-poisson2d:contorno_vazio_e_recusado
-//! COBERTA-POR: test-poisson2d:malha_com_transicao_2_para_1_e_recusada
 //! COBERTA-POR: test-poisson2d:nome_de_solucao_inexistente_e_recusado_com_a_lista
+
+// ---------------------------------------------------------------------------
+// T -- A TRANSICAO 2:1 NO OPERADOR (quadtree adaptada)
+// ---------------------------------------------------------------------------
+
+//! T1  Na malha ADAPTADA o operador e' EXATO PARA CAMPO LINEAR -- residuo
+//!     `max |A*u_exata - b| / area` abaixo de 1e-9.  Campo linear e' o PISO: se o
+//!     operador nao reproduz linear, ele nao e' consistente e nenhuma ordem de
+//!     convergencia medida depois significa nada.
+//!
+//!     E O ORACULO E' O RESIDUO DO OPERADOR, nao o erro da solucao.  A razao: o
+//!     erro da solucao mistura consistencia, condicionamento e tolerancia do
+//!     solver, e quando ele e' grande nao se sabe qual dos tres.  Foi exatamente o
+//!     que faltou quando a primeira versao do esquema deu ordem NEGATIVA -- havia
+//!     um defeito de O(1) na montagem, e medir so' a solucao nao o isolava.
+//! COBERTA-POR: test-poisson2d:na_malha_adaptada_o_operador_e_exato_para_campo_linear
+//! COBERTA-POR: test-poisson2d:na_malha_adaptada_com_neumann_o_linear_continua_exato
+
+//! T2  Na malha adaptada o GRAU 2 DEIXA DE SER EXATO e converge em ~2, e dizer
+//!     isso e' parte da clausula: a exatidao era propriedade da malha UNIFORME.
+//!     Na transicao, a distancia entre os centros (3h/4) nao e' a distancia do
+//!     centro a' face (h/2), e o termo de curvatura nao cancela -- o que a analise
+//!     da quadratura do ponto medio ja' previa.  Nao e' defeito; afirmar que deixa
+//!     de ser exato e' o que impede alguem de "consertar" o que esta' certo.
+//! COBERTA-POR: test-poisson2d:na_malha_adaptada_o_grau2_deixa_de_ser_exato_e_converge_em_segunda_ordem
+//! COBERTA-POR: test-poisson2d:na_malha_adaptada_a_trigonometrica_converge_em_segunda_ordem
+
+//! T3  O RESIDUO DO OPERADOR DISTINGUE malha uniforme de adaptada no grau 2 --
+//!     maquina contra O(1).  E' o par que da' sentido a T1 e T2: se os dois dessem
+//!     o mesmo numero, o esquema de transicao nao estaria sendo exercitado em
+//!     nenhum deles.
+//! COBERTA-POR: test-poisson2d:o_residuo_do_operador_distingue_malha_uniforme_de_adaptada_no_grau2
 
 // ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
@@ -612,9 +647,27 @@
 // paralelo, e paralelo ainda nao existe -- quando existir, comparar a malha entre
 // np diferentes e' o primeiro teste a escrever.
 //
-// LIMITES DA FAMILIA P, declarados: malha UNIFORME (a transicao 2:1 e' recusada),
-// Robin nao montado (so' Dirichlet e Neumann), serial, e o PISO do erro e' o
-// residuo do solver -- pedir menos de 1e-13 seria exigir do solver linear algo que
+// OS TRES DEFEITOS DA FAMILIA T, e os tres eram de SINAL ou de caminho esquecido
+// -- nenhum de formulacao.  Guardados porque o que os achou foi o mesmo oraculo:
+//
+//   1. a correcao transversal com o sinal dependendo de quem era o grosso.  O erro
+//      DOBROU em vez de cair (7,8e-02 contra 3,9e-02 sem correcao), e erro que
+//      dobra e' a assinatura de uma correcao invertida -- foi o que levou a refazer
+//      a algebra em vez de ajustar numeros.  A conta certa nao depende de quem e' o
+//      grosso: `fluxo = coef*u_viz - coef*u_self - coef*delta*(du/dt)` nos dois
+//      casos, e o que muda e' ONDE `du/dt` e' avaliado;
+//   2. `s2` medido do CENTRO em vez da PAREDE no fechamento generico.  Em malha
+//      uniforme deu `h` onde o certo e' `3h/2`, e o caso de regressao do grau 2
+//      pegou na hora: 1,97e-01 em vez de 3e-13;
+//   3. com parede de Neumann no lado TRANSVERSAL, a correcao era ABANDONADA -- e o
+//      residuo voltava a 53,3, exatamente o valor de quando nao havia correcao
+//      nenhuma.  O numero repetido foi o que apontou a causa: nao era outro
+//      defeito, era o MESMO reaparecendo por um caminho deixado aberto.  Ali o
+//      dado de Neumann E' `du/dt` (a normal da parede e' a direcao transversal), e
+//      usa-lo e' exato -- com `du/dt = sgn*g`, nao `g`.
+//
+// LIMITES DAS FAMILIAS P e T, declarados: Robin nao montado no operador (so'
+// Dirichlet e Neumann), serial, e o PISO do erro e' o residuo do solver -- pedir menos de 1e-13 seria exigir do solver linear algo que
 // ele nao promete com tolerancia 1e-14.
 //
 // LIMITE DA FAMILIA C: a regiao e' consultada por VARREDURA de todas as regioes

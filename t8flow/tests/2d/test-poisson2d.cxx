@@ -79,15 +79,24 @@ ContornoPorRegiao paredes(const Manufaturada &sol, Paredes modo)
 }
 
 struct Resultado {
-  double e_inf = 0.0, e_l2 = 0.0, residuo = 0.0;
+  double e_inf = 0.0, e_l2 = 0.0, residuo = 0.0, resid_operador = 0.0;
   bool convergiu = false;
   int iteracoes = 0;
 };
 
-Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Paredes modo)
+//! `fracao > 0` refina aleatoriamente: quadtree ADAPTADA, com transicao 2:1.
+//
+// A semente e' a MESMA em todos os niveis de proposito: assim as malhas da
+// sequencia tem o mesmo PADRAO de adaptacao, e a taxa medida e' de refino e nao de
+// mudanca de padrao.  Padroes diferentes por nivel dariam uma "ordem" que mistura
+// as duas coisas.
+Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Paredes modo,
+               double fracao = 0.0, long *transicao = nullptr)
 {
   const Manufaturada &sol = manufaturada(nome_sol);
   Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_SELF);
+  if (fracao > 0.0) m.refina_aleatorio(fracao, 2026, nivel + 1);
+  if (transicao != nullptr) *transicao = m.num_folhas_em_transicao();
   Poisson po(m, paredes(sol, modo));
   po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
   po.fechamento(fp);
@@ -99,6 +108,7 @@ Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Pare
   r.residuo = po.residuo();
   r.convergiu = po.convergiu();
   r.iteracoes = po.iteracoes();
+  r.resid_operador = po.residuo_da_exata([&sol](const Ponto2 &p) { return sol.u(p); });
   return r;
 }
 
@@ -283,19 +293,106 @@ int main(int argc, char **argv)
     T_CHECK_MSG(lancou, "Poisson sem condicao de contorno passou sem reclamar");
   }
 
-  t_case("malha_com_transicao_2_para_1_e_recusada");
+  // ---- QUADTREE ADAPTADA, com transicao 2:1 ----------------------------------
+  //
+  // O ORACULO PRINCIPAL AQUI NAO E' O ERRO DA SOLUCAO, e sim o RESIDUO DO
+  // OPERADOR: `max |A*u_exata - b| / area`, sem passar pelo solver.  A razao e'
+  // que o erro da solucao mistura consistencia, condicionamento e tolerancia do
+  // solver, e quando ele e' grande nao se sabe qual dos tres -- foi exatamente o
+  // que faltou quando a primeira versao do esquema de transicao deu ordem
+  // NEGATIVA.  O residuo do operador isola a montagem.
+
+  t_case("na_malha_adaptada_o_operador_e_exato_para_campo_linear");
   {
-    // A montagem e' de malha UNIFORME: na face grossa o fluxo e' a soma dos dois
-    // lados finos, e a linha deixa de ser a mesma.  Recusar e' o que impede um
-    // resultado plausivel de sair de um caso nao suportado.
-    Malha m({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
-    m.refina_caixa({0.3, 0.3}, {0.7, 0.7}, 4);
-    const Manufaturada &sol = manufaturada("grau2");
-    Poisson po(m, paredes(sol, Paredes::TodasDirichlet));
-    po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
-    bool lancou = false;
-    try { po.resolve(); } catch (const std::runtime_error &) { lancou = true; }
-    T_CHECK_MSG(lancou, "malha com transicao 2:1 passou sem reclamar");
+    long trans = 0;
+    const Resultado r = roda("grau1", 3, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.4, &trans);
+    T_CHECK_MSG(trans > 0,
+                "a malha adaptada nao tem transicao 2:1 -- o caso nao exercita o "
+                "esquema que afirma");
+    // CAMPO LINEAR E' O PISO: se o operador nao reproduz linear, ele nao e'
+    // consistente, e nenhuma ordem de convergencia medida depois significa nada.
+    // Medido: SEM a correcao transversal este numero era 53,3 -- erro de O(1), nao
+    // de O(h).  Com ela, 4,5e-13.
+    T_CHECK_MSG(r.resid_operador < 1e-9,
+                "residuo do operador %.4e para campo LINEAR na malha adaptada "
+                "(%ld folhas em transicao) -- o esquema de transicao nao e' "
+                "consistente", r.resid_operador, trans);
+    T_CHECK_MSG(r.e_inf < MAQUINA,
+                "erro da solucao %.4e para campo linear na malha adaptada", r.e_inf);
+    printf("  (adaptada, grau1: %ld em transicao, residuo do operador %.3e, "
+           "erro %.3e)\n", trans, r.resid_operador, r.e_inf);
+  }
+
+  t_case("na_malha_adaptada_o_grau2_deixa_de_ser_exato_e_converge_em_segunda_ordem");
+  {
+    // A EXATIDAO DO GRAU 2 ERA PROPRIEDADE DA MALHA UNIFORME, e perde-se na
+    // adaptada -- o que a analise da quadratura ja' previa: na transicao, a
+    // distancia entre os centros (3h/4) nao e' a distancia do centro a' face
+    // (h/2), e o termo de curvatura nao cancela.  Isso NAO e' defeito; afirmar que
+    // deixa de ser exato E' o que impede alguem de "consertar" o que esta' certo.
+    const Resultado a = roda("grau2", 3, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.4);
+    const Resultado b = roda("grau2", 5, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.4);
+    T_CHECK_MSG(a.e_inf > 1e-5,
+                "na malha adaptada o grau2 deu erro %.3e -- se fosse de maquina, a "
+                "distincao entre malha uniforme e adaptada nao estaria sendo "
+                "exercitada", a.e_inf);
+    const double ordem = std::log2(a.e_inf / b.e_inf) / 2.0;
+    T_CHECK_MSG(ordem > 1.7 && ordem < 2.3,
+                "ordem %.2f para grau2 na malha adaptada (esperava ~2)", ordem);
+    printf("  (adaptada, grau2: erro %.3e -> %.3e, ordem %.2f)\n",
+           a.e_inf, b.e_inf, ordem);
+  }
+
+  t_case("na_malha_adaptada_a_trigonometrica_converge_em_segunda_ordem");
+  {
+    const Resultado a = roda("trig", 4, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.4);
+    const Resultado b = roda("trig", 6, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.4);
+    const double oi = std::log2(a.e_inf / b.e_inf) / 2.0;
+    const double ol = std::log2(a.e_l2 / b.e_l2) / 2.0;
+    T_CHECK_MSG(oi > 1.6 && oi < 2.3, "ordem na norma do maximo: %.2f", oi);
+    T_CHECK_MSG(ol > 1.7 && ol < 2.3, "ordem na norma 2: %.2f", ol);
+    printf("  (adaptada, trig: ordem inf %.2f, L2 %.2f)\n", oi, ol);
+  }
+
+  t_case("na_malha_adaptada_com_neumann_o_linear_continua_exato");
+  {
+    // A transicao 2:1 e o fechamento de Neumann se encontram aqui: a celula de
+    // parede pode ter o vizinho interior mais fino, e o fechamento de tres pontos
+    // tem de usar a MEDIA deles.  A primeira versao exigia vizinho UNICO e lancou
+    // na primeira malha aleatoria -- a guarda funcionando.
+    long trans = 0;
+    const Resultado r = roda("grau1", 4, FechamentoParede::TresPontos,
+                             Paredes::TresNeumann, 0.4, &trans);
+    T_CHECK_MSG(trans > 0, "sem transicao: o caso nao exercita o que afirma");
+    T_CHECK_MSG(r.resid_operador < 1e-9,
+                "residuo do operador %.4e para linear na malha adaptada com tres "
+                "paredes de Neumann", r.resid_operador);
+    printf("  (adaptada + 3 Neumann, grau1: residuo do operador %.3e)\n",
+           r.resid_operador);
+  }
+
+  t_case("o_residuo_do_operador_distingue_malha_uniforme_de_adaptada_no_grau2");
+  {
+    // O par que da' sentido aos dois casos de cima: na uniforme o operador e'
+    // exato para grau 2, na adaptada nao.  Se os dois dessem o mesmo numero, o
+    // esquema de transicao nao estaria sendo exercitado em nenhum deles.
+    const Resultado u = roda("grau2", 3, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.0);
+    const Resultado a = roda("grau2", 3, FechamentoParede::TresPontos,
+                             Paredes::TodasDirichlet, 0.4);
+    T_CHECK_MSG(u.resid_operador < 1e-9,
+                "na malha UNIFORME o residuo do operador para grau2 foi %.4e -- "
+                "esperava maquina", u.resid_operador);
+    T_CONTRASTE(u.resid_operador > 1e-16 ? u.resid_operador : 1e-16,
+                a.resid_operador, 1e6,
+                "residuo do operador, uniforme contra adaptada, grau 2");
+    printf("  (residuo do operador, grau2: uniforme %.3e, adaptada %.3e)\n",
+           u.resid_operador, a.resid_operador);
   }
 
   t_case("nome_de_solucao_inexistente_e_recusado_com_a_lista");
