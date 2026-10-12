@@ -23,4 +23,11 @@ bench/franja
 bench/densidade
 bench/franja3d
 bench/probe-opencl
-exemplos/poisson/poisson-mms
+# OS BINARIOS DOS EXEMPLOS, por padrao de nome e nao um a um.
+#
+# A forma antiga listava `exemplos/poisson-mms` pelo caminho exato, e quando o
+# exemplo mudou de diretorio a regra deixou de casar -- o binario de 5,4 MB
+# entrou num commit.  Um padrao que acompanha a estrutura nao tem esse modo de
+# falha.
+exemplos/*/poisson-mms
+exemplos/poisson-mms
