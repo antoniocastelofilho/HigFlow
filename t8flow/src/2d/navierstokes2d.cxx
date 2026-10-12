@@ -622,6 +622,7 @@ void NavierStokes::preditor()
       if (proj_ == Projecao::Incremental) rhs -= grad_campo(p_, d, f);
 
       if (fonte_faceta_) rhs += fonte_faceta_(x, d, t_bc_);
+      if (forca_campo_) rhs += forca_campo_->em(d, f);
 
       ustar_.em(d, f) = u_.em(d, f) + dt_ * rhs;
     }

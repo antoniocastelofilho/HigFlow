@@ -183,7 +183,7 @@ endif
 # 2D
 # ---------------------------------------------------------------------------
 OBJ2 = obj/2d
-CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson -Iexemplos/caixa
+CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson -Iexemplos/caixa -Iexemplos/gota
 
 # O QUE E' BIBLIOTECA fica em `src/`: malha, estencil, contorno, campos, o ajuste
 # por minimos quadrados, o lote, o invólucro de solver e a escolha de
@@ -192,7 +192,8 @@ SRC2   = src/2d/mls2d.cxx src/2d/discretizacao2d.cxx \
          src/2d/malha2d.cxx src/2d/campos2d.cxx \
          src/2d/lote2d.cxx src/2d/estencil2d.cxx \
          src/2d/contorno2d.cxx src/2d/navierstokes2d.cxx \
-         src/2d/criterio2d.cxx src/2d/frente2d.cxx
+         src/2d/criterio2d.cxx src/2d/frente2d.cxx \
+         src/2d/acoplamento2d.cxx
 SRC2  += $(SRC2_IO)
 
 # O QUE E' EXEMPLO fica em `exemplos/`, e o operador de Poisson com as solucoes
@@ -223,7 +224,7 @@ BINS2   = $(TESTES2)
 # Um exemplo e' um programa com `main`; as pecas nao sao, e a diferenca nao se
 # descobre por padrao de nome.
 EXEMPLOS2 = exemplos/poisson/poisson-mms exemplos/canal/canal \
-            exemplos/caixa/caixa-mms
+            exemplos/caixa/caixa-mms exemplos/gota/gota-estatica
 
 2d: $(BINS2) $(EXEMPLOS2)
 

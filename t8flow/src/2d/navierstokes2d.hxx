@@ -153,6 +153,19 @@ class NavierStokes {
     fonte_faceta_ = std::move(f);
   }
 
+  //! FORCA POR FACETA, como CAMPO e nao como funcao do ponto.
+  //
+  // A tensao superficial do front-tracking nasce assim: ela e' distribuida dos
+  // MARCADORES para as facetas por um nucleo, e o resultado e' um campo -- nao
+  // ha' `f(x)` que a descreva, porque ela depende de onde os marcadores estao
+  // e nao so' de onde a faceta esta'.
+  //
+  // Embrulhar o campo numa lambda `f(x, d, t)` obrigaria a busca da faceta
+  // pelo ponto DENTRO do laco do preditor, e isso e' justamente o quadratico
+  // que ja' custou caro aqui.  O ponteiro e' observado, nao possuido: quem o
+  // instala garante que o campo vive enquanto o solver o usa.
+  void forca_de_faceta(const CampoVetorial *f) { forca_campo_ = f; }
+
   //! Fonte de massa na celula: `f(x)`.  Entra no lado direito do Poisson da
   //! projecao, e um valor nao nulo significa escoamento NAO solenoidal -- o
   //! que e' legitimo e raro, e por isso vale zero por omissao.
@@ -384,6 +397,7 @@ class NavierStokes {
   Projecao proj_ = Projecao::Incremental;
   Convectivo conv_ = Convectivo::Cubista;
   std::function<double(const Ponto2 &, int, double)> fonte_faceta_;
+  const CampoVetorial *forca_campo_ = nullptr;
   std::function<double(const Ponto2 &)> fonte_celula_;
 };
 
