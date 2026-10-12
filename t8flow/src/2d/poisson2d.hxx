@@ -135,6 +135,29 @@ enum class Esquema {
   //! Lele usa apenas `f`, avaliado onde se precisa.  Ter os dois e comparar e' o
   //! que verifica a algebra acima em vez de confiar nela.
   Compacto4Lele,
+
+  //! RECONSTRUCAO MLS COM QUADRATURA DE GAUSS -- o unico que serve em malha
+  //! ADAPTADA com ordem acima de dois.
+  //
+  // O fluxo pela faceta e' `integral du/dn ds`, e este esquema o calcula com as
+  // duas aproximacoes levadas a ordem alta ao mesmo tempo -- porque melhorar uma
+  // sozinha nao passa de segunda ordem:
+  //
+  //   a DERIVADA em cada ponto de quadratura vem do ajuste MLS de ordem 3, exato
+  //   para polinomio de grau 3 (`Mls::pesos_derivada`);
+  //
+  //   a QUADRATURA e' de Gauss com DOIS pontos por faceta, exata para integrando
+  //   cubico -- contra o ponto medio, exato so' para linear.  Foi a quadratura do
+  //   ponto medio que tirou a exatidao do grau 2 na malha adaptada.
+  //
+  // CONSERVATIVO POR CONSTRUCAO, e isso sai do desenho e nao de um acerto: o
+  // suporte do estencil depende apenas do PONTO de quadratura, nao da celula que
+  // pergunta.  Logo as duas celulas que compartilham uma faceta obtem o mesmo
+  // fluxo, sem ninguem combinar nada.
+  //
+  // Serve em malha uniforme e adaptada, com Dirichlet e com Neumann -- o
+  // fechamento vem do `ConstrutorEstencil`, que ja' trata os tres tipos.
+  MlsGauss,
 };
 
 class Poisson {
@@ -151,6 +174,41 @@ class Poisson {
   //! em todo o contorno -- `resolve` recusa, dizendo qual condicao falhou.
   void esquema(Esquema e) { esquema_ = e; }
   Esquema esquema() const { return esquema_; }
+
+  //! Como `integral f dA` e' calculada no esquema `MlsGauss`.
+  //
+  // EXISTE PARA DAR CONTRASTE, e o contraste aqui mediu algo que eu nao esperava:
+  // com o fluxo da faceta levado a ordem alta e a fonte ainda no ponto medio, o
+  // esquema TRAVA em segunda ordem (grau 4 deu 1,99 em vez de exato).  A regra do
+  // ponto medio e' um erro `O(h^2)` relativo em `integral f dA`, e no esquema de
+  // fluxo de segunda ordem ele se escondia atras do erro do proprio fluxo.
+  //
+  // Sem este interruptor, "Gauss 2x2 na fonte" seria uma afirmacao sem prova:
+  // verde que nunca foi vermelho nao prova nada.
+  enum class QuadFonte {
+    PontoMedio,   //!< `f(c) * area` -- exata para `f` linear
+    Gauss2x2,     //!< exata para `f` bicubico (o padrao)
+  };
+  void quadratura_fonte(QuadFonte q) { quad_fonte_ = q; }
+
+  //! Ordem do ajuste MLS e teto do suporte, usados pelo esquema `MlsGauss`.
+  //! Ordem do ajuste, teto do suporte e quantos ANEIS ele pode abrir.
+  //
+  // O numero de aneis nao e' so' um teto de busca: ele e' o alcance que a FRANJA
+  // tem de cobrir em paralelo, e o `resolve` pede essa cobertura a' malha
+  // (`aneis + 1` camadas).  Cada camada custa `(2K+1)^2` folhas publicadas por
+  // folha local, logo o custo cresce com o quadrado -- e por isso o numero sai da
+  // ORDEM em vez de um padrao generoso.
+  //
+  // `aneis <= 0` pede o automatico, que e' derivado do minimo de pontos medido:
+  // a ordem 3 pede 10 monomios e dois aneis entregam de 12 a 16 pontos; a ordem 4
+  // pede 15 e dois aneis entregaram 10 -- insuficiente --, logo ela leva tres.
+  void mls(int ordem, int max_pontos, int aneis = 0)
+  {
+    mls_ordem_ = ordem;
+    mls_maxpts_ = max_pontos;
+    mls_aneis_ = (aneis > 0) ? aneis : ((ordem >= 4) ? 3 : 2);
+  }
 
   //! A fonte do termo de correcao do esquema compacto: `lap(f)`.
   //
@@ -174,6 +232,20 @@ class Poisson {
   double residuo() const { return residuo_; }
 
   //! Erro contra a solucao exata, na norma do MAXIMO.
+  //! Quantos ajustes MLS tiveram de REBAIXAR a ordem na ultima montagem.
+  //
+  // Zero e' o que se quer afirmar: um esquema que diz "ordem 4" com rebaixamento
+  // entrega ordem menor em parte do dominio, e sem este numero isso e' invisivel.
+  long rebaixamentos_mls() const { return rebaixos_mls_; }
+  long ajustes_mls() const { return ajustes_mls_; }
+
+  //! Quantos suportes a FRANJA truncou, somado sobre os processos.
+  //
+  // Zero em np=1 por construcao.  Diferente de zero em paralelo significa que os
+  // pesos perto das fronteiras de particao nao sao os do serial -- a solucao
+  // passa a depender do numero de processos, e isso tem de ser visivel.
+  long truncados_pela_franja() const { return static_cast<long>(truncados_franja_); }
+
   double erro_inf(const std::function<double(const Ponto2 &)> &exata) const;
 
   //! Erro na norma 2 DISCRETA, ponderada por area: `sqrt(sum e^2 A / sum A)`.
@@ -202,12 +274,40 @@ class Poisson {
   std::function<double(const Ponto2 &)> f_;
   FechamentoParede fechamento_ = FechamentoParede::TresPontos;
   Esquema esquema_ = Esquema::Fluxo2;
+  int mls_ordem_ = 3;
+  int mls_maxpts_ = 40;
+  int mls_aneis_ = 2;
+  QuadFonte quad_fonte_ = QuadFonte::Gauss2x2;
+  mutable long rebaixos_mls_ = 0;
+  mutable long ajustes_mls_ = 0;
+  mutable double truncados_franja_ = 0.0;
   std::function<double(const Ponto2 &)> lap_f_;
 
   //! Monta a linha de uma celula.  `indice` e' o mapa id -> (bloco, folha), opaco
   //! aqui para o cabecalho nao depender do tipo interno.
   void monta_linha(long b, long i, const void *indice,
                    std::map<long, double> *linha, double *rhs) const;
+
+ public:
+  //! A LINHA MONTADA de uma celula, para oraculo e diagnostico.
+  //
+  // Existe porque comparar a linha entre np=1 e np>1 e' o unico oraculo que
+  // distingue "o esquema montou outra coisa" de "o solver convergiu diferente".
+  // Sem ela, um erro de O(1) em paralelo e' indistinguivel de um problema de
+  // precondicionamento, e foi exatamente onde este trabalho ficou preso.
+  //
+  // Devolve os coeficientes por id GLOBAL e o lado direito -- a mesma coisa que
+  // vai para o solver, pelo mesmo caminho de codigo.
+  std::map<long, double> linha_montada(long b, long i, double *rhs) const;
+
+ private:
+  //! Reducoes entre processos.  Identidade em np=1, e sem ramo separado para ele.
+  double reduz_max(double v) const;
+  double reduz_soma(double v) const;
+
+  //! Monta a linha pelo esquema de reconstrucao MLS com quadratura de Gauss.
+  void monta_linha_mls(long b, long i, const void *construtor,
+                       std::map<long, double> *linha, double *rhs) const;
 
   //! Monta a linha pelo esquema COMPACTO.  Exige a grade logica (so' uniforme).
   void monta_linha_compacta(long ix, long iy, const void *grade,

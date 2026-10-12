@@ -101,6 +101,30 @@ class ConstrutorEstencil {
   // devolve numeros plausiveis e errados.
   Estencil em(const Ponto2 &x) const;
 
+  //! O estencil da DERIVADA `du/dx_dir` em `x`: ids, pesos e `rhs`.
+  //
+  // Mesma selecao de suporte do valor -- inclusive o fechamento de contorno, que
+  // continua entrando como `(a, b)` e sendo redistribuido na montagem.  O que muda
+  // e' so' o funcional avaliado: `pesos_derivada` em vez de `pesos`.
+  //
+  // E' O QUE A RECONSTRUCAO DE FLUXO DE ALTA ORDEM PEDE, e a razao de ele viver
+  // aqui e nao no `Poisson`: o suporte depende apenas do PONTO, nao de quem
+  // pergunta.  Logo as duas celulas que compartilham uma faceta obtem o MESMO
+  // estencil para o mesmo ponto -- e o esquema fica conservativo por construcao,
+  // sem ninguem ter de combinar nada.
+  Estencil derivada_em(const Ponto2 &x, int dir) const;
+
+  //! Quantos suportes foram TRUNCADOS pela franja desde o ultimo `zera()`.
+  //
+  // Zero e' o que se quer afirmar em qualquer numero de processos.  Diferente de
+  // zero significa que os pesos perto da fronteira de particao nao sao os do
+  // serial, e portanto que a solucao depende da particao.
+  long truncados_pela_franja() const { return truncados_; }
+  void zera_contadores_de_franja() const { truncados_ = 0; }
+
+  //! O ajuste MLS por tras, para ler os contadores de rebaixamento de ordem.
+  const Mls &mls() const { return mls_; }
+
   //! O mesmo para muitos pontos, por um `LoteEstenceis` -- que e' onde a GPU
   //! entra.  O suporte continua sendo escolhido na CPU (e' navegacao de malha,
   //! nao aritmetica densa); o que vai para a placa sao os PESOS.
@@ -130,6 +154,17 @@ class ConstrutorEstencil {
     int aneis = 0;
     double diametro = 0.0;
     long fantasmas = 0;           //!< quantos pontos vieram de fantasma
+    //! O suporte parou por falta de FRANJA, nao por ter fechado o anel.
+    //
+    // Em np=1 e' sempre falso.  Em paralelo fica verdadeiro perto da fronteira
+    // de particao quando o suporte pedia mais de um anel alem das folhas locais:
+    // a franja tem UMA camada, e o processo nao conhece os vizinhos dela.
+    //
+    // Nao e' erro -- e' uma propriedade declarada do arranjo --, mas e' uma
+    // propriedade que muda os PESOS, logo o resultado passa a depender do numero
+    // de processos.  Quem monta esquema de alta ordem tem de poder ver isto.
+    bool truncado_pela_franja = false;
+
     long paredes = 0;             //!< quantos vieram de amostrar a parede
   };
   Suporte suporte_em(const Ponto2 &x) const;
@@ -142,6 +177,8 @@ class ConstrutorEstencil {
   static Estencil monta(const Suporte &s, const std::vector<double> &w);
 
  private:
+  mutable long truncados_ = 0;
+
   const Malha *m_;
   int ordem_;
   int max_pontos_;

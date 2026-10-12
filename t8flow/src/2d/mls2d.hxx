@@ -75,6 +75,21 @@ class Mls {
   // implementacao NOVA (equacoes normais com o mesmo peso WLSMOVING), e por isso
   // os pesos de VALOR dela sao conferidos contra o herdado no teste: se as duas
   // implementacoes do mesmo ajuste divergem, nao ha' oraculo para a derivada.
+  //! Quantos ajustes proprios foram feitos, e quantos tiveram de REBAIXAR a ordem.
+  //
+  // Nao e' estatistica decorativa: em malha adaptada o suporte as vezes nao
+  // sustenta a ordem pedida, e sem este contador o rebaixamento seria invisivel --
+  // o esquema diria "ordem 4" entregando ordem menor em parte do dominio.  Quem
+  // monta um esquema de alta ordem tem de poder AFIRMAR que nao houve rebaixo.
+  long ajustes() const { return ajustes_; }
+  long rebaixamentos() const { return rebaixos_; }
+
+  //! Ajustes em que NENHUMA ordem serviu -- pesos nulos, linha invalida.
+  long ajustes_nulos() const { return nulos_; }
+
+  //! Zera os contadores.
+  void zera_contadores() const { ajustes_ = rebaixos_ = nulos_ = 0; }
+
   std::vector<double> pesos_derivada(const Ponto2 &alvo,
                                      const std::vector<Ponto2> &suporte, int dir) const;
 
@@ -92,6 +107,14 @@ class Mls {
                    const std::vector<double> &valores) const;
 
  private:
+  //! Registra a ordem efetivamente usada no ultimo ajuste proprio.
+  const std::vector<double> &conta(const std::vector<double> &w) const;
+
+  mutable int ord_usada_ = 0;
+  mutable long ajustes_ = 0;
+  mutable long rebaixos_ = 0;
+  mutable long nulos_ = 0;
+
   wls_interpolator *wls_ = nullptr;
   int ordem_ = 0;
   int max_pontos_ = 0;

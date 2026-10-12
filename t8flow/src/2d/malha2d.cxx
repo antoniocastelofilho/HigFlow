@@ -17,7 +17,10 @@
 //      comentadas onde acontecem, porque errar qualquer uma falha em silencio.
 #include "malha2d.hxx"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
+#include <set>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -156,8 +159,11 @@ int adapt_caixa(t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_t
 }  // namespace
 
 Malha::Malha(const std::vector<Bloco> &blocos, sc_MPI_Comm comm)
-    : blocos_(blocos)
+    : blocos_(blocos), comm_(comm)
 {
+  sc_MPI_Comm_rank(comm, &rank_);
+  sc_MPI_Comm_size(comm, &nprocs_);
+
   const long n = static_cast<long>(blocos.size());
   if (n == 0) throw std::invalid_argument("Malha: lista de blocos vazia");
 
@@ -273,7 +279,12 @@ Malha::Malha(const std::vector<Bloco> &blocos, sc_MPI_Comm comm)
   }
 
   const t8_scheme_c *esquema = t8_scheme_new_default();
-  f_ = t8_forest_new_uniform(cmesh, esquema, nivel_min, 0, comm);
+  // A FRANJA JA' NASCE AQUI (`do_face_ghost = 1`).  Pedi-la so' quando o
+  // paralelo chegar seria deixar o caminho serial e o paralelo diferentes
+  // exatamente onde o serial nao discrimina: sem franja, um vizinho de outro
+  // processo some, a face passa por CONTORNO DO DOMINIO, e o sistema resolve
+  // outro problema sem reclamar.
+  f_ = t8_forest_new_uniform(cmesh, esquema, nivel_min, 1, comm);
 
   int nivel_max = nivel_min;
   for (int v : alvo) if (v > nivel_max) nivel_max = v;
@@ -284,9 +295,12 @@ Malha::Malha(const std::vector<Bloco> &blocos, sc_MPI_Comm comm)
     t8_forest_init(&novo);
     t8_forest_set_user_data(novo, &ctx);
     t8_forest_set_adapt(novo, f_, adapt_por_arvore, 1 /* recursivo */);
+    t8_forest_set_ghost(novo, 1, T8_GHOST_FACES);
     t8_forest_commit(novo);
     f_ = novo;
   }
+
+  monta_franja();
 }
 
 Malha::~Malha()
@@ -433,15 +447,23 @@ std::vector<long> Malha::ids_vizinhos(long b, long i, int fa) const
   t8_forest_leaf_face_neighbors(f_, it, e, const_cast<const t8_element_t ***>(&vz), fa,
                                &dual, &nviz, &idx, &vec);
 
-  // O INDICE QUE O T8CODE DEVOLVE E' DA FLORESTA LOCAL, nao da arvore.  Tratar
-  // como indice de arvore entrega um elemento existente, so' que OUTRO -- erro
-  // silencioso, e esta' na lista de armadilhas desta frente.  O id global e'
-  // `primeiro_id() + indice_de_floresta`, direto, porque a numeracao local E' a
-  // ordem de percurso da floresta.
-  const long p0 = primeiro_id();
+  // O INDICE QUE O T8CODE DEVOLVE E' DA FLORESTA, nao da arvore.  Tratar como
+  // indice de arvore entrega um elemento existente, so' que OUTRO -- erro
+  // silencioso, e esta' na lista de armadilhas desta frente.
+  //
+  // E A SOMA `primeiro_id() + indice` ESTA' ERRADA EM PARALELO, que e' o segundo
+  // nivel da mesma armadilha.  Ela vale para as folhas LOCAIS, cuja numeracao e'
+  // a ordem de percurso; nao vale para as de FRANJA, que o t8code indexa logo
+  // depois das locais e cujo id pertence a OUTRO processo.  Somar o deslocamento
+  // deste processo a um indice de franja da' o id de uma folha local que existe
+  // -- so' que outra.  Em np=1 nao ha' franja e a soma acerta sempre, e e' por
+  // isso que o caminho serial nunca acusaria isto.
+  //
+  // `id_global_do_indice` cobre as duas faixas, e os ids de franja vem da TROCA.
   std::vector<long> ids;
   ids.reserve(static_cast<size_t>(nviz));
-  for (int k = 0; k < nviz; k++) ids.push_back(p0 + static_cast<long>(idx[k]));
+  for (int k = 0; k < nviz; k++)
+    ids.push_back(id_global_do_indice(static_cast<long>(idx[k])));
 
   T8_FREE(vz);
   T8_FREE(dual);
@@ -460,6 +482,19 @@ int Malha::nivel_minimo() const
       if (v < 0 || n < v) v = n;
     }
   }
+  // PROPRIEDADE DA MALHA INTEIRA, logo reduz.  Um processo que recebeu apenas a
+  // regiao fina reportaria um minimo maior que o verdadeiro, e as guardas que
+  // comparam nivel pedido com nivel atual decidiriam com o numero errado.
+  //
+  // `v < 0` significa particao VAZIA -- possivel em paralelo com poucas folhas --
+  // e e' neutralizado para o maximo inteiro antes do minimo, para que a particao
+  // vazia nao vire o minimo global.
+  if (nprocs_ > 1) {
+    int envia = (v < 0) ? std::numeric_limits<int>::max() : v;
+    int r = envia;
+    sc_MPI_Allreduce(&envia, &r, 1, sc_MPI_INT, sc_MPI_MIN, comm_);
+    v = (r == std::numeric_limits<int>::max()) ? -1 : r;
+  }
   return v;
 }
 
@@ -473,6 +508,13 @@ int Malha::nivel_maximo() const
       const int n = nivel(it, ie);
       if (n > v) v = n;
     }
+  }
+  // Mesma razao do minimo: e' da malha inteira.  Aqui `-1` da particao vazia ja'
+  // e' neutro para o maximo, e nao precisa de tratamento.
+  if (nprocs_ > 1) {
+    int r = v;
+    sc_MPI_Allreduce(&v, &r, 1, sc_MPI_INT, sc_MPI_MAX, comm_);
+    v = r;
   }
   return v;
 }
@@ -510,38 +552,473 @@ Ponto2 Malha::lados_da_folha(long b, long i) const
   return Ponto2{(k.hi[0] - k.lo[0]) / div, (k.hi[1] - k.lo[1]) / div};
 }
 
+// ---------------------------------------------------------------------------
+// A FRANJA
+// ---------------------------------------------------------------------------
+
+void Malha::monta_franja() { monta_franja_camadas(camadas_); }
+
+void Malha::exige_camadas(int k)
+{
+  if (k < 1)
+    throw std::invalid_argument("Malha::exige_camadas: " + std::to_string(k) +
+                                " -- a franja tem pelo menos uma camada");
+  if (k <= camadas_) return;      // idempotente: pedir menos nao desfaz
+  monta_franja_camadas(k);
+}
+
+namespace {
+
+//! Indices de FLORESTA dos vizinhos de face -- crus, como o t8code os da'.
+//
+// Devolve INDICE e nao id de proposito: na primeira fase da montagem da franja o
+// id global de um vizinho de franja AINDA NAO EXISTE neste processo -- ele chega
+// pela troca.  Converter indice em id antes disso exigiria a aritmetica
+// `primeiro_id() + indice`, que e' exatamente o erro que a franja existe para
+// impedir: para um indice de franja ela da' o id de uma folha local que existe,
+// so' que outra.
+std::vector<long> vizinhos_crus(t8_forest_t f, t8_locidx_t it, t8_locidx_t ie, int fa)
+{
+  const t8_element_t *e = t8_forest_get_leaf_element_in_tree(f, it, ie);
+  t8_element_t **vz = nullptr;
+  int *dual = nullptr, nviz = 0;
+  t8_locidx_t *idx = nullptr;
+  t8_eclass_t vec;
+  t8_forest_leaf_face_neighbors(f, it, e, const_cast<const t8_element_t ***>(&vz), fa,
+                                &dual, &nviz, &idx, &vec);
+  std::vector<long> v;
+  v.reserve(static_cast<size_t>(nviz));
+  for (int k = 0; k < nviz; k++) v.push_back(static_cast<long>(idx[k]));
+  T8_FREE(vz);
+  T8_FREE(dual);
+  T8_FREE(idx);
+  return v;
+}
+
+}  // namespace
+
+void Malha::monta_franja_camadas(int k)
+{
+  camadas_ = k;
+  saturacoes_ = 0;
+  n_locais_ = static_cast<long>(t8_forest_get_local_num_leaf_elements(f_));
+  const long nf = static_cast<long>(t8_forest_get_num_ghosts(f_));
+  const long p0 = primeiro_id();
+
+  struct Folha {
+    double cx = 0.0, cy = 0.0, hx = 0.0, hy = 0.0;
+    int nivel = -1;
+    std::array<std::vector<long>, 4> viz;
+
+    // O NIVEL DE CADA VIZINHO VIAJA JUNTO COM O ID, e isso economiza uma camada
+    // inteira de franja.  Sem ele, descobrir o nivel de um vizinho exigiria que
+    // ele proprio estivesse na tabela com geometria -- uma camada mais fundo --,
+    // e a medida mostrou que nem quatro camadas resolviam: a carga satura antes,
+    // porque em malha adaptada a vizinhanca de raio 3 passa de `(2k+1)^2` folhas.
+    //
+    // Com o nivel junto, o fluxo precisa de DUAS camadas e os niveis vem de graca.
+    std::array<std::vector<int>, 4> viz_nivel;
+
+    // MASCARA DE FACES CONHECIDAS, um bit por face -- e nao um `bool` por folha.
+    //
+    // A distincao e' obrigatoria e custou um erro de O(1): uma face sem vizinhos
+    // na lista pode significar DUAS coisas -- contorno do dominio, ou "o dono
+    // desta folha me contou sobre as outras faces e nao sobre esta".  Com um
+    // `bool` por folha as duas se confundiam, e a segunda era tratada como a
+    // primeira: o esquema aplicava condicao de contorno no MEIO do dominio.
+    //
+    // Medido: `grau1` em malha adaptada, que o esquema de fluxo resolve
+    // EXATAMENTE, deu 3,97e-13 em np=1 e 1,57e-01 em np=2.
+    unsigned char faces = 0;
+
+    bool completa() const { return faces == 0x0F; }
+  };
+  // A tabela e' por ID GLOBAL e nao por indice: acima da primeira camada a mesma
+  // folha chega por dois caminhos, e a tabela por id a unifica sem duplicar.
+  std::unordered_map<long, Folha> tab;
+
+  // =========================================================================
+  // FASE A -- identidade e geometria da camada 1
+  // =========================================================================
+  //
+  // A troca minima: seis campos por folha.  Ela existe separada porque resolve o
+  // problema do ovo e da galinha -- os vizinhos de franja de uma folha local sao
+  // conhecidos por INDICE, e o id deles so' chega aqui.
+  const t8_scheme_c *esq = t8_forest_get_scheme(f_);
+  const t8_locidx_t narv = t8_forest_get_num_local_trees(f_);
+
+  std::vector<long> id_por_indice(static_cast<size_t>(n_locais_ + nf), -1);
+  std::vector<std::array<std::vector<long>, 4>> viz_cru(static_cast<size_t>(n_locais_));
+  {
+    sc_array_t *arr = sc_array_new_count(6 * sizeof(double),
+                                         static_cast<size_t>(n_locais_ + nf));
+    long kk = 0;
+    for (t8_locidx_t it = 0; it < narv; it++) {
+      const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements(f_, it);
+      for (t8_locidx_t ie = 0; ie < ne; ie++) {
+        const t8_element_t *e = t8_forest_get_leaf_element_in_tree(f_, it, ie);
+        double c[3] = {0.0, 0.0, 0.0};
+        t8_forest_element_centroid(f_, it, e, c);
+        const int nv = esq->element_get_level(t8_forest_get_tree_class(f_, it), e);
+
+        // OS LADOS VEM DO BLOCO E DO NIVEL, como em `lados_da_folha`, e nao do
+        // diametro do elemento: a mesma formula nos dois lugares e' o que impede
+        // que a folha local e a MESMA folha vista como franja tenham medidas
+        // ligeiramente diferentes.  A clausula de conservacao compara pesos de
+        // estencil em `0,0e+00`, e uma diferenca de arredondamento ali apareceria
+        // como esquema nao conservativo.
+        const Bloco &kb = blocos_[static_cast<size_t>(it)];
+        const int div = 1 << nv;
+
+        const long id = p0 + kk;
+        id_por_indice[static_cast<size_t>(kk)] = id;
+        Folha &fo = tab[id];
+        fo.cx = c[0];
+        fo.cy = c[1];
+        fo.hx = (kb.hi[0] - kb.lo[0]) / div;
+        fo.hy = (kb.hi[1] - kb.lo[1]) / div;
+        fo.nivel = nv;
+        for (int fa = 0; fa < 4; fa++)
+          viz_cru[static_cast<size_t>(kk)][static_cast<size_t>(fa)] =
+              vizinhos_crus(f_, it, ie, fa);
+
+        double *d = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(kk)));
+        d[0] = static_cast<double>(id);
+        d[1] = fo.cx; d[2] = fo.cy; d[3] = fo.hx; d[4] = fo.hy;
+        d[5] = static_cast<double>(nv);
+        kk++;
+      }
+    }
+
+    if (nf > 0) {
+      t8_forest_ghost_exchange_data(f_, arr);
+      for (long i = n_locais_; i < n_locais_ + nf; i++) {
+        const double *d =
+            static_cast<const double *>(sc_array_index_int(arr, static_cast<int>(i)));
+        const long id = static_cast<long>(d[0]);
+        id_por_indice[static_cast<size_t>(i)] = id;
+        Folha &fo = tab[id];
+        fo.cx = d[1]; fo.cy = d[2]; fo.hx = d[3]; fo.hy = d[4];
+        fo.nivel = static_cast<int>(d[5]);
+      }
+    }
+    sc_array_destroy(arr);
+  }
+
+  // Agora os vizinhos das LOCAIS podem virar ids: o indice de franja tem id.
+  for (long i = 0; i < n_locais_; i++) {
+    Folha &fo = tab[id_por_indice[static_cast<size_t>(i)]];
+    for (int fa = 0; fa < 4; fa++) {
+      for (long x : viz_cru[static_cast<size_t>(i)][static_cast<size_t>(fa)]) {
+        const long id = (x >= 0 && x < n_locais_ + nf)
+                            ? id_por_indice[static_cast<size_t>(x)] : -1;
+        if (id < 0) continue;
+        fo.viz[static_cast<size_t>(fa)].push_back(id);
+        const auto itv = tab.find(id);
+        fo.viz_nivel[static_cast<size_t>(fa)].push_back(
+            (itv != tab.end() && itv->second.nivel >= 0) ? itv->second.nivel : -1);
+      }
+    }
+    // A FOLHA LOCAL CONHECE AS QUATRO FACES: o t8code as respondeu todas, e
+    // lista vazia aqui significa contorno do dominio, sem ambiguidade.
+    fo.faces = 0x0F;
+  }
+
+  // =========================================================================
+  // FASE B -- as camadas acima da primeira
+  // =========================================================================
+  //
+  // Cada rodada publica, por folha LOCAL, a vizinhanca que este processo ja'
+  // conhece em torno dela -- com os vizinhos de cada folha publicada --, e
+  // recebe o mesmo dos donos das folhas de franja.  Isso estende o alcance em um
+  // anel por rodada: a rodada 1 entrega os vizinhos da camada 1 (logo a camada 2
+  // existe como ponto), a rodada 2 entrega os vizinhos da camada 2, e assim por
+  // diante.
+  //
+  // O CUSTO CRESCE COM O QUADRADO DE K, e e' por isso que K e' escolha explicita
+  // de quem monta o esquema e nao um padrao generoso.
+  if (nf > 0 && k > 1) {
+    const int MAXV = (2 * k + 1) * (2 * k + 1);
+    // 7 campos proprios mais 8 vizinhos de DOIS campos cada (codigo e nivel).
+    const int CAMPOS = 7 + 8 * 2;
+    const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
+
+    for (int rodada = 1; rodada < k; rodada++) {
+      sc_array_t *arr = sc_array_new_count(passo * sizeof(double),
+                                           static_cast<size_t>(n_locais_ + nf));
+
+      for (long i = 0; i < n_locais_ + nf; i++) {
+        double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
+        for (size_t z = 0; z < passo; z++) b[z] = -1.0;
+      }
+
+      for (long i = 0; i < n_locais_; i++) {
+        double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
+
+        // o conjunto a publicar: a propria e tudo a distancia <= `rodada`
+        const long eu = id_por_indice[static_cast<size_t>(i)];
+        std::vector<long> fila{eu};
+        std::set<long> posto{eu};
+        for (int r = 0; r < rodada; r++) {
+          std::vector<long> prox;
+          for (long id : fila) {
+            const auto it = tab.find(id);
+            if (it == tab.end() || !it->second.completa()) continue;
+            for (int fa = 0; fa < 4; fa++)
+              for (long v : it->second.viz[static_cast<size_t>(fa)])
+                if (posto.insert(v).second) prox.push_back(v);
+          }
+          fila = prox;
+        }
+
+        int slot = 0;
+        for (long id : posto) {
+          // A CARGA SATUROU.  Em malha adaptada a vizinhanca de raio r passa de
+          // `(2k+1)^2` folhas, porque uma celula grossa tem muitos vizinhos
+          // finos.  Cortar aqui e' inevitavel -- o canal e' de tamanho fixo --,
+          // mas cortar EM SILENCIO nao e': foi isso que fez quatro camadas ainda
+          // deixarem niveis ausentes, e levou a' busca pela camada errada.
+          if (slot >= MAXV) { saturacoes_++; break; }
+          const auto it = tab.find(id);
+          if (it == tab.end() || it->second.nivel < 0) continue;
+          const Folha &fo = it->second;
+          double *c = b + static_cast<size_t>(slot) * CAMPOS;
+          c[0] = static_cast<double>(id);
+          c[1] = fo.cx; c[2] = fo.cy; c[3] = fo.hx; c[4] = fo.hy;
+          c[5] = static_cast<double>(fo.nivel);
+          // A MASCARA VAI JUNTO, e e' o que permite a quem recebe distinguir
+          // "face de contorno do dominio" de "face sobre a qual nao me contaram".
+          c[6] = static_cast<double>(fo.faces);
+          int z = 7;
+          for (int fa = 0; fa < 4; fa++)
+            for (size_t q = 0; q < fo.viz[static_cast<size_t>(fa)].size(); q++) {
+              if (z + 1 >= CAMPOS) break;
+              // A FACE vai codificada no id, para que quem recebe saiba por qual
+              // face o vizinho entra -- sem isso a malha remota chegaria como uma
+              // lista de ids sem topologia.  E o NIVEL vai no campo seguinte.
+              c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 4 + fa);
+              c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
+            }
+          slot++;
+        }
+      }
+
+      t8_forest_ghost_exchange_data(f_, arr);
+
+      for (long i = n_locais_; i < n_locais_ + nf; i++) {
+        const double *b =
+            static_cast<const double *>(sc_array_index_int(arr, static_cast<int>(i)));
+        for (int slot = 0; slot < MAXV; slot++) {
+          const double *c = b + static_cast<size_t>(slot) * CAMPOS;
+          if (c[0] < 0.0) continue;
+          const long id = static_cast<long>(c[0]);
+          Folha &fo = tab[id];
+          // A FOLHA LOCAL E' A VERSAO AUTORITATIVA DELA MESMA: o que chega pela
+          // franja nao sobrescreve o que este processo calculou.  No melhor caso
+          // seria trocar dados iguais por dados iguais; no pior, esconderia
+          // divergencia entre os dois caminhos.
+          if (fo.nivel < 0) {
+            fo.cx = c[1]; fo.cy = c[2]; fo.hx = c[3]; fo.hy = c[4];
+            fo.nivel = static_cast<int>(c[5]);
+          }
+          if (!fo.completa()) {
+            std::array<std::vector<long>, 4> nv;
+            std::array<std::vector<int>, 4> nn;
+            for (int z = 7; z + 1 < CAMPOS; z += 2) {
+              if (c[z] < 0.0) continue;
+              const long cod = static_cast<long>(c[z]);
+              const size_t fa = static_cast<size_t>(cod % 4);
+              nv[fa].push_back(cod / 4);
+              nn[fa].push_back(static_cast<int>(c[z + 1]));
+            }
+            // A MASCARA RECEBIDA MANDA, e nao a presenca de vizinhos na lista:
+            // uma face de contorno do dominio chega com a mascara marcada e a
+            // lista vazia, que e' exatamente o que se quer poder afirmar.
+            const unsigned char mk = static_cast<unsigned char>(c[6]);
+            if (mk != 0) { fo.viz = nv; fo.viz_nivel = nn; fo.faces = mk; }
+          }
+        }
+      }
+
+      sc_array_destroy(arr);
+    }
+  }
+
+  // =========================================================================
+  // ACHATA a tabela em arrays indexados por indice de floresta
+  // =========================================================================
+  //
+  // A ORDEM AQUI NAO E' LIVRE, e supor que era custou um erro de O(1).
+  //
+  // O t8code numera as folhas que `leaf_face_neighbors` devolve assim, e a
+  // documentacao dele e' explicita: `0 .. num_local-1` para as locais e
+  // `num_local .. num_local+num_ghosts-1` para as da CAMADA 1.  Logo as duas
+  // primeiras faixas tem de sair exatamente nessa ordem.
+  //
+  // A primeira versao ordenou TODA a franja por id, porque id e' determinista e
+  // parecia a escolha limpa.  O efeito: o indice que o t8code devolvia para o
+  // terceiro fantasma passava a designar outra folha, e `ids_vizinhos` entregava
+  // um id EXISTENTE -- so' que de outra celula.  Medido em `grau1` adaptado, que
+  // o esquema resolve exatamente: 3,97e-13 em np=1 e 1,70e-01 em np=2.
+  //
+  // So' as camadas 2 e acima podem ser ordenadas por id: elas nao tem indice do
+  // t8code, e a ordenacao por id as torna reprodutiveis entre execucoes.
+  id_g_.clear(); cen_.clear(); lad_.clear(); niv_.clear(); viz_.clear();
+  viz_niv_.clear(); expansivel_.clear(); idx_por_id_.clear();
+
+  auto empurra = [&](long id, const Folha &fo) {
+    idx_por_id_[id] = static_cast<long>(id_g_.size());
+    id_g_.push_back(id);
+    cen_.push_back(fo.cx); cen_.push_back(fo.cy);
+    lad_.push_back(fo.hx); lad_.push_back(fo.hy);
+    niv_.push_back(fo.nivel);
+    viz_.push_back(fo.viz);
+    viz_niv_.push_back(fo.viz_nivel);
+    expansivel_.push_back(fo.completa() ? 1 : 0);
+  };
+
+  for (long i = 0; i < n_locais_ + nf; i++) {
+    const long id = id_por_indice[static_cast<size_t>(i)];
+    if (id < 0) continue;
+    empurra(id, tab[id]);
+  }
+  std::vector<long> resto;
+  for (const auto &kv : tab)
+    if (kv.second.nivel >= 0 && idx_por_id_.find(kv.first) == idx_por_id_.end())
+      resto.push_back(kv.first);
+  std::sort(resto.begin(), resto.end());
+  for (long id : resto) empurra(id, tab[id]);
+
+  n_fantasmas_ = static_cast<long>(id_g_.size()) - n_locais_;
+}
+
+std::vector<long> Malha::vizinhos_do_indice(long idx, int fa) const
+{
+  if (idx < 0 || idx >= static_cast<long>(id_g_.size()))
+    throw std::out_of_range("Malha::vizinhos_do_indice: " + std::to_string(idx) +
+                            " fora da faixa de folhas conhecidas");
+  if (fa < 0 || fa > 3)
+    throw std::out_of_range("Malha::vizinhos_do_indice: face " + std::to_string(fa) +
+                            " -- o QUAD tem 4 (0:x-, 1:x+, 2:y-, 3:y+)");
+  return viz_[static_cast<size_t>(idx)][static_cast<size_t>(fa)];
+}
+
+std::vector<int> Malha::niveis_vizinhos_do_indice(long idx, int fa) const
+{
+  if (idx < 0 || idx >= static_cast<long>(viz_niv_.size()))
+    throw std::out_of_range("Malha::niveis_vizinhos_do_indice: " + std::to_string(idx) +
+                            " fora da faixa de folhas conhecidas");
+  if (fa < 0 || fa > 3)
+    throw std::out_of_range("Malha::niveis_vizinhos_do_indice: face " +
+                            std::to_string(fa) + " -- o QUAD tem 4");
+  return viz_niv_[static_cast<size_t>(idx)][static_cast<size_t>(fa)];
+}
+
+bool Malha::expansivel_do_indice(long idx) const
+{
+  if (idx < 0 || idx >= static_cast<long>(expansivel_.size()))
+    throw std::out_of_range("Malha::expansivel_do_indice: " + std::to_string(idx) +
+                            " fora da faixa de folhas conhecidas");
+  return expansivel_[static_cast<size_t>(idx)] != 0;
+}
+
+long Malha::id_global_do_indice(long idx) const
+{
+  if (idx < 0 || idx >= n_locais_ + n_fantasmas_)
+    throw std::out_of_range("Malha::id_global_do_indice: " + std::to_string(idx) +
+                            " fora de [0, " + std::to_string(n_locais_ + n_fantasmas_) +
+                            ") -- " + std::to_string(n_locais_) + " locais mais " +
+                            std::to_string(n_fantasmas_) + " de franja");
+  return id_g_[static_cast<size_t>(idx)];
+}
+
+Ponto2 Malha::centroide_do_indice(long idx) const
+{
+  if (idx < 0 || idx >= n_locais_ + n_fantasmas_)
+    throw std::out_of_range("Malha::centroide_do_indice: " + std::to_string(idx) +
+                            " fora da faixa de folhas locais e de franja");
+  return Ponto2{cen_[static_cast<size_t>(2 * idx)], cen_[static_cast<size_t>(2 * idx + 1)]};
+}
+
+Ponto2 Malha::lados_do_indice(long idx) const
+{
+  if (idx < 0 || idx >= n_locais_ + n_fantasmas_)
+    throw std::out_of_range("Malha::lados_do_indice: " + std::to_string(idx) +
+                            " fora da faixa de folhas locais e de franja");
+  return Ponto2{lad_[static_cast<size_t>(2 * idx)], lad_[static_cast<size_t>(2 * idx + 1)]};
+}
+
+int Malha::nivel_do_indice(long idx) const
+{
+  if (idx < 0 || idx >= n_locais_ + n_fantasmas_)
+    throw std::out_of_range("Malha::nivel_do_indice: " + std::to_string(idx) +
+                            " fora da faixa de folhas locais e de franja");
+  return niv_[static_cast<size_t>(idx)];
+}
+
+long Malha::indice_do_id(long id) const
+{
+  const auto it = idx_por_id_.find(id);
+  return (it == idx_por_id_.end()) ? -1 : it->second;
+}
+
+void Malha::reparticiona()
+{
+  // PARTICAO EM COMMIT PROPRIO, e a franja junto com ela.
+  //
+  // O comentario do construtor registra a armadilha: `set_adapt`, `set_ghost` e
+  // `set_partition` no MESMO commit derruba com np>1 e funciona em np=1.  Aqui
+  // ha' so' particao e franja, que o t8code combina, e nenhum adapt.
+  t8_forest_t novo;
+  t8_forest_init(&novo);
+  t8_forest_set_partition(novo, f_, 0);
+  t8_forest_set_ghost(novo, 1, T8_GHOST_FACES);
+  t8_forest_commit(novo);
+  f_ = novo;
+  monta_franja();
+}
+
 long Malha::id_do_ponto(const Ponto2 &p) const
 {
-  const t8_locidx_t narv = t8_forest_get_num_local_trees(f_);
-  for (t8_locidx_t it = 0; it < narv; it++) {
-    const Bloco &k = blocos_[static_cast<size_t>(it)];
+  // PERCORRE AS LOCAIS E AS DE FRANJA, pela mesma regra, SEM preferir as locais.
+  //
+  // Preferir a local seria o reflexo natural e estragaria a conservacao: o
+  // ponto de quadratura sobre uma faceta que e' fronteira de PARTICAO seria
+  // atribuido a uma celula diferente em cada um dos dois processos, os suportes
+  // divergiriam, e os dois fluxos pela mesma faceta deixariam de se cancelar.
+  //
+  // A regra SEMIABERTA [lo, hi) e' global e nao depende de quem pergunta, e e'
+  // isso que faz os dois processos chegarem a' MESMA celula.  Com ela, o
+  // criterio aqui e' puramente geometrico, e a unica diferenca entre serial e
+  // paralelo e' a faixa de folhas que este processo conhece.
+  const long n = n_locais_ + n_fantasmas_;
+  for (long x = 0; x < n; x++) {
+    const Ponto2 c = centroide_do_indice(x);
+    const Ponto2 h = lados_do_indice(x);
 
-    // O bloco e' semiaberto como as celulas, com a mesma excecao no limite
-    // superior do dominio -- senao um ponto na borda de cima nao pertenceria a
-    // bloco nenhum.
-    bool no_bloco = true;
-    for (int d = 0; d < 2; d++)
-      if (p[d] < k.lo[d] - EPS || p[d] > k.hi[d] + EPS) no_bloco = false;
-    if (!no_bloco) continue;
-
-    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements(f_, it);
-    for (t8_locidx_t ie = 0; ie < ne; ie++) {
-      const Ponto2 c = centroide(it, ie);
-      const Ponto2 h = lados_da_folha(it, ie);
-
-      bool dentro = true;
-      for (int d = 0; d < 2; d++) {
-        const double lo = c[d] - h[d] / 2.0;
-        const double hi = c[d] + h[d] / 2.0;
-        // SEMIABERTO [lo, hi): ponto sobre a face comum cai na celula de
-        // coordenada maior.  No limite superior do DOMINIO o fechado volta, senao
-        // a borda de cima nao pertenceria a celula nenhuma.
-        const bool ultima = (hi > k.hi[d] - EPS);
-        const bool ok = (p[d] >= lo - EPS) && (ultima ? (p[d] <= hi + EPS) : (p[d] < hi - EPS));
-        if (!ok) { dentro = false; break; }
-      }
-      if (dentro) return id_global(it, ie);
+    // O BLOCO da folha e' identificado pela geometria, porque a folha de franja
+    // nao traz a arvore do dono.  Com blocos disjuntos o centro decide sozinho.
+    const Bloco *kb = nullptr;
+    for (const Bloco &k : blocos_) {
+      bool no_bloco = true;
+      for (int d = 0; d < 2; d++)
+        if (c[d] < k.lo[d] - EPS || c[d] > k.hi[d] + EPS) no_bloco = false;
+      if (no_bloco) { kb = &k; break; }
     }
+    if (kb == nullptr) continue;
+
+    bool dentro = true;
+    for (int d = 0; d < 2; d++) {
+      const double lo = c[d] - h[d] / 2.0;
+      const double hi = c[d] + h[d] / 2.0;
+      // SEMIABERTO [lo, hi): ponto sobre a face comum cai na celula de
+      // coordenada maior.  No limite superior do DOMINIO o fechado volta, senao
+      // a borda de cima nao pertenceria a celula nenhuma.
+      const bool ultima = (hi > kb->hi[d] - EPS);
+      const bool ok = (p[d] >= lo - EPS) && (ultima ? (p[d] <= hi + EPS) : (p[d] < hi - EPS));
+      if (!ok) { dentro = false; break; }
+    }
+    if (dentro) return id_global_do_indice(x);
   }
   return -1;
 }
@@ -575,11 +1052,16 @@ void Malha::refina_aleatorio(double fracao, unsigned long semente, int nivel_max
   t8_forest_t equilibrada;
   t8_forest_init(&equilibrada);
   t8_forest_set_balance(equilibrada, refinada, 0);
+  // A FRANJA ACOMPANHA O BALANCEAMENTO.  O t8code combina `set_balance` com
+  // `set_ghost` no mesmo commit; o que ele nao aceita e' `set_adapt` junto --
+  // e por isso o refino ficou no commit anterior.
+  t8_forest_set_ghost(equilibrada, 1, T8_GHOST_FACES);
   t8_forest_commit(equilibrada);
 
   // Sem `unref`: o commit CONSOME a floresta de origem.  Liberar de novo deixa a
   // malha vazia sem erro nenhum -- ja' aconteceu aqui.
   f_ = equilibrada;
+  monta_franja();
 }
 
 long Malha::num_folhas_em_transicao() const
@@ -594,6 +1076,14 @@ long Malha::num_folhas_em_transicao() const
           if (viz != nv) { transicao = true; break; }
       if (transicao) n++;
     }
+  // CONTAGEM DA MALHA INTEIRA.  Os testes a usam para afirmar que a malha de
+  // fato TEM transicao 2:1 -- e um processo cuja particao caiu toda dentro da
+  // regiao uniforme contaria zero, fazendo o caso passar por nao medir nada.
+  if (nprocs_ > 1) {
+    long r = n;
+    sc_MPI_Allreduce(&n, &r, 1, sc_MPI_LONG, sc_MPI_SUM, comm_);
+    n = r;
+  }
   return n;
 }
 
@@ -637,6 +1127,10 @@ void Malha::refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo)
   t8_forest_t equilibrada;
   t8_forest_init(&equilibrada);
   t8_forest_set_balance(equilibrada, refinada, 0);
+  // A FRANJA ACOMPANHA O BALANCEAMENTO.  O t8code combina `set_balance` com
+  // `set_ghost` no mesmo commit; o que ele nao aceita e' `set_adapt` junto --
+  // e por isso o refino ficou no commit anterior.
+  t8_forest_set_ghost(equilibrada, 1, T8_GHOST_FACES);
   t8_forest_commit(equilibrada);
 
   // NAO HA' `unref` AQUI, e isto custou uma malha vazia: o `t8_forest_commit`
@@ -646,6 +1140,7 @@ void Malha::refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo)
   // `o_refino_conserva_a_area_de_cada_bloco` pegou (area 0 contra 1), e nenhum
   // "funcionou" teria pegado.
   f_ = equilibrada;
+  monta_franja();
 }
 
 }  // namespace t8flow2d

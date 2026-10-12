@@ -25,11 +25,13 @@
 // esquema -- exigir 1e-15 seria exigir do solver linear algo que ele nao promete.
 #include "../testing.h"
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
 #include "arranque.hxx"
 #include "contorno2d.hxx"
+#include "estencil2d.hxx"
 #include "malha2d.hxx"
 #include "manufaturada2d.hxx"
 #include "poisson2d.hxx"
@@ -92,7 +94,8 @@ struct Resultado {
 // as duas coisas.
 Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Paredes modo,
                double fracao = 0.0, long *transicao = nullptr,
-               Esquema esq = Esquema::Fluxo2)
+               Esquema esq = Esquema::Fluxo2, int mls_ordem = 3,
+               bool fonte_ponto_medio = false, long *rebaixos = nullptr)
 {
   const Manufaturada &sol = manufaturada(nome_sol);
   Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_SELF);
@@ -102,6 +105,10 @@ Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Pare
   po.fonte([&sol](const Ponto2 &p) { return sol.f(p); });
   po.fechamento(fp);
   po.esquema(esq);
+  if (esq == Esquema::MlsGauss) {
+    po.mls(mls_ordem, 60);
+    if (fonte_ponto_medio) po.quadratura_fonte(Poisson::QuadFonte::PontoMedio);
+  }
   if (esq == Esquema::Compacto4)
     po.fonte_laplaciano([&sol](const Ponto2 &p) { return sol.lap_f(p); });
   po.resolve(Motor::Petsc, 1e-14);
@@ -113,6 +120,7 @@ Resultado roda(const std::string &nome_sol, int nivel, FechamentoParede fp, Pare
   r.convergiu = po.convergiu();
   r.iteracoes = po.iteracoes();
   r.resid_operador = po.residuo_da_exata([&sol](const Ponto2 &p) { return sol.u(p); });
+  if (rebaixos != nullptr) *rebaixos = po.rebaixamentos_mls();
   return r;
 }
 
@@ -549,6 +557,187 @@ int main(int argc, char **argv)
       try { po.resolve(); } catch (const std::runtime_error &) { lancou = true; }
       T_CHECK_MSG(lancou, "o compacto aceitou Neumann");
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // D4 .. D7 -- derivada MLS na faceta e quadratura de Gauss
+  // -------------------------------------------------------------------------
+
+  t_case("o_mlsgauss_e_exato_no_grau_tres_onde_o_fluxo2_nao_e");
+  {
+    // D4.  O par de medidas na MESMA malha, mudando SO' o esquema.  O grau 3 e' o
+    // grau onde a distincao aparece: o fluxo de segunda ordem ja' erra nele, e o
+    // `MlsGauss` de ordem 3 e' exato.
+    long reb = 0;
+    const Resultado mg = roda("grau3", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr,
+                              Esquema::MlsGauss, 3, false, &reb);
+    const Resultado f2 = roda("grau3", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet);
+    T_CHECK_MSG(mg.e_inf < MAQUINA,
+                "MlsGauss no grau 3: erro %.3e (limite %.0e)", mg.e_inf, MAQUINA);
+    T_CHECK_MSG(reb == 0, "%ld ajustes MLS rebaixaram a ordem em malha UNIFORME -- "
+                "aqui o suporte e' regular e nao deveria haver nenhum", reb);
+    T_CONTRASTE(mg.e_inf > 1e-16 ? mg.e_inf : 1e-16, f2.e_inf, 1e4,
+                "grau 3: MlsGauss contra o fluxo de segunda ordem");
+    printf("  (grau3 uniforme: mlsgauss %.3e, fluxo2 %.3e)\n", mg.e_inf, f2.e_inf);
+  }
+
+  t_case("na_malha_adaptada_o_mlsgauss_recupera_a_exatidao_do_grau2");
+  {
+    // D5.  A RAZAO DE EXISTIR DO ESQUEMA, medida contra a clausula T2: la' o grau 2
+    // DEIXA de ser exato em malha adaptada; aqui ele volta a ser, na mesma malha --
+    // mesma fracao, mesma semente -- e o grau 3 tambem.
+    long reb2 = 0, reb3 = 0;
+    const Resultado g2 = roda("grau2", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.4, nullptr,
+                              Esquema::MlsGauss, 3, false, &reb2);
+    const Resultado g3 = roda("grau3", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.4, nullptr,
+                              Esquema::MlsGauss, 3, false, &reb3);
+    const Resultado f2 = roda("grau2", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.4);
+
+    T_CHECK_MSG(g2.e_inf < MAQUINA,
+                "grau2 em malha ADAPTADA com MlsGauss: erro %.3e (limite %.0e)",
+                g2.e_inf, MAQUINA);
+    T_CHECK_MSG(g3.e_inf < MAQUINA,
+                "grau3 em malha ADAPTADA com MlsGauss: erro %.3e (limite %.0e)",
+                g3.e_inf, MAQUINA);
+    T_CHECK_MSG(reb2 == 0 && reb3 == 0,
+                "houve rebaixamento de ordem (%ld e %ld) -- a exatidao afirmada "
+                "acima nao seria de ordem 3 em todo o dominio", reb2, reb3);
+    // o CONTRASTE e' contra o esquema de fluxo na mesma malha: sem ele, "exato em
+    // malha adaptada" nao distingue o esquema de uma malha que virou uniforme
+    T_CHECK_MSG(f2.e_inf > 1e-5,
+                "o fluxo2 deu %.3e no grau2 adaptado -- se fosse de maquina, a "
+                "malha nao estaria de fato adaptada e o caso nao mediria nada",
+                f2.e_inf);
+    printf("  (grau2 adaptada: mlsgauss %.3e, fluxo2 %.3e; grau3 mlsgauss %.3e)\n",
+           g2.e_inf, f2.e_inf, g3.e_inf);
+  }
+
+  t_case("a_fonte_no_ponto_medio_trava_o_esquema_em_segunda_ordem");
+  {
+    // D6.  O interruptor existe para esta medida.  Grau 4 com ajuste de ordem 4: o
+    // fluxo da faceta e' EXATO nos dois casos, e a unica diferenca e' a quadratura
+    // de `integral f dA`.  Com o ponto medio o esquema cai para segunda ordem.
+    long reb = 0;
+    const Resultado g4 = roda("grau4", 4, FechamentoParede::TresPontos,
+                              Paredes::TodasDirichlet, 0.0, nullptr,
+                              Esquema::MlsGauss, 4, false, &reb);
+    const Resultado pm4 = roda("grau4", 4, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::MlsGauss, 4, true);
+    const Resultado pm5 = roda("grau4", 5, FechamentoParede::TresPontos,
+                               Paredes::TodasDirichlet, 0.0, nullptr,
+                               Esquema::MlsGauss, 4, true);
+    T_CHECK_MSG(g4.e_inf < MAQUINA,
+                "grau4 com ordem 4 e Gauss 2x2: erro %.3e (limite %.0e)",
+                g4.e_inf, MAQUINA);
+    T_CHECK_MSG(reb == 0, "%ld rebaixamentos em malha uniforme com ordem 4", reb);
+    T_CONTRASTE(g4.e_inf > 1e-16 ? g4.e_inf : 1e-16, pm4.e_inf, 1e4,
+                "grau4: Gauss 2x2 contra ponto medio na fonte");
+    const double ordem = std::log2(pm4.e_inf / pm5.e_inf);
+    T_CHECK_MSG(ordem > 1.7 && ordem < 2.3,
+                "com a fonte no ponto medio a ordem deu %.2f (esperava ~2: e' o "
+                "travamento que o interruptor existe para mostrar)", ordem);
+    printf("  (grau4: gauss2x2 %.3e, ponto medio %.3e -> %.3e, ordem %.2f)\n",
+           g4.e_inf, pm4.e_inf, pm5.e_inf, ordem);
+  }
+
+  t_case("o_fluxo_da_faceta_de_transicao_e_o_mesmo_dos_dois_lados");
+  {
+    // D7.  CONSERVACAO, afirmada pelo caminho em que ela pode falhar: a celula
+    // GROSSA parte a faceta em duas sub-facetas e a FINA nao parte a sua.  Se os
+    // pontos de quadratura dos dois lados nao coincidirem, os fluxos nao se
+    // cancelam -- e um esquema nao conservativo AINDA CONVERGE, logo nenhum dos
+    // casos de convergencia acima pegaria isso.
+    //
+    // O oraculo refaz a geometria por conta propria, de proposito: conferir o
+    // codigo com o proprio codigo nao discrimina.
+    Malha m({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+    m.refina_caixa({0.0, 0.0}, {0.5, 0.5}, 4);
+
+    ConstrutorEstencil ce(m, 3, 60, 6);
+    ce.dirichlet([](const Ponto2 &) { return 0.0; });
+
+    const double no = 1.0 / std::sqrt(3.0);
+    int pares = 0;
+    double pior_ponto = 0.0, pior_peso = 0.0;
+
+    for (long b = 0; b < m.num_blocos() && pares < 8; b++)
+      for (long i = 0; i < m.num_folhas_do_bloco(b) && pares < 8; i++) {
+        const int nself = m.nivel(b, i);
+        const Ponto2 c = m.centroide(b, i);
+        const Ponto2 h = m.lados_da_folha(b, i);
+
+        for (int fa = 0; fa < 4 && pares < 8; fa++) {
+          const std::vector<int> nvz = m.niveis_vizinhos(b, i, fa);
+          if (nvz.empty() || nvz[0] <= nself) continue;   // so' a GROSSA da transicao
+
+          const int d = fa / 2, t = 1 - d;
+          const double sinal = (fa % 2 == 0) ? -1.0 : 1.0;
+          const double larg = h[t] / 2.0;                 // sub-faceta = face da fina
+
+          for (int sub = 0; sub < 2; sub++) {
+            Ponto2 cf = c;
+            cf[d] += sinal * h[d] / 2.0;
+            cf[t] += -h[t] / 2.0 + (sub + 0.5) * larg;
+
+            // o CENTRO DA FACETA DA FINA, achado pelo outro caminho: a celula fina
+            // e' a que contem o ponto logo DEPOIS da faceta
+            Ponto2 dentro = cf;
+            dentro[d] += sinal * larg / 4.0;
+            const long id_fina = m.id_do_ponto(dentro);
+            T_CHECK_MSG(id_fina >= 0, "nao achei a celula fina do outro lado");
+
+            // reconstroi o centro da faceta a partir da celula fina
+            long bf = 0, jf = 0;
+            bool achou = false;
+            for (long bb = 0; bb < m.num_blocos() && !achou; bb++)
+              for (long jj = 0; jj < m.num_folhas_do_bloco(bb); jj++)
+                if (m.id_global(bb, jj) == id_fina) { bf = bb; jf = jj; achou = true; break; }
+            T_CHECK_MSG(achou, "id %ld da celula fina nao mapeou de volta", id_fina);
+
+            const Ponto2 cfina = m.centroide(bf, jf);
+            const Ponto2 hfina = m.lados_da_folha(bf, jf);
+            Ponto2 cf_fina = cfina;
+            cf_fina[d] -= sinal * hfina[d] / 2.0;   // a faceta OPOSTA, vista da fina
+
+            pior_ponto = std::max(pior_ponto,
+                                  std::max(std::fabs(cf[0] - cf_fina[0]),
+                                           std::fabs(cf[1] - cf_fina[1])));
+            T_NEAR(hfina[t], larg, 1e-14, "largura da faceta vista dos dois lados");
+
+            // E OS ESTENCEIS NOS PONTOS DE GAUSS: identicos, porque o suporte
+            // depende do PONTO.  Comparados peso a peso, nao por uma soma -- somas
+            // iguais com pesos diferentes seriam um falso verde.
+            for (int q = 0; q < 2; q++) {
+              Ponto2 xg = cf, yg = cf_fina;
+              xg[t] += (q == 0 ? -no : no) * larg / 2.0;
+              yg[t] += (q == 0 ? -no : no) * hfina[t] / 2.0;
+              const Estencil ex = ce.derivada_em(xg, d);
+              const Estencil ey = ce.derivada_em(yg, d);
+              T_CHECK_MSG(ex.ids == ey.ids,
+                          "os dois lados usaram SUPORTES diferentes no mesmo ponto "
+                          "de quadratura (%zu contra %zu pontos)",
+                          ex.ids.size(), ey.ids.size());
+              for (size_t k = 0; k < ex.pesos.size(); k++)
+                pior_peso = std::max(pior_peso, std::fabs(ex.pesos[k] - ey.pesos[k]));
+            }
+            pares++;
+          }
+        }
+      }
+
+    T_CHECK_MSG(pares >= 4,
+                "so' %d sub-facetas de transicao examinadas -- a malha nao tem a "
+                "transicao 2:1 que o caso precisa exercitar", pares);
+    T_NEAR(pior_ponto, 0.0, 1e-14, "centro da sub-faceta visto dos dois lados");
+    T_NEAR(pior_peso, 0.0, 1e-12, "pesos do estencil de derivada vistos dos dois lados");
+    printf("  (%d sub-facetas de transicao: ponto %.1e, peso %.1e)\n",
+           pares, pior_ponto, pior_peso);
   }
 
   return t_end();

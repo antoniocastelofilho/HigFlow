@@ -106,22 +106,39 @@ int base_rel(double dx, double dy, int ord, double *b)
     b[n++] = dx * dx * dx; b[n++] = dx * dx * dy;
     b[n++] = dx * dy * dy; b[n++] = dy * dy * dy;
   }
+  if (ord >= 4) {
+    b[n++] = dx * dx * dx * dx; b[n++] = dx * dx * dx * dy;
+    b[n++] = dx * dx * dy * dy; b[n++] = dx * dy * dy * dy;
+    b[n++] = dy * dy * dy * dy;
+  }
   return n;
 }
 
-constexpr int NMAX = 10;   // ordem 3 em 2D
+constexpr int NMAX = 15;   // ordem 4 em 2D: 15 monomios
 
 //! Resolve `M y = rhs` por Gauss com pivotamento parcial.
 //
 // Com pivotamento porque `M[0][0]` pode ser pequeno quando o suporte e' simetrico
 // em torno do alvo, e sem ele o resultado degrada em silencio.
-bool resolve_pequeno(double M[NMAX][NMAX], double *rhs, int n)
+//
+// DEVOLVE A RAZAO `pivo_min / pivo_max`, nao um `bool`.  A versao anterior so'
+// recusava pivo abaixo de `1e-300` -- ou seja, so' a singularidade exata -- e
+// devolvia um vetor de ZEROS quando recusava.  Em malha uniforme isso nunca
+// acontecia; em malha ADAPTADA com ordem 4 acontecia, e o efeito era uma linha da
+// matriz silenciosamente errada: erro de 3,3e-01 num nivel cercado por 1e-10 nos
+// vizinhos.  A razao de pivos nao e' o numero de condicao, mas e' barata, monotona
+// nele, e basta para decidir se o ajuste merece confianca.
+double resolve_pequeno(double M[NMAX][NMAX], double *rhs, int n)
 {
+  double pmax = 0.0, pmin = 1e300;
   for (int c = 0; c < n; c++) {
     int piv = c;
     for (int i = c + 1; i < n; i++)
       if (std::fabs(M[i][c]) > std::fabs(M[piv][c])) piv = i;
-    if (std::fabs(M[piv][c]) < 1e-300) return false;
+    const double ap = std::fabs(M[piv][c]);
+    pmax = std::max(pmax, ap);
+    pmin = std::min(pmin, ap);
+    if (ap < 1e-300) return 0.0;
     if (piv != c) {
       for (int j = 0; j < n; j++) std::swap(M[c][j], M[piv][j]);
       std::swap(rhs[c], rhs[piv]);
@@ -137,17 +154,67 @@ bool resolve_pequeno(double M[NMAX][NMAX], double *rhs, int n)
     for (int j = i + 1; j < n; j++) sv -= M[i][j] * rhs[j];
     rhs[i] = sv / M[i][i];
   }
-  return true;
+  return (pmax > 0.0) ? pmin / pmax : 0.0;
 }
 
 //! O nucleo comum: pesos do funcional `alvo_base` (valor ou derivada).
+//! Abaixo desta razao de pivos o ajuste nao merece confianca e a ordem cai.
+//
+// `1e-11` foi escolhido por MEDIDA, nao por gosto: com a base adimensionalizada um
+// suporte saudavel da' razao entre `1e-2` e `1e-5`, e os ajustes que produziam o
+// erro de 3,3e-01 ficavam abaixo de `1e-13`.  O limiar fica na faixa vazia entre
+// os dois regimes.
+constexpr double RAZAO_MINIMA = 1e-11;
+
+std::vector<double> pesos_de_1(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
+                               int ord, int qual);
+
 std::vector<double> pesos_de(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
-                             int ord, int qual)
+                             int ord, int qual, int *ord_usada)
+{
+  // REBAIXAMENTO REGISTRADO.  Quando o suporte nao sustenta a ordem pedida -- em
+  // malha adaptada ele as vezes nao sustenta, porque os vizinhos podem cair quase
+  // alinhados --, a saida certa e' ajustar com ordem MENOR, nao devolver
+  // zeros.  Quem chama fica sabendo por `ord_usada`, e a `Mls` conta.
+  // DESCE ATE' A ORDEM 0, que ainda e' um ajuste honesto para VALOR -- a media
+  // ponderada do suporte.  Para DERIVADA a ordem 0 nao tem o funcional, logo o
+  // loop termina sem resposta e `ajustes_nulos()` conta: e' o sinal certo, porque
+  // derivada nula fingida de derivada verdadeira seria pior que a recusa.
+  for (int o = ord; o >= 0; o--) {
+    const std::vector<double> w = pesos_de_1(alvo, sup, o, qual);
+    if (!w.empty()) {
+      if (ord_usada) *ord_usada = o;
+      return w;
+    }
+  }
+  if (ord_usada) *ord_usada = 0;
+  return std::vector<double>(sup.size(), 0.0);
+}
+
+//! Uma tentativa, numa ordem so'.  Devolve VAZIO quando o ajuste e' indigno.
+std::vector<double> pesos_de_1(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
+                               int ord, int qual)
 {
   const int n = static_cast<int>(sup.size());
   double M[NMAX][NMAX] = {};
   double b[NMAX];
   int nmon = 0;
+
+  // A BASE E' ADIMENSIONALIZADA pelo raio do suporte.  Sem isso a matriz normal da
+  // ordem 4 tem condicionamento da ordem de `h^-8`: com `h = 3e-2` isso e' 1e12, e
+  // o ajuste degrada em SILENCIO -- os pesos saem, a reproducao polinomial quase
+  // passa, e so' a ordem de convergencia acusa.  Com a escala, o condicionamento
+  // nao depende de `h`.
+  //
+  // O ajuste em variavel escalada `s = d/L` e' o MESMO ajuste; so' a derivada muda
+  // de unidade, e por isso o peso de derivada e' dividido por `L` no fim.
+  double L = 0.0;
+  for (int k = 0; k < n; k++) {
+    const double dx = sup[static_cast<size_t>(k)][0] - alvo[0];
+    const double dy = sup[static_cast<size_t>(k)][1] - alvo[1];
+    L = std::max(L, std::sqrt(dx * dx + dy * dy));
+  }
+  if (L <= 0.0) L = 1.0;   // suporte degenerado num ponto: escala neutra
 
   // O PESO E' O MESMO DO HERDADO -- WLSMOVING, `D_i = 1/sqrt(dist^2 + EPSMACH)`,
   // aplicado ao quadrado na matriz normal.  Usar outro peso daria um ajuste
@@ -158,7 +225,9 @@ std::vector<double> pesos_de(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
   for (int k = 0; k < n; k++) {
     const double dx = sup[static_cast<size_t>(k)][0] - alvo[0];
     const double dy = sup[static_cast<size_t>(k)][1] - alvo[1];
-    nmon = base_rel(dx, dy, ord, b);
+    nmon = base_rel(dx / L, dy / L, ord, b);
+    // O PESO FICA NA ESCALA FISICA, de proposito: e' o peso do herdado, e mexer
+    // nele mudaria o ajuste em vez de so' recondiciona-lo.
     p2[static_cast<size_t>(k)] = 1.0 / (dx * dx + dy * dy + EPSMACH);
     for (int i = 0; i < nmon; i++)
       for (int j = 0; j < nmon; j++) M[i][j] += p2[static_cast<size_t>(k)] * b[i] * b[j];
@@ -167,33 +236,41 @@ std::vector<double> pesos_de(const Ponto2 &alvo, const std::vector<Ponto2> &sup,
   // O LADO DIREITO E' O VETOR DE AVALIACAO: `e_0` para valor, `e_1` para `d/dx`,
   // `e_2` para `d/dy` -- porque a base e' relativa ao alvo.
   double y[NMAX] = {};
-  if (qual < 0 || qual >= nmon) return std::vector<double>(static_cast<size_t>(n), 0.0);
+  if (qual < 0 || qual >= nmon) return {};   // a ordem nao tem este funcional
   y[qual] = 1.0;
-  if (!resolve_pequeno(M, y, nmon))
-    return std::vector<double>(static_cast<size_t>(n), 0.0);
+  if (resolve_pequeno(M, y, nmon) < RAZAO_MINIMA) return {};
 
   std::vector<double> w(static_cast<size_t>(n), 0.0);
   for (int k = 0; k < n; k++) {
     const double dx = sup[static_cast<size_t>(k)][0] - alvo[0];
     const double dy = sup[static_cast<size_t>(k)][1] - alvo[1];
-    base_rel(dx, dy, ord, b);
+    base_rel(dx / L, dy / L, ord, b);
     double sv = 0.0;
     for (int i = 0; i < nmon; i++) sv += y[i] * b[i];
     w[static_cast<size_t>(k)] = p2[static_cast<size_t>(k)] * sv;
   }
+  // `qual >= 1` e' derivada: desfaz a escala da variavel.
+  if (qual >= 1)
+    for (int k = 0; k < n; k++) w[static_cast<size_t>(k)] /= L;
   return w;
 }
 
 }  // namespace
 
+constexpr int ORDEM_PROPRIA_MAX = 4;   // ate' onde `base_rel` vai
+
 std::vector<double> Mls::pesos_proprios(const Ponto2 &alvo,
                                         const std::vector<Ponto2> &suporte) const
 {
+  if (ordem_ > ORDEM_PROPRIA_MAX)
+    throw std::invalid_argument(
+        "Mls::pesos_proprios: ordem " + std::to_string(ordem_) + " acima de " +
+        std::to_string(ORDEM_PROPRIA_MAX) + ", que e' o limite da base propria");
   if (static_cast<int>(suporte.size()) < min_pontos(ordem_))
     throw std::invalid_argument("Mls::pesos_proprios: suporte de " +
                                 std::to_string(suporte.size()) + " pontos, minimo " +
                                 std::to_string(min_pontos(ordem_)));
-  return pesos_de(alvo, suporte, ordem_, 0);
+  return conta(pesos_de(alvo, suporte, ordem_, 0, &ord_usada_));
 }
 
 std::vector<double> Mls::pesos_derivada(const Ponto2 &alvo,
@@ -204,13 +281,17 @@ std::vector<double> Mls::pesos_derivada(const Ponto2 &alvo,
                                 " -- em 2D sao 0 (x) e 1 (y)");
   if (ordem_ < 1)
     throw std::invalid_argument("Mls::pesos_derivada: ordem 0 nao tem derivada");
+  if (ordem_ > ORDEM_PROPRIA_MAX)
+    throw std::invalid_argument(
+        "Mls::pesos_derivada: ordem " + std::to_string(ordem_) + " acima de " +
+        std::to_string(ORDEM_PROPRIA_MAX) + ", que e' o limite da base propria");
   if (static_cast<int>(suporte.size()) < min_pontos(ordem_))
     throw std::invalid_argument("Mls::pesos_derivada: suporte de " +
                                 std::to_string(suporte.size()) + " pontos, minimo " +
                                 std::to_string(min_pontos(ordem_)) + " para ordem " +
                                 std::to_string(ordem_));
   // `e_1` e' `d/dx`, `e_2` e' `d/dy` -- a ordem dos monomios em `base_rel`.
-  return pesos_de(alvo, suporte, ordem_, 1 + dir);
+  return conta(pesos_de(alvo, suporte, ordem_, 1 + dir, &ord_usada_));
 }
 
 double Mls::interpola(const Ponto2 &alvo, const std::vector<Ponto2> &suporte,
@@ -225,6 +306,14 @@ double Mls::interpola(const Ponto2 &alvo, const std::vector<Ponto2> &suporte,
   double v = 0.0;
   for (size_t i = 0; i < w.size(); i++) v += w[i] * valores[i];
   return v;
+}
+
+const std::vector<double> &Mls::conta(const std::vector<double> &w) const
+{
+  ajustes_++;
+  if (ord_usada_ < ordem_) rebaixos_++;
+  if (ord_usada_ == 0) nulos_++;
+  return w;
 }
 
 }  // namespace t8flow2d

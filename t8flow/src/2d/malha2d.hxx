@@ -30,6 +30,7 @@
 
 #include <array>
 #include <cstddef>
+#include <unordered_map>
 #include <vector>
 
 #include <t8.h>
@@ -225,11 +226,154 @@ class Malha {
   // futuro, e esta' dito aqui para ninguem a supor.
   long id_do_ponto(const Ponto2 &p) const;
 
+  // =========================================================================
+  // A FRANJA -- o que o PARALELO exige e o serial nunca exercita
+  // =========================================================================
+  //
+  // Em np=1 nada aqui e' usado, e e' exatamente por isso que precisa existir
+  // ANTES de rodar em paralelo: o caminho serial nao distingue um vizinho local
+  // de um vizinho que vive em outro processo, e a conta errada da' um elemento
+  // EXISTENTE -- so' que outro.  Erro silencioso, e e' o modo de falha que esta
+  // frente herdou documentado do sistema antecessor.
+  //
+  // O INDICE DE FLORESTA e' a chave de tudo aqui.  O t8code numera as folhas
+  // locais de 0 a `num_folhas()-1` e as da franja logo em seguida, de
+  // `num_folhas()` a `num_folhas()+num_fantasmas()-1`.  As consultas de
+  // vizinhanca devolvem indices nessa faixa unica, e tratar um indice de franja
+  // como local -- somando o deslocamento do processo, por exemplo -- e' o erro
+  // que esta API existe para tornar impossivel.
+
+  //! Quantas folhas de FRANJA este processo recebeu.  Zero em np=1.
+  long num_fantasmas() const { return n_fantasmas_; }
+
+  //! Id GLOBAL de uma folha pelo indice de floresta, local ou de franja.
+  //
+  // Para as locais e' `primeiro_id() + indice`.  Para as de franja NAO e': o id
+  // delas pertence a outro processo, e vem da TROCA de dados da franja, nao de
+  // aritmetica.  Esta funcao e' o unico lugar onde essa distincao mora.
+  long id_global_do_indice(long idx) const;
+
+  //! Geometria de uma folha pelo indice de floresta, local ou de franja.
+  //
+  // Os valores da franja vem da troca, nao de recalculo: recalcular exigiria a
+  // geometria da arvore do dono, que este processo pode nao ter.
+  Ponto2 centroide_do_indice(long idx) const;
+  Ponto2 lados_do_indice(long idx) const;
+  int nivel_do_indice(long idx) const;
+
+  //! Vizinhos de face pelo INDICE de floresta -- local ou de franja.
+  //
+  // Devolve vazio em duas situacoes DIFERENTES, e quem pergunta precisa das
+  // duas: a face e' contorno do DOMINIO, ou a folha esta' na ULTIMA camada da
+  // franja e este processo nao sabe com que ela faz fronteira.  Use
+  // `expansivel_do_indice` para distinguir -- confundir as duas faria uma folha
+  // da borda da franja parecer borda do dominio, e o esquema aplicaria condicao
+  // de contorno no MEIO do dominio.
+  std::vector<long> vizinhos_do_indice(long idx, int fa) const;
+
+  //! Niveis dos vizinhos de face pelo INDICE -- viajam junto com os ids.
+  //
+  // Existe para que o nivel de um vizinho nao exija que ELE esteja na tabela com
+  // geometria, o que custaria uma camada inteira de franja.  Medido: sem isso,
+  // nem quatro camadas bastavam, porque a carga satura antes.
+  std::vector<int> niveis_vizinhos_do_indice(long idx, int fa) const;
+
+  //! Quantas vezes a carga da troca SATUROU na ultima montagem da franja.
+  //
+  // Diferente de zero significa que alguma folha publicou menos vizinhanca do
+  // que conhecia, e portanto que algum processo sabe menos do que deveria.  Nao
+  // e' erro por si -- o canal e' de tamanho fixo --, mas e' a explicacao de
+  // qualquer ausencia inesperada, e por isso nao pode ficar invisivel.
+  long saturacoes_da_franja() const { return saturacoes_; }
+
+  //! Esta folha pode abrir mais um anel, ou esta' na borda da franja?
+  bool expansivel_do_indice(long idx) const;
+
+  //! Quantas CAMADAS de franja esta malha mantem.
+  //
+  // A franja do t8code tem UMA camada, e uma camada nao basta: medido, um ponto
+  // de quadratura sobre uma faceta de fronteira de particao cai numa celula de
+  // franja, e o suporte que cresce dali tem UM ponto -- contra os 10 que a
+  // ordem 3 do MLS exige.  A alternativa de crescer o suporte a partir da
+  // celula local adjacente foi rejeitada: faria o suporte depender de QUEM
+  // PERGUNTA, e os dois fluxos pela mesma faceta deixariam de se cancelar,
+  // perdendo a conservacao que a clausula D7 afirma em `0,0e+00`.
+  //
+  // As camadas adicionais vem de RODADAS DE TROCA: cada processo publica, por
+  // folha sua, a vizinhanca que ja' conhece, e cada rodada estende o alcance em
+  // um anel.  O custo e' `(2K-1)^2` folhas publicadas por folha local, logo
+  // cresce com o quadrado de K -- e e' por isso que K e' escolha de quem monta
+  // o esquema, nao um padrao generoso.
+  int camadas_de_franja() const { return camadas_; }
+
+  //! Garante ao menos `k` camadas de franja, refazendo a troca se preciso.
+  //
+  // Idempotente: pedir menos do que ja' existe nao desfaz nada.  Em np=1 e'
+  // no-op, porque nao ha' franja -- e nao ha' ramo separado para o serial.
+  void exige_camadas(int k);
+
+  //! Indice de floresta de um id GLOBAL -- ou `-1` se este processo nao o tem.
+  //
+  // Cobre as locais e as de franja.  O `-1` e' informacao, nao falha: um id que
+  // nao esta' nem nas locais nem na franja esta' longe demais para este processo
+  // montar estencil com ele, e quem pergunta tem de decidir o que fazer.
+  long indice_do_id(long id) const;
+
+  //! Quantos processos, e qual e' este.  Para as reducoes de quem consome.
+  int num_processos() const { return nprocs_; }
+  int processo() const { return rank_; }
+  sc_MPI_Comm comunicador() const { return comm_; }
+
+  //! REPARTICIONA pela curva de preenchimento, refazendo a franja.
+  //
+  // O refino local desbalanceia: medido 2,8x nesta maquina.  Reparticionar
+  // custou de 3 a 6% do tempo de passo e devolveu o balanco -- numeros da
+  // secao de escalabilidade do relatorio.
+  //
+  // Em np=1 e' no-op por construcao (a particao de um processo e' trivial), e
+  // nao cobra nada.
+  void reparticiona();
+
+
   //! A floresta crua, para quem precisa da API do t8code direto.  A posse fica
   //! com a Malha: nao chamar `unref` nisto.
   t8_forest_t forest() const { return f_; }
 
  private:
+  //! Monta a franja: ids, geometria e niveis dos fantasmas, por TROCA.
+  //
+  // Chamada depois de CADA commit que muda a floresta.  Esquecer uma chamada
+  // deixa a franja velha apontando para elementos que mudaram de dono -- e isso
+  // nao falha, apenas responde errado.
+  void monta_franja();
+
+  sc_MPI_Comm comm_ = sc_MPI_COMM_SELF;
+  int rank_ = 0;
+  int nprocs_ = 1;
+  long n_locais_ = 0;
+  long n_fantasmas_ = 0;
+  int camadas_ = 1;
+  long saturacoes_ = 0;
+
+  // Indexados pelo INDICE DE FLORESTA: locais primeiro, franja depois.
+  std::vector<long> id_g_;
+  std::vector<double> cen_;     // 2 por folha
+  std::vector<double> lad_;     // 2 por folha
+  std::vector<int> niv_;
+  std::unordered_map<long, long> idx_por_id_;
+
+  //! Vizinhos de face por indice: 4 faces, ate' 2 vizinhos cada (razao 2:1).
+  //
+  // Preenchido pelo t8code para as locais e pelas RODADAS DE TROCA para as de
+  // franja.  Vazio para as folhas da ultima camada, que nao sao expansiveis.
+  std::vector<std::array<std::vector<long>, 4>> viz_;
+  std::vector<std::array<std::vector<int>, 4>> viz_niv_;
+  std::vector<char> expansivel_;
+
+  //! Monta a franja com `k` camadas.  Chamada por `monta_franja` e por
+  //! `exige_camadas`.
+  void monta_franja_camadas(int k);
+
   std::vector<Bloco> blocos_;
   t8_forest_t f_ = nullptr;
   long juncoes_ = 0;

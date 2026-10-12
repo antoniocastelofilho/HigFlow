@@ -39,13 +39,6 @@ namespace {
 // Varredura: O(folhas).  E' aceitavel aqui porque a selecao de suporte ja' e' um
 // caminho de montagem, nao de laco quente; quando for, isto vira um indice.  Dito
 // para nao ser suposto rapido.
-bool localiza(const Malha &m, long id, long *b, long *i)
-{
-  for (long bb = 0; bb < m.num_blocos(); bb++)
-    for (long ii = 0; ii < m.num_folhas_do_bloco(bb); ii++)
-      if (m.id_global(bb, ii) == id) { *b = bb; *i = ii; return true; }
-  return false;
-}
 
 }  // namespace
 
@@ -61,14 +54,14 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
   std::set<long> vistos;        // por ID, nao por posicao -- ver o cabecalho
   std::vector<long> fronteira;  // os ids do anel corrente
 
-  long b0 = 0, i0 = 0;
-  if (!localiza(*m_, id0, &b0, &i0))
+  const long x0 = m_->indice_do_id(id0);
+  if (x0 < 0)
     throw std::runtime_error("ConstrutorEstencil: id " + std::to_string(id0) +
-                             " nao localizado na malha");
+                             " nao esta' nas folhas locais nem na franja");
 
   vistos.insert(id0);
   fronteira.push_back(id0);
-  s.pontos.push_back(m_->centroide(b0, i0));
+  s.pontos.push_back(m_->centroide_do_indice(x0));
   s.ids.push_back(id0);
   s.a.push_back(1.0);
   s.b.push_back(0.0);
@@ -78,17 +71,33 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
     // meio faria o suporte -- e portanto os pesos -- depender da ordem de visita.
     std::vector<long> proximo;
     for (long id : fronteira) {
-      long b = 0, i = 0;
-      if (!localiza(*m_, id, &b, &i)) continue;
+      const long xi = m_->indice_do_id(id);
+      if (xi < 0) { s.truncado_pela_franja = true; continue; }
+
+      // A FOLHA DA ULTIMA CAMADA DA FRANJA NAO SE EXPANDE, e distinguir isso de
+      // "face no contorno do dominio" e' obrigatorio: as duas situacoes dao lista
+      // de vizinhos VAZIA, e confundi-las faria o esquema aplicar condicao de
+      // contorno no MEIO do dominio -- em paralelo, ao longo de toda a fronteira
+      // de particao, e em silencio.
+      //
+      // Aqui o suporte pode ficar TRUNCADO, e o contador existe para que isso
+      // nao passe calado: um suporte truncado da' pesos diferentes dos do
+      // serial, logo um resultado que DEPENDE do numero de processos.  Com
+      // `exige_camadas(aneis)` isso nao deve acontecer -- e o contador e' como se
+      // afirma que nao aconteceu.
+      if (!m_->expansivel_do_indice(xi)) { s.truncado_pela_franja = true; continue; }
+
+      const Ponto2 c_xi = m_->centroide_do_indice(xi);
+      const Ponto2 h_xi = m_->lados_do_indice(xi);
       for (int fa = 0; fa < 4; fa++) {
-        const std::vector<long> vz = m_->ids_vizinhos(b, i, fa);
+        const std::vector<long> vz = m_->vizinhos_do_indice(xi, fa);
         if (vz.empty()) {
           // FACE DE CONTORNO.  Sem condicao instalada o contorno nao contribui, e
           // o suporte vai faltar pontos -- que e' melhor que contribuir com zero.
           if (regioes_.vazio()) continue;
 
-          const Ponto2 c = m_->centroide(b, i);
-          const Ponto2 h = m_->lados_da_folha(b, i);
+          const Ponto2 c = c_xi;
+          const Ponto2 h = h_xi;
           const int d = fa / 2;
           const double sinal = (fa % 2 == 0) ? -1.0 : 1.0;
 
@@ -118,7 +127,7 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
             double A = 0.0, B = 0.0;
             cond.afim(parede, h[d], &A, &B);
             s.pontos.push_back(fantasma);
-            s.ids.push_back(m_->id_global(b, i));   // a celula ESPELHADA
+            s.ids.push_back(id);                    // a celula ESPELHADA
             s.a.push_back(A);
             s.b.push_back(B);
             s.fantasmas++;
@@ -127,11 +136,16 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
         }
         for (long v : vz) {
           if (vistos.count(v) != 0) continue;
-          long vb = 0, vi = 0;
-          if (!localiza(*m_, v, &vb, &vi)) continue;
+          // O VIZINHO PODE ESTAR NA FRANJA, e entra no suporte do mesmo jeito:
+          // o que a franja da' -- centro e id global -- e' tudo que o ajuste
+          // precisa de um ponto de suporte.  A versao anterior usava uma busca
+          // que so' cobria as folhas locais e seguia com `continue`, o que em
+          // paralelo DESCARTARIA o vizinho sem dizer nada.
+          const long vx = m_->indice_do_id(v);
+          if (vx < 0) { s.truncado_pela_franja = true; continue; }
           vistos.insert(v);
           proximo.push_back(v);
-          s.pontos.push_back(m_->centroide(vb, vi));
+          s.pontos.push_back(m_->centroide_do_indice(vx));
           s.ids.push_back(v);
           s.a.push_back(1.0);
           s.b.push_back(0.0);
@@ -183,6 +197,7 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
       const double dy = s.pontos[a][1] - s.pontos[b][1];
       s.diametro = std::fmax(s.diametro, std::sqrt(dx * dx + dy * dy));
     }
+  if (s.truncado_pela_franja) truncados_++;
   return s;
 }
 
@@ -217,6 +232,16 @@ Estencil ConstrutorEstencil::monta(const Suporte &s, const std::vector<double> &
     if (!somado) { e.ids.push_back(s.ids[k]); e.pesos.push_back(peso); }
   }
   return e;
+}
+
+Estencil ConstrutorEstencil::derivada_em(const Ponto2 &x, int dir) const
+{
+  const Suporte s = suporte_em(x);
+  // A MONTAGEM E' A MESMA do valor -- `(a, b, peso)` -> `(ids, pesos, rhs)` --, e
+  // reusa-la aqui nao e' economia: e' o que garante que o fechamento de contorno
+  // entre na derivada do mesmo jeito que entra no valor.  Duas montagens
+  // divergiriam no `rhs`, e divergir ali so' aparece perto da parede.
+  return monta(s, mls_.pesos_derivada(x, s.pontos, dir));
 }
 
 void ConstrutorEstencil::em_lote(const std::vector<Ponto2> &alvos, LoteEstenceis &lote,

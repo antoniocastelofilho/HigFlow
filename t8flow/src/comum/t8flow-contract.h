@@ -766,4 +766,194 @@
 // cinco); a banda fina da decisao 4; posse distribuida; e o lado 3D inteiro.
 // ---------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------
+// D -- DERIVADA DE ORDEM ALTA E QUADRATURA DE GAUSS
+//
+// Este grupo cobre o esquema `MlsGauss`: derivada normal por ajuste MLS na faceta
+// e quadratura de Gauss nos DOIS lugares onde havia regra do ponto medio -- a
+// faceta e o volume.  E' o unico esquema do sistema que passa de segunda ordem em
+// malha ADAPTADA, e cada afirmacao aqui foi medida, nao deduzida.
+// ---------------------------------------------------------------------------
+
+//! D1  A DERIVADA MLS E' EXATA ATE' O GRAU DA ORDEM, inclusive na ordem 4 -- que
+//! e' o teto da base propria.  Com `pesos_derivada` de ordem 4 um polinomio de
+//! grau 4 tem a derivada reproduzida em erro de maquina, e um de grau 5 nao.
+//!
+//! O CONTRASTE E' A METADE QUE IMPORTA: sem o grau acima da ordem falhando, o
+//! teste passaria com uma base truncada e ninguem saberia.
+//
+//! COBERTA-POR: test-mls2d:a_derivada_de_ordem_quatro_e_exata_no_grau_quatro
+
+//! D2  A BASE E' ADIMENSIONALIZADA pelo raio do suporte, e sem isso a ordem 4
+//! degrada EM SILENCIO.  A matriz normal da ordem 4 em base nao escalada tem
+//! condicionamento da ordem de `h^-8`: com `h = 1e-3` isso passa de `1e24` e o
+//! ajuste perde todos os digitos -- devolvendo pesos, nao erro.
+//!
+//! O oraculo e' um suporte MINUSCULO (`h = 1e-3`) onde a derivada tem de sair
+//! exata na mesma; em base nao escalada ele falha.
+//
+//! COBERTA-POR: test-mls2d:a_derivada_de_ordem_quatro_sobrevive_a_suporte_minusculo
+
+//! D3  O REBAIXAMENTO DE ORDEM E' REGISTRADO, nunca silencioso.  Quando o suporte
+//! nao sustenta a ordem pedida, o ajuste cai para a ordem que ele sustenta e
+//! `Mls::rebaixamentos()` conta -- e os pesos continuam VALIDOS.
+//!
+//! A versao anterior devolvia um vetor de ZEROS e seguia.  O efeito medido em
+//! malha adaptada com ordem 4 foi uma linha da matriz silenciosamente errada: erro
+//! de 3,3e-01 num nivel cercado por 1e-10 nos vizinhos.  Oito ajustes em 5172.
+//
+//! COBERTA-POR: test-mls2d:o_rebaixamento_de_ordem_e_contado_e_os_pesos_continuam_validos
+
+//! D4  O ESQUEMA MlsGauss E' EXATO ATE' O GRAU DA ORDEM MLS em malha UNIFORME --
+//! grau 3 com ordem 3, grau 4 com ordem 4 -- e o esquema de fluxo de segunda
+//! ordem nao e', no mesmo grau e na mesma malha.
+//
+//! COBERTA-POR: test-poisson2d:o_mlsgauss_e_exato_no_grau_tres_onde_o_fluxo2_nao_e
+
+//! D5  NA MALHA ADAPTADA O MlsGauss MANTEM A EXATIDAO que o fluxo2 perde.  A
+//! clausula T2 registra que o grau 2 DEIXA de ser exato em malha adaptada com o
+//! esquema de fluxo; com `MlsGauss` ele volta a ser exato, e o grau 3 tambem.
+//!
+//! E' a razao de existir do esquema, e o par de medidas na MESMA malha -- mesma
+//! fracao, mesma semente -- e' o que separa a afirmacao da esperanca.
+//
+//! COBERTA-POR: test-poisson2d:na_malha_adaptada_o_mlsgauss_recupera_a_exatidao_do_grau2
+
+//! D6  A QUADRATURA DA FONTE E' PARTE DO ESQUEMA, e nao um detalhe: com o fluxo da
+//! faceta em ordem alta e `integral f dA` ainda na regra do ponto medio, o esquema
+//! TRAVA em segunda ordem.  Medido no grau 4 com ordem 4 em malha uniforme:
+//!
+//!     ponto medio   9,58e-05  ordem 1,99
+//!     Gauss 2x2     2,52e-14  exato
+//!
+//! O interruptor `quadratura_fonte` existe para esta medida -- verde que nunca foi
+//! vermelho nao prova nada.
+//
+//! COBERTA-POR: test-poisson2d:a_fonte_no_ponto_medio_trava_o_esquema_em_segunda_ordem
+
+//! D7  O FLUXO DA FACETA DE TRANSICAO 2:1 E' O MESMO VISTO DOS DOIS LADOS, e isso
+//! e' consequencia do desenho e nao de um acerto: o suporte do estencil depende
+//! apenas do PONTO de quadratura, nao da celula que pergunta.
+//!
+//! O oraculo calcula os pontos de quadratura das sub-facetas da celula GROSSA e os
+//! da faceta da celula FINA por caminhos separados e exige que coincidam, e depois
+//! compara os estenceis de derivada neles.  Um erro de indexacao na sub-faceta --
+//! o lugar classico -- apareceria aqui e em nenhum dos testes de convergencia,
+//! porque um esquema nao conservativo ainda converge.
+//
+//! COBERTA-POR: test-poisson2d:o_fluxo_da_faceta_de_transicao_e_o_mesmo_dos_dois_lados
+
+
+// ---------------------------------------------------------------------------
+// X -- A FRANJA E O PARALELO
+//
+// Este grupo cobre o que o caminho SERIAL nao exercita, e por isso e' o grupo
+// onde a disciplina de contraste mais importa: em np=1 quase toda afirmacao
+// daqui e' trivialmente verdadeira, e um caso escrito sem cuidado passa sem
+// medir nada.  Todos os casos deste grupo rodam em np=2 e np=3.
+// ---------------------------------------------------------------------------
+
+//! X1  O ID DE UM VIZINHO DE FRANJA NAO E' `primeiro_id() + indice`.  O t8code
+//! indexa as folhas de franja logo depois das locais, e a soma do deslocamento
+//! deste processo a um indice de franja da' o id de uma folha local que EXISTE --
+//! so' que outra.
+//!
+//! Em np=1 nao ha' franja e a soma acerta sempre; e' por isso que o caminho
+//! serial nunca acusaria isto, e por isso o caso roda em np>=2.
+//!
+//! O oraculo e': a uniao dos ids que cada processo ve como vizinhos coincide com
+//! a vizinhanca que o serial ve na mesma malha.
+//
+//! COBERTA-POR: test-paralelo2d:o_id_do_vizinho_de_franja_nao_e_deslocamento_mais_indice
+
+//! X2  A FRANJA TEM O NUMERO DE CAMADAS PEDIDO, e `exige_camadas` e' idempotente.
+//! A franja nativa do t8code tem UMA camada; as demais vem de rodadas de troca,
+//! uma camada por rodada.
+//!
+//! Medido: com uma camada so', o suporte do MLS de ordem 3 saiu com UM ponto
+//! contra os 10 exigidos, porque o ponto de quadratura cai numa celula de franja
+//! cujos vizinhos o processo nao conhecia.
+//
+//! COBERTA-POR: test-paralelo2d:a_franja_tem_as_camadas_pedidas_e_exigir_e_idempotente
+
+//! X3  CAMADAS = ANEIS + 1, e a diferenca de um foi MEDIDA, nao deduzida: o ponto
+//! de quadratura esta' SOBRE a faceta, logo a celula que o contem pode ser de
+//! franja, e dela o suporte ainda precisa abrir os aneis inteiros.
+//!
+//! Com `aneis` camadas: np=2 truncou 32 suportes e np=3 falhou com
+//! `suporte de 9 pontos em 2 aneis, minimo 10 para ordem 3`.
+//! Com `aneis + 1`: zero truncamentos em np ate' 4.
+//
+//! COBERTA-POR: test-paralelo2d:com_camadas_de_menos_o_suporte_trunca_e_com_as_certas_nao
+
+//! X4  BORDA DA FRANJA NAO E' BORDA DO DOMINIO.  As duas dao lista de vizinhos
+//! VAZIA, e confundi-las faria o esquema aplicar condicao de contorno no MEIO do
+//! dominio -- ao longo de toda a fronteira de particao, e em silencio.
+//!
+//! `expansivel_do_indice` e' o que distingue, e o caso afirma que nenhuma folha
+//! da fronteira de particao e' tratada como contorno: o numero de paredes vistas
+//! pelo estencil em np>1 e' o MESMO que em np=1.
+//
+//! COBERTA-POR: test-paralelo2d:a_borda_da_franja_nao_e_confundida_com_borda_do_dominio
+
+//! X5  AS NORMAS E O RESIDUO REDUZEM.  Sem reducao cada processo devolve o pior
+//! erro da SUA particao, e o numero que sai e' menor que o verdadeiro -- num
+//! relatorio de verificacao isso e' pior que um erro grande: e' um erro grande
+//! que se apresenta como pequeno.
+//!
+//! O residuo tinha uma segunda falha, do mesmo tipo: ele descartava as colunas
+//! da linha que caiam fora da faixa local, de modo que cada celula vizinha a uma
+//! fronteira de particao perdia os termos de la' -- e o residuo saia MENOR, isto
+//! e', um operador inconsistente se apresentando como consistente.  Era o oraculo
+//! mentindo a favor do codigo.
+//
+//! COBERTA-POR: test-paralelo2d:as_normas_e_o_residuo_sao_os_mesmos_em_qualquer_np
+
+//! X6  A SOLUCAO NAO DEPENDE DO NUMERO DE PROCESSOS.  A afirmacao mais forte do
+//! grupo, e a que resume as outras: o mesmo problema em np=1, 2, 3 e 4 da' o
+//! mesmo erro ate' o residuo do solver linear -- que legitimamente varia com a
+//! particao, porque o precondicionamento varia.
+//!
+//! Vale para malha UNIFORME e para ADAPTADA, e a adaptada e' o caso que importa:
+//! e' nela que a transicao 2:1 cruza fronteira de particao.
+//
+//! COBERTA-POR: test-paralelo2d:a_solucao_e_a_mesma_em_qualquer_np_na_malha_uniforme
+//! COBERTA-POR: test-paralelo2d:a_solucao_e_a_mesma_em_qualquer_np_na_malha_adaptada
+
+//! X7  A REPARTICAO PRESERVA A MALHA e refaz a franja.  O refino local
+//! desbalanceia -- medido 2,8x --, e reparticionar devolve o balanco.  O que o
+//! caso afirma e' que ela nao muda a MALHA: mesma contagem global de folhas,
+//! mesma area total, mesmos niveis minimo e maximo.
+//!
+//! E que a franja foi refeita: esquecer isso deixaria a franja velha apontando
+//! para folhas que mudaram de dono -- e isso nao falha, apenas responde errado.
+//
+//! COBERTA-POR: test-paralelo2d:a_reparticao_preserva_a_malha_e_refaz_a_franja
+
+//! X8  A CARGA DA TROCA NAO SATUROU.  O canal de troca do t8code e' um array de
+//! itens de tamanho FIXO, e a vizinhanca publicada por folha e' cortada quando
+//! nao cabe.  Cortar e' inevitavel; cortar em silencio nao e'.
+//!
+//! Foi a saturacao invisivel que fez quatro camadas de franja ainda deixarem
+//! niveis ausentes, e mandou a investigacao atras da camada errada por meia hora.
+//! `saturacoes_da_franja()` conta, e esta clausula exige ZERO nas malhas da
+//! suite.
+//
+//! COBERTA-POR: test-paralelo2d:a_carga_da_troca_nao_saturou
+
+//! X9  OS IDS DE FRANJA SEGUEM A ORDEM DO T8CODE, e nao a ordem de id.
+//!
+//! A documentacao do t8code e' explicita: `leaf_face_neighbors` numera
+//! `0 .. num_local-1` para as locais e `num_local .. num_local+num_ghosts-1`
+//! para as da camada 1.  Ordenar a franja por id -- que e' determinista, e
+//! parecia a escolha limpa -- faz o indice do terceiro fantasma designar OUTRA
+//! folha, e `ids_vizinhos` entrega um id que EXISTE, so' que de outra celula.
+//!
+//! Medido: `grau1` em malha adaptada, que o esquema de fluxo resolve
+//! EXATAMENTE, deu 3,97e-13 em np=1 e 1,70e-01 em np=2.  O oraculo e' a
+//! correspondencia id -> geometria, que nao pode depender da particao.
+//
+//! COBERTA-POR: test-paralelo2d:o_mapa_de_id_para_geometria_nao_depende_da_particao
+
 #endif

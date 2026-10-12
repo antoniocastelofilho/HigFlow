@@ -123,6 +123,9 @@ int main(int argc, char **argv)
   double tol = 1e-14;
   double fracao = 0.0;          // 0 = malha uniforme
   std::string esq = "fluxo2";
+  int mls_ordem = 3;
+  int mls_maxpts = 40;
+  bool quad_pm = false;
   unsigned long semente = 2026;
 
   for (int i = 1; i < argc; i++) {
@@ -135,12 +138,20 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--aleatorio=", 12)) fracao = std::atof(a + 12);
     else if (!std::strncmp(a, "--semente=", 10)) semente = std::strtoul(a + 10, nullptr, 10);
     else if (!std::strncmp(a, "--esquema=", 10)) esq = a + 10;
+    else if (!std::strncmp(a, "--mls-ordem=", 12)) mls_ordem = std::atoi(a + 12);
+    else if (!std::strncmp(a, "--mls-pontos=", 13)) mls_maxpts = std::atoi(a + 13);
+    else if (!std::strcmp(a, "--fonte-ponto-medio")) quad_pm = true;
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       std::printf("uso: poisson-mms [--solucao=N] [--contorno=dirichlet|misto]\n"
                   "                 [--niveis=3,4,5] [--fechamento=3|2] [--tol=1e-14]\n"
                   "                 [--aleatorio=FRACAO] [--semente=N]\n"
-                  "                 [--esquema=fluxo2|compacto4|lele4]\n\n"
+                  "                 [--esquema=fluxo2|compacto4|lele4|mlsgauss]\n"
+                  "                 [--mls-ordem=N] [--mls-pontos=N]\n"
+                  "                 [--fonte-ponto-medio]\n\n"
                   "  --esquema      fluxo2    balanco de fluxos, 2a ordem, 5 pontos\n"
+                  "                 mlsgauss  derivada MLS + Gauss de 2 pontos na face\n"
+                  "                           (o unico que passa de 2a ordem em malha\n"
+                  "                            ADAPTADA; ordem e suporte por --mls-*)\n"
                   "                 compacto4 Mehrstellen, 4a ordem, 9 pontos (usa lap f)\n"
                   "                 lele4     compacto de Lele, 4a ordem, 9 pontos (usa f)\n\n"
                   "  --aleatorio=F  refina aleatoriamente uma fracao F das celulas (quadtree\n"
@@ -187,7 +198,12 @@ int main(int argc, char **argv)
 
   std::vector<Linha> tab;
   for (int nivel : niveis) {
-    Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_SELF);
+    // COMM_WORLD, e nao COMM_SELF: e' o que faz este exemplo ser o mesmo
+    // programa em np=1 e em np>1.  Com COMM_SELF cada processo resolveria o
+    // problema INTEIRO sozinho e o paralelo nao seria exercitado -- e os numeros
+    // sairiam iguais, o que faria o teste de consistencia entre np passar sem
+    // medir nada.
+    Malha m({{{0.0, 0.0}, {1.0, 1.0}, nivel}}, sc_MPI_COMM_WORLD);
     if (fracao > 0.0) {
       // UMA passada, e com a MESMA semente em todos os niveis: assim as malhas da
       // sequencia tem o mesmo PADRAO de adaptacao, e a taxa medida e' de refino de
@@ -204,15 +220,31 @@ int main(int argc, char **argv)
       po.fonte_laplaciano([&sol](const Ponto2 &p) { return sol.lap_f(p); });
     } else if (esq == "lele4") {
       po.esquema(Esquema::Compacto4Lele);
+    } else if (esq == "mlsgauss") {
+      po.esquema(Esquema::MlsGauss);
+      po.mls(mls_ordem, mls_maxpts);
+      if (quad_pm) po.quadratura_fonte(Poisson::QuadFonte::PontoMedio);
     } else if (esq != "fluxo2") {
       throw std::invalid_argument("esquema: \"" + esq +
-                                  "\" nao existe.  Validos: fluxo2, compacto4, lele4");
+                                  "\" nao existe.  Validos: fluxo2, compacto4, "
+                                  "lele4, mlsgauss");
     }
     po.resolve(Motor::Petsc, tol);
+    if (esq == "mlsgauss" && po.truncados_pela_franja() > 0)
+      std::printf("AVISO: a FRANJA truncou %ld suportes -- os pesos perto das\n"
+                  "       fronteiras de particao nao sao os do serial, logo o\n"
+                  "       resultado DEPENDE do numero de processos.\n",
+                  po.truncados_pela_franja());
+    if (esq == "mlsgauss" && po.rebaixamentos_mls() > 0)
+      std::printf("AVISO: %ld dos %ld ajustes MLS REBAIXARAM a ordem -- o esquema\n"
+                  "       nao entrega a ordem pedida em todo o dominio.\n",
+                  po.rebaixamentos_mls(), po.ajustes_mls());
 
     Linha l;
     l.nivel = nivel;
-    l.celulas = m.num_folhas();
+    // CONTAGEM GLOBAL, nao a da particao: em np=3 as locais sao 86, 85 e 85, e
+    // imprimir a local faria a tabela parecer tres malhas diferentes.
+    l.celulas = m.num_folhas_globais();
     l.h = 1.0 / (1 << nivel);      // h do nivel BASE; a malha adaptada tem h/2 em parte
     l.e_inf = po.erro_inf([&sol](const Ponto2 &p) { return sol.u(p); });
     l.e_l2 = po.erro_l2([&sol](const Ponto2 &p) { return sol.u(p); });
@@ -249,22 +281,39 @@ int main(int argc, char **argv)
   }
 
   // A LEITURA, dita em vez de deixada para quem le'.
+  //
+  // O GRAU DE EXATIDAO DEPENDE DO ESQUEMA, e dizer "grau 2" para todos faria o
+  // texto MENTIR exatamente onde ele serve para algo.  Medido:
+  //
+  //   fluxo2              grau 2 em malha uniforme; grau 1 em malha adaptada
+  //                       (a quadratura do ponto medio na faceta e' o limite)
+  //   compacto4 / lele4   grau 3 (o fantasma de quatro pontos na parede e' o limite)
+  //   mlsgauss            grau = ordem do ajuste MLS, em uniforme E adaptada
+  const int grau_exato =
+      (esq == "mlsgauss")                        ? mls_ordem
+      : (esq == "compacto4" || esq == "lele4")   ? 3
+      : (fracao > 0.0)                           ? 1
+                                                  : 2;
+
   std::printf("\n");
-  if (sol.grau >= 0 && fp == FechamentoParede::TresPontos && sol.grau <= 2) {
-    std::printf("LEITURA: o esquema e' EXATO para esta solucao (grau %d, fechamento de\n"
-                "tres pontos), logo o erro esperado e' de MAQUINA -- e o que sobra e'\n"
-                "residuo do solver linear, nao do esquema.  Nao ha' ordem de\n"
-                "convergencia a medir aqui, e e' por isso que a coluna diz \"exato\".\n",
-                sol.grau);
+  if (sol.grau >= 0 && (fp == FechamentoParede::TresPontos || esq != "fluxo2") &&
+      sol.grau <= grau_exato) {
+    std::printf("LEITURA: o esquema e' EXATO para esta solucao (grau %d <= %d, que e' o\n"
+                "grau de exatidao de \"%s\" aqui), logo o erro esperado e' de MAQUINA --\n"
+                "e o que sobra e' residuo do solver linear, nao do esquema.  Nao ha'\n"
+                "ordem de convergencia a medir, e e' por isso que a coluna diz \"exato\".\n",
+                sol.grau, grau_exato, esq.c_str());
   } else if (sol.grau < 0) {
     std::printf("LEITURA: solucao nao-polinomial, logo ha' erro de truncamento e a\n"
-                "ordem de convergencia e' mensuravel -- esperada ~2.\n");
+                "ordem de convergencia e' mensuravel -- esperada ~%d.\n",
+                (esq == "mlsgauss") ? mls_ordem : (esq == "fluxo2" ? 2 : 4));
   } else {
     std::printf("LEITURA: o esquema NAO e' exato para esta combinacao (grau %d,\n"
                 "fechamento de %s pontos), logo o erro cai com h e a ordem e'\n"
                 "mensuravel.  Isso nao e' defeito: e' o contraste que mostra que o\n"
-                "fechamento esta' influenciando o resultado.\n",
-                sol.grau, fech == "2" ? "DOIS" : "tres");
+                "fechamento esta' influenciando o resultado.  Grau de exatidao de\n"
+                "\"%s\" aqui: %d.\n",
+                sol.grau, fech == "2" ? "DOIS" : "tres", esq.c_str(), grau_exato);
   }
   return 0;
 }

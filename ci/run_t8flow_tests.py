@@ -61,6 +61,19 @@ LADOS = {
         ("test-estencil2d", (1,)),
         ("test-contorno2d", (1,)),
         ("test-poisson2d", (1,)),
+
+        # O ARREIO DO PARALELO E' O UNICO QUE RODA EM np>1, e tem de rodar.
+        # As clausulas X1 a X7 afirmam propriedades que em np=1 sao
+        # TRIVIALMENTE verdadeiras -- nao ha' franja, nao ha' particao, as
+        # reducoes sao identidade.  Um arreio que as rodasse so' em np=1
+        # registraria cobertura sem medir nada, que e' pior que cobertura
+        # ausente: ausente aparece, falsa nao.
+        #
+        # np=3 esta' na lista por um motivo medido: foi ele, e nao np=2, que
+        # expos a celula grossa da transicao 2:1 na borda da franja.  Numero
+        # par de processos parte o quadrado ao meio e produz fronteiras
+        # alinhadas com a malha; impar nao.
+        ("test-paralelo2d", (1, 2, 3)),
     ],
     "3d": [],
 }
@@ -110,7 +123,10 @@ def constroi(lado, prefixos, verboso):
 
 def roda(binario, np, verboso):
     """Devolve (casos_ok, casos_falhos, teve_resumo, saida)."""
-    cmd = ["mpirun", "-n", str(np), binario]
+    # `--oversubscribe` porque np>1 nao pode depender de quantos nucleos estao
+    # livres no momento: sem ele, o `mpirun` RECUSA em vez de escalonar, e o
+    # arreio reporta falha de teste onde houve falta de nucleo.
+    cmd = ["mpirun", "--oversubscribe", "-n", str(np), binario]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     except subprocess.TimeoutExpired:
