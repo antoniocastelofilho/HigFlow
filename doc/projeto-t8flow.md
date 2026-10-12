@@ -518,7 +518,66 @@ lados.
 
 ---
 
-## 7. O que continua a decidir
+## 7. Decisão: código separado para 2D e 3D, começando pelo 2D
+
+Decidido pelo usuário, e a razão está no t8code: ele tem malhas 2D e 3D
+**nativas**. `T8_ECLASS_QUAD` e `T8_ECLASS_HEX` são classes distintas, com 4 e 8
+vértices, 4 e 6 faces, e esquemas próprios. O código novo do t8Flow é escrito
+duas vezes, explicitamente, em vez de uma vez com `#if DIM == 3`.
+
+    t8flow/src/comum/     sem dimensão: arranque, contrato
+    t8flow/src/2d/        o lado 2D
+    t8flow/src/3d/        o lado 3D, quando existir
+    t8flow/tests/2d/
+
+E o `make` passou a ter um alvo por lado — `make 2d`, e um `make 3d` que **diz**
+que ainda não existe em vez de falhar obscuro.
+
+**O que esta decisão NÃO muda:** o núcleo herdado continua parametrizado por
+macro, porque `Point` **é** `real[DIM]` (`coord.h:31`) — a interface dele é
+assim. As unidades herdadas são compiladas com `-DDIM=2` para o lado 2D, em
+objetos separados. Isso não é custo novo: a HiGTree sempre construiu duas
+bibliotecas. O que a separação compra é no código novo: nenhum `#if` no caminho
+quente, tipos concretos (`Ponto2` é `std::array<double,2>`, copiável, que entra
+em container da STL — coisa que `Point` não faz), e o compilador vendo
+constantes.
+
+### 7.1 A ordem: solver e discretizador primeiro
+
+Também do usuário: *"adaptar primeiramente o Solver e o Discretizador com
+Mínimos quadrados"*. É a ordem certa, porque esses dois são o que a decisão 1 já
+garantiu existir — adaptá-los é fachada, não formulação, e o resultado é
+testável sem malha nenhuma.
+
+**`src/2d/mls2d.hxx` — o discretizador.** O herdado está certo e é independente
+de malha; a fachada acrescenta o que falta nele: tipos 2D concretos, tempo de
+vida (`wls_create`/`wls_destroy` → construtor/destrutor), e **a condição de uso
+afirmada** — abaixo do mínimo de pontos para a ordem, `pesos()` **recusa** em vez
+de aproximar. Numeros ruins em silêncio são o modo de falha que este projeto mais
+paga.
+
+**`src/2d/solver2d.hxx` — o solver.** A fachada concentra quatro armadilhas do
+herdado: tempo de vida; **a ordem de montagem** (há só `monta()`, que faz
+rhs→output→matriz, e não há como fazer a ordem errada que custou um SIGSEGV); **o
+nome do motor** (as duas listas do `solver.h` estão deslocadas de uma posição e
+nada confere isso em tempo de compilação — a aritmética fica em um lugar, cobrada
+por teste); e **toda linha preenchida** (o caminho de pré-alocação do PETSc afirma
+`col_ids[i] && vals[i]` para toda linha local, então linha faltando não é sistema
+singular, é abort três camadas abaixo — `monta()` recusa antes, dizendo qual linha
+falta).
+
+**Lacuna do herdado que nenhum teste fecha daqui:** não existe `slv_get_engine`,
+então qual motor foi **instalado** não é consultável, e com `Motor::Qualquer` a
+escolha vem de variável de ambiente ou heurística. A fachada devolve o motor
+**pedido**, e diz isso; quem precisa de garantia pede o motor explicitamente.
+
+**O que a fachada não esconde, de propósito:** a numeração. `primeiro_id` e
+`n_local` são a única coisa que o solver precisa da malha, e é exatamente o que a
+curva de preenchimento dá naturalmente (seção 3).
+
+---
+
+## 8. O que continua a decidir
 
 1. **Onde o t8Flow vive** — repositório próprio, ou dentro do HiGFlow-System
    reaproveitando a suíte.
@@ -531,7 +590,7 @@ lados.
 
 ---
 
-## 8. O obstáculo real, já identificado
+## 9. O obstáculo real, já identificado
 
 Com refino, a faixa que o remetente envia e a árvore de franja que o receptor
 enumera precisam ter a **mesma subdivisão interna** — é trocar estrutura, não
@@ -543,66 +602,73 @@ nenhum.
 
 ---
 
-## 9. O estado do código, em 11/10/2026
+## 10. O estado do código, em 11/10/2026
 
-O esqueleto existe e passa. Vive no worktree `t8flow`, branch `t8flow`
+Vive no worktree `t8flow`, branch `t8flow`
 (`/home/castelo/HiGFlow-System/t8flow-wt`), com instruções em
-`t8flow/README.md`:
+`t8flow/README.md`. O primeiro commit (`ea83f27`) trouxe o esqueleto; o estado
+atual tem as duas fachadas da seção 7.1.
 
-    t8flow/Makefile                       gnu++20, sem -fpermissive
-    t8flow/src/t8flow-contract.h          5 clausulas: N1 N2 B1 F1 F2
-    t8flow/tests/testing.h                arcabouco, zero dependencia externa
-    t8flow/tests/test-nucleo-herdado.cxx  7 casos
-    ci/run_t8flow_tests.py                driver, com as quatro guardas
+    t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
+    t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
+    t8flow/src/comum/t8flow-contract.h  9 clausulas: N1..N6 B1 F1 F2
+    t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
+    t8flow/src/2d/solver2d.{hxx,cxx}    o solver
+    t8flow/tests/testing.h              arcabouco, zero dependencia externa
+    t8flow/tests/2d/test-mls2d.cxx          5 casos
+    t8flow/tests/2d/test-solver2d.cxx       6 casos
+    t8flow/tests/2d/test-floresta2d.cxx     4 casos
+    ci/run_t8flow_tests.py              driver, com as quatro guardas
 
-    DIM=2  7 casos, 0 falharam
-    DIM=3  7 casos, 0 falharam
-    contrato 5/5
+    lado 2d: 15 casos, 0 falharam; contrato 9/9
 
-O primeiro teste afirma as decisões 1, 2 e 5 **na mesma unidade de tradução**,
-porque compilá-las em separado não prova que convivem. O caso que importa é o
-último: o suporte sai da floresta (centroides das folhas) e os pesos saem do MLS
-herdado — o contrato da seção 3 exercitado de ponta a ponta.
-
-### 9.1 Três achados do primeiro contato, nenhum previsto
+### 10.1 Três achados do primeiro contato com o núcleo herdado
 
 1. **`Point` é array cru.** `typedef coordtype Point[DIM]` (`coord.h:31`) não é
    copiável nem construível in-place, então `std::vector<Point>` **não compila** —
    e o erro sai dentro do `<bits/stl_construct.h>`, sem dizer isto. A ponte é
-   `std::array<real, DIM>`, que a norma garante ter o mesmo layout: um vetor dela
-   é contiguamente um `Point[]` válido. É o padrão para toda a fronteira do
-   t8Flow com o núcleo herdado, e vale dizer que esta é a **única** fricção de
-   tipo encontrada.
-2. **O núcleo herdado tem estado global de arranque.** Ver a seção da ordem de
-   arranque no `t8flow/README.md`: `_try_initialize_petsc` desreferencia um
-   `static char **_argv` que só `higtree_initialize` preenche, e a flag
-   `is_petsc_initialized` é `static` — inicializar o PETSc por fora não a
-   desarma. Custou um SIGSEGV sem nenhuma linha apontando para o nosso código.
-3. **`solver.c` acopla os motores em tempo de link.** Ele referencia
+   `std::array<double,2>`, que a norma garante ter o mesmo layout: a travessia é
+   conversão de **tipo**, não de dados, e um `static_assert` a sustenta. Foi a
+   **única** fricção de tipo encontrada, e é por isso que `Ponto2` existe.
+2. **O núcleo herdado tem estado global de arranque.**
+   `_try_initialize_petsc` (`utils.c:34`) desreferencia um `static char **_argv`
+   que só `higtree_initialize` preenche, e a flag `is_petsc_initialized` é
+   `static` — inicializar o PETSc por fora não a desarma. Custou um SIGSEGV sem
+   nenhuma linha apontando para o nosso código. Virou `t8flow::Arranque`, um
+   objeto: a ordem fica no construtor, uma vez, e não em cada `main`.
+3. **`solver.c` acopla os motores em tempo de link.** Referencia
    `_slv_create_hypre` e `_slv_create_debug_write` **sem** guarda de macro,
    enquanto o SOR e o ViennaCL ficam atrás de `#ifdef`. Não dá para levar só o
    PETSc: o link exige hypre, debug-write e centralized. Uma guarda por motor, no
    padrão que o SOR já usa, é limpeza barata e está na lista.
 
-### 9.2 Os controles, porque verde que nunca foi vermelho não prova nada
+### 10.2 Os controles, porque verde que nunca foi vermelho não prova nada
 
-    ordem do ajuste 2 -> 1          N1 REPROVA nas duas metades
-    centroides deslocados meia h    F2 CONTINUA VERDE  (limitacao conhecida)
-    clausula apontando caso que     driver sai CASO AUSENTE, contrato 4/5,
-      nao existe                      codigo de saida 1
+    ordem do ajuste 2 -> 1            N1 REPROVA nas duas metades
+    centroides deslocados meia h      F2 CONTINUA VERDE  (limitacao conhecida)
+    clausula -> caso inexistente      driver: CASO AUSENTE, contrato 4/5, saida 1
+    guarda de suporte minimo removida N3 REPROVA: "suporte de 5 pontos
+                                        (minimo 6) passou sem reclamar"
+    guarda de linha faltando removida o processo MORRE no abort do herdado, sem
+                                        linha de resumo -- que e' o que a guarda 3
+                                        do driver pega
 
-A segunda linha vale tanto quanto a primeira: ela mede que a reprodução
-polinomial verifica a discretização e **não** a malha, e é por isso que "o
-suporte cai na grade e é local" precisa ser uma cláusula própria (F3), não um
-subproduto.
+As duas últimas linhas medem o valor das fachadas: elas convertem um abort três
+camadas abaixo em exceção que nomeia a linha que falta. A segunda linha mede o
+contrário — que a reprodução polinomial verifica a discretização e **não** a
+malha, e é por isso que "o suporte cai na grade e é local" precisa ser cláusula
+própria (F3), não subproduto.
 
-E uma guarda do driver nasceu inoperante e foi pega na primeira execução: o
-`make clean` exigia `DIM`, falhava com aviso, e a limpeza por dimensão — que
-existe porque os objetos não carregam o `DIM` no nome — não acontecia.
+Dois oráculos que passavam por acidente foram pegos pelo próprio contraste: com o
+ponto de consulta **no centro de simetria** da nuvem, o ajuste de ordem 2
+reproduziu um campo cúbico com erro 1,1e-16 (os termos ímpares cancelam contra
+pesos simétricos). Os pontos de consulta são assimétricos de propósito. E uma
+guarda do driver nasceu inoperante e caiu na primeira execução: o `make clean`
+exigia `DIM`, falhava com aviso, e a limpeza por dimensão não acontecia.
 
 ---
 
-## 10. Antes de comprometer o desenho: medir
+## 11. Antes de comprometer o desenho: medir
 
 Escalabilidade no regime 3D. O 2D rendeu 1,62× em np=2 e 1,68× em np=4, e isso é
 tamanho do caso — 9377 células por quatro dão ~2300 por processo, e a comunicação

@@ -17,6 +17,11 @@ decisões tomadas, o que é medido e o que é opinião. Leia-o antes de mexer aq
 4. **Um domínio só** — sem o segundo domínio uniforme no nível mais fino, que é
    a malha cheia por construção e não encolhe com o AMR.
 5. **C++ na norma do t8code** (`gnu++20`), sem `extern "C"` e sem `-fpermissive`.
+6. **Vive em worktree**, branch `t8flow`.
+7. **Código separado para 2D e 3D**, começando pelo 2D — o t8code tem malhas 2D e
+   3D nativas (`T8_ECLASS_QUAD` e `T8_ECLASS_HEX` são classes distintas), então o
+   código novo é escrito duas vezes em vez de uma vez com `#if DIM`. O núcleo
+   herdado continua por macro, porque `Point` **é** `real[DIM]`.
 
 ## Construir e rodar
 
@@ -24,15 +29,24 @@ decisões tomadas, o que é medido e o que é opinião. Leia-o antes de mexer aq
 python3 ci/run_t8flow_tests.py
 ```
 
-O driver constrói e roda nas duas dimensões e cobra o contrato. Para uma só:
-`--dim 2`. Os prefixos de dependência têm padrão apontando para a árvore
-principal e podem ser trocados por `--t8code`, `--higtree-src` e `--petsc`.
+O driver constrói o lado 2D, roda os testes e cobra o contrato. Os prefixos de
+dependência têm padrão apontando para a árvore principal e podem ser trocados por
+`--t8code`, `--higtree-src` e `--petsc`.
 
 À mão, a partir deste diretório:
 
 ```bash
-make DIM=2 && mpirun -n 1 ./tests/test-nucleo-herdado-2d
+make 2d && mpirun -n 1 ./tests/2d/test-mls2d
 ```
+
+Estrutura, pela decisão 7:
+
+    src/comum/   sem dimensão: arranque, contrato
+    src/2d/      o discretizador (mls2d) e o solver (solver2d)
+    src/3d/      quando existir
+    tests/2d/
+
+`make 3d` **diz** que o lado 3D ainda não existe, em vez de falhar obscuro.
 
 **As dependências não estão neste worktree.** O t8code e o PETSc vivem em
 `bibliotecas/`, que o git ignora; por isso os caminhos são parâmetros absolutos,
@@ -85,7 +99,18 @@ arquivo:
   discrimina" — que é o seu trabalho. Os pontos de consulta são assimétricos de
   propósito;
 - nenhuma física roda aqui, np vai só até 1, não há partição, nem franja, nem
-  refino local, nem domínio. Tudo isso é o trabalho adiante.
+  refino local, nem domínio, nem malha multiblocos. Tudo isso é o trabalho
+  adiante;
+- o motor do solver **instalado** não é consultável — não existe
+  `slv_get_engine`. N5 cobra a tabela de nomes, não a instalação.
 
-Controle que vale citar porque confirma o contrário: baixando a ordem do ajuste
-de 2 para 1, N1 reprova nas duas metades.
+Controles que confirmam o contrário — cada guarda foi removida e o teste
+reprovou:
+
+    ordem do ajuste 2 -> 1            N1 reprova nas duas metades
+    guarda de suporte minimo          N3 reprova nomeando os numeros
+    guarda de linha faltando          o processo morre no abort do herdado, sem
+                                        linha de resumo
+
+A última é a que justifica a fachada: ela converte um abort três camadas abaixo em
+exceção que nomeia a linha que falta.
