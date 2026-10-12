@@ -113,7 +113,15 @@ NavierStokes::NavierStokes(const Malha &m, const DominioFacetas &fd,
         "os ids locais -- e o percurso por blocos, que aqui supoe todas as "
         "arvores locais.");
 
-  // A MALHA ADAPTADA E' RECUSADA, e nao tolerada.
+  // A MALHA ADAPTADA, NESTA ALTURA, SO' E' RECUSADA NO PASSO -- ver `passo`.
+  //
+  // O que ja' a trata sao os operadores de FLUXO: a divergencia e o Poisson da
+  // projecao somam sub-facetas e usam a formula unica de face e distancia.  O
+  // que ainda nao a trata e' o ESTENCIL DA QUANTIDADE DE MOVIMENTO, cuja
+  // restricao e' diferente por componente.  Construir e medir o fluxo numa
+  // malha adaptada tem de ser possivel; avancar no tempo ainda nao.
+  //
+  // O TEXTO ABAIXO FICA, porque e' a razao de o passo recusar:
   //
   // A transicao 2:1 numa faceta de VELOCIDADE nao e' o mesmo problema que numa
   // faceta de fluxo escalar: a componente normal se restringe por conservacao
@@ -122,13 +130,6 @@ NavierStokes::NavierStokes(const Malha &m, const DominioFacetas &fd,
   // pressao nao convergindo, longe da causa.
   //
   // Rodar e dar numero seria pior que recusar: o numero sairia plausivel.
-  if (m.num_folhas_em_transicao() > 0)
-    throw std::invalid_argument(
-        "NavierStokes: a malha tem " +
-        std::to_string(m.num_folhas_em_transicao()) +
-        " folhas em transicao 2:1, e este solver ainda nao a trata.  "
-        "A restricao da componente normal e a da tangencial sao diferentes, e "
-        "aplicar a mesma as duas produz divergencia que nao fecha.");
 
   if (bc_p.vazio())
     throw std::invalid_argument(
@@ -149,17 +150,15 @@ NavierStokes::NavierStokes(const Malha &m, const DominioFacetas &fd,
   if (m.num_folhas() == 0)
     throw std::invalid_argument("NavierStokes: a malha nao tem folha local");
   h_ = m.lados_da_folha(0, 0);
+  h_min_ = h_;
+  uniforme_ = true;
   for (long b = 0; b < m.num_blocos(); b++)
     for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
       const Ponto2 hh = m.lados_da_folha(b, i);
-      for (int d = 0; d < 2; d++)
-        if (std::fabs(hh[d] - h_[d]) > 1e-12 * h_[d])
-          throw std::invalid_argument(
-              "NavierStokes: a folha (" + std::to_string(b) + "," +
-              std::to_string(i) + ") tem lado " + std::to_string(hh[d]) +
-              " na direcao " + std::to_string(d) + " contra " +
-              std::to_string(h_[d]) + " da primeira.  Este solver exige malha "
-              "uniforme -- blocos com niveis diferentes tambem nao servem.");
+      for (int d = 0; d < 2; d++) {
+        if (hh[d] < h_min_[d]) h_min_[d] = hh[d];
+        if (std::fabs(hh[d] - h_[d]) > 1e-12 * h_[d]) uniforme_ = false;
+      }
     }
 
   // O INDICE DE FACETA POR PONTO.  Construido uma vez; a alternativa seria
@@ -168,7 +167,7 @@ NavierStokes::NavierStokes(const Malha &m, const DominioFacetas &fd,
   for (int d = 0; d < 2; d++) {
     fac_por_ponto_[d].reserve(static_cast<size_t>(fd.num_facetas(d)) * 2);
     for (long f = 0; f < fd.num_facetas(d); f++) {
-      const unsigned long long ch = chave_de_ponto(fd.centro(d, f), h_);
+      const unsigned long long ch = chave_de_ponto(fd.centro(d, f), h_min_);
       const auto it = fac_por_ponto_[d].find(ch);
       if (it != fac_por_ponto_[d].end())
         throw std::runtime_error(
@@ -247,7 +246,7 @@ void NavierStokes::passo_de_tempo(double dt)
 
 long NavierStokes::faceta_em(int d, const Ponto2 &x) const
 {
-  const auto it = fac_por_ponto_[d].find(chave_de_ponto(x, h_));
+  const auto it = fac_por_ponto_[d].find(chave_de_ponto(x, h_min_));
   return (it == fac_por_ponto_[d].end()) ? -1 : it->second;
 }
 
@@ -699,6 +698,23 @@ void NavierStokes::passo()
     throw std::runtime_error("NavierStokes::passo: o passo de tempo nao foi "
                              "instalado -- chame passo_de_tempo primeiro");
 
+  // A TRANSICAO 2:1 E' RECUSADA AQUI, e nao na construcao.
+  //
+  // Os operadores de FLUXO ja' a tratam -- `divergencia_maxima` e o Poisson da
+  // projecao somam sub-facetas --, e medi-los numa malha adaptada e' parte de
+  // chegar la'.  O que falta e' o estencil da quantidade de movimento: numa
+  // faceta de velocidade a componente NORMAL se restringe por conservacao de
+  // vazao e a TANGENCIAL por interpolacao, e aplicar a mesma regra as duas
+  // produz divergencia que nao fecha -- defeito que aparece como o solver de
+  // pressao nao convergindo, longe da causa.
+  if (m_->num_folhas_em_transicao() > 0)
+    throw std::runtime_error(
+        "NavierStokes::passo: a malha tem " +
+        std::to_string(m_->num_folhas_em_transicao()) +
+        " folhas em transicao 2:1.  Os operadores de fluxo ja' a tratam; o "
+        "estencil da quantidade de movimento ainda nao -- a restricao da "
+        "componente normal e a da tangencial sao diferentes.");
+
   // O RELOGIO DO CONTORNO: `t^n` para o preditor, `t^{n+1}` para a aplicacao
   // final.  Ver `instante_do_contorno` no cabecalho.
   t_bc_ = t_;
@@ -729,22 +745,74 @@ void NavierStokes::passo()
   n_passos_++;
 }
 
+std::vector<NavierStokes::SubFaceta> NavierStokes::sub_facetas(long b, long i,
+                                                                 int d,
+                                                                 int lado) const
+{
+  const Ponto2 c = m_->centroide(b, i);
+  const Ponto2 hh = m_->lados_da_folha(b, i);
+  const int t = 1 - d;                     // direcao TRANSVERSAL a' face
+  const double sinal = (lado == 0) ? -1.0 : 1.0;
+
+  // QUANTAS SUB-FACETAS, pelo NIVEL do vizinho e nao por busca.
+  //
+  // Com 2:1 a razao e' `2^(nivel_viz - nivel_self)`, e `niveis_vizinhos` ja' a
+  // da'.  Procurar as facetas por varredura seria O(facetas) por face, dentro
+  // do laco de montagem -- o mesmo quadratico que ja' custou caro.
+  const std::vector<int> nvz = m_->niveis_vizinhos(b, i, 2 * d + lado);
+  const int nivel_self = m_->nivel(b, i);
+  int nsub = 1;
+  double larg = hh[t];
+  if (!nvz.empty() && nvz[0] > nivel_self) {
+    nsub = 1 << (nvz[0] - nivel_self);     // 2 em 2:1
+    larg = hh[t] / nsub;
+  }
+
+  std::vector<SubFaceta> out;
+  out.reserve(static_cast<size_t>(nsub));
+  for (int sub = 0; sub < nsub; sub++) {
+    Ponto2 cf = c;
+    cf[d] += sinal * hh[d] / 2.0;
+    cf[t] += -hh[t] / 2.0 + (sub + 0.5) * larg;
+    const long fid = faceta_em(d, cf);
+    if (fid < 0)
+      throw std::runtime_error(
+          "NavierStokes::sub_facetas: nao ha' faceta da direcao " +
+          std::to_string(d) + " em (" + std::to_string(cf[0]) + ", " +
+          std::to_string(cf[1]) + "), sub " + std::to_string(sub) + " de " +
+          std::to_string(nsub) + ".  Uma face sem faceta tem o fluxo DESCARTADO,"
+          " e descartado em silencio -- a divergencia desta celula sairia errada"
+          " sem nada acusar.");
+    out.push_back({fid, larg, cf});
+  }
+  return out;
+}
+
 double NavierStokes::divergencia_maxima() const
 {
+  // O FLUXO PELA FACE E' A SOMA DAS SUB-FACETAS, e nao o valor numa delas.
+  //
+  // Na transicao 2:1 a face da celula grossa e' coberta por DUAS facetas finas,
+  // e o fluxo total e' `u_1 . larg + u_2 . larg`.  Tomar o valor no centro da
+  // face grossa -- que nao e' o centro de nenhuma das duas -- daria -1 na busca
+  // e o fluxo seria descartado.
+  //
+  // E A DIVERGENCIA E' DIVIDIDA PELO VOLUME, nao pelo lado: com faces de
+  // tamanhos diferentes na mesma celula, `soma(u)/h` nao e' divergencia
+  // nenhuma.
   double maxv = 0.0;
   for (long b = 0; b < m_->num_blocos(); b++)
     for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
-      const Ponto2 c = m_->centroide(b, i);
       const Ponto2 hh = m_->lados_da_folha(b, i);
-      double div = 0.0;
+      const double vol = hh[0] * hh[1];
+      double fluxo = 0.0;
       for (int d = 0; d < 2; d++)
-        for (int s2 = -1; s2 <= 1; s2 += 2) {
-          Ponto2 xp = c;
-          xp[d] += s2 * hh[d] / 2.0;
-          const long fid = faceta_em(d, xp);
-          if (fid >= 0) div += s2 * u_.em(d, fid) / hh[d];
+        for (int lado = 0; lado <= 1; lado++) {
+          const double sinal = (lado == 0) ? -1.0 : 1.0;
+          for (const SubFaceta &sf : sub_facetas(b, i, d, lado))
+            fluxo += sinal * u_.em(d, sf.id) * sf.medida;
         }
-      maxv = std::max(maxv, std::fabs(div));
+      maxv = std::max(maxv, std::fabs(fluxo / vol));
     }
   return maxv;
 }

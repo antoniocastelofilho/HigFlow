@@ -112,18 +112,52 @@ DominioFacetas::DominioFacetas(const Malha &m) : m_(&m)
     mais_[d].assign(static_cast<size_t>(n), -1);
   }
 
-  // UMA passada pelas folhas, na ordem da curva.  Para cada direcao: a faceta
-  // "menos" sempre existe e e' desta folha; a "mais" so' existe se for contorno
-  // do dominio -- se tiver vizinho, pertence a ele (e' a "menos" dele).
+  // UMA passada pelas folhas, na ordem da curva.
+  //
+  // A FACETA PERTENCE AO LADO MAIS FINO, e nao ao lado "mais".
+  //
+  // A regra anterior era "a 'menos' e' sempre desta folha; a 'mais' so' se for
+  // contorno", e ela e' certa em malha uniforme e AMBIGUA na transicao 2:1: o
+  // conjunto de facetas de uma mesma interface passava a depender de PARA QUE
+  // LADO o refino aponta.
+  //
+  //   fina do lado "mais":  cada fina cria a sua "menos"  -> DUAS facetas finas
+  //   grossa do lado "mais": a grossa cria a sua "menos"  -> UMA faceta grossa
+  //
+  // A mesma geometria dava um ou dois graus de liberdade conforme a orientacao.
+  // Pior, no segundo caso a faceta tinha a medida GROSSA cobrindo duas faces
+  // finas: a celula fina que somasse `u . medida` contaria o dobro da propria
+  // face.
+  //
+  // A regra nova da' resolucao FINA nas duas orientacoes, que e' o que o
+  // arranjo deslocado precisa -- duas celulas finas que compartilham uma face
+  // com uma grossa tem velocidades proprias, e o fluxo que a grossa ve' e' a
+  // SOMA delas.  E' dai' que vem a conservacao: o que sai das finas entra na
+  // grossa, exatamente.
+  //
+  // A POSSE CONTINUA UNICA, que e' o invariante que o refino poderia quebrar:
+  // numa face entre `A` (menos) e `B` (mais), ou `B` cria a sua "menos" (niveis
+  // iguais, ou `B` mais fina), ou `A` cria a sua "mais" (`B` mais grossa) --
+  // nunca os dois.
   for (long b = 0; b < m.num_blocos(); b++) {
     for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
       const long k = m.id_global(b, i) - p0;
       const Ponto2 c = m.centroide(b, i);
       const Ponto2 h = m.lados_da_folha(b, i);
+      const int nivel_self = m.nivel(b, i);
 
       for (int d = 0; d < 2; d++) {
-        // lado MENOS: sempre desta folha
-        {
+        // Os niveis dos dois lados, uma vez.
+        const std::vector<int> nv_menos = m.niveis_vizinhos(b, i, 2 * d);
+        const std::vector<int> nv_mais = m.niveis_vizinhos(b, i, 2 * d + 1);
+        const bool menos_mais_fino =
+            !nv_menos.empty() && nv_menos[0] > nivel_self;
+        const bool mais_mais_grosso =
+            !nv_mais.empty() && nv_mais[0] < nivel_self;
+
+        // lado MENOS: desta folha, A MENOS que o vizinho de la' seja mais fino
+        // -- nesse caso a faceta e' dele, e sao duas.
+        if (!menos_mais_fino) {
           Ponto2 cf = c;
           cf[d] -= h[d] / 2.0;
           menos_[d][static_cast<size_t>(k)] = static_cast<long>(centros_[d].size());
@@ -131,8 +165,9 @@ DominioFacetas::DominioFacetas(const Malha &m) : m_(&m)
           // a medida de uma faceta de normal d e' o lado TRANSVERSAL
           medidas_[d].push_back(h[1 - d]);
         }
-        // lado MAIS: so' se nao houver vizinho, isto e', se for contorno
-        if (m.num_vizinhos(b, i, 2 * d + 1) == 0) {
+        // lado MAIS: se for contorno, OU se o vizinho de la' for mais grosso --
+        // nesse caso a faceta e' desta folha, com a medida FINA.
+        if (m.num_vizinhos(b, i, 2 * d + 1) == 0 || mais_mais_grosso) {
           Ponto2 cf = c;
           cf[d] += h[d] / 2.0;
           mais_[d][static_cast<size_t>(k)] = static_cast<long>(centros_[d].size());

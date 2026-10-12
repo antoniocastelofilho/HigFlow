@@ -237,6 +237,26 @@ class NavierStokes {
   //! A faceta da direcao `d` cujo centro e' `x`, ou -1 se nao houver.
   long faceta_em(int d, const Ponto2 &x) const;
 
+  //! UMA SUB-FACETA da face `(d, lado)` de uma celula.
+  struct SubFaceta {
+    long id;           //!< id da faceta na direcao `d`
+    double medida;     //!< comprimento dela (o da face da vizinha MAIS FINA)
+    Ponto2 centro;
+  };
+
+  //! AS SUB-FACETAS de uma face.
+  //
+  // Em transicao 2:1 a face da celula GROSSA e' coberta por DUAS facetas, cada
+  // uma pertencente a uma vizinha fina -- e a grossa nao tem faceta propria
+  // ali, porque `DominioFacetas` so' cria a faceta "mais" quando ela e'
+  // contorno.
+  //
+  // E' POR ISSO QUE A BUSCA POR UM PONTO SO' NAO SERVE: o centro da face
+  // grossa nao e' o centro de nenhuma das duas sub-facetas, e a busca devolve
+  // -1.  O fluxo pela face seria DESCARTADO, e descartado em silencio -- a
+  // divergencia daquela celula sairia errada sem nada acusar.
+  std::vector<SubFaceta> sub_facetas(long b, long i, int d, int lado) const;
+
   //! `u_d` na posicao `xf + s*h_e` na direcao `e`.  FECHA O CONTORNO quando a
   //! posicao cai fora: a parede esta' no meio do caminho, e a relacao e' a
   //! afim da condicao -- reflexao para Dirichlet, extrapolacao para Neumann.
@@ -272,7 +292,14 @@ class NavierStokes {
   int it_pressao_ = 0;
   bool conv_pressao_ = false;
 
-  Ponto2 h_{0.0, 0.0};                 //!< lados da folha; malha uniforme
+  //! O lado da folha MAIS FINA.  A chave do indice de facetas quantiza por
+  //! `h_min/2`, e nao pelo lado "da" folha, porque numa malha adaptada nao ha'
+  //! um.  Como os niveis sao potencias de dois e os blocos se dividem
+  //! diadicamente, TODA posicao de faceta de QUALQUER nivel cai exatamente
+  //! nessa grade -- a quantizacao continua exata, e nao aproximada.
+  Ponto2 h_min_{0.0, 0.0};
+  Ponto2 h_{0.0, 0.0};                 //!< lado da folha quando a malha e' uniforme
+  bool uniforme_ = true;
   //! Indice de FACETA POR PONTO, por direcao.  Nao existe em `DominioFacetas`
   //! porque o consumidor dele e' o esquema, nao a numeracao: quem monta a
   //! equacao pergunta "qual e' a faceta meio passo adiante", e quem numera nao

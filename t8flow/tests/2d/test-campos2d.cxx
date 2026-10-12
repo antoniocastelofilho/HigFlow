@@ -123,12 +123,26 @@ int main(int argc, char **argv)
   // bloco 0 nao sao donas da "mais" porque ela tem vizinho.
   t_case("a_contagem_de_facetas_segue_a_conta_do_mac");
   {
-    // bloco 0: 4x4; bloco 1: 2x2.  Facetas de normal x:
-    //   bloco 0: 16 "menos" + 4 da borda ESQUERDA? nao -- a "menos" ja' e' a
-    //            esquerda.  A borda DIREITA do bloco 0 tem vizinho (bloco 1),
-    //            entao nao conta.  Total 16.
-    //   bloco 1: 4 "menos" + 2 da borda direita = 6.
-    const long esperado_x = 16 + 6;
+    // bloco 0: 4x4 (nivel 2); bloco 1: 2x2 (nivel 1).  A JUNCAO EM `x = 1` TEM
+    // NIVEIS DIFERENTES, e e' ali que a conta discrimina.
+    //
+    // A FACETA PERTENCE AO LADO MAIS FINO.  Na junção o bloco 0 e' o fino, logo
+    // as QUATRO celulas dele encostadas em `x = 1` possuem cada uma a sua
+    // "mais" (medida 0,25), e as duas celulas grossas do bloco 1 NAO tem
+    // "menos" ali.
+    //
+    // Facetas de normal x:
+    //   bloco 0: 16 "menos" + 4 "mais" na junção = 20.
+    //   bloco 1: 2 "menos" na junção? NAO -- o lado de la' e' mais fino.
+    //            Sobram as 2 "menos" da coluna interna e as 2 da borda
+    //            direita = 4.
+    //
+    // ESTE NUMERO JA' FOI 22, com a regra antiga ("a 'mais' so' existe no
+    // contorno"): a junção era representada por DUAS facetas grossas em vez de
+    // quatro finas.  A regra antiga fazia o conjunto de facetas de uma mesma
+    // interface depender de PARA QUE LADO o refino aponta -- duas finas numa
+    // orientacao, uma grossa na espelhada.
+    const long esperado_x = 20 + 4;
     //   normal y: bloco 0: 16 "menos" + 4 do topo = 20;
     //             bloco 1: 4 "menos" + 2 do topo = 6.
     const long esperado_y = 20 + 6;
@@ -239,17 +253,27 @@ int main(int argc, char **argv)
           const long id_menos = fd.id_faceta(b, i, d, 0);
           T_CHECK_MSG(id_menos >= 0, "a folha nao e' dona da propria faceta menos");
 
-          // a "mais" desta folha e' a "menos" do vizinho na direcao d
-          const Ponto2 c = m.centroide(b, i);
-          Ponto2 alem = c;
-          alem[d] += h[d];                 // centro do vizinho, se do mesmo nivel
-          const long id_viz = m.id_do_ponto(alem);
-          long id_mais = -1;
-          if (id_viz >= 0) {
-            // acha o (bloco, folha) do vizinho pelo id, para perguntar a faceta
-            for (long bb = 0; bb < m.num_blocos() && id_mais < 0; bb++)
-              for (long ii = 0; ii < m.num_folhas_do_bloco(bb); ii++)
-                if (m.id_global(bb, ii) == id_viz) { id_mais = fd.id_faceta(bb, ii, d, 0); break; }
+          // A FACETA DA FACE "MAIS" E' MINHA OU DO VIZINHO, conforme quem e'
+          // mais fino -- nao e' sempre a "menos" do vizinho.
+          //
+          // Este laco ja' supos que era, e a suposicao valia enquanto a regra
+          // de posse era "a 'mais' so' existe no contorno".  Na junção dos
+          // dois blocos deste arquivo, que tem NIVEIS diferentes, ela e' falsa:
+          // ali a celula fina possui a propria "mais" e a grossa nao tem
+          // "menos".  O teste passava porque media so' a orientacao favoravel.
+          long id_mais = fd.id_faceta(b, i, d, 1);
+          if (id_mais < 0) {
+            const Ponto2 c = m.centroide(b, i);
+            Ponto2 alem = c;
+            alem[d] += h[d];
+            const long id_viz = m.id_do_ponto(alem);
+            if (id_viz >= 0)
+              for (long bb = 0; bb < m.num_blocos() && id_mais < 0; bb++)
+                for (long ii = 0; ii < m.num_folhas_do_bloco(bb); ii++)
+                  if (m.id_global(bb, ii) == id_viz) {
+                    id_mais = fd.id_faceta(bb, ii, d, 0);
+                    break;
+                  }
           }
           T_CHECK_MSG(id_mais >= 0, "nao achei a faceta mais da folha %ld (dir %d)", i, d);
           if (id_mais < 0) continue;
@@ -310,6 +334,73 @@ int main(int argc, char **argv)
       }
     T_CHECK_MSG(grossas_com_vizinho_fino > 0,
                 "nenhuma transicao 2:1 no caso -- o caso nao exercita o que afirma");
+  }
+
+  t_case("toda_face_e_coberta_por_facetas_de_medida_exata");
+  {
+    // O INVARIANTE QUE FALTAVA, e e' o que a transicao 2:1 pode quebrar sem
+    // quebrar a posse unica: para CADA celula e CADA lado, a soma das medidas
+    // das facetas que cobrem aquela face tem de dar o lado TRANSVERSAL da
+    // celula -- nem mais, nem menos.
+    //
+    // DOIS DEFEITOS DISTINTOS passam pela posse unica e morrem aqui:
+    //
+    //   FACE SEM FACETA -- soma zero.  O fluxo por ela seria descartado em
+    //   silencio, e a divergencia da celula sairia errada;
+    //
+    //   FACETA DE MEDIDA GROSSA cobrindo duas faces finas -- soma o dobro.  A
+    //   celula fina contaria o dobro da propria face.
+    //
+    // Era o segundo que acontecia: com a regra antiga, a celula grossa do lado
+    // "mais" criava a sua "menos" com a medida dela, e as duas finas do outro
+    // lado ficavam sem faceta propria.  Numa orientacao, duas facetas finas; na
+    // espelhada, uma grossa.  A mesma geometria com graus de liberdade
+    // diferentes conforme para que lado o refino aponta.
+    m.refina_caixa({0.10, 0.10}, {0.45, 0.45}, 4);
+    DominioFacetas fd3(m);
+
+    long faces = 0, ruins = 0;
+    double pior = 0.0;
+    for (long b = 0; b < m.num_blocos(); b++)
+      for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
+        const Ponto2 c = m.centroide(b, i);
+        const Ponto2 h = m.lados_da_folha(b, i);
+        const int nivel_self = m.nivel(b, i);
+        for (int d = 0; d < 2; d++) {
+          const int t = 1 - d;
+          for (int lado = 0; lado < 2; lado++) {
+            const std::vector<int> nvz = m.niveis_vizinhos(b, i, 2 * d + lado);
+            int nsub = 1;
+            if (!nvz.empty() && nvz[0] > nivel_self)
+              nsub = 1 << (nvz[0] - nivel_self);
+            const double larg = h[t] / nsub;
+
+            double soma = 0.0;
+            for (int sub = 0; sub < nsub; sub++) {
+              Ponto2 cf = c;
+              cf[d] += (lado == 0 ? -1.0 : 1.0) * h[d] / 2.0;
+              cf[t] += -h[t] / 2.0 + (sub + 0.5) * larg;
+              // acha a faceta cujo CENTRO e' esse ponto
+              for (long q = 0; q < fd3.num_facetas(d); q++) {
+                const Ponto2 cq = fd3.centro(d, q);
+                if (std::fabs(cq[0] - cf[0]) < 1e-12 &&
+                    std::fabs(cq[1] - cf[1]) < 1e-12) {
+                  soma += fd3.medida(d, q);
+                  break;
+                }
+              }
+            }
+            faces++;
+            const double erro = std::fabs(soma - h[t]);
+            if (erro > pior) pior = erro;
+            if (erro > 1e-12) ruins++;
+          }
+        }
+      }
+    T_CHECK_MSG(faces > 0, "nenhuma face percorrida -- o oraculo nao mediu nada");
+    T_CHECK_MSG(ruins == 0,
+                "%ld de %ld faces nao sao cobertas exatamente pelas facetas "
+                "(pior desvio %.3g)", ruins, faces, pior);
   }
 
   return t_end();
