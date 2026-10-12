@@ -276,5 +276,117 @@ int main(int argc, char **argv)
     T_CHECK_MSG(lancou, "nivel_alvo igual ao do bloco passou sem reclamar");
   }
 
+  // ---- REFINO ALEATORIO -----------------------------------------------------
+  //
+  // E' a malha que o teste de convergencia em quadtree precisa.  O que estes casos
+  // afirmam nao e' "o refino aconteceu" -- e' que ele e' REPRODUTIVEL, que a
+  // semente faz diferenca, e que a malha resultante tem transicao 2:1 DE VERDADE.
+  // Sem a ultima, um teste de esquema na face de transicao poderia rodar numa
+  // malha sem transicao nenhuma e passar sem testar nada.
+
+  t_case("o_refino_aleatorio_e_reprodutivel_pela_semente");
+  {
+    const std::vector<Bloco> bl = {{{0.0, 0.0}, {1.0, 1.0}, 3}};
+    Malha a(bl, sc_MPI_COMM_SELF);
+    Malha b(bl, sc_MPI_COMM_SELF);
+    a.refina_aleatorio(0.3, 12345, 5);
+    b.refina_aleatorio(0.3, 12345, 5);
+
+    T_CHECK_MSG(a.num_folhas() == b.num_folhas(),
+                "a mesma semente deu %ld e %ld folhas", a.num_folhas(), b.num_folhas());
+
+    // Contagem igual nao basta: as malhas tem de ser a MESMA.  Duas malhas
+    // diferentes com o mesmo numero de folhas sao perfeitamente possiveis, e a
+    // contagem nao as distingue.
+    const std::vector<Ponto2> ca = a.centroides();
+    const std::vector<Ponto2> cb = b.centroides();
+    double pior = 0.0;
+    for (size_t k = 0; k < ca.size() && k < cb.size(); k++)
+      for (int d = 0; d < 2; d++)
+        pior = std::fmax(pior, std::fabs(ca[k][d] - cb[k][d]));
+    T_NEAR(pior, 0.0, 0.0, "pior diferenca entre os centroides das duas malhas");
+  }
+
+  t_case("sementes_diferentes_dao_malhas_diferentes");
+  {
+    // Se a semente nao mudasse nada, o caso de cima estaria afirmando apenas que o
+    // codigo e' deterministico -- o que qualquer codigo sem aleatoriedade e'.
+    const std::vector<Bloco> bl = {{{0.0, 0.0}, {1.0, 1.0}, 3}};
+    Malha a(bl, sc_MPI_COMM_SELF);
+    Malha b(bl, sc_MPI_COMM_SELF);
+    a.refina_aleatorio(0.3, 12345, 5);
+    b.refina_aleatorio(0.3, 999, 5);
+    T_CHECK_MSG(a.num_folhas() != b.num_folhas(),
+                "sementes diferentes deram o MESMO numero de folhas (%ld) -- a "
+                "semente pode nao estar sendo usada", a.num_folhas());
+    printf("  (semente 12345: %ld folhas; semente 999: %ld folhas)\n",
+           a.num_folhas(), b.num_folhas());
+  }
+
+  t_case("o_refino_aleatorio_respeita_2_para_1_e_tem_transicao_de_verdade");
+  {
+    Malha m2({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+    const double area_antes = area_do_bloco(m2, 0);
+    m2.refina_aleatorio(0.4, 2026, 5);
+    m2.refina_aleatorio(0.4, 777, 6);        // segunda passada, outra semente
+
+    long bp = -1, fp = -1;
+    const int pior = pior_salto(m2, &bp, &fp);
+    T_CHECK_MSG(pior <= 1,
+                "salto de %d niveis entre vizinhos (bloco %ld folha %ld) depois do "
+                "refino aleatorio -- o equilibrio nao fechou", pior, bp, fp);
+
+    // AREA: o oraculo que a contagem nao da'.
+    T_NEAR(area_do_bloco(m2, 0), area_antes, 1e-13,
+           "area do bloco depois de duas passadas de refino aleatorio");
+
+    // E A MALHA TEM DE TER TRANSICAO: sem isso, qualquer teste de esquema na face
+    // de transicao rodaria sem exercitar o que afirma.
+    const long trans = m2.num_folhas_em_transicao();
+    T_CHECK_MSG(trans > 0,
+                "a malha aleatoria nao tem NENHUMA folha em transicao 2:1 -- ela nao"
+                " serve para testar esquema na face de transicao");
+    T_CHECK_MSG(m2.nivel_maximo() > m2.nivel_minimo(),
+                "niveis min %d e max %d -- a malha ficou uniforme",
+                m2.nivel_minimo(), m2.nivel_maximo());
+    printf("  (malha aleatoria: %ld folhas, niveis %d a %d, %ld em transicao = %.0f%%)\n",
+           m2.num_folhas(), m2.nivel_minimo(), m2.nivel_maximo(), trans,
+           100.0 * trans / m2.num_folhas());
+  }
+
+  t_case("a_fracao_controla_quanto_se_refina");
+  {
+    // Fracao maior tem de refinar mais.  Sem este caso, a fracao poderia estar
+    // sendo ignorada e os casos de cima passariam igual.
+    const std::vector<Bloco> bl = {{{0.0, 0.0}, {1.0, 1.0}, 3}};
+    Malha pouco(bl, sc_MPI_COMM_SELF), muito(bl, sc_MPI_COMM_SELF);
+    pouco.refina_aleatorio(0.1, 55, 5);
+    muito.refina_aleatorio(0.8, 55, 5);
+    T_CHECK_MSG(muito.num_folhas() > pouco.num_folhas(),
+                "fracao 0,8 deu %ld folhas e fracao 0,1 deu %ld -- a fracao nao "
+                "esta' controlando nada", muito.num_folhas(), pouco.num_folhas());
+    printf("  (fracao 0,1: %ld folhas; fracao 0,8: %ld folhas)\n",
+           pouco.num_folhas(), muito.num_folhas());
+  }
+
+  t_case("refino_aleatorio_malformado_e_recusado");
+  {
+    Malha m3({{{0.0, 0.0}, {1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+    bool lancou = false;
+    try { m3.refina_aleatorio(0.0, 1, 5); }
+    catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "fracao zero passou sem reclamar");
+
+    lancou = false;
+    try { m3.refina_aleatorio(1.5, 1, 5); }
+    catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "fracao maior que 1 passou sem reclamar");
+
+    lancou = false;
+    try { m3.refina_aleatorio(0.5, 1, 3); }   // nivel_max == nivel atual
+    catch (const std::invalid_argument &) { lancou = true; }
+    T_CHECK_MSG(lancou, "nivel_max que nao aprofunda passou sem reclamar");
+  }
+
   return t_end();
 }

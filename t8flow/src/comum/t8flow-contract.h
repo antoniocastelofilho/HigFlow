@@ -198,6 +198,28 @@
 //! COBERTA-POR: test-refino2d:caixa_fora_de_todos_os_blocos_e_recusada
 //! COBERTA-POR: test-refino2d:nivel_alvo_que_nao_aprofunda_e_recusado
 
+//! R6  O REFINO ALEATORIO e' REPRODUTIVEL pela semente, e a semente FAZ
+//!     DIFERENCA.  As duas metades: reprodutivel sozinho seria propriedade de
+//!     qualquer codigo sem aleatoriedade; e a reproducao e' afirmada pelos
+//!     CENTROIDES, nao pela contagem -- duas malhas diferentes com o mesmo numero
+//!     de folhas sao perfeitamente possiveis.  Medido: semente 12345 da' 121
+//!     folhas, semente 999 da' 115.
+//! COBERTA-POR: test-refino2d:o_refino_aleatorio_e_reprodutivel_pela_semente
+//! COBERTA-POR: test-refino2d:sementes_diferentes_dao_malhas_diferentes
+//! COBERTA-POR: test-refino2d:a_fracao_controla_quanto_se_refina
+
+//! R7  A malha aleatoria respeita 2:1, CONSERVA A AREA, e tem TRANSICAO DE
+//!     VERDADE.  A ultima parte e' o que impede um teste de esquema na face de
+//!     transicao de rodar numa malha sem transicao nenhuma e passar sem testar
+//!     nada.  Medido com duas passadas: 310 folhas, niveis 3 a 5, 236 folhas em
+//!     transicao (76%).
+//! COBERTA-POR: test-refino2d:o_refino_aleatorio_respeita_2_para_1_e_tem_transicao_de_verdade
+
+//! R8  Refino aleatorio malformado e' recusado: fracao fora de (0,1], e
+//!     `nivel_max` que nao aprofunda -- refino que nao refina nada deixaria a
+//!     malha PARECER adaptada.
+//! COBERTA-POR: test-refino2d:refino_aleatorio_malformado_e_recusado
+
 // ---------------------------------------------------------------------------
 // G -- A NUMERACAO GLOBAL (o que o solver pede da malha)
 // ---------------------------------------------------------------------------
@@ -578,6 +600,17 @@
 // Duas guardas ficaram: os alvos sao DESLOCADOS do centro (que e' tambem o uso
 // real -- interpolar em faceta, canto, ponto de projecao), e os casos de contraste
 // exigem erro grande em VALOR ABSOLUTO, nao apenas uma razao.
+//
+// LIMITE DA FAMILIA R QUE O TESTE SERIAL NAO ALCANCA, e dizer isto importa: o
+// sorteio do refino aleatorio vem de um HASH DA POSICAO da celula, e nao de um
+// gerador sequencial, justamente para a decisao NAO depender da ordem de visita
+// nem da particao -- a mesma semente tem de dar a mesma malha em np=1 e em np=4.
+//
+// Mas em SERIAL isso nao e' distinguivel: um gerador sequencial daria a mesma
+// malha, porque a ordem de visita e' sempre a mesma.  A clausula R6 afirma
+// reprodutibilidade, nao independencia de ordem.  O caso que discriminaria e'
+// paralelo, e paralelo ainda nao existe -- quando existir, comparar a malha entre
+// np diferentes e' o primeiro teste a escrever.
 //
 // LIMITES DA FAMILIA P, declarados: malha UNIFORME (a transicao 2:1 e' recusada),
 // Robin nao montado (so' Dirichlet e Neumann), serial, e o PISO do erro e' o

@@ -132,6 +132,43 @@ class Malha {
   // quem chamou, e aceitar calado deixaria a malha parecer refinada.
   void refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo);
 
+  //! REFINO ALEATORIO: refina uma fracao das folhas, escolhidas por sorteio, e
+  //! reequilibra em 2:1.
+  //
+  // E' a malha que o teste de convergencia em quadtree precisa: refinamento sem
+  // padrao, com transicoes 2:1 espalhadas, que e' o caso em que um esquema errado
+  // na face de transicao aparece -- numa malha refinada por caixa, as transicoes
+  // ficam todas alinhadas aos eixos e um erro que dependa da orientacao pode
+  // passar.
+  //
+  // REPRODUTIVEL, E ISSO E' O PONTO DELICADO.  O sorteio NAO vem de um gerador
+  // sequencial: vem de um HASH DA POSICAO da celula, misturado com a semente.  A
+  // diferenca importa por duas razoes, e as duas sao de erro silencioso:
+  //
+  //   * com gerador sequencial, a decisao depende da ORDEM EM QUE AS CELULAS SAO
+  //     VISITADAS -- e em paralelo, de quantas celulas cada rank tem.  A mesma
+  //     semente daria malhas diferentes em np=1 e np=4, e comparar resultados
+  //     entre eles deixaria de ser possivel;
+  //   * com hash da posicao, a mesma celula recebe a MESMA decisao sempre, em
+  //     qualquer ordem e em qualquer particao.  A malha passa a ser funcao de
+  //     (blocos, semente, fracao), e so'.
+  //
+  // `nivel_max` limita o refino: sem teto, chamadas repetidas levam a floresta ao
+  // limite do t8code, e o sintoma e' memoria, nao erro.
+  //
+  // Lanca se `fracao` nao estiver em (0, 1] ou se `nivel_max` nao for maior que o
+  // nivel atual -- refino que nao refina nada e' quase sempre engano de quem
+  // chamou, e aceito calado deixaria a malha PARECER adaptada.
+  void refina_aleatorio(double fracao, unsigned long semente, int nivel_max);
+
+  //! Quantas folhas tem vizinho de nivel DIFERENTE -- o tamanho da transicao 2:1
+  //! na malha.
+  //
+  // Existe para o teste poder exigir que o caso EXERCITE o que afirma: uma malha
+  // "aleatoria" que por acaso nao tenha transicao nenhuma passaria em qualquer
+  // teste de esquema na face de transicao sem testar nada.
+  long num_folhas_em_transicao() const;
+
   //! Maior e menor nivel presentes na malha.
   int nivel_minimo() const;
   int nivel_maximo() const;

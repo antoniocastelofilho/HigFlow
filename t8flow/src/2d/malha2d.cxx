@@ -18,6 +18,7 @@
 #include "malha2d.hxx"
 
 #include <cmath>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 
@@ -67,6 +68,54 @@ int adapt_por_arvore(t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t wh
 
   const int nivel = scheme->element_get_level(tree_class, elements[0]);
   return (nivel < (*a->nivel)[static_cast<size_t>(b)]) ? 1 : 0;
+}
+
+//! Contexto do refino ALEATORIO, visto pelo callback.
+struct Sorteio {
+  unsigned long semente;
+  double fracao;
+  int nivel_max;
+};
+
+//! Hash de 64 bits dos bits de um double, no estilo splitmix.
+//
+// Escrito aqui e nao tirado de `<random>` de proposito: o que se quer e' uma
+// funcao DETERMINISTICA da posicao, igual em qualquer compilador e em qualquer
+// ordem de chamada.  Um `std::mt19937` daria uma SEQUENCIA, e sequencia depende da
+// ordem em que e' consumida -- que e' justamente o que nao pode acontecer aqui.
+unsigned long mistura(unsigned long x)
+{
+  x += 0x9E3779B97F4A7C15UL;
+  x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9UL;
+  x = (x ^ (x >> 27)) * 0x94D049BB133111EBUL;
+  return x ^ (x >> 31);
+}
+
+//! Sorteio em [0,1) determinado pela POSICAO da celula e pela semente.
+double sorteio_do_ponto(const double c[3], unsigned long semente)
+{
+  unsigned long h = mistura(semente);
+  for (int d = 0; d < 2; d++) {
+    unsigned long bits = 0;
+    std::memcpy(&bits, &c[d], sizeof bits);
+    h = mistura(h ^ bits);
+  }
+  // 53 bits para o mantissa do double: o resto nao acrescenta informacao.
+  return static_cast<double>(h >> 11) / 9007199254740992.0;
+}
+
+int adapt_sorteio(t8_forest_t forest, t8_forest_t forest_from, t8_locidx_t which_tree,
+                  const t8_eclass_t tree_class, t8_locidx_t /*lelement_id*/,
+                  const t8_scheme_c *scheme, const int /*is_family*/,
+                  const int /*num_elements*/, t8_element_t *elements[])
+{
+  const Sorteio *so = static_cast<const Sorteio *>(t8_forest_get_user_data(forest));
+  if (so == nullptr) return 0;
+  if (scheme->element_get_level(tree_class, elements[0]) >= so->nivel_max) return 0;
+
+  double c[3] = {0.0, 0.0, 0.0};
+  t8_forest_element_centroid(forest_from, which_tree, elements[0], c);
+  return (sorteio_do_ponto(c, so->semente) < so->fracao) ? 1 : 0;
 }
 
 //! Contexto do refino local, visto pelo callback.
@@ -495,6 +544,57 @@ long Malha::id_do_ponto(const Ponto2 &p) const
     }
   }
   return -1;
+}
+
+void Malha::refina_aleatorio(double fracao, unsigned long semente, int nivel_max)
+{
+  if (!(fracao > 0.0) || fracao > 1.0)
+    throw std::invalid_argument("Malha::refina_aleatorio: fracao = " +
+                                std::to_string(fracao) + " fora de (0, 1]");
+  if (nivel_max <= nivel_maximo())
+    throw std::invalid_argument(
+        "Malha::refina_aleatorio: nivel_max " + std::to_string(nivel_max) +
+        " nao e' maior que o nivel atual " + std::to_string(nivel_maximo()) +
+        " -- nada seria refinado, e aceitar isso deixaria a malha PARECER adaptada");
+
+  Sorteio so{semente, fracao, nivel_max};
+
+  // COMMIT 1: o refino.  NAO recursivo, de proposito: recursivo faria cada celula
+  // sorteada descer ate' `nivel_max` de uma vez, e o resultado seria um refino
+  // profundo em poucos lugares em vez de espalhado.  Uma passada sobe UM nivel; o
+  // chamador repete se quiser mais.
+  t8_forest_t refinada;
+  t8_forest_init(&refinada);
+  t8_forest_set_user_data(refinada, &so);
+  t8_forest_set_adapt(refinada, f_, adapt_sorteio, 0);
+  t8_forest_commit(refinada);
+
+  // COMMIT 2: o equilibrio 2:1, separado -- ver o `refina_caixa`.  Sem ele, duas
+  // celulas sorteadas lado a lado com uma nao-sorteada no meio dariam salto de
+  // dois niveis.
+  t8_forest_t equilibrada;
+  t8_forest_init(&equilibrada);
+  t8_forest_set_balance(equilibrada, refinada, 0);
+  t8_forest_commit(equilibrada);
+
+  // Sem `unref`: o commit CONSOME a floresta de origem.  Liberar de novo deixa a
+  // malha vazia sem erro nenhum -- ja' aconteceu aqui.
+  f_ = equilibrada;
+}
+
+long Malha::num_folhas_em_transicao() const
+{
+  long n = 0;
+  for (long b = 0; b < num_blocos(); b++)
+    for (long i = 0; i < num_folhas_do_bloco(b); i++) {
+      const int nv = nivel(b, i);
+      bool transicao = false;
+      for (int fa = 0; fa < 4 && !transicao; fa++)
+        for (int viz : niveis_vizinhos(b, i, fa))
+          if (viz != nv) { transicao = true; break; }
+      if (transicao) n++;
+    }
+  return n;
 }
 
 void Malha::refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo)
