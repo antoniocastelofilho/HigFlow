@@ -271,5 +271,50 @@ int main(int argc, char **argv)
                 "que se esquece ao portar de 2D e' justamente essa");
   }
 
+  t_case("a_franja_geometrica_cobre_o_suporte_com_tres_camadas");
+  {
+    // A MEDIDA QUE DECIDIU A ARQUITETURA DA FRANJA, e o par de numeros e' o caso.
+    //
+    // O suporte precisa de vizinhanca GEOMETRICA; a franja propagava a
+    // TOPOLOGICA.  Sao coisas diferentes: a celula diagonal `(2,2,2)` esta' a
+    // raio geometrico 2 e a SEIS faces de distancia.  Propagando por faces,
+    // cobri-la exigia cinco camadas e 200,7 KB por folha.
+    //
+    // Publicando a CAIXA, uma rodada basta -- o dono de um fantasma meu tem como
+    // LOCAIS justamente as celulas que me faltam:
+    //
+    //     camadas          2      3      5
+    //     topologica     150     48      0   truncados (np=3)
+    //     geometrica      69      0      0
+    //     KB/folha       4,3   19,6  114,0
+    //
+    // Zero truncamento passou de 5 camadas e 200,7 KB para 3 camadas e 19,6 KB:
+    // dez vezes menos memoria.
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, 3}}, sc_MPI_COMM_SELF);
+    ConstrutorEstencil ce(m, 3, 200, 6);
+
+    // O RAIO SAI DA ALGEBRA e as camadas saem do raio: ordem 3 pede raio 2, logo
+    // tres camadas.  Afirmar o numero aqui e' o que impede que alguem o mude por
+    // engano -- ele nao e' escolha, e' consequencia.
+    T_CHECK_MSG(ce.camadas_necessarias() == 3,
+                "ordem 3 devia pedir 3 camadas (raio 2 + 1), pede %d",
+                ce.camadas_necessarias());
+    T_CHECK_MSG(ConstrutorEstencil(m, 2, 200, 6).camadas_necessarias() == 2,
+                "ordem 2 devia pedir 2 camadas (raio 1 + 1)");
+    T_CHECK_MSG(ConstrutorEstencil(m, 4, 200, 6).camadas_necessarias() == 3,
+                "ordem 4 devia pedir 3 camadas (raio 2 + 1, pois 5 valores bastam)");
+
+    // EM SERIAL a franja e' vazia e nada trunca -- o caso afirma isso para que a
+    // ausencia de truncamento aqui nao seja confundida com a cobertura que so'
+    // o paralelo exercita.  O numero em np=3 esta' no comentario acima, medido.
+    m.exige_camadas(ce.camadas_necessarias());
+    T_CHECK_MSG(m.num_fantasmas() == 0,
+                "np=1 nao deveria ter franja, e tem %ld folhas nela",
+                m.num_fantasmas());
+    T_CHECK_MSG(m.saturacoes_da_franja() == 0,
+                "a carga saturou %ld vezes -- alguma folha publicou menos "
+                "vizinhanca do que conhecia", m.saturacoes_da_franja());
+  }
+
   return t_end();
 }

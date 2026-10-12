@@ -801,131 +801,199 @@ void Malha3::monta_franja_camadas(int k)
   }
 
   // =========================================================================
-  // FASE B -- as camadas acima da primeira
+  // FASE B -- a caixa GEOMETRICA, numa rodada so'
   // =========================================================================
   //
-  // Cada rodada publica, por folha LOCAL, a vizinhanca que este processo ja'
-  // conhece em torno dela, com os vizinhos de cada folha publicada.  Isso
-  // estende o alcance em um anel por rodada.
+  // O QUE O SUPORTE PRECISA E' VIZINHANCA GEOMETRICA, e nao topologica, e
+  // confundi-las custou caro: a celula diagonal `(2,2,2)` esta' a raio
+  // geometrico 2 e a SEIS faces de distancia.  Propagando por faces, cobri-la
+  // exigia cinco camadas e 200,7 KB por folha publicada -- medido.
   //
-  // A CARGA FOI MEDIDA ANTES DESTE CODIGO EXISTIR (`bench/franja3d`), e o
-  // resultado mudou o dimensionamento: o teto teorico de 24 vizinhos por celula
-  // NUNCA e' atingido -- o maximo medido e' 9 em malha adaptada --, logo a carga
-  // e' dimensionada por `max_vizinhos_por_folha()`, que mede, e nao pelo teto.
-  // Dimensionar pelo teto custaria 2,7 vezes mais memoria.
+  // UMA RODADA BASTA, e a razao e' simples quando se olha de quem publica para
+  // quem recebe: o dono de um fantasma meu tem como LOCAIS justamente as
+  // celulas que me faltam.  Se ele publica a caixa de raio `R` em torno de cada
+  // folha dele, eu recebo -- no lugar do fantasma `F`, que esta' a uma face de
+  // mim -- a caixa de raio `R` em torno de `F`.
+  //
+  // E ela cobre a minha: a celula mais distante da minha caixa de raio `R` e'
+  // `(R,R,R)`, e a distancia dela a `F = (1,0,0)` em norma do maximo e'
+  // `max(R-1, R, R) = R`.  Esta' na caixa de `F`.
+  //
+  // PUBLICO O QUE CONHECO, nao o que preciso -- nao ha' circularidade.  Depois
+  // da fase A conheco minhas locais e a camada 1; a caixa de raio `R` em torno
+  // de uma local minha inclui celulas que conheco e outras que nao, e publico as
+  // que conheco.  Quem recebe precisa justamente das que sao LOCAIS para mim.
   if (nf > 0 && k > 1) {
     const int CAMPOS = 8 + max_viz_ * 2;   // 8 proprios, e (id+nivel) por vizinho
 
-    for (int rodada = 1; rodada < k; rodada++) {
-      // O BUFFER E' DIMENSIONADO PELA RODADA, nao por `k`: a rodada `r` publica
-      // a vizinhanca de raio `r`.  Em tres dimensoes isso importa mais que em
-      // duas -- `(2r+1)^3` contra `(2r+1)^2` --, e a margem `6r` cobre a malha
-      // adaptada, onde a vizinhanca passa do teto uniforme.
-      const int raio = rodada;
-      const int MAXV = (2 * raio + 1) * (2 * raio + 1) * (2 * raio + 1) + 6 * raio;
-      const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
+    // O RAIO E' `k - 1`: `exige_camadas(k)` pede cobertura de raio geometrico
+    // `k - 1` em torno de cada folha local.  A conversao mantem a interface
+    // antiga -- quem pedia 3 camadas topologicas pede 3 e recebe raio 2, que e'
+    // o que o suporte por caixa de raio 2 precisa.
+    const int R = k - 1;
 
-      sc_array_t *arr = sc_array_new_count(passo * sizeof(double),
-                                           static_cast<size_t>(n_locais_ + nf));
-      bytes_pub_ += static_cast<long>(passo * sizeof(double)) * n_locais_;
-
-      for (long i = 0; i < n_locais_ + nf; i++) {
-        double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
-        for (size_t z = 0; z < passo; z++) b[z] = -1.0;
+    // INDICE ESPACIAL TEMPORARIO sobre o que ja' se conhece.  O definitivo so'
+    // existe depois do achatamento, e a caixa precisa dele agora.
+    std::unordered_map<unsigned long long, long> onde;
+    auto chave_de_folha = [&](double cx, double cy, double cz, int nv) -> unsigned long long {
+      long ib = -1;
+      for (long bb = 0; bb < static_cast<long>(blocos_.size()); bb++) {
+        const Bloco &kk = blocos_[static_cast<size_t>(bb)];
+        bool dentro = true;
+        for (int d = 0; d < 3; d++) {
+          const double c[3] = {cx, cy, cz};
+          if (c[d] < kk.lo[d] - EPS || c[d] > kk.hi[d] + EPS) dentro = false;
+        }
+        if (dentro) { ib = bb; break; }
+      }
+      if (ib < 0) return ~0ULL;
+      const Bloco &kb = blocos_[static_cast<size_t>(ib)];
+      const int div = 1 << nv;
+      const long i = static_cast<long>((cx - kb.lo[0]) / ((kb.hi[0] - kb.lo[0]) / div));
+      const long j = static_cast<long>((cy - kb.lo[1]) / ((kb.hi[1] - kb.lo[1]) / div));
+      const long kq = static_cast<long>((cz - kb.lo[2]) / ((kb.hi[2] - kb.lo[2]) / div));
+      return chave_celula(ib, nv, i, j, kq);
+    };
+    for (const auto &kv : tab)
+      if (kv.second.nivel >= 0) {
+        const unsigned long long ch =
+            chave_de_folha(kv.second.cx, kv.second.cy, kv.second.cz, kv.second.nivel);
+        if (ch != ~0ULL) onde[ch] = kv.first;
       }
 
-      for (long i = 0; i < n_locais_; i++) {
-        double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
-
-        const long eu = id_por_indice[static_cast<size_t>(i)];
-        std::vector<long> fila{eu};
-        std::set<long> posto{eu};
-        for (int r = 0; r < rodada; r++) {
-          std::vector<long> prox;
-          for (long id : fila) {
-            const auto it = tab.find(id);
-            if (it == tab.end() || !it->second.completa()) continue;
-            for (int fa = 0; fa < 6; fa++)
-              for (long v : it->second.viz[static_cast<size_t>(fa)])
-                if (posto.insert(v).second) prox.push_back(v);
+    // Busca geometrica sobre o indice temporario, com a MESMA regra semiaberta
+    // da busca definitiva -- duas regras produziriam duas malhas.
+    auto acha = [&](double px, double py, double pz) -> long {
+      const double p[3] = {px, py, pz};
+      for (int nv = nivel_local_max_ >= 0 ? nivel_local_max_ : 30; nv >= 0; nv--) {
+        for (long ib = 0; ib < static_cast<long>(blocos_.size()); ib++) {
+          const Bloco &kk = blocos_[static_cast<size_t>(ib)];
+          bool no_bloco = true;
+          for (int d = 0; d < 3; d++)
+            if (p[d] < kk.lo[d] - EPS || p[d] > kk.hi[d] + EPS) no_bloco = false;
+          if (!no_bloco) continue;
+          const int div = 1 << nv;
+          long c[3];
+          bool fora = false;
+          for (int d = 0; d < 3; d++) {
+            const double hh = (kk.hi[d] - kk.lo[d]) / div;
+            long q = static_cast<long>((p[d] - kk.lo[d] + EPS) / hh);
+            if (q >= div) q = div - 1;
+            if (q < 0) { fora = true; break; }
+            c[d] = q;
           }
-          fila = prox;
-        }
-
-        int slot = 0;
-        for (long id : posto) {
-          // A SATURACAO E' CONTADA, nao engolida.  Cortar em silencio foi o
-          // defeito que, em duas dimensoes, mandou a investigacao atras da
-          // camada errada por meia hora.
-          if (slot >= MAXV) { saturacoes_++; break; }
-          const auto it = tab.find(id);
-          if (it == tab.end() || it->second.nivel < 0) continue;
-          const Folha &fo = it->second;
-          double *c = b + static_cast<size_t>(slot) * CAMPOS;
-          c[0] = static_cast<double>(id);
-          c[1] = fo.cx; c[2] = fo.cy; c[3] = fo.cz;
-          c[4] = fo.hx; c[5] = fo.hy; c[6] = fo.hz;
-          c[7] = static_cast<double>(fo.nivel);
-          // A MASCARA VAI JUNTO, no bit alto do campo do nivel nao -- num campo
-          // proprio seria mais um; aqui ela viaja no proprio `c[0]` nao, e sim
-          // logo apos os oito: ver o laco de vizinhos abaixo, que grava a
-          // mascara como primeiro campo do bloco de vizinhos.
-          int z = 8;
-          // O PRIMEIRO CAMPO DO BLOCO DE VIZINHOS E' A MASCARA DE FACES
-          // CONHECIDAS.  Sem ela, uma face sem vizinhos na lista e' ambigua:
-          // contorno do dominio, ou "nao me contaram sobre esta face"?  Em duas
-          // dimensoes confundi-las aplicou condicao de contorno no MEIO do
-          // dominio, ao longo de toda a fronteira de particao.
-          c[z++] = static_cast<double>(fo.faces);
-          for (int fa = 0; fa < 6; fa++)
-            for (size_t q = 0; q < fo.viz[static_cast<size_t>(fa)].size(); q++) {
-              if (z + 1 >= CAMPOS) break;
-              c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 6 + fa);
-              c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
-            }
-          slot++;
+          if (fora) continue;
+          const auto it = onde.find(chave_celula(ib, nv, c[0], c[1], c[2]));
+          if (it != onde.end()) return it->second;
         }
       }
+      return -1;
+    };
 
-      t8_forest_ghost_exchange_data(f_, arr);
+    // Os niveis locais ainda nao foram calculados nesta altura; a busca precisa
+    // deles para saber ate' onde descer.
+    nivel_local_max_ = -1;
+    for (const auto &kv : tab)
+      if (kv.second.nivel > nivel_local_max_) nivel_local_max_ = kv.second.nivel;
 
-      for (long i = n_locais_; i < n_locais_ + nf; i++) {
-        const double *b =
-            static_cast<const double *>(sc_array_index_int(arr, static_cast<int>(i)));
-        for (int slot = 0; slot < MAXV; slot++) {
-          const double *c = b + static_cast<size_t>(slot) * CAMPOS;
-          if (c[0] < 0.0) continue;
-          const long id = static_cast<long>(c[0]);
-          Folha &fo = tab[id];
-          // A FOLHA LOCAL E' A VERSAO AUTORITATIVA DELA MESMA: o que chega pela
-          // franja nao sobrescreve o que este processo calculou.
-          if (fo.nivel < 0) {
-            fo.cx = c[1]; fo.cy = c[2]; fo.cz = c[3];
-            fo.hx = c[4]; fo.hy = c[5]; fo.hz = c[6];
-            fo.nivel = static_cast<int>(c[7]);
-          }
-          if (!fo.completa()) {
-            const unsigned char mk = static_cast<unsigned char>(c[8]);
-            if (mk != 0) {
-              std::array<std::vector<long>, 6> nv;
-              std::array<std::vector<int>, 6> nn;
-              for (int z = 9; z + 1 < CAMPOS; z += 2) {
-                if (c[z] < 0.0) continue;
-                const long cod = static_cast<long>(c[z]);
-                const size_t fa = static_cast<size_t>(cod % 6);
-                nv[fa].push_back(cod / 6);
-                nn[fa].push_back(static_cast<int>(c[z + 1]));
-              }
-              fo.viz = nv;
-              fo.viz_nivel = nn;
-              fo.faces = mk;
-            }
-          }
-        }
-      }
+    const int MAXV = (2 * R + 1) * (2 * R + 1) * (2 * R + 1);
+    const size_t passo = static_cast<size_t>(MAXV) * static_cast<size_t>(CAMPOS);
 
-      sc_array_destroy(arr);
+    sc_array_t *arr = sc_array_new_count(passo * sizeof(double),
+                                         static_cast<size_t>(n_locais_ + nf));
+    bytes_pub_ += static_cast<long>(passo * sizeof(double)) * n_locais_;
+
+    for (long i = 0; i < n_locais_ + nf; i++) {
+      double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
+      for (size_t z = 0; z < passo; z++) b[z] = -1.0;
     }
+
+    for (long i = 0; i < n_locais_; i++) {
+      double *b = static_cast<double *>(sc_array_index_int(arr, static_cast<int>(i)));
+      const long eu = id_por_indice[static_cast<size_t>(i)];
+      const Folha &me = tab[eu];
+
+      int slot = 0;
+      bool descartou = false;
+      std::set<long> posto;
+      for (int ii = -R; ii <= R; ii++)
+        for (int jj = -R; jj <= R; jj++)
+          for (int kk2 = -R; kk2 <= R; kk2++) {
+            const long id = acha(me.cx + ii * me.hx, me.cy + jj * me.hy,
+                                 me.cz + kk2 * me.hz);
+            if (id < 0 || !posto.insert(id).second) continue;
+            const auto it = tab.find(id);
+            if (it == tab.end() || it->second.nivel < 0) continue;
+
+            // SATURACAO E' PONTO DESCARTADO, e nao ultimo slot usado.
+            //
+            // A primeira versao contava `slot >= MAXV` depois do laco, o que
+            // marcava saturacao sempre que a caixa preenchia exatamente os
+            // slots -- 216 falsos positivos com raio 1, onde a caixa tem 27
+            // pontos e `MAXV` e' 27.  Um contador que acusa quando nada se
+            // perdeu desacredita o oraculo inteiro.
+            if (slot >= MAXV) { descartou = true; continue; }
+            const Folha &fo = it->second;
+
+            double *c = b + static_cast<size_t>(slot) * CAMPOS;
+            c[0] = static_cast<double>(id);
+            c[1] = fo.cx; c[2] = fo.cy; c[3] = fo.cz;
+            c[4] = fo.hx; c[5] = fo.hy; c[6] = fo.hz;
+            c[7] = static_cast<double>(fo.nivel);
+            // A MASCARA DE FACES CONHECIDAS, no primeiro campo do bloco de
+            // vizinhos.  Sem ela, uma face sem vizinhos na lista e' ambigua:
+            // contorno do dominio, ou "nao me contaram"?  Confundi-las aplica
+            // condicao de contorno no MEIO do dominio.
+            int z = 8;
+            c[z++] = static_cast<double>(fo.faces);
+            for (int fa = 0; fa < 6; fa++)
+              for (size_t q = 0; q < fo.viz[static_cast<size_t>(fa)].size(); q++) {
+                if (z + 1 >= CAMPOS) break;
+                c[z++] = static_cast<double>(fo.viz[static_cast<size_t>(fa)][q] * 6 + fa);
+                c[z++] = static_cast<double>(fo.viz_nivel[static_cast<size_t>(fa)][q]);
+              }
+            slot++;
+          }
+      if (descartou) saturacoes_++;
+    }
+
+    t8_forest_ghost_exchange_data(f_, arr);
+
+    for (long i = n_locais_; i < n_locais_ + nf; i++) {
+      const double *b =
+          static_cast<const double *>(sc_array_index_int(arr, static_cast<int>(i)));
+      for (int slot = 0; slot < MAXV; slot++) {
+        const double *c = b + static_cast<size_t>(slot) * CAMPOS;
+        if (c[0] < 0.0) continue;
+        const long id = static_cast<long>(c[0]);
+        Folha &fo = tab[id];
+        // A FOLHA LOCAL E' A VERSAO AUTORITATIVA DELA MESMA.
+        if (fo.nivel < 0) {
+          fo.cx = c[1]; fo.cy = c[2]; fo.cz = c[3];
+          fo.hx = c[4]; fo.hy = c[5]; fo.hz = c[6];
+          fo.nivel = static_cast<int>(c[7]);
+        }
+        if (!fo.completa()) {
+          const unsigned char mk = static_cast<unsigned char>(c[8]);
+          if (mk != 0) {
+            std::array<std::vector<long>, 6> nv;
+            std::array<std::vector<int>, 6> nn;
+            for (int z = 9; z + 1 < CAMPOS; z += 2) {
+              if (c[z] < 0.0) continue;
+              const long cod = static_cast<long>(c[z]);
+              const size_t fa = static_cast<size_t>(cod % 6);
+              nv[fa].push_back(cod / 6);
+              nn[fa].push_back(static_cast<int>(c[z + 1]));
+            }
+            fo.viz = nv;
+            fo.viz_nivel = nn;
+            fo.faces = mk;
+          }
+        }
+      }
+    }
+
+    sc_array_destroy(arr);
   }
 
   // =========================================================================

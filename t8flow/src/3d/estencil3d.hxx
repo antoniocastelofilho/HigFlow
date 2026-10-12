@@ -176,6 +176,17 @@ class ConstrutorEstencil {
   // mesmo jeito nos tres funcionais.  Divergir ali so' aparece perto da parede.
   Estencil laplaciano_em(const Ponto3 &x) const;
 
+  //! Quantas CAMADAS de franja este construtor precisa que a malha tenha.
+  //
+  // E' `raio + 1`, e o raio sai da ALGEBRA: uma caixa de raio `r` tem `2r+1`
+  // valores distintos de coordenada por direcao, e grau `g` precisa de `g+1`.
+  //
+  // QUEM PEDE E' O CHAMADOR, explicitamente -- `m.exige_camadas(ce.camadas_necessarias())`.
+  // O construtor poderia pedir sozinho, e nao pede: a malha e' compartilhada, e
+  // um objeto que a modifica na construcao faz a ordem de criacao importar sem
+  // que isso apareca em lugar nenhum.
+  int camadas_necessarias() const { return (ordem_ + 1) / 2 + 1; }
+
   //! Troca a estrategia de escolha do suporte.  O padrao e' `Caixa`, por
   //! medida: ver o comentario de `Suporte3`.
   void estrategia(Suporte3 e) { estrategia_ = e; }

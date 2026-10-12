@@ -1781,19 +1781,48 @@ Com `dentro_do_dominio` separando os dois, a medida ficou:
 
 **O suporte por caixa de raio 2 exige cinco camadas de franja em 3D.**
 
-### 21.5 Uma otimização identificada e não feita
+### 21.5 A franja geométrica: dez vezes menos memória
 
-As rodadas da franja publicam a vizinhança **topológica** (busca em largura por
-faces), e o suporte precisa da vizinhança **geométrica**. São coisas diferentes:
-a célula diagonal `(2,2,2)` está a raio geométrico 2 e a **seis** faces de
-distância, e é por isso que cinco camadas custam 200 KB por folha.
+As rodadas da franja publicavam a vizinhança **topológica** (busca em largura por
+faces), e o suporte precisa da **geométrica**. São coisas diferentes: a célula
+diagonal `(2,2,2)` está a raio geométrico 2 e a **seis** faces de distância, e
+era por isso que cinco camadas custavam 200 KB por folha.
 
-Publicar a **caixa geométrica** nas rodadas — em vez da busca em largura —
-cobriria o mesmo alcance com uma rodada de 125 folhas: cerca de **26 KB por
-folha**, oito vezes menos. A estimativa é direta, mas não está medida, e a
-mudança é na `Malha3` e não no estêncil.
+**Uma rodada basta quando se publica a caixa**, e a razão fica clara olhando de
+quem publica para quem recebe: o dono de um fantasma meu tem como **locais**
+justamente as células que me faltam. A caixa de raio *R* dele cobre a minha,
+porque a célula mais distante da minha — `(R,R,R)` — está a distância
+`max(R−1, R, R) = R` do fantasma `(1,0,0)`.
 
-**Fica registrado como trabalho identificado, não como feito.**
+E não há circularidade: **publica-se o que se conhece, não o que se precisa.**
+Depois da fase A conheço minhas locais e a camada 1; publico as que conheço da
+caixa, e quem recebe precisa justamente das que são locais para mim.
+
+Medido, np=3, nível 3:
+
+| camadas | 2 | 3 | 5 |
+|---|---|---|---|
+| truncados, topológica | 150 | 48 | 0 |
+| truncados, **geométrica** | 69 | **0** | 0 |
+| carga por folha | 4,3 KB | **19,6 KB** | 114,0 KB |
+
+**Zero truncamento passou de cinco camadas e 200,7 KB para três camadas e
+19,6 KB — dez vezes menos memória**, e melhor que os 26 KB que eu havia
+estimado.
+
+E as camadas necessárias deixaram de ser escolha: `camadas_necessarias()` é
+`raio + 1`, com o raio saindo da álgebra. Ordem 2 pede 2 camadas, ordem 3 pede 3,
+ordem 4 pede 3.
+
+### 21.6 Um contador que acusava sem motivo
+
+O contador de saturação marcava `slot >= MAXV` **depois** do laço, o que acusava
+sempre que a caixa preenchia exatamente os slots — **216 falsos positivos** com
+raio 1, onde a caixa tem 27 pontos e o buffer tem 27.
+
+Saturação é **ponto descartado**, não último slot usado. Um contador que acusa
+quando nada se perdeu desacredita o oráculo inteiro: quem o lê passa a ignorá-lo,
+e com ele a saturação verdadeira.
 
 ## 22. O que vem depois
 

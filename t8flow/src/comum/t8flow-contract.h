@@ -1236,4 +1236,40 @@
 //
 //! COBERTA-POR: test-estencil3d:o_ponto_fora_da_franja_e_contado_e_o_fora_do_dominio_nao
 
+//! H10  A FRANJA PUBLICA A CAIXA GEOMETRICA, e nao a vizinhanca topologica.
+//!
+//! O SUPORTE PRECISA DE UMA E A FRANJA PROPAGAVA A OUTRA, e sao coisas
+//! diferentes: a celula diagonal `(2,2,2)` esta' a raio geometrico 2 e a SEIS
+//! faces de distancia.  Propagando por busca em largura, cobri-la exigia cinco
+//! camadas e 200,7 KB por folha publicada.
+//!
+//! UMA RODADA BASTA quando se publica a caixa, e a razao fica clara olhando de
+//! quem publica para quem recebe: o dono de um fantasma meu tem como LOCAIS
+//! justamente as celulas que me faltam.  A caixa de raio `R` dele cobre a
+//! minha, porque a celula mais distante da minha, `(R,R,R)`, esta' a distancia
+//! `max(R-1, R, R) = R` do fantasma `(1,0,0)`.
+//!
+//! MEDIDO, np=3, nivel 3:
+//!
+//!     camadas          2      3      5
+//!     topologica     150     48      0    truncados
+//!     geometrica      69      0      0
+//!     KB/folha       4,3   19,6  114,0
+//!
+//! Zero truncamento passou de 5 camadas e 200,7 KB para 3 camadas e 19,6 KB --
+//! DEZ VEZES menos memoria.
+//
+//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_tres_camadas
+
+//! H11  SATURACAO E' PONTO DESCARTADO, e nao ultimo slot usado.
+//!
+//! A primeira versao contava `slot >= MAXV` depois do laco, o que marcava
+//! saturacao sempre que a caixa preenchia exatamente os slots -- 216 falsos
+//! positivos com raio 1, onde a caixa tem 27 pontos e o buffer tem 27.
+//!
+//! UM CONTADOR QUE ACUSA QUANDO NADA SE PERDEU DESACREDITA O ORACULO INTEIRO:
+//! quem o le' passa a ignora-lo, e com ele a saturacao verdadeira.
+//
+//! COBERTA-POR: test-estencil3d:a_franja_geometrica_cobre_o_suporte_com_tres_camadas
+
 #endif
