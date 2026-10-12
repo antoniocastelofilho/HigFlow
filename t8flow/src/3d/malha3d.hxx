@@ -203,6 +203,16 @@ class Malha3 {
   // `faltando_na_franja` diferente de zero depois de `exige_camadas` significa
   // que o esquema NAO tera' o suporte que pediu em parte do dominio -- e e'
   // melhor ler isso aqui do que descobrir pelo resultado que muda com `np`.
+  //! Os tempos das fases da fase B, para saber O QUE otimizar.  Em segundos.
+  struct TemposFranja {
+    double reindexa, reduz, zera, publica, troca, funde;
+    double prologo, achata;
+  };
+  TemposFranja tempos_da_franja() const {
+    return {t_reindexa_, t_reduz_, t_zera_, t_publica_, t_troca_,
+            t_funde_, t_prologo_, t_achata_};
+  }
+
   int rodadas_de_franja() const { return rodadas_franja_; }
   long faltando_na_franja() const { return faltando_franja_; }
 
@@ -241,6 +251,9 @@ class Malha3 {
   long saturacoes_ = 0;
   long bytes_pub_ = 0;
   int rodadas_franja_ = 0;
+  double t_reindexa_ = 0, t_reduz_ = 0, t_zera_ = 0;
+  double t_publica_ = 0, t_troca_ = 0, t_funde_ = 0;
+  double t_prologo_ = 0, t_achata_ = 0;
   long faltando_franja_ = 0;
 
   // Indexados pelo INDICE DE FLORESTA: locais primeiro, franja depois.
@@ -250,6 +263,9 @@ class Malha3 {
   std::vector<int> niv_;
   std::vector<std::array<std::vector<long>, 6>> viz_;
   std::vector<std::array<std::vector<int>, 6>> viz_niv_;
+  //! A MASCARA de faces conhecidas, um bit por face; `0x3F` sao as seis.
+  //! `expansivel_do_indice` pergunta por `== 0x3F`, e a mascara inteira fica
+  //! guardada para que a tabela possa ser reconstruida sem refazer a fase A.
   std::vector<char> expansivel_;
 
   std::unordered_map<long, long> idx_por_id_;
