@@ -4,8 +4,8 @@ Estado em **11/10/2026**. Branch `t8flow`, worktree
 `/home/castelo/HiGFlow-System/t8flow-wt`. Dois commits: `ea83f27` (esqueleto) e
 `11239e0` (solver e discretizador 2D).
 
-    suite do lado 2d    15 casos, 0 falharam
-    contrato            9/9 clausulas (N1..N6, B1, F1, F2)
+    suite do lado 2d    29 casos, 0 falharam
+    contrato            14/14 clausulas (N1..N6, B1, F1, F2, M1..M5)
     codigo de saida     0
 
 O projeto completo está em [`projeto-t8flow.md`](projeto-t8flow.md); este
@@ -97,13 +97,15 @@ franja vai por caixas, com profundidade pedida.
 
     t8flow/Makefile                       alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx}   a ordem de arranque, num objeto
-    t8flow/src/comum/t8flow-contract.h    9 clausulas
+    t8flow/src/comum/t8flow-contract.h   14 clausulas
     t8flow/src/2d/mls2d.{hxx,cxx}         o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}      o solver
+    t8flow/src/2d/malha2d.{hxx,cxx}       a malha multiblocos
     t8flow/tests/testing.h                arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx        5 casos
     t8flow/tests/2d/test-solver2d.cxx     6 casos
     t8flow/tests/2d/test-floresta2d.cxx   4 casos
+    t8flow/tests/2d/test-malha2d.cxx     14 casos
     ci/run_t8flow_tests.py                driver, com quatro guardas
 
 **O discretizador** acrescenta ao herdado tipos 2D concretos (`Ponto2` é
@@ -116,6 +118,13 @@ montagem (só existe `monta()`, e não há como fazer a ordem errada que custou 
 SIGSEGV); o nome do motor (a aritmética do deslocamento entre as duas listas do
 `solver.h` em um lugar, cobrada por teste); e toda linha preenchida — linha
 faltando não é sistema singular, é abort dentro da pré-alocação do PETSc.
+
+**A malha multiblocos** é uma árvore por bloco, com a caixa e o nível de cada
+bloco — resolução por região. As interfaces coincidentes são **unidas**: sem o
+join, cada bloco é uma ilha e toda face na borda de um bloco aparece como "face
+sem vizinho", que é o critério de contorno — dois blocos lado a lado do mesmo
+domínio dariam contorno físico no meio do escoamento, em silêncio. Sobreposição
+parcial de faces é recusada, porque o join do t8code não a representa.
 
 **O contrato** não é prosa: o driver lê as cláusulas do arquivo e exige, para
 cada uma, um caso que saiu `PASS`. Cláusula sem cobertura, com caso ausente ou
@@ -136,6 +145,9 @@ acontece.
 | cláusula apontando caso inexistente | driver: `CASO AUSENTE`, contrato 4/5, saída 1 |
 | guarda de suporte mínimo removida | N3 **reprova**: "suporte de 5 pontos (mínimo 6) passou sem reclamar" |
 | guarda de linha faltando removida | o processo **morre** no abort do herdado, sem linha de resumo |
+| `t8_cmesh_set_join` removido | M3 **reprova no conteúdo** (0 com vizinho, 4 sem) — e a contagem de junções continua certa |
+| vértices do QUAD v1 ↔ v2 | M2 reprova **só** na ordem de percurso; o centroide-na-caixa continua verde |
+| nível uniforme global em vez de por árvore | M1 **reprova** em dois blocos: 64 folhas onde se esperavam 16 e 4 |
 
 A segunda linha é a mais informativa: ela mede que a reprodução polinomial
 verifica a **discretização** e não a malha — por isso "o suporte cai na grade e é
@@ -145,6 +157,13 @@ A última justifica as fachadas existirem: elas convertem um abort três camadas
 abaixo em exceção que nomeia a linha que falta. E foi a guarda do driver que
 exige a linha de resumo que pegou o processo morto, em vez de reportar "nenhuma
 falha".
+
+**Um oráculo meu estava frouxo, e só a sabotagem mostrou.** O comentário do
+`test-malha2d` afirmava que "centroide dentro da caixa" pegava a troca da ordem
+dos vértices do QUAD. Não pega — a troca espelha o mapeamento *dentro* da mesma
+caixa, e todo centroide continua dentro dela. Fechei a lacuna com um caso que
+ancora a orientação (a curva varre x primeiro, logo a folha 1 está deslocada em X
+da folha 0), e ele reprova nos três blocos com a assinatura certa.
 
 **Dois oráculos que passavam por acidente, pegos pelo próprio contraste.** Com o
 ponto de consulta no centro de simetria da nuvem, o ajuste de ordem 2 reproduziu
@@ -192,23 +211,21 @@ como garantia:
 
 ## 7. Próximos passos, em ordem de retorno
 
-1. **A malha multiblocos 2D** — uma árvore por bloco, com nível por bloco. É o
-   multiblocos de verdade (resolução por região), e o `cmesh` multiárvore do
-   t8code o dá nativamente. Cláusulas a acrescentar: contagem de árvores,
-   folhas por bloco com níveis diferentes, e centroide dentro da caixa do seu
-   bloco.
-2. **A numeração global** contígua por rank, alcançada por **busca por ponto** —
+1. **A numeração global** contígua por rank, alcançada por **busca por ponto** —
    comparar com o percurso que a gerou é tautologia, e está medido que a suíte
    inteira fica verde com `n_visitadas++` no lugar de `mp_lookup`.
-3. **Medir escalabilidade em 3D** antes de comprometer o desenho. O 2D rendeu
+2. **Medir escalabilidade em 3D** antes de comprometer o desenho. O 2D rendeu
    1,62× em np=2 e 1,68× em np=4 por tamanho do caso (9377 células), não por
    defeito; o domínio 3D tem 375 mil. Sem essa medida, o escalonamento é
    promessa.
-4. **A franja por caixas**, na profundidade de produção (5) e em np=3 — que é o
+3. **A franja por caixas**, na profundidade de produção (5) e em np=3 — que é o
    menor np em que pareamento transposto aparece: com uma caixa por rank, 1×1
    esconde o erro.
-5. **A cláusula F3**, "o suporte cai na grade e é local", que é o que a
+4. **A cláusula F3**, "o suporte cai na grade e é local", que é o que a
    reprodução polinomial não vê.
+
+5. **Refino local dentro de um bloco**, com a razão 2:1 e a guarda contra árvore
+   de uma célula — que não tem interior, e a franja declarada é de cinco.
 
 Em aberto, e são decisões do usuário: o `cel_min` da banda fina, e se o
 fechamento de contorno em DIM-1 também sobe para o reuso.

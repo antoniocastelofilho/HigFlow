@@ -53,6 +53,7 @@ LADOS = {
         ("test-mls2d", (1,)),
         ("test-solver2d", (1,)),
         ("test-floresta2d", (1,)),
+        ("test-malha2d", (1,)),
     ],
     "3d": [],
 }

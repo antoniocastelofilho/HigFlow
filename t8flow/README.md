@@ -42,7 +42,7 @@ make 2d && mpirun -n 1 ./tests/2d/test-mls2d
 Estrutura, pela decisão 7:
 
     src/comum/   sem dimensão: arranque, contrato
-    src/2d/      o discretizador (mls2d) e o solver (solver2d)
+    src/2d/      o discretizador (mls2d), o solver (solver2d), a malha (malha2d)
     src/3d/      quando existir
     tests/2d/
 
@@ -99,8 +99,15 @@ arquivo:
   discrimina" — que é o seu trabalho. Os pontos de consulta são assimétricos de
   propósito;
 - nenhuma física roda aqui, np vai só até 1, não há partição, nem franja, nem
-  refino local, nem domínio, nem malha multiblocos. Tudo isso é o trabalho
-  adiante;
+  refino local *dentro* de um bloco, nem domínio. Tudo isso é o trabalho adiante;
+- **"centroide dentro da caixa" não pega espelhamento** — medido: trocar a ordem
+  dos vértices do QUAD reflete o mapeamento dentro da *mesma* caixa, e todo
+  centroide continua dentro dela. Quem acusa é a ordem de percurso (a folha 1
+  deslocada em X da folha 0). O comentário do teste afirmava o contrário até a
+  sabotagem ser rodada;
+- **a contagem de junções não prova que houve junção** — medido: com o
+  `t8_cmesh_set_join` removido, o contador continua certo e só o conteúdo (face
+  entre blocos tem vizinho) acusa;
 - o motor do solver **instalado** não é consultável — não existe
   `slv_get_engine`. N5 cobra a tabela de nomes, não a instalação.
 

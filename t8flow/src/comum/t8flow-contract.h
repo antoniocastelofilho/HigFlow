@@ -96,6 +96,53 @@
 //! COBERTA-POR: test-floresta2d:suporte_da_floresta_erra_mais_no_grau_acima
 
 // ---------------------------------------------------------------------------
+// M -- A MALHA MULTIBLOCOS (decisoes 2 e 7)
+// ---------------------------------------------------------------------------
+
+//! M1  Uma arvore por bloco, e as folhas de cada bloco seguem o NIVEL DAQUELE
+//!     bloco: 4^nivel em 2D.  So' discrimina com niveis DIFERENTES entre blocos --
+//!     com todos iguais, uma malha uniforme global passaria.
+//! COBERTA-POR: test-malha2d:uma_arvore_por_bloco
+//! COBERTA-POR: test-malha2d:folhas_por_bloco_seguem_o_nivel_do_bloco
+//! COBERTA-POR: test-malha2d:total_de_folhas_e_a_soma_dos_blocos
+
+//! M2  A geometria de cada bloco e' a caixa pedida, e a ORIENTACAO do mapeamento
+//!     e' a do t8code.  Sao tres afirmacoes porque cada uma pega um erro que as
+//!     outras nao veem: centroide dentro da caixa pega geometria que SAI da caixa;
+//!     o lado da celula amarra nivel e caixa juntos; e a ordem de percurso (a
+//!     folha 1 deslocada em X da folha 0) e' a UNICA que pega espelhamento --
+//!     medido, nao suposto.
+//! COBERTA-POR: test-malha2d:centroide_cai_na_caixa_do_seu_bloco
+//! COBERTA-POR: test-malha2d:celulas_do_bloco_largo_sao_maiores_na_proporcao_certa
+//! COBERTA-POR: test-malha2d:a_ordem_de_percurso_varre_x_primeiro
+
+//! M3  As interfaces coincidentes entre blocos sao UNIDAS, e o que a uniao
+//!     significa e' afirmado onde importa: face que da' para outro bloco TEM
+//!     vizinho, face que da' para fora NAO tem.  Sem a uniao a malha tambem
+//!     commita, tambem tem as folhas certas, e toda face de borda de bloco passa
+//!     a ser "sem vizinho" -- que e' o criterio de CONTORNO, no meio do dominio.
+//!     A CONTAGEM de juncoes nao basta: medido, ela continua certa com o
+//!     `t8_cmesh_set_join` removido.
+//! COBERTA-POR: test-malha2d:as_interfaces_coincidentes_foram_unidas
+//! COBERTA-POR: test-malha2d:face_entre_blocos_tem_vizinho_e_face_externa_nao
+
+//! M4  A malha RECUSA o que nao pode representar, em vez de aproximar: lista
+//!     vazia, bloco degenerado, blocos que se sobrepoem em area (o HiGFlow assume
+//!     dominios disjuntos, e com sobreposicao a resposta dependeria da ORDEM dos
+//!     blocos), e faces que se sobrepoem PARCIALMENTE -- que o join do t8code nao
+//!     representa e cujo silencio daria contorno no meio do dominio.
+//! COBERTA-POR: test-malha2d:lista_vazia_e_recusada
+//! COBERTA-POR: test-malha2d:bloco_degenerado_e_recusado
+//! COBERTA-POR: test-malha2d:blocos_sobrepostos_sao_recusados
+//! COBERTA-POR: test-malha2d:faces_parcialmente_coincidentes_sao_recusadas
+
+//! M5  O contrato malha/discretizacao vale sobre a malha MULTIBLOCOS: o suporte
+//!     sai dos centroides das folhas e os pesos do discretizador, com o alvo no
+//!     bloco mais fino e o suporte atravessando resolucoes diferentes.
+//! COBERTA-POR: test-malha2d:mls_reproduz_polinomio_sobre_suporte_da_malha
+//! COBERTA-POR: test-malha2d:suporte_da_malha_erra_mais_no_grau_acima
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -113,8 +160,13 @@
 // unica pista e' a linha que o herdado imprime.  A N5 cobra a tabela, nao a
 // instalacao.
 //
-// Tambem ausentes, previstas no doc/projeto-t8flow.md: malha MULTIBLOCOS (uma
-// arvore por bloco, com nivel por bloco); numeracao global contigua por rank
+// E uma licao de oraculo desta rodada, que vale guardar: a primeira versao do
+// test-malha2d AFIRMAVA que "centroide dentro da caixa" pegava a troca da ordem
+// dos vertices do QUAD.  Nao pega -- a troca espelha o mapeamento DENTRO da mesma
+// caixa, e todo centroide continua dentro dela.  So' a ordem de percurso acusou.
+// O comentario estava errado ate' a sabotagem ser rodada.
+//
+// Tambem ausentes, previstas no doc/projeto-t8flow.md: numeracao global contigua por rank
 // alcancada por busca por ponto (nao pelo percurso que a gerou, que e'
 // tautologia); conteudo da franja depois do sync na profundidade de PRODUCAO (5)
 // e em np=3, que e' o menor np em que pareamento transposto aparece; a banda fina

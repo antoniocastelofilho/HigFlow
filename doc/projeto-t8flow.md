@@ -611,9 +611,10 @@ atual tem as duas fachadas da seção 7.1.
 
     t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
-    t8flow/src/comum/t8flow-contract.h  9 clausulas: N1..N6 B1 F1 F2
+    t8flow/src/comum/t8flow-contract.h  14 clausulas: N1..N6 B1 F1 F2 M1..M5
     t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}    o solver
+    t8flow/src/2d/malha2d.{hxx,cxx}     a malha multiblocos
     t8flow/tests/testing.h              arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx          5 casos
     t8flow/tests/2d/test-solver2d.cxx       6 casos
@@ -622,7 +623,34 @@ atual tem as duas fachadas da seção 7.1.
 
     lado 2d: 15 casos, 0 falharam; contrato 9/9
 
-### 10.1 Três achados do primeiro contato com o núcleo herdado
+### 10.1 A malha multiblocos
+
+`src/2d/malha2d.hxx`: uma árvore por bloco, com a caixa e o **nível de cada
+bloco** — resolução por região, que é o multiblocos de verdade. Blocos de teste:
+`[0,1]²` em nível 2, `[1,3]×[0,1]` em nível 1, `[0,1]×[1,2]` em nível 3; 16 + 4 +
+64 = 84 folhas.
+
+**As interfaces coincidentes são unidas** (`t8_cmesh_set_join`), e isso não é
+detalhe: sem o join cada bloco é uma ilha e toda face na borda de um bloco
+aparece como "face sem vizinho" — que é o critério de **contorno**. Dois blocos
+lado a lado do mesmo domínio dariam contorno físico no meio do escoamento, em
+silêncio. É a decisão D3 que a HiGTree já tomou, agora do lado do t8code.
+
+**O limite recusa em vez de aproximar:** só faces exatamente coincidentes são
+unidas. Sobreposição parcial — um bloco encostando no meio da face de outro — não
+tem join simples no t8code, e o construtor lança nomeando o par. Também recusa
+lista vazia, bloco degenerado e blocos que se sobrepõem em área (o HiGFlow assume
+domínios disjuntos; com sobreposição a resposta dependeria da **ordem** dos
+blocos).
+
+**Um detalhe de integração que vale guardar:** a forma C++ de registrar a
+geometria (`t8_cmesh_register_geometry<t8_geometry_linear>`) vive em
+`t8_cmesh/t8_cmesh.hxx`, que o prefixo **instalado** expõe mas não é compilável de
+fora — ele inclui `t8_cmesh_internal/t8_cmesh_types.h`, que o install não leva. A
+sobrecarga C (`t8_cmesh_register_geometry(cmesh, t8_geometry_linear_new())`) está
+no header público e funciona.
+
+### 10.2 Três achados do primeiro contato com o núcleo herdado
 
 1. **`Point` é array cru.** `typedef coordtype Point[DIM]` (`coord.h:31`) não é
    copiável nem construível in-place, então `std::vector<Point>` **não compila** —
@@ -642,7 +670,7 @@ atual tem as duas fachadas da seção 7.1.
    PETSc: o link exige hypre, debug-write e centralized. Uma guarda por motor, no
    padrão que o SOR já usa, é limpeza barata e está na lista.
 
-### 10.2 Os controles, porque verde que nunca foi vermelho não prova nada
+### 10.3 Os controles, porque verde que nunca foi vermelho não prova nada
 
     ordem do ajuste 2 -> 1            N1 REPROVA nas duas metades
     centroides deslocados meia h      F2 CONTINUA VERDE  (limitacao conhecida)
@@ -652,8 +680,23 @@ atual tem as duas fachadas da seção 7.1.
     guarda de linha faltando removida o processo MORRE no abort do herdado, sem
                                         linha de resumo -- que e' o que a guarda 3
                                         do driver pega
+    t8_cmesh_set_join removido        M3 reprova no CONTEUDO (0 com vizinho, 4
+                                        sem, na interface) e a CONTAGEM de
+                                        juncoes continua certa
+    vertices do QUAD v1 <-> v2        M2 reprova SO' na ordem de percurso; o
+                                        centroide-na-caixa continua verde
+    nivel uniforme global em vez de   M1 reprova em dois blocos (64 folhas onde
+      por arvore                        se esperavam 16 e 4)
 
-As duas últimas linhas medem o valor das fachadas: elas convertem um abort três
+**E um oráculo meu estava frouxo, o que só a sabotagem mostrou.** O comentário do
+`test-malha2d` afirmava que "centroide dentro da caixa" pegava a troca da ordem
+dos vértices do QUAD. Não pega: a troca espelha o mapeamento **dentro** da mesma
+caixa, e todo centroide continua dentro dela. Fechei a lacuna com um caso que
+ancora a orientação — a curva varre x primeiro, logo a folha 1 está deslocada em
+X da folha 0 —, e ele reprova nos três blocos com a assinatura certa (o
+deslocamento vai para y).
+
+As fachadas do solver e do discretizador têm o valor medido do mesmo jeito: elas convertem um abort três
 camadas abaixo em exceção que nomeia a linha que falta. A segunda linha mede o
 contrário — que a reprodução polinomial verifica a discretização e **não** a
 malha, e é por isso que "o suporte cai na grade e é local" precisa ser cláusula
