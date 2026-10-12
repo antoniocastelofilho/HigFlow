@@ -70,7 +70,8 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
   fronteira.push_back(id0);
   s.pontos.push_back(m_->centroide(b0, i0));
   s.ids.push_back(id0);
-  s.valores_contorno.push_back(0.0);
+  s.a.push_back(1.0);
+  s.b.push_back(0.0);
 
   for (int anel = 1; anel <= max_aneis_; anel++) {
     // O ANEL E' FECHADO POR INTEIRO antes de qualquer decisao de parada.  Parar no
@@ -82,18 +83,42 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
       for (int fa = 0; fa < 4; fa++) {
         const std::vector<long> vz = m_->ids_vizinhos(b, i, fa);
         if (vz.empty()) {
-          // FACE DE CONTORNO: o ponto que entra e' o centro da FACETA, e o valor
-          // dele e' conhecido.  Sem condicao instalada, o contorno nao contribui --
-          // e o suporte vai faltar pontos, que e' melhor que contribuir com zero.
-          if (!dirichlet_) continue;
+          // FACE DE CONTORNO.  Sem condicao instalada o contorno nao contribui, e
+          // o suporte vai faltar pontos -- que e' melhor que contribuir com zero.
+          if (!tem_contorno_) continue;
+
           const Ponto2 c = m_->centroide(b, i);
           const Ponto2 h = m_->lados_da_folha(b, i);
           const int d = fa / 2;
-          Ponto2 cf = c;
-          cf[d] += (fa % 2 == 0 ? -h[d] / 2.0 : h[d] / 2.0);
-          s.pontos.push_back(cf);
-          s.ids.push_back(-1);                        // -1 = ponto de contorno
-          s.valores_contorno.push_back(dirichlet_(cf));
+          const double sinal = (fa % 2 == 0) ? -1.0 : 1.0;
+
+          Ponto2 parede = c;
+          parede[d] += sinal * h[d] / 2.0;          // centro da faceta
+
+          if (contorno_.tipo == TipoContorno::Dirichlet) {
+            // DIRICHLET amostra a PAREDE: o valor ali e' conhecido e nao depende de
+            // incognita nenhuma.  E' o caminho mais direto, e nao se troca por
+            // fantasma de proposito -- refletir (A=-1) amplifica o erro do interior,
+            // amostrar nao.
+            s.pontos.push_back(parede);
+            s.ids.push_back(-1);
+            s.a.push_back(0.0);
+            s.b.push_back(contorno_.g(parede));
+            s.paredes++;
+          } else {
+            // NEUMANN e ROBIN usam FANTASMA: um ponto do lado de FORA, espelhado
+            // pela faceta, cujo valor e' afim na incognita desta celula.  A
+            // distancia entre os centros e' o lado da celula -- dois meios-passos.
+            Ponto2 fantasma = c;
+            fantasma[d] += sinal * h[d];
+            double A = 0.0, B = 0.0;
+            contorno_.afim(parede, h[d], &A, &B);
+            s.pontos.push_back(fantasma);
+            s.ids.push_back(m_->id_global(b, i));   // a celula ESPELHADA
+            s.a.push_back(A);
+            s.b.push_back(B);
+            s.fantasmas++;
+          }
           continue;
         }
         for (long v : vz) {
@@ -104,7 +129,8 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
           proximo.push_back(v);
           s.pontos.push_back(m_->centroide(vb, vi));
           s.ids.push_back(v);
-          s.valores_contorno.push_back(0.0);
+          s.a.push_back(1.0);
+          s.b.push_back(0.0);
         }
       }
     }
@@ -131,7 +157,10 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
     for (int k = 0; k < max_pontos_; k++) {
       t.pontos.push_back(s.pontos[ordem[k]]);
       t.ids.push_back(s.ids[ordem[k]]);
-      t.valores_contorno.push_back(s.valores_contorno[ordem[k]]);
+      t.a.push_back(s.a[ordem[k]]);
+      t.b.push_back(s.b[ordem[k]]);
+      if (s.ids[ordem[k]] < 0) t.paredes++;
+      else if (s.a[ordem[k]] != 1.0 || s.b[ordem[k]] != 0.0) t.fantasmas++;
     }
     s = t;
   }
@@ -141,8 +170,8 @@ ConstrutorEstencil::Suporte ConstrutorEstencil::suporte_em(const Ponto2 &x) cons
         "ConstrutorEstencil: suporte de " + std::to_string(s.pontos.size()) +
         " pontos em " + std::to_string(max_aneis_) + " aneis, minimo " +
         std::to_string(minimo) + " para ordem " + std::to_string(ordem_) +
-        (dirichlet_ ? "" : " (nenhuma condicao de Dirichlet instalada: o contorno"
-                           " nao contribuiu)"));
+        (tem_contorno_ ? "" : " (nenhuma condicao de contorno instalada: o contorno"
+                              " nao contribuiu)"));
 
   for (size_t a = 0; a < s.pontos.size(); a++)
     for (size_t b = a + 1; b < s.pontos.size(); b++) {
@@ -161,11 +190,27 @@ Estencil ConstrutorEstencil::em(const Ponto2 &x) const
   // O `rhs` RECEBE a contribuicao dos pontos de contorno, e eles NAO entram em
   // `ids`.  Quem consome o estencil monta a linha do sistema com `ids`/`pesos` e
   // soma `rhs` ao lado direito -- sem precisar saber qual id era parede.
+  return monta(s, w);
+}
+
+Estencil ConstrutorEstencil::monta(const Suporte &s, const std::vector<double> &w)
+{
+  // UM LACO PARA OS TRES TIPOS: `valor_no_ponto = a*u[id] + b`, logo o peso `w`
+  // contribui `a*w` no id e `b*w` no `rhs`.  Celula comum tem (a,b)=(1,0), parede
+  // de Dirichlet tem id=-1 e (0,g), fantasma tem o id da celula ESPELHADA e os
+  // (A,B) da condicao -- e e' por isso que o mesmo id pode aparecer duas vezes:
+  // a celula e o fantasma dela.  Os pesos se SOMAM nesse caso, e somar e' o
+  // correto; sobrescrever perderia a contribuicao do fantasma em silencio.
   Estencil e;
   e.rhs = 0.0;
   for (size_t k = 0; k < w.size(); k++) {
-    if (s.ids[k] < 0) e.rhs += w[k] * s.valores_contorno[k];
-    else { e.ids.push_back(s.ids[k]); e.pesos.push_back(w[k]); }
+    e.rhs += s.b[k] * w[k];
+    if (s.ids[k] < 0) continue;
+    const double peso = s.a[k] * w[k];
+    bool somado = false;
+    for (size_t j = 0; j < e.ids.size(); j++)
+      if (e.ids[j] == s.ids[k]) { e.pesos[j] += peso; somado = true; break; }
+    if (!somado) { e.ids.push_back(s.ids[k]); e.pesos.push_back(peso); }
   }
   return e;
 }
@@ -200,13 +245,7 @@ void ConstrutorEstencil::em_lote(const std::vector<Ponto2> &alvos, LoteEstenceis
   saida.assign(alvos.size(), Estencil{});
   for (size_t q = 0; q < brutos.size(); q++) {
     const Suporte &s = sups[q];
-    Estencil e;
-    e.rhs = 0.0;
-    for (size_t k = 0; k < brutos[q].pesos.size(); k++) {
-      if (s.ids[k] < 0) e.rhs += brutos[q].pesos[k] * s.valores_contorno[k];
-      else { e.ids.push_back(s.ids[k]); e.pesos.push_back(brutos[q].pesos[k]); }
-    }
-    saida[q] = std::move(e);
+    saida[q] = monta(s, brutos[q].pesos);
   }
 }
 

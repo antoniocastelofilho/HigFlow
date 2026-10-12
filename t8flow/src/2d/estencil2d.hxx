@@ -39,19 +39,21 @@
 #include <vector>
 
 #include "campos2d.hxx"
+#include "contorno2d.hxx"
 #include "lote2d.hxx"
 #include "malha2d.hxx"
 #include "mls2d.hxx"
 
 namespace t8flow2d {
 
-//! Condicao de contorno de Dirichlet: o valor na faceta de contorno.
+//! O dado de uma condicao, como funcao do ponto -- nao uma constante.
 //
-// Uma funcao do ponto, nao uma constante: valor de contorno CONSTANTE e' o caso
-// em que quase todo defeito de fechamento fica invisivel -- com parede de
-// nao-deslizamento, fechar contra a parede errada da' o mesmo numero.  Foi assim
-// que nove defeitos de fechamento sobreviveram cinco anos na HiGTree.
-using ValorDeContorno = std::function<double(const Ponto2 &)>;
+// Valor de contorno CONSTANTE e' o caso em que quase todo defeito de fechamento
+// fica invisivel: com parede de nao-deslizamento, fechar contra a parede errada
+// da' o mesmo numero.  Foi assim que nove defeitos de fechamento sobreviveram
+// cinco anos na HiGTree.  Daqui para a frente, todo caso de teste usa dado que
+// VARIA nas duas direcoes.
+using ValorDeContorno = DadoDeContorno;
 
 class ConstrutorEstencil {
  public:
@@ -60,10 +62,19 @@ class ConstrutorEstencil {
   //! grossa cercada de contorno cresceria indefinidamente.
   ConstrutorEstencil(const Malha &m, int ordem, int max_pontos, int max_aneis = 4);
 
-  //! Instala a condicao de Dirichlet.  Sem ela, o contorno nao contribui e o
-  //! suporte perto da parede fica com menos pontos -- o que faz `em()` LANCAR em
-  //! vez de devolver um ajuste de ordem menor sem avisar.
-  void dirichlet(ValorDeContorno v) { dirichlet_ = std::move(v); }
+  //! Instala a condicao de fronteira: Dirichlet, Neumann ou Robin.
+  //
+  // Sem condicao instalada o contorno NAO contribui, e o suporte perto da parede
+  // fica com menos pontos -- o que faz `em()` LANCAR em vez de devolver um ajuste
+  // de ordem menor sem avisar.
+  //
+  // Uma condicao para todo o contorno, por enquanto.  Condicao POR REGIAO (parede
+  // norte diferente da sul) e' o passo seguinte e nao um parametro a mais aqui:
+  // exige dizer a que regiao cada faceta pertence, que e' informacao da malha.
+  void contorno(Contorno c) { contorno_ = std::move(c); tem_contorno_ = true; }
+
+  //! Atalho para o caso mais comum.
+  void dirichlet(ValorDeContorno v) { contorno(Contorno::dirichlet(std::move(v))); }
 
   int ordem() const { return ordem_; }
   int max_pontos() const { return max_pontos_; }
@@ -86,21 +97,44 @@ class ConstrutorEstencil {
   //! Diagnostico do suporte escolhido em `x`: quantos pontos de celula, quantos
   //! de contorno, quantos aneis, e o diametro.  Existe para a clausula F3 -- "o
   //! suporte cai na grade e e' local" -- poder ser afirmada de fora.
+  //! O suporte, e a forma dele e' o que torna os tres tipos de contorno UM caminho.
+  //
+  // Cada ponto carrega `(id, a, b)`, com o significado `valor_no_ponto = a *
+  // u[id] + b`:
+  //
+  //     celula comum          id = o id dela,        a = 1,  b = 0
+  //     parede de Dirichlet   id = -1,               a = 0,  b = g
+  //     fantasma (Neu/Robin)  id = a celula ESPELHADA, a = A,  b = B
+  //
+  // Na montagem, o peso `w` que o ajuste der ao ponto contribui `a*w` no id e
+  // `b*w` no `rhs`.  Um laco, tres tipos -- e nada no ajuste sabe que algum ponto
+  // e' especial.
   struct Suporte {
     std::vector<Ponto2> pontos;
-    std::vector<long> ids;        //!< -1 para ponto de CONTORNO
-    std::vector<double> valores_contorno;  //!< so' para os de contorno; 0 nos outros
+    std::vector<long> ids;        //!< -1 quando o valor nao depende de incognita
+    std::vector<double> a;        //!< coeficiente da incognita `ids[k]`
+    std::vector<double> b;        //!< parte conhecida, vai para o `rhs`
     int aneis = 0;
     double diametro = 0.0;
+    long fantasmas = 0;           //!< quantos pontos vieram de fantasma
+    long paredes = 0;             //!< quantos vieram de amostrar a parede
   };
   Suporte suporte_em(const Ponto2 &x) const;
+
+  //! Monta o estencil a partir de um suporte e dos pesos do ajuste.
+  //
+  // Publica e estatica porque e' a traducao `(a, b, peso)` -> `(ids, pesos, rhs)`,
+  // e ela e' a MESMA no caminho um-por-um e no do lote.  Duas copias divergiriam,
+  // e divergir aqui significa o `rhs` certo num caminho e errado no outro.
+  static Estencil monta(const Suporte &s, const std::vector<double> &w);
 
  private:
   const Malha *m_;
   int ordem_;
   int max_pontos_;
   int max_aneis_;
-  ValorDeContorno dirichlet_;
+  Contorno contorno_;
+  bool tem_contorno_ = false;
   mutable Mls mls_;
 };
 

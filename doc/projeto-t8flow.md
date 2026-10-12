@@ -611,11 +611,14 @@ atual tem as duas fachadas da seção 7.1.
 
     t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
-    t8flow/src/comum/t8flow-contract.h  29 clausulas: N1..N6 B1 F1 F2 M1..M5 R1..R5 G1..G5 A1..A5
+    t8flow/src/comum/t8flow-contract.h  44 clausulas: N B F1..F3 M R G A L E C
     t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}    o solver
     t8flow/src/2d/malha2d.{hxx,cxx}     malha, refino local, numeracao global
     t8flow/src/2d/campos2d.{hxx,cxx}    o arranjo deslocado
+    t8flow/src/2d/lote2d.{hxx,cxx}      o lote, CPU e GPU
+    t8flow/src/2d/estencil2d.{hxx,cxx}  o estencil com a ordem desejada
+    t8flow/src/2d/contorno2d.{hxx,cxx}  Dirichlet, Neumann e Robin
     t8flow/tests/testing.h              arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx          5 casos
     t8flow/tests/2d/test-solver2d.cxx       6 casos
@@ -925,7 +928,87 @@ reexaminada quando a franja entrar — está dito no contrato.
 
 ---
 
-## 13. O que vem depois
+## 13. As condições de fronteira: Dirichlet, Neumann e Robin
+
+`src/2d/contorno2d.hxx`, 11 casos, cláusulas C1–C5.
+
+### 13.1 A pergunta do usuário, respondida pelo código
+
+Ele levantou: *"acredito que Neumann com o t8code utilize células fantasmas, que é
+diferente de como o HiGFlow faz"*. Está certo nas duas metades, e vale registrar o
+que cada um faz:
+
+**O HiGFlow não usa fantasma.** Lido em `domain.c` (~2010): ele toma um ponto
+**meia célula para dentro** do domínio — *"Take a point half Δx into the domain"* —,
+pega o estêncil **daquele** ponto, e corrige por extrapolação linear com a
+derivada — *"Approximating the function as a line, get the line slope"*. Não existe
+célula fora do domínio em lugar nenhum.
+
+**O ghost do t8code também não serve para isso:** ele é de **partição** — uma
+camada de face-vizinhos de outro rank —, não de contorno. Medido: profundidade 1 e
+só `T8_GHOST_FACES`. Fantasma de contorno é construção nossa.
+
+### 13.2 Por que fantasma casa bem com MLS
+
+É a razão técnica de adotar a sugestão. O fantasma entra como um **ponto de suporte
+comum**, e o valor dele é uma função **afim** da incógnita da célula espelhada:
+
+    u_fantasma = A * u_celula + B
+
+Logo o peso que o ajuste der ao fantasma se **redistribui**: `A·w` soma no id da
+célula espelhada e `B·w` vai para o `rhs`. O ajuste não precisa saber que aquele
+ponto é especial, e os três tipos viram a **mesma conta** com (A, B) diferentes —
+uma conta, não três, porque três divergem.
+
+| | (A, B) | observação |
+|---|---|---|
+| Dirichlet | (0, g) amostrando a parede | o fantasma seria (−1, 2g), a reflexão antissimétrica — mas refletir amplifica o erro do interior, amostrar não |
+| Neumann | (1, h·g) | n aponta para fora; o fantasma está do lado de fora |
+| Robin | ((β − αh/2)/(αh/2 + β), g·h/(αh/2 + β)) | Neumann é α=0; Dirichlet é o limite β=0 |
+
+### 13.3 O oráculo, e o defeito que ele expôs em DUAS famílias
+
+O oráculo é reprodução de um campo analítico **até a parede**, alimentando a
+condição com o dado exato que aquele campo satisfaz. E o contraste não é entre
+ordens: é entre **dado certo e dado errado** — a mesma malha, o mesmo ajuste, com a
+derivada de *outro* campo.
+
+Foi esse contraste que achou um defeito que atingia as famílias E **e** C: os casos
+avaliavam o estêncil **no centro das células**, onde o ajuste móvel é
+**degenerado**. O peso do MLS é `1/dist²`, então o ponto coincidente recebe
+`1/EPSMACH` e domina — medido: peso **1,0** na própria célula, **6,4e-11** nas
+outras, `rhs` de **−3,2e-11**. Ali o estêncil é a **identidade**, e os casos
+passavam com 1e-16 **sem exercitar o fechamento**.
+
+Quem denunciou não foi o verde: foi o contraste dar erro de só **1e-10** com uma
+derivada grosseiramente errada. Corrigido — alvos deslocados do centro, que é
+também o uso real do estêncil —, o mesmo contraste dá **1,9e-01**:
+
+    Neumann, derivada certa          5,8e-16
+    Neumann, derivada de outro campo 1,9e-01
+
+Duas guardas ficaram: os alvos são deslocados, e os casos de contraste exigem erro
+grande em **valor absoluto**, não apenas uma razão. E a degeneração no nó passou a
+ser **afirmada** (cláusula C5) em vez de evitada em silêncio — para ninguém voltar
+a medir fechamento ali e achar que mediu.
+
+### 13.4 O que falta para o Poisson com soluções manufaturadas
+
+O próximo passo. O que já existe: as três condições, o estêncil com a ordem
+pedida, a numeração global, o solver. O que falta:
+
+1. **Condição por região** — parede norte diferente da sul. Hoje é uma condição
+   para todo o contorno, e por região exige dizer a que região cada faceta
+   pertence, que é informação da malha e não um parâmetro a mais do estêncil.
+2. **O operador** — montar `∇²u = f` célula a célula com os estênceis, o que é
+   usar o que existe, não construir peça nova.
+3. **A solução manufaturada** — escolher `u`, derivar `f = ∇²u` e os dados de
+   contorno analiticamente, e medir a **ordem de convergência** refinando a malha.
+   É o oráculo mais forte disponível, e o que o método existe para dar.
+
+---
+
+## 14. O que vem depois
 
 ### 13.1 O estêncil com a ordem desejada, como na HiGTree
 

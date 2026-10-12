@@ -40,6 +40,19 @@ using t8flow2d::Ponto2;
 static double grau1(const Ponto2 &p) { return 1.0 + 2.0 * p[0] - 3.0 * p[1]; }
 static double grau2(const Ponto2 &p) { return grau1(p) + 4.0 * p[0] * p[0] - 2.5 * p[1] * p[1]; }
 
+//! ALVO DESLOCADO DO CENTRO da celula `i`, e isso e' obrigatorio: no proprio
+//! centro o ajuste movel e' DEGENERADO -- o peso `1/dist^2` do ponto coincidente
+//! vira `1/EPSMACH` e domina, medido como peso 1,0 na propria celula e 6,4e-11 nas
+//! outras.  Ali o estencil e' a identidade, o contorno nao influencia, e qualquer
+//! caso que meca fechamento no centro passa sem exercitar nada.  A primeira versao
+//! deste arquivo media ali.
+static Ponto2 alvo_na_celula(const Malha &m, long i)
+{
+  const Ponto2 c = m.centroide(0, i);
+  const Ponto2 h = m.lados_da_folha(0, i);
+  return Ponto2{c[0] + 0.24 * h[0], c[1] + 0.16 * h[1]};
+}
+
 //! Valor do estencil aplicado a um campo: pesos nas celulas mais o `rhs`.
 static double aplica(const Estencil &e, const Malha &m,
                      double (*f)(const Ponto2 &))
@@ -98,8 +111,9 @@ int main(int argc, char **argv)
     for (long i = 0; i < m.num_folhas_do_bloco(0); i++) {
       const Ponto2 c = m.centroide(0, i);
       if (c[0] < 0.3 || c[0] > 0.7 || c[1] < 0.3 || c[1] > 0.7) continue;  // interior
-      const Estencil e = ce.em(c);
-      const double d = std::fabs(aplica(e, m, grau1) - grau1(c));
+      const Ponto2 x = alvo_na_celula(m, i);
+      const Estencil e = ce.em(x);
+      const double d = std::fabs(aplica(e, m, grau1) - grau1(x));
       if (d > pior_int) pior_int = d;
     }
     T_NEAR(pior_int, 0.0, 1e-10, "pior erro no interior, campo de grau 1");
@@ -116,14 +130,17 @@ int main(int argc, char **argv)
       const Ponto2 c = m.centroide(0, i);
       const bool junto = (c[0] < 0.1 || c[0] > 0.9 || c[1] < 0.1 || c[1] > 0.9);
       if (!junto) continue;
-      const Estencil e = ce.em(c);
-      if (e.rhs != 0.0) com_rhs++;
-      const double d = std::fabs(aplica(e, m, grau1) - grau1(c));
+      const Ponto2 x = alvo_na_celula(m, i);
+      const Estencil e = ce.em(x);
+      // `rhs != 0.0` NAO basta: no centro da celula ele era 1e-11, nao zero, e o
+      // caso passava sem o fechamento influenciar.  O limiar e' de grandeza.
+      if (std::fabs(e.rhs) > 1e-6) com_rhs++;
+      const double d = std::fabs(aplica(e, m, grau1) - grau1(x));
       if (d > pior_par) pior_par = d;
     }
     T_CHECK_MSG(com_rhs > 0,
-                "nenhum estencil junto a' parede teve rhs -- o fechamento nao foi "
-                "exercitado, e o caso nao afirma nada");
+                "nenhum estencil junto a' parede teve rhs de grandeza -- o "
+                "fechamento nao foi exercitado, e o caso nao afirma nada");
     T_NEAR(pior_par, 0.0, 1e-10, "pior erro junto a' parede, campo de grau 1");
   }
 
@@ -137,8 +154,9 @@ int main(int argc, char **argv)
     for (long i = 0; i < m.num_folhas_do_bloco(0); i++) {
       const Ponto2 c = m.centroide(0, i);
       if (c[0] < 0.3 || c[0] > 0.7 || c[1] < 0.3 || c[1] > 0.7) continue;
-      const Estencil e = ce2.em(c);
-      const double d = std::fabs(aplica(e, m, grau2) - grau2(c));
+      const Ponto2 x = alvo_na_celula(m, i);
+      const Estencil e = ce2.em(x);
+      const double d = std::fabs(aplica(e, m, grau2) - grau2(x));
       if (d > pior) pior = d;
     }
     T_CONTRASTE(pior_int > 1e-16 ? pior_int : 1e-16, pior, 1e3,
@@ -154,7 +172,7 @@ int main(int argc, char **argv)
     // -- o defeito que a reproducao polinomial NAO ve' -- quebra esta afirmacao.
     long conferidos = 0, fora = 0;
     for (long i = 0; i < m.num_folhas_do_bloco(0); i += 7) {
-      const ConstrutorEstencil::Suporte s = ce.suporte_em(m.centroide(0, i));
+      const ConstrutorEstencil::Suporte s = ce.suporte_em(alvo_na_celula(m, i));
       for (size_t k = 0; k < s.pontos.size(); k++) {
         conferidos++;
         if (s.ids[k] >= 0) {
@@ -187,7 +205,7 @@ int main(int argc, char **argv)
     long pior_pontos = 0;
     double pior_diam = 0.0;
     for (long i = 0; i < m.num_folhas_do_bloco(0); i++) {
-      const ConstrutorEstencil::Suporte s = ce.suporte_em(m.centroide(0, i));
+      const ConstrutorEstencil::Suporte s = ce.suporte_em(alvo_na_celula(m, i));
       pior_pontos = std::max<long>(pior_pontos, static_cast<long>(s.pontos.size()));
       pior_diam = std::fmax(pior_diam, s.diametro);
     }
@@ -225,7 +243,7 @@ int main(int argc, char **argv)
   {
     std::vector<Ponto2> alvos;
     for (long i = 0; i < m.num_folhas_do_bloco(0); i += 3)
-      alvos.push_back(m.centroide(0, i));
+      alvos.push_back(alvo_na_celula(m, i));
 
     LoteEstenceis lote(ORDEM, 4 * Mls::min_pontos(ORDEM));
     lote.usa_back_end(t8flow2d::BackEnd::Cpu);

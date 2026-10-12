@@ -370,6 +370,49 @@
 //! COBERTA-POR: test-estencil2d:o_lote_de_estenceis_da_o_mesmo_que_um_por_um
 
 // ---------------------------------------------------------------------------
+// C -- AS CONDICOES DE FRONTEIRA: Dirichlet, Neumann e Robin
+// ---------------------------------------------------------------------------
+
+//! C1  Os coeficientes afins `(A, B)` de `u_fantasma = A*u_celula + B` batem com a
+//!     algebra, nos TRES tipos, e a conta e' UMA so' parametrizada por (alfa,
+//!     beta) -- tres contas separadas divergiriam, e divergir aqui significa Robin
+//!     certo e Neumann errado, ou pior, os dois plausiveis.  Neumann e' (1, h*g);
+//!     Dirichlet, no limite beta=0, e' (-1, 2g) -- a reflexao antissimetrica.
+//! COBERTA-POR: test-contorno2d:os_coeficientes_afins_batem_com_a_algebra
+
+//! C2  Condicao DEGENERADA e' recusada, nao aproximada: alfa=beta=0 nao e'
+//!     condicao, `alfa*h/2 + beta = 0` nao determina o fantasma, e h=0 nao e'
+//!     distancia.  Devolver numero ali seria inventar dado.
+//! COBERTA-POR: test-contorno2d:condicao_degenerada_e_recusada
+
+//! C3  As TRES condicoes reproduzem um campo analitico ATE' A PAREDE, alimentadas
+//!     com o dado EXATO que aquele campo satisfaz -- `u` para Dirichlet, `du/dn`
+//!     para Neumann, `alfa*u + beta*du/dn` para Robin.  E Robin com beta=0 fecha
+//!     com o caso conhecido de Dirichlet, o que amarra a formula.
+//! COBERTA-POR: test-contorno2d:dirichlet_reproduz_o_campo_ate_a_parede
+//! COBERTA-POR: test-contorno2d:neumann_reproduz_o_campo_ate_a_parede_pelo_fantasma
+//! COBERTA-POR: test-contorno2d:robin_reproduz_o_campo_ate_a_parede
+//! COBERTA-POR: test-contorno2d:robin_com_beta_zero_concorda_com_dirichlet_na_reproducao
+
+//! C4  O MECANISMO e' observavel e DADO ERRADO PIORA MUITO.  Dirichlet amostra a
+//!     PAREDE e nao poe fantasma; Neumann poe FANTASMA do lado de FORA e nao
+//!     amostra a parede -- se os dois fizessem o mesmo, a conta de (A,B) nunca
+//!     seria exercitada.  E alimentar a condicao com o dado de OUTRO campo (ou
+//!     com outros alfa/beta) tem de piorar o erro em ordens de grandeza E em
+//!     VALOR ABSOLUTO: medido 5,8e-16 contra 1,9e-01.
+//! COBERTA-POR: test-contorno2d:o_suporte_de_neumann_usa_fantasma_e_nao_amostra_a_parede
+//! COBERTA-POR: test-contorno2d:neumann_com_a_derivada_de_outro_campo_piora
+//! COBERTA-POR: test-contorno2d:robin_com_alfa_e_beta_errados_piora
+//! COBERTA-POR: test-contorno2d:sem_condicao_instalada_o_suporte_curto_e_recusado
+
+//! C5  NO PROPRIO CENTRO DA CELULA O ESTENCIL E' A IDENTIDADE, e isto esta'
+//!     AFIRMADO em vez de evitado em silencio: o peso do MLS e' `1/dist^2`, logo o
+//!     ponto coincidente recebe `1/EPSMACH` e domina -- peso 1,0 na propria celula,
+//!     ~0 nas outras, `rhs` ~0.  E' propriedade do ajuste movel, nao defeito; o
+//!     caso existe para ninguem voltar a medir fechamento ali e achar que mediu.
+//! COBERTA-POR: test-contorno2d:no_proprio_centro_da_celula_o_estencil_e_a_identidade
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -437,9 +480,23 @@
 // E em dispositivo sem fp64 ela e' 1e-4, porque o kernel roda em float -- medido
 // 5,8e-07 na Radeon via rusticl.
 //
-// LIMITE DA FAMILIA E, declarado: so' DIRICHLET.  Neumann precisa de derivada na
-// faceta, que muda a LINHA do ajuste e nao so' o lado direito -- e' trabalho
-// proprio, nao um `else`.  E a selecao de suporte varre a malha para traduzir id
+// O DEFEITO DE ORACULO QUE A FAMILIA C EXPOS, e ele atingia DUAS familias: os
+// casos de E e de C avaliavam o estencil NO CENTRO das celulas, onde o ajuste
+// movel e' degenerado -- peso 1,0 na propria celula e 6,4e-11 nas outras, `rhs`
+// de -3,2e-11.  Os casos passavam com 1e-16 SEM EXERCITAR O FECHAMENTO, porque o
+// estencil ali e' a identidade.
+//
+// Quem denunciou foi o CONTRASTE, e nao o verde: alimentar Neumann com a derivada
+// de outro campo piorava o erro para so' 1e-10 -- pequeno demais para um dado
+// grosseiramente errado.  Corrigido, o mesmo contraste da' 1,9e-01.
+//
+// Duas guardas ficaram: os alvos sao DESLOCADOS do centro (que e' tambem o uso
+// real -- interpolar em faceta, canto, ponto de projecao), e os casos de contraste
+// exigem erro grande em VALOR ABSOLUTO, nao apenas uma razao.
+//
+// LIMITE DA FAMILIA E, declarado: so' DIRICHLET no construtor;  Neumann e Robin entram pela familia C,
+// por celula FANTASMA, e isso resolveu o limite que estava declarado aqui.  E a
+// selecao de suporte varre a malha para traduzir id
 // em (bloco, folha): O(folhas) por consulta, aceitavel em caminho de montagem e
 // nao em laco quente.  Dito para nao ser suposto rapido.
 //
