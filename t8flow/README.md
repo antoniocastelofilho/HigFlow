@@ -1,0 +1,91 @@
+# t8Flow
+
+Sistema sobre o **t8code**, com o escalonamento dele (floresta como estrutura,
+partição pela curva de preenchimento, nenhum processo segurando a malha inteira)
+e **multiblocos** como o HiGFlow — o `cmesh` do t8code é nativamente multiárvore,
+e é o mesmo conceito.
+
+O projeto está em [`doc/projeto-t8flow.md`](../doc/projeto-t8flow.md): as cinco
+decisões tomadas, o que é medido e o que é opinião. Leia-o antes de mexer aqui.
+
+## As decisões, em uma linha cada
+
+1. **Núcleo herdado** — solver e MLS vêm da HiGTree, porque já não sabem o que é
+   uma malha (zero referências a `hig_cell`/`sim_domain` em todos os backends).
+2. **Partição e domínio do t8code** — a floresta é a estrutura; sai o `lbal`.
+3. **A suíte nasce com o código** — e cobra um contrato.
+4. **Um domínio só** — sem o segundo domínio uniforme no nível mais fino, que é
+   a malha cheia por construção e não encolhe com o AMR.
+5. **C++ na norma do t8code** (`gnu++20`), sem `extern "C"` e sem `-fpermissive`.
+
+## Construir e rodar
+
+```bash
+python3 ci/run_t8flow_tests.py
+```
+
+O driver constrói e roda nas duas dimensões e cobra o contrato. Para uma só:
+`--dim 2`. Os prefixos de dependência têm padrão apontando para a árvore
+principal e podem ser trocados por `--t8code`, `--higtree-src` e `--petsc`.
+
+À mão, a partir deste diretório:
+
+```bash
+make DIM=2 && mpirun -n 1 ./tests/test-nucleo-herdado-2d
+```
+
+**As dependências não estão neste worktree.** O t8code e o PETSc vivem em
+`bibliotecas/`, que o git ignora; por isso os caminhos são parâmetros absolutos,
+e não caminhos relativos. Caminho relativo repassado a um `make -C` resolve a
+partir do diretório errado e o sintoma é "não construído" — falha silenciosa.
+
+## A ordem de arranque não é livre
+
+Descoberta com um SIGSEGV dentro do PETSc, sem uma linha que apontasse para o
+nosso código:
+
+1. `higtree_initialize(&argc, &argv)` — faz o `MPI_Init` **e guarda argc/argv**;
+2. `sc_init` + `t8_init`, com o MPI já inicializado;
+3. o PETSc entra preguiçoso, pelo próprio solver.
+
+O motivo: `_slv_create_petsc` chama `_try_initialize_petsc` (`utils.c:34`), que
+desreferencia um `static char **_argv` preenchido **só** por
+`higtree_initialize`. E a flag `is_petsc_initialized` é `static`: inicializar o
+PETSc por fora não a desarma. Não chame `sc_MPI_Init` (dois `MPI_Init` são erro)
+nem `MPI_Finalize`/`PetscFinalize` (o `atexit` do `higtree_initialize` fecha os
+dois).
+
+Todo binário vai por `mpirun`, inclusive em np=1: rodado direto, trava no
+`MPI_Init` sem imprimir nada e aparece como timeout, não como falha.
+
+## O contrato
+
+`src/t8flow-contract.h`. O driver **lê as cláusulas do arquivo** e exige, para
+cada uma, um caso que saiu `PASS`. Cláusula sem `COBERTA-POR`, com caso ausente
+ou com caso reprovado conta como falha da suíte — não como omissão. Conferido no
+sentido inverso: apontando uma cláusula para um caso inexistente, o driver sai
+com `CASO AUSENTE` e código 1.
+
+Uma cláusula entra no contrato **quando tem caso que a afirme**, nunca antes. As
+previstas e ainda sem código vivem no documento de projeto; se entrassem aqui, a
+suíte nasceria vermelha e o vermelho deixaria de significar "quebrou".
+
+## O que o verde não prova
+
+Medido por sabotagem controlada em 11/10/2026, e esta seção é a mais útil do
+arquivo:
+
+- **deslocando todos os centroides do suporte meia célula, os três casos de F2
+  continuam verdes.** A reprodução polinomial verifica a *discretização*, não a
+  malha. Quem verificaria a malha é "o suporte cai na grade e é local" — será a
+  cláusula F3, e ainda não existe;
+- o ponto de consulta **no centro de simetria** da nuvem fez o ajuste de ordem 2
+  reproduzir um campo cúbico com erro 1,1e-16 (os termos ímpares cancelam contra
+  pesos simétricos). O caso de contraste reprovou dizendo "o oráculo não
+  discrimina" — que é o seu trabalho. Os pontos de consulta são assimétricos de
+  propósito;
+- nenhuma física roda aqui, np vai só até 1, não há partição, nem franja, nem
+  refino local, nem domínio. Tudo isso é o trabalho adiante.
+
+Controle que vale citar porque confirma o contrário: baixando a ordem do ajuste
+de 2 para 1, N1 reprova nas duas metades.

@@ -1,0 +1,7 @@
+# Objetos por dimensao e binarios de teste.  Os binarios NAO carregam extensao,
+# so' o sufixo -2d/-3d, e por isso precisam de regra propria -- a regra generica
+# de *.o do .gitignore da raiz nao os pega, e um binario versionado e' pior que
+# inutil: quem clonar roda o compilado de outra maquina.
+obj/
+tests/test-*-2d
+tests/test-*-3d
