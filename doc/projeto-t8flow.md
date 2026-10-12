@@ -611,10 +611,11 @@ atual tem as duas fachadas da seção 7.1.
 
     t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
-    t8flow/src/comum/t8flow-contract.h  24 clausulas: N1..N6 B1 F1 F2 M1..M5 R1..R5 G1..G5
+    t8flow/src/comum/t8flow-contract.h  29 clausulas: N1..N6 B1 F1 F2 M1..M5 R1..R5 G1..G5 A1..A5
     t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}    o solver
     t8flow/src/2d/malha2d.{hxx,cxx}     malha, refino local, numeracao global
+    t8flow/src/2d/campos2d.{hxx,cxx}    o arranjo deslocado
     t8flow/tests/testing.h              arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx          5 casos
     t8flow/tests/2d/test-solver2d.cxx       6 casos
@@ -869,22 +870,131 @@ mínimo de N execuções protege contra o ruído *para cima*, não contra um N p
 
 ---
 
-## 12. O que vem depois
+## 12. O arranjo deslocado (feito)
 
-Em ordem de retorno, com a escalabilidade já medida (seção 11):
+`src/2d/campos2d.hxx`, 12 casos, cláusulas A1–A5. Onde cada propriedade mora:
 
-1. **A franja por caixas**, na profundidade de produção (5) e em np=3 — o menor
-   np em que pareamento transposto aparece: com uma caixa por rank, 1×1 esconde o
-   erro.
+| propriedade | onde | exemplo |
+|---|---|---|
+| escalar | **centro** da célula | pressão, fração volumétrica, densidade |
+| tensorial | **centro**, componente por componente | tensor de tensões, gradiente de velocidade |
+| vetorial | **faceta**, uma componente por direção | velocidade, fluxo |
+
+**Não é convenção arbitrária.** No arranjo deslocado (MAC) a divergência de uma
+célula sai da soma das velocidades das *suas* facetas, e o gradiente de pressão
+numa faceta sai da diferença entre os *dois* centros que ela separa — ambos com
+estêncil de duas células e sem interpolação. No arranjo colocado o gradiente
+precisa de três células e admite um modo de pressão em tabuleiro que a divergência
+não vê. É o mesmo arranjo do HiGFlow, onde a velocidade vive em `dpu[dim]` sobre um
+`sim_facet_domain` **por direção** e o tensor vive em `dpDu[i][j]`.
+
+### 12.1 A posse das facetas, que é a única decisão real
+
+**A faceta da direção d é a face "menos" de exatamente uma folha.** Uma faceta
+interna entre A (antes) e B (depois) é a face "mais" de A e a "menos" de B, logo
+pertence a B — sem ambiguidade e sem negociação. As faces "mais" que são contorno
+do domínio ganham faceta própria. Em malha uniforme N×N isso dá N(N+1) facetas por
+direção, a contagem clássica do MAC.
+
+**E a regra sobrevive ao refino 2:1 sem emenda:** a face "mais" de uma célula
+grossa encostada em duas finas não vira faceta — as duas finas possuem as suas
+"menos", e o lado fino fica com **dois** valores de velocidade. É o que o método
+pede ali (o fluxo pela face grossa é a soma dos dois), e é por isso que a convenção
+é a face "menos": a "mais" daria uma faceta na grossa e duas nas finas para a
+*mesma* interface.
+
+### 12.2 Os oráculos, e por que são quatro
+
+    contagem de facetas    N(N+1) por direcao, calculado no teste a partir de N
+    POSSE UNICA            contagem certa nao garante: duas trocas que se
+                             compensam dao o mesmo total
+    geometria e medida     centro a meia celula; medida e' o lado TRANSVERSAL --
+                             o caso tem bloco de celulas NAO-quadradas, sem o que
+                             usar o lado errado seria invisivel
+    divergencia zero de    amarra posse, geometria, medida e sinal de uma vez,
+      campo constante        e nenhuma contagem o da'
+
+Controles: contar a faceta nas duas pontas → a contagem vai a 40 onde se esperam
+22; medida pelo lado da própria direção → o caso de geometria reprova nomeando a
+célula 1,0 × 0,5.
+
+**Limite de hoje:** o critério de "face mais é contorno" é `num_vizinhos == 0`,
+que vale em np=1. Sob particionamento, face sem vizinho *local* inclui face de
+franja, e a distinção exige a camada de ghost. A posse das facetas terá de ser
+reexaminada quando a franja entrar — está dito no contrato.
+
+---
+
+## 13. O que vem depois
+
+### 13.1 O estêncil com a ordem desejada, como na HiGTree
+
+Pedido do usuário. Na HiGTree a interface é `sd_get_stencil(sd, centro, x, alpha,
+stn)` com `sd_set_interpolator_order`, e o resultado é um `sim_stencil`: `ids[]`,
+`vals[]` (os pesos) e um `rhs` separado para o que não se associa a nenhuma célula
+— o valor de Dirichlet. O t8Flow precisa do equivalente, e as peças já existem: a
+malha entrega o suporte, o `Mls` entrega os pesos, a numeração entrega os ids.
+
+O que falta e é trabalho real: **escolher o suporte** — quais células entram, com
+quantos pontos para a ordem pedida, crescendo o raio até satisfazer
+`wls_num_min_points` sem passar de `max_pontos`; e o **fechamento de contorno**,
+que é o `rhs`. A cláusula F3 ("o suporte cai na grade e é local") pertence a esta
+frente, porque é ela que a reprodução polinomial não vê.
+
+### 13.2 O lote de estênceis, e a GPU quando houver
+
+Também do usuário: pedir **vários estênceis de uma vez** e, se a máquina tiver GPU,
+calculá-los nela. A forma de pedir é o que decide se isso é possível — por isso a
+interface vem antes do back-end:
+
+    lote: N pontos de consulta -> N estenceis, numa chamada
+    back-end: CPU (sempre) | GPU (quando houver runtime e acesso)
+    oraculo: o resultado da GPU tem de bater com o da CPU, ponto a ponto
+
+**O CPU não é plano B, é o oráculo.** Um lote em GPU que erra em silêncio é o pior
+caso possível para este projeto, e a única defesa é poder recalcular na CPU e
+comparar. Isso também significa que o back-end tem de ser escolhível em tempo de
+execução, não de compilação.
+
+**Por que OpenCL, e não CUDA ou HIP.** A resposta à pergunta do usuário é sim: para
+um parque com placas de fabricantes diferentes, OpenCL é a escolha certa, porque é
+*um* código que roda em NVIDIA, AMD e Intel. CUDA dá mais desempenho de pico e
+ferramentas melhores na NVIDIA, e HIP é o equivalente da AMD — mas cada um cobre um
+fabricante, e manter dois back-ends dobra a superfície de erro num cálculo cujo
+gargalo é memória, não aritmética. Para o que o lote faz (muitos ajustes de mínimos
+quadrados *pequenos*, 6 a 60 pontos cada), a diferença entre as APIs fica abaixo do
+custo de transferir os dados.
+
+**O estado desta máquina, sondado em 11/10/2026** (`bench/sonda-gpu.sh`):
+
+    placas       Intel UHD 630 (integrada) + AMD Radeon RX 5500M (Navi 14, gfx1012)
+    NVIDIA       ausente
+    HIP          runtime presente (libamdhip64.so.7), SEM compilador (hipcc)
+    /dev/kfd     presente, e o acesso esta' OK (por ACL de sessao, nao por grupo)
+    OpenCL       loader presente, NENHUM ICD registrado -> nao funciona hoje
+    Vulkan       radeon_icd.json presente
+
+O ICD é o que falta, e no Ubuntu 26.04 (Mesa 26.0.8) o caminho é o **rusticl**:
+`mesa-opencl-icd` para a AMD, `intel-opencl-icd` para a Intel, `clinfo` para
+conferir. O rusticl vem desabilitado por padrão — precisa de
+`RUSTICL_ENABLE=radeonsi`.
+
+**O que não sei, e não vou supor:** o que as outras máquinas do grupo têm. Para
+isso existe o `bench/sonda-gpu.sh` — ele não instala nada, não exige privilégio, e
+distingue os três estados que importam: sem placa, placa sem runtime, e runtime sem
+acesso ao nó de compute. Rodar nele cada máquina candidata é o que transforma a
+escolha de back-end em decisão com dados.
+
+### 13.3 O resto, em ordem de retorno
+
+1. **A franja por caixas**, na profundidade de produção (5) e em np=3 — o menor np
+   em que pareamento transposto aparece.
 2. **A repartição depois de cada adaptação**, que a seção 11 transformou de
    suposição em recomendação com número.
-3. **A cláusula F3** — "o suporte cai na grade e é local", que é o que a
-   reprodução polinomial não vê.
-4. **A guarda contra árvore de uma célula**: ela não tem interior, toda faceta
-   dela é de fronteira, e a franja declarada é de cinco. Entra junto com a franja.
-5. **O lado 3D**, escrito e não gerado por macro (decisão 7).
+3. **A guarda contra árvore de uma célula**: ela não tem interior, toda faceta dela
+   é de fronteira, e a franja declarada é de cinco.
+4. **O lado 3D**, escrito e não gerado por macro (decisão 7).
 
-Modos de medição vazia a lembrar em qualquer medida futura deste projeto: build
-sem `-DHIGFLOW_COM_T8CODE` mede malha uniforme e parece medir t8code; processos
-órfãos já falsearam uma medida por fator de cinquenta; e `nproc` nesta máquina
-responde 16 para 8 cores físicos.
+Modos de medição vazia a lembrar: build sem `-DHIGFLOW_COM_T8CODE` mede malha
+uniforme e parece medir t8code; processos órfãos já falsearam uma medida por fator
+de cinquenta; e `nproc` nesta máquina responde 16 para 8 núcleos físicos.

@@ -225,6 +225,49 @@
 //! COBERTA-POR: test-numeracao2d:a_consistencia_sobrevive_ao_refino_local
 
 // ---------------------------------------------------------------------------
+// A -- O ARRANJO DESLOCADO: onde cada propriedade mora
+// ---------------------------------------------------------------------------
+
+//! A1  Propriedade ESCALAR vive no CENTRO da celula: um valor por folha,
+//!     indexado pelo id GLOBAL -- o mesmo do solver, nao um indice proprio.
+//!     Escrito por id, lido por geometria, e id fora da faixa local e' recusado.
+//! COBERTA-POR: test-campos2d:campo_escalar_tem_um_valor_por_celula
+//! COBERTA-POR: test-campos2d:escalar_escrito_por_id_e_lido_por_geometria
+//! COBERTA-POR: test-campos2d:escalar_recusa_id_fora_da_faixa_local
+
+//! A2  Propriedade TENSORIAL vive no CENTRO, com as componentes INDEPENDENTES --
+//!     escrever numa nao altera as outras, e a componente vista como campo
+//!     escalar e' a MESMA memoria.  Layout sobreposto passa em qualquer teste de
+//!     valor unico; so' a independencia o pega.
+//! COBERTA-POR: test-campos2d:componentes_do_tensor_sao_independentes
+//! COBERTA-POR: test-campos2d:tensor_recusa_componente_inexistente
+
+//! A3  As FACETAS tem posse UNICA: a faceta da direcao d e' a face "menos" de
+//!     exatamente uma folha, e as faces "mais" de contorno ganham faceta propria.
+//!     A contagem segue a conta classica do MAC, e a posse unica sobrevive ao
+//!     refino 2:1 -- onde a face "mais" de uma celula grossa NAO vira faceta,
+//!     porque as duas finas possuem as suas "menos" e o lado fino fica com dois
+//!     valores.  Contagem certa nao garante posse unica: duas trocas que se
+//!     compensam dariam o mesmo total.
+//! COBERTA-POR: test-campos2d:a_contagem_de_facetas_segue_a_conta_do_mac
+//! COBERTA-POR: test-campos2d:cada_faceta_tem_exatamente_um_dono
+//! COBERTA-POR: test-campos2d:no_refino_2_para_1_o_lado_fino_tem_duas_facetas
+
+//! A4  A GEOMETRIA da faceta: o centro esta' a meia celula do centro da celula,
+//!     na direcao da normal e so' nela; a MEDIDA e' o lado TRANSVERSAL.  O caso
+//!     tem um bloco de celulas NAO-QUADRADAS, sem o que usar o lado errado como
+//!     medida seria invisivel.
+//! COBERTA-POR: test-campos2d:geometria_e_medida_da_faceta
+
+//! A5  Propriedade VETORIAL vive nas FACETAS, uma componente por direcao, cada
+//!     uma nas facetas daquela direcao -- e as direcoes sao independentes.  E o
+//!     oraculo que amarra posse, geometria, medida e sinal de uma vez: um campo
+//!     CONSTANTE tem divergencia ZERO em toda celula interna.
+//! COBERTA-POR: test-campos2d:campo_vetorial_tem_um_valor_por_faceta_de_cada_direcao
+//! COBERTA-POR: test-campos2d:as_duas_direcoes_do_vetorial_sao_independentes
+//! COBERTA-POR: test-campos2d:divergencia_de_campo_constante_e_zero
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -267,6 +310,11 @@
 //   * o `t8_forest_commit` CONSOME a floresta passada em `set_adapt`/`set_balance`.
 //     O `unref` extra que eu havia escrito deixou a malha VAZIA -- sem erro, sem
 //     aviso, contagens em zero.  Quem pegou foi a area (0 contra 1).
+//
+// LIMITE DA FAMILIA A: o criterio de "face mais e' contorno" e' `num_vizinhos == 0`,
+// que vale em np=1.  Sob particionamento, face sem vizinho LOCAL inclui face de
+// FRANJA, e a distincao exige a camada de ghost -- que o t8Flow nao tem.  A posse
+// das facetas tera' de ser reexaminada quando a franja entrar.
 //
 // Tambem ausentes, previstas no doc/projeto-t8flow.md: numeracao global contigua
 // por rank alcancada por busca por ponto (nao pelo percurso que a gerou, que e'

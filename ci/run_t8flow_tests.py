@@ -56,6 +56,7 @@ LADOS = {
         ("test-malha2d", (1,)),
         ("test-refino2d", (1,)),
         ("test-numeracao2d", (1,)),
+        ("test-campos2d", (1,)),
     ],
     "3d": [],
 }
