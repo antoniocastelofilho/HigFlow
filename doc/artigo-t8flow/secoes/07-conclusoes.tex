@@ -52,13 +52,14 @@ Declarado aqui, e não diluído entre os resultados:
       erro idêntico ao serial. Oito é o número de núcleos \emph{físicos} desta
       máquina, e acima disso se mede contenção de fio. O regime do antecessor,
       com \num{375000} células, vive além desse teto;
-\item \textbf{a troca da franja, que é o que sobrou dela.} Depois da
-      otimização da seção \ref{sec:par-otimiza} a franja caiu de
-      \SI{38}{\percent} para \SI{15}{\percent} do tempo, e um terço do que
-      resta é comunicação pura. Reduzi-la exige mudar o formato da mensagem ---
-      hoje cada folha publica a caixa inteira, e boa parte dela são células que
-      o destinatário já tem como locais. Isso pede mensagem por destinatário, e
-      não um bloco só para todos;
+\item \textbf{o percurso da caixa, que é o que sobrou da franja.} Depois das
+      duas otimizações (seções \ref{sec:par-otimiza} e
+      \ref{sec:par-mensagem}) a franja caiu de \SI{38}{\percent} para
+      \SI{6.6}{\percent} do tempo, e dois terços do que resta são as
+      $(2R+1)^3$ buscas geométricas por folha --- computação local, não
+      comunicação. É o próximo alvo, e é de outra natureza: pede percorrer a
+      caixa por incremento entre folhas vizinhas em vez de do zero para cada
+      uma;
 \item \textbf{o laplaciano pontual de ordem 4 acima do nível 5.} Em duas
       dimensões ele converge até o nível 5 e o sistema deixa de convergir a
       partir do 6 --- resíduo \num{3.0e4}, sinalizado como não convergido. É

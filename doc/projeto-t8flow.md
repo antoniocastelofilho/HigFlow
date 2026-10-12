@@ -2143,13 +2143,53 @@ e não entra na fase B.
 Erro em np=8 idêntico ao de np=1 em todos os casos, desvio 0,00e+00.
 **Otimização que muda o resultado não é otimização.**
 
-### O que sobrou
+### Segunda rodada: mensagem por destinatário
 
-Um terço da franja é comunicação pura. Reduzi-la exige mudar o formato da
-mensagem: hoje cada folha publica a caixa inteira, e boa parte dela são células
-que o destinatário já tem como locais. Isso pede mensagem **por destinatário**,
-não um bloco só para todos — e o `ghost_exchange_data` do t8code não oferece
-isso.
+Um terço do que sobrou era comunicação, e o `ghost_exchange_data` manda o mesmo
+bloco para todos. Substituído por mensagem própria, ponto a ponto, só com os
+vizinhos. Duas economias independentes:
+
+- **A célula ia repetida.** Caixas de folhas vizinhas se sobrepõem quase
+  inteiramente — uma célula aparecia em até 125 blocos da mesma mensagem. Agora
+  vai **uma vez por destinatário**.
+- **Ia o que o destinatário já tinha.** Metade da caixa de uma folha de
+  interface são células *locais* de quem recebe, e a local é a autoritativa. O
+  dono sai do id (partição contígua, inícios trocados uma vez por `Allgather`).
+
+**O que torna a substituição possível sem mexer no resto:** a fusão já percorria
+os blocos célula a célula e ignorava de qual folha tinham vindo. A estrutura de
+caixa existia só no transporte.
+
+Ponto a ponto em vez de `Alltoall` porque este custaria `O(P)` por rodada mesmo
+quando cada processo fala com três. A vizinhança é **simétrica** (adjacência de
+face é simétrica), logo quem me envia é quem eu envio.
+
+| fase | antes | depois | |
+|---|---|---|---|
+| publica | 0,062 s | 0,049 s | |
+| troca | 0,062 s | 0,004 s | **14×** |
+| apaga | 0,027 s | — | não há buffer fixo |
+| funde | 0,015 s | 0,003 s | |
+| **total** | **0,186 s** | **0,074 s** | |
+
+E a franja passou a **diminuir** com np: 0,121 → 0,090 → 0,074 s para 2, 4 e 8.
+Volume publicado em np=8: 11,67 MB somados; a forma anterior publicava 682 MB
+pela sua própria contabilidade — **58× mais**.
+
+### O acumulado
+
+| esquema MLS, np=8 | original | 1ª rodada | 2ª rodada |
+|---|---|---|---|
+| ganho | 3,70× | 5,87× | **6,52×** |
+| eficiência | 46% | 73% | **82%** |
+| franja no total | 38% | 15% | **6,6%** |
+
+### O que sobrou agora
+
+Dois terços da franja são as `(2R+1)³` buscas geométricas por folha —
+**computação local, não comunicação**. O próximo alvo é de outra natureza: pede
+percorrer a caixa por incremento entre folhas vizinhas, em vez de do zero para
+cada uma.
 
 ## 26. O que vem depois
 

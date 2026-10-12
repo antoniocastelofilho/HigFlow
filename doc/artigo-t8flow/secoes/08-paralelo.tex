@@ -275,10 +275,10 @@ fluxo 2ª ordem & \num{262144} & 1 & --- & \SI{5.40}{\second} & \SI{2.60}{\secon
                &              & 4 & --- & \SI{1.60}{\second} & \SI{0.96}{\second} & \SI{2.57}{\second} & \num{3.12}$\times$ \\
                &              & 8 & --- & \SI{0.93}{\second} & \SI{0.69}{\second} & \SI{1.62}{\second} & \num{4.93}$\times$ \\
 \midrule
-MLS+Gauss      & \num{32768}  & 1 & --- & \SI{6.23}{\second} & \SI{0.78}{\second} & \SI{7.01}{\second} & --- \\
-               &              & 2 & \SI{0.15}{\second} & \SI{3.18}{\second} & \SI{0.48}{\second} & \SI{3.81}{\second} & \num{1.84}$\times$ \\
-               &              & 4 & \SI{0.16}{\second} & \SI{1.69}{\second} & \SI{0.20}{\second} & \SI{2.05}{\second} & \num{3.43}$\times$ \\
-               &              & 8 & \SI{0.18}{\second} & \SI{0.89}{\second} & \SI{0.12}{\second} & \SI{1.20}{\second} & \num{5.87}$\times$ \\
+MLS+Gauss      & \num{32768}  & 1 & --- & \SI{6.30}{\second} & \SI{0.79}{\second} & \SI{7.09}{\second} & --- \\
+               &              & 2 & \SI{0.12}{\second} & \SI{3.27}{\second} & \SI{0.48}{\second} & \SI{3.87}{\second} & \num{1.83}$\times$ \\
+               &              & 4 & \SI{0.09}{\second} & \SI{1.73}{\second} & \SI{0.20}{\second} & \SI{2.02}{\second} & \num{3.52}$\times$ \\
+               &              & 8 & \SI{0.07}{\second} & \SI{0.90}{\second} & \SI{0.12}{\second} & \SI{1.09}{\second} & \num{6.52}$\times$ \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -370,9 +370,68 @@ np & antes & depois & \\
 \end{center}
 
 Em np=8 a troca passou de \SI{9}{\percent} a \SI{33}{\percent} \emph{sem mudar
-de valor absoluto}: o que sobrou da franja é comunicação, que é o que uma franja
-deve ser. No esquema MLS o ganho foi de \num{3.70}$\times$ para
-\num{5.87}$\times$ e a eficiência de \SI{46}{\percent} para \SI{73}{\percent}.
+de valor absoluto}: o que sobrou da franja era comunicação --- e a comunicação
+virou, então, o alvo seguinte.
+
+\subsection{Uma mensagem por destinatário}
+\label{sec:par-mensagem}
+
+A troca era \texttt{t8\_forest\_ghost\_exchange\_data}: um bloco de tamanho
+fixo por folha, com a caixa de raio $R$ em torno dela, o mesmo conteúdo indo
+para todos. Correta, e cara por duas razões independentes.
+
+\textbf{A célula ia repetida.} As caixas de folhas vizinhas se sobrepõem quase
+inteiramente, e uma célula aparecia em até $(2R+1)^3$ blocos --- 125 cópias da
+mesma geometria na mesma mensagem. \textbf{E ia o que o destinatário já tinha}:
+metade da caixa de uma folha de interface é formada por células \emph{locais}
+de quem recebe, e a versão local é a autoritativa, de modo que chegavam para ser
+descartadas.
+
+Agora cada célula vai uma vez por destinatário, e não vai para quem já a tem
+como local --- o dono sai do id, porque a partição é contígua em id e os inícios
+são trocados uma vez. O que torna a substituição possível sem mexer no resto é
+que \textbf{quem recebe não perde nada}: a fusão já percorria os blocos célula a
+célula e ignorava de qual folha tinham vindo. A estrutura de caixa existia só no
+transporte.
+
+A troca é ponto a ponto e só com os vizinhos --- um \texttt{Alltoall} custaria
+$O(P)$ por rodada em cada processo mesmo quando cada um fala com três. A
+vizinhança é \textbf{simétrica}, já que adjacência de face é simétrica, logo
+quem me envia é quem eu envio e não há o que descobrir.
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+fase & antes & depois & \\
+\midrule
+publica & \SI{0.062}{\second} & \SI{0.049}{\second} & \\
+troca   & \SI{0.062}{\second} & \SI{0.004}{\second} & \num{14}$\times$ \\
+apaga   & \SI{0.027}{\second} & ---                  & não há buffer fixo \\
+funde   & \SI{0.015}{\second} & \SI{0.003}{\second} & \\
+\midrule
+total   & \SI{0.186}{\second} & \SI{0.074}{\second} & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+E a franja passou a \textbf{diminuir} com o número de processos, que é o que
+não acontecia: \SI{0.121}{\second} em np=2, \SI{0.090}{\second} em np=4,
+\SI{0.074}{\second} em np=8. O volume publicado em np=8 é \SI{11.67}{\mega\byte}
+somados sobre os processos; a forma anterior publicava, pela sua própria
+contabilidade, \SI{682}{\mega\byte} no mesmo caso --- cinquenta e oito vezes
+mais.
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+esquema MLS, np=8 & original & 1ª rodada & 2ª rodada \\
+\midrule
+ganho            & \num{3.70}$\times$ & \num{5.87}$\times$ & \num{6.52}$\times$ \\
+eficiência       & \SI{46}{\percent}  & \SI{73}{\percent}  & \SI{82}{\percent} \\
+franja no total  & \SI{38}{\percent}  & \SI{15}{\percent}  & \SI{6.6}{\percent} \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 E a verificação que acompanha cada passo: o erro em np=8 continua idêntico ao de
 np=1, desvio relativo \num{0.00e0}. \textbf{Otimização que muda o resultado não
