@@ -611,10 +611,10 @@ atual tem as duas fachadas da seção 7.1.
 
     t8flow/Makefile                     alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx} a ordem de arranque, em um objeto
-    t8flow/src/comum/t8flow-contract.h  19 clausulas: N1..N6 B1 F1 F2 M1..M5 R1..R5
+    t8flow/src/comum/t8flow-contract.h  24 clausulas: N1..N6 B1 F1 F2 M1..M5 R1..R5 G1..G5
     t8flow/src/2d/mls2d.{hxx,cxx}       o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}    o solver
-    t8flow/src/2d/malha2d.{hxx,cxx}     a malha multiblocos e o refino local
+    t8flow/src/2d/malha2d.{hxx,cxx}     malha, refino local, numeracao global
     t8flow/tests/testing.h              arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx          5 casos
     t8flow/tests/2d/test-solver2d.cxx       6 casos
@@ -684,7 +684,43 @@ A área, aliás, é o oráculo que a contagem não substitui: refino divide cél
 soma das áreas das folhas de um bloco tem de ser a área da caixa dele — antes e
 depois, em 1e-13.
 
-### 10.3 Três achados do primeiro contato com o núcleo herdado
+### 10.3 A numeração global, e como verificá-la sem tautologia
+
+É a segunda das duas coisas que o núcleo herdado precisa da malha (seção 3), e o
+t8code já a entrega: as folhas de um rank ocupam um intervalo
+`[primeiro, primeiro + n_local)` na ordem da curva de preenchimento. `primeiro_id`,
+`id_global` e `num_folhas_globais` são leitura, não construção.
+
+**O trabalho foi o oráculo.** No HiGFlow está medido que a identidade entre o id
+do mapeador e o contador do percurso é verdadeira por construção, e que trocar
+`mp_lookup` por `n_visitadas++` deixa a suíte **inteira** verde — nos dois DIM e
+nos três np. Qualquer teste que verifique a numeração percorrendo na mesma ordem
+que a gerou tem esse defeito. As três vias independentes:
+
+1. **Aritmética de Morton.** Num bloco uniforme de nível L, a folha de índice k
+   está na posição obtida desintercalando os bits de k. A conta é feita no teste,
+   da definição da curva, sem olhar a malha; a posição vem da geometria da folha.
+2. **Bijeção.** Os ids cobrem o intervalo local exatamente uma vez cada — pega
+   furo e duplicata, que é o defeito mais comum.
+3. **Escreve por percurso, lê por geometria.** Um sistema identidade é montado com
+   os ids do percurso e lido com os ids que `id_do_ponto` devolve. É o defeito do
+   `sdmult`/`sdp` do HiGFlow, que sobreviveu anos porque em malha uniforme os dois
+   índices coincidem célula a célula. Vale também **depois** do refino local.
+
+**`id_do_ponto` desempata explicitamente:** o intervalo de cada célula é
+semiaberto, `[lo, hi)`, então um ponto sobre a face comum pertence à célula de
+coordenada **maior**, sempre — e a resposta não depende da ordem de visita, que é
+como a cláusula análoga da HiGTree passava por sorte. O limite superior do domínio
+é a única exceção, senão a borda não pertenceria a célula nenhuma. Custo O(folhas):
+a busca em árvore é trabalho futuro, e isso está dito no cabeçalho para ninguém
+supor o contrário.
+
+**O limite da via 3, porque é tentador ler mais nela do que há:** ela pega
+*divergência entre as duas vias*, não erro *consistente* na numeração. Medido —
+deslocando todos os ids de 1, a via 3 continua verde (escrita e leitura erram
+igual) e quem reprova é a bijeção.
+
+### 10.4 Três achados do primeiro contato com o núcleo herdado
 
 1. **`Point` é array cru.** `typedef coordtype Point[DIM]` (`coord.h:31`) não é
    copiável nem construível in-place, então `std::vector<Point>` **não compila** —
@@ -704,7 +740,7 @@ depois, em 1e-13.
    PETSc: o link exige hypre, debug-write e centralized. Uma guarda por motor, no
    padrão que o SOR já usa, é limpeza barata e está na lista.
 
-### 10.4 Os controles, porque verde que nunca foi vermelho não prova nada
+### 10.5 Os controles, porque verde que nunca foi vermelho não prova nada
 
     ordem do ajuste 2 -> 1            N1 REPROVA nas duas metades
     centroides deslocados meia h      F2 CONTINUA VERDE  (limitacao conhecida)
@@ -723,6 +759,12 @@ depois, em 1e-13.
       por arvore                        se esperavam 16 e 4)
     t8_forest_set_balance removido    R3 reprova com salto de 2 niveis, e SO' ela
     adapt nao recursivo               R1 reprova: nivel maximo 3 em vez de 4
+    id_global sem o offset da arvore  G2 reprova (4 ids repetidos), e o processo
+                                        MORRE na guarda de linha repetida do
+                                        solver -- sem linha de resumo
+    id_global deslocado de 1          G2 reprova: 1 id fora de [0, 20)
+    id_do_ponto com intervalo fechado G4 reprova: o desempate passa a depender da
+                                        ordem de visita
 
 **E um oráculo meu estava frouxo, o que só a sabotagem mostrou.** O comentário do
 `test-malha2d` afirmava que "centroide dentro da caixa" pegava a troca da ordem

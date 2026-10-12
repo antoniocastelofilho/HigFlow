@@ -128,6 +128,58 @@ class Malha {
   int nivel_minimo() const;
   int nivel_maximo() const;
 
+  // -------------------------------------------------------------------------
+  // A NUMERACAO GLOBAL -- a unica coisa, alem do suporte, que o nucleo herdado
+  // precisa da malha.
+  //
+  // O solver pede `slv_create(engine, primeiro_id, n_local)`: um id global por
+  // incognita, CONTIGUO por processo.  E' exatamente o que a curva de
+  // preenchimento do t8code da' naturalmente -- as folhas de um rank ocupam um
+  // intervalo [primeiro, primeiro + n_local) na ordem da curva --, e e' por isso
+  // que esta parte do t8Flow e' leitura e nao construcao: o t8code ja' numerou.
+  //
+  // O QUE NAO PODE SER O ORACULO DISTO, e esta' medido no HiGFlow: comparar a
+  // numeracao com o percurso que a gerou e' TAUTOLOGIA -- trocar `mp_lookup` por
+  // `n_visitadas++` deixava a suite inteira verde, nos dois DIM e nos tres np.  A
+  // numeracao tem de ser alcancada por outra via, e e' para isso que existe
+  // `id_do_ponto`.
+  // -------------------------------------------------------------------------
+
+  //! Id global da PRIMEIRA folha local.  Coletiva (o t8code precisa das contagens
+  //! de todos os ranks para montar o deslocamento).
+  long primeiro_id() const;
+
+  //! Total de folhas na floresta, somando todos os ranks.
+  long num_folhas_globais() const;
+
+  //! Id global da folha `i` do bloco `b`.
+  //
+  // E' `primeiro_id()` mais a posicao da folha na ordem de percurso da floresta
+  // (as arvores em ordem, as folhas de cada arvore na ordem da curva).
+  long id_global(long b, long i) const;
+
+  //! Lados da folha em cada direcao.  Nao e' `sqrt(area)`: bloco nao-quadrado tem
+  //! celula nao-quadrada -- o bloco [1,3]x[0,1] em nivel 1 tem celulas 1,0 x 0,5.
+  Ponto2 lados_da_folha(long b, long i) const;
+
+  //! Id global da folha que CONTEM o ponto, ou -1 se nenhum bloco o contem.
+  //
+  // E' a VIA INDEPENDENTE da numeracao: acha a celula pela geometria, nao por
+  // contagem, e e' o que permite verificar que o id usado para escrever uma
+  // incognita e' o mesmo que a geometria daquela posicao devolve.  Sem isso, a
+  // numeracao so' poderia ser comparada consigo mesma.
+  //
+  // DESEMPATE EXPLICITO, porque a geometria sozinha nao o da': o intervalo de cada
+  // celula e' SEMIABERTO, [lo, hi) em cada direcao.  Logo um ponto exatamente
+  // sobre a face comum pertence a' celula de coordenada MAIOR, sempre, e a
+  // resposta nao depende da ordem em que as celulas sao visitadas -- que e' como
+  // a C8 da HiGTree passava por sorte.  O limite superior do dominio e' a unica
+  // excecao: la' o semiaberto deixaria o ponto fora, e a ultima celula o inclui.
+  //
+  // Custo O(folhas): varredura. A busca em arvore (`t8_forest_search`) e' trabalho
+  // futuro, e esta' dito aqui para ninguem a supor.
+  long id_do_ponto(const Ponto2 &p) const;
+
   //! A floresta crua, para quem precisa da API do t8code direto.  A posse fica
   //! com a Malha: nao chamar `unref` nisto.
   t8_forest_t forest() const { return f_; }

@@ -397,6 +397,75 @@ int Malha::nivel_maximo() const
   return v;
 }
 
+long Malha::primeiro_id() const
+{
+  return static_cast<long>(t8_forest_get_first_local_leaf_element_id(f_));
+}
+
+long Malha::num_folhas_globais() const
+{
+  return static_cast<long>(t8_forest_get_global_num_leaf_elements(f_));
+}
+
+long Malha::id_global(long b, long i) const
+{
+  const t8_locidx_t it = static_cast<t8_locidx_t>(b);
+  if (b < 0 || b >= static_cast<long>(t8_forest_get_num_local_trees(f_)))
+    throw std::out_of_range("Malha::id_global: arvore " + std::to_string(b) + " nao e' local");
+  if (i < 0 || i >= num_folhas_do_bloco(b))
+    throw std::out_of_range("Malha::id_global: folha " + std::to_string(i) +
+                            " fora da arvore " + std::to_string(b));
+
+  // O deslocamento da arvore dentro da floresta local vem do t8code, nao de uma
+  // soma nossa: somar as contagens das arvores anteriores daria o mesmo numero
+  // hoje e passaria a divergir no dia em que a floresta tiver arvore vazia.
+  const long offset = static_cast<long>(t8_forest_get_tree_element_offset(f_, it));
+  return primeiro_id() + offset + i;
+}
+
+Ponto2 Malha::lados_da_folha(long b, long i) const
+{
+  const Bloco &k = bloco(b);
+  const int div = 1 << nivel(b, i);
+  return Ponto2{(k.hi[0] - k.lo[0]) / div, (k.hi[1] - k.lo[1]) / div};
+}
+
+long Malha::id_do_ponto(const Ponto2 &p) const
+{
+  const t8_locidx_t narv = t8_forest_get_num_local_trees(f_);
+  for (t8_locidx_t it = 0; it < narv; it++) {
+    const Bloco &k = blocos_[static_cast<size_t>(it)];
+
+    // O bloco e' semiaberto como as celulas, com a mesma excecao no limite
+    // superior do dominio -- senao um ponto na borda de cima nao pertenceria a
+    // bloco nenhum.
+    bool no_bloco = true;
+    for (int d = 0; d < 2; d++)
+      if (p[d] < k.lo[d] - EPS || p[d] > k.hi[d] + EPS) no_bloco = false;
+    if (!no_bloco) continue;
+
+    const t8_locidx_t ne = t8_forest_get_tree_num_leaf_elements(f_, it);
+    for (t8_locidx_t ie = 0; ie < ne; ie++) {
+      const Ponto2 c = centroide(it, ie);
+      const Ponto2 h = lados_da_folha(it, ie);
+
+      bool dentro = true;
+      for (int d = 0; d < 2; d++) {
+        const double lo = c[d] - h[d] / 2.0;
+        const double hi = c[d] + h[d] / 2.0;
+        // SEMIABERTO [lo, hi): ponto sobre a face comum cai na celula de
+        // coordenada maior.  No limite superior do DOMINIO o fechado volta, senao
+        // a borda de cima nao pertenceria a celula nenhuma.
+        const bool ultima = (hi > k.hi[d] - EPS);
+        const bool ok = (p[d] >= lo - EPS) && (ultima ? (p[d] <= hi + EPS) : (p[d] < hi - EPS));
+        if (!ok) { dentro = false; break; }
+      }
+      if (dentro) return id_global(it, ie);
+    }
+  }
+  return -1;
+}
+
 void Malha::refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo)
 {
   for (int d = 0; d < 2; d++)

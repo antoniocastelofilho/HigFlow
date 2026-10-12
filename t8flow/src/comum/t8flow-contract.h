@@ -186,6 +186,45 @@
 //! COBERTA-POR: test-refino2d:nivel_alvo_que_nao_aprofunda_e_recusado
 
 // ---------------------------------------------------------------------------
+// G -- A NUMERACAO GLOBAL (o que o solver pede da malha)
+// ---------------------------------------------------------------------------
+
+//! G1  A numeracao local e' CONTIGUA e comeca em `primeiro_id()`; o total global
+//!     fecha com a soma dos locais.
+//! COBERTA-POR: test-numeracao2d:a_numeracao_local_e_contigua_e_comeca_no_primeiro_id
+
+//! G2  Os ids cobrem [primeiro, primeiro + n_local) exatamente uma vez cada --
+//!     sem furo e sem repeticao.  E' o defeito mais comum de numeracao, e nenhuma
+//!     contagem de folhas o ve.
+//! COBERTA-POR: test-numeracao2d:os_ids_cobrem_o_intervalo_local_sem_furo_nem_repeticao
+
+//! G3  A ordem local E' a curva de preenchimento: num bloco uniforme de nivel L,
+//!     a folha de indice k esta' na posicao obtida DESINTERCALANDO os bits de k.
+//!     A conta sai da definicao da curva, feita no teste sem olhar a malha, e e'
+//!     comparada com a geometria da folha -- via independente, nao contagem.
+//! COBERTA-POR: test-numeracao2d:a_ordem_local_e_a_curva_de_morton
+
+//! G4  A busca POR PONTO devolve o id da folha que contem o ponto, devolve -1
+//!     fora do dominio, e DESEMPATA explicitamente: ponto sobre a face comum
+//!     pertence a' celula de coordenada MAIOR (intervalo semiaberto), com o limite
+//!     superior do dominio como excecao.  O desempate nao pode depender da ordem
+//!     de visita -- na HiGTree a clausula analoga passava por SORTE, porque a
+//!     curva visita a celula de menor coordenada primeiro.
+//! COBERTA-POR: test-numeracao2d:a_busca_por_ponto_devolve_o_id_da_folha_que_contem_o_ponto
+//! COBERTA-POR: test-numeracao2d:ponto_fora_de_todos_os_blocos_nao_tem_id
+//! COBERTA-POR: test-numeracao2d:o_desempate_na_face_comum_e_a_celula_de_coordenada_maior
+//! COBERTA-POR: test-numeracao2d:o_limite_superior_do_dominio_pertence_a_ultima_celula
+
+//! G5  Quem ESCREVE por id de percurso le' o mesmo valor por id de GEOMETRIA --
+//!     um sistema identidade e' montado com os ids do percurso e lido com os ids
+//!     que `id_do_ponto` devolve.  E' o defeito do sdmult/sdp do HiGFlow, que
+//!     sobreviveu anos porque em malha uniforme os dois indices coincidem celula a
+//!     celula.  Vale tambem DEPOIS do refino local, que e' quando a numeracao muda
+//!     inteira e os niveis deixam de ser uniformes.
+//! COBERTA-POR: test-numeracao2d:o_valor_escrito_por_id_de_percurso_e_lido_por_id_de_geometria
+//! COBERTA-POR: test-numeracao2d:a_consistencia_sobrevive_ao_refino_local
+
+// ---------------------------------------------------------------------------
 // O QUE ESTE CONTRATO AINDA NAO AFIRMA -- e dizer isto e' parte do contrato.
 //
 // Medido por sabotagem controlada em 2026-10-11:
@@ -208,6 +247,14 @@
 // dos vertices do QUAD.  Nao pega -- a troca espelha o mapeamento DENTRO da mesma
 // caixa, e todo centroide continua dentro dela.  So' a ordem de percurso acusou.
 // O comentario estava errado ate' a sabotagem ser rodada.
+//
+// LIMITE DA G5, e dizer isto importa porque e' tentador ler mais nela do que ha':
+// ela pega DIVERGENCIA entre as duas vias, nao erro CONSISTENTE na numeracao.
+// Medido: deslocando todos os ids de 1, a G5 continua verde (escrita e leitura
+// erram igual) e quem reprova e' a G2 (id fora do intervalo).  Ignorando o
+// deslocamento da arvore, a G2 acusa 4 ids repetidos e o processo MORRE na guarda
+// de linha repetida do solver -- duas defesas em cadeia, e sem linha de resumo,
+// que e' o que a guarda 3 do driver pega.
 //
 // Duas licoes de oraculo da rodada do refino, as duas de testes MEUS que estavam
 // errados antes do codigo estar:

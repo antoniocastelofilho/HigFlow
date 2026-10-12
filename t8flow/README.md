@@ -43,7 +43,7 @@ Estrutura, pela decisão 7:
 
     src/comum/   sem dimensão: arranque, contrato
     src/2d/      o discretizador (mls2d), o solver (solver2d), a malha
-                 multiblocos com refino local (malha2d)
+                 multiblocos com refino local e numeracao global (malha2d)
     src/3d/      quando existir
     tests/2d/
 
@@ -125,6 +125,20 @@ reprovou:
 
 A última é a que justifica a fachada: ela converte um abort três camadas abaixo em
 exceção que nomeia a linha que falta.
+
+Na numeração global, os controles são:
+
+    id_global sem o offset da árvore   G2 reprova: 4 ids repetidos, e o processo
+                                         MORRE na guarda de linha repetida do
+                                         solver — sem linha de resumo
+    id_global deslocado de 1           G2 reprova: 1 id fora de [0, 20)
+    id_do_ponto com intervalo fechado  G4 reprova: o desempate passa a depender
+                                         da ordem de visita
+
+E o limite da G5, que é tentador ler como mais do que é: ela pega **divergência
+entre as duas vias**, não erro consistente na numeração. Com todos os ids
+deslocados de 1 ela continua verde — escrita e leitura erram igual. Quem pega erro
+consistente é a bijeção (G2) e a aritmética de Morton (G3).
 
 No refino local, os controles são:
 

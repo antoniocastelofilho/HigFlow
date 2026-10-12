@@ -4,8 +4,8 @@ Estado em **11/10/2026**. Branch `t8flow`, worktree
 `/home/castelo/HiGFlow-System/t8flow-wt`. Dois commits: `ea83f27` (esqueleto) e
 `11239e0` (solver e discretizador 2D).
 
-    suite do lado 2d    43 casos, 0 falharam
-    contrato            19/19 clausulas (N1..N6, B1, F1, F2, M1..M5, R1..R5)
+    suite do lado 2d    52 casos, 0 falharam
+    contrato            24/24 clausulas (N1..N6, B1, F1, F2, M1..M5, R1..R5, G1..G5)
     codigo de saida     0
 
 O projeto completo está em [`projeto-t8flow.md`](projeto-t8flow.md); este
@@ -97,16 +97,17 @@ franja vai por caixas, com profundidade pedida.
 
     t8flow/Makefile                       alvos `2d` e `3d`, gnu++20, sem -fpermissive
     t8flow/src/comum/arranque.{hxx,cxx}   a ordem de arranque, num objeto
-    t8flow/src/comum/t8flow-contract.h   19 clausulas
+    t8flow/src/comum/t8flow-contract.h   24 clausulas
     t8flow/src/2d/mls2d.{hxx,cxx}         o discretizador
     t8flow/src/2d/solver2d.{hxx,cxx}      o solver
-    t8flow/src/2d/malha2d.{hxx,cxx}       a malha multiblocos + refino local
+    t8flow/src/2d/malha2d.{hxx,cxx}       malha, refino local, numeracao global
     t8flow/tests/testing.h                arcabouco, zero dependencia externa
     t8flow/tests/2d/test-mls2d.cxx        5 casos
     t8flow/tests/2d/test-solver2d.cxx     6 casos
     t8flow/tests/2d/test-floresta2d.cxx   4 casos
     t8flow/tests/2d/test-malha2d.cxx     14 casos
     t8flow/tests/2d/test-refino2d.cxx    14 casos
+    t8flow/tests/2d/test-numeracao2d.cxx  9 casos
     ci/run_t8flow_tests.py                driver, com quatro guardas
 
 **O discretizador** acrescenta ao herdado tipos 2D concretos (`Ponto2` é
@@ -133,6 +134,15 @@ máximo 2:1. Sem o `t8_forest_set_balance` a malha commita, as contagens fecham,
 o salto atravessa o estêncil do discretizador sem aviso — por isso o caso de
 refino pede **dois** níveis de uma vez, que é o que faz o equilíbrio importar.
 
+**A numeração global** é o que o solver pede da malha — um id por incógnita,
+contíguo por processo —, e a curva de preenchimento do t8code já a entrega: as
+folhas de um rank ocupam um intervalo na ordem da curva. O trabalho aqui foi
+**verificá-la sem tautologia**: no HiGFlow, comparar a numeração com o percurso
+que a gerou deixa a suíte inteira verde mesmo trocando o mapeador por um contador.
+As três vias independentes usadas: aritmética de Morton (calculada no teste, sem
+olhar a malha), bijeção sobre o intervalo local, e "escreve por percurso, lê por
+geometria" com `id_do_ponto`.
+
 **O contrato** não é prosa: o driver lê as cláusulas do arquivo e exige, para
 cada uma, um caso que saiu `PASS`. Cláusula sem cobertura, com caso ausente ou
 reprovado conta como falha. Uma cláusula entra quando tem caso que a afirme,
@@ -157,6 +167,9 @@ acontece.
 | nível uniforme global em vez de por árvore | M1 **reprova** em dois blocos: 64 folhas onde se esperavam 16 e 4 |
 | `t8_forest_set_balance` removido | R3 **reprova** com salto de 2 níveis — e só ela |
 | adapt não recursivo | R1 **reprova**: nível máximo 3 em vez de 4 |
+| `id_global` sem o offset da árvore | G2 **reprova** (4 ids repetidos) e o processo morre na guarda do solver |
+| `id_global` deslocado de 1 | G2 **reprova**: 1 id fora de `[0, 20)` |
+| `id_do_ponto` com intervalo fechado | G4 **reprova**: o desempate passa a depender da ordem de visita |
 
 A segunda linha é a mais informativa: ela mede que a reprodução polinomial
 verifica a **discretização** e não a malha — por isso "o suporte cai na grade e é
@@ -228,20 +241,17 @@ como garantia:
 
 ## 7. Próximos passos, em ordem de retorno
 
-1. **A numeração global** contígua por rank, alcançada por **busca por ponto** —
-   comparar com o percurso que a gerou é tautologia, e está medido que a suíte
-   inteira fica verde com `n_visitadas++` no lugar de `mp_lookup`.
-2. **Medir escalabilidade em 3D** antes de comprometer o desenho. O 2D rendeu
+1. **Medir escalabilidade em 3D** antes de comprometer o desenho. O 2D rendeu
    1,62× em np=2 e 1,68× em np=4 por tamanho do caso (9377 células), não por
    defeito; o domínio 3D tem 375 mil. Sem essa medida, o escalonamento é
    promessa.
-3. **A franja por caixas**, na profundidade de produção (5) e em np=3 — que é o
+2. **A franja por caixas**, na profundidade de produção (5) e em np=3 — que é o
    menor np em que pareamento transposto aparece: com uma caixa por rank, 1×1
    esconde o erro.
-4. **A cláusula F3**, "o suporte cai na grade e é local", que é o que a
+3. **A cláusula F3**, "o suporte cai na grade e é local", que é o que a
    reprodução polinomial não vê.
 
-5. **A guarda contra árvore de uma célula** — que não tem interior, toda faceta
+4. **A guarda contra árvore de uma célula** — que não tem interior, toda faceta
    dela é de fronteira, e a franja declarada é de cinco. Entra junto com a franja.
 
 Em aberto, e são decisões do usuário: o `cel_min` da banda fina, e se o
