@@ -11,3 +11,8 @@ obj/
 tests/*/test-*
 !tests/*/test-*.cxx
 !tests/*/test-*.hxx
+
+# O binario da medida de escalabilidade, pela mesma razao: `bench/escalabilidade`
+# nao tem extensao e fica ao lado do fonte.  O `make clean` o remove, mas quem
+# construir e commitar sem limpar versionaria um compilado desta maquina.
+bench/escalabilidade

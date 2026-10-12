@@ -108,6 +108,7 @@ franja vai por caixas, com profundidade pedida.
     t8flow/tests/2d/test-malha2d.cxx     14 casos
     t8flow/tests/2d/test-refino2d.cxx    14 casos
     t8flow/tests/2d/test-numeracao2d.cxx  9 casos
+    t8flow/bench/escalabilidade.cxx       ferramenta, fora da suite
     ci/run_t8flow_tests.py                driver, com quatro guardas
 
 **O discretizador** acrescenta ao herdado tipos 2D concretos (`Ponto2` é
@@ -239,18 +240,79 @@ como garantia:
 
 ---
 
-## 7. Próximos passos, em ordem de retorno
+## 7. A escalabilidade, medida
 
-1. **Medir escalabilidade em 3D** antes de comprometer o desenho. O 2D rendeu
-   1,62× em np=2 e 1,68× em np=4 por tamanho do caso (9377 células), não por
-   defeito; o domínio 3D tem 375 mil. Sem essa medida, o escalonamento é
-   promessa.
-2. **A franja por caixas**, na profundidade de produção (5) e em np=3 — que é o
+A versão anterior deste relatório dizia "sem essa medida, o escalonamento é
+promessa". Medido com `t8flow/bench/escalabilidade.cxx` — t8code puro,
+`COMM_WORLD`, melhor de cinco execuções, restrito aos cores livres da máquina.
+
+**3D**, HEX de nível 7 (2,1 M células; 3,0 M após o refino):
+
+| etapa | np=2 | np=4 | desequilíbrio |
+|---|---|---|---|
+| construção | 1,89× (95%) | 1,95× (49%) | 1,00× |
+| **percurso** (trabalho local) | **1,93× (97%)** | **3,70× (93%)** | 1,00× |
+| refino + equilíbrio | 1,65× (83%) | 2,27× (57%) | **1,89× / 2,77×** |
+| repartição | 1,64× (82%) | 2,17× (54%) | volta a 1,00× |
+| percurso na malha adaptada | 1,90× (95%) | 3,66× (92%) | 1,00× |
+
+**2D**, QUAD de nível 11 (4,2 M células; 6,2 M após o refino):
+
+| etapa | np=2 | np=4 | desequilíbrio |
+|---|---|---|---|
+| **percurso** | **2,04× (102%)** | **3,82× (96%)** | 1,00× |
+| refino + equilíbrio | 1,71× (86%) | 2,53× (63%) | **1,96× / 2,92×** |
+| repartição | 1,33× (66%) | 2,02× (51%) | volta a 1,00× |
+
+### 7.1 As três conclusões
+
+**O trabalho local escala quase idealmente — 93% a 97%.** É o teto do que a
+divisão pode dar, e ele está lá.
+
+**A dimensão não era o fator; o tamanho era.** O 2D com 4,2 M células escala igual
+ao 3D com 2,1 M. Logo o 1,62× do HiGFlow em np=2 não é limitação de 2D: eram 9377
+células, ~2300 por processo, e a comunicação comendo o ganho. A explicação que
+estava registrada como suposição agora está medida.
+
+**O refino local desequilibra, e isso exige repartição** — o achado acionável. A
+caixa de refino cai num pedaço da curva, e a partição anterior não sabe disso: em
+np=4 o rank mais carregado ficou com **2,8× mais células**, nos dois DIM. Como o
+relógio é o do rank mais lento, isso sozinho explica a queda (93% no percurso
+contra 57% no refino). Reparticionar devolve o equilíbrio **exato** — 756 427
+contra 756 428 folhas — e custa **3% a 6%** do tempo do refino.
+
+### 7.2 O que a medida não diz
+
+- **Não há física, solver, franja nem estêncil.** É um **teto**, não uma previsão:
+  o que entra depois é justamente o que comunica mais.
+- **np vai só até 4.** A máquina tem **8 cores físicos** (16 threads — `nproc`
+  engana), e duas corridas de outra sessão estavam presas às CPUs 1 e 2.
+- **Nível 6 e abaixo não é interpretável.** Com 262 k células os tempos ficam em
+  10–140 ms e o cache domina — a medida deu ganho *superlinear* de 10× em np=2.
+  Vale para as linhas acima de 100% nas tabelas.
+
+### 7.3 Duas lições de medição
+
+**Sem excluir as CPUs das corridas alheias, a medida deu 18× em np=8** —
+impossível para trabalho local puro, e foi só por ser absurdo que duvidei. O
+script passou a imprimir o estado da máquina junto com os números.
+
+**Com três repetições um outlier passou:** o percurso adaptado em np=4 apareceu
+como 1,05× numa rodada e 3,66× com cinco repetições. Eu teria reportado uma perda
+que não existe.
+
+---
+
+## 8. Próximos passos, em ordem de retorno
+
+1. **A franja por caixas**, na profundidade de produção (5) e em np=3 — que é o
    menor np em que pareamento transposto aparece: com uma caixa por rank, 1×1
    esconde o erro.
-3. **A cláusula F3**, "o suporte cai na grade e é local", que é o que a
+2. **A cláusula F3**, "o suporte cai na grade e é local", que é o que a
    reprodução polinomial não vê.
 
+3. **A repartição depois de cada adaptação**, que a seção 7 transformou de
+   suposição em recomendação com número.
 4. **A guarda contra árvore de uma célula** — que não tem interior, toda faceta
    dela é de fronteira, e a franja declarada é de cinco. Entra junto com a franja.
 

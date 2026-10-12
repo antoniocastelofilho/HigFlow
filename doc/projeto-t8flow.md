@@ -789,13 +789,102 @@ exigia `DIM`, falhava com aviso, e a limpeza por dimensão não acontecia.
 
 ---
 
-## 11. Antes de comprometer o desenho: medir
+## 11. A escalabilidade, medida
 
-Escalabilidade no regime 3D. O 2D rendeu 1,62× em np=2 e 1,68× em np=4, e isso é
-tamanho do caso — 9377 células por quatro dão ~2300 por processo, e a comunicação
-come o ganho. O domínio 3D da fração tem 375 mil células, quarenta vezes mais
-trabalho por processo. **Sem essa medida, o escalonamento do t8Flow é promessa.**
+A seção anterior deste documento dizia: *"sem essa medida, o escalonamento do
+t8Flow é promessa"*. Medido em **11/10/2026** com
+`t8flow/bench/escalabilidade.cxx` — t8code puro, `COMM_WORLD`, melhor de cinco
+execuções, restrito aos cores livres da máquina.
 
-Modos de medição vazia já catalogados neste projeto e que se aplicam: build sem
-`-DHIGFLOW_COM_T8CODE` mede malha uniforme e parece medir t8code; processos
-`ns-example` órfãos já falsearam uma medida por fator de cinquenta.
+### 11.1 O resultado
+
+3D, hipercubo HEX de nível 7 (2,1 M células; 3,0 M depois do refino):
+
+| etapa | np=2 | np=4 | desequilíbrio |
+|---|---|---|---|
+| construção | 1,89× (95%) | 1,95× (49%) | 1,00× |
+| **percurso** (trabalho local) | **1,93× (97%)** | **3,70× (93%)** | 1,00× |
+| refino + equilíbrio | 1,65× (83%) | 2,27× (57%) | **1,89× / 2,77×** |
+| repartição | 1,64× (82%) | 2,17× (54%) | volta a 1,00× |
+| percurso na malha adaptada | 1,90× (95%) | 3,66× (92%) | 1,00× |
+
+2D, QUAD de nível 11 (4,2 M células; 6,2 M depois do refino):
+
+| etapa | np=2 | np=4 | desequilíbrio |
+|---|---|---|---|
+| **percurso** | **2,04× (102%)** | **3,82× (96%)** | 1,00× |
+| refino + equilíbrio | 1,71× (86%) | 2,53× (63%) | **1,96× / 2,92×** |
+| repartição | 1,33× (66%) | 2,02× (51%) | volta a 1,00× |
+
+### 11.2 As três conclusões
+
+**1. O trabalho local escala quase idealmente — 93% a 97% de eficiência.** É o
+teto do que a divisão pode dar, e ele está lá. A premissa do projeto se confirma
+no regime grande.
+
+**2. A dimensão não era o fator; o tamanho era.** O 2D com 4,2 M células escala
+igual ao 3D com 2,1 M (96% contra 93% em np=4). Logo o 1,62× que o HiGFlow rendeu
+em np=2 **não** é uma limitação de 2D: eram 9377 células divididas por quatro,
+~2300 por processo, e a comunicação comendo o ganho. A explicação que estava
+registrada como suposição agora está medida do lado do t8code.
+
+**3. O refino local DESEQUILIBRA, e isso exige repartição** — este é o achado
+acionável. A caixa de refino cai num pedaço da curva de preenchimento, e a
+partição de antes do refino não sabe disso: em np=4 o rank mais carregado ficou
+com **2,8× mais células** que o menos carregado, nos dois DIM. Como o relógio de
+parede é o do rank mais lento, esse desequilíbrio sozinho explica a queda de
+eficiência do refino (93% no percurso contra 57% no refino).
+
+**Reparticionar devolve o equilíbrio exatamente** — 756 427 contra 756 428 folhas
+em np=4 — e custa **3% a 6%** do tempo do refino (25 ms contra 427 ms em 3D).
+Recomendação para o t8Flow, com número: toda adaptação de malha é seguida de
+`t8_forest_set_partition`, e o custo disso é desprezível comparado ao que o
+desequilíbrio cobra.
+
+### 11.3 O que esta medida NÃO diz, e por que isso importa
+
+- **Não há física, solver linear, franja nem estêncil.** O número é um **teto**
+  para a escalabilidade do t8Flow, não uma previsão dela: a franja e o solver
+  entram depois e são justamente as partes que comunicam mais.
+- **np vai só até 4.** A máquina tem **8 cores físicos** (16 threads — `nproc`
+  engana), e duas corridas de outra sessão estavam presas às CPUs 1 e 2 durante a
+  medida. Medi restrito a quatro cores livres.
+- **Nível 6 e abaixo não é interpretável como escalabilidade.** Com 262 k células
+  os tempos ficam em 10–140 ms e o cache domina: a medida deu ganho *superlinear*
+  de 10× em np=2, que é efeito de 131 k células caberem onde 262 k não cabem. O
+  mesmo vale para as linhas de construção e de percurso-adaptado em 2D que
+  aparecem acima de 100%.
+
+### 11.4 Duas lições de medição, das que já custaram caro neste projeto
+
+**Sem excluir as CPUs das corridas alheias, a medida deu 18× de ganho em np=8.**
+Número impossível para trabalho local puro — e foi só por ser absurdo que eu
+duvidei dele. A guarda que ficou: o script imprime o estado da máquina (cores,
+carga, processos alheios com CPU) junto com os números, e aceita `--cpu-set`.
+
+**Com três repetições, um outlier passou:** o percurso na malha adaptada em np=4
+apareceu como 1,05× (26% de eficiência) numa rodada e como 3,66× (92%) com cinco
+repetições. Eu teria reportado uma perda de escalabilidade que não existe. O
+mínimo de N execuções protege contra o ruído *para cima*, não contra um N pequeno.
+
+---
+
+## 12. O que vem depois
+
+Em ordem de retorno, com a escalabilidade já medida (seção 11):
+
+1. **A franja por caixas**, na profundidade de produção (5) e em np=3 — o menor
+   np em que pareamento transposto aparece: com uma caixa por rank, 1×1 esconde o
+   erro.
+2. **A repartição depois de cada adaptação**, que a seção 11 transformou de
+   suposição em recomendação com número.
+3. **A cláusula F3** — "o suporte cai na grade e é local", que é o que a
+   reprodução polinomial não vê.
+4. **A guarda contra árvore de uma célula**: ela não tem interior, toda faceta
+   dela é de fronteira, e a franja declarada é de cinco. Entra junto com a franja.
+5. **O lado 3D**, escrito e não gerado por macro (decisão 7).
+
+Modos de medição vazia a lembrar em qualquer medida futura deste projeto: build
+sem `-DHIGFLOW_COM_T8CODE` mede malha uniforme e parece medir t8code; processos
+órfãos já falsearam uma medida por fator de cinquenta; e `nproc` nesta máquina
+responde 16 para 8 cores físicos.

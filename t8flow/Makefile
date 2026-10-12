@@ -96,6 +96,19 @@ BINS2   = $(TESTES2)
 
 2d: $(BINS2)
 
+# A MEDIDA DE ESCALABILIDADE e' ferramenta, nao teste: usa o t8code direto, roda
+# em COMM_WORLD com np>1, e NAO entra na suite -- o que ela produz e' numero para
+# decidir, nao veredicto.  Fica fora do alvo `2d` de proposito, para nao gastar
+# tempo de suite, e e' construida com `make bench`.
+#
+# Compila com -DDIM=2 so' porque o cabecalho herdado exige a macro; o programa
+# escolhe a dimensao em TEMPO DE EXECUCAO (`--dim=`), porque ele nao usa nada do
+# nucleo herdado -- so' o t8code, que tem as duas dimensoes na mesma biblioteca.
+bench: bench/escalabilidade
+
+bench/escalabilidade: bench/escalabilidade.cxx
+	$(CXX) $(CXXFLAGS2) $< -o $@ $(LDFLAGS) $(LIBS)
+
 $(OBJ2):
 	mkdir -p $(OBJ2)
 
@@ -129,8 +142,8 @@ tests/2d/%: tests/2d/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_N)
 
 clean:
 	$(RM) -rf obj
-	$(RM) -f $(wildcard tests/2d/test-*[!x]) 
+	$(RM) -f $(wildcard tests/2d/test-*[!x]) bench/escalabilidade 
 	@echo "limpo: objetos das duas dimensoes e binarios de teste"
 
-.PHONY: 2d 3d clean all
+.PHONY: 2d 3d bench clean all
 all: 2d
