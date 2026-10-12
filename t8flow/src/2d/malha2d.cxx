@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <set>
 #include <cstring>
@@ -1256,6 +1257,56 @@ long Malha::num_folhas_em_transicao() const
     n = r;
   }
   return n;
+}
+
+namespace {
+
+//! Contexto do refino por criterio: a funcao que diz o nivel alvo num ponto.
+struct Criterio {
+  const std::function<int(const Ponto2 &)> *nivel;
+};
+
+int adapt_por_criterio(t8_forest_t forest, t8_forest_t forest_from,
+                       t8_locidx_t which_tree, const t8_eclass_t tree_class,
+                       t8_locidx_t /*lelement_id*/, const t8_scheme_c *scheme,
+                       const int /*is_family*/, const int /*num_elements*/,
+                       t8_element_t *elements[])
+{
+  const Criterio *c = static_cast<const Criterio *>(t8_forest_get_user_data(forest));
+  if (c == nullptr || c->nivel == nullptr) return 0;
+  double x[3] = {0.0, 0.0, 0.0};
+  t8_forest_element_centroid(forest_from, which_tree, elements[0], x);
+  const int nivel = scheme->element_get_level(tree_class, elements[0]);
+  return (nivel < (*c->nivel)({x[0], x[1]})) ? 1 : 0;
+}
+
+}  // namespace
+
+void Malha::refina_por_criterio(const std::function<int(const Ponto2 &)> &nivel_alvo)
+{
+  // O MESMO PAR DE COMMITS do `refina_caixa`, e pela mesma razao: refino e
+  // equilibrio 2:1 em commits SEPARADOS.  Juntos, um refino de dois niveis
+  // deixa 4:1 na borda, a malha commita, as contagens fecham, e o salto
+  // atravessa o estencil sem aviso.
+  Criterio cx{&nivel_alvo};
+
+  t8_forest_t refinada;
+  t8_forest_init(&refinada);
+  t8_forest_set_user_data(refinada, &cx);
+  t8_forest_set_adapt(refinada, f_, adapt_por_criterio, 1 /* recursivo */);
+  t8_forest_commit(refinada);
+
+  t8_forest_t equilibrada;
+  t8_forest_init(&equilibrada);
+  t8_forest_set_balance(equilibrada, refinada, 0);
+  t8_forest_set_ghost(equilibrada, 1, T8_GHOST_FACES);
+  t8_forest_commit(equilibrada);
+
+  // Sem `unref`: o commit CONSOME a floresta de origem.  Liberar de novo deixa
+  // a malha VAZIA em silencio -- medido, e o que pegou foi a conservacao de
+  // area, nao a contagem de folhas.
+  f_ = equilibrada;
+  monta_franja();
 }
 
 void Malha::refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo)

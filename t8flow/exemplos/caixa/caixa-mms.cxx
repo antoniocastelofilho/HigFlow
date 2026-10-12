@@ -35,6 +35,7 @@
 #include "contorno2d.hxx"
 #include "malha2d.hxx"
 #include "manufaturada_caixa.hxx"
+#include "criterio2d.hxx"
 #include "navierstokes2d.hxx"
 #include "saida_vtk2d.hxx"
 
@@ -51,6 +52,8 @@ int main(int argc, char **argv)
   int nivel = 4;
   long cada_vtk = 0;
   double refina = 0.0;
+  int amr_niveis = 0, amr_celmin = 2;
+  double amr_fracao = 0.3;
   std::string disc_conv = "cubista", disc_proj = "incremental";
 
   for (int i = 1; i < argc; i++) {
@@ -63,6 +66,9 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--projecao=", 11)) disc_proj = a + 11;
     else if (!std::strncmp(a, "--vtk=", 6)) cada_vtk = std::atol(a + 6);
     else if (!std::strncmp(a, "--refina=", 9)) refina = std::atof(a + 9);
+    else if (!std::strncmp(a, "--amr-niveis=", 13)) amr_niveis = std::atoi(a + 13);
+    else if (!std::strncmp(a, "--amr-celmin=", 13)) amr_celmin = std::atoi(a + 13);
+    else if (!std::strncmp(a, "--amr-fracao=", 13)) amr_fracao = std::atof(a + 13);
     else if (!std::strcmp(a, "--ajuda") || !std::strcmp(a, "-h")) {
       if (rank == 0)
         std::printf(
@@ -73,7 +79,10 @@ int main(int argc, char **argv)
             "  --divisor-dt   dt = h^2 / divisor (padrao 8; limite difusivo 4)\n"
             "  --convectivo   central, upwind1, cubista, quick\n"
             "  --projecao     incremental, nao_incremental\n"
-            "  --vtk=N        grava VTK a cada N passos\n");
+            "  --vtk=N        grava VTK a cada N passos\n"
+            "  --amr-niveis=N refino pelo criterio de vorticidade (0 desliga)\n"
+            "  --amr-celmin=N celulas finas de cada lado da semente\n"
+            "  --amr-fracao=F semente onde |w| passa de F do maximo\n");
       return 0;
     }
   }
@@ -90,6 +99,84 @@ int main(int argc, char **argv)
   // uniforme e a adaptada, que e' o que torna a comparacao uma medida.
   if (refina > 0.0)
     m.refina_caixa({0.25, 0.25}, {0.25 + refina, 0.25 + refina}, nivel + 1);
+
+  // ---- REFINO PELO CRITERIO, como no front-tracking do HiGFlow ------------
+  //
+  // A ARQUITETURA E' A MESMA, e a unica coisa que muda e' DE ONDE VEM AS
+  // SEMENTES.  La' sao os centros das celulas base cortadas pela interface;
+  // aqui, num escoamento MONOFASICO, nao ha' interface -- o analogo e' a
+  // regiao de VORTICIDADE alta, que e' justamente a esteira.
+  //
+  // A VORTICIDADE SAI DA SOLUCAO MANUFATURADA, e isso e' legitimo so' porque
+  // este e' um caso de verificacao: num caso de producao ela sai do campo
+  // calculado, e e' por isso que o criterio tem de ser REFEITO a cada
+  // remalhamento.  Aqui o refino e' ESTATICO -- feito uma vez, antes de
+  // comecar --, porque seguir a esteira exige transferir os campos para a
+  // malha nova, e isso e' o remalhamento, que ainda nao existe.
+  if (amr_niveis > 0) {
+    const int nb = 1 << nivel;
+    const double hb = 1.0 / nb;
+    const std::vector<double> thr = amr_limiares(hb, amr_niveis, amr_celmin);
+
+    // SEMENTES: centros de celula base onde |vorticidade| passa de uma fracao
+    // do maximo.  O limiar relativo, e nao absoluto, para que o criterio nao
+    // dependa da escala da solucao.
+    //
+    //     w = dv/dx - du/dy,  com u = f G H' e v = -f G' H
+    //     w = -f (G'' H + G H'')
+    const double tv = 0.25;      // instante em que a vorticidade e' avaliada
+    double wmax = 0.0;
+    std::vector<double> w(static_cast<size_t>(nb) * nb, 0.0);
+    for (int j = 0; j < nb; j++)
+      for (int i = 0; i < nb; i++) {
+        const double X = (i + 0.5) * hb, Y = (j + 0.5) * hb;
+        const double val = -caixa::f(tv) * (caixa::G2(X) * caixa::H(Y) +
+                                            caixa::G(X) * caixa::H2(Y));
+        w[static_cast<size_t>(i) + static_cast<size_t>(nb) * j] = std::fabs(val);
+        wmax = std::max(wmax, std::fabs(val));
+      }
+
+    std::vector<Ponto2> sem;
+    for (int j = 0; j < nb; j++)
+      for (int i = 0; i < nb; i++)
+        if (w[static_cast<size_t>(i) + static_cast<size_t>(nb) * j] >
+            amr_fracao * wmax)
+          sem.push_back({(i + 0.5) * hb, (j + 0.5) * hb});
+
+    if (sem.empty()) {
+      if (rank == 0)
+        std::printf("CRITERIO nao achou semente nenhuma com fracao %.3g -- "
+                    "o refino nao faria nada.\n", amr_fracao);
+      return 2;
+    }
+
+    const std::vector<signed char> tab =
+        amr_tabela(sem, {0.0, 0.0}, hb, hb, nb, nb, thr);
+
+    // A TABELA POR DILATACAO E A EXAUSTIVA TEM DE CONCORDAR BIT A BIT.  A
+    // conferencia roda aqui, no caso, e nao so' no arreio: a exaustiva custa
+    // `O(ncel . nsem)` e numa malha de verificacao isso e' barato.  Num caso
+    // de producao ela sairia -- e e' por isso que o arreio tambem a exige.
+    const std::vector<signed char> tab_ex =
+        amr_tabela_exaustiva(sem, {0.0, 0.0}, hb, hb, nb, nb, thr);
+    long difs = 0;
+    for (size_t q = 0; q < tab.size(); q++) if (tab[q] != tab_ex[q]) difs++;
+    if (difs != 0) {
+      if (rank == 0)
+        std::printf("A TABELA POR DILATACAO DISCORDA DA EXAUSTIVA em %ld de "
+                    "%zu celulas.\n", difs, tab.size());
+      return 1;
+    }
+
+    m.refina_por_criterio([&](const Ponto2 &x) {
+      return nivel + amr_nivel_em(tab, {0.0, 0.0}, hb, hb, nb, nb, x);
+    });
+    if (rank == 0)
+      std::printf("CRITERIO  %zu sementes (|w| > %.2f do maximo), %d niveis, "
+                  "celmin %d\n          dilatacao = exaustiva em todas as "
+                  "%zu celulas base\n",
+                  sem.size(), amr_fracao, amr_niveis, amr_celmin, tab.size());
+  }
   DominioFacetas fd(m);
   // O PASSO SAI DO `h` MINIMO, e nao do da base.
   //
@@ -99,7 +186,9 @@ int main(int argc, char **argv)
   // tentativa: o solver nao reclama, o resultado sai NaN depois de algumas
   // centenas de passos.
   const double h_base = 1.0 / (1 << nivel);
-  const double hh = (refina > 0.0) ? h_base / 2.0 : h_base;
+  const double hh = (refina > 0.0 || amr_niveis > 0)
+                        ? h_base / (1 << std::max(1, amr_niveis))
+                        : h_base;
   const double dt = hh * hh / cfl_dif;
 
   // O RELOGIO DO CONTORNO vive AQUI, e quem o move e' o solver.  Ver

@@ -43,6 +43,7 @@
 #define T8FLOW_2D_NAVIERSTOKES2D_HXX
 
 #include <functional>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -278,6 +279,13 @@ class NavierStokes {
 
   //! O gradiente TRANSVERSAL da pressao numa celula, por diferenca central
   //! entre os vizinhos em `t` (ou lateral, quando so' ha' um).
+  //! OS PESOS do gradiente transversal: a UNICA fonte deles.
+  //
+  // Aparecem em dois lugares -- coeficientes na matriz do Poisson e avaliacao
+  // na projecao -- e ter DUAS implementacoes fez o par `div`/`grad` deixar de
+  // fechar na parede, com a divergencia indo de 1e-14 para 9,5e-06.
+  void pesos_grad_transversal(long b, long i, int t,
+                              std::map<long, double> *w) const;
   double grad_transversal(const CampoEscalar &campo, long b, long i,
                           int t) const;
 

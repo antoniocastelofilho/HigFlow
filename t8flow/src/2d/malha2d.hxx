@@ -29,6 +29,7 @@
 #define T8FLOW_MALHA2D_HXX
 
 #include <array>
+#include <functional>
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
@@ -132,6 +133,18 @@ class Malha {
   // a caixa alcanca -- pedir refino que nao refina nada e' quase sempre engano de
   // quem chamou, e aceitar calado deixaria a malha parecer refinada.
   void refina_caixa(const Ponto2 &lo, const Ponto2 &hi, int nivel_alvo);
+
+  //! Refina pelo NIVEL ALVO que uma funcao devolve em cada ponto.
+  //
+  // E' o gancho geral: `refina_caixa` e' o caso particular de uma funcao que
+  // devolve dois valores.  Quem decide o nivel e' o CRITERIO, que nao e' desta
+  // classe -- a malha nao sabe se o alvo veio de uma interface, de um campo de
+  // vorticidade ou de uma tabela lida de arquivo.
+  //
+  // Sem recuo: a funcao so' pode PEDIR MAIS nivel do que a folha tem.  Engrossar
+  // exige saber o que fazer com o campo dos filhos, e isso e' do remalhamento,
+  // nao do refino.
+  void refina_por_criterio(const std::function<int(const Ponto2 &)> &nivel_alvo);
 
   //! REFINO ALEATORIO: refina uma fracao das folhas, escolhidas por sorteio, e
   //! reequilibra em 2:1.

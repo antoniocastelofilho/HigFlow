@@ -751,36 +751,12 @@ void NavierStokes::resolve_pressao()
             // contribui com a media dos vizinhos dele; parede com Neumann
             // homogeneo contribui com a PROPRIA celula, que e' o que
             // `d(dp)/dn = 0` quer dizer.
-            const Ponto2 cg = m_->centroide(gb, gi);
-            const Ponto2 hg = m_->lados_da_folha(gb, gi);
-            const long gid = m_->id_global(gb, gi);
-            std::map<long, double> lado_v[2];
-            double dist_l[2] = {0.0, 0.0};
-            for (int lt = 0; lt < 2; lt++) {
-              const std::vector<long> vt = m_->ids_vizinhos(gb, gi, 2 * t + lt);
-              if (vt.empty()) {                      // parede: Neumann homogeneo
-                lado_v[lt][gid] = 1.0;
-                dist_l[lt] = hg[t] / 2.0;
-                continue;
-              }
-              double soma_d = 0.0;
-              int nn = 0;
-              for (long q : vt) {
-                const auto itq = bi_por_id_.find(q);
-                if (itq == bi_por_id_.end()) continue;
-                lado_v[lt][q] += 1.0;
-                soma_d += std::fabs(
-                    m_->centroide(itq->second.first, itq->second.second)[t] - cg[t]);
-                nn++;
-              }
-              if (nn == 0) { lado_v[lt][gid] = 1.0; dist_l[lt] = hg[t] / 2.0; continue; }
-              for (auto &kv : lado_v[lt]) kv.second /= nn;
-              dist_l[lt] = soma_d / nn;
-            }
-            const double dtot = dist_l[0] + dist_l[1];
-            if (dtot <= 0.0) continue;
-            for (const auto &kv : lado_v[1]) linha[kv.first] -= coef * delta * kv.second / dtot;
-            for (const auto &kv : lado_v[0]) linha[kv.first] += coef * delta * kv.second / dtot;
+            // OS MESMOS PESOS que a projecao avalia -- uma fonte so'.  Ter
+            // duas implementacoes disto foi o que fez o par `div`/`grad`
+            // deixar de fechar perto da parede.
+            std::map<long, double> wg;
+            pesos_grad_transversal(gb, gi, t, &wg);
+            for (const auto &kv : wg) linha[kv.first] -= coef * delta * kv.second;
           }
         }
       }
@@ -1113,35 +1089,70 @@ NavierStokes::Vizinha NavierStokes::vizinha_de(int d, long fid, int e,
   return v;
 }
 
+void NavierStokes::pesos_grad_transversal(long b, long i, int t,
+                                          std::map<long, double> *w) const
+{
+  // OS PESOS DO GRADIENTE TRANSVERSAL, e esta e' a UNICA fonte deles.
+  //
+  // Eles aparecem em DOIS lugares -- como coeficientes na matriz do Poisson e
+  // como avaliacao na projecao --, e tinham DUAS implementacoes.  Elas
+  // concordavam no interior e discordavam NA PAREDE: uma fechava com o valor
+  // da propria celula a `h/2` (que e' o que `d(dp)/dn = 0` quer dizer), a
+  // outra usava a formula lateral sem esse ponto.
+  //
+  // O EFEITO: o par `div`/`grad` deixava de fechar, e a divergencia depois da
+  // projecao ia de 1e-14 para 9,5e-06.  E so' aparecia quando o refino chegava
+  // perto da parede -- com o bloco refinado no interior, as duas concordavam e
+  // o defeito ficava invisivel.
+  //
+  // Nao e' erro de implementacao: e' erro de TER DUAS.
+  w->clear();
+  const Ponto2 c = m_->centroide(b, i);
+  const Ponto2 hh = m_->lados_da_folha(b, i);
+  const long id = m_->id_global(b, i);
+
+  std::map<long, double> lado_v[2];
+  double dist_l[2] = {0.0, 0.0};
+  for (int lt = 0; lt < 2; lt++) {
+    const std::vector<long> vt = m_->ids_vizinhos(b, i, 2 * t + lt);
+    if (vt.empty()) {
+      // PAREDE com Neumann homogeneo: o valor ali e' o da propria celula, e
+      // esta' a meio lado de distancia.
+      lado_v[lt][id] = 1.0;
+      dist_l[lt] = hh[t] / 2.0;
+      continue;
+    }
+    double soma_d = 0.0;
+    int nn = 0;
+    for (long q : vt) {
+      const auto itq = bi_por_id_.find(q);
+      if (itq == bi_por_id_.end()) continue;
+      lado_v[lt][q] += 1.0;
+      soma_d += std::fabs(
+          m_->centroide(itq->second.first, itq->second.second)[t] - c[t]);
+      nn++;
+    }
+    if (nn == 0) { lado_v[lt][id] = 1.0; dist_l[lt] = hh[t] / 2.0; continue; }
+    for (auto &kv : lado_v[lt]) kv.second /= nn;
+    dist_l[lt] = soma_d / nn;
+  }
+  const double dtot = dist_l[0] + dist_l[1];
+  if (dtot <= 0.0) return;
+  for (const auto &kv : lado_v[1]) (*w)[kv.first] += kv.second / dtot;
+  for (const auto &kv : lado_v[0]) (*w)[kv.first] -= kv.second / dtot;
+}
+
 double NavierStokes::grad_transversal(const CampoEscalar &campo, long b,
                                       long i, int t) const
 {
-  // DIFERENCA CENTRAL entre os vizinhos em `t`, ou lateral quando so' ha' um.
-  // Sem vizinho de nenhum lado o gradiente e' nulo -- celula isolada na
-  // direcao transversal, que so' acontece num dominio de uma celula.
-  const Ponto2 c = m_->centroide(b, i);
-  const double pc = campo.em(m_->id_global(b, i));
-  double va = pc, vb = pc, da = 0.0, db = 0.0;
-  for (int lado = 0; lado < 2; lado++) {
-    const std::vector<long> vz = m_->ids_vizinhos(b, i, 2 * t + lado);
-    if (vz.empty()) continue;
-    double soma = 0.0, dist = 0.0;
-    int n = 0;
-    for (long id : vz) {
-      const auto it = bi_por_id_.find(id);
-      if (it == bi_por_id_.end()) continue;
-      soma += campo.em(id);
-      dist += std::fabs(m_->centroide(it->second.first, it->second.second)[t] - c[t]);
-      n++;
-    }
-    if (n == 0) continue;
-    if (lado == 0) { va = soma / n; da = dist / n; }
-    else { vb = soma / n; db = dist / n; }
-  }
-  if (da > 0.0 && db > 0.0) return (vb - va) / (da + db);
-  if (db > 0.0) return (vb - pc) / db;
-  if (da > 0.0) return (pc - va) / da;
-  return 0.0;
+  // A AVALIACAO dos pesos acima.  Nao reimplementa nada -- se reimplementasse,
+  // voltaria a divergir da matriz do Poisson, que e' o defeito que custou a
+  // divergencia de 9,5e-06.
+  std::map<long, double> w;
+  pesos_grad_transversal(b, i, t, &w);
+  double g = 0.0;
+  for (const auto &kv : w) g += kv.second * campo.em(kv.first);
+  return g;
 }
 
 }  // namespace t8flow2d
