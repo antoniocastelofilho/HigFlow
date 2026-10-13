@@ -1461,4 +1461,101 @@
 //
 //! COBERTA-POR: test-ns2d:o_semi_implicito_e_estavel_acima_do_limite_viscoso_explicito
 
+// ---------------------------------------------------------------------------
+// V -- O NUCLEO GEOMETRICO DO VOF (PLIC)
+// ---------------------------------------------------------------------------
+
+//! V1  A AREA CORTADA DA CELULA PELA RETA SAI IGUAL POR FORMA FECHADA E POR
+//! RECORTE, em precisao de maquina, para qualquer normal e qualquer razao de
+//! aspecto.
+//!
+//! A forma fechada reduz ao quadrado unitario canonico e inverte uma quadratica
+//! por pedacos; o recorte faz Sutherland-Hodgman contra o semiplano e integra
+//! pelo sapateiro.  NAO PARTILHAM ALGEBRA, e e' isso que faz a concordancia
+//! afirmar alguma coisa.
+//!
+//! A VARREDURA TEM DE INCLUIR O REGIME ESTREITO, e nao so' o caso bonito.
+//! Medido por mutacao deliberada (trocar `t <= a` por `t <= b` no primeiro
+//! ramo): o defeito aparece em `n = (1, 1e-14)` com celula `(1; 0,125)` e
+//! NAO aparece em normal a 45 graus com celula quadrada.  Varrer so' o caso
+//! bonito passaria com metade dos ramos errados.
+//
+//! COBERTA-POR: test-vof2d:a_area_concorda_pelas_duas_vias
+
+//! V2  A DISTANCIA E' A INVERSA EXATA DA AREA, e isso e' o argumento de
+//! correspondencia com o HiGFlow.
+//!
+//! A area e' ESTRITAMENTE DECRESCENTE em `d` no intervalo ativo, logo a inversa
+//! e' UNICA.  Quem reproduz a area do HiGFlow e inverte exatamente TEM de dar o
+//! `d` dele -- sem precisar linkar o codigo dele para comparar numero a numero.
+//! A ida e volta e' o que sustenta esse argumento.
+//
+//! COBERTA-POR: test-vof2d:a_distancia_e_a_inversa_exata_da_area
+//! COBERTA-POR: test-vof2d:a_distancia_concorda_com_a_bisseccao
+
+//! V3  A CONVENCAO DE LADO E' AFIRMADA CONTRA NUMERO CONHECIDO A MAO, e nao so'
+//! contra a outra via.
+//!
+//! Duas vias podem concordar na MESMA convencao errada: trocar o lado daria
+//! concordancia perfeita e area complementar, e os casos V1 e V2 passariam.
+//! Com `n = +y` e `d = 0,3` numa celula unitaria a area e' 0,2 -- a da regiao
+//! `y >= 0,3`, para onde a normal aponta.  Com o lado trocado daria 0,8.
+//
+//! COBERTA-POR: test-vof2d:os_casos_que_tem_area_conhecida_a_mao
+
+//! V4  NORMAL NULA E' RECUSADA, e AREA FORA DE `[0, h0 h1]` TAMBEM.
+//!
+//! Normal nula nao tem lado para apontar -- e e' exatamente o que o estimador
+//! devolve numa celula PURA, onde `grad f` e' zero.  Area zero, ao contrario, e'
+//! legitima e passa.
+//!
+//! A RECUSA DA AREA FORA DO INTERVALO E' DELIBERADA.  A fracao volumetrica SAI
+//! de `[0,1]` em adveccao direcional partida -- e' conhecido e e' parte do
+//! metodo --, mas o ajuste pertence a quem advecta e tem de ser CONTADO.
+//! Saturar aqui apagaria a unica evidencia de que o transporte passou do
+//! limite.
+//
+//! COBERTA-POR: test-vof2d:a_normal_nula_e_a_area_fora_do_intervalo_sao_RECUSADAS
+
+//! V5  A FRACAO INICIAL E' EXATA PARA INTERFACE PLANA, e isso e' verificado
+//! CRUZANDO com o PLIC -- duas implementacoes que nao partilham nada.
+//!
+//! Com a funcao de forma AFIM a interface dentro da celula E' uma reta, logo a
+//! marcha de quadrados nao aproxima: tem de dar o mesmo que `plic_area`, que
+//! chega la' por reducao canonica sem amostrar canto nenhum.  Duas vias exatas
+//! concordando afirma mais que qualquer teste de ordem.
+//
+//! COBERTA-POR: test-vof2d:a_fracao_inicial_e_EXATA_para_interface_plana
+
+//! V6  A SUBDIVISAO 16x16 NAS CELULAS CORTADAS E' PARTE DO METODO, e o ganho e'
+//! MEDIDO contra o caso sem ela.
+//!
+//! O envoltorio do HiGFlow (`example2d_VOF/ns-example-2d.c`) acrescenta essa
+//! subdivisao por cima de `get_fracvolN`, e sem ela a interface fica
+//! linearizada na celula INTEIRA: para uma curva de curvatura `1/R` isso erra
+//! `O(h^3/R)` por celula cortada.  Medido no circulo de Hysing: 8,1e-06 em
+//! `h = 0,025` e 5,1e-07 em `h = 0,00625`, caindo como `h^2`.
+//!
+//! O LIMIAR VEM DE NUMERO MEDIDO, nao escolhido: duas ordens abaixo da deriva
+//! de massa que o proprio metodo tem ate' `t = 3` (2,44e-03 no FT do HiGFlow).
+//! A primeira versao deste caso exigia 1e-9 -- numero que eu nao derivei de
+//! nada -- e falhou.
+//!
+//! IMPORTA PORQUE O VOLUME INICIAL E' O DENOMINADOR DE TUDO: area de
+//! referencia, circularidade e centro de massa partem dele, e um erro ali
+//! desloca o benchmark inteiro sem aparecer como erro.
+//
+//! COBERTA-POR: test-vof2d:a_subdivisao_e_o_que_faz_o_volume_inicial_ficar_certo
+
+//! V7  O CASO AMBIGUO DA DIAGONAL E' RECUSADO, e nao resolvido por convencao.
+//!
+//! Com dois cantos dentro na diagonal, a celula tanto pode conter duas quinas
+//! separadas quanto uma garganta que as liga -- os quatro cantos nao
+//! distinguem, e as duas tem areas diferentes.  O HiGFlow aborta com "malha
+//! pouco refinada"; aqui lanca, porque quem chama pode estar numa SUB-celula e
+//! ai' a saida e' subdividir mais.  Dar um numero seria ESCOLHER, e a escolha
+//! ficaria invisivel.
+//
+//! COBERTA-POR: test-vof2d:o_caso_ambiguo_da_diagonal_e_RECUSADO
+
 #endif
