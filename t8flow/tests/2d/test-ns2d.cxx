@@ -212,5 +212,201 @@ int main(int argc, char **argv)
     T_CHECK_MSG(ok, "um ponto de Dirichlet nao bastou para construir");
   }
 
+  // =========================================================================
+  // O OPERADOR DE DIFUSAO PELOS DOIS CAMINHOS
+  // =========================================================================
+  //
+  // O semi-implicito precisa do operador em forma de MATRIZ; o explicito o
+  // avalia como NUMERO.  Sao duas implementacoes da mesma coisa, e o historico
+  // deste codigo diz o que isso custa: o gradiente transversal tinha duas, elas
+  // concordavam no interior e discordavam NA PAREDE, e o par div/grad deixou de
+  // fechar sem nada acusar.
+  //
+  // Aqui as duas ficam de proposito, porque colapsa-las trocaria a ordem das
+  // somas e os casos monofasicos deixariam de reproduzir bit a bit.  O que as
+  // mantem honestas e' este caso.
+  t_case("o_operador_de_difusao_concorda_pelos_dois_caminhos");
+  {
+    // `mu` NAO UNIFORME, e isso e' o ponto: com `mu` constante os pesos ficam
+    // simetricos e um erro de media na quina nao aparece.
+    auto mu_campo = [](const Ponto2 &x) {
+      return 1.0 + 3.0 * x[0] + 7.0 * x[1] * x[1];
+    };
+    // Campo de velocidade SEM simetria: um campo simetrico cancela erros de
+    // sinal entre os dois lados.
+    auto vel = [](const Ponto2 &x, int d) {
+      return (d == 0) ? 0.3 + 1.7 * x[0] - 0.9 * x[1] + 2.1 * x[0] * x[1]
+                      : -0.4 + 0.6 * x[0] + 1.3 * x[1] - 1.1 * x[0] * x[0];
+    };
+
+    struct Caso { const char *nome; bool adaptada; };
+    const Caso casos[] = {{"uniforme", false}, {"adaptada 2:1", true}};
+
+    for (const Caso &caso : casos) {
+      const std::vector<Bloco> blocos = {{{0.0, 0.0}, {1.0, 1.0}, 4}};
+      Malha m(blocos, sc_MPI_COMM_WORLD);
+      if (caso.adaptada) {
+        // Refino que ENCOSTA NA PAREDE: foi exatamente ali que as duas
+        // implementacoes do gradiente transversal discordaram.  Um bloco
+        // refinado so' no interior nao discriminaria.
+        m.refina_caixa({0.0, 0.0}, {0.4, 0.45}, 5);
+      }
+      DominioFacetas fd(m);
+
+      ContornoPorRegiao b0, b1, bp;
+      // OS TRES TIPOS DE CONTORNO NO MESMO CASO: Dirichlet numa componente,
+      // Neumann na outra.  O fechamento afim tem de valer para os dois, e e'
+      // o Neumann que um tratamento preguicoso (fantasma inteiro no lado
+      // direito) erra sem falhar.
+      auto zero = [](const Ponto2 &) { return 0.0; };
+      auto rampa = [](const Ponto2 &x) { return 0.25 * x[0] - 0.1; };
+      b0.padrao(Contorno::dirichlet(rampa));
+      b1.padrao(Contorno::neumann(rampa));
+      // O PINO TEM DE PEGAR EXATAMENTE UMA FACETA DE PAREDE, e quem decide
+      // isso e' o `h` DA PAREDE -- nao o da base e nao o minimo.  Aqui a
+      // parede de baixo e' nivel 4 no caso uniforme (primeiro centro em
+      // `1/32`) e nivel 5 no adaptado (centros em `1/64` e `3/64`).  O limiar
+      // `1/24` fica acima do primeiro centro nos DOIS e abaixo do segundo no
+      // fino.
+      //
+      // Com `x < 1/32` -- que parecia o natural -- o caso UNIFORME nao pegava
+      // nenhuma: o centro esta' EXATAMENTE em `1/32` e o teste e' estrito.  O
+      // solver entao recusou a pressao toda-Neumann, com razao, e o binario
+      // abortou.
+      bp.registra("pino",
+                  [](const Ponto2 &x) {
+                    return std::fabs(x[1]) < 1e-9 && x[0] < 1.0 / 24.0;
+                  },
+                  Contorno::dirichlet(zero));
+      bp.padrao(Contorno::neumann(zero));
+
+      NavierStokes ns(m, fd, b0, b1, bp);
+      CampoEscalar mu(m);
+      for (long bb = 0; bb < m.num_blocos(); bb++)
+        for (long ii = 0; ii < m.num_folhas_do_bloco(bb); ii++)
+          mu.em(m.id_global(bb, ii)) = mu_campo(m.centroide(bb, ii));
+      ns.viscosidade(&mu);
+      poe(fd, &ns.velocidade(), vel);
+
+      double pior = 0.0, escala = 0.0;
+      long onde_d = -1, onde_f = -1;
+      for (int d = 0; d < 2; d++)
+        for (long f = 0; f < fd.num_facetas(d); f++) {
+          const double a = ns.difusao_explicita(d, f);
+          const double bb = ns.difusao_por_pesos(d, f);
+          escala = std::max(escala, std::fabs(a));
+          if (std::fabs(a - bb) > pior) {
+            pior = std::fabs(a - bb);
+            onde_d = d;
+            onde_f = f;
+          }
+        }
+      T_CHECK_MSG(escala > 1.0,
+                  "%s: o operador deu quase zero em todo lado (%.3e) -- o caso "
+                  "nao exercita nada", caso.nome, escala);
+      T_CHECK_MSG(pior <= 1e-11 * escala,
+                  "%s: os dois caminhos discordam em %.3e (escala %.3e), pior "
+                  "na faceta %ld da direcao %ld",
+                  caso.nome, pior, escala, onde_f, onde_d);
+    }
+  }
+
+  // =========================================================================
+  t_case("os_dois_avancos_temporais_convergem_para_o_mesmo_campo");
+  {
+    // O CONTRASTE QUE DA' SENTIDO AO ZERO: com `dt` grande os dois DIFEREM --
+    // sao esquemas diferentes --, e a diferenca tem de CAIR com `dt`.  Sem
+    // medir os dois `dt`, "a diferenca e' pequena" nao distingue um
+    // semi-implicito correto de um que ignorou o termo viscoso.
+    auto corre = [](double dt, Tempo tempo, std::vector<double> *fora) {
+      const std::vector<Bloco> blocos = {{{0.0, 0.0}, {1.0, 1.0}, 4}};
+      Malha m(blocos, sc_MPI_COMM_WORLD);
+      DominioFacetas fd(m);
+      ContornoPorRegiao b0, b1, bp;
+      arma(&b0, &b1, &bp, 1.0 / 16.0);
+      NavierStokes ns(m, fd, b0, b1, bp);
+      ns.passo_de_tempo(dt);
+      ns.tempo(tempo);
+      // Um campo inicial com cisalhamento: e' o que o termo viscoso ataca.
+      poe(fd, &ns.velocidade(), [](const Ponto2 &x, int d) {
+        return (d == 0) ? std::sin(M_PI * x[1]) * std::sin(M_PI * x[0]) : 0.0;
+      });
+      const int n = static_cast<int>(std::lround(0.02 / dt));
+      for (int k = 0; k < n; k++) ns.passo();
+      fora->clear();
+      for (int d = 0; d < 2; d++)
+        for (long f = 0; f < fd.num_facetas(d); f++)
+          fora->push_back(ns.velocidade().em(d, f));
+    };
+
+    auto difere = [](const std::vector<double> &a,
+                     const std::vector<double> &b) {
+      double pior = 0.0;
+      for (size_t k = 0; k < a.size(); k++)
+        pior = std::max(pior, std::fabs(a[k] - b[k]));
+      return pior;
+    };
+
+    std::vector<double> ex1, im1, ex2, im2;
+    corre(1.0e-3, Tempo::EulerExplicito, &ex1);
+    corre(1.0e-3, Tempo::EulerSemiImplicito, &im1);
+    corre(2.5e-4, Tempo::EulerExplicito, &ex2);
+    corre(2.5e-4, Tempo::EulerSemiImplicito, &im2);
+
+    const double d1 = difere(ex1, im1);
+    const double d2 = difere(ex2, im2);
+    T_CHECK_MSG(d1 > 1e-9,
+                "com dt = 1e-3 os dois avancos deram o MESMO campo (%.3e) -- "
+                "o semi-implicito provavelmente nao esta' fazendo nada", d1);
+    T_CHECK_MSG(d2 < d1 / 2.0,
+                "a diferenca entre os avancos nao caiu com dt: %.3e com 1e-3 "
+                "contra %.3e com 2,5e-4", d1, d2);
+  }
+
+  // =========================================================================
+  t_case("o_semi_implicito_e_estavel_acima_do_limite_viscoso_explicito");
+  {
+    // O GANHO DECLARADO, MEDIDO.  O limite viscoso explicito e'
+    // `dt < rho h^2 / (4 mu)`; com `rho = 1`, `mu = 1` e `h = 1/16` isso da'
+    // 9,77e-4.  Em `4x` esse valor o explicito TEM de estourar e o
+    // semi-implicito TEM de sobreviver -- se os dois sobrevivessem, o limite
+    // nao seria o que eu digo que e' e o ganho seria afirmacao vazia.
+    auto corre = [](double dt, Tempo tempo) {
+      const std::vector<Bloco> blocos = {{{0.0, 0.0}, {1.0, 1.0}, 4}};
+      Malha m(blocos, sc_MPI_COMM_WORLD);
+      DominioFacetas fd(m);
+      ContornoPorRegiao b0, b1, bp;
+      arma(&b0, &b1, &bp, 1.0 / 16.0);
+      NavierStokes ns(m, fd, b0, b1, bp);
+      ns.passo_de_tempo(dt);
+      ns.tempo(tempo);
+      poe(fd, &ns.velocidade(), [](const Ponto2 &x, int d) {
+        return (d == 0) ? std::sin(M_PI * x[1]) * std::sin(M_PI * x[0]) : 0.0;
+      });
+      double pior = 0.0;
+      for (int k = 0; k < 60; k++) {
+        ns.passo();
+        for (int d = 0; d < 2; d++)
+          for (long f = 0; f < fd.num_facetas(d); f++)
+            pior = std::max(pior, std::fabs(ns.velocidade().em(d, f)));
+        if (!(pior < 1e4)) break;
+      }
+      return pior;
+    };
+
+    const double h = 1.0 / 16.0;
+    const double dt_lim = h * h / 4.0;            // rho = mu = 1
+    const double dt = 4.0 * dt_lim;
+
+    const double ex = corre(dt, Tempo::EulerExplicito);
+    const double im = corre(dt, Tempo::EulerSemiImplicito);
+    T_CHECK_MSG(!(ex < 10.0),
+                "com dt = %.3e (4x o limite viscoso %.3e) o EXPLICITO ficou "
+                "limitado em %.3e -- o limite nao e' o que se diz",
+                dt, dt_lim, ex);
+    T_CHECK_MSG(im < 2.0,
+                "com dt = %.3e o semi-implicito estourou (%.3e)", dt, im);
+  }
+
   return t_end();
 }

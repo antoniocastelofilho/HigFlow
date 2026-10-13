@@ -1410,4 +1410,55 @@
 //
 //! COBERTA-POR: test-poisson3d:o_poisson_3d_recusa_discretizacao_que_nao_e_de_volumes_finitos
 
+// ---------------------------------------------------------------------------
+// S -- O AVANCO SEMI-IMPLICITO (o termo viscoso na matriz)
+// ---------------------------------------------------------------------------
+
+//! S1  O OPERADOR DE DIFUSAO TEM DUAS IMPLEMENTACOES DE PROPOSITO -- avaliacao
+//! explicita e pesos de matriz --, e elas concordam em precisao de maquina em
+//! malha UNIFORME e ADAPTADA, com `mu` variavel e com os TRES tipos de
+//! contorno.
+//!
+//! Colapsa-las numa so' trocaria a ordem das somas de ponto flutuante, e com
+//! ela os ultimos bits de todo caso monofasico ja' gravado -- o criterio de
+//! "o caminho geral reproduz o particular bit a bit" e' o que pegou duas
+//! refatoracoes minhas mentindo, e perde-lo e' troca ruim.  A gemea testada e'
+//! o preco; e' o mesmo arranjo de `amr_tabela` contra `amr_tabela_exaustiva`.
+//!
+//! O CASO REFINA ATE' A PAREDE de proposito: o defeito analogo anterior -- o
+//! gradiente transversal com duas implementacoes -- concordava no interior e
+//! discordava NA PAREDE, e so' apareceu quando o refino chegou la'.
+//
+//! COBERTA-POR: test-ns2d:o_operador_de_difusao_concorda_pelos_dois_caminhos
+
+//! S2  O FECHAMENTO DE CONTORNO E' AFIM NA PROPRIA INCOGNITA (`A u_f + B`), e o
+//! implicito o trata assim -- nao como valor conhecido no lado direito.
+//!
+//! Jogar o fantasma inteiro no lado direito trata um NEUMANN como Dirichlet com
+//! valor velho.  Nao falha: converge, da' numero, e a condicao passa a valer
+//! outra coisa.  Nos lados de deslizamento livre da bolha de Hysing a condicao
+//! tangencial E' Neumann, entao isto nao e' hipotese remota.
+//
+//! COBERTA-POR: test-ns2d:o_operador_de_difusao_concorda_pelos_dois_caminhos
+
+//! S3  OS DOIS AVANCOS CONVERGEM PARA O MESMO CAMPO quando `dt` cai, e DIFEREM
+//! quando `dt` e' grande.
+//!
+//! AS DUAS METADES SAO NECESSARIAS.  So' a convergencia nao distingue um
+//! semi-implicito correto de um que nao faz nada -- este ultimo daria diferenca
+//! zero em qualquer `dt`.  So' a diferenca nao distingue um esquema correto de
+//! um errado.
+//
+//! COBERTA-POR: test-ns2d:os_dois_avancos_temporais_convergem_para_o_mesmo_campo
+
+//! S4  O SEMI-IMPLICITO SOBREVIVE ACIMA DO LIMITE VISCOSO EXPLICITO, e o
+//! explicito NAO.
+//!
+//! O ganho declarado, medido, com o contraste junto: se os dois sobrevivessem,
+//! o limite nao seria o que se diz e o ganho seria afirmacao vazia.  O que
+//! SOBRA e' o limite capilar -- propriedade da tensao superficial, nao da
+//! difusao, e implicitar o viscoso nao o remove.
+//
+//! COBERTA-POR: test-ns2d:o_semi_implicito_e_estavel_acima_do_limite_viscoso_explicito
+
 #endif

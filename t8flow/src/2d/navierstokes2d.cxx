@@ -856,7 +856,13 @@ void NavierStokes::passo()
   t_bc_ = t_;
   if (relogio_) *relogio_ = t_bc_;
   aplica_contorno_velocidade();
-  preditor();
+  // O AVANCO TEMPORAL ESCOLHE O PREDITOR, e e' a unica coisa que muda entre os
+  // dois: projecao, Poisson e correcao sao identicos.  Com `dt` pequeno os
+  // dois convergem para a mesma resposta, e e' isso que o arreio exige.
+  if (tempo_ == Tempo::EulerSemiImplicito)
+    preditor_semi_implicito();
+  else
+    preditor();
   // O CONTORNO VALE PARA `u*` TAMBEM: o Poisson usa a divergencia de `u*`, e
   // se a componente normal na parede nao for a da condicao, a compatibilidade
   // do Poisson quebra -- com Neumann em toda a volta ele fica insoluvel, e com
@@ -1260,6 +1266,317 @@ double NavierStokes::mu_na_quina(const Ponto2 &xq) const
     }
   if (n == 0) return 1.0 / re_;
   return n / soma;
+}
+
+// ===========================================================================
+// OS PESOS: a mesma dependencia linear, em forma de MATRIZ.
+//
+// Cada funcao aqui e' o espelho de uma funcao de VALOR, e o contrato entre as
+// duas e' `valor == soma_j w_j u_j (+ cte)`.  O arreio exige isso em precisao
+// de maquina por `difusao_explicita` contra `difusao_por_pesos`.
+//
+// POR QUE DUAS E NAO UMA.  Colapsar as duas -- fazer a avaliacao explicita
+// somar os pesos -- trocaria a ORDEM DAS SOMAS de ponto flutuante, e com ela
+// os ultimos bits de todo caso monofasico ja' gravado.  O criterio de
+// "reproduz bit a bit" e' o que pegou duas das minhas refatoracoes mentindo,
+// e perde-lo para ganhar uma funcao a menos e' troca ruim.  O preco e' a
+// gemea, e a gemea e' testada.
+// ===========================================================================
+
+void NavierStokes::pesos_media_de_fluxo(long b, long i, int d, int lado,
+                                        double esc, Pesos *w) const
+{
+  const std::vector<SubFaceta> sfs = sub_facetas(b, i, d, lado);
+  double den = 0.0;
+  for (const SubFaceta &sf : sfs) den += sf.medida;
+  if (den <= 0.0) return;                 // face sem faceta: valor zero
+  for (const SubFaceta &sf : sfs) (*w)[sf.id] += esc * sf.medida / den;
+}
+
+bool NavierStokes::pesos_u_no_ponto(int d, const Ponto2 &x, double esc,
+                                    Pesos *w) const
+{
+  const long f = faceta_em(d, x);
+  if (f >= 0) { (*w)[f] += esc; return true; }
+
+  const long id = m_->id_do_ponto(x);
+  if (id < 0) return false;
+  const auto it = bi_por_id_.find(id);
+  if (it == bi_por_id_.end()) return false;
+  const long b = it->second.first, i = it->second.second;
+  const Ponto2 c = m_->centroide(b, i);
+  const Ponto2 hh = m_->lados_da_folha(b, i);
+
+  auto pesos_da_celula = [&](long bb, long ii, double sc) {
+    const Ponto2 cc = m_->centroide(bb, ii);
+    const Ponto2 h2 = m_->lados_da_folha(bb, ii);
+    double lam = (x[d] - (cc[d] - h2[d] / 2.0)) / h2[d];
+    if (lam < 0.0) lam = 0.0;
+    if (lam > 1.0) lam = 1.0;
+    pesos_media_de_fluxo(bb, ii, d, 0, sc * (1.0 - lam), w);
+    pesos_media_de_fluxo(bb, ii, d, 1, sc * lam, w);
+  };
+
+  const int q = 1 - d;
+  const double delta = x[q] - c[q];
+  if (std::fabs(delta) < 1e-12 * hh[q]) {
+    pesos_da_celula(b, i, esc);
+    return true;
+  }
+
+  Ponto2 pv = x;
+  pv[q] = c[q] + (delta > 0.0 ? 1.0 : -1.0) * (hh[q] / 2.0 + h_min_[q] / 4.0);
+  pv[d] = c[d];
+  const long idv = m_->id_do_ponto(pv);
+  const auto itv = (idv >= 0) ? bi_por_id_.find(idv) : bi_por_id_.end();
+  if (itv == bi_por_id_.end()) {
+    pesos_da_celula(b, i, esc);
+    return true;
+  }
+  const long bv = itv->second.first, iv = itv->second.second;
+  const double hv = m_->lados_da_folha(bv, iv)[q];
+  double mu = std::fabs(delta) / ((hh[q] + hv) / 2.0);
+  if (mu > 1.0) mu = 1.0;
+  pesos_da_celula(b, i, esc * (1.0 - mu));
+  pesos_da_celula(bv, iv, esc * mu);
+  return true;
+}
+
+NavierStokes::VizinhaPesos NavierStokes::pesos_vizinha_de(int d, long fid,
+                                                          int e, int s,
+                                                          double esc,
+                                                          Pesos *w) const
+{
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 xf = fd_->centro(d, fid);
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  const Ponto2 cC = m_->centroide(dn.b, dn.i);
+  VizinhaPesos v;
+
+  if (e == d) {
+    const bool para_dentro = (dn.lado == 0) ? (s > 0) : (s < 0);
+    if (para_dentro) {
+      pesos_media_de_fluxo(dn.b, dn.i, d, 1 - dn.lado, esc, w);
+      v.dist = hC[d];
+      v.dentro = true;
+      return v;
+    }
+    Ponto2 p = xf;
+    p[d] += s * h_min_[d] / 4.0;
+    const long id = m_->id_do_ponto(p);
+    const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+    if (it == bi_por_id_.end()) { v.dentro = false; return v; }
+    const long bb = it->second.first, ii = it->second.second;
+    const int lado_perto = (s > 0) ? 0 : 1;
+    pesos_media_de_fluxo(bb, ii, d, 1 - lado_perto, esc, w);
+    v.dist = m_->lados_da_folha(bb, ii)[d];
+    v.dentro = true;
+    return v;
+  }
+
+  const int t = e;
+  Ponto2 p = xf;
+  p[d] += (dn.lado == 0 ? 1.0 : -1.0) * h_min_[d] / 4.0;
+  p[t] = cC[t] + s * (hC[t] / 2.0 + h_min_[t] / 4.0);
+  const long id = m_->id_do_ponto(p);
+  const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+  if (it == bi_por_id_.end()) { v.dentro = false; return v; }
+  const long bb = it->second.first, ii = it->second.second;
+  const Ponto2 hN = m_->lados_da_folha(bb, ii);
+  const Ponto2 cN = m_->centroide(bb, ii);
+
+  Ponto2 alvo;
+  alvo[d] = xf[d];
+  alvo[t] = cN[t];
+  v.dentro = pesos_u_no_ponto(d, alvo, esc, w);
+  v.dist = (hC[t] + hN[t]) / 2.0;
+  return v;
+}
+
+void NavierStokes::contorno_afim(int d, long fid, int e, int s, double *A,
+                                 double *B) const
+{
+  // ESPELHO EXATO de `contorno_vizinho`: fantasma = `A * u_f + B`.
+  const Dono &dn = dono_[d][static_cast<size_t>(fid)];
+  const Ponto2 hC = m_->lados_da_folha(dn.b, dn.i);
+  const Ponto2 xf = fd_->centro(d, fid);
+  *A = 1.0;
+  *B = 0.0;
+  if (e == d) return;                     // nao ocorre em faceta interior
+
+  Ponto2 xp = xf;
+  xp[e] += s * hC[e] / 2.0;
+  const Contorno &c = bcu_[d]->em(xp);
+  switch (c.tipo) {
+    case TipoContorno::Dirichlet:
+      *A = -1.0;
+      *B = 2.0 * c.g(xp);
+      return;
+    case TipoContorno::Neumann:
+      *A = 1.0;
+      *B = s * hC[e] * c.g(xp);
+      return;
+    case TipoContorno::Robin:
+      c.afim(xp, hC[e], A, B);
+      return;
+  }
+}
+
+void NavierStokes::pesos_difusao(int d, long fid, Pesos *w, double *cte) const
+{
+  // ESPELHO DE `tensao_viscosa_fluxo`.  Mesma escolha de `mu`, mesmas
+  // distancias, mesmo divisor: o que muda e' so' que o vizinho entra como
+  // DEPENDENCIA em vez de numero.
+  const Ponto2 xf = fd_->centro(d, fid);
+  *cte = 0.0;
+
+  for (int e = 0; e < 2; e++) {
+    // O divisor e' `(dist_- + dist_+)/2` e so' se conhece depois dos dois
+    // lados -- por isso a direcao acumula num mapa proprio antes de dividir.
+    Pesos wn;
+    double cn = 0.0;
+    double dist[2] = {1.0, 1.0};
+
+    for (int lado = 0; lado < 2; lado++) {
+      const int sgn = (lado == 0) ? -1 : +1;
+      Pesos wv;
+      const VizinhaPesos v = pesos_vizinha_de(d, fid, e, sgn, 1.0, &wv);
+      double dd = 0.0, A = 0.0, B = 0.0;
+      if (v.dentro) {
+        dd = v.dist;
+      } else {
+        dd = dist_ate_parede(d, fid, e, sgn);
+        wv.clear();
+        contorno_afim(d, fid, e, sgn, &A, &B);
+      }
+      if (dd <= 0.0) { dist[lado] = 1.0; continue; }
+
+      Ponto2 xm = xf;
+      xm[e] += sgn * dd / 2.0;
+      const double mu_m = (e == d) ? mu_em(xm) : mu_na_quina(xm);
+      const double coef = mu_m / dd;
+
+      // `fluxo = mu (u_viz - u_aqui) / dd`
+      if (v.dentro)
+        for (const auto &kv : wv) wn[kv.first] += coef * kv.second;
+      else {
+        wn[fid] += coef * A;
+        cn += coef * B;
+      }
+      wn[fid] -= coef;
+      dist[lado] = dd;
+    }
+
+    const double D = (dist[0] + dist[1]) / 2.0;
+    for (const auto &kv : wn) (*w)[kv.first] += kv.second / D;
+    *cte += cn / D;
+  }
+}
+
+double NavierStokes::difusao_explicita(int d, long fid) const
+{
+  return tensao_viscosa_fluxo(d, fid);
+}
+
+double NavierStokes::difusao_por_pesos(int d, long fid) const
+{
+  Pesos w;
+  double cte = 0.0;
+  pesos_difusao(d, fid, &w, &cte);
+  double v = cte;
+  for (const auto &kv : w) v += kv.second * u_.em(d, kv.first);
+  return v;
+}
+
+void NavierStokes::preditor_semi_implicito()
+{
+  // `(I - (dt/rho) L_mu) u* = u^n + dt R`, UMA COMPONENTE POR VEZ.
+  //
+  // O QUE ESTA' IMPLICITO E' SO' `div(mu grad u)`, como no HiGFlow
+  // (`higflow_semi_implicit_euler_intermediate_velocity_multiphase`, com
+  // `wr = -dt viscr/(Re h^2)/dens`).  O convectivo, a gravidade, a forca de
+  // tensao, o termo fonte e o TRANSPOSTO ficam explicitos.  O transposto em
+  // particular NAO pode ir para a matriz: ele depende da derivada CRUZADA
+  // `d_d u_e`, e isso acoplaria as duas componentes num sistema so' -- o dobro
+  // de incognitas por um termo que e' pequeno fora da interface.
+  //
+  // O GANHO E' O LIMITE VISCOSO DO PASSO.  No caso de Hysing o `dt` explicito
+  // sai de `min(visc, capilar, convect)`: no `h = 0,00625` isso da' visc
+  // 9,77e-4 contra capilar 9,34e-4 -- os dois apertados. Com o viscoso
+  // implicito sobra o capilar, que e' propriedade da tensao superficial e nao
+  // da difusao, e nao se remove com implicitacao.
+  //
+  // E' SERIAL, e isso esta' dito e nao suposto: `DominioFacetas` numera as
+  // facetas LOCALMENTE, sem deslocamento global, de modo que o indice da
+  // faceta e' a linha da matriz so' em `np = 1`.  O exemplo bifasico ja' recusa
+  // `np > 1`; quando a troca de franja dos campos entrar, esta funcao precisa
+  // de numeracao global antes de rodar em paralelo.
+  ustar_ = u_;
+  rebaixos_conv_ = 0;
+
+  for (int d = 0; d < 2; d++) {
+    const long nf = fd_->num_facetas(d);
+    t8flow::Solver s(t8flow::Motor::Petsc, 0, static_cast<std::size_t>(nf), 9);
+    s.tolerancia(1e-12);
+
+    for (long f = 0; f < nf; f++) {
+      const Ponto2 x = fd_->centro(d, f);
+      Ponto2 a = x, b = x;
+      a[d] -= h_min_[d] / 4.0;
+      b[d] += h_min_[d] / 4.0;
+
+      // FACETA DE CONTORNO: LINHA IDENTIDADE.  O preditor explicito nao a
+      // toca -- ali a velocidade vem da condicao --, e o implicito tem de
+      // fazer o mesmo.  Resolver a equacao nela sobrescreveria a condicao de
+      // contorno sem que nada acusasse.
+      if (m_->id_do_ponto(a) < 0 || m_->id_do_ponto(b) < 0) {
+        const std::vector<int> col{static_cast<int>(f)};
+        const std::vector<double> val{1.0};
+        s.linha(static_cast<int>(f), col, val);
+        s.lado_direito(static_cast<int>(f), u_.em(d, f));
+        continue;
+      }
+
+      const double rho_f = rho_na_faceta(d, f);
+
+      double rhs = -conveccao(d, f) + g_[d]
+                   + (tensao_viscosa_transposto(d, f)
+                      + (forca_campo_ ? forca_campo_->em(d, f) : 0.0))
+                         / rho_f;
+      if (proj_ == Projecao::Incremental) rhs -= grad_campo(p_, d, f) / rho_f;
+      if (fonte_faceta_) rhs += fonte_faceta_(x, d, t_bc_);
+
+      Pesos w;
+      double cte = 0.0;
+      pesos_difusao(d, f, &w, &cte);
+      const double fat = dt_ / rho_f;
+
+      std::map<long, double> linha;
+      linha[f] += 1.0;
+      for (const auto &kv : w) linha[kv.first] -= fat * kv.second;
+
+      std::vector<int> cols;
+      std::vector<double> vals;
+      cols.reserve(linha.size());
+      vals.reserve(linha.size());
+      for (const auto &kv : linha) {
+        cols.push_back(static_cast<int>(kv.first));
+        vals.push_back(kv.second);
+      }
+      s.linha(static_cast<int>(f), cols, vals);
+      s.lado_direito(static_cast<int>(f),
+                     u_.em(d, f) + dt_ * rhs + fat * cte);
+    }
+
+    s.monta();
+    s.resolve();
+    if (!s.convergiu())
+      throw std::runtime_error(
+          "NavierStokes: o sistema viscoso da componente " +
+          std::to_string(d) + " nao convergiu");
+    const std::vector<double> &sol = s.solucao();
+    for (long f = 0; f < nf; f++) ustar_.em(d, f) = sol[static_cast<size_t>(f)];
+  }
 }
 
 double NavierStokes::tensao_viscosa(int d, long fid) const

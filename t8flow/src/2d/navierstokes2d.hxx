@@ -271,6 +271,24 @@ class NavierStokes {
   // dominio entrega menos do que diz, e sem o contador isso e' invisivel.
   long rebaixamentos_convectivos() const { return rebaixos_conv_; }
 
+  //! PARA O ARREIO: o operador de difusao pelos DOIS caminhos.
+  //
+  // O semi-implicito precisa do operador `div(mu grad u)` em forma de MATRIZ,
+  // e o explicito o avalia como NUMERO.  Sao duas implementacoes da mesma
+  // coisa, e duas implementacoes da mesma coisa ja' me custaram um defeito
+  // (o gradiente transversal, que concordava no interior e discordava na
+  // parede).  A defesa aqui NAO e' colapsa-las numa -- reescrever a avaliacao
+  // como `soma w.u` mudaria a ordem das somas e o criterio de reproducao bit a
+  // bit perderia o poder de discriminar.  A defesa e' o teste: estes dois
+  // metodos existem para que o arreio possa exigir que concordem em precisao
+  // de maquina, em malha uniforme E adaptada, com campo arbitrario.
+  //
+  // E' o mesmo padrao de `amr_tabela` contra `amr_tabela_exaustiva`: a gemea
+  // nao e' redundancia, e' o que torna a propriedade verificada em vez de
+  // acreditada.
+  double difusao_explicita(int d, long fid) const;
+  double difusao_por_pesos(int d, long fid) const;
+
  private:
   void aplica_contorno_velocidade();
   void preditor();
@@ -401,6 +419,42 @@ class NavierStokes {
   //! na matriz acoplaria as duas componentes e o sistema deixaria de ser dois
   //! problemas escalares.
   double tensao_viscosa_transposto(int d, long fid) const;
+
+  //! PESOS: dependencia linear de uma quantidade nas incognitas das facetas.
+  using Pesos = std::map<long, double>;
+
+  //! Os pesos de `media_de_fluxo`, acumulados com escala `esc`.
+  void pesos_media_de_fluxo(long b, long i, int d, int lado, double esc,
+                            Pesos *w) const;
+
+  //! Os pesos de `u_no_ponto`.  Devolve falso quando o ponto esta' fora.
+  bool pesos_u_no_ponto(int d, const Ponto2 &x, double esc, Pesos *w) const;
+
+  //! Os pesos de `vizinha_de`.  So' a geometria; o valor sai de `w`.
+  struct VizinhaPesos {
+    double dist = 0.0;
+    bool dentro = false;
+  };
+  VizinhaPesos pesos_vizinha_de(int d, long fid, int e, int s, double esc,
+                                Pesos *w) const;
+
+  //! O FECHAMENTO DE CONTORNO E' AFIM NA PROPRIA INCOGNITA: o fantasma vale
+  //! `A*u_f + B`.  Dirichlet da' `A = -1, B = 2g`; Neumann da' `A = 1,
+  //! B = s h g`; Robin vem de `Contorno::afim`.
+  //
+  // E' ISSO QUE PERMITE AO IMPLICITO TRATAR O CONTORNO EXATO.  Jogar o
+  // fantasma todo no lado direito trataria um Neumann como Dirichlet com valor
+  // velho -- e nos lados de deslizamento livre da bolha de Hysing a condicao
+  // tangencial E' Neumann.
+  void contorno_afim(int d, long fid, int e, int s, double *A,
+                     double *B) const;
+
+  //! O operador `div(mu grad u)` da faceta em forma de PESOS: o valor e'
+  //! `soma_j w_j u_j + cte`.
+  void pesos_difusao(int d, long fid, Pesos *w, double *cte) const;
+
+  //! O PREDITOR SEMI-IMPLICITO: resolve `(I - dt/rho L_mu) u* = u^n + dt R`.
+  void preditor_semi_implicito();
 
   double conveccao(int d, long fid) const;
   double difusao(int d, long fid) const;
