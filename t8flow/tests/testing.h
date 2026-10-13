@@ -35,6 +35,12 @@ static void _t_case_end(void) {
     if (_t_case_name[0] == '\0') return;
     if (!_t_case_failed && !_t_case_pulado) printf("caso %s PASS\n", _t_case_name);
     _t_case_name[0] = '\0';
+    /* O FLUSH NAO E' ENFEITE.  Para cano a `stdout` e' TOTALMENTE bufferizada,
+       e um caso que TRAVA leva junto tudo o que ja' passou: o arquivo fica
+       VAZIO e nao ha' como saber em qual caso parou.  Apanhado exatamente
+       assim -- dez minutos olhando um arquivo em branco de um binario que
+       estava vivo. */
+    fflush(stdout);
 }
 
 //! Abre um caso.  Fecha o anterior, se houver.
