@@ -167,6 +167,20 @@ void Frente::avanca(const CampoDeAdvecao &u, double t, double dt, bool rk2)
   m_.swap(novo);
 }
 
+void Frente::move(const std::vector<Ponto2> &vel, double dt)
+{
+  if (vel.size() != m_.size())
+    throw std::invalid_argument(
+        "Frente::move: " + std::to_string(vel.size()) + " velocidades para " +
+        std::to_string(m_.size()) + " marcadores.  A cirurgia muda a contagem, "
+        "e interpolar antes dela deixa as duas listas em desacordo -- o que "
+        "nao falharia se os tamanhos fossem so' parecidos");
+  for (size_t k = 0; k < m_.size(); k++) {
+    m_[k][0] += dt * vel[k][0];
+    m_[k][1] += dt * vel[k][1];
+  }
+}
+
 Frente::Cirurgia Frente::cirurgia(double l_min, double l_max)
 {
   if (!(l_max > 0.0) || !(l_min > 0.0))
@@ -231,6 +245,79 @@ Frente::Cirurgia Frente::cirurgia(double l_min, double l_max)
     m_.swap(novo);
   }
   return c;
+}
+
+namespace {
+
+//! O comprimento da ESTRELA do marcador: metade da soma dos dois segmentos
+//! incidentes.  E' o analogo plano do volume da estrela que a versao
+//! tridimensional usa como peso, e e' o que faz a altura comum NAO ser a media
+//! simples quando os dois lados tem resolucao diferente.
+double estrela_de(const Frente &f, long i)
+{
+  const Ponto2 &a = f.marcador(i - 1);
+  const Ponto2 &p = f.marcador(i);
+  const Ponto2 &b = f.marcador(i + 1);
+  return 0.5 * (std::hypot(p[0] - a[0], p[1] - a[1]) +
+                std::hypot(b[0] - p[0], b[1] - p[1]));
+}
+
+}  // namespace
+
+long Frente::tsur(double rlx, double limiar)
+{
+  const long n = static_cast<long>(m_.size());
+  if (n < 4) return 0;
+
+  // OS DESLOCAMENTOS SAO ACUMULADOS E APLICADOS DE UMA VEZ.  Aplicar em
+  // seguida faria o segundo segmento ler posicoes ja' movidas pelo primeiro, e
+  // o resultado passaria a depender da ORDEM DE PERCURSO -- que nao e'
+  // propriedade da frente.
+  std::vector<Ponto2> desl(static_cast<size_t>(n), Ponto2{0.0, 0.0});
+  std::vector<char> tocado(static_cast<size_t>(n), 0);
+
+  for (long e = 0; e < n; e++) {
+    const long v1 = e, v2 = (e + 1) % n;
+    const Ponto2 n1 = normal(v1), n2 = normal(v2);
+    Ponto2 ne{n1[0] + n2[0], n1[1] + n2[1]};
+    const double mn = std::hypot(ne[0], ne[1]);
+    if (mn < 1e-7) continue;          // normais opostas: nada a definir
+    ne[0] /= mn;
+    ne[1] /= mn;
+
+    const Ponto2 &p1 = m_[static_cast<size_t>(v1)];
+    const Ponto2 &p2 = m_[static_cast<size_t>(v2)];
+    const Ponto2 meio{0.5 * (p1[0] + p2[0]), 0.5 * (p1[1] + p2[1])};
+    const double h1 = (p1[0] - meio[0]) * ne[0] + (p1[1] - meio[1]) * ne[1];
+    const double h2 = (p2[0] - meio[0]) * ne[0] + (p2[1] - meio[1]) * ne[1];
+
+    // O LIMIAR compara `|h1|` com a MEIA-ARESTA, que e' o maximo que ele pode
+    // valer -- de modo que `limiar` e' uma fracao adimensional e nao depende
+    // da resolucao da frente.
+    const double meia = 0.5 * std::hypot(p2[0] - p1[0], p2[1] - p1[1]);
+    if (meia <= 0.0 || std::fabs(h1) < limiar * meia) continue;
+
+    const double w1 = estrela_de(*this, v1), w2 = estrela_de(*this, v2);
+    if (w1 + w2 <= 0.0) continue;
+    const double hc = (w1 * h1 + w2 * h2) / (w1 + w2);
+
+    const double g = 1.0 - rlx;
+    desl[static_cast<size_t>(v1)][0] += g * (hc - h1) * ne[0];
+    desl[static_cast<size_t>(v1)][1] += g * (hc - h1) * ne[1];
+    desl[static_cast<size_t>(v2)][0] += g * (hc - h2) * ne[0];
+    desl[static_cast<size_t>(v2)][1] += g * (hc - h2) * ne[1];
+    tocado[static_cast<size_t>(v1)] = 1;
+    tocado[static_cast<size_t>(v2)] = 1;
+  }
+
+  long movidos = 0;
+  for (long i = 0; i < n; i++) {
+    if (!tocado[static_cast<size_t>(i)]) continue;
+    m_[static_cast<size_t>(i)][0] += desl[static_cast<size_t>(i)][0];
+    m_[static_cast<size_t>(i)][1] += desl[static_cast<size_t>(i)][1];
+    movidos++;
+  }
+  return movidos;
 }
 
 }  // namespace t8flow2d

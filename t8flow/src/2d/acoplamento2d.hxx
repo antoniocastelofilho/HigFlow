@@ -85,6 +85,45 @@ void interpola_propriedade(const Malha &m, const CampoEscalar &c,
 void forca_tensao(const Frente &f, const Malha &m, const DominioFacetas &fd,
                   double sigma, CampoVetorial *forca);
 
+//! A VELOCIDADE NOS MARCADORES, interpolada das facetas.
+//
+// E' A ADJUNTA DA DISTRIBUICAO, e nao uma interpolacao qualquer:
+//
+//     distribui:   f(x) = soma_k F_k D_h(x - X_k)
+//     interpola:   U_k  = soma_x u(x) D_h(x - X_k) h^2
+//
+// O MESMO nucleo, com o volume da celula no lugar do `1/h^2`.  O par
+// adjunto e' o que garante que a frente nao ganha nem perde energia na
+// travessia: a potencia que os marcadores entregam a' malha e' a que a malha
+// devolve a eles.  Usar interpolacao bilinear aqui e Peskin na distribuicao
+// quebraria isso -- e quebraria em silencio, porque cada uma sozinha parece
+// razoavel.
+std::vector<Ponto2> velocidade_nos_marcadores(const Frente &f, const Malha &m,
+                                              const DominioFacetas &fd,
+                                              const CampoVetorial &u);
+
+//! A MESMA velocidade, por AJUSTE DE MINIMOS QUADRADOS MOVEIS.
+//
+// EXISTE PARA SER COMPARADA COM A DE PESKIN, e a escolha entre as duas e' um
+// compromisso real, nao uma preferencia:
+//
+//   PESKIN e' a ADJUNTA da distribuicao da forca.  O par adjunto garante que a
+//   frente nao ganha nem perde energia na travessia -- a potencia que os
+//   marcadores entregam a' malha e' a que a malha devolve.  Em troca, o nucleo
+//   de quatro pontos e' de ordem baixa e BORRA: ele espalha por `4h`;
+//
+//   MLS e' de ordem alta -- reproduz exatamente o polinomio do grau pedido --
+//   e NAO e' adjunto de nada.  A energia deixa de fechar, e o quanto isso
+//   importa depende do caso.
+//
+// Medir os dois no mesmo campo, com a mesma frente, e' a unica forma de saber
+// o que se ganha e o que se perde.  O arreio o faz.
+std::vector<Ponto2> velocidade_nos_marcadores_mls(const Frente &f,
+                                                  const Malha &m,
+                                                  const DominioFacetas &fd,
+                                                  const CampoVetorial &u,
+                                                  int ordem);
+
 //! A soma de `forca * medida` sobre as facetas, por direcao.
 //
 // TEM DE DAR A SOMA DE `sigma . kappa . n . ds` SOBRE OS MARCADORES, que para

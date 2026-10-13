@@ -222,5 +222,179 @@ int main(int argc, char **argv)
     T_NEAR(dp[2] / dp[0], 0.25 / 0.3125, 0.02, "a razao do salto ao aumentar R");
   }
 
+  t_case("peskin_e_mls_sao_ambos_exatos_no_campo_linear");
+  {
+    // ESTE CASO NASCEU DE UMA EXPECTATIVA MINHA QUE A MEDIDA REFUTOU.  Eu o
+    // escrevi esperando que o MLS ganhasse do Peskin num campo linear, e os
+    // DOIS sao exatos: 3,3e-16 e 4,4e-16.
+    //
+    // O nucleo de Peskin de quatro pontos satisfaz, POR CONSTRUCAO, as
+    // condicoes de momento ZERO e UM -- soma um, e o primeiro momento e' nulo.
+    // Disso decorre que ele reproduz campo linear exatamente.  Nao e'
+    // coincidencia: e' o que se exige de um nucleo de fronteira imersa, e e'
+    // por isso que ele e' esse e nao uma gaussiana truncada.
+    auto linear = [](const Ponto2 &x, int d) {
+      return (d == 0) ? (0.3 + 0.7 * x[0] - 0.2 * x[1])
+                      : (-0.1 + 0.4 * x[0] + 0.5 * x[1]);
+    };
+    Malha m({{{0.0, 0.0}, {1.0, 1.0}, 5}}, sc_MPI_COMM_WORLD);
+    DominioFacetas fd(m);
+    CampoVetorial u(fd);
+    for (int d = 0; d < 2; d++)
+      for (long k = 0; k < fd.num_facetas(d); k++)
+        u.em(d, k) = linear(fd.centro(d, k), d);
+
+    Frente f = Frente::circulo({0.5, 0.5}, 0.25, 120);
+    const std::vector<Ponto2> up = velocidade_nos_marcadores(f, m, fd, u);
+    const std::vector<Ponto2> um = velocidade_nos_marcadores_mls(f, m, fd, u, 1);
+    double ep = 0.0, em = 0.0;
+    for (long k = 0; k < f.num_marcadores(); k++) {
+      const Ponto2 &X = f.marcador(k);
+      for (int d = 0; d < 2; d++) {
+        ep = std::max(ep, std::fabs(up[static_cast<size_t>(k)][d] - linear(X, d)));
+        em = std::max(em, std::fabs(um[static_cast<size_t>(k)][d] - linear(X, d)));
+      }
+    }
+    T_BELOW(ep, 1e-13, "o Peskin num campo LINEAR -- exato pela condicao de "
+                       "primeiro momento do nucleo");
+    T_BELOW(em, 1e-11, "o MLS de ordem 1 num campo linear");
+  }
+
+  t_case("no_campo_curvo_o_mls_ganha_e_o_peskin_converge");
+  {
+    // O CAMPO QUE DISTINGUE: trigonometrico, onde nenhum dos dois e' exato.
+    // Com o linear os dois acertam, e a comparacao nao diz nada -- foi o que
+    // o caso anterior mostrou.
+    auto curvo = [](const Ponto2 &x, int d) {
+      return (d == 0) ? std::sin(2.0 * PI * x[0]) * std::cos(2.0 * PI * x[1])
+                      : std::cos(2.0 * PI * x[0]) * std::sin(2.0 * PI * x[1]);
+    };
+    double e_pes[2], e_mls[2];
+    const int niveis[2] = {5, 6};
+    for (int q = 0; q < 2; q++) {
+      Malha m({{{0.0, 0.0}, {1.0, 1.0}, niveis[q]}}, sc_MPI_COMM_WORLD);
+      DominioFacetas fd(m);
+      CampoVetorial u(fd);
+      for (int d = 0; d < 2; d++)
+        for (long k = 0; k < fd.num_facetas(d); k++)
+          u.em(d, k) = curvo(fd.centro(d, k), d);
+
+      Frente f = Frente::circulo({0.5, 0.5}, 0.25, 120);
+      const std::vector<Ponto2> up = velocidade_nos_marcadores(f, m, fd, u);
+      const std::vector<Ponto2> um = velocidade_nos_marcadores_mls(f, m, fd, u, 2);
+      double ep = 0.0, em = 0.0;
+      for (long k = 0; k < f.num_marcadores(); k++) {
+        const Ponto2 &X = f.marcador(k);
+        for (int d = 0; d < 2; d++) {
+          ep = std::max(ep, std::fabs(up[static_cast<size_t>(k)][d] - curvo(X, d)));
+          em = std::max(em, std::fabs(um[static_cast<size_t>(k)][d] - curvo(X, d)));
+        }
+      }
+      e_pes[q] = ep;
+      e_mls[q] = em;
+    }
+
+    // O COMPROMISSO, MEDIDO: o MLS erra menos, o Peskin e' adjunto.  Nenhum
+    // dos dois e' "o certo" -- a escolha depende de o caso precisar mais de
+    // precisao pontual ou de conservacao de energia na travessia.
+    T_CONTRASTE(e_mls[1], e_pes[1], 2.0,
+                "o erro do MLS contra o do Peskin num campo curvo");
+    const double op = std::log2(e_pes[0] / e_pes[1]);
+    const double om = std::log2(e_mls[0] / e_mls[1]);
+    T_CHECK_MSG(op > 1.5, "o Peskin convergiu em ordem %.2f (%.3e -> %.3e)",
+                op, e_pes[0], e_pes[1]);
+    T_CHECK_MSG(om > 2.0, "o MLS de ordem 2 convergiu em ordem %.2f "
+                "(%.3e -> %.3e)", om, e_mls[0], e_mls[1]);
+  }
+
+  t_case("o_tsur_precisa_de_relaxacao_meia_em_duas_dimensoes");
+  {
+    // O ACHADO DESTE ARQUIVO, e ele nao estava no plano.
+    //
+    // Cada marcador e' tocado por DOIS segmentos, e os deslocamentos se
+    // ACUMULAM.  Com `rlx = 0` -- que e' "mover o total", o que o Freeflow faz
+    // -- a correcao e' aplicada em DOBRO: o ziguezague inverte o sinal e
+    // MANTEM a amplitude, em vez de sumir.
+    //
+    // O fator de amortecimento e' `|2 rlx - 1|`, e por isso `rlx = 0,5` o
+    // zera.  Medido na elipse com ondulacao submalha, rugosidade depois de uma
+    // aplicacao: 345,4 com rlx=0 (inalterada, e sobe a 349,9 em vinte), 315,6
+    // com 0,25, 0,93 com 0,50, e 316,2 com 0,75 -- os dois ultimos simetricos
+    // em torno de 0,5, como o modelo preve.
+    //
+    // EM TRES DIMENSOES O VALOR E' OUTRO: cada vertice tem da ordem de seis
+    // arestas incidentes, e o analogo seria `1 - 1/6`.  Nao e' parametro de
+    // ajuste -- e' a conta.
+    const double a = 0.35, b = 0.18;
+    const int n = 200;
+    auto com_ruido = [&]() {
+      std::vector<Ponto2> p;
+      for (int k = 0; k < n; k++) {
+        const double t = 2.0 * PI * k / n;
+        const double r = 1.0 + ((k % 2) ? 0.01 : -0.01);
+        p.push_back({0.5 + r * a * std::cos(t), 0.5 + r * b * std::sin(t)});
+      }
+      return Frente(p);
+    };
+    auto rugosidade = [](const Frente &f) {
+      double s = 0.0;
+      for (long k = 0; k < f.num_marcadores(); k++)
+        s = std::max(s, std::fabs(f.curvatura(k) - f.curvatura(k + 1)));
+      return s;
+    };
+
+    Frente meia = com_ruido(), total = com_ruido();
+    const double rug0 = rugosidade(meia);
+    T_CHECK_MSG(rug0 > 100.0,
+                "o ruido imposto deu rugosidade %.3g -- o caso nao exercita o "
+                "filtro", rug0);
+
+    meia.tsur(0.5, 0.1);
+    total.tsur(0.0, 0.1);
+    T_CONTRASTE(rugosidade(meia), rug0, 100.0,
+                "a rugosidade com rlx = 0,5 depois de UMA aplicacao");
+    T_CHECK_MSG(rugosidade(total) > 0.5 * rug0,
+                "com rlx = 0 a rugosidade caiu para %.3g de %.3g -- se caisse, "
+                "nao haveria razao para a relaxacao meia",
+                rugosidade(total), rug0);
+  }
+
+  t_case("o_limiar_do_tsur_protege_a_forma_lisa");
+  {
+    // O LIMIAR NAO E' AFINACAO: sem ele o filtro move todo marcador em toda
+    // aplicacao, e reduzir perimetro a area fixa e' EXATAMENTE o que a tensao
+    // superficial faz -- o filtro competiria com a fisica que o metodo
+    // resolve.
+    //
+    // E E' A ELIPSE QUE EXPOE.  Na circunferencia o efeito e' invisivel,
+    // porque o estado liso ja' e' de perimetro minimo: um filtro que come a
+    // forma passaria despercebido ali.
+    const double a = 0.35, b = 0.18;
+    const int n = 200;
+    Frente com = Frente::elipse({0.5, 0.5}, a, b, n);
+    Frente sem = Frente::elipse({0.5, 0.5}, a, b, n);
+    const double per0 = com.perimetro();
+
+    for (int k = 0; k < 200; k++) {
+      com.tsur(0.5, 0.1);
+      sem.tsur(0.5, 0.0);
+    }
+    const double rel_com = std::fabs(com.perimetro() - per0) / per0;
+    const double rel_sem = (per0 - sem.perimetro()) / per0;
+
+    T_BELOW(rel_com, 1e-12,
+            "o perimetro da elipse lisa depois de 200 aplicacoes COM limiar");
+    // SEM LIMIAR A EROSAO E' LENTA MAS MONOTONA, e e' a monotonia que importa:
+    // numa corrida de milhares de passos ela se acumula.  Medido: 0,99999906
+    // / 0,99999528 / 0,99999058 do perimetro inicial em 20, 100 e 200
+    // aplicacoes -- estritamente decrescente.
+    T_CHECK_MSG(rel_sem > 1e-6,
+                "sem limiar a elipse lisa perdeu so' %.3e de perimetro -- se "
+                "nao perde, o limiar nao protege de nada e o caso com limiar "
+                "nao afirma nada", rel_sem);
+    T_CONTRASTE(rel_com, rel_sem, 100.0,
+                "a erosao do perimetro com limiar contra sem limiar");
+  }
+
   return t_end();
 }

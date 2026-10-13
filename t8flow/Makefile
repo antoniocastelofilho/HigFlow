@@ -183,7 +183,7 @@ endif
 # 2D
 # ---------------------------------------------------------------------------
 OBJ2 = obj/2d
-CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson -Iexemplos/caixa -Iexemplos/gota
+CXXFLAGS2 = $(BASE) -DDIM=2 -Isrc/2d -Iexemplos/poisson -Iexemplos/caixa -Iexemplos/gota -Iexemplos/hysing
 
 # O QUE E' BIBLIOTECA fica em `src/`: malha, estencil, contorno, campos, o ajuste
 # por minimos quadrados, o lote, o invólucro de solver e a escolha de
@@ -224,7 +224,8 @@ BINS2   = $(TESTES2)
 # Um exemplo e' um programa com `main`; as pecas nao sao, e a diferenca nao se
 # descobre por padrao de nome.
 EXEMPLOS2 = exemplos/poisson/poisson-mms exemplos/canal/canal \
-            exemplos/caixa/caixa-mms exemplos/gota/gota-estatica
+            exemplos/caixa/caixa-mms exemplos/gota/gota-estatica \
+            exemplos/hysing/bolha
 
 2d: $(BINS2) $(EXEMPLOS2)
 

@@ -89,6 +89,15 @@ class Frente {
   // refino do passo.
   void avanca(const CampoDeAdvecao &u, double t, double dt, bool rk2 = true);
 
+  //! MOVE os marcadores por velocidades JA' CALCULADAS, uma por marcador.
+  //
+  // Separado de `avanca` porque o campo acoplado nao e' funcao do ponto: ele
+  // vem interpolado das facetas, e so' existe nos marcadores.  Integrar com
+  // RK2 exigiria avaliar o campo numa posicao intermediaria, o que pediria
+  // resolver o escoamento de novo -- por isso aqui e' Euler, consistente com
+  // o avanco de primeira ordem do solver.
+  void move(const std::vector<Ponto2> &vel, double dt);
+
   //! CIRURGIA LOCAL: parte a aresta que passa de `l_max`, funde a que fica
   //! abaixo de `l_min`.  Devolve quantas partiu e quantas fundiu.
   //
@@ -102,6 +111,35 @@ class Frente {
   // estados a cada passo, sem convergir e sem nada acusar.
   struct Cirurgia { long partidas = 0, fundidas = 0; };
   Cirurgia cirurgia(double l_min, double l_max);
+
+  //! TSUR -- *Trapezoidal Subgrid Undulations Removal*.
+  //
+  // Remove a ondulacao de comprimento de onda SUBMALHA que a adveccao
+  // acumula: marcadores vizinhos oscilando em torno da curva lisa, com
+  // amplitude menor que `h`.  Ela nao e' fisica -- e' ruido do transporte --,
+  // e alimenta a curvatura, que alimenta a tensao superficial, que alimenta a
+  // ondulacao.
+  //
+  // COMO FUNCIONA, segmento a segmento: o ponto de base e' o MEIO do segmento,
+  // de modo que as alturas dos dois extremos acima dele, medidas ao longo da
+  // normal do segmento, sao iguais e opostas por construcao -- e `|h1|` mede a
+  // inclinacao do segmento em relacao a' normal local, que E' a ondulacao.  Os
+  // dois extremos vao para uma altura COMUM, ponderada pelas ESTRELAS (metade
+  // da soma dos segmentos incidentes).
+  //
+  // O LIMIAR NAO E' AFINACAO, e este e' o ponto que nao pode ser perdido: sem
+  // ele o filtro move TODO marcador em TODA aplicacao, e reduzir perimetro a
+  // area fixa e' EXATAMENTE o que a tensao superficial faz -- o filtro passa a
+  // competir com a fisica que o metodo resolve.
+  //
+  // E CONSERVAR AREA NAO PROTEGE DISSO.  Na circunferencia o efeito e'
+  // invisivel, porque o estado liso ja' e' de perimetro minimo; e' a ELIPSE
+  // que expoe, e e' nela que o arreio mede.
+  //
+  // `rlx` e' a relaxacao: 0 move o deslocamento inteiro, 1 nao move nada.
+  // `limiar` e' a inclinacao minima que faz o segmento mover, em fracao da
+  // MEIA-ARESTA -- o maximo que `|h1|` pode valer.  Devolve quantos moveu.
+  long tsur(double rlx, double limiar);
 
  private:
   std::vector<Ponto2> m_;

@@ -1,5 +1,7 @@
 #include "acoplamento2d.hxx"
 
+#include "mls2d.hxx"
+
 #include <cmath>
 #include <set>
 #include <unordered_map>
@@ -185,6 +187,119 @@ void forca_tensao(const Frente &f, const Malha &m, const DominioFacetas &fd,
       forca->em(d, q) += comp[d] * w;
     }
   }
+}
+
+std::vector<Ponto2> velocidade_nos_marcadores(const Frente &f, const Malha &m,
+                                              const DominioFacetas &fd,
+                                              const CampoVetorial &u)
+{
+  std::unordered_map<long, std::pair<long, long>> bi;
+  bi.reserve(static_cast<size_t>(m.num_folhas()) * 2);
+  for (long b = 0; b < m.num_blocos(); b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
+      bi[m.id_global(b, i)] = {b, i};
+
+  const long nm = f.num_marcadores();
+  std::vector<Ponto2> U(static_cast<size_t>(nm), Ponto2{0.0, 0.0});
+
+  for (long k = 0; k < nm; k++) {
+    const Ponto2 &X = f.marcador(k);
+    const long cel = m.id_do_ponto(X);
+    const auto itc = (cel >= 0) ? bi.find(cel) : bi.end();
+    if (itc == bi.end()) continue;
+    const Ponto2 hh = m.lados_da_folha(itc->second.first, itc->second.second);
+
+    // AS MESMAS FACETAS que a distribuicao alcanca, pelas mesmas celulas.  Se
+    // os dois lacos nao percorressem o mesmo conjunto, o par deixaria de ser
+    // adjunto -- e e' do par que vem a conservacao.
+    std::set<std::pair<int, long>> vistas;
+    for (int jj = -2; jj <= 2; jj++)
+      for (int ii = -2; ii <= 2; ii++) {
+        const Ponto2 q{X[0] + ii * hh[0], X[1] + jj * hh[1]};
+        const long id = m.id_do_ponto(q);
+        const auto it = (id >= 0) ? bi.find(id) : bi.end();
+        if (it == bi.end()) continue;
+        for (int d = 0; d < 2; d++)
+          for (int lado = 0; lado < 2; lado++) {
+            const long fid = fd.id_faceta(it->second.first, it->second.second,
+                                          d, lado);
+            if (fid >= 0) vistas.insert({d, fid});
+          }
+      }
+
+    for (const auto &par : vistas) {
+      const int d = par.first;
+      const long q = par.second;
+      const Ponto2 xf = fd.centro(d, q);
+      const double rx = (xf[0] - X[0]) / hh[0];
+      const double ry = (xf[1] - X[1]) / hh[1];
+      if (std::fabs(rx) >= 2.0 || std::fabs(ry) >= 2.0) continue;
+      // O MESMO NUCLEO, com `h^2` no lugar de `1/h^2`: e' o que torna a
+      // interpolacao adjunta da distribuicao, e nao so' parecida com ela.
+      U[static_cast<size_t>(k)][d] += u.em(d, q) * peskin(rx) * peskin(ry);
+    }
+  }
+  return U;
+}
+
+std::vector<Ponto2> velocidade_nos_marcadores_mls(const Frente &f,
+                                                  const Malha &m,
+                                                  const DominioFacetas &fd,
+                                                  const CampoVetorial &u,
+                                                  int ordem)
+{
+  std::unordered_map<long, std::pair<long, long>> bi;
+  bi.reserve(static_cast<size_t>(m.num_folhas()) * 2);
+  for (long b = 0; b < m.num_blocos(); b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
+      bi[m.id_global(b, i)] = {b, i};
+
+  const long nm = f.num_marcadores();
+  std::vector<Ponto2> U(static_cast<size_t>(nm), Ponto2{0.0, 0.0});
+  Mls mls(ordem, 64);
+
+  for (long k = 0; k < nm; k++) {
+    const Ponto2 &X = f.marcador(k);
+    const long cel = m.id_do_ponto(X);
+    const auto itc = (cel >= 0) ? bi.find(cel) : bi.end();
+    if (itc == bi.end()) continue;
+    const Ponto2 hh = m.lados_da_folha(itc->second.first, itc->second.second);
+
+    for (int d = 0; d < 2; d++) {
+      // O SUPORTE SAO AS FACETAS DA DIRECAO `d` na vizinhanca.  O raio cresce
+      // ate' juntar o minimo que a ordem exige -- o mesmo criterio do
+      // estencil de celulas, e pela mesma razao: numero de pontos suficiente
+      // nao e' posicionamento suficiente, mas numero INsuficiente e' recusa
+      // certa.
+      std::set<std::pair<int, long>> vistas;
+      std::vector<Ponto2> sup;
+      std::vector<double> val;
+      for (int raio = 2; raio <= 4 &&
+           static_cast<int>(sup.size()) < Mls::min_pontos(ordem); raio++) {
+        sup.clear();
+        val.clear();
+        vistas.clear();
+        for (int jj = -raio; jj <= raio; jj++)
+          for (int ii = -raio; ii <= raio; ii++) {
+            const Ponto2 q{X[0] + ii * hh[0], X[1] + jj * hh[1]};
+            const long id = m.id_do_ponto(q);
+            const auto it = (id >= 0) ? bi.find(id) : bi.end();
+            if (it == bi.end()) continue;
+            for (int lado = 0; lado < 2; lado++) {
+              const long fid = fd.id_faceta(it->second.first,
+                                            it->second.second, d, lado);
+              if (fid >= 0 && vistas.insert({d, fid}).second) {
+                sup.push_back(fd.centro(d, fid));
+                val.push_back(u.em(d, fid));
+              }
+            }
+          }
+      }
+      if (static_cast<int>(sup.size()) < Mls::min_pontos(ordem)) continue;
+      U[static_cast<size_t>(k)][d] = mls.interpola(X, sup, val);
+    }
+  }
+  return U;
 }
 
 Ponto2 forca_total(const DominioFacetas &fd, const CampoVetorial &forca)

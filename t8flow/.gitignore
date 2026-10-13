@@ -38,6 +38,10 @@ exemplos/*/*
 !exemplos/*/*.cxx
 !exemplos/*/*.hxx
 !exemplos/*/*.md
+# E OS SCRIPTS DE ANALISE E ANIMACAO.  Sao fonte como o resto -- o que extrai
+# as linhas de corrente dos VTKs e monta a pagina nao e' subproduto da corrida,
+# e' o que a reproduz.
+!exemplos/*/*.py
 
 # OS ARQUIVOS DE DEPENDENCIA do `-MMD`, que saem ao lado de cada objeto e de
 # cada binario.  Sao derivados da arvore desta maquina -- caminhos absolutos

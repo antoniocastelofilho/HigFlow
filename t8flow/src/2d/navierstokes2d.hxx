@@ -211,6 +211,12 @@ class NavierStokes {
 
   double instante() const { return t_; }
 
+  //! AJUSTA O RELOGIO.  Existe para o REMALHAMENTO: a montagem nova nasce em
+  //! `t = 0`, e sem reposicionar o relogio a condicao de contorno dependente
+  //! do tempo passaria a valer no instante errado -- calada, porque nada no
+  //! campo denuncia.
+  void instante(double t) { t_ = t; }
+
   //! ONDE FICA O RELOGIO QUE AS CONDICOES DE CONTORNO LEEM.
   //
   // `DadoDeContorno` e' funcao so' do ponto -- e' assim no modulo de contorno,
@@ -270,6 +276,18 @@ class NavierStokes {
   // esquema que se anuncia de segunda ordem e cai para primeira em parte do
   // dominio entrega menos do que diz, e sem o contador isso e' invisivel.
   long rebaixamentos_convectivos() const { return rebaixos_conv_; }
+
+  //! A VELOCIDADE NUM PONTO QUALQUER, componente `d`.
+  //
+  // EXISTE PARA O REMALHAMENTO: a malha nova amostra o campo da velha, e tem
+  // de amostrar com o MESMO interpolador que o solver usa.  Um interpolador
+  // proprio no exemplo seria uma segunda implementacao da mesma coisa, e este
+  // codigo ja' sabe o que isso custa -- duas do gradiente transversal
+  // concordavam no interior e discordavam na parede.
+  double velocidade_em(int d, const Ponto2 &x, bool *dentro) const
+  {
+    return u_no_ponto(d, x, dentro);
+  }
 
   //! PARA O ARREIO: o operador de difusao pelos DOIS caminhos.
   //
