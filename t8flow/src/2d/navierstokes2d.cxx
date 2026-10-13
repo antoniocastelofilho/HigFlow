@@ -930,6 +930,48 @@ std::vector<NavierStokes::SubFaceta> NavierStokes::sub_facetas(long b, long i,
   return out;
 }
 
+double NavierStokes::divergencia_em(long b, long i) const
+{
+  // A MESMA CONTA de `divergencia_maxima`, por celula.  Ela toma o maximo
+  // disto.
+  const Ponto2 hh = m_->lados_da_folha(b, i);
+  const double vol = hh[0] * hh[1];
+  double fluxo = 0.0;
+  for (int d = 0; d < 2; d++)
+    for (int lado = 0; lado <= 1; lado++) {
+      const double sinal = (lado == 0) ? -1.0 : 1.0;
+      for (const SubFaceta &sf : sub_facetas(b, i, d, lado))
+        fluxo += sinal * u_.em(d, sf.id) * sf.medida;
+    }
+  return fluxo / vol;
+}
+
+double NavierStokes::volume_dual_da_faceta(int d, long fid) const
+{
+  // `medida x distancia entre os centros`.  A distancia e' a MESMA que
+  // `grad_campo` usa -- a soma dos dois meios-lados --, e tem de ser: o peso
+  // so' faz sentido se for o da forma bilinear que o gradiente define.
+  const Ponto2 xf = fd_->centro(d, fid);
+  double soma_meios = 0.0;
+  int achados = 0;
+  for (int lado = 0; lado < 2; lado++) {
+    Ponto2 p = xf;
+    p[d] += (lado == 0 ? -1.0 : 1.0) * h_min_[d] / 4.0;
+    const long id = m_->id_do_ponto(p);
+    const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
+    if (it == bi_por_id_.end()) continue;
+    soma_meios += m_->lados_da_folha(it->second.first, it->second.second)[d]
+                  / 2.0;
+    achados++;
+  }
+  // FACETA DE CONTORNO devolve zero, e nao meia distancia: `grad_campo`
+  // devolve zero ali ("nao se resolve ali"), entao o peso tem de anula-la na
+  // forma bilinear tambem -- senao os dois lados da adjuncao somariam termos
+  // diferentes.
+  if (achados < 2) return 0.0;
+  return fd_->medida(d, fid) * soma_meios;
+}
+
 double NavierStokes::divergencia_maxima() const
 {
   // O FLUXO PELA FACE E' A SOMA DAS SUB-FACETAS, e nao o valor numa delas.

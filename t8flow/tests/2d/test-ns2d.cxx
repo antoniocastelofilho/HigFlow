@@ -408,5 +408,138 @@ int main(int argc, char **argv)
                 "com dt = %.3e o semi-implicito estourou (%.3e)", dt, im);
   }
 
+  // =========================================================================
+  // A ADJUNCAO `D = -G^T`
+  // =========================================================================
+  //
+  // AFIRMA SOBRE O PAR, e nao sobre cada operador.  Divergencia e gradiente
+  // tem casos proprios acima -- exatidao em campo linear, fechamento da
+  // projecao --, e os dois podem passar com o PAR desencontrado: a adjuncao
+  // diz se a troca discreta de energia entre velocidade e pressao se conserva,
+  //
+  //     <Du, p>_V = -<u, Gp>_W,
+  //
+  // e nenhum teste de um operador so' a ve'.
+  //
+  // O PESO NAO E' ESCOLHA.  Igualando os coeficientes de `u_f p_i` nas duas
+  // formas bilineares, a igualdade exige `W_f = medida_f x dist_f` -- o volume
+  // de controle dual.  Com outro peso ela nao sai nem no caso uniforme e a
+  // pergunta perde sentido.
+  //
+  // A VELOCIDADE E' NULA NAS FACETAS DE CONTORNO, e isso tambem nao e'
+  // conveniencia: ali ela NAO E' INCOGNITA -- vem da condicao --, e a forma
+  // bilinear so' envolve incognitas.  `grad_campo` devolve zero na faceta de
+  // contorno e o volume dual tambem, entao os dois lados as descartam de modo
+  // consistente.
+  //
+  // MEDIDO AO DESENHAR UM SOLVER ACOPLADO, QUE FICOU DE LADO.  O numero
+  // sobreviveu ao plano: no metodo segregado a nao adjuncao e' invisivel -- o
+  // Poisson la' e' montado literalmente como `D G`, consistente por construcao
+  // --, mas e' ela que caracteriza o par, e e' dela que sairia a escolha do
+  // Krylov se houver acoplado algum dia.
+  t_case("a_divergencia_e_o_gradiente_sao_adjuntos");
+  {
+    auto mede_gap = [](bool adaptada, double *rel, int niv = 4) {
+      const std::vector<Bloco> blocos = {{{0.0, 0.0}, {1.0, 1.0}, niv}};
+      Malha m(blocos, sc_MPI_COMM_WORLD);
+      if (adaptada) m.refina_caixa({0.25, 0.25}, {0.6, 0.65}, niv + 1);
+      DominioFacetas fd(m);
+      ContornoPorRegiao b0, b1, bp;
+      arma(&b0, &b1, &bp, 1.0 / (1 << niv));
+      NavierStokes ns(m, fd, b0, b1, bp);
+
+      // CAMPOS SEM SIMETRIA NEM DIVERGENCIA NULA: um campo solenoidal daria
+      // `Du = 0` e os dois lados seriam zero -- concordancia vazia.
+      auto fu = [](const Ponto2 &x, int d) {
+        return (d == 0) ? 0.7 + 1.3 * x[0] - 0.4 * x[1] + 2.0 * x[0] * x[1]
+                        : -0.2 + 0.9 * x[0] * x[0] + 1.1 * x[1];
+      };
+      poe(fd, &ns.velocidade(), fu);
+
+      // ZERA O CONTORNO: ali a velocidade nao e' incognita.
+      for (int d = 0; d < 2; d++)
+        for (long f = 0; f < fd.num_facetas(d); f++)
+          if (ns.volume_dual_da_faceta(d, f) == 0.0)
+            ns.velocidade().em(d, f) = 0.0;
+
+      CampoEscalar q(m);
+      for (long b = 0; b < m.num_blocos(); b++)
+        for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
+          const Ponto2 c = m.centroide(b, i);
+          q.em(m.id_global(b, i)) =
+              0.3 + 1.7 * c[0] - 0.8 * c[1] + 2.3 * c[0] * c[1]
+              + 0.6 * c[1] * c[1];
+        }
+
+      double lado_d = 0.0, lado_g = 0.0, escala = 0.0;
+      for (long b = 0; b < m.num_blocos(); b++)
+        for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
+          const Ponto2 hh = m.lados_da_folha(b, i);
+          const double v = hh[0] * hh[1];
+          const double termo =
+              ns.divergencia_em(b, i) * q.em(m.id_global(b, i)) * v;
+          lado_d += termo;
+          escala += std::fabs(termo);
+        }
+      for (int d = 0; d < 2; d++)
+        for (long f = 0; f < fd.num_facetas(d); f++) {
+          const double w = ns.volume_dual_da_faceta(d, f);
+          if (w == 0.0) continue;
+          const double termo =
+              ns.velocidade().em(d, f) * ns.gradiente_em(q, d, f) * w;
+          lado_g += termo;
+          escala += std::fabs(termo);
+        }
+      *rel = std::fabs(lado_d + lado_g) / escala;
+      return escala;
+    };
+
+    double rel_u = 0.0, rel_a = 0.0;
+    const double esc_u = mede_gap(false, &rel_u);
+    const double esc_a = mede_gap(true, &rel_a);
+
+    T_CHECK_MSG(esc_u > 1e-3 && esc_a > 1e-3,
+                "as formas bilineares deram quase zero (%.3e, %.3e) -- os "
+                "campos nao exercitam nada", esc_u, esc_a);
+    T_CHECK_MSG(rel_u <= 1e-13,
+                "MALHA UNIFORME: D e G nao sao adjuntos, gap relativo %.3e",
+                rel_u);
+    // NA MALHA ADAPTADA A ADJUNCAO NAO VALE EXATAMENTE, e isso era previsivel
+    // antes de medir: o gradiente leva uma CORRECAO TRANSVERSAL na transicao
+    // 2:1 -- o centro da celula grossa esta' deslocado da linha da faceta -- e
+    // a divergencia nao tem termo que a case.  Sem a correcao o Poisson tinha
+    // ordem NEGATIVA na malha adaptada, entao ela nao e' negociavel.
+    //
+    // O QUE IMPORTA NAO E' SE VALE, E' EM QUE ORDEM FALHA.  Medido:
+    //
+    //     nivel 4  8,47e-06      nivel 5  1,78e-06      nivel 6  4,18e-07
+    //     razoes      4,75                  4,26
+    //
+    // SEGUNDA ORDEM.  A nao adjuncao e' perturbacao `O(h^2)` que some no
+    // limite, e nao defeito estrutural.  Consequencias, as tres:
+    //
+    //   * a troca discreta de energia entre velocidade e pressao se conserva
+    //     ate' `O(h^2)`, e nao exatamente -- e e' isso que o caso afirma;
+    //   * num sistema ACOPLADO, se vier a haver um, a matriz seria nao
+    //     simetrica por essa mesma ordem: Krylov de GMRES e nao de MINRES, com
+    //     o complemento de Schur montado como se simetrico, valido ate'
+    //     `O(h^2)`.
+    //
+    // A ASSERCAO E' A ORDEM, e nao o valor: um valor pequeno num nivel so' nao
+    // distingue "perturbacao que some" de "defeito pequeno que fica".
+    double r4 = 0.0, r5 = 0.0, r6 = 0.0;
+    mede_gap(true, &r4, 4);
+    mede_gap(true, &r5, 5);
+    mede_gap(true, &r6, 6);
+    T_CHECK_MSG(r4 > 1e4 * rel_u,
+                "o gap da adaptada (%.3e) nao se distingue do da uniforme "
+                "(%.3e) -- a medida de ordem abaixo seria ruido", r4, rel_u);
+    T_CHECK_MSG(r4 / r5 > 3.5 && r5 / r6 > 3.5,
+                "a nao adjuncao NAO cai em segunda ordem: %.3e, %.3e, %.3e -- "
+                "razoes %.2f e %.2f.  Se nao cai, nao e' perturbacao: e' "
+                "defeito estrutural do par div/grad na transicao 2:1",
+                r4, r5, r6, r4 / r5, r5 / r6);
+  }
+
   return t_end();
 }

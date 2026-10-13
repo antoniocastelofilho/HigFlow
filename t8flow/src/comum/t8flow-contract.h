@@ -1558,4 +1558,41 @@
 //
 //! COBERTA-POR: test-vof2d:o_caso_ambiguo_da_diagonal_e_RECUSADO
 
+// ---------------------------------------------------------------------------
+// C -- O PAR DIVERGENCIA/GRADIENTE
+// ---------------------------------------------------------------------------
+
+//! C1  A DIVERGENCIA E O GRADIENTE SAO ADJUNTOS EM MALHA UNIFORME (precisao de
+//! maquina) e falham em SEGUNDA ORDEM na adaptada.
+//!
+//! AFIRMA SOBRE O PAR, e nao sobre cada operador.  Os dois tem clausulas
+//! proprias -- exatidao em campo linear, fechamento da projecao -- e podem
+//! passar com o par desencontrado: a adjuncao e' o que diz se a troca discreta
+//! de energia entre velocidade e pressao se conserva, e nenhum teste de um
+//! operador so' a ve'.
+//!
+//! `<Du, p>_V = -<u, Gp>_W` com `W_f = medida_f x dist_f` -- o volume de
+//! controle dual.  O peso nao e' escolha: sai de igualar os coeficientes de
+//! `u_f p_i` nas duas formas bilineares, e com outro peso a igualdade nao sai
+//! nem no caso uniforme.
+//!
+//! NA ADAPTADA NAO VALE, E ERA PREVISIVEL: o gradiente leva correcao
+//! transversal na transicao 2:1 -- o centro da celula grossa esta' deslocado da
+//! linha da faceta -- e a divergencia nao tem termo que a case.  Sem a correcao
+//! o Poisson tinha ordem NEGATIVA, entao ela nao e' negociavel.
+//!
+//! O QUE IMPORTA E' A ORDEM, NAO O VALOR.  Medido: 8,47e-06 / 1,78e-06 /
+//! 4,18e-07 nos niveis 4/5/6, razoes 4,75 e 4,26.  Segunda ordem, logo
+//! perturbacao que some e nao defeito estrutural.  Um valor pequeno num nivel
+//! so' nao distinguiria "perturbacao que some" de "defeito pequeno que fica",
+//! e e' por isso que a assercao e' a razao entre niveis.
+//!
+//! NO METODO SEGREGADO ISSO E' INVISIVEL: o Poisson da projecao e' montado
+//! literalmente como `D G`, e e' consistente por construcao.  A clausula
+//! existe porque a propriedade caracteriza a DISCRETIZACAO, e porque num
+//! sistema acoplado -- se vier a haver um -- seria dela que sairia a escolha do
+//! Krylov: a matriz seria nao simetrica nessa mesma ordem.
+//
+//! COBERTA-POR: test-ns2d:a_divergencia_e_o_gradiente_sao_adjuntos
+
 #endif

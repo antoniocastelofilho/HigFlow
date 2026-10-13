@@ -289,6 +289,52 @@ class NavierStokes {
     return u_no_ponto(d, x, dentro);
   }
 
+//! A DIVERGENCIA E O GRADIENTE, EXPOSTOS: o par que governa a pressao.
+  //
+  // Os dois operadores centrais do metodo ja' eram usados internamente -- a
+  // divergencia monta o lado direito do Poisson, o gradiente aparece no
+  // preditor e na projecao --, mas so' apareciam para fora pelo MAXIMO da
+  // divergencia.  Expostos ponto a ponto, da' para afirmar sobre o PAR o que
+  // antes nao se podia: a adjuncao.
+  //
+  // E A ADJUNCAO E' PROPRIEDADE DA DISCRETIZACAO, nao de um solver.  Ela diz
+  // se a troca discreta de energia entre velocidade e pressao se conserva --
+  // `<Du, p> = -<u, Gp>` --, e isso vale ou nao vale independentemente de quem
+  // resolve o sistema.  Medida (clausula C1): exata em precisao de maquina na
+  // malha uniforme, e `O(h^2)` na adaptada, onde a correcao transversal do
+  // gradiente nao tem termo que a case na divergencia.
+  //
+  // Foi medida quando se desenhava um solver ACOPLADO velocidade-pressao, que
+  // ficou de lado.  O resultado sobreviveu ao plano: num metodo segregado a
+  // nao adjuncao e' invisivel -- o Poisson la' e' montado literalmente como
+  // `D G` e e' consistente por construcao --, mas o numero continua sendo o que
+  // caracteriza o par, e se um dia houver acoplado e' dele que sai a escolha do
+  // Krylov.
+
+  //! `D u` numa celula: o fluxo liquido pelas sub-facetas, por unidade de
+  //! volume.  E' do que `divergencia_maxima` toma o maximo.
+  double divergencia_em(long b, long i) const;
+
+  //! `G q` numa faceta, para um campo de celula qualquer.
+  double gradiente_em(const CampoEscalar &campo, int d, long fid) const
+  {
+    return grad_campo(campo, d, fid);
+  }
+
+  //! O VOLUME DE CONTROLE DUAL da faceta: `medida x distancia entre os
+  //! centros`.
+  //
+  // E' O PESO EM QUE A ADJUNCAO PODE VALER, e isso nao e' escolha estetica.
+  // Igualando os coeficientes de `u_f p_i` nas duas formas bilineares,
+  // `<Du, p>_V = -<u, Gp>_W` exige `W_f = medida_f x dist_f`.  Com qualquer
+  // outro peso a igualdade nao sai nem no caso uniforme, e a pergunta "sao
+  // adjuntos?" ficaria sem significado.
+  //
+  // Devolve ZERO na faceta de contorno, e nao meia distancia: ali a velocidade
+  // nao e' incognita, `grad_campo` devolve zero, e o peso tem de anula-la na
+  // forma bilinear tambem -- senao os dois lados somariam termos diferentes.
+  double volume_dual_da_faceta(int d, long fid) const;
+
   //! PARA O ARREIO: o operador de difusao pelos DOIS caminhos.
   //
   // O semi-implicito precisa do operador `div(mu grad u)` em forma de MATRIZ,
