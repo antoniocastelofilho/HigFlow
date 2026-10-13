@@ -389,8 +389,18 @@ class NavierStokes {
   //! o preditor e a projecao a usam, e o Poisson usa a outra.
   double rho_na_faceta(int d, long fid) const;
 
-  //! `div(mu grad u)` na faceta, em forma de fluxo.
+  //! `div(mu grad u) + (grad u^T).grad(mu)` na faceta.  A soma das duas abaixo.
   double tensao_viscosa(int d, long fid) const;
+
+  //! A PARTE DE FLUXO, `div(mu grad u)`: a que o semi-implicito trata
+  //! implicitamente.
+  double tensao_viscosa_fluxo(int d, long fid) const;
+
+  //! O TRANSPOSTO QUE SOBREVIVE, `(d_j mu)(d_i u_j)`: fica SEMPRE explicito,
+  //! como no HiGFlow.  Ele depende de `grad mu` e da derivada CRUZADA; poe-lo
+  //! na matriz acoplaria as duas componentes e o sistema deixaria de ser dois
+  //! problemas escalares.
+  double tensao_viscosa_transposto(int d, long fid) const;
 
   double conveccao(int d, long fid) const;
   double difusao(int d, long fid) const;

@@ -1264,26 +1264,48 @@ double NavierStokes::mu_na_quina(const Ponto2 &xq) const
 
 double NavierStokes::tensao_viscosa(int d, long fid) const
 {
-  // `div(mu grad u) / rho`, em FORMA DE FLUXO e com `mu` no MEIO do caminho.
+  // `div(mu grad u) + (grad u^T) . grad(mu)`, em FORMA DE FLUXO e com `mu` no
+  // MEIO do caminho.  Quem chama divide por `rho`.
   //
-  // E' A FORMA DO HIGFLOW, e a escolha e' deliberada apesar de o tensor
-  // COMPLETO ser mais correto com viscosidade variavel.
+  // E' O TENSOR COMPLETO, E E' TAMBEM A FORMA DO HIGFLOW.  Aqui estava escrito
+  // o contrario -- que o HiGFlow usava `div(mu grad u)` e que o transposto
+  // ficava de fora por comparabilidade.  Isso estava ERRADO, e o erro nao era
+  // de opiniao: era de leitura do codigo deles.  O que o HiGFlow descarta nao
+  // e' o transposto inteiro.  Abrindo,
   //
-  // O que se descarta e' `div(mu grad u^T)`.  Com `mu` CONSTANTE ele vale
-  // `mu grad(div u)` e some num campo solenoidal; com `mu` VARIANDO ele nao
-  // some, e o que ele carrega e' justamente a tensao cisalhante atraves da
-  // interface -- onde o problema vive.  Entao a forma completa e' melhor, e
-  // nao esta' aqui.
+  //     div(mu grad u^T)_i = d_j ( mu d_i u_j )
+  //                        = (d_j mu)(d_i u_j)  +  mu d_i (d_j u_j)
   //
-  // A RAZAO E' DE COMPARABILIDADE, nao de dificuldade: o objetivo declarado e'
-  // medir este sistema CONTRA o HiGFlow no mesmo caso, e dois metodos que
-  // diferem em mais de uma coisa produzem diferencas sem dono.  Trocar a forma
-  // do termo viscoso junto com tudo o mais tornaria qualquer discrepancia na
-  // bolha ascendente inatribuivel.  Fica como o proximo eixo a variar, DEPOIS
-  // de a comparacao fechar.
+  // o SEGUNDO termo e' `mu grad(div u)` e some num campo solenoidal -- e' esse
+  // que eles omitem, dizendo-o no comentario ("div(Du^t) has to be omitted").
+  // O PRIMEIRO sobrevive, e esta' la', em `hig-flow-discret.c`:
   //
-  // COM `mu` UNIFORME ISTO E' O LAPLACIANO SOBRE `Re`, bit a bit: os casos
-  // monofasicos continuam verificando este codigo exatamente.
+  //     ns->cc.d2vdx2[dim2] = dujdxi*dviscdxj;
+  //
+  // somado em `higflow_extra_diffusive_term` e dividido por `Re` e por `rho`.
+  //
+  // DESCARTAR O TRANSPOSTO INTEIRO JOGA FORA A TENSAO CISALHANTE ATRAVES DA
+  // INTERFACE, que e' exatamente onde o caso bifasico vive: com razao 10 de
+  // viscosidade, `grad mu` ali e' da ordem de `9/h` e nao e' correcao pequena.
+  //
+  // O QUE CUSTOU, medido no benchmark de Hysing caso 1, nivel 5: circularidade
+  // minima 0,8361 contra 0,9012 +- 0,0001 das tres referencias publicadas
+  // (650 vezes a dispersao entre elas), velocidade de ascensao +5%, area +2,5%.
+  // E o excesso de velocidade NAO caia com refino -- nivel 6 ainda +4,3%.
+  // PATAMAR SOB REFINO E' ASSINATURA DE TERMO FALTANDO, nao de malha grossa:
+  // segunda ordem teria dividido o erro por quatro.
+  //
+  // COM `mu` UNIFORME O TERMO EXTRA E' IDENTICAMENTE NULO (`grad mu = 0`), e
+  // isto volta a ser o laplaciano sobre `Re` bit a bit.  Os casos monofasicos
+  // -- canal e caixa manufaturada -- continuam verificando este codigo
+  // exatamente, e e' por isso que a mudanca pode entrar sem reabrir aquilo.
+  return tensao_viscosa_fluxo(d, fid) + tensao_viscosa_transposto(d, fid);
+}
+
+double NavierStokes::tensao_viscosa_fluxo(int d, long fid) const
+{
+  // SO' A PARTE DE FLUXO.  A soma sai na MESMA ORDEM de antes da separacao, e
+  // isso e' deliberado: os casos monofasicos tem de reproduzir bit a bit.
   const double aqui = u_.em(d, fid);
   const Ponto2 xf = fd_->centro(d, fid);
   double total = 0.0;
@@ -1329,6 +1351,60 @@ double NavierStokes::tensao_viscosa(int d, long fid) const
     total += (fluxo[0] + fluxo[1]) / ((dist[0] + dist[1]) / 2.0);
   }
   return total;
+}
+
+
+double NavierStokes::tensao_viscosa_transposto(int d, long fid) const
+{
+  // O TRANSPOSTO QUE SOBREVIVE.  Recalcula as vizinhancas em vez de receber as
+  // do fluxo -- custa uma varredura e evita que as duas partes fiquem
+  // amarradas uma na outra, que e' o que impediria o fluxo de ir para a
+  // matriz do semi-implicito.
+  const Ponto2 xf = fd_->centro(d, fid);
+  double u_viz[2][2] = {{0.0, 0.0}, {0.0, 0.0}};
+  double d_viz[2][2] = {{1.0, 1.0}, {1.0, 1.0}};
+  double mu_viz[2][2] = {{0.0, 0.0}, {0.0, 0.0}};
+  bool dir_ok[2] = {true, true};
+
+  for (int e = 0; e < 2; e++)
+    for (int lado = 0; lado < 2; lado++) {
+      const int sgn = (lado == 0) ? -1 : +1;
+      const Vizinha v = vizinha_de(d, fid, e, sgn);
+      const double uv = v.dentro ? v.valor : contorno_vizinho(d, fid, e, sgn);
+      const double dd = v.dentro ? v.dist : dist_ate_parede(d, fid, e, sgn);
+      if (dd <= 0.0) { dir_ok[e] = false; continue; }
+      Ponto2 xm = xf;
+      xm[e] += sgn * dd / 2.0;
+      u_viz[e][lado] = uv;
+      d_viz[e][lado] = dd;
+      mu_viz[e][lado] = (e == d) ? mu_em(xm) : mu_na_quina(xm);
+    }
+
+  if (!dir_ok[d]) return 0.0;
+  const double hd = (d_viz[d][0] + d_viz[d][1]) / 2.0;
+  double extra = 0.0;
+  for (int e = 0; e < 2; e++) {
+    if (!dir_ok[e]) continue;
+    const double dmu =
+        (mu_viz[e][1] - mu_viz[e][0]) / ((d_viz[e][0] + d_viz[e][1]) / 2.0);
+    if (dmu == 0.0) continue;
+
+    double dujdxi;
+    if (e == d) {
+      dujdxi = (u_viz[d][1] - u_viz[d][0]) / (d_viz[d][0] + d_viz[d][1]);
+    } else {
+      Ponto2 xa = xf, xb = xf;
+      xa[d] -= hd / 2.0;
+      xb[d] += hd / 2.0;
+      bool ia = false, ib = false;
+      const double ua = u_no_ponto(e, xa, &ia);
+      const double ub = u_no_ponto(e, xb, &ib);
+      if (!ia || !ib) continue;
+      dujdxi = (ub - ua) / hd;
+    }
+    extra += dujdxi * dmu;
+  }
+  return extra;
 }
 
 }  // namespace t8flow2d
