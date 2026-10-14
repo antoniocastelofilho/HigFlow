@@ -134,5 +134,65 @@ int main(int argc, char **argv)
                 faltou);
   }
 
+  // =========================================================================
+  t_case("a_banda_fina_e_limitada_por_baixo_e_nao_tende_a_zero");
+  {
+    // O CASO QUE FALTAVA, e a falta custou uma corrida de 15 horas.
+    //
+    // O arreio conferia que a tabela por dilatacao e' igual a' exaustiva -- isto
+    // e', que a banda e' A QUE EU PEDI.  Nenhum caso perguntava se a banda
+    // pedida FAZ SENTIDO sob refino, e nao fazia: derivada so' de
+    // `cel_min * h_fino`, ela encolhe na mesma proporcao que a malha.
+    //
+    // MEDIDO NA BOLHA DE HYSING antes da correcao: 0,50 R em `h_min = 0,0125` e
+    // 0,25 R em 0,00625.  `v_max` foi de -6,5% a -10,5% AO REFINAR, enquanto a
+    // malha uniforme na mesma `h_min` dava +0,4%.
+    //
+    // A PROPRIEDADE NAO E' "A BANDA NAO MUDA", E EU ESCREVI ISSO PRIMEIRO E
+    // ERREI.  A margem -- `h_base + h_fino` -- e' a incerteza de o criterio
+    // decidir por CELULA BASE, e e' legitimamente proporcional a `h`; ela faz a
+    // banda encolher mesmo com largura fisica declarada.  O que a correcao
+    // garante, e o que este caso afirma, e' que a banda e' LIMITADA POR BAIXO
+    // pela largura fisica: ela tende a `L`, e nao a zero.
+    const double L = 0.05;
+    const int niveis = 2, celmin = 5;
+    const double hb[4] = {0.05, 0.025, 0.0125, 0.00625};
+
+    double com[4], sem[4];
+    for (int k = 0; k < 4; k++) {
+      com[k] = amr_limiares(hb[k], niveis, celmin, L).back();
+      sem[k] = amr_limiares(hb[k], niveis, celmin).back();
+    }
+
+    // SEM LARGURA FISICA A BANDA DIVIDE POR DOIS, exatamente -- tudo nela e'
+    // proporcional a `h`.  E' a assinatura do defeito, e sem este contraste o
+    // caso passaria com a correcao ausente.
+    for (int k = 0; k + 1 < 4; k++)
+      T_NEAR(sem[k + 1] / sem[k], 0.5, 1e-14,
+             "sem largura fisica, a banda tem de dividir por dois a cada "
+             "refino");
+
+    // COM LARGURA FISICA ELA E' LIMITADA POR BAIXO e converge para `L`: o que
+    // ainda encolhe e' so' a margem.
+    for (int k = 0; k < 4; k++)
+      T_CHECK_MSG(com[k] > L,
+                  "banda %.5g em h_base = %.5g nao respeita a largura fisica "
+                  "%.4g", com[k], hb[k], L);
+    T_CHECK_MSG(com[3] / L < 1.2,
+                "a banda nao converge para a largura fisica: %.5g contra %.4g "
+                "(razao %.3f)", com[3], L, com[3] / L);
+
+    // E A RAZAO ENTRE RESOLUCOES SUCESSIVAS TENDE A UM, contra 0,5 sem ela.
+    T_CHECK_MSG(com[3] / com[2] > 0.85,
+                "a razao entre resolucoes nao tende a um: %.3f",
+                com[3] / com[2]);
+
+    // O PISO DE CELULAS CONTINUA VALENDO: com largura fisica desprezivel quem
+    // manda e' a contagem.  Sem isso a correcao poderia deixar a banda mais
+    // estreita do que o esquema precisa.
+    T_NEAR(amr_limiares(0.025, niveis, celmin, 1e-9).back(), sem[1], 1e-15,
+           "com largura fisica desprezivel, o piso de celulas tem de mandar");
+  }
+
   return t_end();
 }

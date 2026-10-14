@@ -1,11 +1,14 @@
 #include "criterio2d.hxx"
 
+#include <algorithm>
+
 #include <cmath>
 #include <stdexcept>
 
 namespace t8flow2d {
 
-std::vector<double> amr_limiares(double h_base, int niveis, int cel_min)
+std::vector<double> amr_limiares(double h_base, int niveis, int cel_min,
+                                 double largura_fina)
 {
   if (!(h_base > 0.0))
     throw std::invalid_argument("amr_limiares: h_base tem de ser positivo");
@@ -24,7 +27,41 @@ std::vector<double> amr_limiares(double h_base, int niveis, int cel_min)
   // por celula base, logo a borda da banda e' incerta em `h_base/2` pelo teste
   // no centro, E a celula se estende outro `h_base/2` alem dele.
   const double margem = h_base + h_fino;
-  const double banda_fina = cel_min * h_fino + margem;
+
+  // A BANDA FINA TEM DUAS EXIGENCIAS, E SO' UMA DELAS E' DA MALHA.
+  //
+  //   `cel_min * h_fino`  e' da DISCRETIZACAO: o esquema precisa de tantas
+  //                       celulas finas de cada lado da semente, e isso escala
+  //                       com `h` porque celula e' que escala com `h`;
+  //
+  //   `largura_fina`      e' do PROBLEMA: a camada em volta da interface tem
+  //                       espessura FISICA, que nao diminui porque a malha
+  //                       refinou.
+  //
+  // O MAIOR DOS DOIS, e nao a soma nem so' o primeiro.
+  //
+  // SO' O PRIMEIRO -- que e' o que estava aqui -- FAZ O ESTUDO ANTICONVERGIR, e
+  // isso foi medido na bolha de Hysing: a banda valia 0,50 R em `h_min =
+  // 0,0125` e 0,25 R em 0,00625, de modo que refinar ENCOLHEU PELA METADE a
+  // regiao resolvida em volta da interface.  `v_max` foi de -6,5% para -10,5%
+  // ao refinar, contra +0,4% da malha uniforme na mesma `h_min` -- o AMR
+  // piorava com refino, e nao por razao de discretizacao nenhuma.
+  //
+  // E ERA RESULTADO CONHECIDO: a secao companheira ja' havia registrado que
+  // banda em numero fixo de celulas refina largura fisica diferente a cada
+  // resolucao, e que o estudo nao converge por razoes alheias a'
+  // discretizacao.  Estava anotado, e este codigo fazia o contrario -- ter
+  // anotado nao substituiu conferir o codigo contra a anotacao.
+  //
+  // O PADRAO E' ZERO, e nao um valor conveniente: com zero isto reduz
+  // EXATAMENTE ao que era, e os casos que nao passam largura -- a caixa
+  // manufaturada, o arreio -- continuam bit a bit.  Quem tem escala fisica a
+  // declarar e' quem conhece o problema, e nao este arquivo: o criterio nao
+  // sabe de que forma vem a semente.
+  if (largura_fina < 0.0)
+    throw std::invalid_argument(
+        "amr_limiares: largura_fina negativa nao quer dizer nada");
+  const double banda_fina = std::max(largura_fina, cel_min * h_fino) + margem;
 
   std::vector<double> thr(static_cast<size_t>(niveis), 0.0);
   for (int l = niveis - 1; l >= 0; l--) {

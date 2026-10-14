@@ -130,6 +130,38 @@ def le_contrato(caminho):
     return clausulas
 
 
+def exemplos_ausentes():
+    """Os binarios de exemplo que o Makefile declara e que NAO estao em disco.
+
+    POR QUE ISTO EXISTE.  A suite faz `make clean` + build para cada lado, e o
+    `clean` ANTES do lado `3d` apaga os binarios 2d que o `make 3d` nao
+    reconstroi.  Entao uma execucao completa deixa a arvore sem os exemplos 2d
+    -- e nada dizia.  O sintoma aparece depois, longe daqui: lancar uma corrida
+    falha com `prun:exe-not-accessible`, que nao sugere a suite em nada.
+    Aconteceu duas vezes no mesmo dia antes desta linha existir.
+
+    NAO E' DEFEITO DA SUITE.  Limpar por dimensao e' deliberado: os objetos do
+    nucleo herdado nao carregam o DIM no nome, e objetos da dimensao anterior
+    seriam ligados em silencio.  O que faltava era DIZER a consequencia.
+
+    Devolve `None` quando nao conseguiu descobrir a lista -- e quem chama tem de
+    distinguir isso de "nada falta".  Dizer "nada falta" por nao ter conseguido
+    olhar seria pior que ficar calado.
+    """
+    try:
+        texto = open(os.path.join(T8FLOW, "Makefile"), encoding="utf-8").read()
+    except OSError:
+        return None
+    nomes = []
+    for m in re.finditer(r"^EXEMPLOS[23]\s*=\s*((?:[^\n\\]*\\\n)*[^\n]*)",
+                         texto, re.M):
+        nomes += m.group(1).replace("\\\n", " ").split()
+    if not nomes:
+        return None
+    return [n for n in nomes
+            if not os.path.isfile(os.path.join(T8FLOW, n))]
+
+
 def constroi(lado, prefixos, verboso):
     """Limpa e constroi um lado (`2d` ou `3d`), devolvendo True se deu.
 
@@ -299,6 +331,20 @@ def main():
         print("Problemas de execucao:")
         for pr in problemas:
             print("  " + pr)
+
+    # O QUE A SUITE LEVOU CONSIGO.  Ver `exemplos_ausentes`: o `clean` de um
+    # lado apaga os binarios do outro, e quem for lancar uma corrida depois
+    # merece saber antes de descobrir pelo `exe-not-accessible`.
+    faltam = exemplos_ausentes()
+    if faltam is None:
+        print("\nNAO FOI POSSIVEL conferir os binarios de exemplo (a lista do "
+              "Makefile nao foi lida) -- nao concluir que estao todos la'.")
+    elif faltam:
+        print("\nOs binarios de exemplo foram REMOVIDOS pelo `make clean` desta "
+              "suite e nao reconstruidos:")
+        for n in faltam:
+            print("  " + n)
+        print("Para voltar a lanca-los: make -C %s 2d" % T8FLOW)
 
     return 0 if (not falharam and not problemas and reprovadas == 0) else 1
 

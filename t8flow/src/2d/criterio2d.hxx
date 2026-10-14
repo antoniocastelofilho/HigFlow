@@ -41,7 +41,23 @@ namespace t8flow2d {
 // Saem DECRESCENTES: `thr[0]` e' o maior (nivel 1) e `thr[niveis-1]` o menor
 // (o nivel mais fino).  Digitar os limiares a mao e' o jeito de a banda ficar
 // com menos celulas do que se prometeu, e de ninguem perceber.
-std::vector<double> amr_limiares(double h_base, int niveis, int cel_min);
+//
+// `largura_fina` E' A LARGURA FISICA da banda mais fina, e o limiar e' o MAIOR
+// entre ela e `cel_min` celulas finas.  As duas exigencias sao de naturezas
+// diferentes: a contagem de celulas e' da DISCRETIZACAO e escala com `h`; a
+// largura e' do PROBLEMA e nao escala.
+//
+// SO' A CONTAGEM FAZ O ESTUDO ANTICONVERGIR, e foi medido: na bolha de Hysing
+// a banda valia 0,50 R em `h_min = 0,0125` e 0,25 R em 0,00625 -- refinar
+// encolheu pela metade a regiao resolvida, e `v_max` passou de -6,5% a -10,5%
+// enquanto a malha uniforme na mesma `h_min` dava +0,4%.
+//
+// O PADRAO E' ZERO e reduz exatamente ao comportamento anterior, de modo que
+// quem nao passa largura continua bit a bit.  Quem tem escala fisica a
+// declarar e' quem conhece o problema -- este arquivo nao sabe de que forma
+// vem a semente.
+std::vector<double> amr_limiares(double h_base, int niveis, int cel_min,
+                                 double largura_fina = 0.0);
 
 //! A tabela de nivel por celula base, por DILATACAO das sementes.
 //

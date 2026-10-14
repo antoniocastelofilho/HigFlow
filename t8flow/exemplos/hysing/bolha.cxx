@@ -111,6 +111,7 @@ int main(int argc, char **argv)
       amr_celmin = 5;
   std::string nome_tempo = "semi_implicit_euler";
   double tsur_rlx = 0.5, tsur_lim = 0.05, ds_sobre_h = 1.0;
+  double amr_largura = -1.0;   // negativo: deriva de R mais abaixo
   long cada_vtk = 0, cada_med = 10;
 
   for (int i = 1; i < argc; i++) {
@@ -122,6 +123,7 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--amr=", 6)) amr = std::atoi(a + 6);
     else if (!std::strncmp(a, "--amr-cada=", 11)) amr_cada = std::atoi(a + 11);
     else if (!std::strncmp(a, "--amr-celmin=", 13)) amr_celmin = std::atoi(a + 13);
+    else if (!std::strncmp(a, "--amr-largura=", 14)) amr_largura = std::atof(a + 14);
     else if (!std::strncmp(a, "--T=", 4)) T = std::atof(a + 4);
     else if (!std::strncmp(a, "--dt=", 5)) dt = std::atof(a + 5);
     else if (!std::strncmp(a, "--vtk=", 6)) cada_vtk = std::atol(a + 6);
@@ -148,6 +150,9 @@ int main(int argc, char **argv)
                     "  --amr-cada=N    remalha a cada N passos (FT_AMR_CADA)\n"
                     "  --amr-celmin=N  celulas finas minimas de cada lado\n"
                     "                  da frente (FT_AMR_CELMIN)\n"
+                    "  --amr-largura=L largura FISICA da banda fina.  O padrao\n"
+                    "                  e' 0,2 R; com 0 a banda volta a ser so'\n"
+                    "                  contagem de celulas, que ANTICONVERGE\n"
                     "  --T, --dt       instante final e passo\n"
                     "  --vtk=N         grava VTK a cada N passos\n"
                     "  --medir=N       mede as grandezas a cada N passos\n"
@@ -272,9 +277,18 @@ int main(int argc, char **argv)
     return std::fabs(x[0]) < E || std::fabs(x[0] - 1.0) < E;
   };
 
-  // OS LIMIARES SAO DERIVADOS da regra das celulas minimas, nao digitados.
+  // OS LIMIARES SAO DERIVADOS, nao digitados: a regra das celulas minimas E a
+  // largura fisica da banda, o maior dos dois.
+  //
+  // O PADRAO SAI DO RAIO DA BOLHA, e e' aqui que essa conta pertence -- o
+  // criterio nao sabe de que forma vem a semente, mas o exemplo sabe o seu `R`.
+  // `0,2 R` = 0,05 e' o que o HiGFlow resolveu na corrida que produziu os
+  // numeros publicados (8 celulas finas em `h_min = 0,00625`), e fixa-lo em
+  // comprimento faz a regiao resolvida ficar a MESMA em qualquer `h`.
+  if (amr_largura < 0.0) amr_largura = 0.2 * R;
   const std::vector<double> thr =
-      (amr > 0) ? amr_limiares(h_base, amr, amr_celmin) : std::vector<double>{};
+      (amr > 0) ? amr_limiares(h_base, amr, amr_celmin, amr_largura)
+                : std::vector<double>{};
 
   auto monta = [&](const std::vector<signed char> *tab) {
     auto M = std::make_unique<Montagem>();
@@ -420,6 +434,11 @@ int main(int argc, char **argv)
     std::printf("T           %.4g em %ld passos\n", T, passos);
     std::printf("tempo       %s%s\n", nome_tempo.c_str(),
                 visc_limita ? "" : "   (o limite viscoso nao se aplica)");
+    if (amr > 0)
+      std::printf("AMR         %d niveis, a cada %d passos, banda fina %.4g "
+                  "(= %.2f R), piso %d celulas\n",
+                  amr, amr_cada, thr.empty() ? 0.0 : thr.back(),
+                  (thr.empty() ? 0.0 : thr.back()) / R, amr_celmin);
     std::printf("TSUR        a cada %d passos, rlx %.3g, limiar %.3g\n\n",
                 tsur_cada, tsur_rlx, tsur_lim);
     // OS MEDIDORES DO ESCOAMENTO vao na MESMA linha das grandezas, e nao num
