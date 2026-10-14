@@ -373,6 +373,32 @@ int main(int argc, char **argv)
     novo->ns->instante(velho.ns->instante());
   };
 
+  // ---- O QUE A TRANSFERENCIA FAZ COM A ENERGIA -------------------------
+  //
+  // MEDIDA, E NAO INFERIDA DA TENDENCIA.  O par de controle mostrou que o
+  // adaptativo e o uniforme discordam 7% em `v_max` com a MESMA `h_min` e o
+  // mesmo `dt`, e que o erro cresce com o NUMERO de remalhamentos (136 ->
+  // -6,5%, 391 -> -10,5%) em vez de cair com `h`.  Isso aponta a
+  // transferencia, mas apontar nao e' medir.
+  //
+  // O PESO E' O VOLUME DE CONTROLE DUAL da faceta, que e' zero no contorno --
+  // ali a velocidade nao e' incognita e nao deve entrar na soma.  `rho` fica
+  // DE FORA de proposito: o que se quer e' o salto RELATIVO da mesma soma
+  // antes e depois, e a frente nao se move entre os dois, entao incluir `rho`
+  // mudaria a escala e nao o salto.
+  auto energia = [](const Montagem &M) {
+    double e = 0.0;
+    for (int d = 0; d < 2; d++)
+      for (long f = 0; f < M.fd->num_facetas(d); f++) {
+        const double w = M.ns->volume_dual_da_faceta(d, f);
+        if (w == 0.0) continue;
+        const double u = M.ns->velocidade().em(d, f);
+        e += u * u * w;
+      }
+    return e;
+  };
+  double perda_total = 0.0, perda_pior = 0.0;
+
   std::vector<signed char> tab;
   if (amr > 0) tab = tabela_da_frente(frente);
   std::unique_ptr<Montagem> M = monta(amr > 0 ? &tab : nullptr);
@@ -534,8 +560,15 @@ int main(int argc, char **argv)
     if (amr > 0 && amr_cada > 0 && (k + 1) % amr_cada == 0) {
       std::vector<signed char> nova = tabela_da_frente(frente);
       if (nova != tab) {
+        const double e_antes = energia(*M);
         std::unique_ptr<Montagem> N = monta(&nova);
         transfere(*M, N.get());
+        const double e_depois = energia(*N);
+        if (e_antes > 0.0) {
+          const double rel = (e_depois - e_antes) / e_antes;
+          perda_total += rel;
+          if (std::fabs(rel) > std::fabs(perda_pior)) perda_pior = rel;
+        }
         M = std::move(N);
         tab = std::move(nova);
         remalhas++;
@@ -570,6 +603,13 @@ int main(int argc, char **argv)
       std::printf("remalhamentos: %ld em %ld passos (a cada %d), malha final "
                   "com %ld celulas\n",
                   remalhas, passos, amr_cada, M->m->num_folhas_globais());
+      // O NUMERO QUE DECIDE SE A TRANSFERENCIA E' A CAUSA.  Soma dos saltos
+      // relativos de energia, e o pior salto.  Se a soma for negativa e da
+      // ordem do deficit de `v_max`, a transferencia e' o mecanismo; se for
+      // ruido em torno de zero, a causa esta' noutro lugar e eu estava
+      // olhando para o lado errado.
+      std::printf("energia na transferencia: soma dos saltos %+.4e, "
+                  "pior salto %+.3e\n", perda_total, perda_pior);
     std::printf(
         "\nLEITURA: a discordancia ENTRE as tres referencias publicadas e' o\n"
         "limite de resolucao deste oraculo.  Bater melhor que ela nao seria\n"
