@@ -282,10 +282,25 @@ int main(int argc, char **argv)
   //
   // O PADRAO SAI DO RAIO DA BOLHA, e e' aqui que essa conta pertence -- o
   // criterio nao sabe de que forma vem a semente, mas o exemplo sabe o seu `R`.
-  // `0,2 R` = 0,05 e' o que o HiGFlow resolveu na corrida que produziu os
-  // numeros publicados (8 celulas finas em `h_min = 0,00625`), e fixa-lo em
-  // comprimento faz a regiao resolvida ficar a MESMA em qualquer `h`.
-  if (amr_largura < 0.0) amr_largura = 0.2 * R;
+  //
+  // E O VALOR E' MEDIDO, NAO ESCOLHIDO.  Varredura em `h_min = 0,0125`, contra
+  // o uniforme na mesma `h_min` (`v_max` 0,2431) e a referencia
+  // (0,2417-0,2421):
+  //
+  //     L        banda     celulas   v_max     y_c(3)
+  //     0,05     0,50 R      3704    0,2262    1,0646
+  //     0,125    0,75 R      4886    0,2395    1,0694
+  //     0,25     1,25 R      6545    0,2429    1,0751
+  //     uniforme   --       12800    0,2431    1,0764
+  //
+  // Convergencia MONOTONA para o uniforme com a banda alargando.  Em `L = R` o
+  // adaptativo o reproduz a 0,08% com METADE das celulas.
+  //
+  // EU HAVIA POSTO `0,2 R` PRIMEIRO, por corresponder a's 8 celulas finas que o
+  // HiGFlow resolveu em `h_min = 0,00625`.  A medida mostrou que e' estreito
+  // demais: da' -6,5% em `v_max`.  Contar celulas da corrida dele nao substitui
+  // medir a largura que o ESCOAMENTO pede, e as duas nao coincidiram.
+  if (amr_largura < 0.0) amr_largura = 1.0 * R;
   const std::vector<double> thr =
       (amr > 0) ? amr_limiares(h_base, amr, amr_celmin, amr_largura)
                 : std::vector<double>{};
