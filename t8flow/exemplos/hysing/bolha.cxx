@@ -112,6 +112,8 @@ int main(int argc, char **argv)
   std::string nome_tempo = "semi_implicit_euler";
   double tsur_rlx = 0.5, tsur_lim = 0.05, ds_sobre_h = 1.0;
   double amr_largura = -1.0;   // negativo: deriva de R mais abaixo
+  long salva_cada = 0;
+  std::string arq_ponto = "hysing-ponto.bin", arq_retoma;
   long cada_vtk = 0, cada_med = 10;
 
   for (int i = 1; i < argc; i++) {
@@ -124,6 +126,9 @@ int main(int argc, char **argv)
     else if (!std::strncmp(a, "--amr-cada=", 11)) amr_cada = std::atoi(a + 11);
     else if (!std::strncmp(a, "--amr-celmin=", 13)) amr_celmin = std::atoi(a + 13);
     else if (!std::strncmp(a, "--amr-largura=", 14)) amr_largura = std::atof(a + 14);
+    else if (!std::strncmp(a, "--salva-cada=", 13)) salva_cada = std::atol(a + 13);
+    else if (!std::strncmp(a, "--salva-em=", 11)) arq_ponto = a + 11;
+    else if (!std::strncmp(a, "--retoma=", 9)) arq_retoma = a + 9;
     else if (!std::strncmp(a, "--T=", 4)) T = std::atof(a + 4);
     else if (!std::strncmp(a, "--dt=", 5)) dt = std::atof(a + 5);
     else if (!std::strncmp(a, "--vtk=", 6)) cada_vtk = std::atol(a + 6);
@@ -151,8 +156,11 @@ int main(int argc, char **argv)
                     "  --amr-celmin=N  celulas finas minimas de cada lado\n"
                     "                  da frente (FT_AMR_CELMIN)\n"
                     "  --amr-largura=L largura FISICA da banda fina.  O padrao\n"
-                    "                  e' 0,2 R; com 0 a banda volta a ser so'\n"
+                    "                  e' R; com 0 a banda volta a ser so'\n"
                     "                  contagem de celulas, que ANTICONVERGE\n"
+                    "  --salva-cada=N  grava ponto de salvamento a cada N passos\n"
+                    "  --salva-em=ARQ  onde (padrao hysing-ponto.bin)\n"
+                    "  --retoma=ARQ    retoma de um ponto de salvamento\n"
                     "  --T, --dt       instante final e passo\n"
                     "  --vtk=N         grava VTK a cada N passos\n"
                     "  --medir=N       mede as grandezas a cada N passos\n"
@@ -505,15 +513,184 @@ int main(int argc, char **argv)
   escreve_fracao(frente, (*M->m), M->frac.get());
   interpola_propriedade((*M->m), (*M->frac), rho_b, rho_f, M->rho.get());
   interpola_propriedade((*M->m), (*M->frac), mu_b, mu_f, M->mu.get());
-  const double A0 = mede((*M->m), (*M->fd), (*M->frac), M->ns->velocidade(), frente).area;
+  double A0 = mede((*M->m), (*M->fd), (*M->frac), M->ns->velocidade(), frente).area;
   int quadro = 0;
-  if (cada_vtk > 0) grava(quadro++);
 
   long tot_part = 0, tot_fund = 0, tot_tsur = 0;
   double circ_min = 1e300, t_circ = 0.0, v_max = -1e300, t_vmax = 0.0;
   Medidas fim;
+  long k0 = 0;                       // o passo em que se comeca
 
-  for (long k = 0; k < passos; k++) {
+  // ========================================================================
+  // O PONTO DE SALVAMENTO
+  // ========================================================================
+  //
+  // POR QUE ELE E' PEQUENO, e isso e' consequencia de desenho e nao sorte: a
+  // malha e' DERIVADA da frente -- a tabela de refino sai dos marcadores --,
+  // entao nao se grava malha nenhuma.  Bastam os marcadores, `u`, `p`, o
+  // relogio, o passo e os contadores.
+  //
+  // MAS A TABELA VAI GRAVADA, e aqui esta' a unica sutileza real.  A malha EM
+  // USO nao e' `tabela_da_frente(frente)` no instante do salvamento: o
+  // remalhamento so' acontece quando a tabela MUDA, logo a malha e' a da
+  // ultima mudanca, e a frente andou desde entao.  Recalcular a tabela na
+  // retomada daria uma malha DIFERENTE, e `u` e `p` -- gravados por indice de
+  // faceta e de celula -- cairiam nos lugares errados sem nada acusar.  Sao
+  // 3200 bytes no caso casado; gravar e' mais barato que raciocinar sobre
+  // quando coincide.
+  //
+  // A IDENTIDADE DA CONFIGURACAO VAI NO CABECALHO e a retomada RECUSA o que
+  // nao casar.  Retomar com `--nivel` ou `--amr-largura` diferente produziria
+  // numero plausivel a partir de um campo que pertence a outra discretizacao.
+  //
+  // AS CONTAGENS TAMBEM VAO, e sao conferidas depois de reconstruir: se a
+  // malha reconstruida nao tiver exatamente as mesmas celulas e facetas, os
+  // campos nao mapeiam e a retomada para.  E' a porta que pega a floresta
+  // deixando de ser reproduzivel -- que e' hipotese, nao certeza.
+  //
+  // A GRAVACAO E' ATOMICA: escreve em `.parcial` e renomeia.  Gravar no lugar
+  // significa que uma queda no meio da escrita destroi a unica copia, e a
+  // razao de existir isto e' justamente a queda.
+  const long MAGIA = 0x74384C4F57;   // "t8LOW"
+  const int VERSAO = 1;
+
+  auto salva = [&](long passo_feito) {
+    const std::string tmp = arq_ponto + ".parcial";
+    std::FILE *f = std::fopen(tmp.c_str(), "wb");
+    if (f == nullptr)
+      throw std::runtime_error("nao abriu \"" + tmp + "\" para escrita");
+    auto d = [&](double v) { std::fwrite(&v, sizeof v, 1, f); };
+    auto l = [&](long v) { std::fwrite(&v, sizeof v, 1, f); };
+
+    l(MAGIA); l(VERSAO);
+    // identidade da configuracao
+    l(base); l(nivel); l(amr); l(amr_cada); l(amr_celmin); l(tsur_cada);
+    d(amr_largura); d(ds_sobre_h); d(tsur_rlx); d(tsur_lim); d(R); d(dt);
+    d(T); l(static_cast<long>(tempo));
+    // estado do relogio e dos contadores
+    l(passo_feito); l(static_cast<long>(quadro)); d(M->ns->instante());
+    d(A0); l(tot_part); l(tot_fund); l(tot_tsur); l(remalhas);
+    d(circ_min); d(t_circ); d(v_max); d(t_vmax);
+    d(perda_total); d(perda_pior);
+    // a tabela de refino: a malha EM USO sai dela
+    l(static_cast<long>(tab.size()));
+    if (!tab.empty()) std::fwrite(tab.data(), 1, tab.size(), f);
+    // as contagens, para a retomada poder RECUSAR
+    l(M->m->num_folhas_globais());
+    l(M->fd->num_facetas(0)); l(M->fd->num_facetas(1));
+    // a frente
+    const std::vector<Ponto2> &mk = frente.marcadores();
+    l(static_cast<long>(mk.size()));
+    for (const Ponto2 &q : mk) { d(q[0]); d(q[1]); }
+    // os campos
+    for (long b = 0; b < M->m->num_blocos(); b++)
+      for (long i = 0; i < M->m->num_folhas_do_bloco(b); i++)
+        d(M->ns->pressao().em(M->m->id_global(b, i)));
+    for (int dd = 0; dd < 2; dd++)
+      for (long f2 = 0; f2 < M->fd->num_facetas(dd); f2++)
+        d(M->ns->velocidade().em(dd, f2));
+    std::fclose(f);
+    if (std::rename(tmp.c_str(), arq_ponto.c_str()) != 0)
+      throw std::runtime_error("nao renomeou o ponto de salvamento");
+  };
+
+  if (!arq_retoma.empty()) {
+    std::FILE *f = std::fopen(arq_retoma.c_str(), "rb");
+    if (f == nullptr) {
+      if (rank == 0)
+        std::printf("nao abriu \"%s\" para leitura\n", arq_retoma.c_str());
+      return 2;
+    }
+    // LE TUDO ANTES DE MEXER EM NADA: uma recusa no meio deixaria o estado
+    // metade velho e metade novo.
+    double v;
+    long n;
+    auto rd = [&]() {
+      if (std::fread(&v, sizeof v, 1, f) != 1)
+        throw std::runtime_error("ponto de salvamento truncado");
+      return v;
+    };
+    auto rl = [&]() {
+      if (std::fread(&n, sizeof n, 1, f) != 1)
+        throw std::runtime_error("ponto de salvamento truncado");
+      return n;
+    };
+    auto exige = [&](bool ok, const char *campo) {
+      if (!ok) {
+        std::fclose(f);
+        throw std::runtime_error(
+            std::string("o ponto de salvamento foi gravado com outro \"") +
+            campo + "\" -- retomar assim poria um campo de outra "
+                    "discretizacao num lugar que nao e' dele");
+      }
+    };
+
+    exige(rl() == MAGIA, "formato (magia)");
+    exige(rl() == VERSAO, "versao");
+    exige(rl() == base, "--base");
+    exige(rl() == nivel, "--nivel");
+    exige(rl() == amr, "--amr");
+    const long p_amr_cada = rl();
+    exige(rl() == amr_celmin, "--amr-celmin");
+    exige(rl() == tsur_cada, "--tsur-cada");
+    exige(rd() == amr_largura, "--amr-largura");
+    exige(rd() == ds_sobre_h, "--ds-sobre-h");
+    exige(rd() == tsur_rlx, "--tsur-rlx");
+    exige(rd() == tsur_lim, "--tsur-limiar");
+    exige(rd() == R, "R");
+    exige(rd() == dt, "--dt");
+    const double p_T = rd();
+    exige(rl() == static_cast<long>(tempo), "--tempo");
+    (void) p_amr_cada; (void) p_T;   // T e amr_cada PODEM mudar na retomada
+
+    k0 = rl();
+    quadro = static_cast<int>(rl());
+    const double t_salvo = rd();
+    A0 = rd();
+    tot_part = rl(); tot_fund = rl(); tot_tsur = rl(); remalhas = rl();
+    circ_min = rd(); t_circ = rd(); v_max = rd(); t_vmax = rd();
+    perda_total = rd(); perda_pior = rd();
+
+    const long ntab = rl();
+    std::vector<signed char> tab_salva(static_cast<size_t>(ntab));
+    if (ntab > 0 &&
+        std::fread(tab_salva.data(), 1, static_cast<size_t>(ntab), f) !=
+            static_cast<size_t>(ntab))
+      throw std::runtime_error("ponto de salvamento truncado na tabela");
+    const long ncel = rl(), nf0 = rl(), nf1 = rl();
+
+    const long nmk = rl();
+    std::vector<Ponto2> mk(static_cast<size_t>(nmk));
+    for (long j = 0; j < nmk; j++) { mk[j][0] = rd(); mk[j][1] = rd(); }
+
+    // A MALHA SAI DA TABELA GRAVADA, nao da frente.
+    tab = std::move(tab_salva);
+    std::unique_ptr<Montagem> N = monta(tab.empty() ? nullptr : &tab);
+    exige(N->m->num_folhas_globais() == ncel, "contagem de celulas");
+    exige(N->fd->num_facetas(0) == nf0, "contagem de facetas em x");
+    exige(N->fd->num_facetas(1) == nf1, "contagem de facetas em y");
+
+    for (long b = 0; b < N->m->num_blocos(); b++)
+      for (long i = 0; i < N->m->num_folhas_do_bloco(b); i++)
+        N->ns->pressao().em(N->m->id_global(b, i)) = rd();
+    for (int dd = 0; dd < 2; dd++)
+      for (long f2 = 0; f2 < N->fd->num_facetas(dd); f2++)
+        N->ns->velocidade().em(dd, f2) = rd();
+    std::fclose(f);
+
+    N->ns->instante(t_salvo);
+    M = std::move(N);
+    frente = Frente(mk);
+
+    if (rank == 0)
+      std::printf("RETOMADA de \"%s\": passo %ld, t = %.6f, %ld marcadores, "
+                  "%ld remalhamentos ate' aqui\n\n",
+                  arq_retoma.c_str(), k0, t_salvo, nmk, remalhas);
+  }
+
+  if (cada_vtk > 0 && arq_retoma.empty()) grava(quadro++);
+
+  for (long k = k0; k < passos; k++) {
     // A ORDEM DO PASSO, e ela nao e' livre: a fracao vem da GEOMETRIA da
     // frente, e as propriedades vem da fracao.  Atualizar a frente antes de
     // escrever a fracao deixaria o campo um passo adiantado em relacao a'
@@ -568,6 +745,12 @@ int main(int argc, char **argv)
       }
     }
     if (cada_vtk > 0 && (k + 1) % cada_vtk == 0) grava(quadro++);
+
+    // O PONTO DE SALVAMENTO VEM DEPOIS DA MEDIDA E DO VTK, e antes do
+    // remalhamento -- o mesmo lugar e a mesma razao: ele grava o estado do FIM
+    // do passo, e o remalhamento e' preparo para o proximo.  Gravar depois dele
+    // guardaria uma malha que ainda nao resolveu nada.
+    if (salva_cada > 0 && (k + 1) % salva_cada == 0) salva(k + 1);
 
     // A MEDIDA E O VTK VEM ANTES DO REMALHAMENTO, e a ordem custou um
     // diagnostico.  Com o remalhamento antes, a medida lia uma montagem
