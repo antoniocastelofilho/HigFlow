@@ -1658,11 +1658,17 @@
 //! adaptada e so' descobre no passo mil ja' gastou a montagem, e pode ter
 //! visto numeros no caminho.
 //!
-//! E A MENSAGEM E' PARTE DA CLAUSULA.  O caso exige que ela contenha QUATRO e
-//! OITO: a face da celula grossa e' coberta por QUATRO facetas finas, nao
-//! duas, e a quina onde a viscosidade se interpola toca OITO celulas, nao
-//! quatro.  Uma recusa generica passaria num teste de "lancou?" e nao
-//! ensinaria nada a quem a encontrasse.
+//! E A MENSAGEM E' PARTE DA CLAUSULA.  O caso exige que ela diga o que muda:
+//! a face da celula grossa e' coberta por QUATRO facetas finas, nao duas, e
+//! cada faceta tem DUAS direcoes transversais, nao uma.  Uma recusa generica
+//! passaria num teste de "lancou?" e nao ensinaria nada a quem a encontrasse.
+//!
+//! ESTA CLAUSULA JA' EXIGIU "OITO CELULAS NA QUINA", e era falso: o ponto onde
+//! `mu` e' avaliado fica sobre uma ARESTA -- dois planos de face cruzando --,
+//! tocada por QUATRO celulas, como a quina em duas dimensoes.  Oito seria um
+//! VERTICE, que este termo nao usa.  A clausula, o teste e a mensagem
+//! concordavam entre si e estavam os tres errados: concordancia nao e'
+//! verificacao quando as tres copias vem da mesma afirmacao nao conferida.
 //
 //! COBERTA-POR: test-ns3d:a_transicao_2_1_e_o_paralelo_sao_RECUSADOS_na_construcao
 
@@ -1710,5 +1716,53 @@
 //! sobredeterminado).  O mesmo tropeco ja' tinha acontecido no lado 2D.
 //
 //! COBERTA-POR: test-ns3d:a_projecao_zera_a_divergencia_de_um_campo_qualquer
+
+//! U8  COM `mu` UNIFORME O TERMO VISCOSO E' O LAPLACIANO SOBRE `Re`, EXATO.
+//!
+//! A diferenca de tres pontos e' exata para quadratica, logo o termo tem de
+//! dar `mu lap(u)` em precisao de maquina, em qualquer resolucao.  Isto
+//! verifica a estrutura de fluxo nas TRES direcoes.
+//!
+//! A QUADRATICA TEM AS TRES SEGUNDAS DERIVADAS DIFERENTES ENTRE SI.  Com
+//! coeficientes iguais, somar duas direcoes em vez de tres daria um numero
+//! PROPORCIONAL ao certo, e o erro passaria por constante de normalizacao.
+//! Medido por mutacao (laco sobre duas direcoes): 1,84 em vez de 1e-11.
+//!
+//! E O TRANSPOSTO E' EXATAMENTE ZERO sem campo de viscosidade -- e' o que faz
+//! o caso monofasico reproduzir o laplaciano bit a bit.
+//
+//! COBERTA-POR: test-ns3d:com_mu_uniforme_o_termo_viscoso_e_o_laplaciano_EXATO
+
+//! U9  `mu` NA ARESTA E' A MEDIA HARMONICA DE QUATRO CELULAS -- quatro, e nao
+//! oito.
+//!
+//! O ponto onde `mu` e' avaliado para a direcao transversal fica sobre dois
+//! planos de face com a terceira coordenada num centro de celula: isso e' uma
+//! ARESTA, tocada por QUATRO celulas, como a quina em duas dimensoes.  Oito
+//! seria um VERTICE -- tres planos de face --, que este termo nao usa.
+//!
+//! ESTE PROJETO AFIRMOU "OITO" NUMA CLAUSULA, NUM TESTE E NUMA MENSAGEM DE
+//! RECUSA, e os tres concordavam entre si porque os tres vieram da mesma
+//! afirmacao nao conferida.  Concordancia nao e' verificacao quando as copias
+//! tem a mesma origem.
+//!
+//! HARMONICA E NAO ARITMETICA: e' ela que preserva a continuidade da tensao
+//! cisalhante atraves de interface plana.  O caso EXIGE que as duas medias
+//! difiram -- senao nao distinguiria uma da outra.  Medido por mutacao
+//! (aritmetica no lugar): 5,5 em vez de 1,818.
+//
+//! COBERTA-POR: test-ns3d:mu_na_aresta_e_a_media_harmonica_de_QUATRO_celulas
+
+//! U10  O TRANSPOSTO DO TENSOR EXISTE, e so' com `mu` variavel.
+//!
+//! `(d_e mu)(d_d u_e)`.  E' o termo cuja falta, no lado 2D, custou
+//! circularidade 0,8361 contra 0,9012 +- 1e-4 na bolha de Hysing -- 650 vezes
+//! a dispersao entre as referencias publicadas.
+//!
+//! O CONTRASTE E' O CASO: um transposto que devolvesse zero sempre passaria na
+//! clausula U8, que exige zero com `mu` uniforme.  Aqui se exige que NAO seja
+//! zero com `mu` variavel e derivadas cruzadas nao nulas.
+//
+//! COBERTA-POR: test-ns3d:o_transposto_existe_e_so_com_mu_variavel
 
 #endif

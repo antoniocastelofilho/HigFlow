@@ -192,9 +192,15 @@ int main(int argc, char **argv)
     catch (const std::invalid_argument &e) { lancou = true; msg = e.what(); }
     T_CHECK_MSG(lancou, "a malha em transicao 2:1 foi aceita");
     // A MENSAGEM TEM DE DIZER O QUE E' DIFERENTE EM 3D, e nao so' "nao
-    // suportado": quatro facetas por face e oito celulas na quina.
+    // suportado": quatro facetas por face, e duas direcoes transversais por
+    // faceta em vez de uma.
+    //
+    // ESTE CASO JA' EXIGIU "OITO", porque a mensagem dizia que a media da
+    // viscosidade tocava oito celulas.  Nao toca: o ponto fica sobre uma
+    // ARESTA, tocada por quatro, como a quina em 2D.  O caso passava e
+    // sustentava a afirmacao errada -- um teste so' verifica o que lhe pedem.
     T_CHECK_MSG(msg.find("QUATRO") != std::string::npos &&
-                    msg.find("OITO") != std::string::npos,
+                    msg.find("DUAS direcoes") != std::string::npos,
                 "a recusa nao diz por que 3D nao e' 2D com um indice a mais: "
                 "\"%s\"", msg.c_str());
 
@@ -310,6 +316,147 @@ int main(int argc, char **argv)
     const double rel = std::fabs(lado_d + lado_g) / escala;
     T_BELOW(rel, 1e-13,
             "D e G nao sao adjuntos em malha uniforme tridimensional");
+  }
+
+  // =========================================================================
+  t_case("com_mu_uniforme_o_termo_viscoso_e_o_laplaciano_EXATO");
+  {
+    // O ORACULO E' DE EXATIDAO.  A diferenca de tres pontos e' exata para
+    // QUADRATICA, logo com `mu` uniforme o termo viscoso tem de dar
+    // `mu * lap(u)` em precisao de maquina -- em qualquer resolucao.
+    //
+    // Isto verifica a estrutura de fluxo nas TRES direcoes, e e' o caso que
+    // pegaria uma direcao esquecida: em duas dimensoes o laco tinha dois
+    // termos, aqui tem tres.
+    const int nv = 3;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+    const double RE = 2.5;
+    ns.reynolds(RE);
+
+    // Quadratica com as TRES segundas derivadas diferentes de zero e
+    // DIFERENTES ENTRE SI: `lap = 2a + 2b + 2c`.  Com coeficientes iguais,
+    // somar duas direcoes em vez de tres daria um numero proporcional ao
+    // certo, e o erro passaria por constante.
+    const double A = 1.7, B = -0.9, C = 2.3;
+    poe(fd, &ns.velocidade(), [&](const Ponto3 &x, int d) {
+      if (d != 0) return 0.0;
+      return A * x[0] * x[0] + B * x[1] * x[1] + C * x[2] * x[2];
+    });
+    const double lap = 2.0 * (A + B + C);
+    const double esperado = lap / RE;
+
+    double pior = 0.0;
+    long contadas = 0;
+    for (long f = 0; f < fd.num_facetas(0); f++) {
+      const Ponto3 x = fd.centro(0, f);
+      bool borda = false;
+      for (int d = 0; d < 3; d++)
+        if (x[d] < h || x[d] > 1.0 - h) borda = true;
+      if (borda) continue;
+      pior = std::max(pior, std::fabs(ns.tensao_viscosa(0, f) - esperado));
+      contadas++;
+    }
+    T_CHECK_MSG(contadas > 50, "so' %ld facetas interiores", contadas);
+    T_BELOW(pior, 1e-11,
+            "com mu uniforme o termo tem de dar mu*lap(u) exatamente");
+
+    // E O TRANSPOSTO E' IDENTICAMENTE NULO com `mu` uniforme -- e' o que faz
+    // o caso monofasico reproduzir o laplaciano bit a bit.
+    double pior_t = 0.0;
+    for (long f = 0; f < fd.num_facetas(0); f++)
+      pior_t = std::max(pior_t, std::fabs(ns.tensao_viscosa_transposto(0, f)));
+    T_BELOW(pior_t, 0.0,
+            "sem campo de viscosidade o transposto tem de ser EXATAMENTE zero");
+  }
+
+  t_case("mu_na_aresta_e_a_media_harmonica_de_QUATRO_celulas");
+  {
+    // QUATRO, E NAO OITO.  O ponto onde `mu` e' avaliado fica sobre dois
+    // planos de face com a terceira coordenada num centro de celula -- isso
+    // e' uma ARESTA, tocada por quatro celulas.  Oito seria um VERTICE, que
+    // este termo nao usa.  A mensagem de recusa e a clausula do contrato ja'
+    // disseram oito, e estavam erradas.
+    //
+    // E HARMONICA, NAO ARITMETICA: o caso exige que as duas DIFIRAM, senao
+    // nao distinguiria uma da outra.
+    const int nv = 2;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+
+    // `mu` com contraste forte, para harmonica e aritmetica se separarem.
+    CampoEscalar mu(m);
+    for (long b = 0; b < m.num_blocos(); b++)
+      for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
+        const Ponto3 c = m.centroide(b, i);
+        mu.em(m.id_global(b, i)) = (c[0] < 0.5) ? 1.0 : 10.0;
+      }
+    ns.viscosidade(&mu);
+
+    // Uma aresta no interior, sobre o plano `x = 0,5` e um plano de face em y.
+    const Ponto3 aresta{0.5, 0.5, 0.5 + h / 2.0};
+    // As quatro celulas que a tocam: duas com mu=1 e duas com mu=10.
+    const double harm = 4.0 / (1.0 / 1.0 + 1.0 / 1.0 + 1.0 / 10.0 + 1.0 / 10.0);
+    const double arit = (1.0 + 1.0 + 10.0 + 10.0) / 4.0;
+    const double obtido = ns.mu_na_aresta(aresta, 0, 1);
+
+    T_NEAR(obtido, harm, 1e-12,
+           "mu na aresta tem de ser a media HARMONICA das quatro celulas");
+    T_CHECK_MSG(std::fabs(harm - arit) > 1.0,
+                "harmonica (%.4f) e aritmetica (%.4f) nao se distinguem neste "
+                "caso -- ele nao verifica qual das duas e'", harm, arit);
+  }
+
+  t_case("o_transposto_existe_e_so_com_mu_variavel");
+  {
+    // O TERMO QUE EU NAO TINHA NO LADO 2D, e cuja falta custou circularidade
+    // 0,8361 contra 0,9012 na bolha de Hysing.  Aqui so' se verifica que ele
+    // existe, e' nulo com `mu` uniforme e NAO nulo com `mu` variavel.
+    //
+    // O CONTRASTE E' O CASO: um transposto que devolvesse zero sempre
+    // passaria na metade de cima.
+    const int nv = 3;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+
+    // Campo com derivadas CRUZADAS nao nulas: `d_x u_y` e `d_x u_z`.
+    poe(fd, &ns.velocidade(), [](const Ponto3 &x, int d) {
+      return (d == 0) ? 0.3 * x[1] : (d == 1 ? 1.9 * x[0] : -1.1 * x[0]);
+    });
+
+    CampoEscalar mu(m);
+    for (long b = 0; b < m.num_blocos(); b++)
+      for (long i = 0; i < m.num_folhas_do_bloco(b); i++) {
+        const Ponto3 c = m.centroide(b, i);
+        mu.em(m.id_global(b, i)) = 1.0 + 2.0 * c[0] + 3.0 * c[1] + 0.5 * c[2];
+      }
+    ns.viscosidade(&mu);
+
+    double pior = 0.0;
+    for (long f = 0; f < fd.num_facetas(0); f++) {
+      const Ponto3 x = fd.centro(0, f);
+      bool borda = false;
+      for (int d = 0; d < 3; d++)
+        if (x[d] < 2 * h || x[d] > 1.0 - 2 * h) borda = true;
+      if (borda) continue;
+      pior = std::max(pior, std::fabs(ns.tensao_viscosa_transposto(0, f)));
+    }
+    T_CHECK_MSG(pior > 0.1,
+                "com mu variavel e derivadas cruzadas nao nulas o transposto "
+                "deu %.3e -- um termo que devolve zero sempre passaria no "
+                "caso de mu uniforme", pior);
   }
 
   return t_end();

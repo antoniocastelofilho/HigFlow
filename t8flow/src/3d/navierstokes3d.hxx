@@ -35,12 +35,20 @@
 // `np > 1` e TRANSICAO 2:1.  As duas lancam com a razao, e nao produzem numero.
 //
 // A transicao 2:1 em tres dimensoes NAO e' a de duas com um indice a mais: a
-// face da celula grossa e' coberta por QUATRO facetas finas, nao duas, e a
-// quina onde a viscosidade se interpola toca OITO celulas, nao quatro.  Tratar
-// a face por restricao e a quina por media com as regras de 2D produz
-// divergencia que nao fecha -- defeito que aparece como o solver de pressao
-// nao convergindo, longe da causa.  Esse modo de falha ja' se manifestou no
-// lado 2D e esta' registrado em `doc/relatorio-ns-fv-2d.md`.
+// face da celula grossa e' coberta por QUATRO facetas finas, nao duas, e cada
+// faceta tem DUAS direcoes transversais, nao uma.  Tratar a face por restricao
+// com as regras de 2D produz divergencia que nao fecha -- defeito que aparece
+// como o solver de pressao nao convergindo, longe da causa.  Esse modo de
+// falha ja' se manifestou no lado 2D e esta' registrado em
+// `doc/relatorio-ns-fv-2d.md`.
+//
+// NAO SAO OITO CELULAS NA MEDIA DA VISCOSIDADE, e este comentario ja' disse
+// que eram.  O ponto onde `mu` e' avaliado para a direcao transversal fica
+// sobre uma ARESTA -- dois planos de face cruzando, com a terceira coordenada
+// num centro de celula --, e aresta e' tocada por QUATRO celulas, como a quina
+// em duas dimensoes.  Oito seria um VERTICE, tres planos de face, que este
+// termo nao usa.  A afirmacao errada sobreviveu a uma clausula de contrato e a
+// dois commits antes de alguem fazer a conta.
 //
 // ===========================================================================
 // POR QUE CODIGO SEPARADO DO 2D, E NAO `#if DIM`
@@ -90,6 +98,45 @@ class NavierStokes {
   const CampoVetorial &velocidade() const { return u_; }
   CampoEscalar &pressao() { return p_; }
   const CampoEscalar &pressao() const { return p_; }
+
+  //! O numero de Reynolds, quando NAO ha' campo de viscosidade.
+  void reynolds(double re);
+
+  //! O CAMPO DE VISCOSIDADE, nos centros.  Sem ele, `mu = 1/Re` uniforme.
+  //
+  // Ponteiro e nao copia: quem o atualiza e' o acoplamento bifasico, a cada
+  // passo, e copiar obrigaria a reinstalar.
+  void viscosidade(const CampoEscalar *mu) { mu_ = mu; }
+
+  //! `div(mu grad u) + (grad u^T).grad(mu)` na faceta -- o TENSOR COMPLETO.
+  //
+  // E' a forma do HiGFlow, e isto custou ser aprendido no lado 2D: ele omite
+  // so' `mu grad(div u)`, que some num campo solenoidal, e NAO o transposto
+  // inteiro.  Descartar o transposto joga fora a tensao cisalhante atraves da
+  // interface, onde o caso bifasico vive.
+  double tensao_viscosa(int d, long fid) const;
+
+  //! A parte de FLUXO, `div(mu grad u)`.
+  double tensao_viscosa_fluxo(int d, long fid) const;
+
+  //! O TRANSPOSTO QUE SOBREVIVE, `(d_e mu)(d_d u_e)`.
+  double tensao_viscosa_transposto(int d, long fid) const;
+
+  //! `mu` num ponto, pelo valor da CELULA que o contem.
+  double mu_em(const Ponto3 &x) const;
+
+  //! `mu` sobre uma ARESTA, media HARMONICA das QUATRO celulas que a tocam.
+  //
+  // QUATRO, e nao oito.  O ponto fica sobre dois planos de face com a terceira
+  // coordenada num centro de celula -- isso e' uma aresta, e aresta e' tocada
+  // por quatro.  Oito seria um VERTICE, tres planos de face, que este termo
+  // nao usa.
+  //
+  // HARMONICA, e nao aritmetica: e' ela que preserva a continuidade da tensao
+  // cisalhante atraves de uma interface plana.  Com a aritmetica a tensao
+  // salta na interface, e isso nao falha -- muda a taxa de deformacao
+  // exatamente onde os dois fluidos se tocam.
+  double mu_na_aresta(const Ponto3 &xa, int d, int e) const;
 
   //! O passo de tempo, que a projecao usa como escala.
   void passo_de_tempo(double dt);
@@ -148,6 +195,33 @@ class NavierStokes {
   // faceta e' justamente onde o ponto cai EM CIMA da fronteira entre duas
   // celulas -- o caso em que a regra semiaberta decide por desempate.
   std::vector<std::array<std::pair<long, long>, 2>> celulas_da_faceta_[3];
+
+  //! A faceta de direcao `d` cujo centro e' `x`, ou -1.
+  long faceta_em(int d, const Ponto3 &x) const;
+
+  //! A componente `d` da velocidade num ponto, por interpolacao linear ao
+  //! longo de `d`.  Em malha uniforme o ponto cai num centro de celula.
+  double u_no_ponto(int d, const Ponto3 &x, bool *dentro) const;
+
+  //! Valor e distancia da faceta vizinha, andando em `e` no sentido `s`.
+  struct Vizinha {
+    double valor = 0.0;
+    double dist = 0.0;
+    bool dentro = false;
+  };
+  Vizinha vizinha_de(int d, long fid, int e, int s) const;
+
+  //! O fechamento de contorno: o fantasma, AFIM na propria incognita.
+  double contorno_vizinho(int d, long fid, int e, int s) const;
+
+  const CampoEscalar *mu_ = nullptr;
+  double re_ = 1.0;
+
+  //! Centro quantizado -> id, por direcao.  So' funciona em malha uniforme,
+  //! que e' a unica que este solver aceita hoje.
+  std::unordered_map<long long, long> faceta_por_ponto_[3];
+  double quantum_ = 1.0;
+  long long chave(const Ponto3 &x) const;
 
   CampoEscalar dp_;
   double dt_ = 0.0;
