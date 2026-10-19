@@ -10,6 +10,54 @@
 
 namespace t8flow3d {
 
+namespace {
+
+constexpr double EPS = 1e-14;
+
+// A FUNCAO NVD, em variavel normalizada.  `fc` e'
+// `(phi_C - phi_U)/(phi_D - phi_U)` e devolve `phi_f` normalizado.
+//
+// FORA DE [0,1] TODOS CAEM PARA UPWIND, e isso nao e' detalhe: e' o que torna
+// o esquema limitado.  Um "segunda ordem" que nao cai e' central com outro
+// nome, e oscila onde o gradiente e' forte.
+//
+// IDENTICA A' DO LADO 2D, e de proposito: o esquema NVD nao tem nada de
+// dimensional -- ele age sobre tres valores ao longo de UMA linha.  O que
+// muda em tres dimensoes e' quantas linhas existem por faceta, nao a funcao.
+double nvd(Convectivo c, double fc)
+{
+  if (fc <= 0.0 || fc >= 1.0) return fc;        // upwind: limitado
+  switch (c) {
+    case Convectivo::Upwind1:
+      return fc;
+    case Convectivo::Central:
+      return 0.5 * (fc + 1.0);
+    case Convectivo::Cubista:
+      // Alves, Oliveira e Pinho (2003).  As tres faixas casam nos pontos de
+      // quebra -- em 3/8 as duas primeiras dao 21/32, em 3/4 as duas ultimas
+      // dao 15/16 --, e e' essa continuidade que o torna utilizavel.
+      if (fc < 3.0 / 8.0) return (7.0 / 4.0) * fc;
+      if (fc <= 3.0 / 4.0) return (3.0 / 4.0) * fc + 3.0 / 8.0;
+      return (1.0 / 4.0) * fc + 3.0 / 4.0;
+    case Convectivo::Quick:
+      return (3.0 / 4.0) * fc + 3.0 / 8.0;
+  }
+  return fc;
+}
+
+}  // namespace
+
+Convectivo convectivo_do_nome(const std::string &s)
+{
+  if (s == "central") return Convectivo::Central;
+  if (s == "first_order" || s == "upwind1") return Convectivo::Upwind1;
+  if (s == "cubista") return Convectivo::Cubista;
+  if (s == "quick") return Convectivo::Quick;
+  throw std::invalid_argument(
+      "convectivo_do_nome: \"" + s + "\" nao e' valido.  Validos: central, "
+      "first_order (upwind1), cubista, quick");
+}
+
 NavierStokes::NavierStokes(const Malha3 &m, const DominioFacetas &fd,
                            const ContornoPorRegiao &bc_u0,
                            const ContornoPorRegiao &bc_u1,
@@ -261,6 +309,132 @@ double NavierStokes::contorno_vizinho(int d, long fid, int e, int s) const
     }
   }
   return aqui;
+}
+
+double NavierStokes::comprimento_do_volume(int d, long fid, int e) const
+{
+  // O VOLUME DE CONTROLE DA FACETA: meia celula de cada lado ao longo da
+  // normal, e a celula inteira nas DUAS transversais.
+  const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(fid)];
+  const auto &c = (cel[0].first >= 0) ? cel[0] : cel[1];
+  if (c.first < 0) return 0.0;
+  if (e != d) return m_->lados_da_folha(c.first, c.second)[e];
+
+  double soma = 0.0;
+  int n = 0;
+  for (int lado = 0; lado < 2; lado++) {
+    if (cel[lado].first < 0) continue;
+    soma += m_->lados_da_folha(cel[lado].first, cel[lado].second)[d] / 2.0;
+    n++;
+  }
+  // Na faceta de contorno so' ha' meia celula: o volume e' meio, e usar o
+  // inteiro daria um fluxo diluido pela metade ali.
+  return (n > 0) ? soma : 0.0;
+}
+
+double NavierStokes::velocidade_que_advecta(int d, long fid, int e,
+                                            int s) const
+{
+  // A VELOCIDADE NA POSICAO DO FLUXO.  Para `e == d` essa posicao e' um CENTRO
+  // DE CELULA e a componente que atravessa e' a propria `d`; para `e != d` e'
+  // uma ARESTA, e a que atravessa e' a componente `e`.
+  //
+  // Confundir as duas e' o erro classico do arranjo deslocado, e ele nao
+  // falha: produz um termo convectivo plausivel e errado.  Em tres dimensoes
+  // ha' DUAS direcoes transversais, logo duas chances de confundir.
+  const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(fid)];
+  const Ponto3 xf = fd_->centro(d, fid);
+  bool ok = false;
+
+  if (e == d) {
+    const auto &c = (s > 0) ? cel[1] : cel[0];
+    if (c.first < 0) return u_.em(d, fid);
+    const double v = u_no_ponto(d, m_->centroide(c.first, c.second), &ok);
+    return ok ? v : u_.em(d, fid);
+  }
+
+  const auto &c = (cel[0].first >= 0) ? cel[0] : cel[1];
+  if (c.first < 0) return 0.0;
+  const Ponto3 hc = m_->lados_da_folha(c.first, c.second);
+  const Ponto3 cc = m_->centroide(c.first, c.second);
+  Ponto3 aresta = xf;
+  aresta[e] = cc[e] + s * hc[e] / 2.0;
+  const double v = u_no_ponto(e, aresta, &ok);
+  return ok ? v : 0.0;
+}
+
+double NavierStokes::valor_na_face(int d, long fid, int e, int s,
+                                   double V) const
+{
+  // QUEM E' `C`, `D` E `U` DEPENDE DO SINAL DE `V`, e nao da geometria: o
+  // esquema olha para montante, e montante troca de lado quando o escoamento
+  // troca.  Fixar `C` como "o daqui" faz o upwind virar downwind na metade do
+  // dominio, e isso nao falha -- difunde.
+  const double aqui = u_.em(d, fid);
+  const Vizinha vz = vizinha_de(d, fid, e, s);
+  const double alem = vz.dentro ? vz.valor : contorno_vizinho(d, fid, e, s);
+
+  if (conv_ == Convectivo::Upwind1) return (V >= 0.0) ? aqui : alem;
+  if (conv_ == Convectivo::Central) return 0.5 * (aqui + alem);
+
+  double phiC, phiD, phiU;
+  bool tem_u = false;
+  if (V >= 0.0) {
+    phiC = aqui;
+    phiD = alem;
+    // O PONTO A MONTANTE TEM DE EXISTIR DE VERDADE.  Fora do dominio ha' o
+    // fantasma do contorno, e usa-lo seria legitimo -- mas e' OUTRO esquema.
+    // Fora do dominio, rebaixa e CONTA.
+    const Vizinha vu = vizinha_de(d, fid, e, -s);
+    tem_u = vu.dentro;
+    phiU = vu.dentro ? vu.valor : phiC;
+  } else {
+    phiC = alem;
+    phiD = aqui;
+    // O PONTO A MONTANTE ESTA' DOIS PASSOS ADIANTE, e ali o fechamento de
+    // contorno NAO vale: ele supoe a parede a meio caminho, e do segundo
+    // passo em diante ela ja' ficou para tras.  A busca e' ESTRITA.
+    const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(fid)];
+    const auto &c = (cel[0].first >= 0) ? cel[0] : cel[1];
+    if (c.first < 0) { rebaixos_conv_++; return phiC; }
+    Ponto3 x2 = fd_->centro(d, fid);
+    x2[e] += 2.0 * s * m_->lados_da_folha(c.first, c.second)[e];
+    const long f2 = faceta_em(d, x2);
+    if (f2 >= 0) { phiU = u_.em(d, f2); tem_u = true; }
+    else { phiU = phiC; tem_u = false; }
+  }
+
+  // SEM O PONTO A MONTANTE o esquema de segunda ordem nao existe, e a queda
+  // para upwind e' CONTADA.  Perto da parede e' inevitavel; no meio do
+  // dominio seria sintoma.
+  if (!tem_u) { rebaixos_conv_++; return phiC; }
+
+  const double den = phiD - phiU;
+  if (std::fabs(den) < EPS) return phiC;          // campo localmente plano
+  const double fc = (phiC - phiU) / den;
+  return phiU + nvd(conv_, fc) * den;
+}
+
+double NavierStokes::conveccao(int d, long fid) const
+{
+  // FORMA DIVERGENTE, `sum_e d(u_e u_d)/dx_e`, e nao a advectiva.
+  //
+  // As duas coincidem no continuo porque a divergencia e' nula, e NAO
+  // coincidem no discreto: a divergente conserva quantidade de movimento por
+  // construcao, e a advectiva so' a conserva quando a divergencia discreta ja'
+  // e' nula -- o que no meio do passo ela nao e'.
+  //
+  // TRES direcoes, e nao duas.
+  double soma = 0.0;
+  for (int e = 0; e < 3; e++) {
+    const double Vp = velocidade_que_advecta(d, fid, e, +1);
+    const double Vm = velocidade_que_advecta(d, fid, e, -1);
+    const double fp = valor_na_face(d, fid, e, +1, Vp);
+    const double fm = valor_na_face(d, fid, e, -1, Vm);
+    const double L = comprimento_do_volume(d, fid, e);
+    if (L > 0.0) soma += (Vp * fp - Vm * fm) / L;
+  }
+  return soma;
 }
 
 double NavierStokes::tensao_viscosa(int d, long fid) const

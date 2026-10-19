@@ -1765,4 +1765,51 @@
 //
 //! COBERTA-POR: test-ns3d:o_transposto_existe_e_so_com_mu_variavel
 
+//! U11  O CONVECTIVO E' EXATO PARA CAMPO UNIFORME EM QUALQUER ESQUEMA, e para
+//! campo LINEAR em todos menos o upwind -- que da' EXATAMENTE METADE.
+//!
+//! Forma divergente, `sum_e d(u_e u_d)/dx_e`, somada nas TRES direcoes.  Dois
+//! oraculos de forma fechada: campo uniforme da' zero; `u_x = A x` da'
+//! `2 A^2 x`.
+//!
+//! O PRIMEIRO PASSA COM O TERMO TROCADO POR ZERO -- verifica estrutura, nao
+//! valor.  O segundo nao passa.
+//!
+//! E O SEGUNDO NAO VALE PARA O UPWIND.  Ele toma `phi` na FACETA a montante
+//! (`A x`) e nao no CENTRO da celula (`A(x +- h/2)`), onde fica a face do
+//! volume de controle; a conta da' `A^2 x`, metade do certo.  A clausula
+//! exige a METADE, que e' oraculo mais forte do que "nao e' exato" -- e a
+//! primeira versao deste caso afirmava exatidao para os quatro e falhou com
+//! erro 1,47, que e' `A^2 * 0,75` no ponto mais afastado.  A previsao bateu
+//! em todos os digitos.
+//
+//! COBERTA-POR: test-ns3d:o_convectivo_e_EXATO_para_campo_uniforme_e_linear
+
+//! U12  OS QUATRO ESQUEMAS DIFEREM num campo de grau acima do que reproduzem.
+//!
+//! Se dessem sempre o mesmo, a clausula U11 estaria verificando estrutura e
+//! nao esquema -- qualquer interpolacao serviria.  E' a licao do canal de
+//! Poiseuille no lado 2D, onde o convectivo se anulava identicamente e os
+//! tres esquemas davam o mesmo numero: ali "o CUBISTA esta' correto" nao era
+//! afirmacao verificada.
+//!
+//! CUBISTA e QUICK so' coincidem na faixa central do NVD, e o campo tem de
+//! sair dela em algum lugar -- o caso exige que difiram tambem entre si.
+//
+//! COBERTA-POR: test-ns3d:os_esquemas_DISCRIMINAM_num_campo_de_grau_maior
+
+//! U13  O REBAIXAMENTO DO CONVECTIVO E' CONTADO, e e' ZERO no miolo.
+//!
+//! Sem o ponto a montante o esquema de segunda ordem nao existe e cai para
+//! upwind.  Junto a' parede isso e' inevitavel; no miolo seria defeito.  A
+//! clausula exige as DUAS metades: conta nao nula no dominio inteiro -- senao
+//! o contador nao esta' contando -- e ZERO no miolo.
+//!
+//! IMPORTA MAIS EM TRES DIMENSOES: tres direcoes por faceta em vez de duas,
+//! logo mais oportunidades de o montante faltar.  Um esquema que se anuncia
+//! de segunda ordem e cai para primeira em parte do dominio entrega menos do
+//! que diz, e sem o contador isso e' invisivel.
+//
+//! COBERTA-POR: test-ns3d:o_rebaixamento_do_convectivo_e_CONTADO
+
 #endif

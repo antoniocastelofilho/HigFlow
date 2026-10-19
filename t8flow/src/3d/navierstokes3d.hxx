@@ -65,6 +65,7 @@
 #define T8FLOW_3D_NAVIERSTOKES3D_HXX
 
 #include <array>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -74,6 +75,12 @@
 #include "malha3d.hxx"
 
 namespace t8flow3d {
+
+//! Os esquemas do termo convectivo.  Os mesmos do lado 2D e do HiGFlow.
+enum class Convectivo { Central, Upwind1, Cubista, Quick };
+
+//! O nome, para configuracao por texto.  Lanca com a lista dos validos.
+Convectivo convectivo_do_nome(const std::string &s);
 
 class NavierStokes {
  public:
@@ -98,6 +105,24 @@ class NavierStokes {
   const CampoVetorial &velocidade() const { return u_; }
   CampoEscalar &pressao() { return p_; }
   const CampoEscalar &pressao() const { return p_; }
+
+  //! O ESQUEMA CONVECTIVO.
+  void convectivo(Convectivo c) { conv_ = c; }
+  Convectivo convectivo() const { return conv_; }
+
+  //! `sum_e d(u_e u_d)/dx_e` na faceta, em FORMA DIVERGENTE.
+  double conveccao(int d, long fid) const;
+
+  //! Quantos termos convectivos TIVERAM DE CAIR para primeira ordem por falta
+  //! de ponto a montante, desde a ultima vez que isto foi zerado.
+  //
+  // IMPORTA MAIS EM TRES DIMENSOES do que em duas: sao tres direcoes por
+  // faceta em vez de duas, logo mais oportunidades de o ponto a montante cair
+  // fora do dominio.  Um esquema que se anuncia de segunda ordem e cai para
+  // primeira em parte do dominio entrega menos do que diz, e sem o contador
+  // isso e' invisivel.
+  long rebaixamentos_convectivos() const { return rebaixos_conv_; }
+  void zera_rebaixamentos() { rebaixos_conv_ = 0; }
 
   //! O numero de Reynolds, quando NAO ha' campo de viscosidade.
   void reynolds(double re);
@@ -214,6 +239,17 @@ class NavierStokes {
   //! O fechamento de contorno: o fantasma, AFIM na propria incognita.
   double contorno_vizinho(int d, long fid, int e, int s) const;
 
+  //! A velocidade que ATRAVESSA a face do volume de controle.
+  double velocidade_que_advecta(int d, long fid, int e, int s) const;
+
+  //! O valor da componente `d` interpolado na face, pelo esquema.
+  double valor_na_face(int d, long fid, int e, int s, double V) const;
+
+  //! O comprimento do volume de controle da faceta na direcao `e`.
+  double comprimento_do_volume(int d, long fid, int e) const;
+
+  Convectivo conv_ = Convectivo::Cubista;
+  mutable long rebaixos_conv_ = 0;
   const CampoEscalar *mu_ = nullptr;
   double re_ = 1.0;
 

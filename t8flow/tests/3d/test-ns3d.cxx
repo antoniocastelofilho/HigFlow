@@ -459,5 +459,195 @@ int main(int argc, char **argv)
                 "caso de mu uniforme", pior);
   }
 
+  // =========================================================================
+  t_case("o_convectivo_e_EXATO_para_campo_uniforme_e_linear");
+  {
+    // DOIS ORACULOS DE FORMA FECHADA, e o segundo distingue os esquemas.
+    //
+    //   campo UNIFORME `u = (a,b,c)`:  div(uu) = 0 em QUALQUER esquema.
+    //   campo `u_x = A x`:             div(uu) = 2 A^2 x.
+    //
+    // O PRIMEIRO passa com o termo inteiro trocado por zero -- ele verifica a
+    // estrutura, nao o valor.  O segundo nao passa.
+    //
+    // E O SEGUNDO NAO VALE PARA O UPWIND, e a primeira versao deste caso
+    // afirmava que valia para os quatro.  O upwind toma `phi` na FACETA a
+    // montante (`A x`), e nao no CENTRO da celula (`A(x +- h/2)`) onde fica a
+    // face do volume de controle.  Fazendo a conta:
+    //
+    //     V+ phi+ - V- phi-  =  A(x+h/2) A x - A(x-h/2) A x  =  A^2 x h
+    //
+    // dividido por `h` da' `A^2 x` -- EXATAMENTE METADE do certo.  Isso e'
+    // oraculo melhor do que "nao e' exato": o upwind tem de dar a metade, e
+    // o caso exige isso.  Central, CUBISTA e QUICK sao exatos (em NVD o campo
+    // linear da' `fc = 1/2`, e os tres devolvem `A(x + h/2)`).
+    const int nv = 3;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+
+    const Convectivo esquemas[] = {Convectivo::Central, Convectivo::Upwind1,
+                                   Convectivo::Cubista, Convectivo::Quick};
+    const char *nomes[] = {"central", "upwind1", "cubista", "quick"};
+
+    for (int k = 0; k < 4; k++) {
+      ns.convectivo(esquemas[k]);
+      const bool exato = (esquemas[k] != Convectivo::Upwind1);
+
+      // --- campo uniforme: div(uu) = 0 --------------------------------
+      poe(fd, &ns.velocidade(), [](const Ponto3 &, int d) {
+        return (d == 0) ? 1.3 : (d == 1 ? -0.7 : 2.1);
+      });
+      double pior0 = 0.0;
+      for (int d = 0; d < 3; d++)
+        for (long f = 0; f < fd.num_facetas(d); f++) {
+          const Ponto3 x = fd.centro(d, f);
+          bool borda = false;
+          for (int q = 0; q < 3; q++)
+            if (x[q] < 2 * h || x[q] > 1.0 - 2 * h) borda = true;
+          if (borda) continue;
+          pior0 = std::max(pior0, std::fabs(ns.conveccao(d, f)));
+        }
+      T_BELOW(pior0, 1e-12,
+              "campo uniforme: div(uu) tem de ser zero em qualquer esquema");
+
+      // --- `u_x = A x`: div(uu) = 2 A^2 x ------------------------------
+      const double A = 1.4;
+      poe(fd, &ns.velocidade(),
+          [&](const Ponto3 &x, int d) { return (d == 0) ? A * x[0] : 0.0; });
+      ns.zera_rebaixamentos();
+      double pior1 = 0.0;
+      long contadas = 0;
+      for (long f = 0; f < fd.num_facetas(0); f++) {
+        const Ponto3 x = fd.centro(0, f);
+        bool borda = false;
+        for (int q = 0; q < 3; q++)
+          if (x[q] < 2 * h || x[q] > 1.0 - 2 * h) borda = true;
+        if (borda) continue;
+        // O upwind tem de dar METADE, e os outros o valor cheio.
+        const double esperado = (exato ? 2.0 : 1.0) * A * A * x[0];
+        pior1 = std::max(pior1, std::fabs(ns.conveccao(0, f) - esperado));
+        contadas++;
+      }
+      T_CHECK_MSG(contadas > 20, "%s: so' %ld facetas interiores", nomes[k],
+                  contadas);
+      T_BELOW(pior1, 1e-11,
+              exato ? "campo linear: div(uu) tem de dar 2 A^2 x"
+                    : "campo linear: o upwind tem de dar EXATAMENTE A^2 x, "
+                      "metade do certo");
+    }
+  }
+
+  t_case("os_esquemas_DISCRIMINAM_num_campo_de_grau_maior");
+  {
+    // SE OS QUATRO DAO SEMPRE O MESMO, o caso acima nao esta' verificando
+    // esquema nenhum -- esta' verificando a estrutura, e qualquer
+    // interpolacao serviria.  Este caso existe para mostrar que eles
+    // DIFEREM onde tem de diferir: num campo que nenhum deles reproduz.
+    //
+    // E' a licao do canal de Poiseuille no lado 2D, onde o convectivo se
+    // anulava identicamente e os tres esquemas davam o mesmo numero -- de
+    // modo que "o CUBISTA esta' correto" nao era afirmacao verificada.
+    const int nv = 3;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+
+    auto mede = [&](Convectivo c) {
+      ns.convectivo(c);
+      // Campo CUBICO e sem simetria, nas tres componentes: grau acima do que
+      // qualquer um dos esquemas reproduz.
+      poe(fd, &ns.velocidade(), [](const Ponto3 &x, int d) {
+        const double t = x[0] * x[0] * x[1] + 0.7 * x[2] * x[2] * x[2]
+                         - 0.3 * x[0] * x[1] * x[2];
+        return (d == 0) ? t : (d == 1 ? 0.6 * t - 0.2 : -0.4 * t + 0.1);
+      });
+      double s = 0.0;
+      for (long f = 0; f < fd.num_facetas(0); f++) {
+        const Ponto3 x = fd.centro(0, f);
+        bool borda = false;
+        for (int q = 0; q < 3; q++)
+          if (x[q] < 2 * h || x[q] > 1.0 - 2 * h) borda = true;
+        if (borda) continue;
+        s += std::fabs(ns.conveccao(0, f));
+      }
+      return s;
+    };
+
+    const double up = mede(Convectivo::Upwind1);
+    const double ce = mede(Convectivo::Central);
+    const double cu = mede(Convectivo::Cubista);
+    const double qu = mede(Convectivo::Quick);
+
+    T_CHECK_MSG(up > 1e-6, "o campo nao gera conveccao (%.3e)", up);
+    T_CHECK_MSG(std::fabs(up - ce) / up > 1e-6,
+                "upwind e central deram o mesmo (%.6g, %.6g) -- o caso nao "
+                "discrimina esquema", up, ce);
+    T_CHECK_MSG(std::fabs(cu - ce) / up > 1e-6,
+                "CUBISTA e central deram o mesmo (%.6g, %.6g)", cu, ce);
+    T_CHECK_MSG(std::fabs(cu - qu) / up > 1e-9,
+                "CUBISTA e QUICK deram o mesmo (%.6g, %.6g) -- eles so' "
+                "coincidem na faixa central do NVD, e o campo tem de sair "
+                "dela em algum lugar", cu, qu);
+  }
+
+  t_case("o_rebaixamento_do_convectivo_e_CONTADO");
+  {
+    // UM ESQUEMA QUE SE ANUNCIA DE SEGUNDA ORDEM e cai para primeira em parte
+    // do dominio entrega menos do que diz.  Perto da parede a queda e'
+    // inevitavel -- o ponto a montante cai fora --, mas tem de ser VISIVEL.
+    //
+    // IMPORTA MAIS EM TRES DIMENSOES: sao tres direcoes por faceta em vez de
+    // duas, logo mais chances de o montante faltar.  O caso exige que a conta
+    // seja nao nula varrendo o dominio inteiro, e ZERO varrendo so' o miolo.
+    //
+    // NIVEL 4 E NAO 3: com margem de `3h` o miolo do nivel 3 tem 36 facetas,
+    // e uma amostra desse tamanho nao sustenta "zero rebaixamentos no miolo".
+    const int nv = 4;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+    ns.convectivo(Convectivo::Cubista);
+    poe(fd, &ns.velocidade(), [](const Ponto3 &x, int d) {
+      return (d == 0) ? 1.0 + x[1] : (d == 1 ? 0.5 * x[0] : 0.2 * x[2]);
+    });
+
+    ns.zera_rebaixamentos();
+    for (int d = 0; d < 3; d++)
+      for (long f = 0; f < fd.num_facetas(d); f++) ns.conveccao(d, f);
+    const long com_borda = ns.rebaixamentos_convectivos();
+
+    ns.zera_rebaixamentos();
+    long no_miolo = 0;
+    for (int d = 0; d < 3; d++)
+      for (long f = 0; f < fd.num_facetas(d); f++) {
+        const Ponto3 x = fd.centro(d, f);
+        bool borda = false;
+        for (int q = 0; q < 3; q++)
+          if (x[q] < 3 * h || x[q] > 1.0 - 3 * h) borda = true;
+        if (!borda) { ns.conveccao(d, f); no_miolo++; }
+      }
+    const long rebaixos_miolo = ns.rebaixamentos_convectivos();
+
+    T_CHECK_MSG(com_borda > 0,
+                "nenhum rebaixamento no dominio inteiro -- junto a' parede o "
+                "ponto a montante TEM de faltar, logo o contador nao esta' "
+                "contando");
+    T_CHECK_MSG(no_miolo > 50, "so' %ld facetas no miolo", no_miolo);
+    T_CHECK_MSG(rebaixos_miolo == 0,
+                "%ld rebaixamentos NO MIOLO do dominio -- ali o ponto a "
+                "montante existe, e cair para primeira ordem seria defeito e "
+                "nao geometria", rebaixos_miolo);
+  }
+
   return t_end();
 }
