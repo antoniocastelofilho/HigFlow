@@ -315,7 +315,7 @@ TESTES3 = $(basename $(wildcard tests/3d/test-*.cxx))
 SRC3_EX = exemplos/poisson3d/poisson3d.cxx exemplos/poisson3d/manufaturada3d.cxx \
           exemplos/mms3d/manufaturada-ns3d.cxx
 OBJ3_X  = $(addprefix $(OBJ3)/,$(notdir $(SRC3_EX:.cxx=.o)))
-EXEMPLOS3 = exemplos/poisson3d/poisson3d-mms
+EXEMPLOS3 = exemplos/poisson3d/poisson3d-mms exemplos/mms3d/ns3d-mms
 
 3d: $(TESTES3) $(EXEMPLOS3)
 
@@ -347,6 +347,9 @@ tests/3d/%: tests/3d/%.cxx tests/testing.h $(OBJ3_T) $(OBJ3_X) $(OBJ3_N)
 	$(CXX) $(CXXFLAGS3) $< $(OBJ3_T) $(OBJ3_X) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
 
 exemplos/poisson3d/%: exemplos/poisson3d/%.cxx $(OBJ3_T) $(OBJ3_X) $(OBJ3_N)
+	$(CXX) $(CXXFLAGS3) -Itests $< $(OBJ3_T) $(OBJ3_X) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
+
+exemplos/mms3d/%: exemplos/mms3d/%.cxx $(OBJ3_T) $(OBJ3_X) $(OBJ3_N)
 	$(CXX) $(CXXFLAGS3) -Itests $< $(OBJ3_T) $(OBJ3_X) $(OBJ3_N) -o $@ $(LDFLAGS) $(LIBS)
 
 clean:

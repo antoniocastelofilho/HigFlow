@@ -719,5 +719,97 @@ int main(int argc, char **argv)
     T_BELOW(pior_d, 1e-12, "a manufaturada nao e' solenoidal");
   }
 
+  t_case("cada_operador_reproduz_o_termo_da_manufaturada");
+  {
+    // A CAMADA QUE FALTAVA entre os casos unitarios e o MMS completo.
+    //
+    // Os operadores tem casos proprios com oraculo de exatidao, e o MMS mede a
+    // ordem do passo inteiro.  Entre os dois nao havia nada -- e quando a
+    // ordem do MMS saiu errada, nao havia como dizer QUAL operador discorda da
+    // manufaturada sem instrumentar o exemplo.
+    //
+    // Aqui cada um e' comparado com o termo analitico correspondente, no mesmo
+    // campo.  O oraculo nao e' exatidao: o campo e' trigonometrico e nenhum
+    // esquema o reproduz.  E' CONSISTENCIA -- o erro tem de ser da ordem de
+    // `h^2` vezes a escala do termo, e nao da ordem do termo.
+    ManufaturadaNS3 ms;
+    ms.re = 10.0;
+    const int nv = 4;
+    const double h = 1.0 / (1 << nv);
+    Malha3 m({{{0.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, nv}}, sc_MPI_COMM_SELF);
+    DominioFacetas fd(m);
+    ContornoPorRegiao b0, b1, b2, bp;
+    arma(&b0, &b1, &b2, &bp, h);
+    NavierStokes ns(m, fd, b0, b1, b2, bp);
+    ns.reynolds(ms.re);
+    ns.convectivo(Convectivo::Central);
+
+    for (int d = 0; d < 3; d++)
+      for (long f = 0; f < fd.num_facetas(d); f++)
+        ns.velocidade().em(d, f) = ms.u(fd.centro(d, f), d, 0.0);
+
+    double pior_v = 0.0, esc_v = 0.0, pior_c = 0.0, esc_c = 0.0;
+    long contadas = 0;
+    for (int d = 0; d < 3; d++)
+      for (long f = 0; f < fd.num_facetas(d); f++) {
+        const Ponto3 x = fd.centro(d, f);
+        bool borda = false;
+        for (int q = 0; q < 3; q++)
+          if (x[q] < 2 * h || x[q] > 1.0 - 2 * h) borda = true;
+        if (borda) continue;
+        contadas++;
+
+        const double visc_exato = ms.lap(x, d, 0.0) / ms.re;
+        pior_v = std::max(pior_v,
+                          std::fabs(ns.tensao_viscosa(d, f) - visc_exato));
+        esc_v = std::max(esc_v, std::fabs(visc_exato));
+
+        double conv_exato = 0.0;
+        for (int j = 0; j < 3; j++)
+          conv_exato += ms.u(x, j, 0.0) * ms.dudx(x, d, j, 0.0);
+        pior_c = std::max(pior_c, std::fabs(ns.conveccao(d, f) - conv_exato));
+        esc_c = std::max(esc_c, std::fabs(conv_exato));
+      }
+
+    T_CHECK_MSG(contadas > 100, "so' %ld facetas interiores", contadas);
+    T_CHECK_MSG(esc_v > 1.0 && esc_c > 1.0,
+                "os termos sao quase nulos (%.3g, %.3g) -- nada medido",
+                esc_v, esc_c);
+    // `h = 1/16`, logo `h^2 = 4e-3`.  Erro de segunda ordem da' alguns por
+    // cento da escala; erro da ORDEM da escala e' inconsistencia.
+    T_CHECK_MSG(pior_v < 0.10 * esc_v,
+                "o termo VISCOSO discorda da manufaturada em %.3g, escala "
+                "%.3g (%.1f%%) -- com h = 1/16 isso nao e' discretizacao",
+                pior_v, esc_v, 100.0 * pior_v / esc_v);
+    // O LIMIAR DO CONVECTIVO E' 5% DEPOIS DA CORRECAO DA INTERPOLACAO.  Com
+    // `u_no_ponto` interpolando so' ao longo da propria direcao ele dava
+    // 19,6%, e 15% teria sido limiar frouxo o bastante para aceitar o
+    // defeito -- o que decidiu nao foi o limiar, foi medir a ORDEM.
+    T_CHECK_MSG(pior_c < 0.05 * esc_c,
+                "o termo CONVECTIVO discorda da manufaturada em %.3g, escala "
+                "%.3g (%.1f%%)", pior_c, esc_c, 100.0 * pior_c / esc_c);
+
+    // E O GRADIENTE DE PRESSAO.
+    CampoEscalar pp(m);
+    for (long b = 0; b < m.num_blocos(); b++)
+      for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
+        pp.em(m.id_global(b, i)) = ms.p(m.centroide(b, i));
+    double pior_g = 0.0, esc_g = 0.0;
+    for (int d = 0; d < 3; d++)
+      for (long f = 0; f < fd.num_facetas(d); f++) {
+        const Ponto3 x = fd.centro(d, f);
+        bool borda = false;
+        for (int q = 0; q < 3; q++)
+          if (x[q] < 2 * h || x[q] > 1.0 - 2 * h) borda = true;
+        if (borda) continue;
+        const double g = ms.dpdx(x, d);
+        pior_g = std::max(pior_g, std::fabs(ns.gradiente_em(pp, d, f) - g));
+        esc_g = std::max(esc_g, std::fabs(g));
+      }
+    T_CHECK_MSG(pior_g < 0.05 * esc_g,
+                "o GRADIENTE discorda da manufaturada em %.3g, escala %.3g",
+                pior_g, esc_g);
+  }
+
   return t_end();
 }

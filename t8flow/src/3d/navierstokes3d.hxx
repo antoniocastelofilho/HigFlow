@@ -123,6 +123,20 @@ class NavierStokes {
   void termo_fonte_faceta(std::function<double(const Ponto3 &, int, double)> f)
   { fonte_faceta_ = std::move(f); }
 
+  //! O RELOGIO QUE O CONTORNO LE'.
+  //
+  // Quem avalia uma condicao dependente do tempo precisa saber em QUE
+  // instante, e dentro de um passo sao DOIS: `t^n` para o preditor e
+  // `t^{n+1}` para a aplicacao final.  Deixar isso a cargo de quem chama nao
+  // funciona -- o chamador so' ve' as fronteiras do passo, e a aplicacao final
+  // acontece DENTRO dele.
+  //
+  // MEDIDO AO DEIXAR A CARGO DO EXEMPLO: a condicao final valia em `t^n`, o
+  // erro na parede ficava `O(dt)` e -- por ser de parede -- NAO caia com `h`.
+  // A ordem da velocidade no MMS parou em 1,2 a 1,45 em vez de 2, enquanto a
+  // da pressao dava 2: o contraste entre as duas e' que apontou a parede.
+  void relogio_do_contorno(double *t) { relogio_ = t; }
+
   //! AVANCA UM PASSO: preditor, Poisson, projecao, contorno.
   void passo();
 
@@ -286,6 +300,7 @@ class NavierStokes {
   std::function<double(const Ponto3 &, int, double)> fonte_faceta_;
   Projecao proj_ = Projecao::Incremental;
   double t_ = 0.0;
+  double *relogio_ = nullptr;
   long n_passos_ = 0;
   Convectivo conv_ = Convectivo::Cubista;
   mutable long rebaixos_conv_ = 0;

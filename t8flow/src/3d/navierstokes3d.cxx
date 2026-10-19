@@ -224,29 +224,71 @@ double NavierStokes::mu_na_aresta(const Ponto3 &xa, int d, int e) const
 
 double NavierStokes::u_no_ponto(int d, const Ponto3 &x, bool *dentro) const
 {
-  // CAMINHO CURTO: ha' faceta exatamente aqui.  Em malha uniforme -- a unica
-  // que este solver aceita -- e' o unico caminho que ocorre para os pontos de
-  // que o termo viscoso precisa.
+  // CAMINHO CURTO: ha' faceta exatamente aqui.
   const long f = faceta_em(d, x);
   if (f >= 0) {
     if (dentro) *dentro = true;
     return u_.em(d, f);
   }
-  // O ponto cai no MEIO da celula na direcao `d`: media das duas faces.
-  const long id = m_->id_do_ponto(x);
-  const auto it = (id >= 0) ? bi_por_id_.find(id) : bi_por_id_.end();
-  if (it == bi_por_id_.end()) {
-    if (dentro) *dentro = false;
-    return 0.0;
+
+  // INTERPOLACAO TRILINEAR SOBRE A REDE DE FACETAS DA DIRECAO `d`.
+  //
+  // A PRIMEIRA VERSAO INTERPOLAVA SO' AO LONGO DE `d`, e isso custou PRIMEIRA
+  // ORDEM no termo convectivo -- medido: 0,944 e 0,988 entre os niveis 3-4-5,
+  // com diferencas centrais, que deveriam dar segunda.  O viscoso, que nao
+  // usa este caminho, dava 1,88 e 2,00 nas mesmas malhas, e foi esse contraste
+  // que localizou o defeito.
+  //
+  // A RAZAO: a velocidade que advecta atraves da face transversal do volume de
+  // controle e' avaliada numa ARESTA -- deslocada meia celula em `d` em
+  // relacao a's facetas de direcao `e` que a carregam.  Interpolar so' em `e`
+  // devolve o valor no CENTRO da celula, nao na aresta, e o erro e' `O(h)`.
+  //
+  // E' A MESMA CLASSE DE DEFEITO QUE NO LADO 2D, onde a quina devolvia a
+  // faceta de uma das duas celulas em vez da media, e o erro da caixa
+  // manufaturada subiu 20% em `u` e 37% em `v`.  Em tres dimensoes ha' DUAS
+  // direcoes transversais, logo duas interpolacoes a esquecer.
+  //
+  // A REDE: na direcao `d` as facetas ficam nos multiplos de `h` (as faces);
+  // nas outras duas, nos meios (os centros de celula).
+  const double h = quantum_ * 4.0;              // malha uniforme: so' ha' um
+  int k0[3];
+  double w[3];
+  for (int j = 0; j < 3; j++) {
+    const double t = (j == d) ? (x[j] / h) : (x[j] / h - 0.5);
+    k0[j] = static_cast<int>(std::floor(t + 1e-9));
+    w[j] = t - k0[j];
+    if (w[j] < 1e-9) w[j] = 0.0;
+    if (w[j] > 1.0 - 1e-9) { w[j] = 0.0; k0[j] += 1; }
   }
-  const long b = it->second.first, i = it->second.second;
-  const long fm = faceta_da_face(b, i, d, 0), fp = faceta_da_face(b, i, d, 1);
-  if (fm < 0 || fp < 0) {
+
+  // OS CANTOS QUE EXISTEM, com os pesos RENORMALIZADOS.  Perto da parede
+  // algum canto cai fora; usar o fantasma ali seria outro esquema, e
+  // renormalizar degrada suavemente -- que e' o que o convectivo ja' faz
+  // naquela regiao, contando o rebaixamento.
+  double soma = 0.0, peso = 0.0;
+  for (int a = 0; a < 2; a++)
+    for (int b = 0; b < 2; b++)
+      for (int c = 0; c < 2; c++) {
+        const double wt = (a ? w[0] : 1.0 - w[0]) * (b ? w[1] : 1.0 - w[1]) *
+                          (c ? w[2] : 1.0 - w[2]);
+        if (wt <= 0.0) continue;
+        Ponto3 q;
+        q[0] = ((d == 0) ? (k0[0] + a) : (k0[0] + a + 0.5)) * h;
+        q[1] = ((d == 1) ? (k0[1] + b) : (k0[1] + b + 0.5)) * h;
+        q[2] = ((d == 2) ? (k0[2] + c) : (k0[2] + c + 0.5)) * h;
+        const long fq = faceta_em(d, q);
+        if (fq < 0) continue;
+        soma += wt * u_.em(d, fq);
+        peso += wt;
+      }
+
+  if (peso <= 0.0) {
     if (dentro) *dentro = false;
     return 0.0;
   }
   if (dentro) *dentro = true;
-  return 0.5 * (u_.em(d, fm) + u_.em(d, fp));
+  return soma / peso;
 }
 
 NavierStokes::Vizinha NavierStokes::vizinha_de(int d, long fid, int e,
@@ -656,7 +698,10 @@ void NavierStokes::passo()
 
   // O RELOGIO DO CONTORNO: `t^n` para o preditor, `t^{n+1}` para a aplicacao
   // final.  Com condicao dependente do tempo, aplicar as duas no mesmo
-  // instante erra meio passo -- e erra CALADO.
+  // instante deixa a parede meio passo atrasada -- e o erro ali e' `O(dt)` e
+  // NAO cai com `h`, de modo que ele acaba dominando a norma do maximo nas
+  // malhas finas e a ordem desaba sem que a causa esteja na malha.
+  if (relogio_) *relogio_ = t_;
   aplica_contorno_velocidade();
   preditor();
 
@@ -688,6 +733,7 @@ void NavierStokes::passo()
 
   t_ += dt_;
   n_passos_++;
+  if (relogio_) *relogio_ = t_;
   aplica_contorno_velocidade();
 }
 
@@ -727,12 +773,42 @@ void NavierStokes::resolve_pressao()
             xp[d] += sinal * hh[d] / 2.0;
             const Contorno &cp = bcp_->em(xp);
             if (cp.tipo != TipoContorno::Dirichlet) continue;  // fluxo nulo
-            // Dirichlet: o valor esta' na parede, a meio lado do centro.
+
+            // A CONDICAO DO INCREMENTO NAO E' A DA PRESSAO, E' DERIVADA DELA.
+            //
+            // Queremos `p^{n+1} = g` na parede.  Na NAO INCREMENTAL `p = dp`,
+            // entao o valor do incremento ali E' `g`.  Na INCREMENTAL
+            // `p^{n+1} = p^n + dp`, logo `dp_parede = g - p^n_parede`.
+            //
+            // DIRICHLET HOMOGENEO -- ou `g` cru -- PRENDE A VARIACAO, E NAO A
+            // PRESSAO: no ponto fixo `dp = 0` resolve a equacao qualquer que
+            // seja o nivel de `p`, e o campo sai deslocado por uma constante.
+            // O sintoma e' gradiente certo com campo errado, e diagnostica-se
+            // pela FAIXA de `p`, nao pelo erro.
+            //
+            // ESTE DEFEITO JA' CUSTOU UM DIAGNOSTICO NO LADO 2D, e eu o
+            // reintroduzi aqui ao portar.  Esta' registrado em
+            // `doc/relatorio-ns-fv-2d.md`, secao 4.
+            //
+            // A EXTRAPOLACAO DE `p^n` ATE' A PAREDE E' LINEAR, `(3 p_c -
+            // p_cc)/2`, e nao de ordem zero: usar `p_c` seria primeira ordem
+            // disfarcada de segunda, e apareceria como a pressao convergindo
+            // em ordem 1 enquanto a velocidade convergisse em 2.
+            double val = cp.g(xp);
+            if (proj_ == Projecao::Incremental) {
+              Ponto3 xcc = c;
+              xcc[d] -= sinal * hh[d];        // o segundo centro, adentro
+              const long cc = m_->id_do_ponto(xcc);
+              const double p_parede =
+                  (cc >= 0) ? 1.5 * p_.em(id) - 0.5 * p_.em(cc) : p_.em(id);
+              val -= p_parede;
+            }
+
             const double area = (f >= 0) ? fd_->medida(d, f)
                                          : hh[(d + 1) % 3] * hh[(d + 2) % 3];
             const double coef = area / (hh[d] / 2.0);
             linha[id] -= coef;
-            rhs -= coef * cp.g(xp);
+            rhs -= coef * val;
             continue;
           }
           const auto it = bi_por_id_.find(vz[0]);

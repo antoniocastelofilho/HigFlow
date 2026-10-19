@@ -1835,4 +1835,33 @@
 //
 //! COBERTA-POR: test-ns3d:as_derivadas_a_mao_batem_com_diferencas_finitas
 
+//! U15  CADA OPERADOR REPRODUZ O TERMO ANALITICO DA MANUFATURADA, e e' essa a
+//! camada que localiza o defeito quando a ordem do passo inteiro sai errada.
+//!
+//! Os operadores tem casos com oraculo de EXATIDAO, e o exemplo de MMS mede a
+//! ordem do passo COMPLETO.  Entre os dois nao havia nada -- e quando a ordem
+//! saiu 0,58 em vez de 2, nao havia como dizer QUAL operador discorda sem
+//! instrumentar o exemplo.
+//!
+//! O oraculo aqui nao e' exatidao: o campo e' trigonometrico e nenhum esquema
+//! o reproduz.  E' CONSISTENCIA -- o erro tem de ser da ordem de `h^2` vezes
+//! a escala do termo, e nao da ordem do termo.
+//!
+//! FOI ESTE CASO QUE ACHOU O DEFEITO: viscoso e gradiente passaram, o
+//! convectivo discordou 19,6%.  Medindo a ORDEM de cada um -- e nao o valor
+//! contra um limiar escolhido -- o viscoso deu 1,88 e 2,00 enquanto o
+//! convectivo deu 0,944 e 0,988.  Primeira ordem com diferencas centrais e'
+//! defeito, nao discretizacao.
+//!
+//! A CAUSA: `u_no_ponto` interpolava so' ao longo da propria direcao.  A
+//! velocidade que advecta atraves da face transversal do volume de controle
+//! vive numa ARESTA, deslocada meia celula em `d` das facetas que a carregam;
+//! interpolar so' em `e` devolve o valor no CENTRO e o erro e' `O(h)`.  Hoje
+//! a interpolacao e' trilinear sobre a rede de facetas.  E' a mesma classe de
+//! defeito que no lado 2D custou 20% em `u` e 37% em `v` na caixa
+//! manufaturada -- em tres dimensoes ha' DUAS transversais, logo duas
+//! interpolacoes a esquecer.
+//
+//! COBERTA-POR: test-ns3d:cada_operador_reproduz_o_termo_da_manufaturada
+
 #endif
