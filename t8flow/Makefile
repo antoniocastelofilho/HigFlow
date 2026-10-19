@@ -305,7 +305,7 @@ tests/comum/%: tests/comum/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
 # ---------------------------------------------------------------------------
 OBJ3 = obj/3d
 CXXFLAGS3 = $(BASE) -DDIM=3 -Isrc/3d -Iexemplos/poisson3d
-SRC3   = src/3d/mls3d.cxx src/3d/malha3d.cxx src/3d/contorno3d.cxx src/3d/estencil3d.cxx src/3d/campos3d.cxx src/3d/discretizacao3d.cxx
+SRC3   = src/3d/mls3d.cxx src/3d/malha3d.cxx src/3d/contorno3d.cxx src/3d/estencil3d.cxx src/3d/campos3d.cxx src/3d/discretizacao3d.cxx src/3d/navierstokes3d.cxx
 OBJ3_N = $(addprefix $(OBJ3)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ3_T = $(addprefix $(OBJ3)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC3:.cxx=.o)))
 TESTES3 = $(basename $(wildcard tests/3d/test-*.cxx))

@@ -109,6 +109,8 @@ LADOS = {
         # caminho que estava errado.  O erro contra a solucao exata mudava 11%
         # com `np` e nada acusava.
         ("test-poisson3d", (1, 2, 4)),
+        # SO EM np=1: o solver 3D recusa `np > 1` na construcao, com a razao.
+        ("test-ns3d", (1,)),
     ],
 }
 
@@ -127,6 +129,28 @@ def le_contrato(caminho):
             m = re.match(r"\s*//!\s*COBERTA-POR:\s*(\S+):(\S+)", linha)
             if m and atual is not None:
                 atual[1].append((m.group(1), m.group(2)))
+
+    # NOME REPETIDO E' RECUSADO, e nao contado duas vezes.
+    #
+    # Aconteceu: as clausulas do Navier-Stokes 3D nasceram como `N1`-`N4`, e
+    # `N` ja' nomeava as do nucleo herdado.  A suite contou as oito, imprimiu
+    # cada nome DUAS VEZES na listagem, disse "123/123" e nao reclamou -- as
+    # duas estavam cobertas, cada uma pelo seu caso.
+    #
+    # O estrago nao e' na contagem: e' que "N2" deixa de identificar uma
+    # clausula.  Toda citacao -- num commit, num relatorio, numa mensagem de
+    # erro -- passa a ser ambigua, e quem for conferir vai ao lugar errado.
+    vistos = {}
+    repetidos = []
+    for nome, _ in clausulas:
+        vistos[nome] = vistos.get(nome, 0) + 1
+        if vistos[nome] == 2:
+            repetidos.append(nome)
+    if repetidos:
+        raise SystemExit(
+            "contrato: nome de clausula REPETIDO: %s.\n"
+            "Duas clausulas com o mesmo nome tornam ambigua qualquer citacao."
+            % ", ".join(sorted(repetidos)))
     return clausulas
 
 

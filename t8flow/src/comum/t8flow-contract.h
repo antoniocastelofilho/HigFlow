@@ -1559,10 +1559,15 @@
 //! COBERTA-POR: test-vof2d:o_caso_ambiguo_da_diagonal_e_RECUSADO
 
 // ---------------------------------------------------------------------------
-// C -- O PAR DIVERGENCIA/GRADIENTE
+// O -- O PAR DIVERGENCIA/GRADIENTE
+//
+// A letra O, e nao C: `C` ja' nomeia as CONDICOES DE FRONTEIRA.  Esta colisao
+// existiu e a suite nao reclamava -- contava as duas e dizia o total certo.
+// Quem a pegou foi a guarda contra nome repetido, posta depois de a mesma
+// coisa acontecer com `N`.
 // ---------------------------------------------------------------------------
 
-//! C1  A DIVERGENCIA E O GRADIENTE SAO ADJUNTOS EM MALHA UNIFORME (precisao de
+//! O1  A DIVERGENCIA E O GRADIENTE SAO ADJUNTOS EM MALHA UNIFORME (precisao de
 //! maquina) e falham em SEGUNDA ORDEM na adaptada.
 //!
 //! AFIRMA SOBRE O PAR, e nao sobre cada operador.  Os dois tem clausulas
@@ -1594,5 +1599,71 @@
 //! Krylov: a matriz seria nao simetrica nessa mesma ordem.
 //
 //! COBERTA-POR: test-ns2d:a_divergencia_e_o_gradiente_sao_adjuntos
+
+// ---------------------------------------------------------------------------
+// U -- O NAVIER-STOKES EM TRES DIMENSOES
+//
+// A letra U, e nao N: `N` ja' nomeia as clausulas do NUCLEO HERDADO, la' em
+// cima.  Duas clausulas com o mesmo nome tornam ambigua qualquer citacao --
+// e o arreio contava as duas e dizia 123/123, sem reclamar.  Hoje reclama.
+// ---------------------------------------------------------------------------
+
+//! U1  A DIVERGENCIA 3D E' EXATA PARA CAMPO LINEAR, e o zero vem com o par que
+//! NAO e' zero.
+//!
+//! A divergencia de volumes finitos e' a regra do ponto medio sobre a
+//! superficie, exata para campo linear: um campo solenoidal da' zero de
+//! maquina em qualquer resolucao, e um de divergencia conhecida da' o valor.
+//! Ordem certa com constante errada existe; exatidao nao.
+//!
+//! O PAR E' NECESSARIO.  "A divergencia deu 1e-16" nao distingue um operador
+//! correto de um que devolve zero sempre -- e um operador que descarta faces
+//! devolve justamente isso em metade dos casos.  Dois campos de divergencia
+//! nula (um deles CISALHANTE, que varia ao longo da face que o carrega) e um
+//! de divergencia 3.
+//
+//! COBERTA-POR: test-ns3d:a_divergencia_e_exata_em_malha_uniforme
+
+//! U2  O BALANCO DE FLUXOS CONSULTA AS SEIS FACES, DONAS OU NAO.
+//!
+//! `DominioFacetas::id_faceta` devolve -1 quando a folha nao e' dona da
+//! faceta, e isso e' informacao e nao falha: e' assim que o chamador sabe que
+//! ela pertence ao vizinho.  Mas o balanco precisa das seis, e as que nao sao
+//! dela vem do vizinho pela face oposta.
+//!
+//! MEDIDO AO ESQUECER DISTO, na primeira execucao do caso: campo de
+//! divergencia 3 devolvia 18, e campo solenoidal devolvia 10 em vez de zero.
+//! Nao e' erro pequeno -- e' o operador somando um subconjunto arbitrario de
+//! faces --, mas num oraculo de ORDEM seria facil confundir com malha grossa.
+//! E' por isso que o primeiro incremento do solver 3D e' a divergencia
+//! sozinha, com oraculo de exatidao: o defeito estava na varredura de facetas,
+//! e encontra-lo depois significaria procura-lo atraves de quatro operadores.
+//
+//! COBERTA-POR: test-ns3d:a_divergencia_e_exata_em_malha_uniforme
+
+//! U3  A MEDIDA DA FACETA E' UMA AREA, e o caso CUBICO nao mostra isso.
+//!
+//! Numa celula cubica `area/volume` e `comprimento/area` dao o MESMO numero:
+//! trocar a medida da faceta por engano passaria despercebido, e o fluxo com
+//! dimensao errada ainda converge -- para a equacao errada.  O caso usa um
+//! dominio 1 x 2 x 4 com contagens diferentes nas tres direcoes e um campo de
+//! divergencia `2 + 5 - 1 = 6`.
+//
+//! COBERTA-POR: test-ns3d:a_medida_da_faceta_e_uma_AREA_e_o_caso_cubico_nao_mostra
+
+//! U4  A TRANSICAO 2:1 E O PARALELO SAO RECUSADOS NA CONSTRUCAO, e a recusa
+//! DIZ por que tres dimensoes nao e' duas com um indice a mais.
+//!
+//! Recusar na construcao e nao no primeiro passo: quem monta uma malha
+//! adaptada e so' descobre no passo mil ja' gastou a montagem, e pode ter
+//! visto numeros no caminho.
+//!
+//! E A MENSAGEM E' PARTE DA CLAUSULA.  O caso exige que ela contenha QUATRO e
+//! OITO: a face da celula grossa e' coberta por QUATRO facetas finas, nao
+//! duas, e a quina onde a viscosidade se interpola toca OITO celulas, nao
+//! quatro.  Uma recusa generica passaria num teste de "lancou?" e nao
+//! ensinaria nada a quem a encontrasse.
+//
+//! COBERTA-POR: test-ns3d:a_transicao_2_1_e_o_paralelo_sao_RECUSADOS_na_construcao
 
 #endif
