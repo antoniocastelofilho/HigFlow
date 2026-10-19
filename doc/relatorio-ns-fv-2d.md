@@ -1,13 +1,18 @@
-# t8SolverNS-FV 2D — primeiro relatório
+# t8SolverNS-FV 2D — relatório
 
 Navier–Stokes incompressível newtoniano, volumes finitos, arranjo deslocado
 (MAC), sobre a malha de floresta do t8code. Este documento cobre o que existe,
 o que foi medido, o que está recusado por decisão e o que está em aberto.
 
-**Estado:** o canal de Poiseuille roda e converge; a divergência é zero de
-máquina; `u`, `v` e `p` convergem com ordem medida. Serial apenas, malha
-uniforme apenas — as duas limitações são recusadas explicitamente pelo código,
-não descobertas pelo usuário.
+**Estado:** canal de Poiseuille e caixa manufaturada convergem com ordem
+medida; a divergência é zero de máquina. Malha **adaptada** com transição 2:1 e
+**remalhamento** dinâmico. Avanço explícito **e** semi-implícito. O termo
+viscoso é o **tensor completo**. Serial apenas — a limitação é recusada
+explicitamente pelo código, não descoberta pelo usuário.
+
+O solver sustenta o caso bifásico por front-tracking, que tem relatório próprio
+em [`relatorio-bifasico-ft-2d.md`](relatorio-bifasico-ft-2d.md) e acerta a
+bolha de Hysing dentro da faixa das referências publicadas.
 
 ---
 
@@ -189,32 +194,26 @@ oferecer, e como contraste de verificação.
 
 ## 6. Recusado por decisão, e dito pelo código
 
-Nenhuma das duas produz número: as duas lançam com a razão.
+**Paralelo.** Lança com a razão, e não produz número. Faltam a troca de franja
+dos campos — o estêncil lê célula e faceta do vizinho, e os campos cobrem só os
+ids locais — e o percurso por blocos, que hoje supõe todas as árvores locais.
+Com a franja ausente o estêncil leria lixo perto da fronteira de partição e a
+corrida daria número.
 
-**Paralelo.** Faltam a troca de franja dos campos — o estêncil lê célula e
-faceta do vizinho, e os campos cobrem só os ids locais — e o percurso por
-blocos, que hoje supõe todas as árvores locais. Com a franja ausente o estêncil
-leria lixo perto da fronteira de partição e a corrida daria número.
+**Malha adaptada — recusa levantada.** Este relatório registrava a transição
+2:1 como recusada, com a razão: numa faceta de *velocidade* a componente normal
+se restringe por conservação de vazão e a tangencial por interpolação, e
+aplicar a mesma regra às duas produz divergência que não fecha — defeito que
+aparece como o solver de pressão não convergindo, longe da causa.
 
-**Malha adaptada.** A transição 2:1 numa faceta de *velocidade* não é o mesmo
-problema que numa faceta de fluxo escalar: a componente normal se restringe por
-conservação de vazão e a tangencial por interpolação, e aplicar a mesma regra às
-duas produz divergência que não fecha — defeito que aparece como o solver de
-pressão não convergindo, longe da causa.
+A restrição foi feita (§6e) e a recusa saiu da construção. O que fica do
+registro é o **modo de falha**, que continua valendo como aviso: divergência
+que não fecha se manifesta num sintoma distante da causa.
 
-Isso responde ao pedido de **refinar junto à parede**: hoje é recusado.
-
-```
-malha REFINADA junto as paredes: faixa de 0.3, nivel 4
-celulas: 448, em transicao 2:1: 192
-NavierStokes: a malha tem 192 folhas em transicao 2:1, e este solver ainda nao
-a trata.  A restricao da componente normal e a da tangencial sao diferentes, e
-aplicar a mesma as duas produz divergencia que nao fecha.
-```
-
-A opção `--refina-parede=E` existe no exemplo e hoje serve para **mostrar a
-recusa**, não para medir. Medir o efeito do refino junto à parede exige a
-restrição 2:1 das facetas, que é o próximo item de peso.
+A opção `--refina-parede=E` do canal, que existia para mostrar a recusa, hoje
+mede: **refinar junto à parede dá a precisão da malha nível 4 com 44% das
+células**, o que confirma que o erro do canal é governado pelo fechamento de
+parede (§5).
 
 ---
 
@@ -322,6 +321,165 @@ agora recusa e diz qual `T` serve.
 
 ---
 
+## 6c. O termo viscoso: o tensor completo, e o patamar que o denunciou
+
+Este relatório dizia, numa versão anterior, que o termo viscoso era
+`div(μ∇u)` **e que essa era a forma do HiGFlow**. As duas afirmações estavam
+erradas, e a segunda era erro de leitura do código dele. Abrindo,
+
+```
+div(μ ∇uᵀ)ᵢ = (∂ⱼμ)(∂ᵢuⱼ) + μ ∂ᵢ(∂ⱼuⱼ)
+```
+
+o HiGFlow omite só o **segundo**, que é `μ ∇(∇·u)` e some num campo solenoidal.
+O primeiro está lá, em `hig-flow-discret.c`, somado em
+`higflow_extra_diffusive_term` e dividido por `Re` e por `ρ`.
+
+Descartar o transposto **inteiro** joga fora a tensão cisalhante através da
+interface — e com razão 10 de viscosidade, `∇μ` ali é da ordem de `9/h`.
+
+**O que custou**, na bolha de Hysing caso 1, nível 5:
+
+| | sem o transposto | com | referência |
+|---|---|---|---|
+| circularidade mínima | 0,8361 | **0,8852** | 0,9012 ± 0,0001 |
+| velocidade máxima | +5,2% | **+1,6%** | — |
+| área / área inicial | 1,0249 | **1,0183** | 1 |
+
+A circularidade errava **650 vezes a dispersão entre as três referências
+publicadas**.
+
+**O que denunciou não foi o valor, foi o patamar sob refino.** Nível 5 dava
++5,2% em `v_max`; nível 6 ainda +4,3%. Segunda ordem teria dividido por quatro.
+*Patamar sob refino é assinatura de termo faltando, não de malha grossa* — e foi
+isso que separou "resolução" de "defeito" sem precisar de mais corridas.
+
+Com `μ` uniforme o termo é **identicamente nulo**, de modo que canal e caixa
+manufaturada reproduzem bit a bit o que davam antes.
+
+---
+
+## 6d. Euler semi-implícito
+
+`(I − (dt/ρ) L_μ) u* = uⁿ + dt R`, uma componente por vez. Implícito **só**
+`div(μ∇u)`, como no HiGFlow. Convectivo, gravidade, tensão, fonte e o
+**transposto** ficam explícitos — este último porque depende da derivada
+cruzada `∂_d u_e`, e pô-lo na matriz acoplaria as duas componentes num sistema
+só.
+
+**O contorno entra na matriz, não no lado direito.** O fechamento é afim na
+própria incógnita (`A u_f + B`): Dirichlet dá `A = −1`, Neumann `A = +1`. Jogar
+o fantasma inteiro à direita trata um Neumann como Dirichlet com valor velho —
+converge, dá número, e a condição passa a valer outra coisa. Nos lados de
+deslizamento livre da bolha de Hysing a condição tangencial **é** Neumann.
+
+**O ganho neste caso é zero, e isso está dito no código.** Em `h = 0,00625` o
+limite viscoso é 9,77e−4 e o capilar 9,34e−4: o capilar já mandava, e
+implicitar a difusão não o remove — é onda capilar, não difusão. O
+semi-implícito entra por **correspondência** com o HiGFlow. Em `h` mais fino a
+ordem se inverte (viscoso cai com `h²`, capilar com `h^{3/2}`). Custo medido:
+16,4 s/passo contra 17,1 do explícito — os dois sistemas de velocidade são
+baratos perto do Poisson.
+
+**Duas implementações do operador, de propósito.** O implícito precisa dele como
+matriz, o explícito o avalia como número. Colapsá-las trocaria a ordem das somas
+de ponto flutuante, e os casos monofásicos deixariam de reproduzir bit a bit —
+critério que já pegou duas refatorações mentindo. A defesa é o teste
+(`difusao_explicita` contra `difusao_por_pesos`), como em `amr_tabela` contra
+`amr_tabela_exaustiva`.
+
+**É serial, e isso está dito e não suposto:** `DominioFacetas` numera as facetas
+localmente, sem deslocamento global, então o índice da faceta é a linha da
+matriz só em `np = 1`.
+
+---
+
+## 6e. Malha adaptada: transição 2:1 e remalhamento
+
+**A posse da faceta dependia da orientação do refino.** A regra antiga — "menos
+é sempre da célula, mais só no contorno" — dava *duas* facetas finas numa
+orientação e *uma grossa* na espelhada, esta última com medida grossa cobrindo
+duas faces finas. Regra nova: **a faceta pertence ao lado mais fino**, nas duas
+orientações.
+
+O invariante que faltava: para cada célula e cada lado, a soma das medidas das
+facetas que cobrem a face é o lado transversal da célula. Mata os dois defeitos
+que passam pela posse única — face sem faceta dá zero, faceta grossa dá o dobro.
+
+**O critério de aceitação foi reprodução bit a bit dos casos uniformes**, não
+"os números parecem razoáveis": o caminho geral reduz ao particular, logo os
+uniformes verificam o código adaptado. Duas vezes isso pegou erro — a
+velocidade na quina vinha de uma faceta só (caixa +20%/+37%, e o canal mal se
+mexeu, porque nele o convectivo se anula), e uma troca de esquema do ponto a
+montante disfarçada de refatoração.
+
+**O remalhamento é um "reset".** Tudo o que depende da malha vive num bloco que
+se joga fora e se refaz — malha, facetas, campos, contornos e solver. Refaz-se
+**da base**, e não adapta no lugar, porque `refina_por_criterio` só sabe pedir
+mais nível: como a frente se move, a banda fina que ela deixa para trás tem de
+voltar a ser grossa.
+
+No caso bifásico só `p` e `u` atravessam; `frac`, `ρ`, `μ` e a força são
+reescritos da geometria da frente. A velocidade transferida **não** é
+discretamente solenoidal, e não precisa de passe próprio: o Poisson do passo
+seguinte a limpa.
+
+**Armadilha:** `dt` sai do `h` **mínimo**, não o da base — refinar um pedaço
+aperta o passo por `4^níveis` em todo o domínio, e errar isso diverge calado,
+com NaN centenas de passos depois. E o pino de Dirichlet da pressão usa o `h`
+**da parede**, não o mínimo: a região tem de conter exatamente um centro de
+faceta de parede, e `x < h` com o `h` errado pega zero ou dois.
+
+**A base multibloco é parâmetro** porque `h = 1/2^nível` só alcança potências de
+dois, e o `h_min` do HiGFlow na bolha é `1/160`. `--base=5 --nivel=3 --amr=2`
+reproduz a malha dele. Oráculo do parâmetro: mesma `h` por decomposição de
+blocos diferente concorda em 4e−06.
+
+**A banda de refino em contagem de células faz o estudo anticonvergir** — o
+episódio inteiro está em [`relatorio-bifasico-ft-2d.md`](relatorio-bifasico-ft-2d.md), §5,
+porque foi lá que apareceu.
+
+---
+
+## 6f. A adjunção do par divergência/gradiente
+
+Divergência e gradiente têm casos próprios — exatidão em campo linear,
+fechamento da projeção —, e os dois podem passar com o **par** desencontrado. A
+adjunção é o que diz se a troca discreta de energia entre velocidade e pressão
+se conserva, e nenhum teste de um operador só a vê:
+
+```
+<Du, p>_V = -<u, Gp>_W ,   com   W_f = medida_f x dist_f
+```
+
+O peso não é escolha: sai de igualar os coeficientes de `u_f p_i` nas duas
+formas bilineares, e com outro peso a igualdade não sai nem no caso uniforme.
+
+| malha | desvio relativo |
+|---|---|
+| uniforme | **4,5e−17** |
+| adaptada, nível 4 | 8,47e−06 |
+| nível 5 | 1,78e−06 |
+| nível 6 | 4,18e−07 |
+
+Razões **4,75** e **4,26**: segunda ordem. Na adaptada não vale exatamente, e
+era previsível — o gradiente leva correção transversal na transição 2:1 e a
+divergência não tem termo que a case. Sem a correção o Poisson tinha ordem
+**negativa**, então ela não é negociável.
+
+**O que importa é a ordem, não o valor.** Um valor pequeno num nível só não
+distinguiria "perturbação que some" de "defeito pequeno que fica" — por isso a
+asserção é a razão entre níveis.
+
+No método segregado isso é **invisível**: o Poisson da projeção é montado
+literalmente como `D G`, consistente por construção. A medida existe porque a
+propriedade caracteriza a discretização, e porque num sistema acoplado seria
+dela que sairia a escolha do Krylov (GMRES e não MINRES, com o complemento de
+Schur montado como se simétrico, válido até `O(h²)`). **O solver acoplado foi
+planejado e posto de lado**; a medida sobreviveu ao plano.
+
+---
+
 ## 7. Em aberto
 
 **O Poisson não converge em `dt = 5·10⁻⁴`, nível 4, incremental.** Para no passo
@@ -332,8 +490,10 @@ de estabilidade: o limite difusivo do Euler explícito no nível 4 é
 a tolerância do KSP é **relativa**, e com o lado direito indo a zero perto do
 estacionário o critério relativo fica difícil de atingir. Pede piso absoluto.
 
-**Euler semi-implícito** está no desenho e não implementado. Exige um sistema de
-Helmholtz por componente, sobre as facetas.
+**Paralelo.** O NS é serial. `DominioFacetas` numera as facetas localmente, sem
+deslocamento global — o semi-implícito precisa de numeração global antes de
+rodar em `np > 1`, e os campos precisam de troca de franja. O lado do Poisson
+3D já é paralelo e verificado; é por lá que o escalonamento começa.
 
 **Métricas em YAML** — o canal de resultado, separado do VTK — ainda não foram
 escritas. É o que permitirá comparar diretamente com `ci/reference/` do HiGFlow.
