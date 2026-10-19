@@ -1,8 +1,12 @@
 #include "navierstokes3d.hxx"
 
 #include <cmath>
+#include <map>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+#include "solverlin.hxx"
 
 namespace t8flow3d {
 
@@ -11,7 +15,7 @@ NavierStokes::NavierStokes(const Malha3 &m, const DominioFacetas &fd,
                            const ContornoPorRegiao &bc_u1,
                            const ContornoPorRegiao &bc_u2,
                            const ContornoPorRegiao &bc_p)
-    : m_(&m), fd_(&fd), u_(fd), p_(m)
+    : m_(&m), fd_(&fd), u_(fd), p_(m), dp_(m)
 {
   bcu_[0] = &bc_u0;
   bcu_[1] = &bc_u1;
@@ -51,8 +55,191 @@ NavierStokes::NavierStokes(const Malha3 &m, const DominioFacetas &fd,
     for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
       bi_por_id_[m.id_global(b, i)] = {b, i};
 
+  // AS DUAS CELULAS DE CADA FACETA, construidas uma vez.
+  for (int d = 0; d < 3; d++)
+    celulas_da_faceta_[d].assign(
+        static_cast<size_t>(fd.num_facetas(d)), {{{-1, -1}, {-1, -1}}});
+  for (long b = 0; b < m.num_blocos(); b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b); i++)
+      for (int d = 0; d < 3; d++)
+        for (int lado = 0; lado < 2; lado++) {
+          const long f = faceta_da_face(b, i, d, lado);
+          if (f < 0) continue;
+          // A celula esta' do lado OPOSTO ao `lado` que olha para a faceta:
+          // se a faceta e' a face "mais" da celula, a celula esta' do lado
+          // "menos" DELA.
+          celulas_da_faceta_[d][static_cast<size_t>(f)][1 - lado] = {b, i};
+        }
+
+  // A PRESSAO TODA-NEUMANN E' RECUSADA, pela mesma razao do lado 2D: a
+  // constante fica no nucleo e o PETSc converge para um elemento qualquer do
+  // subespaco -- isso DA' NUMERO, e o numero e' plausivel.
+  for (long b = 0; b < m.num_blocos() && !p_tem_dirichlet_; b++)
+    for (long i = 0; i < m.num_folhas_do_bloco(b) && !p_tem_dirichlet_; i++) {
+      const Ponto3 c = m.centroide(b, i);
+      const Ponto3 hh = m.lados_da_folha(b, i);
+      for (int d = 0; d < 3 && !p_tem_dirichlet_; d++)
+        for (int lado = 0; lado < 2; lado++) {
+          if (!m.ids_vizinhos(b, i, 2 * d + lado).empty()) continue;
+          Ponto3 xp = c;
+          xp[d] += (lado == 0 ? -1.0 : 1.0) * hh[d] / 2.0;
+          if (bc_p.em(xp).tipo == TipoContorno::Dirichlet) {
+            p_tem_dirichlet_ = true;
+            break;
+          }
+        }
+    }
+  if (!p_tem_dirichlet_)
+    throw std::invalid_argument(
+        "NavierStokes3D: a pressao tem Neumann em TODA a parede, e o Poisson "
+        "da projecao fica singular -- a constante esta' no nucleo.  Imponha "
+        "Dirichlet em pelo menos um ponto de parede; numa solucao manufaturada "
+        "o valor ali e' conhecido");
+
   u_.preenche(0.0);
   p_.preenche(0.0);
+  dp_.preenche(0.0);
+}
+
+void NavierStokes::passo_de_tempo(double dt)
+{
+  if (!(dt > 0.0))
+    throw std::invalid_argument("NavierStokes3D: passo de tempo nao positivo");
+  dt_ = dt;
+}
+
+double NavierStokes::gradiente_em(const CampoEscalar &campo, int d,
+                                  long fid) const
+{
+  // A PRESSAO VIVE NOS CENTROS, e a faceta esta' entre dois deles.  Sem
+  // transicao 2:1 -- recusada na construcao -- os dois centros estao alinhados
+  // com a normal e a distancia e' a soma dos dois meios-lados.
+  //
+  // NA FACETA DE CONTORNO DEVOLVE ZERO, e nao uma extrapolacao: ali a
+  // velocidade nao e' incognita da projecao, vem da condicao.  Devolver algo
+  // faria a correcao mexer num valor que a condicao ja' fixou.
+  const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(fid)];
+  if (cel[0].first < 0 || cel[1].first < 0) return 0.0;
+  const double h0 = m_->lados_da_folha(cel[0].first, cel[0].second)[d];
+  const double h1 = m_->lados_da_folha(cel[1].first, cel[1].second)[d];
+  const double v0 = campo.em(m_->id_global(cel[0].first, cel[0].second));
+  const double v1 = campo.em(m_->id_global(cel[1].first, cel[1].second));
+  return (v1 - v0) / ((h0 + h1) / 2.0);
+}
+
+double NavierStokes::volume_dual_da_faceta(int d, long fid) const
+{
+  const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(fid)];
+  if (cel[0].first < 0 || cel[1].first < 0) return 0.0;
+  const double h0 = m_->lados_da_folha(cel[0].first, cel[0].second)[d];
+  const double h1 = m_->lados_da_folha(cel[1].first, cel[1].second)[d];
+  return fd_->medida(d, fid) * (h0 + h1) / 2.0;
+}
+
+void NavierStokes::resolve_pressao()
+{
+  // O POISSON DA PROJECAO: `lap(dp) = div(u)/dt`, MULTIPLICADO PELO VOLUME.
+  //
+  // Montar `area/dist` dos dois lados -- e nao dividir pelo volume -- deixa a
+  // matriz SIMETRICA, que e' o que o par `div`/`grad` sustenta em malha
+  // uniforme (clausula O1 no lado 2D).  Dividir pelo volume daria a mesma
+  // solucao e uma matriz nao simetrica, de graca.
+  const long n = m_->num_folhas();
+  const long p0 = m_->primeiro_id();
+  t8flow::Solver s(t8flow::Motor::Petsc, static_cast<int>(p0),
+                   static_cast<std::size_t>(n), 7);
+  s.tolerancia(1e-12);
+
+  for (long b = 0; b < m_->num_blocos(); b++)
+    for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
+      const long id = m_->id_global(b, i);
+      const Ponto3 c = m_->centroide(b, i);
+      const Ponto3 hh = m_->lados_da_folha(b, i);
+
+      std::map<long, double> linha;
+      double rhs = 0.0;
+
+      for (int d = 0; d < 3; d++)
+        for (int lado = 0; lado < 2; lado++) {
+          const double sinal = (lado == 0) ? -1.0 : 1.0;
+          const long f = faceta_da_face(b, i, d, lado);
+          if (f >= 0) rhs += sinal * u_.em(d, f) * fd_->medida(d, f) / dt_;
+
+          const std::vector<long> vz = m_->ids_vizinhos(b, i, 2 * d + lado);
+          if (vz.empty()) {
+            // ---- parede ------------------------------------------------
+            Ponto3 xp = c;
+            xp[d] += sinal * hh[d] / 2.0;
+            const Contorno &cp = bcp_->em(xp);
+            if (cp.tipo != TipoContorno::Dirichlet) continue;  // fluxo nulo
+            // Dirichlet: o valor esta' na parede, a meio lado do centro.
+            const double area = (f >= 0) ? fd_->medida(d, f)
+                                         : hh[(d + 1) % 3] * hh[(d + 2) % 3];
+            const double coef = area / (hh[d] / 2.0);
+            linha[id] -= coef;
+            rhs -= coef * cp.g(xp);
+            continue;
+          }
+          const auto it = bi_por_id_.find(vz[0]);
+          if (it == bi_por_id_.end()) continue;
+          const Ponto3 hv =
+              m_->lados_da_folha(it->second.first, it->second.second);
+          const double area = (f >= 0) ? fd_->medida(d, f)
+                                       : hh[(d + 1) % 3] * hh[(d + 2) % 3];
+          const double coef = area / ((hh[d] + hv[d]) / 2.0);
+          linha[id] -= coef;
+          linha[vz[0]] += coef;
+        }
+
+      std::vector<int> cols;
+      std::vector<double> vals;
+      cols.reserve(linha.size());
+      vals.reserve(linha.size());
+      for (const auto &kv : linha) {
+        cols.push_back(static_cast<int>(kv.first));
+        vals.push_back(kv.second);
+      }
+      s.linha(static_cast<int>(id), cols, vals);
+      s.lado_direito(static_cast<int>(id), rhs);
+    }
+
+  s.monta();
+  s.resolve();
+  it_pressao_ = s.iteracoes();
+  conv_pressao_ = s.convergiu();
+  const std::vector<double> &sol = s.solucao();
+  for (long k = 0; k < n; k++) dp_.em(p0 + k) = sol[static_cast<size_t>(k)];
+}
+
+void NavierStokes::projeta()
+{
+  // `u <- u - dt grad(dp)`, e e' AQUI que a divergencia vai a zero.
+  //
+  // O gradiente e' o MESMO operador que montou a matriz.  Se a projecao usasse
+  // um gradiente diferente do que a divergencia do Poisson supos, o campo
+  // corrigido nao teria divergencia nula e NADA DIRIA -- o solver convergiria
+  // igual.  E' o par que fecha, nao cada um.
+  for (int d = 0; d < 3; d++)
+    for (long f = 0; f < fd_->num_facetas(d); f++)
+      u_.em(d, f) -= dt_ * gradiente_em(dp_, d, f);
+}
+
+void NavierStokes::projeta_campo()
+{
+  if (!(dt_ > 0.0))
+    throw std::invalid_argument(
+        "NavierStokes3D: projetar exige passo de tempo -- chame "
+        "`passo_de_tempo` antes");
+  resolve_pressao();
+  if (!conv_pressao_)
+    throw std::runtime_error(
+        "NavierStokes3D: o Poisson da projecao nao convergiu");
+  projeta();
+  for (long b = 0; b < m_->num_blocos(); b++)
+    for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
+      const long id = m_->id_global(b, i);
+      p_.em(id) += dp_.em(id);
+    }
 }
 
 long NavierStokes::faceta_da_face(long b, long i, int d, int lado) const

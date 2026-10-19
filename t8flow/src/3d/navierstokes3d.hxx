@@ -5,9 +5,15 @@
 // O QUE ESTE ARQUIVO E', HOJE
 // ===========================================================================
 //
-// O PRIMEIRO INCREMENTO: a divergencia.  Nao ha' passo de tempo, nao ha'
-// projecao, nao ha' termo convectivo nem viscoso.  Ha' a varredura de facetas
-// que TUDO o mais vai usar, e o oraculo que a verifica.
+// O SEGUNDO INCREMENTO: divergencia, gradiente e PROJECAO.  Nao ha' ainda termo
+// convectivo nem viscoso -- isto nao integra Navier-Stokes.  Ha' o par
+// `div`/`grad` e o Poisson que os liga, que e' o esqueleto sobre o qual os
+// termos assentam.
+//
+// O ORACULO DA PROJECAO NAO PRECISA DE FISICA: dado um campo de velocidade
+// QUALQUER, projeta-lo tem de deixar divergencia zero de maquina.  Isso
+// exercita a cadeia inteira -- divergencia, montagem do Poisson, solucao,
+// gradiente -- sem que exista um passo de tempo.
 //
 // Isto e' deliberado, e repete o caminho do lado 2D.  O risco dominante em
 // tres dimensoes nao e' a fisica -- ela e' a mesma -- e' a CONTABILIDADE DE
@@ -50,6 +56,7 @@
 #ifndef T8FLOW_3D_NAVIERSTOKES3D_HXX
 #define T8FLOW_3D_NAVIERSTOKES3D_HXX
 
+#include <array>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -84,6 +91,32 @@ class NavierStokes {
   CampoEscalar &pressao() { return p_; }
   const CampoEscalar &pressao() const { return p_; }
 
+  //! O passo de tempo, que a projecao usa como escala.
+  void passo_de_tempo(double dt);
+  double passo_de_tempo() const { return dt_; }
+
+  //! PROJETA O CAMPO ATUAL: resolve `lap(dp) = div(u)/dt` e corrige
+  //! `u <- u - dt grad(dp)`.
+  //
+  // Trata o campo que esta' la' como `u*`.  Nao ha' preditor ainda, e e' por
+  // isso que isto e' um metodo proprio e nao um `passo()`: chamar de `passo`
+  // o que nao avanca a equacao seria mentir no nome.
+  void projeta_campo();
+
+  //! `G q` numa faceta, para um campo de celula qualquer.
+  double gradiente_em(const CampoEscalar &campo, int d, long fid) const;
+
+  //! O VOLUME DE CONTROLE DUAL da faceta: em tres dimensoes `area x
+  //! distancia entre os centros`.
+  //
+  // E' o peso em que a adjuncao `D = -G^T` pode valer -- ver a clausula O1, no
+  // lado 2D.  Em duas dimensoes era `comprimento x distancia`; a diferenca nao
+  // e' de nome.
+  double volume_dual_da_faceta(int d, long fid) const;
+
+  int iteracoes_da_pressao() const { return it_pressao_; }
+  bool pressao_convergiu() const { return conv_pressao_; }
+
   //! `D u` numa celula: o fluxo liquido pelas SEIS faces, por unidade de
   //! volume.
   //
@@ -106,6 +139,24 @@ class NavierStokes {
 
   //! `(bloco, folha)` por id global.  So' para achar o vizinho acima.
   std::unordered_map<long, std::pair<long, long>> bi_por_id_;
+
+  //! AS DUAS CELULAS DE CADA FACETA, por direcao: `[0]` do lado menos e `[1]`
+  //! do lado mais, cada uma `(bloco, folha)` ou `(-1, -1)` se for contorno.
+  //
+  // Construido uma vez.  Sem ele, achar as celulas de uma faceta exigiria
+  // busca por posicao a cada avaliacao do gradiente, e busca por posicao numa
+  // faceta e' justamente onde o ponto cai EM CIMA da fronteira entre duas
+  // celulas -- o caso em que a regra semiaberta decide por desempate.
+  std::vector<std::array<std::pair<long, long>, 2>> celulas_da_faceta_[3];
+
+  CampoEscalar dp_;
+  double dt_ = 0.0;
+  int it_pressao_ = 0;
+  bool conv_pressao_ = false;
+  bool p_tem_dirichlet_ = false;
+
+  void resolve_pressao();
+  void projeta();
 
   const Malha3 *m_ = nullptr;
   const DominioFacetas *fd_ = nullptr;

@@ -1666,4 +1666,49 @@
 //
 //! COBERTA-POR: test-ns3d:a_transicao_2_1_e_o_paralelo_sao_RECUSADOS_na_construcao
 
+//! U5  A PROJECAO ZERA A DIVERGENCIA DE UM CAMPO QUALQUER, e o zero vem com o
+//! contraste de que o campo de partida NAO era solenoidal.
+//!
+//! O oraculo nao precisa de fisica: dado um campo arbitrario, projeta-lo tem
+//! de deixar divergencia zero de maquina.  Exercita a cadeia inteira --
+//! divergencia, montagem do Poisson, solucao, gradiente -- sem que exista
+//! passo de tempo ou termo convectivo.
+//!
+//! E' O PAR `div`/`grad` QUE FECHA, nao cada um.  Se a projecao usasse um
+//! gradiente diferente do que a divergencia do Poisson supos, o campo
+//! corrigido nao teria divergencia nula e NADA DIRIA: o solver convergiria
+//! igual, e o defeito so' apareceria na fisica, muito depois.  Medido por
+//! mutacao -- gradiente da projecao 2% maior: divergencia 1,58 em vez de
+//! 1e-11.
+//!
+//! SEM O CONTRASTE o caso seria vazio: "a divergencia deu 1e-14" nao
+//! distingue a projecao de um campo que ja' era solenoidal.
+//
+//! COBERTA-POR: test-ns3d:a_projecao_zera_a_divergencia_de_um_campo_qualquer
+
+//! U6  A ADJUNCAO `D = -G^T` VALE EM MALHA UNIFORME TRIDIMENSIONAL, e o peso e'
+//! `AREA x distancia`.
+//!
+//! Em duas dimensoes o volume de controle dual era `comprimento x distancia`
+//! (clausula O1).  Usar aquele peso aqui nao fecha nem em malha uniforme, e a
+//! mutacao mede: tirar a distancia do peso leva o desvio de 1e-13 para 0,649.
+//!
+//! Afirma sobre o PAR, que nenhum teste de um operador so' ve'.
+//
+//! COBERTA-POR: test-ns3d:a_divergencia_e_o_gradiente_sao_adjuntos_em_tres_dimensoes
+
+//! U7  A PRESSAO TODA-NEUMANN E' RECUSADA tambem em tres dimensoes.
+//!
+//! A constante fica no nucleo e o PETSc converge para um elemento qualquer do
+//! subespaco -- isso DA' NUMERO, e o numero e' plausivel.  A recusa custou o
+//! ajuste de tres casos deste mesmo arquivo, que construiam o solver so' para
+//! medir operador e nao tinham pino: a recusa disparou e eles abortaram.  E'
+//! o comportamento certo.
+//!
+//! E A REGIAO DO PINO USA O `h` DA PAREDE, nao um valor digitado: com `h`
+//! errado ela pega zero facetas (e volta a recusa) ou duas (e o Poisson fica
+//! sobredeterminado).  O mesmo tropeco ja' tinha acontecido no lado 2D.
+//
+//! COBERTA-POR: test-ns3d:a_projecao_zera_a_divergencia_de_um_campo_qualquer
+
 #endif
