@@ -65,7 +65,9 @@
 #define T8FLOW_3D_NAVIERSTOKES3D_HXX
 
 #include <array>
+#include <functional>
 #include <string>
+#include <utility>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -78,6 +80,9 @@ namespace t8flow3d {
 
 //! Os esquemas do termo convectivo.  Os mesmos do lado 2D e do HiGFlow.
 enum class Convectivo { Central, Upwind1, Cubista, Quick };
+
+//! A variante do metodo de projecao.
+enum class Projecao { NaoIncremental, Incremental };
 
 //! O nome, para configuracao por texto.  Lanca com a lista dos validos.
 Convectivo convectivo_do_nome(const std::string &s);
@@ -105,6 +110,25 @@ class NavierStokes {
   const CampoVetorial &velocidade() const { return u_; }
   CampoEscalar &pressao() { return p_; }
   const CampoEscalar &pressao() const { return p_; }
+
+  //! A VARIANTE DA PROJECAO.
+  void projecao(Projecao pr) { proj_ = pr; }
+  Projecao projecao() const { return proj_; }
+
+  //! A GRAVIDADE, ou qualquer aceleracao de corpo constante.
+  void gravidade(const Ponto3 &g) { g_ = g; }
+
+  //! O TERMO FONTE nas facetas: `f(x, componente, t)`.  Existe para as
+  //! solucoes manufaturadas, que e' o oraculo deste solver.
+  void termo_fonte_faceta(std::function<double(const Ponto3 &, int, double)> f)
+  { fonte_faceta_ = std::move(f); }
+
+  //! AVANCA UM PASSO: preditor, Poisson, projecao, contorno.
+  void passo();
+
+  double instante() const { return t_; }
+  void instante(double t) { t_ = t; }
+  long num_passos() const { return n_passos_; }
 
   //! O ESQUEMA CONVECTIVO.
   void convectivo(Convectivo c) { conv_ = c; }
@@ -248,6 +272,21 @@ class NavierStokes {
   //! O comprimento do volume de controle da faceta na direcao `e`.
   double comprimento_do_volume(int d, long fid, int e) const;
 
+  //! O PREDITOR explicito: `u* = u^n + dt R`.
+  void preditor();
+
+  //! Poe a condicao de contorno nas facetas de parede.
+  void aplica_contorno_velocidade();
+
+  //! Verdadeiro quando a faceta separa duas celulas (nao e' de parede).
+  bool faceta_interior(int d, long fid) const;
+
+  CampoVetorial ustar_;
+  Ponto3 g_{0.0, 0.0, 0.0};
+  std::function<double(const Ponto3 &, int, double)> fonte_faceta_;
+  Projecao proj_ = Projecao::Incremental;
+  double t_ = 0.0;
+  long n_passos_ = 0;
   Convectivo conv_ = Convectivo::Cubista;
   mutable long rebaixos_conv_ = 0;
   const CampoEscalar *mu_ = nullptr;

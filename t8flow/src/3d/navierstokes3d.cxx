@@ -63,7 +63,7 @@ NavierStokes::NavierStokes(const Malha3 &m, const DominioFacetas &fd,
                            const ContornoPorRegiao &bc_u1,
                            const ContornoPorRegiao &bc_u2,
                            const ContornoPorRegiao &bc_p)
-    : m_(&m), fd_(&fd), u_(fd), p_(m), dp_(m)
+    : m_(&m), fd_(&fd), u_(fd), p_(m), ustar_(fd), dp_(m)
 {
   bcu_[0] = &bc_u0;
   bcu_[1] = &bc_u1;
@@ -577,6 +577,118 @@ double NavierStokes::volume_dual_da_faceta(int d, long fid) const
   const double h0 = m_->lados_da_folha(cel[0].first, cel[0].second)[d];
   const double h1 = m_->lados_da_folha(cel[1].first, cel[1].second)[d];
   return fd_->medida(d, fid) * (h0 + h1) / 2.0;
+}
+
+bool NavierStokes::faceta_interior(int d, long fid) const
+{
+  const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(fid)];
+  return cel[0].first >= 0 && cel[1].first >= 0;
+}
+
+void NavierStokes::aplica_contorno_velocidade()
+{
+  // UMA FACETA E' DE PAREDE quando uma das duas celulas que ela separa nao
+  // existe.  Ali a velocidade NAO se resolve: e' dada (Dirichlet) ou
+  // extrapolada (Neumann).
+  for (int d = 0; d < 3; d++)
+    for (long f = 0; f < fd_->num_facetas(d); f++) {
+      if (faceta_interior(d, f)) continue;
+      const Ponto3 x = fd_->centro(d, f);
+      const auto &cel = celulas_da_faceta_[d][static_cast<size_t>(f)];
+      const auto &c = (cel[0].first >= 0) ? cel[0] : cel[1];
+      if (c.first < 0) continue;
+      const Ponto3 hc = m_->lados_da_folha(c.first, c.second);
+      const Contorno &cc = bcu_[d]->em(x);
+      if (cc.tipo == TipoContorno::Dirichlet) {
+        u_.em(d, f) = cc.g(x);
+        continue;
+      }
+      // NEUMANN NA COMPONENTE NORMAL: `du/dn = g`, e o unico valor interior
+      // disponivel esta' uma faceta adentro.  O passo e' o lado da celula
+      // DONA, nao um `h` global.
+      const int sgn = (cel[0].first >= 0) ? -1 : +1;   // para dentro
+      Ponto3 xi = x;
+      xi[d] += sgn * hc[d];
+      const long fi = faceta_em(d, xi);
+      if (fi < 0) continue;                             // dominio de uma celula
+      u_.em(d, f) = u_.em(d, fi) - sgn * hc[d] * cc.g(x);
+    }
+}
+
+void NavierStokes::preditor()
+{
+  // O PREDITOR NAO TOCA AS FACETAS DE PAREDE: ali a velocidade vem da
+  // condicao, e sobrescreve-la com a equacao e' como a condicao deixa de
+  // valer sem que nada acuse.
+  ustar_ = u_;
+  rebaixos_conv_ = 0;
+
+  for (int d = 0; d < 3; d++)
+    for (long f = 0; f < fd_->num_facetas(d); f++) {
+      if (!faceta_interior(d, f)) continue;
+      const Ponto3 x = fd_->centro(d, f);
+
+      // A DIVISAO POR `RHO` E' SO' DOS TERMOS DE FORCA, e nao do convectivo:
+      // `div(uu)` ja' e' aceleracao.  Sem campo de densidade, `rho = 1`.
+      const double rho_f = 1.0;
+
+      double rhs = -conveccao(d, f) + g_[d] + tensao_viscosa(d, f) / rho_f;
+
+      // A PRESSAO ANTIGA ENTRA SO' NA INCREMENTAL, e e' nisso que as duas
+      // diferem.  Sem ela o preditor ignora o gradiente que ja' se conhece, e
+      // a projecao tem de reconstrui-lo inteiro a cada passo -- o que custa
+      // uma ordem na pressao.
+      if (proj_ == Projecao::Incremental)
+        rhs -= gradiente_em(p_, d, f) / rho_f;
+
+      if (fonte_faceta_) rhs += fonte_faceta_(x, d, t_);
+
+      ustar_.em(d, f) = u_.em(d, f) + dt_ * rhs;
+    }
+}
+
+void NavierStokes::passo()
+{
+  if (!(dt_ > 0.0))
+    throw std::runtime_error(
+        "NavierStokes3D::passo: o passo de tempo nao foi instalado -- chame "
+        "`passo_de_tempo` primeiro");
+
+  // O RELOGIO DO CONTORNO: `t^n` para o preditor, `t^{n+1}` para a aplicacao
+  // final.  Com condicao dependente do tempo, aplicar as duas no mesmo
+  // instante erra meio passo -- e erra CALADO.
+  aplica_contorno_velocidade();
+  preditor();
+
+  // O CONTORNO VALE PARA `u*` TAMBEM: o Poisson usa a divergencia de `u*`, e
+  // se a componente normal na parede nao for a da condicao, a compatibilidade
+  // quebra -- com Neumann em toda a volta ele fica insoluvel, e com Dirichlet
+  // em algum lugar ele RESOLVE e da' a resposta errada.
+  for (int d = 0; d < 3; d++)
+    for (long f = 0; f < fd_->num_facetas(d); f++)
+      if (!faceta_interior(d, f)) ustar_.em(d, f) = u_.em(d, f);
+
+  // A PROJECAO OPERA SOBRE `u*`: troca-se o campo, projeta-se, e o resultado
+  // ja' e' `u^{n+1}`.
+  u_ = ustar_;
+  resolve_pressao();
+  if (!conv_pressao_)
+    throw std::runtime_error(
+        "NavierStokes3D::passo: o Poisson da projecao nao convergiu");
+  projeta();
+
+  // A PRESSAO: na incremental acumula o incremento; na nao incremental o
+  // incremento E' a pressao.
+  for (long b = 0; b < m_->num_blocos(); b++)
+    for (long i = 0; i < m_->num_folhas_do_bloco(b); i++) {
+      const long id = m_->id_global(b, i);
+      p_.em(id) = (proj_ == Projecao::Incremental) ? p_.em(id) + dp_.em(id)
+                                                   : dp_.em(id);
+    }
+
+  t_ += dt_;
+  n_passos_++;
+  aplica_contorno_velocidade();
 }
 
 void NavierStokes::resolve_pressao()

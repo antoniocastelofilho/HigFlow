@@ -1812,4 +1812,27 @@
 //
 //! COBERTA-POR: test-ns3d:o_rebaixamento_do_convectivo_e_CONTADO
 
+//! U14  AS DERIVADAS A MAO DA SOLUCAO MANUFATURADA SAO CONFERIDAS CONTRA
+//! DIFERENCAS FINITAS.
+//!
+//! O termo fonte e' montado de DOZE formulas escritas a mao -- nove
+//! `du_i/dx_j` e tres `dp/dx_i`.  Uma delas errada produz um `f` errado, que
+//! produz uma solucao numerica que converge BONITO para a coisa errada: a
+//! ordem medida sai certa e o resultado nao vale nada.
+//!
+//! ISTO NAO E' CALCULAR `f` NUMERICAMENTE, e a distincao e' o ponto.  O codigo
+//! usa a formula a mao; a clausula compara a formula com uma diferenca
+//! central do proprio `u`.  Calcular `f` por diferencas tornaria o oraculo
+//! uma comparacao entre dois erros meus -- e e' por isso que o catalogo de
+//! manufaturadas deste projeto nao tem diferenciacao automatica em lugar
+//! nenhum.
+//!
+//! Medido por mutacao (um sinal trocado numa das nove): 9,61 contra 1e-06.
+//!
+//! A CLAUSULA CONFERE TAMBEM que a manufaturada e' SOLENOIDAL.  Ela vem de um
+//! potencial vetorial, logo e' por construcao -- mas "por construcao" ja' se
+//! provou frase perigosa neste projeto.
+//
+//! COBERTA-POR: test-ns3d:as_derivadas_a_mao_batem_com_diferencas_finitas
+
 #endif

@@ -27,6 +27,7 @@
 #include "campos3d.hxx"
 #include "contorno3d.hxx"
 #include "malha3d.hxx"
+#include "manufaturada-ns3d.hxx"
 #include "navierstokes3d.hxx"
 
 using namespace t8flow3d;
@@ -647,6 +648,75 @@ int main(int argc, char **argv)
                 "%ld rebaixamentos NO MIOLO do dominio -- ali o ponto a "
                 "montante existe, e cair para primeira ordem seria defeito e "
                 "nao geometria", rebaixos_miolo);
+  }
+
+  t_case("as_derivadas_a_mao_batem_com_diferencas_finitas");
+  {
+    // A GUARDA CONTRA ESCORREGAO DE DERIVACAO.  O termo fonte da solucao
+    // manufaturada e' montado de DOZE formulas escritas a mao -- nove
+    // `du_i/dx_j`, tres `dp/dx_i` --, e uma delas errada produz um `f` errado,
+    // que produz uma solucao numerica que converge BONITO para a coisa errada.
+    //
+    // ISTO NAO E' CALCULAR `f` NUMERICAMENTE.  O codigo usa a formula a mao; o
+    // caso compara a formula com uma diferenca central do proprio `u`.  Se as
+    // duas concordam ate' o erro de truncamento da diferenca, a formula esta'
+    // certa.  Calcular `f` por diferencas tornaria o oraculo uma comparacao
+    // entre dois erros meus.
+    ManufaturadaNS3 ms;
+    ms.re = 1.7;
+    const double t = 0.3, eps = 1e-5;
+    // O erro da diferenca central e' `O(eps^2)` vezes a terceira derivada, que
+    // aqui e' `O(pi^3)`: cerca de 3e-9.  A tolerancia tem de ser maior que
+    // isso e muito menor que a escala das derivadas, que e' `O(pi^2) ~ 10`.
+    const double tol = 1e-6;
+
+    double pior_u = 0.0, pior_p = 0.0, escala = 0.0;
+    const Ponto3 pontos[] = {{0.23, 0.41, 0.67}, {0.80, 0.15, 0.37},
+                             {0.51, 0.74, 0.09}, {0.33, 0.33, 0.33}};
+    for (const Ponto3 &x : pontos)
+      for (int j = 0; j < 3; j++) {
+        Ponto3 xp = x, xm = x;
+        xp[j] += eps;
+        xm[j] -= eps;
+        for (int i = 0; i < 3; i++) {
+          const double fd = (ms.u(xp, i, t) - ms.u(xm, i, t)) / (2.0 * eps);
+          pior_u = std::max(pior_u, std::fabs(fd - ms.dudx(x, i, j, t)));
+          escala = std::max(escala, std::fabs(fd));
+        }
+        const double fdp = (ms.p(xp) - ms.p(xm)) / (2.0 * eps);
+        pior_p = std::max(pior_p, std::fabs(fdp - ms.dpdx(x, j)));
+      }
+    T_CHECK_MSG(escala > 1.0, "as derivadas sao quase nulas (%.3e) nos pontos "
+                "escolhidos -- a comparacao nao mede nada", escala);
+    T_BELOW(pior_u, tol, "alguma das nove du_i/dx_j nao bate com a diferenca");
+    T_BELOW(pior_p, tol, "alguma das tres dp/dx_i nao bate com a diferenca");
+
+    // E O LAPLACIANO, que vale `-3 pi^2 u` por construcao.
+    double pior_l = 0.0;
+    for (const Ponto3 &x : pontos)
+      for (int i = 0; i < 3; i++) {
+        double soma = 0.0;
+        for (int j = 0; j < 3; j++) {
+          Ponto3 xp = x, xm = x;
+          xp[j] += eps;
+          xm[j] -= eps;
+          soma += (ms.u(xp, i, t) - 2.0 * ms.u(x, i, t) + ms.u(xm, i, t)) /
+                  (eps * eps);
+        }
+        pior_l = std::max(pior_l, std::fabs(soma - ms.lap(x, i, t)));
+      }
+    // A diferenca de segunda ordem tem erro `O(eps^-2)` de arredondamento com
+    // `eps` pequeno; a tolerancia reflete isso e nao a formula.
+    T_BELOW(pior_l, 1e-2, "lap(u) nao bate com a diferenca de segunda ordem");
+
+    // E A SOLUCAO E' SOLENOIDAL -- por construcao, mas conferido.
+    double pior_d = 0.0;
+    for (const Ponto3 &x : pontos) {
+      double div = 0.0;
+      for (int j = 0; j < 3; j++) div += ms.dudx(x, j, j, t);
+      pior_d = std::max(pior_d, std::fabs(div));
+    }
+    T_BELOW(pior_d, 1e-12, "a manufaturada nao e' solenoidal");
   }
 
   return t_end();

@@ -304,7 +304,7 @@ tests/comum/%: tests/comum/%.cxx tests/testing.h $(OBJ2_T) $(OBJ2_X) $(OBJ2_N)
 # nao ferramenta), o laplaciano pontual (instavel) e o lote em GPU.
 # ---------------------------------------------------------------------------
 OBJ3 = obj/3d
-CXXFLAGS3 = $(BASE) -DDIM=3 -Isrc/3d -Iexemplos/poisson3d
+CXXFLAGS3 = $(BASE) -DDIM=3 -Isrc/3d -Iexemplos/poisson3d -Iexemplos/mms3d
 SRC3   = src/3d/mls3d.cxx src/3d/malha3d.cxx src/3d/contorno3d.cxx src/3d/estencil3d.cxx src/3d/campos3d.cxx src/3d/discretizacao3d.cxx src/3d/navierstokes3d.cxx
 OBJ3_N = $(addprefix $(OBJ3)/,$(NUCLEO_C:.c=.o) $(NUCLEO_CPP:.cpp=.o))
 OBJ3_T = $(addprefix $(OBJ3)/,$(notdir $(COMUM_SRC:.cxx=.o)) $(notdir $(SRC3:.cxx=.o)))
@@ -312,7 +312,8 @@ TESTES3 = $(basename $(wildcard tests/3d/test-*.cxx))
 
 # O EXEMPLO do Poisson 3D e o catalogo de solucoes manufaturadas: exemplo, e nao
 # biblioteca -- nada em `src/` sabe que equacao se esta' resolvendo.
-SRC3_EX = exemplos/poisson3d/poisson3d.cxx exemplos/poisson3d/manufaturada3d.cxx
+SRC3_EX = exemplos/poisson3d/poisson3d.cxx exemplos/poisson3d/manufaturada3d.cxx \
+          exemplos/mms3d/manufaturada-ns3d.cxx
 OBJ3_X  = $(addprefix $(OBJ3)/,$(notdir $(SRC3_EX:.cxx=.o)))
 EXEMPLOS3 = exemplos/poisson3d/poisson3d-mms
 
@@ -337,6 +338,9 @@ $(OBJ3)/%.o: src/3d/%.cxx | $(OBJ3)
 	$(CXX) $(CXXFLAGS3) -c $< -o $@
 
 $(OBJ3)/%.o: exemplos/poisson3d/%.cxx | $(OBJ3)
+	$(CXX) $(CXXFLAGS3) -c $< -o $@
+
+$(OBJ3)/%.o: exemplos/mms3d/%.cxx | $(OBJ3)
 	$(CXX) $(CXXFLAGS3) -c $< -o $@
 
 tests/3d/%: tests/3d/%.cxx tests/testing.h $(OBJ3_T) $(OBJ3_X) $(OBJ3_N)
