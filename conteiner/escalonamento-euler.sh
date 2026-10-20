@@ -23,6 +23,12 @@
 #     ganho de ruido de maquina compartilhada.  O padrao e' 3.
 #  3. SEQUENCIAL.  Duas corridas disputando nucleo dao um tempo que nao e' de
 #     nenhuma das duas.
+#  4. UMA CORRIDA DE AQUECIMENTO, DESCARTADA, antes de tudo.  Medido nesta
+#     estacao: a dispersao foi 22% e 27% nos dois primeiros pontos contra 0,7%
+#     e 1,0% nos dois ultimos, e a causa era a PRIMEIRA medida ter pego a
+#     maquina fria.  Num no' de cluster o efeito e' menor que num notebook, mas
+#     existe -- e descartar uma corrida custa minutos contra uma tabela que nao
+#     se sustenta.
 #
 # E AS CORRIDAS NAO GRAVAM VTK: escrita por rank e' E/S que nao escala, e num
 # sistema de arquivos paralelo ela pode dominar.  Ver `[E4]`.
@@ -131,6 +137,14 @@ portao_um() {
   return 1
 }
 portao_um || exit 1
+
+#---------------------------------------------------------------- aquecimento
+# DESCARTADA DE PROPOSITO.  Ver a decisao 4 no cabecalho.  O ponto nao e' o
+# tempo dela: e' que a PRIMEIRA medida de verdade nao seja a que paga a
+# transicao de estado da maquina.
+echo "== aquecimento (descartado) =="
+tempos_de "$(echo "$NPS" | tr ',' '\n' | sort -n | tail -1)" "$BASE" > /dev/null
+echo "   feito"
 
 ARQ="$SAIDA/$MODO-$ALVO.dat"
 echo "# escalonamento $MODO, alvo $ALVO, $REPS repeticoes por ponto" > "$ARQ"
