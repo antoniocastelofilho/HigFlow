@@ -34,8 +34,8 @@ da seção 3.
 
 **256 núcleos num nó exige caso muito maior do que os de hoje.** O caso complexo
 tem 162 mil células em **33 subdomínios**, e o teto natural de processos é 33 —
-já saturado em 8 nesta máquina. Uma curva de escalonamento forte até 256 exige
-malha gerada para isso, não a malha existente.
+ainda ganhando em 8 nesta máquina, mas a 33% de eficiência. Uma curva de
+escalonamento forte até 256 exige malha gerada para isso, não a existente.
 
 **O nó H100 não tem caminho de software hoje**, e é importante não contar com
 ele por engano:
@@ -65,43 +65,82 @@ Sem gravar VTK nem salvamento durante a medida — escrita por rank é E/S que n
 escala. Corridas **sequenciais**: duas disputando núcleo dão um tempo que não é
 de nenhuma das duas.
 
-| `np` | total (12 passos) | arranque | laço (10 passos) | ganho no laço | eficiência |
+**Seis repetições por ponto**, em duas varreduras independentes de três — a
+segunda precedida de uma corrida de aquecimento descartada. Os valores são
+**medianas**.
+
+| `np` | laço (10 passos) | [mín, máx] | dispersão | ganho | eficiência |
 |---|---|---|---|---|---|
-| 1 | 719,0 s | 189,9 s | 440,9 s | 1,00× | 100% |
-| 2 | 419,5 s | 146,6 s | 227,5 s | **1,94×** | **97%** |
-| 4 | 265,9 s | 76,1 s | 158,1 s | 2,79× | 70% |
-| 8 | 222,3 s | 34,7 s | 156,3 s | 2,82× | 35% |
+| 1 | 388,0 s | 357 – 440 | 21% | 1,00× | 100% |
+| 2 | 263,6 s | 225 – 318 | 35% | 1,47× | 74% |
+| 4 | 187,1 s | 184 – 221 | 20% | 2,07× | 52% |
+| 8 | 146,7 s | 144 – 150 | 4% | 2,64× | 33% |
 
 ### O que estes números dizem
 
-**97% em dois processos** — contra 41% registrados para o caso de AMR dinâmico
-no `relatorio-sistema`, e contra 1,62× do caso 2D viscoelástico. A diferença é
-**tamanho**: 162 mil células contra 9 mil. Confirma a previsão de
-`higflow-paralelo-estado`: o regime em que a divisão vence a comunicação começa
-quando há trabalho que baste por processo.
+**A curva não satura em 8.** De 4 para 8 o laço cai 40,4 s, contra espalhamento
+de 6 s no `np = 8`. O ganho é pequeno em eficiência, mas é real e está fora do
+ruído.
 
-**O joelho está entre 4 e 8.** De 4 para 8 o laço vai de 158,1 s a 156,3 s —
-ganho nulo. Com 33 subdomínios e 8 processos, cada um fica com ~4 subdomínios, e
-a partição deixa de dividir trabalho novo. **O limite é a decomposição do caso,
-não o número de núcleos.**
+**O arranque escala**, e essa previsão minha estava errada: eu esperava que não,
+porque o `relatorio-sistema` aponta que um processo materializa a malha global
+antes de repartir. Medido, 259,2 → 81,1 s, **3,20×**. Com 33 arquivos, o laço de
+leitura reparte arquivos entre processos. O impedimento daquele relatório vale
+para caso de **árvore única** — a cavidade `example3d_lid_driven` cai nele.
 
-**O arranque escala, e essa previsão minha estava errada.** Eu esperava que não
-— o `relatorio-sistema` aponta que um processo materializa a malha global antes
-de repartir. Medido: 189,9 → 34,7 s, ganho de 5,5×, *melhor* que o laço. Com 33
-arquivos, o laço de leitura reparte arquivos entre processos e isso domina. O
-impedimento descrito naquele relatório vale para caso de **árvore única** — a
-cavidade `example3d_lid_driven` tem um domínio só e cai nele.
+### Duas conclusões que a repetição derrubou
+
+Com **uma corrida por ponto** eu havia publicado nesta mesma seção: *97% de
+eficiência em `np = 2`* e *"o joelho está entre 4 e 8, ganho nulo"*, esta
+segunda com explicação causal pronta — 33 subdomínios sobre 8 processos, a
+partição deixando de dividir trabalho novo.
+
+**As duas eram ruído.** O `np = 2` dá 74%, e o ganho de 4 para 8 é sete vezes o
+espalhamento. A explicação causal não era falsa por ser mal raciocinada: ela era
+boa demais para um dado que não existia, e foi isso que a fez convincente.
+
+### A dispersão, e a hipótese que não se sustentou
+
+Os dois primeiros pontos dispersam 21% e 35%; os dois últimos, 20% e 4%.
+
+Minha hipótese era **térmica** — a primeira medida da varredura 3 pegou a
+máquina fria (295,5 s contra 339 e 361 depois), e como o protocolo **subtrai**
+um par de corridas, basta que as duas metades estejam em estados diferentes para
+o laço sair inflado por temperatura e não por cálculo.
+
+Acrescentei o aquecimento descartado e **passei a registrar a temperatura do
+pacote em toda corrida**, para não trocar uma afirmação por outra. O resultado:
+
+- **O aquecimento não eliminou a dispersão** — no `np = 2` ela subiu, de 31%
+  para 35%;
+- **a temperatura não ordena os tempos**: no `np = 2` a corrida que partiu mais
+  fria (67 °C) foi a mais lenta, e a mais quente (76 °C) a mais rápida;
+- **o aquecimento consertou uma coisa**: o `np = 4` tinha uma corrida longa
+  anômala de 304 s contra 352 na varredura 3; na 4 ficou 355/352/347.
+
+Então a causa do resto **continua desconhecida**, e dizer isso é o estado
+honesto. O que dá confiança no resultado não é a explicação, é a
+**reprodutibilidade entre varreduras independentes**: as medianas de `np = 4` e
+`np = 8` concordam dentro de 1% entre a varredura 3 e a 4, e as de `np = 1` e
+`np = 2` dentro de 5% e 3%. A forma da curva é estável mesmo com os pontos
+individuais ruidosos.
+
+Um detalhe que o registro separado expõe e a média esconderia: no `np = 2` a
+corrida **curta** é firme (190/200/199 s) e a **longa** é que balança
+(426/518/467 s) — e o mesmo padrão aparece na varredura 3. Variabilidade que
+cresce com a duração da corrida não é arranque; é algo que se acumula.
 
 ### O que estes números NÃO dizem
 
-- **Sem dispersão.** Uma corrida por ponto, dez passos. Para publicar, no mínimo
-  três repetições por ponto.
-- **O `np=8` é pessimista por motivo de máquina**: oito ranks em oito núcleos
-  físicos, sem folga para o sistema. Parte dos 35% é contenção, e eu não separei
+- **O `np = 8` é pessimista por motivo de máquina**: oito ranks em oito núcleos
+  físicos, sem folga para o sistema. Parte dos 33% é contenção, e eu não separei
   as duas coisas.
 - **Nada sobre escalonamento fraco** — todos os pontos são da mesma malha.
 - **Nada sobre vários nós.** Tudo aqui é memória compartilhada; a rede do
   cluster não foi exercitada.
+- **A dispersão de 20–35% nos dois primeiros pontos é alta demais para
+  publicar.** Num nó dedicado de cluster deve cair; se não cair, o número de
+  repetições tem de subir, e o protocolo já aceita isso por parâmetro.
 
 ---
 
@@ -128,8 +167,8 @@ Cinco itens, e cada um muda o roteiro:
 1. **Gerar malhas maiores** para o caso de escalonamento. O teto de 33
    subdomínios é do caso, não do método, e nenhuma medida até 256 faz sentido
    sem isso.
-2. **Repetir a linha de base com três corridas por ponto**, aqui, antes de
-   migrar. Barato, e dá a dispersão que falta.
+2. ~~Repetir a linha de base com três corridas por ponto~~ — **feito**, seis
+   repetições em duas varreduras (§3). Derrubou duas conclusões.
 3. **Poisson 3D do t8Flow** como veículo do artigo: já é paralelo e verificado
    em `np = 1, 2, 4`, e o escalonamento dele não depende do NS.
 4. **Antes de qualquer tempo, verificar que o resultado paralelo é idêntico ao
