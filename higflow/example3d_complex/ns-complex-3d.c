@@ -2346,6 +2346,57 @@ real get_kernel_jacobian(int dim, real lambda, real tol) {
 // *******************************************************************
 
 // Main program for the Navier-Stokes simulation 
+// ---------------------------------------------------------------------------
+// DESPEJO DE CAMPO POR COORDENADA -- um oraculo que o VTK nao pode ser.
+//
+// O VTK deste caso NAO serve para comparar duas decomposicoes.  higflow_print_vtk
+// interpola a velocidade nos cantos de cada celula com
+// compute_facet_value_at_point, que chama sfd_get_stencil -- a mesma maquinaria
+// que, num ponto sem celula no dominio, fecha o estencil por uma condicao de
+// contorno distante.  Este dominio tem vaos, os cantos caem fora justamente
+// junto a eles, e a ESCRITA fica contaminada nos mesmos lugares que a solucao.
+// Medido antes neste caso, np=1 contra np=2 no passo 1: 0,084% da escala no
+// ustar instrumentado contra 0,96% lido pelo VTK.  O fator de dez e' a lente,
+// nao a fisica.
+//
+// Aqui sai o valor BRUTO de dpp e dpu, com o centro da celula ou da faceta como
+// chave.  Dois arranjos de blocos cobrem as mesmas celulas, entao as chaves
+// casam uma a uma e a comparacao e' entre grandezas fisicas.
+//
+// Ligado so' por HIGFLOW_DESPEJA=<prefixo>; sem a variavel o caso nao muda.
+static void despeja_campos(higflow_solver *ns, int rank) {
+    const char *prefixo = getenv("HIGFLOW_DESPEJA");
+    if (prefixo == NULL) return;
+
+    char nome[1024];
+    snprintf(nome, sizeof nome, "%s-%d.txt", prefixo, rank);
+    FILE *f = fopen(nome, "w");
+    if (f == NULL) return;
+
+    // Pressao: uma linha por celula do dominio local.
+    sim_domain *sdp = psd_get_local_domain(ns->psdp);
+    const hig_mesh_snapshot *hms = sd_get_snapshot(sdp);
+    for (int clid = 0; clid < hms->n; clid++) {
+        Point c;
+        hms_center(hms, clid, c);
+        fprintf(f, "p %.12e %.12e %.12e %.17e\n",
+                c[0], c[1], c[2], dp_get_value(ns->dpp, clid));
+    }
+
+    // Velocidade: uma linha por faceta, por direcao.
+    for (int dim = 0; dim < DIM; dim++) {
+        sim_facet_domain *sfd = psfd_get_local_domain(ns->psfdu[dim]);
+        const hig_facet_snapshot *hfs = sfd_get_snapshot(sfd);
+        for (int flid = 0; flid < hfs->n; flid++) {
+            Point c;
+            hfs_center(hfs, flid, c);
+            fprintf(f, "u%d %.12e %.12e %.12e %.17e\n",
+                    dim, c[0], c[1], c[2], dp_get_value(ns->dpu[dim], flid));
+        }
+    }
+    fclose(f);
+}
+
 int main (int argc, char *argv[]) {
     // Initialize the total time counting
     START_CLOCK(total);
@@ -2459,6 +2510,10 @@ int main (int argc, char *argv[]) {
     // ********************************************************
     // End Loop for the Navier-Stokes equations integration
     // ********************************************************
+
+    // O despejo sai DEPOIS do laco e ANTES de higflow_destroy: e' o estado que a
+    // corrida produziu.  Sem HIGFLOW_DESPEJA no ambiente nao faz nada.
+    despeja_campos(ns, myrank);
 
     // Destroy the Navier-Stokes object
     higflow_destroy(ns);

@@ -2763,6 +2763,19 @@ int sfd_get_dim(sim_facet_domain *sfd) {
 }
 
 void sfd_set_sfbi(sim_facet_domain *sfd, int i, sim_facet_block_info *sfbi) {
+	assert(i >= 0);
+	/* CRESCE AQUI, que e' o unico lugar que escreve.  Antes este vetor era
+	 * fixo em MAXHIGTREESPERDOMAIN e este indice nao era conferido: malha com
+	 * mais blocos que isso escrevia depois do fim da struct.  Ver o cabecalho
+	 * de domain.h. */
+	if ((unsigned) i >= sfd->sfbi_cap) {
+		unsigned nova = sfd->sfbi_cap ? sfd->sfbi_cap : MAXHIGTREESPERDOMAIN;
+		while (nova <= (unsigned) i) nova *= 2;
+		REALLOC_INFER(sfd->sfbi, nova);
+		memset(sfd->sfbi + sfd->sfbi_cap, 0,
+		       (nova - sfd->sfbi_cap) * sizeof *sfd->sfbi);
+		sfd->sfbi_cap = nova;
+	}
 	sfd->sfbi[i] = sfbi;
 }
 
@@ -2906,7 +2919,8 @@ sim_facet_domain *sfd_create(mp_mapper *fm, int dim) {
 	sfd->snapshot = NULL;
 	POINT_ASSIGN_SCALAR(sfd->dimofinterest, 0);
 	sfd->dimofinterest[dim] = 1;
-	memset(sfd->sfbi, 0, MAXHIGTREESPERDOMAIN * sizeof *sfd->sfbi);
+	sfd->sfbi = NULL;
+	sfd->sfbi_cap = 0;
 	return sfd;
 }
 
@@ -2926,9 +2940,10 @@ void sfd_destroy(sim_facet_domain *sfd) {
 	if (sfd->snapshot != NULL) hfs_destroy(sfd->snapshot);
 	mp_destroy(sfd->fm);
 	sd_destroy(sfd->cdom);
-	for(unsigned i = 0; i < MAXHIGTREESPERDOMAIN; ++i) {
+	for(unsigned i = 0; i < sfd->sfbi_cap; ++i) {
 		free(sfd->sfbi[i]);
 	}
+	free(sfd->sfbi);
 	free(sfd);
 }
 
@@ -3019,6 +3034,10 @@ higfit_facetiterator *sfd_get_facetiterator_for_block(sim_facet_domain *sfd, int
 	hig_get_highpoint(c, h);
 	POINT_ADD_SCALAR(l, l, EPSDELTA);
 	POINT_SUB_SCALAR(h, h, EPSDELTA);
+	/* Documenta a exigencia; NAO protege em producao, que compila com
+	 * -DNDEBUG.  A protecao de verdade e' o vetor crescer no unico ponto que
+	 * escreve (sfd_set_sfbi), o que torna o indice fora de faixa impossivel. */
+	assert(hig >= 0 && (unsigned) hig < sfd->sfbi_cap && sfd->sfbi[hig] != NULL);
 	if (sfd->sfbi[hig][pos].l) {
 		l[dim] -= 2.0*EPSDELTA;
 	}
@@ -3312,5 +3331,14 @@ void sfd_compute_sfbi(sim_facet_domain *sfd) {
 }
 
 sim_facet_block_info *sfd_get_sfbi(sim_facet_domain *sfd, int i) {
+	assert(i >= 0);
+	/* FORA DA CAPACIDADE = NUNCA ESCRITO = NULL, e isto e' contrato, nao
+	 * conveniencia: o vetor fixo de antes era zerado na criacao e devolvia
+	 * NULL para qualquer indice.  test-facet-domain-serial verifica
+	 * exatamente isso como "o estado de partida", e a primeira versao desta
+	 * mudanca -- que punha um assert aqui -- matou o teste nos dois DIM com
+	 * SIGSEGV, porque a higtree compila com -DNDEBUG e o assert virou
+	 * desreferencia de ponteiro nulo. */
+	if ((unsigned) i >= sfd->sfbi_cap) return NULL;
 	return sfd->sfbi[i];
 }

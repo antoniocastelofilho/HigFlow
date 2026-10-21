@@ -10,32 +10,34 @@
 // interior instead of as boundary.  sd_add_higtree() maintains the split by moving
 // the first fringe tree to the end; do not write higtrees[] directly.
 //
-// THE ARRAY GROWS WITHOUT LIMIT, BUT ONE CONSUMER DOES NOT.  sim_facet_domain.sfbi[]
-// below is a FIXED array of MAXHIGTREESPERDOMAIN (40), and sfd_set_sfbi() indexes it
-// with the domain's tree index and NO BOUNDS CHECK.  A rank whose owned-plus-fringe
-// tree count passes 40 writes past the end of the struct, and nothing in the build or
-// at runtime reports it.
+// THE ARRAY GROWS WITHOUT LIMIT, AND SO DOES ITS ONE CONSUMER -- mas nem sempre foi
+// assim, e a historia importa para quem for mexer aqui.  `sim_facet_domain.sfbi`
+// era um vetor FIXO de MAXHIGTREESPERDOMAIN (40) indexado por `sfd_set_sfbi()` com
+// o indice da arvore e SEM CONFERENCIA DE LIMITE: um rank com mais de 40 arvores
+// proprias-mais-franja escrevia depois do fim da struct, e nada reportava.
 //
-// MEASURED on example3d_complex, the largest multi-block case in the tree -- highest
-// per-rank total in the facet domain, own trees plus fringe:
+// A medicao que tinha sido feita no example3d_complex, o maior caso multibloco da
+// arvore, nao alcancava o limite -- maior total por rank no dominio de facetas:
 //
-//     np=1    33 = 33 own +  0 fringe     <- worst case, seven short of the cap
+//     np=1    33 = 33 own +  0 fringe     <- pior caso, sete abaixo do teto
 //     np=2    23 = 20 own +  3 fringe
-//     np=3    18 = 13 own +  5 fringe
 //     np=4    17 = 10 own +  7 fringe
 //     np=6    16 = 10 own +  6 fringe
 //
-// THE GROWTH COMES FROM THE OWN TREES, NOT THE FRINGE: the fringe does grow with np
-// (0, 3, 5, 7, 6) but the owned count shrinks faster, so the maximum falls
-// monotonically and MORE RANKS IS SAFER, not riskier.  The direct measure (largest
-// local_tree_idx actually written into sfbi) and the indirect one (tree count) agree
-// exactly across all ranks.  Note also that the partition CUTS blocks -- at np=2 the
-// owned trees sum to 35, not 33 -- so "33 blocks" is not a ceiling on the tree count.
+// E a conclusao de entao -- "MAIS RANKS E' MAIS SEGURO" -- continua certa: a franja
+// cresce com np (0, 3, 5, 7, 6) mas a contagem propria encolhe mais depressa.
 //
-// WHAT THE MEASUREMENT DOES NOT COVER: np above 6, and any mesh ADAPTED AT RUN TIME,
-// where the tree count could grow without passing through a fresh partition.  That
-// last one is the only plausible route to 40 that is known, and it is untested.
-// Treat 40 as a real ceiling.
+// O QUE A MEDICAO NAO COBRIA ERA MALHA COM MAIS BLOCOS, e foi por ai' que o teto
+// apareceu.  `ci/tools/gera-malha-complexa.py` corta os 33 blocos em 66 ou mais
+// para levantar o teto de GRANULARIDADE da particao (a higtree reparte arvores
+// inteiras, entao o maior bloco e' um piso para o rank mais carregado: 24 000 das
+// 162 000 celulas limitam o ganho a 6,75x por mais nucleos que se de').  Com 66
+// blocos em np=1 o guarda de hig-flow-ic.c abortou -- alto, o que estava certo --
+// e sem o guarda teria havido escrita fora do vetor.
+//
+// Agora `sfbi` cresce em `sfd_set_sfbi()` como `higtrees` cresce em
+// `sd_add_higtree()`, dobrando a capacidade e zerando o espaco novo.  Nao ha' mais
+// teto, e MAXHIGTREESPERDOMAIN virou so' a capacidade INICIAL dos dois vetores.
 //
 // BUILD ORDER IS PART OF THE CONTRACT, because state is derived once and then
 // trusted: create, add every tree, add every boundary, assign the mapper, and only
@@ -128,7 +130,12 @@ higcit_celliterator *sb_get_celliterator(sim_boundary *bc);
 //! Gets the HiG-Tree associated with the BC
 hig_cell *sb_get_higtree(sim_boundary *bc);
 
+//! Capacidade INICIAL dos vetores de arvore e de sfbi.  Os dois crescem; este
+//! numero nao e' teto de nada desde que `sfbi` deixou de ser vetor fixo.
 #define MAXHIGTREESPERDOMAIN 40
+//! Este, ao contrario, E' TETO: dirichlet_bcs[] e neumann_bcs[] sao alocados com
+//! ele e so' um assert em sd_add_boundary() protege.  O example3d_complex usa 169
+//! dos 200.
 #define MAXBCSPERDOMAIN 200
 
 //! \brief A simulation domain (SD) contains a set of HiG-Trees which composes
@@ -200,7 +207,11 @@ typedef struct sim_facet_domain {
 	mp_mapper *__cm;
 	mp_mapper *fm;
 	sim_domain *cdom;
-	sim_facet_block_info *sfbi[MAXHIGTREESPERDOMAIN];
+	//! Um bloco por arvore local, indexado pelo indice da arvore.  CRESCE em
+	//! sfd_set_sfbi(); `sfbi_cap` e' o tamanho alocado, nao o numero de
+	//! arvores.  Posicoes nunca escritas valem NULL.
+	sim_facet_block_info **sfbi;
+	unsigned sfbi_cap;
 	int dimofinterest[DIM];
 	int dim;
 

@@ -30,11 +30,14 @@ void higflow_initialize_domain(higflow_solver *ns, int ntasks, int myrank, int o
     // Number of HigTrees
     int numhigs;
     int ifd = fscanf(fdomain,"%d\n",&numhigs);
-    int maxhigs = MAXHIGTREESPERDOMAIN;
-    if(numhigs > maxhigs) {
-        printf("Error: Number of HigTrees (%d) is greater than MAXHIGTREESPERDOMAIN = %d\n", numhigs, maxhigs);
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
+    // NAO HA' MAIS TETO DE ARVORES.  Havia um guarda aqui recusando numhigs >
+    // MAXHIGTREESPERDOMAIN, e ele existia porque `sim_facet_domain.sfbi` era um
+    // vetor FIXO desse tamanho escrito sem conferencia de limite.  O guarda
+    // estava certo enquanto o vetor era fixo -- abortou alto quando uma malha de
+    // 66 blocos chegou aqui, em vez de corromper memoria.  Hoje o `sfbi` cresce
+    // (ver sfd_set_sfbi em higtree/src/domain.c) e MAXHIGTREESPERDOMAIN e' so' a
+    // capacidade inicial.  Recusar aqui barraria exatamente as malhas de
+    // granularidade fina que o teste de escalonamento precisa.
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         // Name of the HigTree file
@@ -142,11 +145,14 @@ void higflow_initialize_domain_yaml(higflow_solver *ns, int ntasks, int myrank, 
     // Number of HigTrees
     int numhigs;
     int ifd = fy_document_scanf(fyd,"/domain/number_domains %d",&numhigs);
-    int maxhigs = MAXHIGTREESPERDOMAIN;
-    if(numhigs > maxhigs) {
-        printf("Error: Number of HigTrees (%d) is greater than MAXHIGTREESPERDOMAIN = %d\n", numhigs, maxhigs);
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
+    // NAO HA' MAIS TETO DE ARVORES.  Havia um guarda aqui recusando numhigs >
+    // MAXHIGTREESPERDOMAIN, e ele existia porque `sim_facet_domain.sfbi` era um
+    // vetor FIXO desse tamanho escrito sem conferencia de limite.  O guarda
+    // estava certo enquanto o vetor era fixo -- abortou alto quando uma malha de
+    // 66 blocos chegou aqui, em vez de corromper memoria.  Hoje o `sfbi` cresce
+    // (ver sfd_set_sfbi em higtree/src/domain.c) e MAXHIGTREESPERDOMAIN e' so' a
+    // capacidade inicial.  Recusar aqui barraria exatamente as malhas de
+    // granularidade fina que o teste de escalonamento precisa.
     higio_amr_info *mi[numhigs];
     for(int h = 0; h < numhigs; h++) {
         char atrib[1024], amrfilename[1024];
