@@ -56,7 +56,7 @@ não de código do solver. A discussão de prioridade está em
 
 ---
 
-## 3. A linha de base, medida em 20/10/2026
+## 3. A linha de base
 
 `example3d_complex`: 162 mil células, 33 subdomínios, monofásico newtoniano,
 CUBISTA, projeção. Estação com **8 núcleos físicos** (i9-9880H).
@@ -71,12 +71,41 @@ de nenhuma das duas.
 segunda precedida de uma corrida de aquecimento descartada. Os valores são
 **medianas**.
 
+### A linha de base que vale, com `-pc_type hypre`
+
+Três repetições, aquecimento descartado. `hypre` é o que o próprio caso
+recomenda em `mesh-channel3D-script.sh`; a primeira linha de base usou
+`bjacobi`, herdado do Makefile, e está logo abaixo com o que ela ainda ensina.
+
+| `np` | laço (10 passos) | [mín, máx] | dispersão | ganho | eficiência | arranque |
+|---|---|---|---|---|---|---|
+| 1 | 207,1 s | 206 – 209 | 1,4% | 1,00× | 100% | 313,4 s |
+| 2 | 139,9 s | 133 – 140 | 4,7% | 1,48× | 74% | 215,5 s (1,45×) |
+| 4 | 97,6 s | 93 – 99 | 6,9% | 2,12× | 53% | 141,1 s (2,22×) |
+| 8 | 67,1 s | 64 – 68 | 6,5% | **3,08×** | 39% | 93,5 s (3,35×) |
+
+**A dispersão caiu de 21–35% para 1,4–6,9%.** Com `bjacobi` eu havia concluído
+que os dois primeiros pontos eram ruidosos demais para publicar e que a causa
+era desconhecida. Continua desconhecida em detalhe, mas está **ligada àquela
+configuração**: as corridas de `hypre` são três vezes mais curtas e muito mais
+reprodutíveis. Não é propriedade da estação, como eu supus.
+
+### A primeira linha de base, com `bjacobi` — superada, e o que ela ensina
+
+Seis repetições em duas varreduras independentes de três. **Os tempos absolutos
+não valem como desempenho do caso** (§5); o que segue vale pelo método.
+
 | `np` | laço (10 passos) | [mín, máx] | dispersão | ganho | eficiência |
 |---|---|---|---|---|---|
 | 1 | 388,0 s | 357 – 440 | 21% | 1,00× | 100% |
 | 2 | 263,6 s | 225 – 318 | 35% | 1,47× | 74% |
 | 4 | 187,1 s | 184 – 221 | 20% | 2,07× | 52% |
 | 8 | 146,7 s | 144 – 150 | 4% | 2,64× | 33% |
+
+As **eficiências batem** entre as duas configurações — 100/74/53/39 com `hypre`
+contra 100/66/49/31 com `bjacobi`, a mesma forma de queda. É coerente com o teto
+de banda de memória (§5) sendo a causa comum: ele não depende do
+precondicionador.
 
 ### O que estes números dizem
 
@@ -330,7 +359,129 @@ mesma quantidade de trabalho por processo.
 
 ---
 
-## 5. O que falta saber do ambiente
+## 5. Perfilando o `np = 8`: o que prende, e não era nada do que eu procurava
+
+A seção 4 terminou com a pergunta certa — se não é granularidade, o que prende
+`np = 8` em 2,64×? Perfilado com `-log_view` do PETSc, **tirando o laço por
+subtração de dois comprimentos dentro da mesma janela de medição**.
+
+Essa última parte não é detalhe. Minha primeira leitura foi de uma corrida de
+**3 passos** e disse que o solver linear era 26% do tempo. Era o arranque — que
+é grande e escala bem — diluindo o solver. Com a subtração, `KSPSolve` é **56%
+do laço em `np = 1` e 70% em `np = 8`**. O mesmo erro que o protocolo de dois
+comprimentos existe para evitar, cometido por ler uma corrida única sem subtrair.
+
+| `np` | laço | ganho | `KSPSolve` | ganho | fora do PETSc | ganho | iterações |
+|---|---|---|---|---|---|---|---|
+| 1 | 461,6 s | 1,00× | 259,8 s | 1,00× | 201,8 s | 1,00× | 13 238 |
+| 2 | 384,8 s | 1,20× | 216,1 s | 1,20× | 168,7 s | 1,20× | +21,2% |
+| 4 | 222,9 s | 2,07× | 164,8 s | 1,58× | 58,1 s | 3,47× | +21,4% |
+| 8 | 186,8 s | 2,47× | 131,1 s | 1,98× | 55,7 s | 3,62× | +18,1% |
+
+Corrida única por ponto, e o `np = 2` mostra o custo disso: dá 1,20× aqui contra
+1,47× na linha de base de seis repetições. Nenhuma conclusão abaixo depende dele.
+
+### Descartados por medida, não por argumento
+
+- **Desequilíbrio de carga**: as razões máx/mín do PETSc entre ranks são 1,0–1,1
+  em tempo, flops e memória. Confirma por outro caminho o que a varredura de
+  granularidade disse.
+- **Comunicação**: `VecScatterBegin` é 1,7% do laço em `np = 8` (3,2 s de 186,8).
+- **O código fora do PETSc** — estêncil, contorno, CUBISTA, montagem: escala
+  **3,62×**, melhor que o conjunto. A varredura O(169) de `dirichlet_bcs` que eu
+  apontei como suspeita está dentro desses 3,62×, e não é ela que prende.
+
+### O teto da própria estação, que nenhum perfil do solver mostra
+
+Sem isto não há como dizer se 2,47× é o solver que não escala ou a máquina que
+não entrega — duas conclusões opostas, e o número do solver sozinho não as
+distingue. `conteiner/teto-da-maquina.c`, dois regimes:
+
+| `np` | tríade (banda de memória) | núcleo (ULA, cabe no cache) |
+|---|---|---|
+| 2 | 1,21× | 1,63× |
+| 4 | 1,26× | 3,63× |
+| 8 | **1,31×** | **6,82×** |
+
+Esta estação entrega **1,31×** de banda agregada com oito núcleos: satura em
+~32 GB/s, e **um núcleo sozinho já tira 24,4 GB/s**. Trabalho limitado por ULA
+escala 6,82×.
+
+Matvec esparso e substituição triangular são limitados por banda. O ganho por
+iteração do solver (2,34× em `np = 8`) fica **entre os dois tetos** — não é
+desperdício de paralelismo no código. O `MatSolve` chega a 3,06× justamente
+porque em `np = 8` a matriz local é oito vezes menor e passa a caber no cache.
+
+**Consequência para o Euler:** este controle tem de rodar nos dois tipos de nó
+**antes** de qualquer medida de solver. Um nó de 256 núcleos tem muito mais
+banda absoluta, mas a razão banda/núcleo pode ser pior que a deste notebook, e é
+ela que manda aqui.
+
+### E o achado que não é sobre paralelismo
+
+O precondicionador é o único fator do lado do código neste gargalo. Testado:
+
+| pc | `np` | laço | `KSPSolve` | iterações |
+|---|---|---|---|---|
+| `bjacobi` | 1 | 461,6 s | 259,8 s | 13 238 |
+| `bjacobi` | 8 | 186,8 s | 131,1 s | 15 634 |
+| `asm` | 8 | 195,6 s | 155,8 s | 13 766 |
+| **`hypre`** | 1 | **210,2 s** | **52,6 s** | **310** |
+| **`hypre`** | 8 | **64,0 s** | **24,1 s** | **300** |
+
+**43 vezes menos iterações.** O laço em `np = 8` cai de 186,8 s para 64,0 s, e o
+ganho de paralelismo sobe de 2,47× para **3,28×**.
+
+Verificado que é a **mesma solução**, e não convergência mais frouxa: campo por
+coordenada contra o despejo do `bjacobi`, pior diferença **4,4e-08% da escala** —
+o mesmo patamar da comparação de blocos, nível de `ksp_atol = 1e-10`.
+
+E o `hypre` **não paga o penal de iterações**: 310 em `np = 1` contra 300 em
+`np = 8`. Aquele +20% era específico do `bjacobi`, cuja qualidade cai com o
+número de blocos; multigrid algébrico não depende disso.
+
+Correção de algo que eu disse antes de ter a curva: afirmei que o penal de
+iterações "piora com `np`" e que era o maior risco para 256 núcleos. **Não
+piora** — é salto único ao sair de um bloco para muitos, e plano de 2 a 8
+(+21%, +21%, +18%). E com `hypre` não existe.
+
+### A linha de base foi medida com o precondicionador que o caso não recomenda
+
+`bjacobi` veio do alvo `run` do Makefile do exemplo. Mas há **três receitas em
+desacordo no mesmo repositório**:
+
+| onde | `pc_type` |
+|---|---|
+| `example3d_complex/Makefile:104` | `bjacobi` |
+| `ci/run_suite.py:79` | `bjacobi` |
+| `amrs/Channel_3d_script/mesh-channel3D-script.sh:387` | **`hypre`** |
+
+Peguei a que estava mais à mão. **Então a tabela da seção 3 — 388, 264, 187,
+147 s — descreve uma configuração que o próprio caso não recomenda**, e os
+tempos absolutos de lá não devem ser citados como desempenho do caso. A forma da
+curva se sustenta (o `hypre` escala melhor, não pior); os números não.
+
+### O que fica para resolver
+
+1. ~~Refazer a linha de base com `hypre`~~ — **feita** (§3): `np = 8` em 67,1 s
+   contra 146,7 s, ganho 3,08× contra 2,64×, e dispersão de 1,4–6,9% contra
+   21–35%.
+2. **Unificar as três receitas.** Duas apontam para `bjacobi` e uma para
+   `hypre`, e a que vale é a que der o caso resolvido mais rápido com a mesma
+   solução. Isso muda a suíte, então é mudança a decidir, não a aplicar de
+   passagem.
+3. **O risco em 256 muda de lugar, não desaparece.** `bjacobi` degrada com o
+   número de blocos mas não comunica globalmente; AMG é o contrário — a
+   construção da hierarquia e o nível mais grosso têm comunicação global, que é
+   o ponto fraco clássico em muitos processos. O que prende aqui não é o que vai
+   prender lá.
+4. **Com `hypre`, o alvo de otimização se inverte**: em `np = 8` o laço é 64,0 s
+   com `KSPSolve` em 24,1 s (38%), então **62% passa a ser o código fora do
+   PETSc**, que escala 3,95×. Com o solver consertado, é ali que sobra tempo.
+
+---
+
+## 6. O que falta saber do ambiente
 
 Cinco itens, e cada um muda o roteiro:
 
@@ -348,7 +499,7 @@ Cinco itens, e cada um muda o roteiro:
 
 ---
 
-## 6. Sequência proposta
+## 7. Sequência proposta
 
 1. ~~Gerar malhas maiores~~ — **feito**, e o teto não era 33 e sim 6,75×, posto
    pelo maior bloco (§4). As duas famílias saem de
@@ -363,15 +514,19 @@ Cinco itens, e cada um muda o roteiro:
    (ver `t8flow-franja-paralela`).
 5. ~~Escalonamento fraco exige a família de malhas~~ — **feita** (§4), com
    células por processo exatamente constante.
-6. **PERFILAR O `np = 8` ANTES DE MIGRAR.** Saiu da medida de granularidade e
-   passou à frente de tudo: 2,64× contra um teto de 6,75× que não é o que
-   prende. Se o limitador for a varredura O(169) de `dirichlet_bcs` por ponto de
-   estêncil, ele piora com `np`, e levar isso para 256 núcleos é gastar fila de
-   cluster para medir um gargalo que esta estação mostra de graça.
+6. ~~Perfilar o `np = 8`~~ — **feito** (§5). Não era `dirichlet_bcs`, nem
+   desequilíbrio, nem comunicação: é banda de memória sobre álgebra esparsa,
+   mais um precondicionador que o caso não recomenda. `hypre` corta o laço de
+   `np = 8` a um terço.
+7. **Rodar `conteiner/teto-da-maquina.c` nos dois tipos de nó do Euler antes de
+   qualquer medida de solver.** Sem a razão banda/núcleo do nó, nenhum número de
+   escalonamento lá se interpreta — foi esse controle que mostrou que 2,47× nesta
+   estação é majoritariamente a máquina.
+8. **Decidir qual das três receitas de `pc_type` vale** (§5). Muda a suíte.
 
 ---
 
-## 7. Ressalva de método
+## 8. Ressalva de método
 
 Comparar VTK entre `np` diferentes **não é teste válido** em domínio
 multibloco: o desempate do WLS depende da ordem de visita das árvores, que muda
@@ -380,7 +535,7 @@ com a coordenada como chave — isso deu 1,0e−10 contra 0,56% do VTK.
 
 ---
 
-## 8. O que está preparado, e o que falta confirmar
+## 9. O que está preparado, e o que falta confirmar
 
 **O contêiner já existe** (`conteiner/`): Apptainer com Ubuntu 26.04, OpenMPI 5,
 PETSc 3.25.4, HYPRE, t8code 4.0.0 e HiGTree/HiGFlow, com `preparar-fonte.sh`
