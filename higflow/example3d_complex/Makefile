@@ -101,7 +101,12 @@ run:
 		$(LOAD_PATH) \
 		output/complex.save \
 		VTKS/complex.print \
-		-ksp_type bcgs -pc_type bjacobi -ksp_atol 1e-10 -ksp_rtol 1e-10;
+		-ksp_type bcgs -pc_type hypre -ksp_atol 1e-10 -ksp_rtol 1e-10;
+# hypre, e nao bjacobi: 310 iteracoes contra 13 238, laco de np=8 em 64,0 s
+# contra 186,8 s, mesma solucao verificada por campo.  Este alvo dizia bjacobi
+# enquanto amrs/Channel_3d_script/mesh-channel3D-script.sh dizia hypre, e a
+# linha de base de escalonamento foi medida com a receita errada por causa
+# disso.  Ver doc/projeto-escalonamento-euler.md secao 5.
 compilerflags:
 	@echo COMPILER_FLAGS=$(CFLAGS)
 

@@ -466,10 +466,20 @@ curva se sustenta (o `hypre` escala melhor, não pior); os números não.
 1. ~~Refazer a linha de base com `hypre`~~ — **feita** (§3): `np = 8` em 67,1 s
    contra 146,7 s, ganho 3,08× contra 2,64×, e dispersão de 1,4–6,9% contra
    21–35%.
-2. **Unificar as três receitas.** Duas apontam para `bjacobi` e uma para
-   `hypre`, e a que vale é a que der o caso resolvido mais rápido com a mesma
-   solução. Isso muda a suíte, então é mudança a decidir, não a aplicar de
-   passagem.
+2. ~~Unificar as três receitas~~ — **feito em 21/10/2026**, para `hypre`, por
+   decisão do dono do código. `KSP_OPTS` é global, então a mudança alcança os
+   doze casos da suíte e não só o que foi medido.
+
+   **As referências não foram regravadas.** A suíte rodou com `hypre` contra as
+   referências gravadas com `bjacobi`, e passou **36/36** — o que passou, passou
+   por concordar com um oráculo que não mudou junto. `--generate` aqui teria
+   trocado o oráculo junto com o que ele mede.
+
+   O que o verde cobre: as referências comparam mín/máx/média de velocidade e
+   pressão lidos do VTK, com tolerância de 0,1%. Então "36/36" quer dizer que
+   nenhum caso se moveu mais que 0,1% nessas métricas globais. É mais fraco que
+   a verificação por campo feita no caso complexo (4,4e-08% da escala, ponto a
+   ponto); para os outros onze casos não há verificação nesse nível.
 3. **O risco em 256 muda de lugar, não desaparece.** `bjacobi` degrada com o
    número de blocos mas não comunica globalmente; AMG é o contrário — a
    construção da hierarquia e o nível mais grosso têm comunicação global, que é

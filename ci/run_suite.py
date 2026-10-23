@@ -76,7 +76,38 @@ REFDIR = os.path.join(HERE, "reference")
 # tornaria impossIvel separar o que mudou por refatoracao do que mudou por
 # solver.  Fica registrado para ser decidido por si.
 #
-KSP_OPTS = ["-ksp_type", "bcgs", "-pc_type", "bjacobi",
+# ----------------------------------------------------------------------------
+# O PRECONDICIONADOR FOI UNIFICADO EM hypre em 21/10/2026, por decisao do dono
+# do codigo.  Antes havia TRES receitas em desacordo no mesmo repositorio:
+#
+#     example3d_complex/Makefile (alvo `run`)          bjacobi
+#     este arquivo                                     bjacobi
+#     amrs/Channel_3d_script/mesh-channel3D-script.sh  hypre
+#
+# e qualquer medida feita sem checar qual estava em uso descrevia outra coisa.
+# A linha de base de escalonamento inteira foi medida com bjacobi por isso.
+#
+# O QUE A MEDIDA MOSTROU, no example3d_complex (ver doc/projeto-escalonamento-
+# euler.md secoes 3 e 5):
+#
+#     bjacobi  np=1  13 238 iteracoes   laco 461,6 s
+#     hypre    np=1     310 iteracoes   laco 210,2 s
+#     hypre    np=8     300 iteracoes   laco  64,0 s   (bjacobi: 186,8 s)
+#
+# 43 vezes menos iteracoes, e MESMA SOLUCAO -- verificado por campo com a
+# coordenada como chave (HIGFLOW_DESPEJA + ci/tools/compara-despejo.py), pior
+# diferenca 4,4e-08% da escala, que e' o nivel da propria tolerancia do solve.
+# Nao e' convergencia mais frouxa.
+#
+# E bjacobi perde qualidade com o numero de blocos (+21% de iteracoes de np=1
+# para np=2, depois plano), enquanto hypre nao depende disso (310 contra 300).
+#
+# ISTO E' MUDANCA DE BASE DE COMPARACAO, do tipo que o paragrafo acima descreve.
+# As referencias NAO foram regravadas: a suite foi rodada com hypre contra as
+# referencias existentes, e o que passou passou por concordar de verdade.  Se
+# uma referencia precisar ser regravada algum dia, o motivo tem de ser medido e
+# escrito aqui, nunca `--generate` por conveniencia.
+KSP_OPTS = ["-ksp_type", "bcgs", "-pc_type", "hypre",
             "-ksp_atol", "1e-12", "-ksp_rtol", "1e-12"]
 
 
