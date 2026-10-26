@@ -149,8 +149,8 @@ pacote em toda corrida**, para não trocar uma afirmação por outra. O resultad
 - **o aquecimento consertou uma coisa**: o `np = 4` tinha uma corrida longa
   anômala de 304 s contra 352 na varredura 3; na 4 ficou 355/352/347.
 
-Então a causa do resto **continua desconhecida**, e dizer isso é o estado
-honesto. O que dá confiança no resultado não é a explicação, é a
+**A causa foi encontrada depois, e está na seção 3.1.** É limite de potência da
+plataforma, confirmado por frequência medida. O que dá confiança no resultado não é a explicação, é a
 **reprodutibilidade entre varreduras independentes**: as medianas de `np = 4` e
 `np = 8` concordam dentro de 1% entre a varredura 3 e a 4, e as de `np = 1` e
 `np = 2` dentro de 5% e 3%. A forma da curva é estável mesmo com os pontos
@@ -169,9 +169,78 @@ cresce com a duração da corrida não é arranque; é algo que se acumula.
 - **Nada sobre escalonamento fraco** — todos os pontos são da mesma malha.
 - **Nada sobre vários nós.** Tudo aqui é memória compartilhada; a rede do
   cluster não foi exercitada.
+- **Nenhum tempo absoluto desta estação é desempenho do caso**: ela roda a ~53%
+  do clock base por limite de potência da plataforma (§3.1). As razões entre
+  configurações valem; os segundos, não.
 - **A dispersão de 20–35% nos dois primeiros pontos é alta demais para
   publicar.** Num nó dedicado de cluster deve cair; se não cair, o número de
   repetições tem de subir, e o protocolo já aceita isso por parâmetro.
+
+---
+
+## 3.1 A estação está presa abaixo do clock base, e isso explica quatro varreduras
+
+O padrão "a primeira corrida sai rápida" apareceu em **quatro varreduras** e eu
+o registrei duas vezes como inexplicado, depois de uma hipótese térmica que
+falhou duas vezes. Tem causa, e ela é medida.
+
+Carga de trabalho **fixo** limitada por ULA, `np = 8`, 14 repetições, depois de
+180 s de repouso, com a frequência amostrada **durante** cada carga (média sobre
+as CPUs lógicas) — `conteiner/orcamento-de-turbo.sh` e `conteiner/carga-fixa.c`:
+
+| n | tempo | freq média | T ini | T fim |
+|---|---|---|---|---|
+| 1 | **13,46 s** | **3545 MHz** | 56 °C | 83 °C |
+| 2 | 21,94 s | 2659 MHz | 82 °C | 87 °C |
+| 3 | 43,35 s | **1270 MHz** | 87 °C | **70 °C** |
+| 4–14 | 41–45 s | ~1100–1240 MHz | 68 °C | 68 °C |
+
+A frequência cai por fator **2,9** e o tempo sobe por fator **3,1**. Batem: é a
+frequência que explica o tempo, medida e não inferida.
+
+**E a assinatura separa as duas hipóteses.** O colapso acontece na corrida 3 com
+a temperatura **caindo de 87 para 70 °C**, e o regime estável fica em 68 °C. Sob
+estrangulamento térmico a temperatura ficaria **presa** no limite enquanto o
+clock cai; aqui ela desaba junto com o desempenho, que é o que acontece quando o
+limite de potência entra — clock menor, potência menor, chip mais frio.
+
+Era por isso que a hipótese térmica falhava: eu previa quente ⇒ lento, e o sinal
+é o oposto. E era por isso que o aquecimento descartado ajudava pouco — 75 s com
+`hypre`, 131 s com `bjacobi`, enquanto o colapso só se completa perto de 75 s de
+carga acumulada. O aquecimento estava na fronteira.
+
+**O regime sustentado é 1,23 GHz, pouco mais da metade do clock base (2,3 GHz),
+a 68 °C.** Não é térmico nem orçamento de turbo normal. A causa aparece no
+estado da plataforma: a máquina está na tomada (`AC online = 1`) mas a bateria
+marca **`Discharging` a 80%** — a carga satura em 80% e o `status` mente nesta
+máquina. Com a bateria não aceitando carga, a potência do pacote é limitada e o
+processador fica abaixo do clock base.
+
+### O que isso faz com tudo o que está medido aqui
+
+**Não invalida as comparações.** Todas as configurações sofreram o mesmo limite,
+e o que se reporta são razões entre configurações no mesmo estado: `hypre` contra
+`bjacobi`, 33 contra 264 blocos, `np = 1` contra `np = 8`. O protocolo de três
+repetições com a primeira rodada sob suspeita absorve o resto.
+
+**Mas invalida qualquer leitura absoluta.** Nenhum tempo desta estação é
+desempenho do caso — são tempos a ~53% do clock base.
+
+**E reforça a conclusão do perfilamento** (§5): o que prende o `np = 8` é a
+máquina. Com o processador preso abaixo do clock base e a banda de memória
+saturando em 1,31×, o nó do Euler é outro mundo, e as medidas de lá não se
+comparam com as daqui — só as razões.
+
+### Três consequências práticas
+
+1. **Rodar `conteiner/orcamento-de-turbo.sh` nos nós do Euler** junto com
+   `teto-da-maquina.c`. Nó de cluster não costuma ter esse problema, mas "não
+   costuma" não é medida, e o roteiro já existe.
+2. **Descartar a primeira rodada**, não só a corrida de aquecimento. O
+   aquecimento de 75–131 s não basta: o colapso se completa na terceira carga.
+3. **Registrar frequência junto com temperatura** nas varreduras. A temperatura
+   sozinha aponta para a hipótese errada — foi o que fez eu perseguir efeito
+   térmico duas vezes.
 
 ---
 
@@ -333,6 +402,42 @@ Repete-se também o padrão de a **primeira medida sair rápida** (141,5 s contr
 153,1 e 157,9), agora com aquecimento descartado antes. É a terceira varredura
 em que aparece, continua sem explicação, e é mais uma razão para nunca publicar
 ponto único.
+
+### Refeita com `hypre`, e os dois `np` discordam
+
+A medida acima foi com `bjacobi`. Refeita com `hypre`, que deixa o laço três
+vezes mais curto e a dispersão muito menor — e onde a granularidade tem **mais**
+chance de aparecer, porque 62% do laço em `np = 8` passa a ser código fora do
+PETSc, que é justamente a parte onde o número de blocos pesa.
+
+| blocos | `np = 8` | vs 33 | `np = 1` | vs 33 |
+|---|---|---|---|---|
+| 33 | 69,5 s | — | 219,2 s | — |
+| 66 | 68,5 s | −1,5% | — | — |
+| 264 | 70,0 s | +0,8% | 383,4 s | **+74,9%** |
+
+Três repetições cada; no `np = 1` a dispersão foi 1,4% nos 264 blocos.
+
+**Em `np = 8` o corte não custa nada; em `np = 1` custa 75%.** E o arranque quase
+não muda (+2,9%), então é o laço que paga — trabalho por passo.
+
+Isso resolve, e **para pior**, um número que ficou pendurado: eu havia citado
+"+32%" de corrida única em `np = 1` e marcado como não confirmado. Com repetição
+é mais que o dobro.
+
+A explicação plausível é árvores por rank — 264 blocos em 8 ranks dão ~33 por
+rank, que é o que 33 blocos dão em `np = 1`. Mas **o mecanismo não está
+estabelecido**: um modelo de custo proporcional a árvores por rank preveria
+crescimento em `np = 8` também, e não houve. O que está medido é o fato.
+
+**A consequência é séria para o artigo.** A malha do escalonamento forte
+(`forte-m32`, 1056 blocos) é fina o bastante para 256 ranks, e agora está medido
+que isso **infla o tempo de referência em `np = 1`** — até 75%. Uma curva de
+ganho contra a própria malha ficaria inflada na mesma proporção. Era a ressalva
+escrita no gerador; deixou de ser cautela e virou número.
+
+A saída é publicar **as duas**: ganho contra a própria malha, que é a definição
+padrão, e eficiência contra o **melhor tempo serial**, que é o da malha grossa.
 
 ### As famílias geradas
 
@@ -528,10 +633,12 @@ Cinco itens, e cada um muda o roteiro:
    desequilíbrio, nem comunicação: é banda de memória sobre álgebra esparsa,
    mais um precondicionador que o caso não recomenda. `hypre` corta o laço de
    `np = 8` a um terço.
-7. **Rodar `conteiner/teto-da-maquina.c` nos dois tipos de nó do Euler antes de
-   qualquer medida de solver.** Sem a razão banda/núcleo do nó, nenhum número de
-   escalonamento lá se interpreta — foi esse controle que mostrou que 2,47× nesta
-   estação é majoritariamente a máquina.
+7. **Rodar `conteiner/teto-da-maquina.c` E `conteiner/orcamento-de-turbo.sh`
+   nos dois tipos de nó do Euler antes de qualquer medida de solver.** Sem a
+   razão banda/núcleo e sem saber se o nó sustenta o clock, nenhum número de
+   escalonamento lá se interpreta — foram esses dois controles que mostraram que
+   o limite nesta estação é a máquina, e que ela roda a ~53% do clock base
+   (§3.1).
 8. **Decidir qual das três receitas de `pc_type` vale** (§5). Muda a suíte.
 
 ---
